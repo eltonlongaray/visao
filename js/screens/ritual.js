@@ -1,0 +1,878 @@
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 1: IMPORTS
+// ═══════════════════════════════════════════════════════════════
+import {
+  getShifts, getCategories, getActivities,
+  getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, dayId,
+  getProfile, parseTime,
+  getWeekdayTemplate, setWeekdayTemplate,
+  saveCategory
+} from '../store.js';
+import { bottomNav } from '../components/bottom-nav.js';
+import { showToast, showLocalToast, confirmModal } from '../toast.js';
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 2: CONSTANTES (labels de data + frases motivacionais)
+// ═══════════════════════════════════════════════════════════════
+const WEEKDAYS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MONTHS_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// Mensagens aleatórias quando tarefa é marcada feita (clássico + gym bro)
+const DONE_MESSAGES = [
+  'BORAAA! 🚀',
+  'Mandou bem! 💪',
+  'Mitou! 🔥',
+  'Olha o foco! 🎯',
+  'FERAAA! 🏆',
+  'Tá voando! ✈️',
+  'Tô orgulhoso, monstro 😎',
+  'Animal! 🦁',
+  'Foco, força e fé! ⚡',
+  'Disciplina é tudo 🧘',
+  'Tá rachando! 💥',
+  'TÁ MARCANDO! 📌',
+  // +15 novas
+  'Mais um na conta! 📈',
+  'Sequência boa! 🌊',
+  'Imparável! 🏃',
+  'Não é sorte, é treino! 🧠',
+  'BICHO! 🐺',
+  'Tá trincado! 💎',
+  'Outro level! 🆙',
+  'Crescendo a cada dia 🌱',
+  'Mostrando serviço! 🛠️',
+  'Você é foda! 💯',
+  'Boa, atleta! 🏅',
+  'Olha o craque! ⭐',
+  'Vai derrubar a meta! 🏁',
+  'Constância é a chave 🔑',
+  'Sem desculpa, hein! 🚫'
+];
+function randomDoneMessage() {
+  return DONE_MESSAGES[Math.floor(Math.random() * DONE_MESSAGES.length)];
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 3: ESTADO DO MÓDULO
+// ═══════════════════════════════════════════════════════════════
+let shifts = [], categories = [], activities = [], profile = {};
+let weekStart = getWeekStart(new Date());  // Domingo da semana exibida
+let weekData = [];                          // [{ date, id, meta, tasks }, ...7]
+const expanded = new Set();                 // ids dos dias abertos
+const saveTimers = {};                      // debounce de save por dayId+field
+let handlersAttached = false;               // FIX: evita listeners duplicados ao re-renderizar
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: HELPERS DE DATA
+// ═══════════════════════════════════════════════════════════════
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  // Semana começa na SEGUNDA. Domingo (getDay=0) recua 6 dias; Seg=0; Ter=1; ...
+  const dow = d.getDay();
+  const offset = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - offset);
+  return d;
+}
+
+function isSameWeek(a, b) {
+  return getWeekStart(a).getTime() === getWeekStart(b).getTime();
+}
+
+function weekOfMonth(date) {
+  // Considera semana iniciando na Segunda (ISO-style)
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstDow = firstDay.getDay();
+  const firstOffset = firstDow === 0 ? 6 : firstDow - 1; // dom=6, seg=0, ...
+  return Math.ceil((date.getDate() + firstOffset) / 7);
+}
+
+function pctClass(p) { return p >= 80 ? 'high' : p >= 60 ? 'mid' : 'low'; }
+
+function hydrationMsg(ml, goal) {
+  if (!ml) return 'comece com 1 copo (250ml)';
+  if (!goal || goal <= 0) goal = 2000;
+  const pct = (ml / goal) * 100;
+  if (pct >= 200) return `${Math.round(pct)}% — exagerou um pouco hein 😅`;
+  if (pct >= 120) return `${Math.round(pct)}% — passou da meta, ótimo!`;
+  if (pct >= 100) return `meta batida! 💪`;
+  if (pct >= 75) return `${Math.round(pct)}% — quase lá`;
+  if (pct >= 50) return `${Math.round(pct)}% — bom ritmo`;
+  return `${Math.round(pct)}% — ainda tem que beber bastante`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: LABELS DA SEMANA / MÊS
+// ═══════════════════════════════════════════════════════════════
+function computeMonthLabel() {
+  // Mostra só o ano — o mês já aparece no range de datas abaixo (ex: "31 Mai → 06 Jun")
+  const rep = weekData[3].date; // quinta-feira (meio da semana Seg→Dom)
+  return String(rep.getFullYear());
+}
+
+function weekRangeLabel() {
+  const rep = weekData[3].date; // quinta-feira (meio da semana Seg→Dom)
+  const w = weekOfMonth(rep);
+  const s = weekData[0].date, e = weekData[6].date;
+  return `${w}ª semana · ${String(s.getDate()).padStart(2,'0')} ${MONTHS[s.getMonth()]} → ${String(e.getDate()).padStart(2,'0')} ${MONTHS[e.getMonth()]}`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: DATA LOADING (Firestore)
+// ═══════════════════════════════════════════════════════════════
+async function loadWeek() {
+  const promises = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const id = dayId(d);
+    promises.push((async () => {
+      const [meta, tasks] = await Promise.all([getDay(id), getDayTasks(id)]);
+      // FIX: sempre aplica defaults — se Firestore tem meta parcial (ex: só wake/sleep
+      // gravado antes da feature de hidratação), os campos faltantes voltam ao padrão.
+      const fullMeta = {
+        wakeTime: '', sleepTime: '',
+        hydrationMl: 0, hydrationGoal: 2000,
+        notes: '',
+        ...(meta || {})
+      };
+      // Se hydrationGoal ainda for 0/undefined/NaN, força 2000
+      if (!fullMeta.hydrationGoal || fullMeta.hydrationGoal <= 0) {
+        fullMeta.hydrationGoal = 2000;
+      }
+      return { date: d, id, meta: fullMeta, tasks };
+    })());
+  }
+  weekData = await Promise.all(promises);
+  // Após carregar, auto-gera tarefas dos dias virgens
+  await autoGenerateMissingTasks();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6.5: AUTO-GERAÇÃO DE TAREFAS
+//
+// Estratégia em 2 camadas:
+//   1. Se HÁ template salvo pra esse dia-da-semana (Mon/Tue/...): usa ele
+//      (replica o padrão que o usuário criou em ocorrências anteriores)
+//   2. Senão: gera das atividades-categoria cuja daysOfWeek inclui esse dow
+//      (auto-gen baseado em recorrência declarada na Home)
+//
+// + Tarefas auto-geradas já processadas ficam em `autoGeneratedFor`
+//   pra não duplicar quando o usuário adicionar nova atividade.
+// ═══════════════════════════════════════════════════════════════
+async function autoGenerateMissingTasks() {
+  const todayId = dayId(new Date());
+  for (const day of weekData) {
+    const dow = day.date.getDay();
+    const template = profile?.weekdayTemplates?.[String(dow)];
+
+    // ────── 1) Dia virgem (sem tarefas + nunca gerado) ──────
+    if (day.tasks.length === 0 && !day.meta.generated) {
+      if (Array.isArray(template) && template.length > 0) {
+        await addTemplateTasksToDay(day, template, 0);
+      } else {
+        // Fallback: gera das atividades com esse dow
+        const eligible = categories.filter(a =>
+          Array.isArray(a.daysOfWeek) && a.daysOfWeek.includes(dow)
+        );
+        let order = 0;
+        for (const a of eligible) {
+          const newTask = {
+            activityId: null, title: a.name, desc: '', startTime: '',
+            shiftId: shifts[0]?.id || null, categoryId: a.id,
+            done: false, order: order++, autoGenerated: true
+          };
+          const tid = await addDayTask(day.id, newTask);
+          day.tasks.push({ id: tid, ...newTask });
+        }
+      }
+      await setDayMeta(day.id, { generated: true });
+      day.meta.generated = true;
+      continue;
+    }
+
+    // ────── 2) Dia já gerado: sincroniza FALTANTES do template ──────
+    // (só pra HOJE em diante — não bagunça o passado)
+    if (day.meta.generated && Array.isArray(template) && template.length > 0 && day.id >= todayId) {
+      const existing = new Set(day.tasks.map(t => keyOf(t)));
+      const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)));
+      if (missing.length > 0) {
+        await addTemplateTasksToDay(day, missing, day.tasks.length);
+      }
+    }
+  }
+}
+
+// Helper: insere tarefas do template a partir de uma posição (order)
+async function addTemplateTasksToDay(day, templateTasks, startOrder) {
+  let order = startOrder;
+  for (const tmpl of templateTasks) {
+    const newTask = {
+      activityId: tmpl.activityId || null,
+      title: tmpl.title || 'Sem título',
+      desc: tmpl.desc || '',
+      startTime: tmpl.startTime || '',
+      shiftId: tmpl.shiftId || shifts[0]?.id || null,
+      categoryId: tmpl.categoryId || null,
+      done: false,
+      order: order++
+    };
+    const tid = await addDayTask(day.id, newTask);
+    day.tasks.push({ id: tid, ...newTask });
+  }
+}
+
+// Chave de identidade da tarefa: categoria + título + turno + horário
+// Usada pra evitar duplicar quando sincroniza template em dias já gerados
+function keyOf(t) {
+  return `${t.categoryId || ''}|${t.title || ''}|${t.shiftId || ''}|${t.startTime || ''}`;
+}
+
+// Sincroniza o template do dia-da-semana com o estado ATUAL do dia.
+// Chamado depois de cada modificação (add/edit/delete/dup/reorder).
+async function syncTemplateForDay(dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  const dow = day.date.getDay();
+  const templates = day.tasks
+    .slice()
+    .sort(taskSort)
+    .map(t => ({
+      activityId: t.activityId || null,
+      title: t.title,
+      desc: t.desc || '',
+      startTime: t.startTime || '',
+      shiftId: t.shiftId || null,
+      categoryId: t.categoryId || null
+    }));
+  try {
+    await setWeekdayTemplate(dow, templates);
+    if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
+    profile.weekdayTemplates[String(dow)] = templates;
+  } catch (err) {
+    console.error('[Visão] Erro ao salvar template:', err);
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 7: ENTRY POINT — render principal da tela Ritual
+// ═══════════════════════════════════════════════════════════════
+export async function renderRitual(app) {
+  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">Carregando ritual...</div>`;
+  // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
+  weekStart = getWeekStart(new Date());
+  try {
+    [shifts, categories, activities, profile] = await Promise.all([
+      getShifts(), getCategories(), getActivities(), getProfile()
+    ]);
+    profile = profile || {};
+  } catch (err) {
+    app.innerHTML = `<div style="padding:40px;text-align:center"><p style="color:var(--red)">${err.message}</p></div>`;
+    return;
+  }
+  if (expanded.size === 0) expanded.add(dayId(new Date()));
+  await loadWeek();
+  renderUI(app);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8: RENDER DA UI (HTML estático)
+// ═══════════════════════════════════════════════════════════════
+function renderUI(app) {
+  const onCurrentWeek = isSameWeek(weekStart, new Date());
+  app.innerHTML = `
+    <div class="screen-pad ritual-screen">
+      <div class="ritual-month-label">
+        ${computeMonthLabel()}
+        ${!onCurrentWeek ? '<button class="back-to-today" id="back-today">↺ Voltar pra hoje</button>' : ''}
+      </div>
+
+      <div class="week-pager">
+        <button class="swipe-arrow" data-nav="prev-week">‹</button>
+        <div class="day-info-center">
+          <div class="dt">${weekRangeLabel()}</div>
+          <div class="meta">arraste pra trocar de semana</div>
+        </div>
+        <button class="swipe-arrow" data-nav="next-week">›</button>
+      </div>
+
+      <div class="days-list">
+        ${weekData.map(d => dayCard(d)).join('')}
+      </div>
+    </div>
+    ${bottomNav('ritual')}
+  `;
+  attachHandlers(app);
+  initTaskSortables();  // habilita drag-drop em cada task-list
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.5: DRAG-DROP DE TAREFAS (SortableJS)
+// Reordena dentro do mesmo turno; persiste a nova ordem no Firestore
+// ═══════════════════════════════════════════════════════════════
+function initTaskSortables() {
+  if (typeof Sortable === 'undefined') return; // CDN ainda não carregou
+  document.querySelectorAll('.task-list').forEach(list => {
+    new Sortable(list, {
+      animation: 180,
+      handle: '.task-drag',
+      ghostClass: 'task-ghost',
+      onEnd: async (evt) => {
+        const taskEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
+        const dayDocId = taskEls[0]?.dataset.day;
+        if (!dayDocId) return;
+        const day = weekData.find(d => d.id === dayDocId);
+        if (!day) return;
+        // Atualiza order de cada tarefa daquele turno
+        const updates = [];
+        taskEls.forEach((el, idx) => {
+          const tid = el.dataset.taskId;
+          const t = day.tasks.find(x => x.id === tid);
+          if (t && t.order !== idx) {
+            t.order = idx;
+            updates.push(updateDayTask(dayDocId, tid, { order: idx }));
+          }
+        });
+        await Promise.all(updates);
+        // Reordenou — atualiza template do dia-da-semana
+        syncTemplateForDay(dayDocId);
+      }
+    });
+  });
+}
+
+function dayCard(d) {
+  const isExpanded = expanded.has(d.id);
+  const isToday = d.id === dayId(new Date());
+  const total = d.tasks.length;
+  const done = d.tasks.filter(t => t.done).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `
+    <div class="day-card ${isExpanded ? 'open' : ''} ${isToday ? 'today' : ''}" data-day-id="${d.id}" data-dow="${d.date.getDay()}">
+      <button class="day-card-header" data-toggle-day="${d.id}">
+        <div class="day-card-name">
+          <span class="dow">${WEEKDAYS_FULL[d.date.getDay()]}</span>
+          <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${MONTHS[d.date.getMonth()]}</span>
+          ${isToday ? '<span class="today-badge">HOJE</span>' : ''}
+        </div>
+        <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
+        <span class="day-card-chevron">▾</span>
+      </button>
+      <div class="day-card-content">${renderDayContent(d)}</div>
+    </div>
+  `;
+}
+
+function statsHtml(total, done, pct) {
+  if (!total) return '<small class="day-empty-tag">vazio</small>';
+  return `<span class="pct ${pctClass(pct)}">${pct}%</span><small>${done}/${total}</small>`;
+}
+
+function renderDayContent(d) {
+  const hydPct = Math.min(100, Math.round((d.meta.hydrationMl / d.meta.hydrationGoal) * 100 || 0));
+  const wakePh = profile.defaultWakeTime ? toHHMM(profile.defaultWakeTime) : '';
+  const sleepPh = profile.defaultSleepTime ? toHHMM(profile.defaultSleepTime) : '';
+  return `
+    <div class="time-pills">
+      <label class="time-pill">
+        <span class="time-pill-label">🌅 Acordei</span>
+        <input class="time-pill-input" data-meta="wakeTime" data-day="${d.id}" type="time" value="${toHHMM(d.meta.wakeTime)}" data-placeholder="${wakePh}">
+      </label>
+      <label class="time-pill">
+        <span class="time-pill-label">🌙 Dormi</span>
+        <input class="time-pill-input" data-meta="sleepTime" data-day="${d.id}" type="time" value="${toHHMM(d.meta.sleepTime)}" data-placeholder="${sleepPh}">
+      </label>
+    </div>
+
+    ${renderShiftsForDay(d)}
+
+    <div class="hydration">
+      <div class="hydration-top">
+        <div class="hydration-label">💧 Hidratação</div>
+        <div class="hydration-goal-label">meta: ${d.meta.hydrationGoal} ml</div>
+      </div>
+      <div class="hydration-stepper">
+        <button class="hyd-btn" data-hyd-step="-250" data-day="${d.id}" title="−250ml">−</button>
+        <div class="hyd-value">
+          <span class="hyd-ml" data-day="${d.id}">${d.meta.hydrationMl || 0}</span><small>ml</small>
+        </div>
+        <button class="hyd-btn" data-hyd-step="250" data-day="${d.id}" title="+250ml">+</button>
+      </div>
+      <div class="hydration-bar"><div class="hydration-fill" data-day="${d.id}" style="width:${hydPct}%"></div></div>
+      <div class="hydration-msg" data-day="${d.id}">${hydrationMsg(d.meta.hydrationMl, d.meta.hydrationGoal)}</div>
+    </div>
+
+    <div class="notes">
+      <div class="notes-label">📝 Anotações do dia</div>
+      <textarea class="notes-area" data-meta="notes" data-day="${d.id}" placeholder="Como foi o dia? O que funcionou, o que ficou pendente, sensações...">${escape(d.meta.notes || '')}</textarea>
+    </div>
+  `;
+}
+
+function renderShiftsForDay(d) {
+  const byShift = {};
+  for (const s of shifts) byShift[s.id] = [];
+  byShift['_none'] = [];
+  for (const t of d.tasks) (byShift[t.shiftId] || byShift['_none']).push(t);
+
+  if (shifts.length === 0) {
+    return `<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px">
+      Sem turnos. Vai pra <a href="#/home" style="color:var(--accent)">Home</a> configurar.
+    </div>`;
+  }
+
+  return shifts.map(s => `
+    <div class="shift" data-shift-id="${s.id}" data-day-shift="${d.id}">
+      <div class="shift-header">
+        <div class="shift-icon" style="background:${s.gradient || 'linear-gradient(135deg,#a78bfa,#60a5fa)'}">${s.icon || '🕐'}</div>
+        <div class="shift-title">${escape(s.name)}</div>
+        <div class="shift-count">${byShift[s.id].length} tarefas</div>
+        <button class="shift-add" data-add-to="${s.id}" data-day="${d.id}" title="Adicionar atividade">+</button>
+      </div>
+      <div class="task-list">
+        ${byShift[s.id].sort(taskSort).map(t => taskCard(t, d.id)).join('') || '<div class="empty-shift">vazio — toque em + pra adicionar</div>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function taskSort(a, b) {
+  const ta = parseTime(a.startTime);
+  const tb = parseTime(b.startTime);
+  if (ta !== null && tb !== null) return ta - tb;
+  if (ta !== null) return -1;
+  if (tb !== null) return 1;
+  return (a.order || 0) - (b.order || 0);
+}
+
+function taskCard(t, dayDocId) {
+  const cat = categories.find(c => c.id === t.categoryId);
+  return `
+    <div class="task ${t.done ? 'done' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
+      <span class="task-drag" title="Arraste pra reordenar">⋮⋮</span>
+      <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>
+      <div class="task-body">
+        <div class="task-title">
+          ${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${t.reminderEnabled ? '<span class="task-reminder-indicator" title="Lembrete ativado">🔔</span>' : ''}
+        </div>
+        ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
+        ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
+      </div>
+      <div class="task-actions">
+        <button class="edit" data-action="edit" title="Editar texto">✏️</button>
+        <button class="del" data-action="del" title="Remover deste dia">✕</button>
+        <button data-action="dup" title="Duplicar no dia">📑</button>
+      </div>
+    </div>
+  `;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 9: HANDLERS DE EVENTOS (clicks, inputs, swipe)
+// FIX: anexa só 1 vez por sessão (evita duplicação ao re-renderizar)
+// ═══════════════════════════════════════════════════════════════
+function attachHandlers(app) {
+  if (handlersAttached) return;
+  handlersAttached = true;
+  app.addEventListener('click', async (e) => {
+    // Voltar pra hoje
+    if (e.target.closest('#back-today')) {
+      weekStart = getWeekStart(new Date());
+      expanded.clear(); expanded.add(dayId(new Date()));
+      await loadWeek();
+      renderUI(app);
+      return;
+    }
+
+    // Toggle expand/collapse de dia
+    const toggle = e.target.closest('[data-toggle-day]');
+    if (toggle) {
+      const id = toggle.dataset.toggleDay;
+      const card = toggle.closest('.day-card');
+      if (expanded.has(id)) { expanded.delete(id); card.classList.remove('open'); }
+      else { expanded.add(id); card.classList.add('open'); }
+      return;
+    }
+
+    // Navegação por semana (±7 dias)
+    const nav = e.target.closest('[data-nav]');
+    if (nav) {
+      const dir = nav.dataset.nav;
+      const newStart = new Date(weekStart);
+      newStart.setDate(weekStart.getDate() + (dir === 'next-week' ? 7 : -7));
+      weekStart = newStart;
+      await loadWeek();
+      renderUI(app);
+      return;
+    }
+
+    // Adicionar tarefa da biblioteca
+    const addBtn = e.target.closest('[data-add-to]');
+    if (addBtn) {
+      openActivityPicker(app, addBtn.dataset.day, addBtn.dataset.addTo);
+      return;
+    }
+
+    // Marcar tarefa feita (👍 ↔ 👎)
+    const check = e.target.closest('[data-action="check"]');
+    if (check) {
+      const taskEl = check.closest('[data-task-id]');
+      const day = weekData.find(d => d.id === taskEl.dataset.day);
+      const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+      if (!t) return;
+      const wasDone = t.done;
+      t.done = !t.done;
+      check.classList.toggle('done', t.done);
+      check.textContent = t.done ? '👍' : '👎';
+      check.title = t.done ? 'Feito!' : 'Marcar como feito';
+      taskEl.classList.toggle('done', t.done);
+      await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done });
+      updateDayCardStats(taskEl.dataset.day, false); // sem sync de template — done não vira modelo
+      // Toast motivacional flutua acima da tarefa clicada (só ao marcar feito)
+      if (!wasDone && t.done) {
+        showLocalToast(taskEl, randomDoneMessage(), 'success');
+      }
+      return;
+    }
+
+    // Editar tarefa
+    const editBtn = e.target.closest('[data-action="edit"]');
+    if (editBtn) {
+      const taskEl = editBtn.closest('[data-task-id]');
+      openTaskEditor(app, taskEl.dataset.day, taskEl.dataset.taskId);
+      return;
+    }
+
+    // Duplicar tarefa LOGO ABAIXO da original (renumera os seguintes)
+    const dupBtn = e.target.closest('[data-action="dup"]');
+    if (dupBtn) {
+      const taskEl = dupBtn.closest('[data-task-id]');
+      const dayDocId = taskEl.dataset.day;
+      const day = weekData.find(d => d.id === dayDocId);
+      const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+      if (!t) return;
+
+      // Lista do turno na ordem que aparece na tela
+      const sameShift = day.tasks.filter(x => x.shiftId === t.shiftId).sort(taskSort);
+      const currentIdx = sameShift.findIndex(x => x.id === t.id);
+      const insertOrder = currentIdx + 1;
+
+      // Empurra todos os que vêm DEPOIS do atual +1 (no Firestore e em memória)
+      const updates = [];
+      for (let i = currentIdx + 1; i < sameShift.length; i++) {
+        const task = sameShift[i];
+        const newOrder = i + 1;
+        if (task.order !== newOrder) {
+          task.order = newOrder;
+          updates.push(updateDayTask(dayDocId, task.id, { order: newOrder }));
+        }
+      }
+      await Promise.all(updates);
+
+      // Cria a cópia com order = posição logo após o original
+      const newTask = {
+        activityId: t.activityId || null,
+        title: t.title, desc: t.desc || '', startTime: t.startTime || '',
+        shiftId: t.shiftId, categoryId: t.categoryId || null,
+        done: false, order: insertOrder
+      };
+      const tid = await addDayTask(dayDocId, newTask);
+      day.tasks.push({ id: tid, ...newTask });
+
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+      if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId);
+      showToast('Tarefa duplicada', 'success');
+      return;
+    }
+
+
+    // Hidratação: botões − / +
+    const hydBtn = e.target.closest('[data-hyd-step]');
+    if (hydBtn) {
+      e.preventDefault();
+      const dayDocId = hydBtn.dataset.day;
+      const step = parseInt(hydBtn.dataset.hydStep);
+      const day = weekData.find(d => d.id === dayDocId);
+      if (!day) return;
+      const newMl = Math.max(0, (day.meta.hydrationMl || 0) + step);
+      day.meta.hydrationMl = newMl;
+      // Atualiza UI
+      const card = hydBtn.closest('.day-card');
+      const valEl = card.querySelector(`.hyd-ml[data-day="${dayDocId}"]`);
+      const fillEl = card.querySelector(`.hydration-fill[data-day="${dayDocId}"]`);
+      const msgEl = card.querySelector(`.hydration-msg[data-day="${dayDocId}"]`);
+      if (valEl) valEl.textContent = newMl;
+      if (fillEl) fillEl.style.width = Math.min(100, Math.round((newMl / day.meta.hydrationGoal) * 100)) + '%';
+      if (msgEl) msgEl.textContent = hydrationMsg(newMl, day.meta.hydrationGoal);
+      // Debounce save
+      const key = dayDocId + ':hydrationMl';
+      clearTimeout(saveTimers[key]);
+      saveTimers[key] = setTimeout(() => setDayMeta(dayDocId, { hydrationMl: newMl }), 600);
+      return;
+    }
+
+    // Remover tarefa do dia — com confirmação
+    const delBtn = e.target.closest('[data-action="del"]');
+    if (delBtn) {
+      const taskEl = delBtn.closest('[data-task-id]');
+      const dayDocId = taskEl.dataset.day;
+      const tid = taskEl.dataset.taskId;
+      const day = weekData.find(d => d.id === dayDocId);
+      const t = day?.tasks.find(x => x.id === tid);
+      const ok = await confirmModal({
+        title: 'Excluir tarefa?',
+        message: `"${t?.title || 'Tarefa'}" será removida deste dia. A atividade na Home não muda.`,
+        confirmText: 'Excluir',
+        danger: true
+      });
+      if (!ok) return;
+      taskEl.style.transition = 'all 0.25s';
+      taskEl.style.opacity = '0';
+      taskEl.style.transform = 'translateX(40px)';
+      setTimeout(async () => {
+        await deleteDayTask(dayDocId, tid);
+        day.tasks = day.tasks.filter(t => t.id !== tid);
+        const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+        if (dayCardEl) {
+          dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+          updateDayCardStats(dayDocId);
+        }
+      }, 250);
+      return;
+    }
+  });
+
+  // Inputs (acordei/dormi/hidratação/anotações) — debounce save
+  app.addEventListener('input', (e) => {
+    const inp = e.target;
+    if (!inp.matches('[data-meta]')) return;
+    const dayDocId = inp.dataset.day;
+    const field = inp.dataset.meta;
+    let value = inp.value;
+    if (field === 'hydrationMl') value = parseInt(value) || 0;
+    const day = weekData.find(d => d.id === dayDocId);
+    if (!day) return;
+    day.meta[field] = value;
+    if (field === 'hydrationMl') {
+      const card = inp.closest('.day-card');
+      const fill = card?.querySelector('.hydration-fill');
+      if (fill) fill.style.width = Math.min(100, Math.round((value / day.meta.hydrationGoal) * 100)) + '%';
+    }
+    const key = dayDocId + ':' + field;
+    clearTimeout(saveTimers[key]);
+    saveTimers[key] = setTimeout(() => setDayMeta(dayDocId, { [field]: value }), 600);
+  });
+
+  // Swipe touch entre semanas
+  let touchX = 0;
+  app.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; }, { passive: true });
+  app.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].screenX - touchX;
+    if (Math.abs(dx) < 80) return;
+    const dir = dx < 0 ? 'next-week' : 'prev-week';
+    document.querySelector(`[data-nav="${dir}"]`)?.click();
+  }, { passive: true });
+}
+
+function updateDayCardStats(dayDocId, syncTemplate = true) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  const card = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+  if (!card) return;
+  const total = day.tasks.length;
+  const done = day.tasks.filter(t => t.done).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const statsEl = card.querySelector('.day-card-stats');
+  if (statsEl) statsEl.innerHTML = statsHtml(total, done, pct);
+  card.querySelectorAll('[data-shift-id]').forEach(el => {
+    const sid = el.dataset.shiftId;
+    const count = day.tasks.filter(t => t.shiftId === sid).length;
+    el.querySelector('.shift-count').textContent = `${count} tarefas`;
+  });
+  // Re-anexa Sortable nas task-lists recém-renderizadas
+  initTaskSortables();
+  // Salva o estado atual como template do dia-da-semana
+  // (toda modificação que altera a lista — add/del/edit/dup/reorder)
+  if (syncTemplate) syncTemplateForDay(dayDocId);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 10: MODAIS — picker de atividade e editor de tarefa
+// ═══════════════════════════════════════════════════════════════
+function openActivityPicker(app, dayDocId, shiftId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  const shift = shifts.find(s => s.id === shiftId);
+
+  const catOpts = categories.map(c => `
+    <option value="${c.id}" data-color="${c.color}">${escape(c.icon || '')} ${escape(c.name)}</option>
+  `).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Adicionar tarefa</div>
+      <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(WEEKDAYS_FULL[day.date.getDay()])} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(MONTHS[day.date.getMonth()])}.</div>
+
+      <label class="input-field"><div class="input-field-label">Atividade</div>
+        <select id="m-cat">
+          <option value="">— sem atividade —</option>
+          ${catOpts}
+        </select></label>
+
+      <label class="input-field"><div class="input-field-label">O que fazer</div>
+        <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
+
+      <label class="input-field"><div class="input-field-label">Horário (opcional)</div>
+        <input id="m-time" type="time" /></label>
+
+      <label class="reminder-toggle">
+        <input type="checkbox" id="m-reminder" />
+        <span class="reminder-bell"></span>
+        <div class="reminder-text">
+          <span class="reminder-label">Lembrar com notificação</span>
+          <span class="reminder-hint">notificação real será ativada quando o app virar PWA</span>
+        </div>
+      </label>
+
+      ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
+        Nenhuma atividade cadastrada. Vai na <a href="#/home" style="color:var(--accent)">Home</a> pra criar.
+      </div>` : ''}
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="m-cancel">Cancelar</button>
+        <button class="btn-primary" id="m-save">+ Adicionar ao dia</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.querySelector('#m-title').focus(), 50);
+
+  modal.querySelector('#m-cancel').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  modal.querySelector('#m-save').onclick = async () => {
+    const categoryId = modal.querySelector('#m-cat').value || null;
+    const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
+    let title = modal.querySelector('#m-title').value.trim();
+    if (!title) {
+      if (cat) title = cat.name; // se não tem título mas tem atividade, usa o nome da atividade
+      else { showToast('Digite um título ou escolha uma atividade', 'info'); return; }
+    }
+    const startTime = modal.querySelector('#m-time').value.trim();
+    const reminderEnabled = modal.querySelector('#m-reminder').checked;
+    const order = day.tasks.filter(t => t.shiftId === shiftId).length;
+    const newTask = {
+      activityId: null, title, desc: '',
+      startTime, shiftId, categoryId,
+      done: false, order, reminderEnabled
+    };
+    const tid = await addDayTask(dayDocId, newTask);
+    day.tasks.push({ id: tid, ...newTask });
+    await propagateReminderToCategory(categoryId, reminderEnabled);
+    modal.remove();
+    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+    if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+    updateDayCardStats(dayDocId);
+  };
+}
+
+function openTaskEditor(app, dayDocId, taskId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  const t = day?.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const shiftOpts = shifts.map(s => `<option value="${s.id}" ${t.shiftId === s.id ? 'selected' : ''}>${escape(s.icon || '')} ${escape(s.name)}</option>`).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Editar tarefa</div>
+      <div class="modal-hint">A edição vale só pra este dia. A atividade original na Home não muda.</div>
+      <label class="input-field"><div class="input-field-label">Título</div>
+        <input id="m-title" value="${escape(t.title)}" /></label>
+      <label class="input-field"><div class="input-field-label">Descrição (opcional)</div>
+        <input id="m-desc" value="${escape(t.desc || '')}" placeholder="detalhes do dia" /></label>
+      <label class="input-field"><div class="input-field-label">Turno</div>
+        <select id="m-shift">${shiftOpts}</select></label>
+      <label class="input-field"><div class="input-field-label">Horário de início (opcional)</div>
+        <input id="m-time" type="time" value="${toHHMM(t.startTime)}" /></label>
+
+      <label class="reminder-toggle">
+        <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
+        <span class="reminder-bell"></span>
+        <div class="reminder-text">
+          <span class="reminder-label">Lembrar com notificação</span>
+          <span class="reminder-hint">notificação real será ativada quando o app virar PWA</span>
+        </div>
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="m-cancel">Cancelar</button>
+        <button class="btn-primary" id="m-save">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#m-cancel').onclick = () => modal.remove();
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.querySelector('#m-save').onclick = async () => {
+    const data = {
+      title: modal.querySelector('#m-title').value.trim() || 'Sem título',
+      desc: modal.querySelector('#m-desc').value.trim(),
+      shiftId: modal.querySelector('#m-shift').value || null,
+      startTime: modal.querySelector('#m-time').value.trim(),
+      reminderEnabled: modal.querySelector('#m-reminder').checked
+    };
+    Object.assign(t, data);
+    await updateDayTask(dayDocId, taskId, data);
+    await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
+    modal.remove();
+    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+    if (dayCardEl) {
+      dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId);
+    }
+  };
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 11: HELPERS UTILITÁRIOS (escape, conversões)
+// ═══════════════════════════════════════════════════════════════
+// Marca a atividade (categoria) com reminderEnabled=true quando uma tarefa dela ativa lembrete.
+// Aparece como indicador 🔔 na Home. Não desmarca automaticamente (usuário pode ter outras tarefas).
+async function propagateReminderToCategory(categoryId, enabled) {
+  if (!categoryId || !enabled) return;
+  const cat = categories.find(c => c.id === categoryId);
+  if (!cat || cat.reminderEnabled) return; // já tá marcada
+  cat.reminderEnabled = true;
+  try { await saveCategory(categoryId, { reminderEnabled: true }); } catch (e) { console.error(e); }
+}
+
+function escape(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function hexA(hex, a) {
+  if (!hex) return `rgba(167,139,250,${a})`;
+  const m = hex.match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return hex;
+  const r = parseInt(m[1].slice(0,2), 16), g = parseInt(m[1].slice(2,4), 16), b = parseInt(m[1].slice(4,6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function toHHMM(timeStr) {
+  const t = parseTime(timeStr);
+  if (t === null) return '';
+  const h = Math.floor(t / 60), m = t % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}

@@ -1,0 +1,39 @@
+# === BLOCO 1: SISTEMA / EDITOR ===
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === BLOCO 2: PYTHON (gerador de ícones) ===
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# === BLOCO 3: LOGS E TEMPORÁRIOS ===
+*.log
+_server.log
+_server.err
+*.tmp
+
+# === BLOCO 4: SCREENSHOTS / ARTEFATOS DE DESENVOLVIMENTO ===
+screenshots/
+previews/
+_readme-model/
+_*.png
+_*.jpg
+*.screenshot.png
+
+# === BLOCO 5: NODE (caso futuramente entre) ===
+node_modules/
+.npm/
+.yarn/
+
+# === BLOCO 6: FIREBASE LOCAL ===
+.firebase/
+.firebaserc.local
+firebase-debug.log
