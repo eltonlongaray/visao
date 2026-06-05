@@ -13,6 +13,7 @@ import { renderDesempenho } from './screens/desempenho.js';
 import { renderTermos } from './screens/termos.js';
 import { renderPrivacidade } from './screens/privacidade.js';
 import { renderLegalConsent } from './screens/legal-consent.js';
+import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 import { hasTerms } from './consent.js';
@@ -31,6 +32,7 @@ registerRoute('/desempenho', renderDesempenho);
 registerRoute('/termos', renderTermos);
 registerRoute('/privacidade', renderPrivacidade);
 registerRoute('/aceite', renderLegalConsent);
+registerRoute('/ajustes', renderAjustes);
 
 forceRender();
 initAutoLock();

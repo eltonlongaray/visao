@@ -8,6 +8,7 @@ import { auth, db, doc, getDoc } from '../firebase.js';
 import { navigate } from '../router.js';
 import { showToast } from '../toast.js';
 import { maybeOpenBioPrompt } from '../bio-prompt-modal.js';
+import { ensurePessoalConsent } from '../pessoal-consent-modal.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -19,6 +20,7 @@ export function renderModalidade(app) {
 
   app.innerHTML = `
     <div class="onboarding modalidade-screen">
+      <button class="modalidade-settings-btn" id="goAjustesBtn" aria-label="Ajustes">⚙️</button>
       <div class="onboarding-logo">👁</div>
       <div class="onboarding-title">Visão</div>
       <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">
@@ -83,6 +85,15 @@ function attachHandlers(app) {
     try {
       const user = auth.currentUser;
       if (!user) { navigate('/login'); return; }
+
+      // Gate: consent específico pra dados sensíveis de saúde
+      const ok = await ensurePessoalConsent();
+      if (!ok) {
+        card.style.opacity = '1';
+        card.style.pointerEvents = 'auto';
+        return;
+      }
+
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const hasTemplate = userDoc.exists() && userDoc.data()?.template;
       navigate(hasTemplate ? '/home' : '/welcome');
@@ -97,6 +108,8 @@ function attachHandlers(app) {
   app.querySelector('[data-modalidade="financeira"]')?.addEventListener('click', () => {
     showToast('💰 Organização Financeira em desenvolvimento — em breve!', 'info');
   });
+
+  app.querySelector('#goAjustesBtn')?.addEventListener('click', () => navigate('/ajustes'));
 
   app.querySelector('#btnSairModalidade')?.addEventListener('click', async () => {
     try {

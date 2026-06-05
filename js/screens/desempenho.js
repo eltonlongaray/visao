@@ -8,6 +8,9 @@ import {
   getWeekNote, setWeekNote, dayId
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
+import { isAdmin } from '../admin.js';
+import { deleteMonth } from '../account-delete.js';
+import { confirmModal, showToast } from '../toast.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -52,6 +55,13 @@ async function renderUI(app) {
         <div class="month-name">${monthLabel}<small>desempenho</small></div>
         <button class="month-nav" data-nav="next-month">›</button>
       </div>
+
+      ${isAdmin() ? `
+        <div class="admin-bar">
+          <span class="admin-bar-label">🛠️ admin</span>
+          <button class="admin-btn-danger" id="adminDeleteMonth">🗑️ Excluir mês atual</button>
+        </div>
+      ` : ''}
 
       <div class="summary-top">
         <div class="summary-stats" id="kpis">
@@ -135,6 +145,34 @@ function attachHandlers(app) {
       period = tab.dataset.period;
       document.querySelectorAll('#period-tabs .tab-btn').forEach(b => b.classList.toggle('active', b === tab));
       await refreshCatChart();
+      return;
+    }
+
+    // ── ADMIN: excluir mês ──
+    const admBtn = e.target.closest('#adminDeleteMonth');
+    if (admBtn && isAdmin()) {
+      const monthKey = `${viewMonth.getFullYear()}-${String(viewMonth.getMonth()+1).padStart(2,'0')}`;
+      const ok = await confirmModal({
+        title: `Excluir ${MONTHS_FULL[viewMonth.getMonth()]} ${viewMonth.getFullYear()}?`,
+        message: `Tem certeza que deseja excluir TODOS os dados deste mês (todos os dias, tarefas, sono e hidratação registrados)? Esta ação não pode ser desfeita.`,
+        confirmText: 'Sim, excluir mês',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+      admBtn.disabled = true;
+      admBtn.textContent = 'Excluindo...';
+      try {
+        const n = await deleteMonth(monthKey);
+        showToast(`${n} dia${n===1?'':'s'} excluído${n===1?'':'s'} de ${MONTHS[viewMonth.getMonth()]}/${viewMonth.getFullYear()}.`, 'success');
+        await refreshData();
+      } catch (err) {
+        console.error('[admin] delete month falhou:', err);
+        showToast('Erro ao excluir mês.', 'error');
+      } finally {
+        admBtn.disabled = false;
+        admBtn.innerHTML = '🗑️ Excluir mês atual';
+      }
       return;
     }
   });
