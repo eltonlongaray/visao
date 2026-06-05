@@ -68,11 +68,11 @@ export async function renderHome(app) {
           <div class="time-pills">
             <label class="time-pill">
               <span class="time-pill-label">🌅 Acordar</span>
-              <input class="time-pill-input" id="pref-wake" type="time" value="${toHHMM(profile.defaultWakeTime)}">
+              <input class="time-pill-input" id="pref-wake" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(profile.defaultWakeTime)}">
             </label>
             <label class="time-pill">
               <span class="time-pill-label">🌙 Dormir</span>
-              <input class="time-pill-input" id="pref-sleep" type="time" value="${toHHMM(profile.defaultSleepTime)}">
+              <input class="time-pill-input" id="pref-sleep" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(profile.defaultSleepTime)}">
             </label>
           </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
@@ -443,7 +443,17 @@ function openCategoryEditor(id) {
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => modal.querySelector('#m-name').focus(), 50);
+  // Auto-scroll suave: pisca uma rolada pro fim pra mostrar onde tá o botão Criar,
+  // depois volta pro topo pra usuário começar a preencher
+  setTimeout(() => {
+    const inner = modal.querySelector('.modal');
+    if (!inner) return;
+    inner.scrollTop = inner.scrollHeight;
+    setTimeout(() => {
+      inner.scrollTo({ top: 0, behavior: 'smooth' });
+      modal.querySelector('#m-name')?.focus();
+    }, 900);
+  }, 80);
 
   let pickedIcon = c.icon, pickedColor = c.color;
   let pickedDays = [...c.daysOfWeek];

@@ -249,3 +249,16 @@ window.addEventListener('resize', () => {
   repoTimer = setTimeout(repositionCurrent, 90);
 });
 window.addEventListener('scroll', repositionCurrent, true);
+
+// Auto-avança quando o usuário navega pra rota do próximo step
+window.addEventListener('hashchange', () => {
+  if (!active) return;
+  const cur = steps[i];
+  const nxt = steps[i + 1];
+  if (!nxt) return;
+  const hash = location.hash;
+  // Se a próxima step tem essa rota e a atual era de transição → avança
+  if (nxt.route && hash === `#${nxt.route}` && cur?.route !== nxt.route) {
+    next();
+  }
+});

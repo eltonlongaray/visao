@@ -403,11 +403,11 @@ function renderDayContent(d) {
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
-        <input class="time-pill-input" data-meta="wakeTime" data-day="${d.id}" type="time" value="${toHHMM(d.meta.wakeTime)}" data-placeholder="${wakePh}">
+        <input class="time-pill-input" data-meta="wakeTime" data-day="${d.id}" type="text" inputmode="numeric" maxlength="5" placeholder="${wakePh || 'HH:MM'}" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(d.meta.wakeTime)}">
       </label>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
-        <input class="time-pill-input" data-meta="sleepTime" data-day="${d.id}" type="time" value="${toHHMM(d.meta.sleepTime)}" data-placeholder="${sleepPh}">
+        <input class="time-pill-input" data-meta="sleepTime" data-day="${d.id}" type="text" inputmode="numeric" maxlength="5" placeholder="${sleepPh || 'HH:MM'}" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(d.meta.sleepTime)}">
       </label>
     </div>
 
