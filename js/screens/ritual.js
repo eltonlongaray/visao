@@ -221,6 +221,8 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
       startTime: tmpl.startTime || '',
       shiftId: tmpl.shiftId || shifts[0]?.id || null,
       categoryId: tmpl.categoryId || null,
+      icon: tmpl.icon || '',
+      reminderEnabled: tmpl.reminderEnabled || false,
       done: false,
       order: order++
     };
@@ -250,7 +252,9 @@ async function syncTemplateForDay(dayDocId) {
       desc: t.desc || '',
       startTime: t.startTime || '',
       shiftId: t.shiftId || null,
-      categoryId: t.categoryId || null
+      categoryId: t.categoryId || null,
+      icon: t.icon || '',
+      reminderEnabled: t.reminderEnabled || false
     }));
   try {
     await setWeekdayTemplate(dow, templates);
@@ -531,6 +535,7 @@ async function copyDayTasksTo(fromId, toId) {
       startTime: t.startTime || '',
       shiftId: t.shiftId || (shifts[0]?.id || null),
       categoryId: t.categoryId || null,
+      icon: t.icon || '',
       done: false,
       order: order++,
       reminderEnabled: t.reminderEnabled || false
@@ -555,6 +560,7 @@ function taskSort(a, b) {
 
 function taskCard(t, dayDocId) {
   const cat = categories.find(c => c.id === t.categoryId);
+  const taskIcon = t.icon || cat?.icon || '🏷️';
   return `
     <div class="task ${t.done ? 'done' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <span class="task-drag" title="Arraste pra reordenar">⋮⋮</span>
@@ -566,13 +572,70 @@ function taskCard(t, dayDocId) {
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
       </div>
-      <div class="task-actions">
-        <button class="edit" data-action="edit" title="Editar texto">✏️</button>
-        <button class="del" data-action="del" title="Remover deste dia">✕</button>
-        <button data-action="dup" title="Duplicar no dia">📑</button>
-      </div>
+      <button class="task-menu-trigger" data-action="menu" title="Opções">${taskIcon}</button>
     </div>
   `;
+}
+
+// Lista de ícones disponível pra escolher por tarefa (espelha a da Home)
+const TASK_ICONS = [
+  '🏷️','💧','🥗','💪','⚽','🏃','📚','🌙','💼','🧘','🥋','💰','🎨','🧹','📞','🛒','✈️','💝',
+  '💇🏻‍♀️','🧖🏻‍♀️','💄','🪒','👚','🛍️',
+  '👩🏻‍❤️‍💋‍👨🏻','🐕','🐈‍⬛','🎁',
+  '🏋🏻‍♀️','🛼','🪘','🃏','🔮',
+  '🛠️','🧺','🩺','🏖️','🗺️','🚨'
+];
+
+// Menu popover ao clicar no emoji da tarefa
+function openTaskMenu(triggerEl) {
+  // Fecha qualquer menu anterior
+  document.querySelectorAll('.task-menu-pop').forEach(m => m.remove());
+
+  const taskEl = triggerEl.closest('[data-task-id]');
+  if (!taskEl) return;
+
+  const menu = document.createElement('div');
+  menu.className = 'task-menu-pop';
+  menu.innerHTML = `
+    <button class="task-menu-item" data-menu-action="edit">✏️ Editar</button>
+    <button class="task-menu-item" data-menu-action="dup">📑 Duplicar</button>
+    <button class="task-menu-item danger" data-menu-action="del">🗑️ Excluir</button>
+  `;
+  document.body.appendChild(menu);
+
+  // Posiciona ao lado do trigger
+  const r = triggerEl.getBoundingClientRect();
+  const mr = menu.getBoundingClientRect();
+  let top = r.bottom + 6;
+  let left = r.right - mr.width;
+  if (top + mr.height > window.innerHeight - 80) top = r.top - mr.height - 6;
+  if (left < 8) left = 8;
+  menu.style.top = `${top}px`;
+  menu.style.left = `${left}px`;
+
+  // Click fora fecha
+  const close = () => {
+    menu.remove();
+    document.removeEventListener('click', onDoc, true);
+  };
+  const onDoc = (e) => {
+    if (!menu.contains(e.target) && e.target !== triggerEl) close();
+  };
+  setTimeout(() => document.addEventListener('click', onDoc, true), 60);
+
+  // Click em item → dispara ação no handler existente via botão sintético
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-menu-action]');
+    if (!item) return;
+    const action = item.dataset.menuAction;
+    close();
+    const synth = document.createElement('button');
+    synth.dataset.action = action;
+    synth.style.display = 'none';
+    taskEl.appendChild(synth);
+    synth.click();
+    synth.remove();
+  });
 }
 
 
@@ -644,6 +707,13 @@ function attachHandlers(app) {
       } else if (wasDone && !t.done) {
         playUndone();
       }
+      return;
+    }
+
+    // Abrir menu de opções da tarefa (emoji-trigger)
+    const menuBtn = e.target.closest('[data-action="menu"]');
+    if (menuBtn) {
+      openTaskMenu(menuBtn);
       return;
     }
 
@@ -726,6 +796,7 @@ function attachHandlers(app) {
         activityId: t.activityId || null,
         title: t.title, desc: t.desc || '', startTime: t.startTime || '',
         shiftId: t.shiftId, categoryId: t.categoryId || null,
+        icon: t.icon || '',
         done: false, order: insertOrder
       };
       const tid = await addDayTask(dayDocId, newTask);
@@ -951,6 +1022,12 @@ function openTaskEditor(app, dayDocId, taskId) {
         <input id="m-title" value="${escape(t.title)}" /></label>
       <label class="input-field"><div class="input-field-label">Descrição (opcional)</div>
         <input id="m-desc" value="${escape(t.desc || '')}" placeholder="detalhes do dia" /></label>
+
+      <div class="input-field-label" style="margin-top:8px">Ícone <small style="color:var(--muted);font-weight:500">(opcional — vazio usa o da categoria)</small></div>
+      <div class="task-icon-picker" id="m-icon-picker">
+        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="Sem ícone próprio">∅</button>
+        ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}
+      </div>
       <label class="input-field"><div class="input-field-label">Turno</div>
         <select id="m-shift">${shiftOpts}</select></label>
       <label class="input-field"><div class="input-field-label">Horário de início (opcional)</div>
@@ -974,12 +1051,21 @@ function openTaskEditor(app, dayDocId, taskId) {
   document.body.appendChild(modal);
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  // Wire icon picker (seleção exclusiva)
+  modal.querySelectorAll('#m-icon-picker .task-icon-opt').forEach(b => {
+    b.addEventListener('click', () => {
+      modal.querySelectorAll('#m-icon-picker .task-icon-opt.sel').forEach(s => s.classList.remove('sel'));
+      b.classList.add('sel');
+    });
+  });
+
   modal.querySelector('#m-save').onclick = async () => {
     const data = {
       title: modal.querySelector('#m-title').value.trim() || 'Sem título',
       desc: modal.querySelector('#m-desc').value.trim(),
       shiftId: modal.querySelector('#m-shift').value || null,
       startTime: modal.querySelector('#m-time').value.trim(),
+      icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked
     };
     Object.assign(t, data);
