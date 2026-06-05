@@ -354,7 +354,18 @@ function attachHandlers() {
 function openCategoryEditor(id) {
   const isNew = id === null;
   const COLORS = ['#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#fb923c','#c084fc','#22d3ee','#facc15'];
-  const ICONS = ['🏷️','💧','🥗','💪','⚽','🏃','📚','🌙','💼','🧘','🥋','💰','🎨','🧹','📞','🛒','✈️','💝'];
+  const ICONS = [
+    // Vida diária / hábitos
+    '🏷️','💧','🥗','💪','⚽','🏃','📚','🌙','💼','🧘','🥋','💰','🎨','🧹','📞','🛒','✈️','💝',
+    // Autocuidado / beleza
+    '💇🏻‍♀️','🧖🏻‍♀️','💄','🪒','👚','🛍️',
+    // Família / pets
+    '👩🏻‍❤️‍💋‍👨🏻','🐕','🐈‍⬛','🎁',
+    // Fitness / lazer
+    '🏋🏻‍♀️','🛼','🪘',
+    // Casa / saúde / passeio
+    '🛠️','🧺','🩺','🏖️','🗺️','🚨'
+  ];
   const ALL_DAYS = [0,1,2,3,4,5,6];
   const WEEKDAY_LABELS = ['D','S','T','Q','Q','S','S'];
   const c = isNew
