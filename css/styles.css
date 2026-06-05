@@ -3056,6 +3056,43 @@ body.tour-active { overflow: hidden; }
 
 /* Modo dark/light não precisa alterar o balão — ele é branco sempre por design */
 
+/* Bloco "Sair da conta" no final da Home — centralizado + colorido */
+.home-logout-wrap {
+  margin: 36px auto 24px;
+  text-align: center;
+}
+.home-logout-btn {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(248,113,113,0.18), rgba(245,158,11,0.14));
+  border: 1.5px solid rgba(248,113,113,0.45);
+  color: var(--red, #f87171);
+  padding: 11px 26px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s;
+  box-shadow: 0 6px 18px -6px rgba(248,113,113,0.35);
+}
+.home-logout-btn:hover {
+  background: linear-gradient(135deg, rgba(248,113,113,0.28), rgba(245,158,11,0.22));
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -6px rgba(248,113,113,0.5);
+}
+.home-logout-btn:active { transform: translateY(0); }
+.home-logout-btn span { font-size: 16px; }
+
+.home-logout-email {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  font-weight: 500;
+  word-break: break-all;
+}
+
 /* Bolinha vermelha no card de atividade quando tem lembrete no Ritual */
 .cat-config-icon { position: relative; }
 .cat-reminder-dot {

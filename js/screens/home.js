@@ -99,8 +99,11 @@ export async function renderHome(app) {
         <div class="home-section-hint">São os tipos de coisa que você faz na rotina (Hidratação, Treino, Estudo...). No Ritual você adiciona uma e escreve o que rolou no dia.</div>
       </div>
 
-      <div style="margin-top:24px;text-align:center">
-        <button class="btn-secondary" id="btn-logout" style="max-width:200px;margin:0 auto">Sair da conta (${auth.currentUser?.email || ''})</button>
+      <div class="home-logout-wrap">
+        <button class="home-logout-btn" id="btn-logout">
+          <span>🚪</span> Sair da conta
+        </button>
+        <div class="home-logout-email">${escape(auth.currentUser?.email || '')}</div>
       </div>
     </div>
     ${bottomNav('home')}
