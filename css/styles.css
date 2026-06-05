@@ -2749,6 +2749,46 @@ body.tour2-active { /* mantém scroll normal — barra é fixa embaixo */ }
 /* Anti-conflito com bottom nav — sobe a barra um pouco se nav presente */
 body.tour2-active .bottom-nav { bottom: 0; }
 
+/* Estado COLAPSADO — usuário tocou no alvo, agora deixa a tela livre */
+.tour2-backdrop { transition: opacity 0.25s ease; }
+.tour2-bar.collapsed {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  left: auto; right: 12px;
+  bottom: 14px;
+  width: auto; max-width: none;
+  animation: none;
+  pointer-events: none; /* só o botão fica clicável */
+}
+.tour2-bar.collapsed .tour2-bar-inner {
+  display: block;
+}
+.tour2-bar.collapsed .tour2-bar-progress,
+.tour2-bar.collapsed .tour2-bar-body,
+.tour2-bar.collapsed .tour2-btn-back,
+.tour2-bar.collapsed .tour2-btn-skip {
+  display: none !important;
+}
+.tour2-bar.collapsed .tour2-bar-actions {
+  display: flex;
+  pointer-events: auto;
+}
+.tour2-bar.collapsed .tour2-btn-next {
+  padding: 14px 22px;
+  font-size: 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow:
+    0 12px 28px -4px rgba(124,58,237,0.65),
+    0 0 0 3px rgba(255,255,255,0.5);
+  animation: tour2NextFloat 1.8s ease-in-out infinite;
+}
+@keyframes tour2NextFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    ANTIGO TOUR v1 (mantido temp pra compat — pode remover depois)

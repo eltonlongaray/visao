@@ -9,6 +9,7 @@ let active = false;
 let steps = [];
 let i = 0;
 let dom = { backdrop: null, bar: null, hole: null };
+let targetClickCleanup = null;  // remove listener de click no alvo entre steps
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -31,12 +32,14 @@ export async function start(stepsArr) {
 export function end(completed = false) {
   if (!active) return;
   active = false;
+  cleanupTargetClick();
   if (completed) markDone();
   cleanupDom();
 }
 
 export async function next() {
   if (!active) return;
+  cleanupTargetClick();
   if (i + 1 >= steps.length) return end(true);
   i++;
   await showStep();
@@ -44,8 +47,13 @@ export async function next() {
 
 export function back() {
   if (!active || i === 0) return;
+  cleanupTargetClick();
   i--;
   showStep();
+}
+
+function cleanupTargetClick() {
+  if (targetClickCleanup) { targetClickCleanup(); targetClickCleanup = null; }
 }
 
 
@@ -97,6 +105,11 @@ async function showStep() {
     target = await waitForEl(step.target, 3000);
   }
 
+  // Garante estado expandido por default
+  dom.bar?.classList.remove('collapsed');
+  if (dom.backdrop) dom.backdrop.style.opacity = '';
+  if (dom.hole) dom.hole.style.display = '';
+
   positionHole(target, step);
   renderBar(step);
 
@@ -106,6 +119,27 @@ async function showStep() {
     await wait(320);
     positionHole(target, step);
   }
+
+  // Quando o usuário clica no alvo destacado → colapsa o tour
+  // (deixa só o botão "Próximo" visível e libera a tela)
+  if (target && !step.noCollapse) {
+    const handler = (e) => {
+      if (target === e.target || target.contains(e.target)) {
+        // Pequeno delay pra não engolir o click original
+        setTimeout(collapseBar, 80);
+        cleanupTargetClick();
+      }
+    };
+    document.addEventListener('click', handler, true);
+    targetClickCleanup = () => document.removeEventListener('click', handler, true);
+  }
+}
+
+function collapseBar() {
+  if (!active || !dom.bar) return;
+  dom.bar.classList.add('collapsed');
+  if (dom.backdrop) dom.backdrop.style.opacity = '0';
+  if (dom.hole) dom.hole.style.display = 'none';
 }
 
 
