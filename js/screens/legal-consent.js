@@ -15,28 +15,37 @@ import { showToast } from '../toast.js';
 // ═══════════════════════════════════════════════════════════════
 export function renderLegalConsent(app) {
   app.innerHTML = `
-    <div class="onboarding consent-gate-screen">
-      <div class="consent-gate-icon">📜</div>
-      <h1 class="consent-gate-title">Antes de começar</h1>
-      <p class="consent-gate-text">
-        Pra continuar usando o Visão, leia e aceite nossos documentos:
-      </p>
+    <div class="consent-gate-wrap">
+      <div class="consent-gate-card">
+        <div class="consent-gate-icon">📜</div>
+        <h1 class="consent-gate-title">Antes de começar</h1>
+        <p class="consent-gate-text">
+          Pra usar o Visão, você precisa ler e aceitar
+          nossos Termos de Uso e Política de Privacidade.
+        </p>
 
-      <button class="consent-doc-btn" id="openLegalBtn">
-        <span class="consent-doc-btn-ic">📄</span>
-        <div class="consent-doc-btn-body">
-          <strong>Termos de Uso + Política de Privacidade</strong>
-          <small>Toque pra ler e aceitar</small>
+        <ul class="consent-gate-bullets">
+          <li><span class="cgb-ic">🔒</span> Seus dados ficam só com você</li>
+          <li><span class="cgb-ic">⚖️</span> Em conformidade com a LGPD</li>
+          <li><span class="cgb-ic">📥</span> Pode exportar ou apagar tudo a qualquer hora</li>
+        </ul>
+
+        <button class="consent-doc-btn" id="openLegalBtn">
+          <span class="consent-doc-btn-ic">📄</span>
+          <span class="consent-doc-btn-body">
+            <span class="consent-doc-btn-title">Termos + Política</span>
+            <span class="consent-doc-btn-sub">Toque pra ler e aceitar</span>
+          </span>
+          <span class="consent-doc-btn-arrow">›</span>
+        </button>
+
+        <div class="consent-gate-status" id="consentStatus">
+          <span class="consent-pending">○</span> Ainda não aceito
         </div>
-        <span class="consent-doc-btn-arrow">›</span>
-      </button>
-
-      <div class="consent-gate-status" id="consentStatus">
-        <span class="consent-pending">○</span> Ainda não aceito
       </div>
 
-      <button class="login-link consent-gate-cancel" id="consentSignOutBtn">
-        Não aceito (sair)
+      <button class="consent-gate-cancel" id="consentSignOutBtn">
+        Não aceito (sair da conta)
       </button>
     </div>
   `;
