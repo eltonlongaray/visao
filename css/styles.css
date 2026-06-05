@@ -2056,6 +2056,152 @@ body.bio-modal-open { overflow: hidden; }
   border-color: var(--accent);
   background: rgba(167,139,250,0.06);
 }
+
+/* Botão único pra abrir Termos + Privacidade no gate */
+.consent-doc-btn {
+  width: 100%;
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.14), rgba(96,165,250,0.10));
+  border: 1.5px solid rgba(167,139,250,0.45);
+  border-radius: 16px;
+  padding: 16px;
+  cursor: pointer;
+  margin: 14px 0 10px;
+  text-align: left;
+  color: var(--text);
+  transition: all 0.18s;
+}
+.consent-doc-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 22px -8px rgba(124,58,237,0.4);
+}
+.consent-doc-btn-ic {
+  font-size: 28px;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.consent-doc-btn-body { flex: 1; min-width: 0; }
+.consent-doc-btn-body strong {
+  display: block;
+  font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.2;
+}
+.consent-doc-btn-body small {
+  display: block;
+  font-size: 11px; color: var(--muted); margin-top: 3px;
+}
+.consent-doc-btn-arrow {
+  font-size: 22px; color: var(--muted); flex-shrink: 0;
+}
+
+.consent-gate-status {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin: 10px 0 8px;
+  font-weight: 600;
+}
+.consent-pending { color: var(--muted); font-size: 14px; }
+.consent-ok { color: #10b981; font-size: 16px; font-weight: 800; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO N+7: MODAL DE LEITURA (Termos+Privacidade)
+   ═══════════════════════════════════════════════════════════════ */
+.legal-modal-overlay {
+  position: fixed; inset: 0;
+  z-index: 9500;
+  background: rgba(8,9,15,0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid; place-items: center;
+  padding: 0;
+  animation: bioOverlayIn 0.22s ease-out;
+}
+[data-theme="light"] .legal-modal-overlay {
+  background: rgba(235,231,220,0.78);
+}
+
+.legal-modal {
+  background: var(--card);
+  border-radius: 18px;
+  width: 100%; max-width: 560px;
+  height: calc(100vh - 28px);
+  max-height: 720px;
+  margin: 14px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+  animation: bioCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legal-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.legal-modal-title {
+  font-size: 15px; font-weight: 800; color: var(--text);
+}
+.legal-modal-close {
+  background: none; border: none;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  font-size: 22px; line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.legal-modal-close:hover { background: var(--card-2); color: var(--text); }
+
+.legal-modal-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 20px 24px;
+}
+.legal-divider {
+  border: none; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 30px 0;
+}
+.legal-end-marker { height: 1px; }
+
+.legal-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 14px;
+  flex-shrink: 0;
+  background: var(--card);
+}
+.legal-scroll-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.legal-scroll-hint.ok { color: #10b981; }
+
+.legal-modal-check.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.legal-modal-check.disabled .consent-checkbox-mark { background: var(--card-3); }
+
+.legal-modal-accept {
+  width: 100%;
+  margin-top: 8px;
+}
+.legal-modal-accept:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
 .consent-gate-btn {
   width: 100%;
   margin-top: 16px !important;

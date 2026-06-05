@@ -146,7 +146,7 @@ export const PRIVACIDADE_HTML = `
   <h2>4. Base legal do tratamento</h2>
   <ul>
     <li><strong>Consentimento</strong> (Art. 7º, I e Art. 11, I LGPD): você nos autoriza expressamente ao aceitar esta Política e os Termos no cadastro.</li>
-    <li><strong>Execução de contrato</strong> (Art. 7º, V): tratamentos necessários pra prestação do serviço que você solicitou.</li>
+    <li><strong>Execução de contrato</strong> (Art. 7º, V): tratamentos necessários pra uso do app que você solicitou.</li>
   </ul>
 
   <h2>5. Onde os dados ficam armazenados</h2>
@@ -241,7 +241,7 @@ export const RESUMO_CONSENT = `
   Ao continuar você declara que tem 18 anos ou mais e concorda com os
   <strong>Termos de Uso</strong> e a <strong>Política de Privacidade</strong>,
   incluindo o tratamento de <strong>dados sensíveis de saúde</strong>
-  (sono, hidratação, rotinas) necessários pra prestação do serviço.
+  (sono, hidratação, rotinas) necessários pra uso do app.
 `;
 
 export const RESUMO_PESSOAL = `
