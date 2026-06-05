@@ -492,7 +492,15 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
     .sort((a, b) => b.pct - a.pct || b.total - a.total)
     .slice(0, 3);
 
-  const fmtAct = (a) => `<span style="color:${a.cat.color};font-weight:600">${a.cat.icon || ''} ${escape(a.title)}</span> <small style="color:var(--muted)">(${a.done}/${a.total})</small>`;
+  // Display: categoria (colorida + ícone) · descrição da tarefa · (feito/total)
+  // Se descrição == nome da categoria (tarefa única tipo "Hidratação"), evita repetir
+  const fmtAct = (a) => {
+    const catLabel = `<span style="color:${a.cat.color};font-weight:700">${a.cat.icon || ''} ${escape(a.cat.name)}</span>`;
+    const same = a.title.trim().toLowerCase() === (a.cat.name || '').trim().toLowerCase();
+    const descLabel = same ? '' : ` <span style="opacity:0.85">· ${escape(a.title)}</span>`;
+    const count = ` <small style="color:var(--muted)">(${a.done}/${a.total})</small>`;
+    return catLabel + descLabel + count;
+  };
 
   const rangeLabel = `${String(monday.getDate()).padStart(2,'0')} ${MONTHS[monday.getMonth()]} → ${String(sunday.getDate()).padStart(2,'0')} ${MONTHS[sunday.getMonth()]}`;
 
