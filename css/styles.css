@@ -2483,6 +2483,203 @@ body.bio-modal-open { overflow: hidden; }
 }
 .week-admin-del:disabled { opacity: 0.5; cursor: wait; }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO N+8: TOUR DE BOAS-VINDAS
+   ═══════════════════════════════════════════════════════════════ */
+body.tour-active { overflow: hidden; }
+
+.tour-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(8, 9, 15, 0.55);
+  z-index: 10000;
+  pointer-events: none;
+  animation: tourFadeIn 0.25s ease-out;
+}
+
+.tour-hole {
+  position: fixed;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow:
+    0 0 0 9999px rgba(8, 9, 15, 0.62),
+    0 0 0 3px rgba(124, 58, 237, 0.85),
+    0 0 24px 4px rgba(167, 139, 250, 0.6);
+  z-index: 10001;
+  pointer-events: none;
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  animation: tourHolePulse 1.8s ease-in-out infinite;
+}
+@keyframes tourHolePulse {
+  0%, 100% { box-shadow:
+    0 0 0 9999px rgba(8,9,15,0.62),
+    0 0 0 3px rgba(124,58,237,0.85),
+    0 0 24px 4px rgba(167,139,250,0.6);
+  }
+  50% { box-shadow:
+    0 0 0 9999px rgba(8,9,15,0.62),
+    0 0 0 3px rgba(124,58,237,1),
+    0 0 36px 6px rgba(167,139,250,0.85);
+  }
+}
+@keyframes tourFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.tour-finger {
+  position: fixed;
+  z-index: 10003;
+  font-size: 36px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.45));
+  animation: tourFingerBob 1.2s ease-in-out infinite;
+}
+.tour-finger[data-side="bottom"]  { animation-name: tourFingerBobDown; }
+.tour-finger[data-side="top"]     { animation-name: tourFingerBobUp;    transform: rotate(180deg); }
+.tour-finger[data-side="left"]    { animation-name: tourFingerBobLeft;  transform: rotate(90deg); }
+.tour-finger[data-side="right"]   { animation-name: tourFingerBobRight; transform: rotate(-90deg); }
+
+@keyframes tourFingerBobUp {
+  0%, 100% { transform: rotate(180deg) translateY(0); }
+  50%      { transform: rotate(180deg) translateY(-6px); }
+}
+@keyframes tourFingerBobDown {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+@keyframes tourFingerBobLeft {
+  0%, 100% { transform: rotate(90deg) translateY(0); }
+  50%      { transform: rotate(90deg) translateY(-6px); }
+}
+@keyframes tourFingerBobRight {
+  0%, 100% { transform: rotate(-90deg) translateY(0); }
+  50%      { transform: rotate(-90deg) translateY(-6px); }
+}
+
+.tour-balloon {
+  position: fixed;
+  z-index: 10002;
+  width: calc(100% - 28px);
+  max-width: 320px;
+  background: #ffffff;
+  color: #0e1326;
+  border-radius: 18px;
+  padding: 16px 18px 12px;
+  box-shadow:
+    0 16px 44px rgba(0,0,0,0.45),
+    0 0 0 3px rgba(124,58,237,0.30);
+  animation: tourBalloonIn 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+@keyframes tourBalloonIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tour-balloon[data-placement="center"] {
+  width: calc(100% - 32px);
+  max-width: 360px;
+}
+
+.tour-balloon-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tour-balloon-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0e1326;
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+}
+.tour-skip-x {
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.06);
+  border: none;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  color: #555;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.tour-skip-x:hover { background: rgba(0,0,0,0.12); color: #000; }
+
+.tour-balloon-msg {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #2a2a2a;
+  margin-bottom: 14px;
+}
+.tour-balloon-msg strong { color: #0e1326; font-weight: 700; }
+
+.tour-balloon-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tour-balloon-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tour-step-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+}
+.tour-dots {
+  display: flex;
+  gap: 3px;
+}
+.tour-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ddd;
+  transition: all 0.2s;
+}
+.tour-dot.done { background: #a78bfa; }
+.tour-dot.active { background: #7c3aed; transform: scale(1.4); }
+
+.tour-balloon-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.tour-back-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.06);
+  border: none;
+  color: #555;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tour-back-btn:hover { background: rgba(0,0,0,0.12); color: #000; }
+.tour-next-btn {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
+  transition: transform 0.12s;
+}
+.tour-next-btn:hover { transform: translateY(-1px); }
+
+/* Modo dark/light não precisa alterar o balão — ele é branco sempre por design */
+
 /* Bolinha vermelha no card de atividade quando tem lembrete no Ritual */
 .cat-config-icon { position: relative; }
 .cat-reminder-dot {

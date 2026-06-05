@@ -9,6 +9,8 @@ import * as biometric from '../biometric.js';
 import { downloadJson, openPdfReport } from '../store-export.js';
 import { deleteMyAccount } from '../account-delete.js';
 import { playDelete } from '../sounds.js';
+import * as tour from '../tour.js';
+import { isAdmin } from '../admin.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -66,6 +68,19 @@ export async function renderAjustes(app) {
             <span class="ajustes-row-arrow">›</span>
           </button>
         </section>
+
+        ${isAdmin() ? `
+          <section class="ajustes-section">
+            <div class="ajustes-section-title">🛠️ Admin</div>
+            <button class="ajustes-row clickable" id="restartTourBtn">
+              <div class="ajustes-row-main">
+                <div class="ajustes-row-title">Reiniciar tour de boas-vindas</div>
+                <div class="ajustes-row-sub">Simula 1ª vez (só admin)</div>
+              </div>
+              <span class="ajustes-row-arrow">›</span>
+            </button>
+          </section>
+        ` : ''}
 
         <section class="ajustes-section">
           <div class="ajustes-section-title">📄 Legal</div>
@@ -194,6 +209,13 @@ async function wire(app) {
       showToast(msg, 'error');
       sub.textContent = original;
     }
+  });
+
+  // ── Admin: reiniciar tour ──
+  app.querySelector('#restartTourBtn')?.addEventListener('click', () => {
+    tour.reset();
+    navigate('/home');
+    showToast('Tour reiniciado. Indo pra Home...', 'success');
   });
 
   // ── Sair ──

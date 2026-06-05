@@ -15,6 +15,8 @@ import { playDelete } from '../sounds.js';
 import { currentTheme, toggleTheme } from '../theme.js';
 import { auth, signOut } from '../firebase.js';
 import { navigate } from '../router.js';
+import * as tour from '../tour.js';
+import { ONBOARDING_STEPS } from '../tour-config.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -108,6 +110,11 @@ export async function renderHome(app) {
   attachHandlers();
   attachPrefHandlers();
   loadAndRenderReminders();
+
+  // Tour de boas-vindas — auto-inicia na 1ª vez
+  if (!tour.isCompleted() && !tour.isActive()) {
+    setTimeout(() => tour.start(ONBOARDING_STEPS), 600);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
