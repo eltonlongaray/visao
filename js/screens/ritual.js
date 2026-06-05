@@ -330,13 +330,20 @@ function initTaskSortables() {
       animation: 180,
       // Drag pela tarefa inteira (não só pelo ⋮⋮)
       // Filtro: botões/links/inputs continuam clicáveis sem iniciar drag
-      filter: '.task-thumb, .task-edit, .task-del, .task-dup, button, input, textarea, select, a',
+      filter: '.task-thumb, .task-menu-btn-corner, button, input, textarea, select, a',
       preventOnFilter: false,
-      // Long-press de 200ms no touch evita drag acidental ao tocar
-      delay: 200,
+      // Long-press de 250ms no touch — vibra leve e dá feedback visual ao começar
+      delay: 250,
       delayOnTouchOnly: true,
       touchStartThreshold: 5,
+      forceFallback: true,           // melhor controle visual no mobile
+      fallbackTolerance: 5,
       ghostClass: 'task-ghost',
+      chosenClass: 'task-chosen',
+      dragClass: 'task-dragging',
+      onChoose: () => {
+        if (navigator.vibrate) navigator.vibrate(15);  // vibração leve qdo "agarra"
+      },
       onEnd: async (evt) => {
         const taskEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
         const dayDocId = taskEls[0]?.dataset.day;
