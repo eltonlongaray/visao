@@ -675,15 +675,16 @@ html, body {
 }
 .task-drag:hover { opacity: 0.9; }
 .task-drag:active { cursor: grabbing; }
-/* Ghost = "espaço vazio" onde a tarefa estava (fica no lugar) */
+/* Ghost = espaço VAZIO onde a tarefa estava — fica como placeholder pontilhado */
 .task-ghost {
-  opacity: 0.25;
-  filter: blur(0.5px);
-  background: rgba(167,139,250,0.15) !important;
-  border: 2px dashed rgba(167,139,250,0.4) !important;
+  opacity: 0.4 !important;
+  background: rgba(167,139,250,0.18) !important;
+  border: 2px dashed rgba(167,139,250,0.5) !important;
+  /* Esconde o conteúdo do ghost pra parecer vazio */
 }
+.task-ghost > * { visibility: hidden; }
 
-/* Chosen = tarefa segurada (após long-press, antes do drag) — ela "salta" */
+/* Chosen = tarefa segurada (long-press detectado) — feedback visual */
 .task-chosen {
   transform: scale(1.04);
   box-shadow:
@@ -695,14 +696,20 @@ html, body {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* Dragging = elemento sendo movido com o dedo */
+/* Dragging = clone visível que SEGUE O DEDO — opaco e maior */
 .task-dragging {
-  opacity: 0.92;
+  opacity: 1 !important;
+  transform: scale(1.05) !important;
   cursor: grabbing;
+  background: var(--card) !important;
+  border-color: var(--accent) !important;
+  z-index: 9999 !important;
   box-shadow:
-    0 22px 50px rgba(0,0,0,0.55),
-    0 0 0 2px rgba(167,139,250,0.7);
+    0 24px 50px rgba(0,0,0,0.65),
+    0 0 0 2px rgba(167,139,250,0.85),
+    0 0 32px rgba(167,139,250,0.45);
 }
+.task-dragging > * { visibility: visible !important; }
 
 /* Feedback visual leve enquanto o usuário pressiona (antes do long-press completar) */
 .task-list .task:active:not(.task-chosen):not(.task-dragging) {
@@ -2777,17 +2784,18 @@ body.tour2-active { /* mantém scroll normal — barra é fixa embaixo */ }
   align-self: center;
 }
 .tour2-bar-title {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   color: #0e1326;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: 0.15px;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .tour2-bar-msg {
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.4;
   color: #2a2a2a;
+  font-weight: 500;
 }
 .tour2-bar-msg strong { color: #0e1326; font-weight: 700; }
 

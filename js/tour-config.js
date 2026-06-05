@@ -1,18 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Configuração do Tour de Boas-vindas (v2)
-// Textos curtos, diretos. Foco em ações concretas.
+// VISÃO · Configuração do Tour de Boas-vindas
+// Textos CURTOS, diretos. "Toque aqui pra X."
 // ═══════════════════════════════════════════════════════════════
 export const ONBOARDING_STEPS = [
 
-  // ── HOME: metas de sono ANTES de tudo ──
+  // ── HOME: sono primeiro ──
   {
     id: 'home-sono',
     route: '/home',
     target: '#wake-time, .pref-time, .home-section',
     holePad: 6,
-    title: 'Primeiro: Acordar e Dormir',
-    message: 'Defina o horário que você planeja <strong>acordar</strong> e <strong>dormir</strong>. É a base do seu ritmo — sem isso o resto não faz sentido.',
-    primaryBtn: 'Já preenchi →'
+    title: 'Acordar e dormir',
+    message: 'Toque aqui pra definir os horários.',
+    primaryBtn: 'Pronto →'
   },
 
   // ── HOME: criar 3 atividades de exemplo ──
@@ -22,26 +22,26 @@ export const ONBOARDING_STEPS = [
     target: '#add-cat',
     holePad: 12,
     title: 'Atividade da MANHÃ',
-    message: 'Toque no <strong>+</strong> e crie uma atividade que se repete pela manhã (ex: "Café com leite"). Escolha ícone, cor e marque os dias da semana.',
-    primaryBtn: 'Já criei →'
+    message: 'Toque no + pra criar.',
+    primaryBtn: 'Criei →'
   },
   {
     id: 'home-act-tarde',
     route: '/home',
     target: '#add-cat',
     holePad: 12,
-    title: 'Atividade da TARDE',
-    message: 'Toque no <strong>+</strong> novamente e crie uma da tarde (ex: "Estudar").',
-    primaryBtn: 'Já criei →'
+    title: 'Agora a da TARDE',
+    message: 'Toque no + de novo.',
+    primaryBtn: 'Criei →'
   },
   {
     id: 'home-act-noite',
     route: '/home',
     target: '#add-cat',
     holePad: 12,
-    title: 'Atividade da NOITE',
-    message: 'Mais uma: agora uma da noite (ex: "Skincare").',
-    primaryBtn: 'Já criei →'
+    title: 'Agora a da NOITE',
+    message: 'Mais uma. Toque no +.',
+    primaryBtn: 'Criei →'
   },
 
   // ── HOME: completar biblioteca ──
@@ -51,8 +51,8 @@ export const ONBOARDING_STEPS = [
     target: '#cats-list',
     holePad: 8,
     title: 'Sua biblioteca',
-    message: 'Adicione TODAS as atividades que se repetem na sua semana. <strong>Aqui é o estoque</strong> — depois elas vão pro Ritual automaticamente, conforme os dias que você marcar.',
-    primaryBtn: 'Próximo →'
+    message: 'Adicione todas as atividades aqui. Elas aparecem no Ritual sozinhas.',
+    primaryBtn: 'Entendi →'
   },
 
   // ── HOME: lembretes ──
@@ -62,7 +62,7 @@ export const ONBOARDING_STEPS = [
     target: '#reminders-card',
     holePad: 8,
     title: 'Lembretes',
-    message: 'Tarefas marcadas com 🔔 no Ritual aparecem aqui. É a central de notificações da semana.',
+    message: 'Suas tarefas com 🔔 aparecem aqui.',
     primaryBtn: 'Próximo →'
   },
 
@@ -72,8 +72,8 @@ export const ONBOARDING_STEPS = [
     route: '/home',
     target: '#theme-toggle',
     holePad: 6,
-    title: 'Dia ou Noite',
-    message: 'Troque o tema a qualquer hora. Sua preferência fica salva.',
+    title: 'Tema',
+    message: 'Toque pra trocar entre dia e noite.',
     primaryBtn: 'Próximo →'
   },
 
@@ -83,9 +83,9 @@ export const ONBOARDING_STEPS = [
     route: '/home',
     target: '.bottom-nav a[href="#/ritual"]',
     holePad: 4,
-    title: 'Próxima parada: Ritual',
-    message: 'Toque em "Ritual" pra ver sua semana montada.',
-    primaryBtn: 'Próximo →'
+    title: 'Vamos pro Ritual',
+    message: 'Toque aqui.',
+    primaryBtn: 'Indo →'
   },
 
   // ── RITUAL ──
@@ -95,7 +95,7 @@ export const ONBOARDING_STEPS = [
     target: '.day-card',
     holePad: 6,
     title: 'Sua semana',
-    message: 'Cada card é um dia da semana, com as atividades distribuídas em Manhã, Tarde e Noite.',
+    message: 'Cada card é um dia (Seg → Dom).',
     primaryBtn: 'Próximo →'
   },
   {
@@ -104,7 +104,7 @@ export const ONBOARDING_STEPS = [
     target: '.task',
     holePad: 6,
     title: 'Marcar feito',
-    message: 'Toque no 👎 ao concluir — vira 👍 com um som. Pode marcar e desmarcar livremente.',
+    message: 'Toque no 👎 pra virar 👍.',
     primaryBtn: 'Próximo →'
   },
   {
@@ -112,7 +112,7 @@ export const ONBOARDING_STEPS = [
     noSpotlight: true,
     route: '/ritual',
     title: 'Copiar do dia anterior',
-    message: 'Em dias vazios, vai aparecer um banner perguntando se quer copiar do anterior. <strong>⚠️ Só clique em Sim se o dia anterior estiver TOTALMENTE preenchido</strong> — senão você copia uma versão incompleta.',
+    message: 'Em dias vazios aparece a opção. <strong>Só aceite se o dia anterior estiver completo.</strong>',
     primaryBtn: 'Entendi →'
   },
   {
@@ -121,7 +121,7 @@ export const ONBOARDING_STEPS = [
     target: '.swipe-arrow[data-nav="next-week"]',
     holePad: 4,
     title: 'Trocar de semana',
-    message: 'Use as setas ‹ › lá em cima pra navegar entre semanas.',
+    message: 'Use as setas ‹ › lá em cima.',
     primaryBtn: 'Próximo →'
   },
 
@@ -131,9 +131,9 @@ export const ONBOARDING_STEPS = [
     route: '/ritual',
     target: '.bottom-nav a[href="#/desempenho"]',
     holePad: 4,
-    title: 'Última: Desempenho',
-    message: 'Toque em "Desempenho" pra ver seu progresso.',
-    primaryBtn: 'Próximo →'
+    title: 'Vamos pro Desempenho',
+    message: 'Toque aqui.',
+    primaryBtn: 'Indo →'
   },
 
   // ── DESEMPENHO ──
@@ -143,7 +143,7 @@ export const ONBOARDING_STEPS = [
     target: '#kpis',
     holePad: 6,
     title: 'Resumo do mês',
-    message: 'Tarefas feitas, pendentes e aderência geral (%) do mês selecionado.',
+    message: 'Feitas, pendentes e %.',
     primaryBtn: 'Próximo →'
   },
   {
@@ -152,7 +152,7 @@ export const ONBOARDING_STEPS = [
     target: '.month-bar-chart',
     holePad: 6,
     title: '12 meses',
-    message: 'Comparação visual mês a mês — bom pra tendência de longo prazo.',
+    message: 'Comparação mês a mês.',
     primaryBtn: 'Próximo →'
   },
   {
@@ -161,7 +161,7 @@ export const ONBOARDING_STEPS = [
     target: '#period-tabs',
     holePad: 6,
     title: 'Filtros',
-    message: 'Esta semana / Este mês / Este ano. Troca o foco do gráfico de categorias.',
+    message: 'Semana / Mês / Ano.',
     primaryBtn: 'Próximo →'
   },
   {
@@ -170,7 +170,7 @@ export const ONBOARDING_STEPS = [
     target: '.records-header',
     holePad: 6,
     title: 'Trajetória semanal',
-    message: 'Histórico de TODAS as semanas. Toque pra expandir e ver pontos fortes, fracos, sono e sua reflexão.',
+    message: 'Toque em cada semana pra expandir.',
     primaryBtn: 'Próximo →'
   },
 
@@ -179,7 +179,7 @@ export const ONBOARDING_STEPS = [
     id: 'end',
     noSpotlight: true,
     title: 'Pronto!',
-    message: '<strong>Consistência ganha de perfeição.</strong> Pode refazer este tour quando quiser pelo Ajustes.',
+    message: 'Boa rotina ✨',
     primaryBtn: 'Concluir'
   }
 ];
