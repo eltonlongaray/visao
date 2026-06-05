@@ -1884,3 +1884,195 @@ body.bio-modal-open { overflow: hidden; }
   animation: bioSpin 0.7s linear infinite;
 }
 @keyframes bioSpin { to { transform: rotate(360deg); } }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO N+2: LEGAL SCREENS (Termos / Privacidade)
+   ═══════════════════════════════════════════════════════════════ */
+.legal-screen {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+}
+
+.legal-header {
+  display: flex; align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  position: sticky; top: 0; z-index: 10;
+}
+.legal-back {
+  background: none; border: none;
+  font-size: 28px; line-height: 1;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 12px 4px 0;
+  font-weight: 300;
+}
+.legal-header-title {
+  font-size: 16px; font-weight: 700;
+  color: var(--text);
+}
+
+.legal-content {
+  padding: 22px 22px 80px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+.legal-content h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--text);
+  background: linear-gradient(135deg, var(--accent-2), var(--blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.legal-content h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 24px 0 8px;
+  color: var(--accent-2);
+}
+.legal-content p, .legal-content li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 8px 0;
+}
+.legal-content ul { padding-left: 22px; }
+.legal-content li { margin: 4px 0; }
+.legal-content a {
+  color: var(--accent-2);
+  text-decoration: underline;
+  word-break: break-word;
+}
+.legal-content strong { color: var(--text); font-weight: 700; }
+.legal-content .legal-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO N+3: CONSENT CHECKBOX (signup + gate)
+   ═══════════════════════════════════════════════════════════════ */
+.consent-checkbox {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  margin: 10px 0;
+  user-select: none;
+}
+.consent-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0; height: 0;
+}
+.consent-checkbox-mark {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--card-2);
+  display: grid; place-items: center;
+  transition: all 0.15s;
+  margin-top: 2px;
+}
+.consent-checkbox input:checked ~ .consent-checkbox-mark {
+  background: linear-gradient(135deg, var(--accent), var(--blue, #4f46e5));
+  border-color: transparent;
+}
+.consent-checkbox input:checked ~ .consent-checkbox-mark::after {
+  content: '✓';
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+.consent-checkbox-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.consent-checkbox-text a {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+.consent-checkbox-text strong { color: var(--accent-2); }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO N+4: CONSENT GATE SCREEN (aceite retroativo)
+   ═══════════════════════════════════════════════════════════════ */
+.consent-gate-screen {
+  text-align: center;
+}
+.consent-gate-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 12px rgba(124,58,237,0.4));
+}
+.consent-gate-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  background: linear-gradient(135deg, var(--accent-2), var(--blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.consent-gate-text {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+.consent-gate-links {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-bottom: 16px;
+}
+.consent-gate-link {
+  display: block;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.consent-gate-link:hover {
+  border-color: var(--accent);
+  background: rgba(167,139,250,0.06);
+}
+.consent-gate-btn {
+  width: 100%;
+  margin-top: 16px !important;
+}
+.consent-gate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.consent-gate-cancel {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  text-decoration: underline;
+  font-size: 12px;
+}
+
+.signup-consent { margin-top: 4px !important; }

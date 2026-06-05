@@ -1,6 +1,7 @@
 import { auth, createUserWithEmailAndPassword } from '../firebase.js';
 import { navigate } from '../router.js';
 import { showToast } from '../toast.js';
+import { recordTerms } from '../consent.js';
 
 export function renderSignup(app) {
   app.innerHTML = `
@@ -23,7 +24,18 @@ export function renderSignup(app) {
           <input type="password" id="password2" required autocomplete="new-password" placeholder="••••••••" minlength="6" />
         </label>
 
-        <button type="submit" class="btn-primary" id="btn-signup">Criar conta</button>
+        <label class="consent-checkbox signup-consent">
+          <input type="checkbox" id="signupConsent" required>
+          <span class="consent-checkbox-mark"></span>
+          <span class="consent-checkbox-text">
+            Tenho 18 anos ou mais e li e aceito os
+            <a href="#/termos">Termos de Uso</a> e a
+            <a href="#/privacidade">Política de Privacidade</a>,
+            incluindo o tratamento de dados sensíveis de saúde.
+          </span>
+        </label>
+
+        <button type="submit" class="btn-primary" id="btn-signup" disabled>Criar conta</button>
 
         <button type="button" class="btn-secondary" id="back-to-login">← Voltar pro login</button>
       </form>
@@ -32,9 +44,16 @@ export function renderSignup(app) {
 
   const form = document.getElementById('signup-form');
   const btn = document.getElementById('btn-signup');
+  const chk = document.getElementById('signupConsent');
+
+  chk.addEventListener('change', () => { btn.disabled = !chk.checked; });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!chk.checked) {
+      showToast('Você precisa aceitar os Termos e a Política.', 'error');
+      return;
+    }
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const password2 = document.getElementById('password2').value;
@@ -42,7 +61,9 @@ export function renderSignup(app) {
     btn.disabled = true; btn.textContent = 'Criando...';
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      // Após criar, onAuthStateChanged dispara → main.js redireciona para /welcome (novo usuário)
+      // Aceite gravado imediatamente — auth.currentUser já está populado aqui
+      try { await recordTerms(); } catch (e) { console.warn('[signup] recordTerms:', e); }
+      // onAuthStateChanged em main.js cuida do redirect
     } catch (err) {
       btn.disabled = false; btn.textContent = 'Criar conta';
       showToast(traduzErroSignup(err.code), 'error');
