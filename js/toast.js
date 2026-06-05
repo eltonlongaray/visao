@@ -26,7 +26,8 @@ export function showLocalToast(triggerEl, message, type = 'success') {
   const rect = triggerEl.getBoundingClientRect();
   const toast = document.createElement('div');
   toast.className = 'local-toast local-toast-' + type;
-  toast.textContent = message;
+  // Aceita HTML (mensagens motivacionais podem ter ícones embutidos)
+  toast.innerHTML = message;
   toast.style.position = 'fixed';
   toast.style.left = (rect.left + rect.width / 2) + 'px';
   // ~1 card de distância acima da tarefa clicada

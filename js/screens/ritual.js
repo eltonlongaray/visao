@@ -560,6 +560,7 @@ function taskSort(a, b) {
 
 function taskCard(t, dayDocId) {
   const cat = categories.find(c => c.id === t.categoryId);
+  // Ícone próprio sobrescreve, senão usa o da categoria (fallback)
   const taskIcon = t.icon || cat?.icon || '🏷️';
   return `
     <div class="task ${t.done ? 'done' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
@@ -572,7 +573,10 @@ function taskCard(t, dayDocId) {
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
       </div>
-      <button class="task-menu-trigger" data-action="menu" title="Opções">${taskIcon}</button>
+      <div class="task-right">
+        <div class="task-icon-display" title="Ícone da tarefa">${taskIcon}</div>
+        <button class="task-menu-btn" data-action="menu" title="Mais opções">⋮</button>
+      </div>
     </div>
   `;
 }
@@ -703,7 +707,10 @@ function attachHandlers(app) {
       // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
       if (!wasDone && t.done) {
         playDone();
-        showLocalToast(taskEl, randomDoneMessage(), 'success');
+        showLocalToast(taskEl,
+          `<span class="done-check-big">✓</span><span class="done-check-text">${randomDoneMessage()}</span>`,
+          'success'
+        );
       } else if (wasDone && !t.done) {
         playUndone();
       }
@@ -1023,7 +1030,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       <label class="input-field"><div class="input-field-label">Descrição (opcional)</div>
         <input id="m-desc" value="${escape(t.desc || '')}" placeholder="detalhes do dia" /></label>
 
-      <div class="input-field-label" style="margin-top:8px">Ícone <small style="color:var(--muted);font-weight:500">(opcional — vazio usa o da categoria)</small></div>
+      <div class="input-field-label" style="margin-top:8px">Ícone <small style="color:var(--muted);font-weight:500">(vazio usa o da categoria)</small></div>
       <div class="task-icon-picker" id="m-icon-picker">
         <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="Sem ícone próprio">∅</button>
         ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}

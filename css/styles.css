@@ -683,27 +683,47 @@ html, body {
   display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 6px;
   margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
 }
-/* Botão único com o emoji da tarefa — abre menu de opções */
-.task-menu-trigger {
+/* Coluna direita da tarefa: emoji visual + botãozinho de menu embaixo */
+.task-right {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Emoji da tarefa — apenas visual, não clicável */
+.task-icon-display {
+  width: 38px; height: 38px;
   background: rgba(167,139,250,0.10);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  width: 42px; height: 42px;
-  font-size: 22px;
+  border-radius: 11px;
+  font-size: 20px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Botãozinho com 3 opções (Editar / Duplicar / Excluir) */
+.task-menu-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 38px; height: 22px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 800;
   line-height: 1;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
   padding: 0;
+  display: flex; align-items: center; justify-content: center;
   transition: all 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.task-menu-trigger:hover {
-  background: rgba(167,139,250,0.20);
+.task-menu-btn:hover {
+  background: rgba(167,139,250,0.18);
   border-color: var(--accent);
-  transform: scale(1.05);
+  color: var(--accent);
 }
-.task-menu-trigger:active { transform: scale(0.92); }
+.task-menu-btn:active { transform: scale(0.92); }
 
 /* Popover de menu (Editar / Duplicar / Excluir) */
 .task-menu-pop {
@@ -1662,6 +1682,7 @@ html, body {
   pointer-events: none;
   white-space: nowrap;
   transform: translate(-50%, 8px) scale(0.85);
+  display: flex; align-items: center; gap: 10px;
   transition: opacity 0.25s ease, transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
   letter-spacing: 0.2px;
 }
@@ -1680,6 +1701,31 @@ html, body {
 .local-toast-error {
   background: linear-gradient(135deg, var(--red), #dc2626);
   color: white;
+}
+
+/* Check grande ao marcar tarefa como feita */
+.done-check-big {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.5),
+    0 0 18px rgba(255,255,255,0.55);
+  animation: doneCheckPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.done-check-text {
+  display: inline-block;
+  line-height: 1.2;
+}
+@keyframes doneCheckPop {
+  0%   { transform: scale(0.2) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.18) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
