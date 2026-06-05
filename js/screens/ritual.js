@@ -324,7 +324,14 @@ function initTaskSortables() {
   document.querySelectorAll('.task-list').forEach(list => {
     new Sortable(list, {
       animation: 180,
-      handle: '.task-drag',
+      // Drag pela tarefa inteira (não só pelo ⋮⋮)
+      // Filtro: botões/links/inputs continuam clicáveis sem iniciar drag
+      filter: '.task-thumb, .task-edit, .task-del, .task-dup, button, input, textarea, select, a',
+      preventOnFilter: false,
+      // Long-press de 200ms no touch evita drag acidental ao tocar
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       ghostClass: 'task-ghost',
       onEnd: async (evt) => {
         const taskEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
