@@ -89,3 +89,44 @@ export async function deleteMonth(monthKey) {
   }
   return count;
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: EXCLUIR SEMANA (apenas admin)
+// ═══════════════════════════════════════════════════════════════
+// mondayId: 'YYYY-MM-DD' (segunda-feira da semana)
+export async function deleteWeek(mondayId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Não autenticado');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(mondayId)) throw new Error('Formato inválido');
+
+  const base = ['users', user.uid];
+  const monday = new Date(mondayId + 'T00:00:00');
+
+  // Constrói os 7 ids da semana (Seg → Dom)
+  const dayIds = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    dayIds.push(`${y}-${m}-${dd}`);
+  }
+
+  let count = 0;
+  for (const dId of dayIds) {
+    try {
+      await deleteCollection([...base, 'days', dId, 'tasks']);
+      await deleteDoc(doc(db, ...base, 'days', dId));
+      count++;
+    } catch (err) {
+      // Ignora se o dia nem existia
+    }
+  }
+
+  // Remove também a nota semanal (reflexão)
+  try { await deleteDoc(doc(db, ...base, 'weeks', mondayId)); } catch {}
+
+  return count;
+}

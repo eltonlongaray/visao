@@ -2458,6 +2458,31 @@ body.bio-modal-open { overflow: hidden; }
 }
 .admin-btn-danger:disabled { opacity: 0.6; cursor: wait; }
 
+/* Botão admin pra excluir semana (no canto sup-dir do card de semana) */
+.week-card { position: relative; }
+.week-admin-del {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(248,113,113,0.4);
+  background: rgba(248,113,113,0.12);
+  color: var(--red, #f87171);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  transition: all 0.15s;
+}
+.week-admin-del:hover:not(:disabled) {
+  background: var(--red, #f87171);
+  color: #fff;
+  transform: scale(1.1);
+}
+.week-admin-del:disabled { opacity: 0.5; cursor: wait; }
+
 /* Bolinha vermelha no card de atividade quando tem lembrete no Ritual */
 .cat-config-icon { position: relative; }
 .cat-reminder-dot {

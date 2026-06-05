@@ -9,7 +9,7 @@ import {
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { isAdmin } from '../admin.js';
-import { deleteMonth } from '../account-delete.js';
+import { deleteWeek } from '../account-delete.js';
 import { confirmModal, showToast } from '../toast.js';
 import { playDelete } from '../sounds.js';
 
@@ -57,12 +57,6 @@ async function renderUI(app) {
         <button class="month-nav" data-nav="next-month">›</button>
       </div>
 
-      ${isAdmin() ? `
-        <div class="admin-bar">
-          <span class="admin-bar-label">🛠️ admin</span>
-          <button class="admin-btn-danger" id="adminDeleteMonth">🗑️ Excluir mês atual</button>
-        </div>
-      ` : ''}
 
       <div class="summary-top">
         <div class="summary-stats" id="kpis">
@@ -149,31 +143,29 @@ function attachHandlers(app) {
       return;
     }
 
-    // ── ADMIN: excluir mês ──
-    const admBtn = e.target.closest('#adminDeleteMonth');
-    if (admBtn && isAdmin()) {
-      const monthKey = `${viewMonth.getFullYear()}-${String(viewMonth.getMonth()+1).padStart(2,'0')}`;
+    // ── ADMIN: excluir semana inteira ──
+    const wkDel = e.target.closest('[data-admin-del-week]');
+    if (wkDel && isAdmin()) {
+      e.stopPropagation();
+      const mondayId = wkDel.dataset.adminDelWeek;
       const ok = await confirmModal({
-        title: `Excluir ${MONTHS_FULL[viewMonth.getMonth()]} ${viewMonth.getFullYear()}?`,
-        message: `Tem certeza que deseja excluir TODOS os dados deste mês (todos os dias, tarefas, sono e hidratação registrados)? Esta ação não pode ser desfeita.`,
-        confirmText: 'Sim, excluir mês',
+        title: `Excluir semana inteira?`,
+        message: `Vai apagar todos os dias dessa semana (tarefas, sono, hidratação, reflexão). Esta ação não pode ser desfeita.`,
+        confirmText: 'Sim, excluir',
         cancelText: 'Cancelar',
         danger: true
       });
       if (!ok) return;
       playDelete();
-      admBtn.disabled = true;
-      admBtn.textContent = 'Excluindo...';
+      wkDel.disabled = true;
       try {
-        const n = await deleteMonth(monthKey);
-        showToast(`${n} dia${n===1?'':'s'} excluído${n===1?'':'s'} de ${MONTHS[viewMonth.getMonth()]}/${viewMonth.getFullYear()}.`, 'success');
+        const n = await deleteWeek(mondayId);
+        showToast(`Semana excluída (${n} dia${n===1?'':'s'} removido${n===1?'':'s'}).`, 'success');
         await refreshData();
       } catch (err) {
-        console.error('[admin] delete month falhou:', err);
-        showToast('Erro ao excluir mês.', 'error');
-      } finally {
-        admBtn.disabled = false;
-        admBtn.innerHTML = '🗑️ Excluir mês atual';
+        console.error('[admin] delete week falhou:', err);
+        showToast('Erro ao excluir semana.', 'error');
+        wkDel.disabled = false;
       }
       return;
     }
@@ -546,6 +538,7 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
 
   return `
     <div class="week-card ${isOpen ? 'open' : ''}" data-week-id="${mondayId}">
+      ${isAdmin() ? `<button class="week-admin-del" data-admin-del-week="${mondayId}" title="Excluir semana (admin)">×</button>` : ''}
       <button class="week-card-header" data-toggle-week="${mondayId}">
         <div class="week-card-title">
           <div class="week-range">${rangeLabel}</div>
