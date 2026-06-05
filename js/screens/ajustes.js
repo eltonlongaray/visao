@@ -11,6 +11,7 @@ import { deleteMyAccount } from '../account-delete.js';
 import { playDelete } from '../sounds.js';
 import * as tour from '../tour.js';
 import { isAdmin } from '../admin.js';
+import { bottomNav } from '../components/bottom-nav.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -22,12 +23,11 @@ export async function renderAjustes(app) {
 
   app.innerHTML = `
     <div class="ajustes-screen">
-      <header class="legal-header">
-        <button class="legal-back" id="ajustesBackBtn" aria-label="Voltar">‹</button>
-        <div class="legal-header-title">Ajustes</div>
-      </header>
-
       <div class="ajustes-content">
+        <div class="screen-title">
+          <h1>⚙️ Ajustes</h1>
+          <div class="sub">Sua conta, seus dados e suas preferências.</div>
+        </div>
 
         <div class="ajustes-account">
           <div class="ajustes-avatar">👁</div>
@@ -99,6 +99,17 @@ export async function renderAjustes(app) {
         </section>
 
         <section class="ajustes-section">
+          <div class="ajustes-section-title">🎯 Modalidade</div>
+          <button class="ajustes-row clickable" id="trocarModalidadeBtn">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Trocar de modalidade</div>
+              <div class="ajustes-row-sub">Voltar pra tela de Pessoal / Financeira</div>
+            </div>
+            <span class="ajustes-row-arrow">›</span>
+          </button>
+        </section>
+
+        <section class="ajustes-section">
           <div class="ajustes-section-title">🚪 Conta</div>
           <button class="ajustes-row clickable" id="signOutBtn">
             <div class="ajustes-row-main">
@@ -121,6 +132,7 @@ export async function renderAjustes(app) {
           Desenvolvido por Élton Longaray
         </div>
       </div>
+      ${bottomNav('ajustes')}
     </div>
   `;
 
@@ -132,11 +144,11 @@ export async function renderAjustes(app) {
 // BLOCO 2: WIRES
 // ═══════════════════════════════════════════════════════════════
 async function wire(app) {
-  app.querySelector('#ajustesBackBtn')?.addEventListener('click', () => navigate('/modalidade'));
-
   app.querySelectorAll('[data-route]').forEach(el =>
     el.addEventListener('click', () => navigate(el.dataset.route))
   );
+
+  app.querySelector('#trocarModalidadeBtn')?.addEventListener('click', () => navigate('/modalidade'));
 
   // ── Bio toggle ──
   const bioToggle = app.querySelector('#bioToggle');

@@ -20,7 +20,6 @@ export function renderModalidade(app) {
 
   app.innerHTML = `
     <div class="onboarding modalidade-screen">
-      <button class="modalidade-settings-btn" id="goAjustesBtn" aria-label="Ajustes">⚙️</button>
       <div class="onboarding-logo">👁</div>
       <div class="onboarding-title">Visão</div>
       <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">

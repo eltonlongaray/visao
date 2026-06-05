@@ -1303,7 +1303,7 @@ html, body {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   font-size: 10px; color: var(--muted);
   background: none; border: none; font-family: inherit;
-  cursor: pointer; padding: 6px 14px; border-radius: 10px;
+  cursor: pointer; padding: 6px 10px; border-radius: 10px;
   transition: all 0.2s; text-decoration: none;
 }
 .nav-btn .nav-ic { font-size: 20px; }

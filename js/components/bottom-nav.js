@@ -11,6 +11,9 @@ export function bottomNav(active) {
       <a href="#/desempenho" class="nav-btn ${active === 'desempenho' ? 'active' : ''}">
         <span class="nav-ic">📊</span>Desempenho
       </a>
+      <a href="#/ajustes" class="nav-btn ${active === 'ajustes' ? 'active' : ''}">
+        <span class="nav-ic">⚙️</span>Ajustes
+      </a>
     </nav>
   `;
 }
