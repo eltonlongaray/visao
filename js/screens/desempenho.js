@@ -11,6 +11,7 @@ import { bottomNav } from '../components/bottom-nav.js';
 import { isAdmin } from '../admin.js';
 import { deleteMonth } from '../account-delete.js';
 import { confirmModal, showToast } from '../toast.js';
+import { playDelete } from '../sounds.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -160,6 +161,7 @@ function attachHandlers(app) {
         danger: true
       });
       if (!ok) return;
+      playDelete();
       admBtn.disabled = true;
       admBtn.textContent = 'Excluindo...';
       try {

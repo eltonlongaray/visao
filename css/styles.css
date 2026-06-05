@@ -2271,3 +2271,20 @@ body.bio-modal-open { overflow: hidden; }
   background: rgba(248,113,113,0.25);
 }
 .admin-btn-danger:disabled { opacity: 0.6; cursor: wait; }
+
+/* Bolinha vermelha no card de atividade quando tem lembrete no Ritual */
+.cat-config-icon { position: relative; }
+.cat-reminder-dot {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.6), 0 0 8px rgba(239,68,68,0.5);
+  animation: dotPulse 1.8s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}

@@ -11,6 +11,7 @@ import {
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, confirmModal } from '../toast.js';
+import { playDelete } from '../sounds.js';
 import { currentTheme, toggleTheme } from '../theme.js';
 import { auth, signOut } from '../firebase.js';
 import { navigate } from '../router.js';
@@ -283,17 +284,34 @@ function attachPrefHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function renderCats() {
   const box = document.getElementById('cats-list');
-  box.innerHTML = categories.map(c => `
+  box.innerHTML = categories.map(c => {
+    const hasReminder = categoryHasReminder(c.id);
+    return `
     <div class="cat-config-card" data-id="${c.id}">
-      <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">${c.icon || '🏷️'}</div>
+      <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
+        ${c.icon || '🏷️'}
+        ${hasReminder ? '<span class="cat-reminder-dot" title="Tem lembrete no Ritual"></span>' : ''}
+      </div>
       <div class="cat-config-name-display">${escape(c.name)}</div>
       <div class="cat-config-swatch" style="background:${c.color || '#a78bfa'}"></div>
       <div class="activity-actions">
         <button data-action="edit-cat" title="Editar">✏️</button>
         <button class="del" data-action="del-cat" title="Excluir">🗑️</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+}
+
+// True se alguma tarefa em qualquer weekdayTemplate dessa categoria tem reminderEnabled
+function categoryHasReminder(categoryId) {
+  const tpls = profile?.weekdayTemplates;
+  if (!tpls) return false;
+  for (const dow of Object.keys(tpls)) {
+    const arr = tpls[dow];
+    if (!Array.isArray(arr)) continue;
+    if (arr.some(t => t.categoryId === categoryId && t.reminderEnabled)) return true;
+  }
+  return false;
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
@@ -335,6 +353,7 @@ function attachHandlers() {
         danger: true
       });
       if (!ok) return;
+      playDelete();
       await deleteCategory(id);
       categories = await getCategories();
       renderCats();

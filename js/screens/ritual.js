@@ -10,6 +10,7 @@ import {
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, showLocalToast, confirmModal } from '../toast.js';
+import { playDone, playUndone, playDelete } from '../sounds.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -537,9 +538,12 @@ function attachHandlers(app) {
       taskEl.classList.toggle('done', t.done);
       await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done });
       updateDayCardStats(taskEl.dataset.day, false); // sem sync de template — done não vira modelo
-      // Toast motivacional flutua acima da tarefa clicada (só ao marcar feito)
+      // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
       if (!wasDone && t.done) {
+        playDone();
         showLocalToast(taskEl, randomDoneMessage(), 'success');
+      } else if (wasDone && !t.done) {
+        playUndone();
       }
       return;
     }
@@ -636,6 +640,7 @@ function attachHandlers(app) {
         danger: true
       });
       if (!ok) return;
+      playDelete();
       taskEl.style.transition = 'all 0.25s';
       taskEl.style.opacity = '0';
       taskEl.style.transform = 'translateX(40px)';

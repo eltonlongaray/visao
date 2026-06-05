@@ -8,6 +8,7 @@ import { showToast, confirmModal } from '../toast.js';
 import * as biometric from '../biometric.js';
 import { downloadJson, openPdfReport } from '../store-export.js';
 import { deleteMyAccount } from '../account-delete.js';
+import { playDelete } from '../sounds.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -233,6 +234,7 @@ async function wire(app) {
     });
     if (!ok2) return;
 
+    playDelete();
     const btn = app.querySelector('#deleteAccountBtn');
     btn.disabled = true;
     btn.style.opacity = '0.6';
