@@ -167,11 +167,19 @@ export const ONBOARDING_STEPS = [
   {
     id: 'desemp-trajetoria',
     route: '/desempenho',
-    target: '.records-header',
+    target: '.week-card',
     holePad: 6,
     title: 'Trajetória semanal',
-    message: 'Toque em cada semana pra expandir.',
-    primaryBtn: 'Próximo →'
+    message: 'Toque numa semana pra abrir.',
+    primaryBtn: 'Abri →'
+  },
+  {
+    id: 'desemp-trajetoria-info',
+    noSpotlight: true,
+    route: '/desempenho',
+    title: 'Dentro de cada semana',
+    message: 'Aqui você vê <strong>pontos fortes</strong>, <strong>pontos fracos</strong>, qualidade do <strong>sono</strong>, melhor e pior dia, e o espaço pra escrever sua <strong>reflexão</strong>.',
+    primaryBtn: 'Entendi →'
   },
 
   // ── Final ──
