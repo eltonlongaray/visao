@@ -7,6 +7,7 @@
 import { auth, db, doc, getDoc } from '../firebase.js';
 import { navigate } from '../router.js';
 import { showToast } from '../toast.js';
+import * as biometric from '../biometric.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -24,6 +25,8 @@ export function renderModalidade(app) {
         Olá, ${escapeHtml(firstName)} 👋
       </div>
       <div class="onboarding-sub">Por onde você quer começar hoje?</div>
+
+      <div id="bioPromptSlot"></div>
 
       <div class="onb-section-label">🎯 Modalidades</div>
 
@@ -65,25 +68,21 @@ export function renderModalidade(app) {
   `;
 
   attachHandlers(app);
+  maybeShowBioPrompt(app);
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: HANDLERS
+// BLOCO 3: HANDLERS DE MODALIDADE
 // ═══════════════════════════════════════════════════════════════
 function attachHandlers(app) {
-  // Pessoal → checa template e redireciona
   app.querySelector('[data-modalidade="pessoal"]')?.addEventListener('click', async () => {
     const card = app.querySelector('[data-modalidade="pessoal"]');
     card.style.opacity = '0.6';
     card.style.pointerEvents = 'none';
-
     try {
       const user = auth.currentUser;
-      if (!user) {
-        navigate('/login');
-        return;
-      }
+      if (!user) { navigate('/login'); return; }
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const hasTemplate = userDoc.exists() && userDoc.data()?.template;
       navigate(hasTemplate ? '/home' : '/welcome');
@@ -95,12 +94,10 @@ function attachHandlers(app) {
     }
   });
 
-  // Financeira → "Em breve"
   app.querySelector('[data-modalidade="financeira"]')?.addEventListener('click', () => {
     showToast('💰 Organização Financeira em desenvolvimento — em breve!', 'info');
   });
 
-  // Sair da conta
   app.querySelector('#btnSairModalidade')?.addEventListener('click', async () => {
     try {
       const { signOut } = await import('../firebase.js');
@@ -115,7 +112,91 @@ function attachHandlers(app) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: HELPERS
+// BLOCO 4: PROMPT DE BIOMETRIA (1ª vez)
+// ═══════════════════════════════════════════════════════════════
+async function maybeShowBioPrompt(app) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const slot = app.querySelector('#bioPromptSlot');
+  if (!slot) return;
+
+  // Já habilitado pra este user OU usuário dispensou → nada a mostrar
+  if (biometric.isEnabledForUser(user.uid)) return;
+  if (biometric.isDismissed()) return;
+
+  const available = await biometric.isAvailable();
+
+  if (!available) {
+    // Device sem biometria/PIN configurado → orienta uma vez
+    slot.innerHTML = `
+      <div class="bio-prompt warn">
+        <div class="bio-prompt-icon">⚠️</div>
+        <div class="bio-prompt-body">
+          <strong>Seu celular não tem desbloqueio configurado.</strong>
+          <small>Configure uma senha, digital ou Face ID nos ajustes do celular pra proteger seus dados.</small>
+        </div>
+        <button class="bio-prompt-x" id="bioDismissBtn" title="Não mostrar mais">×</button>
+      </div>
+    `;
+    slot.querySelector('#bioDismissBtn')?.addEventListener('click', () => {
+      biometric.dismissPrompt();
+      slot.innerHTML = '';
+    });
+    return;
+  }
+
+  // Device suporta → oferece ativar
+  slot.innerHTML = `
+    <div class="bio-prompt">
+      <div class="bio-prompt-icon">🔐</div>
+      <div class="bio-prompt-body">
+        <strong>Proteja seu Visão</strong>
+        <small>Use Face ID, digital ou o desbloqueio do celular pra travar o app.</small>
+      </div>
+      <div class="bio-prompt-actions">
+        <button class="bio-btn-primary" id="bioEnableBtn">Ativar</button>
+        <button class="bio-btn-ghost" id="bioDismissBtn">Agora não</button>
+      </div>
+    </div>
+  `;
+
+  slot.querySelector('#bioDismissBtn')?.addEventListener('click', () => {
+    biometric.dismissPrompt();
+    slot.innerHTML = '';
+  });
+
+  slot.querySelector('#bioEnableBtn')?.addEventListener('click', async () => {
+    const btn = slot.querySelector('#bioEnableBtn');
+    btn.disabled = true;
+    btn.textContent = 'Aguarde...';
+    try {
+      await biometric.register(user.uid, user.email || user.displayName || 'Visão User');
+      slot.innerHTML = `
+        <div class="bio-prompt ok">
+          <div class="bio-prompt-icon">✅</div>
+          <div class="bio-prompt-body">
+            <strong>Bloqueio ativado!</strong>
+            <small>Pediremos seu desbloqueio quando o app ficar 20s em segundo plano.</small>
+          </div>
+        </div>
+      `;
+      setTimeout(() => { slot.innerHTML = ''; }, 3500);
+    } catch (err) {
+      console.warn('[bio] register falhou:', err?.name, err?.message);
+      btn.disabled = false;
+      btn.textContent = 'Ativar';
+      const msg = err?.name === 'NotAllowedError'
+        ? 'Cancelado.'
+        : 'Não foi possível ativar. Verifique se há senha/digital configurada no celular.';
+      showToast(msg, 'error');
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: HELPERS
 // ═══════════════════════════════════════════════════════════════
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({

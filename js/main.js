@@ -11,6 +11,8 @@ import { renderModalidade } from './screens/modalidade.js';
 import { renderHome } from './screens/home.js';
 import { renderRitual } from './screens/ritual.js';
 import { renderDesempenho } from './screens/desempenho.js';
+import * as biometric from './biometric.js';
+import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -29,6 +31,9 @@ registerRoute('/desempenho', renderDesempenho);
 // (Firebase CDN lento bloqueando avaliação do main.js).
 forceRender();
 
+// Inicia o listener de auto-lock (20s em segundo plano → trava)
+initAutoLock();
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: AUTH STATE — redirect automático conforme login
@@ -45,17 +50,29 @@ onAuthStateChanged(auth, (user) => {
   const isAuthRoute = ['#/login', '#/signup', ''].includes(location.hash);
 
   if (!user) {
-    // Não logado → vai pro login
+    // Não logado → vai pro login + destrava qualquer lock pendente
     lastUid = null;
+    if (isLocked()) hideLock();
     if (!isAuthRoute) navigate('/login');
     else if (!location.hash) navigate('/login');
     return;
   }
 
   // Logado: sempre passa pela tela de escolha de modalidade
-  // (Pessoal / Financeira). O check de "tem template?" foi movido pra dentro
-  // do clique em Pessoal na modalidade.js, mantendo a rota /home pura.
   if (user.uid === lastUid) return; // evita loop
   lastUid = user.uid;
+
+  // Se a bio estava ligada pra OUTRO usuário neste device, desliga
+  // (segurança: previne user-A destravar acesso de user-B)
+  const boundUid = biometric.getBoundUid();
+  if (boundUid && boundUid !== user.uid) {
+    biometric.disable();
+  }
+
   navigate('/modalidade');
+
+  // Cold-open: se bio está configurada pra este user, trava na hora
+  if (biometric.isEnabledForUser(user.uid)) {
+    showLock();
+  }
 });
