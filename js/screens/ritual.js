@@ -300,7 +300,7 @@ function renderUI(app) {
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
         <div class="day-info-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">arraste pra trocar de semana</div>
+          <div class="meta">use as setas pra trocar de semana</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
@@ -697,15 +697,7 @@ function attachHandlers(app) {
     saveTimers[key] = setTimeout(() => setDayMeta(dayDocId, { [field]: value }), 600);
   });
 
-  // Swipe touch entre semanas
-  let touchX = 0;
-  app.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; }, { passive: true });
-  app.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].screenX - touchX;
-    if (Math.abs(dx) < 80) return;
-    const dir = dx < 0 ? 'next-week' : 'prev-week';
-    document.querySelector(`[data-nav="${dir}"]`)?.click();
-  }, { passive: true });
+  // (Swipe entre semanas removido — só pelas setas ‹ ›)
 }
 
 function updateDayCardStats(dayDocId, syncTemplate = true) {
