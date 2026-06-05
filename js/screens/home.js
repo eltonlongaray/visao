@@ -13,7 +13,7 @@ import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, confirmModal } from '../toast.js';
 import { playDelete } from '../sounds.js';
 import { currentTheme, toggleTheme } from '../theme.js';
-import { auth, signOut } from '../firebase.js';
+import { auth } from '../firebase.js';
 import { navigate } from '../router.js';
 import * as tour from '../tour.js';
 import { ONBOARDING_STEPS } from '../tour-config.js';
@@ -99,12 +99,6 @@ export async function renderHome(app) {
         <div class="home-section-hint">São os tipos de coisa que você faz na rotina (Hidratação, Treino, Estudo...). No Ritual você adiciona uma e escreve o que rolou no dia.</div>
       </div>
 
-      <div class="home-logout-wrap">
-        <button class="home-logout-btn" id="btn-logout">
-          <span>🚪</span> Sair da conta
-        </button>
-        <div class="home-logout-email">${escape(auth.currentUser?.email || '')}</div>
-      </div>
     </div>
     ${bottomNav('home')}
   `;
@@ -334,9 +328,6 @@ function categoryHasReminder(categoryId) {
 // ═══════════════════════════════════════════════════════════════
 function attachHandlers() {
   // ─── Específicos (botões recriados a cada render) ─────────
-  document.getElementById('btn-logout').addEventListener('click', async () => {
-    await signOut(auth); navigate('/login');
-  });
   document.getElementById('add-cat').addEventListener('click', () => openCategoryEditor(null));
   document.getElementById('reminders-card').addEventListener('click', openRemindersModal);
 
