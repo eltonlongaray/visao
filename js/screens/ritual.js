@@ -975,8 +975,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <label class="input-field"><div class="input-field-label">O que fazer</div>
         <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
 
-      <label class="input-field"><div class="input-field-label">Horário (opcional)</div>
-        <input id="m-time" type="time" /></label>
+      <div class="input-field-label">Horário (opcional)</div>
+      <div class="time-hhmm">
+        <input id="m-hh" inputmode="numeric" maxlength="2" placeholder="HH" />
+        <span class="time-hhmm-sep">:</span>
+        <input id="m-mm" inputmode="numeric" maxlength="2" placeholder="MM" />
+      </div>
 
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" />
@@ -1000,6 +1004,29 @@ function openActivityPicker(app, dayDocId, shiftId) {
   document.body.appendChild(modal);
   setTimeout(() => modal.querySelector('#m-title').focus(), 50);
 
+  // Auto-format dos campos HH e MM (padroniza 2 dígitos e clampa range)
+  const hhInpA = modal.querySelector('#m-hh');
+  const mmInpA = modal.querySelector('#m-mm');
+  hhInpA?.addEventListener('input', () => {
+    hhInpA.value = hhInpA.value.replace(/\D/g, '');
+    if (hhInpA.value.length === 2) mmInpA?.focus();
+  });
+  hhInpA?.addEventListener('blur', () => {
+    let v = parseInt(hhInpA.value, 10);
+    if (isNaN(v)) { hhInpA.value = ''; return; }
+    if (v < 0) v = 0; if (v > 23) v = 23;
+    hhInpA.value = String(v).padStart(2, '0');
+  });
+  mmInpA?.addEventListener('input', () => {
+    mmInpA.value = mmInpA.value.replace(/\D/g, '');
+  });
+  mmInpA?.addEventListener('blur', () => {
+    let v = parseInt(mmInpA.value, 10);
+    if (isNaN(v)) { mmInpA.value = ''; return; }
+    if (v < 0) v = 0; if (v > 59) v = 59;
+    mmInpA.value = String(v).padStart(2, '0');
+  });
+
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
@@ -1011,7 +1038,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
       if (cat) title = cat.name; // se não tem título mas tem atividade, usa o nome da atividade
       else { showToast('Digite um título ou escolha uma atividade', 'info'); return; }
     }
-    const startTime = modal.querySelector('#m-time').value.trim();
+    const hh = (modal.querySelector('#m-hh').value || '').trim();
+    const mm = (modal.querySelector('#m-mm').value || '').trim();
+    const startTime = (hh && mm) ? `${hh.padStart(2,'0')}:${mm.padStart(2,'0')}` : '';
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
     const order = day.tasks.filter(t => t.shiftId === shiftId).length;
     const newTask = {

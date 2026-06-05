@@ -1378,7 +1378,20 @@ html, body {
   cursor: pointer;
 }
 .modal select option { background: var(--card); color: var(--text); }
-.modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+/* Modal-actions: SEMPRE visível no rodapé (sticky), mesmo se o conteúdo do form scrollar */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin: 14px -20px 0;
+  padding: 14px 20px 6px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  z-index: 2;
+  /* sombra suave indica que há conteúdo acima */
+  box-shadow: 0 -8px 12px -8px rgba(0,0,0,0.25);
+}
 .modal-actions .btn-primary, .modal-actions .btn-secondary { margin: 0; flex: 1; }
 
 .picker-item {
