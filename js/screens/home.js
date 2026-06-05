@@ -17,6 +17,7 @@ import { auth } from '../firebase.js';
 import { navigate } from '../router.js';
 import * as tour from '../tour.js';
 import { ONBOARDING_STEPS } from '../tour-config.js';
+import { openTimePicker } from '../time-picker.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -68,11 +69,11 @@ export async function renderHome(app) {
           <div class="time-pills">
             <label class="time-pill">
               <span class="time-pill-label">🌅 Acordar</span>
-              <input class="time-pill-input" id="pref-wake" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(profile.defaultWakeTime)}">
+              <button type="button" class="time-pill-input tp-pill-trigger" id="pref-wake" data-time="${toHHMM(profile.defaultWakeTime) || ''}">${toHHMM(profile.defaultWakeTime) || '--:--'}</button>
             </label>
             <label class="time-pill">
               <span class="time-pill-label">🌙 Dormir</span>
-              <input class="time-pill-input" id="pref-sleep" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(profile.defaultSleepTime)}">
+              <button type="button" class="time-pill-input tp-pill-trigger" id="pref-sleep" data-time="${toHHMM(profile.defaultSleepTime) || ''}">${toHHMM(profile.defaultSleepTime) || '--:--'}</button>
             </label>
           </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
@@ -267,20 +268,27 @@ function attachPrefHandlers() {
   const sleep = document.getElementById('pref-sleep');
   if (!wake || !sleep) return;
 
-  const onChange = () => {
-    const wv = wake.value.trim();
-    const sv = sleep.value.trim();
+  const persist = async () => {
+    const wv = wake.dataset.time || '';
+    const sv = sleep.dataset.time || '';
     profile.defaultWakeTime = wv;
     profile.defaultSleepTime = sv;
     document.getElementById('sleep-info').innerHTML = sleepInfoHtml();
-    clearTimeout(prefsSaveTimer);
-    prefsSaveTimer = setTimeout(async () => {
-      try { await setProfile({ defaultWakeTime: wv, defaultSleepTime: sv }); }
-      catch (e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
-    }, 600);
+    try { await setProfile({ defaultWakeTime: wv, defaultSleepTime: sv }); }
+    catch (e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
   };
-  wake.addEventListener('input', onChange);
-  sleep.addEventListener('input', onChange);
+
+  const openFor = async (btn) => {
+    const result = await openTimePicker(btn.dataset.time || '');
+    if (result) {
+      btn.dataset.time = result;
+      btn.textContent = result;
+      persist();
+    }
+  };
+
+  wake.addEventListener('click', () => openFor(wake));
+  sleep.addEventListener('click', () => openFor(sleep));
 }
 
 // ═══════════════════════════════════════════════════════════════

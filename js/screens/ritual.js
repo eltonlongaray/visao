@@ -404,11 +404,11 @@ function renderDayContent(d) {
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
-        <input class="time-pill-input" data-meta="wakeTime" data-day="${d.id}" type="text" inputmode="numeric" maxlength="5" placeholder="${wakePh || 'HH:MM'}" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(d.meta.wakeTime)}">
+        <button type="button" class="time-pill-input tp-pill-trigger" data-meta="wakeTime" data-day="${d.id}" data-time="${toHHMM(d.meta.wakeTime) || ''}">${toHHMM(d.meta.wakeTime) || wakePh || '--:--'}</button>
       </label>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
-        <input class="time-pill-input" data-meta="sleepTime" data-day="${d.id}" type="text" inputmode="numeric" maxlength="5" placeholder="${sleepPh || 'HH:MM'}" pattern="[0-9]{2}:[0-9]{2}" value="${toHHMM(d.meta.sleepTime)}">
+        <button type="button" class="time-pill-input tp-pill-trigger" data-meta="sleepTime" data-day="${d.id}" data-time="${toHHMM(d.meta.sleepTime) || ''}">${toHHMM(d.meta.sleepTime) || sleepPh || '--:--'}</button>
       </label>
     </div>
 
@@ -921,6 +921,24 @@ function attachHandlers(app) {
     const key = dayDocId + ':' + field;
     clearTimeout(saveTimers[key]);
     saveTimers[key] = setTimeout(() => setDayMeta(dayDocId, { [field]: value }), 600);
+  });
+
+  // Pills de horário (Acordei/Dormi) — abrem o time picker
+  app.addEventListener('click', async (e) => {
+    const trigger = e.target.closest('.tp-pill-trigger[data-meta]');
+    if (!trigger) return;
+    const result = await openTimePicker(trigger.dataset.time || '');
+    if (!result) return;
+    trigger.dataset.time = result;
+    trigger.textContent = result;
+    const dayDocId = trigger.dataset.day;
+    const field = trigger.dataset.meta;
+    const day = weekData.find(d => d.id === dayDocId);
+    if (day) {
+      day.meta[field] = result;
+      try { await setDayMeta(dayDocId, { [field]: result }); }
+      catch (err) { showToast('Erro ao salvar', 'error'); }
+    }
   });
 
   // (Swipe entre semanas removido — só pelas setas ‹ ›)

@@ -960,6 +960,17 @@ body.time-picker-open { overflow: hidden; }
 }
 .tp-trigger-edit { color: var(--muted); font-size: 22px; }
 
+/* Pill trigger — usado em inputs compactos (Acordei/Dormi) */
+.tp-pill-trigger {
+  cursor: pointer;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.tp-pill-trigger:hover {
+  border-color: var(--accent);
+  background: rgba(167,139,250,0.10);
+}
+
 
 /* Editor de tarefa: input customizado HH:MM (sem dialog do sistema) */
 .time-hhmm {
