@@ -11,6 +11,7 @@ import {
 import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, showLocalToast, confirmModal } from '../toast.js';
 import { playDone, playUndone, playDelete } from '../sounds.js';
+import { openTimePicker } from '../time-picker.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -976,11 +977,11 @@ function openActivityPicker(app, dayDocId, shiftId) {
         <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
 
       <div class="input-field-label">Horário (opcional)</div>
-      <div class="time-hhmm">
-        <input id="m-hh" inputmode="numeric" maxlength="2" placeholder="HH" />
-        <span class="time-hhmm-sep">:</span>
-        <input id="m-mm" inputmode="numeric" maxlength="2" placeholder="MM" />
-      </div>
+      <button type="button" class="tp-trigger" id="m-time-trigger" data-time="">
+        <span class="tp-trigger-icon">🕐</span>
+        <span class="tp-trigger-time">— : —</span>
+        <span class="tp-trigger-edit">›</span>
+      </button>
 
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" />
@@ -1004,27 +1005,15 @@ function openActivityPicker(app, dayDocId, shiftId) {
   document.body.appendChild(modal);
   setTimeout(() => modal.querySelector('#m-title').focus(), 50);
 
-  // Auto-format dos campos HH e MM (padroniza 2 dígitos e clampa range)
-  const hhInpA = modal.querySelector('#m-hh');
-  const mmInpA = modal.querySelector('#m-mm');
-  hhInpA?.addEventListener('input', () => {
-    hhInpA.value = hhInpA.value.replace(/\D/g, '');
-    if (hhInpA.value.length === 2) mmInpA?.focus();
-  });
-  hhInpA?.addEventListener('blur', () => {
-    let v = parseInt(hhInpA.value, 10);
-    if (isNaN(v)) { hhInpA.value = ''; return; }
-    if (v < 0) v = 0; if (v > 23) v = 23;
-    hhInpA.value = String(v).padStart(2, '0');
-  });
-  mmInpA?.addEventListener('input', () => {
-    mmInpA.value = mmInpA.value.replace(/\D/g, '');
-  });
-  mmInpA?.addEventListener('blur', () => {
-    let v = parseInt(mmInpA.value, 10);
-    if (isNaN(v)) { mmInpA.value = ''; return; }
-    if (v < 0) v = 0; if (v > 59) v = 59;
-    mmInpA.value = String(v).padStart(2, '0');
+  // Botão de horário → abre time picker
+  modal.querySelector('#m-time-trigger')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const result = await openTimePicker(btn.dataset.time || '');
+    if (result) {
+      btn.dataset.time = result;
+      btn.querySelector('.tp-trigger-time').textContent = result;
+    }
   });
 
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
@@ -1038,9 +1027,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       if (cat) title = cat.name; // se não tem título mas tem atividade, usa o nome da atividade
       else { showToast('Digite um título ou escolha uma atividade', 'info'); return; }
     }
-    const hh = (modal.querySelector('#m-hh').value || '').trim();
-    const mm = (modal.querySelector('#m-mm').value || '').trim();
-    const startTime = (hh && mm) ? `${hh.padStart(2,'0')}:${mm.padStart(2,'0')}` : '';
+    const startTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
     const order = day.tasks.filter(t => t.shiftId === shiftId).length;
     const newTask = {
@@ -1082,11 +1069,11 @@ function openTaskEditor(app, dayDocId, taskId) {
       <label class="input-field"><div class="input-field-label">Turno</div>
         <select id="m-shift">${shiftOpts}</select></label>
       <div class="input-field-label">Horário de início (opcional)</div>
-      <div class="time-hhmm" id="m-time-group">
-        <input id="m-hh" inputmode="numeric" maxlength="2" placeholder="HH" value="${(toHHMM(t.startTime) || '').split(':')[0] || ''}" />
-        <span class="time-hhmm-sep">:</span>
-        <input id="m-mm" inputmode="numeric" maxlength="2" placeholder="MM" value="${(toHHMM(t.startTime) || '').split(':')[1] || ''}" />
-      </div>
+      <button type="button" class="tp-trigger" id="m-time-trigger" data-time="${toHHMM(t.startTime) || ''}">
+        <span class="tp-trigger-icon">🕐</span>
+        <span class="tp-trigger-time">${toHHMM(t.startTime) || '— : —'}</span>
+        <span class="tp-trigger-edit">›</span>
+      </button>
 
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
@@ -1114,34 +1101,19 @@ function openTaskEditor(app, dayDocId, taskId) {
     });
   });
 
-  // Auto-formata os campos HH e MM (padroniza com 2 dígitos e clampa range)
-  const hhInp = modal.querySelector('#m-hh');
-  const mmInp = modal.querySelector('#m-mm');
-  hhInp?.addEventListener('input', () => {
-    let v = hhInp.value.replace(/\D/g, '');
-    if (v.length === 2) mmInp?.focus();
-    hhInp.value = v;
-  });
-  hhInp?.addEventListener('blur', () => {
-    let v = parseInt(hhInp.value, 10);
-    if (isNaN(v)) { hhInp.value = ''; return; }
-    if (v < 0) v = 0; if (v > 23) v = 23;
-    hhInp.value = String(v).padStart(2, '0');
-  });
-  mmInp?.addEventListener('input', () => {
-    mmInp.value = mmInp.value.replace(/\D/g, '');
-  });
-  mmInp?.addEventListener('blur', () => {
-    let v = parseInt(mmInp.value, 10);
-    if (isNaN(v)) { mmInp.value = ''; return; }
-    if (v < 0) v = 0; if (v > 59) v = 59;
-    mmInp.value = String(v).padStart(2, '0');
+  // Wire time picker trigger (botão abre roleta)
+  modal.querySelector('#m-time-trigger')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const result = await openTimePicker(btn.dataset.time || '');
+    if (result) {
+      btn.dataset.time = result;
+      btn.querySelector('.tp-trigger-time').textContent = result;
+    }
   });
 
   modal.querySelector('#m-save').onclick = async () => {
-    const hh = (modal.querySelector('#m-hh').value || '').trim();
-    const mm = (modal.querySelector('#m-mm').value || '').trim();
-    const newTime = (hh && mm) ? `${hh.padStart(2,'0')}:${mm.padStart(2,'0')}` : '';
+    const newTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
     let newShiftId = modal.querySelector('#m-shift').value || null;
 
     // Auto-ajuste: se o horário caiu em outro turno, move pra ele
