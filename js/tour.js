@@ -129,13 +129,29 @@ async function showStep() {
 
   positionHole(target, step);
   renderBar(step);
+  positionBar(target, step);
 
   // Scroll suave pro target ficar visível (acima da barra)
   if (target) {
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     await wait(320);
     positionHole(target, step);
+    positionBar(target, step);
   }
+}
+
+// Decide se a barra fica embaixo (padrão) ou no topo (se o alvo está perto do rodapé)
+function positionBar(target, step) {
+  if (!dom.bar) return;
+  if (!target || step.center) {
+    dom.bar.classList.remove('top-placed');
+    return;
+  }
+  const r = target.getBoundingClientRect();
+  const vh = window.innerHeight;
+  // Se o alvo está nos 35% de baixo da tela → barra sobe pro topo pra não tampar
+  const targetIsBottom = r.top > vh * 0.65;
+  dom.bar.classList.toggle('top-placed', targetIsBottom);
 }
 
 function collapseBar() {
@@ -243,6 +259,7 @@ function repositionCurrent() {
   if (!step) return;
   const target = step.target ? document.querySelector(step.target) : null;
   positionHole(target, step);
+  positionBar(target, step);
 }
 window.addEventListener('resize', () => {
   clearTimeout(repoTimer);

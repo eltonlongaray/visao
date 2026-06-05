@@ -3037,6 +3037,17 @@ body.tour2-active { /* mantém scroll normal — barra é fixa embaixo */ }
 /* Anti-conflito com bottom nav — sobe a barra um pouco se nav presente */
 body.tour2-active .bottom-nav { bottom: 0; }
 
+/* Quando o alvo está perto do rodapé da tela, a barra sobe pro topo */
+.tour2-bar.top-placed {
+  bottom: auto;
+  top: 14px;
+  animation: tour2BarInTop 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes tour2BarInTop {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Estado COLAPSADO — usuário tocou no alvo, agora deixa a tela livre */
 .tour2-backdrop { transition: opacity 0.25s ease; }
 .tour2-bar.collapsed {
