@@ -683,18 +683,19 @@ html, body {
   display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 6px;
   margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
 }
-/* Botão ⋮ no canto superior direito do card (Editar/Duplicar/Excluir) */
-.task { position: relative; }
+/* Botão ⋮ centralizado no lado direito do card (maior, fácil de tocar) */
+.task { position: relative; padding-right: 44px; }
 .task-menu-btn-corner {
   position: absolute;
-  top: 6px; right: 6px;
-  background: transparent;
-  border: none;
+  top: 50%; right: 6px;
+  transform: translateY(-50%);
+  background: rgba(167,139,250,0.08);
+  border: 1px solid var(--border);
   color: var(--muted);
-  width: 26px; height: 26px;
-  border-radius: 7px;
-  font-size: 20px;
-  font-weight: 800;
+  width: 34px; height: 46px;
+  border-radius: 10px;
+  font-size: 28px;
+  font-weight: 900;
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -704,10 +705,11 @@ html, body {
   z-index: 2;
 }
 .task-menu-btn-corner:hover {
-  background: rgba(167,139,250,0.18);
+  background: rgba(167,139,250,0.22);
   color: var(--accent);
+  border-color: var(--accent);
 }
-.task-menu-btn-corner:active { transform: scale(0.88); }
+.task-menu-btn-corner:active { transform: translateY(-50%) scale(0.92); }
 
 /* Emoji da tarefa — badge inline antes do título */
 .task-icon-inline {
