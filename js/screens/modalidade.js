@@ -27,22 +27,27 @@ export function renderModalidade(app) {
 
       <div class="onb-section-label">🎯 Modalidades</div>
 
-      <div class="template-card featured" data-modalidade="pessoal">
+      <div class="template-card featured modalidade-card" data-modalidade="pessoal">
+        <span class="modalidade-badge dispo">
+          <span class="modalidade-badge-dot"></span>
+          Disponível
+        </span>
         <div class="template-icon" style="background:rgba(124,58,237,0.20)">📋</div>
         <div class="template-info">
           <div class="template-name">Organização Pessoal</div>
           <div class="template-desc">Rotina, hábitos, atividades por turno e gráficos de aderência.</div>
-          <span class="template-badge">★ Disponível</span>
         </div>
         <div class="template-arrow">›</div>
       </div>
 
-      <div class="template-card template-financeiro" data-modalidade="financeira">
+      <div class="template-card template-financeiro modalidade-card" data-modalidade="financeira">
+        <span class="modalidade-badge soon">
+          ⏳ Em breve
+        </span>
         <div class="template-icon" style="background:rgba(245,158,11,0.20)">💰</div>
         <div class="template-info">
           <div class="template-name">Organização Financeira</div>
           <div class="template-desc">Ganhos, gastos, metas e investimentos sob seu olhar.</div>
-          <span class="template-badge" style="background:var(--orange);color:#0e1326">EM BREVE</span>
         </div>
         <div class="template-arrow">›</div>
       </div>

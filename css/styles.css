@@ -278,6 +278,79 @@ html, body {
 .template-arrow { color: var(--muted); font-size: 18px; flex-shrink: 0; }
 .template-card:hover .template-arrow { color: var(--accent); }
 
+/* === MODALIDADE — badges flutuantes (top-right) === */
+.modalidade-card {
+  position: relative;
+  padding-top: 18px;
+  padding-right: 16px;
+  overflow: visible;
+}
+.modalidade-card .template-info { padding-right: 4px; }
+
+.modalidade-badge {
+  position: absolute;
+  top: -8px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  white-space: nowrap;
+  z-index: 2;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.modalidade-badge.dispo {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  box-shadow:
+    0 6px 18px -4px rgba(16,185,129,0.55),
+    0 2px 6px rgba(16,185,129,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.modalidade-badge.dispo .modalidade-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #d1fae5;
+  box-shadow: 0 0 8px #ffffff, 0 0 12px #6ee7b7;
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+.modalidade-badge.soon {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #2a1a05;
+  box-shadow:
+    0 6px 18px -4px rgba(245,158,11,0.55),
+    0 2px 6px rgba(245,158,11,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.75); }
+}
+
+/* Light theme — leve ajuste pra contraste de sombra */
+[data-theme="light"] .modalidade-badge.dispo {
+  box-shadow:
+    0 6px 18px -4px rgba(5,150,105,0.45),
+    0 2px 6px rgba(5,150,105,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
+[data-theme="light"] .modalidade-badge.soon {
+  box-shadow:
+    0 6px 18px -4px rgba(194,65,12,0.40),
+    0 2px 6px rgba(194,65,12,0.20),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
 .onb-section-label {
   font-size: 10px;
   color: var(--muted);
