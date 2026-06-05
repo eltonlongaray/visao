@@ -362,7 +362,7 @@ function openCategoryEditor(id) {
     // Família / pets
     '👩🏻‍❤️‍💋‍👨🏻','🐕','🐈‍⬛','🎁',
     // Fitness / lazer
-    '🏋🏻‍♀️','🛼','🪘','🃏',
+    '🏋🏻‍♀️','🛼','🪘','🃏','🔮',
     // Casa / saúde / passeio
     '🛠️','🧺','🩺','🏖️','🗺️','🚨'
   ];
