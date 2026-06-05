@@ -39,9 +39,6 @@ export function renderLegalConsent(app) {
           <span class="consent-doc-btn-arrow">›</span>
         </button>
 
-        <div class="consent-gate-status" id="consentStatus">
-          <span class="consent-pending">○</span> Ainda não aceito
-        </div>
       </div>
 
       <button class="consent-gate-cancel" id="consentSignOutBtn">
@@ -164,10 +161,7 @@ function openLegalModal(app) {
       await recordTerms();
       io.disconnect();
       close();
-      // Atualiza status na tela base e segue
-      const st = app.querySelector('#consentStatus');
-      if (st) st.innerHTML = '<span class="consent-ok">✓</span> Aceito! Redirecionando...';
-      setTimeout(() => navigate('/modalidade'), 300);
+      navigate('/modalidade');
     } catch (err) {
       console.error('[consent] erro ao salvar aceite:', err);
       showToast('Erro ao salvar. Tente de novo.', 'error');
