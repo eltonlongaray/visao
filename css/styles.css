@@ -683,33 +683,17 @@ html, body {
   display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 6px;
   margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
 }
-/* Coluna direita da tarefa: emoji visual + botãozinho de menu embaixo */
-.task-right {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  flex-shrink: 0;
-}
-
-/* Emoji da tarefa — apenas visual, não clicável */
-.task-icon-display {
-  width: 38px; height: 38px;
-  background: rgba(167,139,250,0.10);
-  border: 1px solid var(--border);
-  border-radius: 11px;
-  font-size: 20px;
-  line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  user-select: none;
-  pointer-events: none;
-}
-
-/* Botãozinho com 3 opções (Editar / Duplicar / Excluir) */
-.task-menu-btn {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border);
+/* Botão ⋮ no canto superior direito do card (Editar/Duplicar/Excluir) */
+.task { position: relative; }
+.task-menu-btn-corner {
+  position: absolute;
+  top: 6px; right: 6px;
+  background: transparent;
+  border: none;
   color: var(--muted);
-  width: 38px; height: 22px;
+  width: 26px; height: 26px;
   border-radius: 7px;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -717,13 +701,26 @@ html, body {
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s;
   -webkit-tap-highlight-color: transparent;
+  z-index: 2;
 }
-.task-menu-btn:hover {
+.task-menu-btn-corner:hover {
   background: rgba(167,139,250,0.18);
-  border-color: var(--accent);
   color: var(--accent);
 }
-.task-menu-btn:active { transform: scale(0.92); }
+.task-menu-btn-corner:active { transform: scale(0.88); }
+
+/* Emoji da tarefa — badge inline antes do título */
+.task-icon-inline {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  margin-right: 6px;
+  vertical-align: middle;
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  background: rgba(167,139,250,0.14);
+}
 
 /* Popover de menu (Editar / Duplicar / Excluir) */
 .task-menu-pop {

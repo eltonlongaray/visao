@@ -549,6 +549,17 @@ async function copyDayTasksTo(fromId, toId) {
 }
 
 
+// Mapeia HH:MM → nome de turno padrão (Manhã 5-12, Tarde 12-19, Noite 19-5)
+function shiftNameFromTime(timeStr) {
+  if (!timeStr) return null;
+  const [hh] = timeStr.split(':').map(Number);
+  if (isNaN(hh)) return null;
+  if (hh >= 5 && hh < 12) return 'Manhã';
+  if (hh >= 12 && hh < 19) return 'Tarde';
+  return 'Noite';
+}
+
+
 function taskSort(a, b) {
   const ta = parseTime(a.startTime);
   const tb = parseTime(b.startTime);
@@ -564,18 +575,15 @@ function taskCard(t, dayDocId) {
   const taskIcon = t.icon || cat?.icon || '🏷️';
   return `
     <div class="task ${t.done ? 'done' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
+      <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
       <span class="task-drag" title="Arraste pra reordenar">⋮⋮</span>
       <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>
       <div class="task-body">
         <div class="task-title">
-          ${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${t.reminderEnabled ? '<span class="task-reminder-indicator" title="Lembrete ativado">🔔</span>' : ''}
+          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${t.reminderEnabled ? '<span class="task-reminder-indicator" title="Lembrete ativado">🔔</span>' : ''}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
-      </div>
-      <div class="task-right">
-        <div class="task-icon-display" title="Ícone da tarefa">${taskIcon}</div>
-        <button class="task-menu-btn" data-action="menu" title="Mais opções">⋮</button>
       </div>
     </div>
   `;
@@ -1067,11 +1075,24 @@ function openTaskEditor(app, dayDocId, taskId) {
   });
 
   modal.querySelector('#m-save').onclick = async () => {
+    const newTime = modal.querySelector('#m-time').value.trim();
+    let newShiftId = modal.querySelector('#m-shift').value || null;
+
+    // Auto-ajuste: se o horário caiu em outro turno, move pra ele
+    // (Manhã 5-12, Tarde 12-19, Noite 19-5)
+    if (newTime) {
+      const autoName = shiftNameFromTime(newTime);
+      if (autoName) {
+        const matchShift = shifts.find(s => (s.name || '').toLowerCase() === autoName.toLowerCase());
+        if (matchShift) newShiftId = matchShift.id;
+      }
+    }
+
     const data = {
       title: modal.querySelector('#m-title').value.trim() || 'Sem título',
       desc: modal.querySelector('#m-desc').value.trim(),
-      shiftId: modal.querySelector('#m-shift').value || null,
-      startTime: modal.querySelector('#m-time').value.trim(),
+      shiftId: newShiftId,
+      startTime: newTime,
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked
     };
