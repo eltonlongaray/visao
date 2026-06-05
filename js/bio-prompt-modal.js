@@ -55,13 +55,9 @@ function offerHtml() {
     <div class="bio-modal-card">
       <div class="bio-modal-icon">🔐</div>
       <h2 class="bio-modal-title">Proteja seu Visão</h2>
-      <p class="bio-modal-text">
+      <p class="bio-modal-text" style="margin-bottom:24px">
         Trave o app com o <strong>desbloqueio do seu celular</strong> —
         Face ID, digital ou senha.
-      </p>
-      <p class="bio-modal-text-sub">
-        Quando você sair do app por mais de 20 segundos,
-        a tela de bloqueio pede sua identidade pra entrar de novo.
       </p>
 
       <button class="bio-modal-btn primary" id="bioEnableBtn">
