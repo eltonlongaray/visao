@@ -599,9 +599,21 @@ function attachHandlers(app) {
       const tid = await addDayTask(dayDocId, newTask);
       day.tasks.push({ id: tid, ...newTask });
 
+      playDone();
+
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
       updateDayCardStats(dayDocId);
+
+      // Pisca a tarefa nova pra deixar claro qual foi a duplicada
+      requestAnimationFrame(() => {
+        const newEl = dayCardEl?.querySelector(`[data-task-id="${tid}"]`);
+        if (newEl) {
+          newEl.classList.add('task-flash');
+          newEl.addEventListener('animationend', () => newEl.classList.remove('task-flash'), { once: true });
+        }
+      });
+
       showToast('Tarefa duplicada', 'success');
       return;
     }
