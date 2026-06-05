@@ -34,14 +34,11 @@ export function openTimePicker(initialValue = '') {
         </div>
 
         <div class="time-picker-body tp-mode-typed" data-mode="typed" hidden>
-          <div class="tp-typed-display">
-            <input type="text" inputmode="numeric" maxlength="2" id="tpTypeH"
-                   placeholder="HH" pattern="[0-9]{1,2}" />
-            <span class="tp-typed-sep">:</span>
-            <input type="text" inputmode="numeric" maxlength="2" id="tpTypeM"
-                   placeholder="MM" pattern="[0-9]{1,2}" />
+          <div class="tp-typed-single-wrap">
+            <input type="text" inputmode="numeric" id="tpTyped"
+                   placeholder="HH:MM" maxlength="5" autocomplete="off" />
           </div>
-          <small class="tp-typed-hint">Digite o horário em HH:MM (24h)</small>
+          <small class="tp-typed-hint">Digite só os números — o <strong>:</strong> aparece sozinho.</small>
         </div>
       </div>
     `;
@@ -74,18 +71,38 @@ export function openTimePicker(initialValue = '') {
 
 
     // ── Modo digitado ──
-    const tpTypeH = overlay.querySelector('#tpTypeH');
-    const tpTypeM = overlay.querySelector('#tpTypeM');
-    tpTypeH.value = pad(initH);
-    tpTypeM.value = pad(initM);
+    // Input único com máscara HH:MM. O ":" é fixo (não dá pra apagar).
+    const tpTyped = overlay.querySelector('#tpTyped');
+    tpTyped.value = `${pad(initH)}:${pad(initM)}`;
 
-    tpTypeH.addEventListener('input', () => {
-      tpTypeH.value = tpTypeH.value.replace(/\D/g, '');
-      if (tpTypeH.value.length === 2) tpTypeM.focus();
+    const formatTyped = (raw) => {
+      const digits = String(raw).replace(/\D/g, '').substring(0, 4);
+      if (digits.length <= 2) return digits;
+      return digits.substring(0, 2) + ':' + digits.substring(2);
+    };
+
+    tpTyped.addEventListener('input', () => {
+      tpTyped.value = formatTyped(tpTyped.value);
     });
-    tpTypeM.addEventListener('input', () => {
-      tpTypeM.value = tpTypeM.value.replace(/\D/g, '');
+
+    // Backspace antes do ":" volta pra HH (pula o ":" automaticamente)
+    tpTyped.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        const cursor = tpTyped.selectionStart;
+        if (cursor === 3 && tpTyped.value[2] === ':') {
+          e.preventDefault();
+          tpTyped.value = tpTyped.value.substring(0, 1) + tpTyped.value.substring(3);
+          requestAnimationFrame(() => tpTyped.setSelectionRange(1, 1));
+        }
+      }
     });
+
+    // Lê HH e MM do input único
+    const readTypedValue = () => {
+      const v = tpTyped.value || '';
+      const [hh, mm] = v.split(':');
+      return [clamp(parseInt(hh, 10) || 0, 0, 23), clamp(parseInt(mm, 10) || 0, 0, 59)];
+    };
 
 
     // ── Toggle modo ──
@@ -95,8 +112,7 @@ export function openTimePicker(initialValue = '') {
       const toBtn = overlay.querySelector('#tpModeToggle');
       if (wheelBody.hasAttribute('hidden')) {
         // Voltar pro wheel — sync valor digitado
-        const h = clamp(parseInt(tpTypeH.value, 10) || 0, 0, 23);
-        const m = clamp(parseInt(tpTypeM.value, 10) || 0, 0, 59);
+        const [h, m] = readTypedValue();
         wheelBody.removeAttribute('hidden');
         typedBody.setAttribute('hidden', '');
         requestAnimationFrame(() => {
@@ -108,13 +124,12 @@ export function openTimePicker(initialValue = '') {
       } else {
         // Vai pro modo digitado — sync valor do wheel
         const [h, m] = currentWheelValue(hourWheel, minWheel);
-        tpTypeH.value = pad(h);
-        tpTypeM.value = pad(m);
+        tpTyped.value = `${pad(h)}:${pad(m)}`;
         wheelBody.setAttribute('hidden', '');
         typedBody.removeAttribute('hidden');
         toBtn.textContent = '🎡';
         toBtn.title = 'Roleta';
-        setTimeout(() => tpTypeH.focus(), 100);
+        setTimeout(() => { tpTyped.focus(); tpTyped.setSelectionRange(0, 5); }, 100);
       }
     });
 
@@ -128,13 +143,7 @@ export function openTimePicker(initialValue = '') {
     overlay.querySelector('#tpCancel').addEventListener('click', () => close(null));
     overlay.querySelector('#tpSave').addEventListener('click', () => {
       const typedActive = !overlay.querySelector('[data-mode="typed"]').hasAttribute('hidden');
-      let h, m;
-      if (typedActive) {
-        h = clamp(parseInt(tpTypeH.value, 10) || 0, 0, 23);
-        m = clamp(parseInt(tpTypeM.value, 10) || 0, 0, 59);
-      } else {
-        [h, m] = currentWheelValue(hourWheel, minWheel);
-      }
+      const [h, m] = typedActive ? readTypedValue() : currentWheelValue(hourWheel, minWheel);
       close(`${pad(h)}:${pad(m)}`);
     });
 

@@ -890,7 +890,7 @@ body.time-picker-open { overflow: hidden; }
   border-radius: 4px;
 }
 
-/* Modo digitado */
+/* Modo digitado — input único com máscara HH:MM */
 .tp-mode-typed {
   display: flex !important;
   flex-direction: column;
@@ -899,35 +899,38 @@ body.time-picker-open { overflow: hidden; }
   gap: 14px;
 }
 .tp-mode-typed[hidden] { display: none !important; }
-.tp-typed-display {
-  display: flex; align-items: center; gap: 8px;
+
+.tp-typed-single-wrap {
+  display: flex; justify-content: center;
 }
-.tp-typed-display input {
-  width: 90px; height: 80px;
-  font-size: 42px; font-weight: 800;
+#tpTyped {
+  width: 220px;
+  height: 92px;
+  font-size: 48px;
+  font-weight: 800;
   text-align: center;
   background: var(--card-2);
   border: 2px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   color: var(--text);
   font-family: inherit;
   outline: none;
-  letter-spacing: 1px;
+  letter-spacing: 4px;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
 }
-.tp-typed-display input:focus {
+#tpTyped:focus {
   border-color: var(--accent);
   background: rgba(167,139,250,0.08);
+  box-shadow: 0 0 0 4px rgba(167,139,250,0.15);
 }
-.tp-typed-sep {
-  font-size: 38px;
-  font-weight: 800;
-  color: var(--text);
-}
+
 .tp-typed-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   text-align: center;
 }
+.tp-typed-hint strong { color: var(--accent-2); font-weight: 800; }
 
 /* Botão "trigger" que abre o time picker */
 .tp-trigger {
