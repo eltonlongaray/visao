@@ -4,6 +4,17 @@
 // ═══════════════════════════════════════════════════════════════
 export const ONBOARDING_STEPS = [
 
+  // ── HOME: metas de sono ANTES de tudo ──
+  {
+    id: 'home-sono',
+    route: '/home',
+    target: '#wake-time, .pref-time, .home-section',
+    holePad: 6,
+    title: 'Primeiro: Acordar e Dormir',
+    message: 'Defina o horário que você planeja <strong>acordar</strong> e <strong>dormir</strong>. É a base do seu ritmo — sem isso o resto não faz sentido.',
+    primaryBtn: 'Já preenchi →'
+  },
+
   // ── HOME: criar 3 atividades de exemplo ──
   {
     id: 'home-act-manha',
@@ -31,17 +42,6 @@ export const ONBOARDING_STEPS = [
     title: 'Atividade da NOITE',
     message: 'Mais uma: agora uma da noite (ex: "Skincare").',
     primaryBtn: 'Já criei →'
-  },
-
-  // ── HOME: metas de sono ──
-  {
-    id: 'home-sono',
-    route: '/home',
-    target: '.sleep-prefs, [data-pref="wake"], #wake-time, .home-section',
-    holePad: 6,
-    title: 'Acordar e Dormir',
-    message: 'Defina os horários que você planeja acordar e dormir. <strong>É essencial pra acompanhar a qualidade do sono</strong> — o ritmo é a base de tudo.',
-    primaryBtn: 'Já preenchi →'
   },
 
   // ── HOME: completar biblioteca ──

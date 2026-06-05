@@ -724,6 +724,43 @@ html, body {
   background: rgba(167,139,250,0.14);
 }
 
+/* Editor de tarefa: input customizado HH:MM (sem dialog do sistema) */
+.time-hhmm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  margin-top: 4px;
+}
+.time-hhmm input {
+  width: 44px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+  padding: 0;
+  letter-spacing: 1px;
+}
+.time-hhmm input::placeholder {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 18px;
+}
+.time-hhmm-sep {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--muted);
+  user-select: none;
+}
+
 /* Popover de menu (Editar / Duplicar / Excluir) */
 .task-menu-pop {
   position: fixed;

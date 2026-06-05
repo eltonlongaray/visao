@@ -107,8 +107,25 @@ async function showStep() {
 
   // Garante estado expandido por default
   dom.bar?.classList.remove('collapsed');
-  if (dom.backdrop) dom.backdrop.style.opacity = '';
+  if (dom.backdrop) { dom.backdrop.style.display = ''; dom.backdrop.style.opacity = ''; }
   if (dom.hole) dom.hole.style.display = '';
+
+  // Anexa listener ANTES dos awaits pra capturar clicks rápidos
+  if (target && !step.noCollapse) {
+    const handler = (e) => {
+      // Captura tanto click quanto touch (mais robusto no celular)
+      if (target === e.target || target.contains(e.target)) {
+        collapseBar();
+        cleanupTargetClick();
+      }
+    };
+    document.addEventListener('pointerdown', handler, true);
+    document.addEventListener('click', handler, true);
+    targetClickCleanup = () => {
+      document.removeEventListener('pointerdown', handler, true);
+      document.removeEventListener('click', handler, true);
+    };
+  }
 
   positionHole(target, step);
   renderBar(step);
@@ -119,26 +136,16 @@ async function showStep() {
     await wait(320);
     positionHole(target, step);
   }
-
-  // Quando o usuário clica no alvo destacado → colapsa o tour
-  // (deixa só o botão "Próximo" visível e libera a tela)
-  if (target && !step.noCollapse) {
-    const handler = (e) => {
-      if (target === e.target || target.contains(e.target)) {
-        // Pequeno delay pra não engolir o click original
-        setTimeout(collapseBar, 80);
-        cleanupTargetClick();
-      }
-    };
-    document.addEventListener('click', handler, true);
-    targetClickCleanup = () => document.removeEventListener('click', handler, true);
-  }
 }
 
 function collapseBar() {
   if (!active || !dom.bar) return;
   dom.bar.classList.add('collapsed');
-  if (dom.backdrop) dom.backdrop.style.opacity = '0';
+  // display:none além de opacity pra garantir que nada bloqueia visualmente
+  if (dom.backdrop) {
+    dom.backdrop.style.opacity = '0';
+    dom.backdrop.style.display = 'none';
+  }
   if (dom.hole) dom.hole.style.display = 'none';
 }
 

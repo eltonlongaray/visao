@@ -1045,8 +1045,12 @@ function openTaskEditor(app, dayDocId, taskId) {
       </div>
       <label class="input-field"><div class="input-field-label">Turno</div>
         <select id="m-shift">${shiftOpts}</select></label>
-      <label class="input-field"><div class="input-field-label">Horário de início (opcional)</div>
-        <input id="m-time" type="time" value="${toHHMM(t.startTime)}" /></label>
+      <div class="input-field-label">Horário de início (opcional)</div>
+      <div class="time-hhmm" id="m-time-group">
+        <input id="m-hh" inputmode="numeric" maxlength="2" placeholder="HH" value="${(toHHMM(t.startTime) || '').split(':')[0] || ''}" />
+        <span class="time-hhmm-sep">:</span>
+        <input id="m-mm" inputmode="numeric" maxlength="2" placeholder="MM" value="${(toHHMM(t.startTime) || '').split(':')[1] || ''}" />
+      </div>
 
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
@@ -1074,8 +1078,34 @@ function openTaskEditor(app, dayDocId, taskId) {
     });
   });
 
+  // Auto-formata os campos HH e MM (padroniza com 2 dígitos e clampa range)
+  const hhInp = modal.querySelector('#m-hh');
+  const mmInp = modal.querySelector('#m-mm');
+  hhInp?.addEventListener('input', () => {
+    let v = hhInp.value.replace(/\D/g, '');
+    if (v.length === 2) mmInp?.focus();
+    hhInp.value = v;
+  });
+  hhInp?.addEventListener('blur', () => {
+    let v = parseInt(hhInp.value, 10);
+    if (isNaN(v)) { hhInp.value = ''; return; }
+    if (v < 0) v = 0; if (v > 23) v = 23;
+    hhInp.value = String(v).padStart(2, '0');
+  });
+  mmInp?.addEventListener('input', () => {
+    mmInp.value = mmInp.value.replace(/\D/g, '');
+  });
+  mmInp?.addEventListener('blur', () => {
+    let v = parseInt(mmInp.value, 10);
+    if (isNaN(v)) { mmInp.value = ''; return; }
+    if (v < 0) v = 0; if (v > 59) v = 59;
+    mmInp.value = String(v).padStart(2, '0');
+  });
+
   modal.querySelector('#m-save').onclick = async () => {
-    const newTime = modal.querySelector('#m-time').value.trim();
+    const hh = (modal.querySelector('#m-hh').value || '').trim();
+    const mm = (modal.querySelector('#m-mm').value || '').trim();
+    const newTime = (hh && mm) ? `${hh.padStart(2,'0')}:${mm.padStart(2,'0')}` : '';
     let newShiftId = modal.querySelector('#m-shift').value || null;
 
     // Auto-ajuste: se o horário caiu em outro turno, move pra ele
