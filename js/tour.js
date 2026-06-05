@@ -154,6 +154,11 @@ function collapseBar() {
 // BLOCO 4: SPOTLIGHT (hole no alvo)
 // ═══════════════════════════════════════════════════════════════
 function positionHole(target, step) {
+  // Se o tour está colapsado, NÃO mostra spotlight (proteção extra)
+  if (dom.bar?.classList.contains('collapsed')) {
+    if (dom.hole) dom.hole.style.display = 'none';
+    return;
+  }
   if (!target || step.noSpotlight) {
     dom.hole.style.display = 'none';
     return;
@@ -232,6 +237,8 @@ function waitForEl(selector, timeoutMs = 3000) {
 let repoTimer = null;
 function repositionCurrent() {
   if (!active) return;
+  // FIX: quando colapsado, NÃO reposiciona o spotlight (senão ele volta a aparecer)
+  if (dom.bar?.classList.contains('collapsed')) return;
   const step = steps[i];
   if (!step) return;
   const target = step.target ? document.querySelector(step.target) : null;
