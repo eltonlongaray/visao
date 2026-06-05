@@ -7,7 +7,7 @@ import * as biometric from './biometric.js';
 import { auth } from './firebase.js';
 import { signOut } from './firebase.js';
 
-const BG_TIMEOUT_MS = 20_000;
+const BG_TIMEOUT_MS = 120_000;  // 2 minutos em segundo plano antes de travar
 
 let overlay = null;
 let hiddenAt = null;
