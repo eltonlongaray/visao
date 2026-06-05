@@ -455,34 +455,65 @@ function renderShiftsForDay(d) {
   `).join('');
 }
 
-// Banner "Copiar de [dia anterior]" — só aparece em dia vazio que tem um anterior preenchido
+// Banner "Trazer dados de [dia anterior]" — em dia vazio com dias anteriores preenchidos
 const WEEKDAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const WEEKDAY_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const dismissedCopyBanners = new Set();  // ids de dia que o usuário dispensou na sessão
 
 function renderCopyDayBanner(d) {
   if (d.tasks.length > 0) return '';
-  const prev = findPrevDayWithTasks(d.id);
-  if (!prev) return '';
-  const n = prev.tasks.length;
-  const dayName = WEEKDAY_NAMES[prev.date.getDay()];
+  if (dismissedCopyBanners.has(d.id)) return '';
+  const prevDays = findAllPrevDaysWithTasks(d.id);
+  if (prevDays.length === 0) return '';
+
+  // ── Caso 1: apenas 1 dia anterior preenchido → pergunta direta Sim/Não ──
+  if (prevDays.length === 1) {
+    const prev = prevDays[0];
+    const n = prev.tasks.length;
+    return `
+      <div class="copy-day-banner">
+        <div class="copy-day-ic">📋</div>
+        <div class="copy-day-body">
+          <strong>Trazer dados de ${WEEKDAY_NAMES[prev.date.getDay()]}?</strong>
+          <small>${n} tarefa${n === 1 ? '' : 's'} pra reaproveitar</small>
+        </div>
+        <div class="copy-day-actions">
+          <button class="copy-day-btn" data-copy-from="${prev.id}" data-copy-to="${d.id}">Sim, trazer</button>
+          <button class="copy-day-no" data-copy-no="${d.id}">Não</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Caso 2: 2+ dias anteriores → chips pra escolher qual dia copiar ──
+  const dayList = prevDays.map(p => WEEKDAY_NAMES[p.date.getDay()]);
+  const dayListStr = dayList.length === 2
+    ? dayList.join(' ou ')
+    : dayList.slice(0, -1).join(', ') + ' ou ' + dayList[dayList.length - 1];
+
+  const chips = prevDays.map(p =>
+    `<button class="copy-day-chip" data-copy-from="${p.id}" data-copy-to="${d.id}" title="${p.tasks.length} tarefa${p.tasks.length===1?'':'s'}">
+       ${WEEKDAY_SHORT[p.date.getDay()]} <small>(${p.tasks.length})</small>
+     </button>`
+  ).join('');
+
   return `
-    <div class="copy-day-banner">
+    <div class="copy-day-banner copy-day-banner-multi">
       <div class="copy-day-ic">📋</div>
       <div class="copy-day-body">
-        <strong>Copiar de ${dayName}?</strong>
-        <small>${n} tarefa${n === 1 ? '' : 's'} pronta${n === 1 ? '' : 's'} pra reaproveitar</small>
+        <strong>Trazer atividades de ${dayListStr}?</strong>
+        <small>Se sim, toque no dia:</small>
+        <div class="copy-day-chips">${chips}</div>
       </div>
-      <button class="copy-day-btn" data-copy-from="${prev.id}" data-copy-to="${d.id}">📥 Copiar</button>
+      <button class="copy-day-no copy-day-no-corner" data-copy-no="${d.id}" title="Dispensar">×</button>
     </div>
   `;
 }
 
-function findPrevDayWithTasks(dayId) {
+function findAllPrevDaysWithTasks(dayId) {
   const idx = weekData.findIndex(d => d.id === dayId);
-  if (idx <= 0) return null;
-  for (let i = idx - 1; i >= 0; i--) {
-    if (weekData[i].tasks.length > 0) return weekData[i];
-  }
-  return null;
+  if (idx <= 0) return [];
+  return weekData.slice(0, idx).filter(d => d.tasks.length > 0);
 }
 
 async function copyDayTasksTo(fromId, toId) {
@@ -621,6 +652,19 @@ function attachHandlers(app) {
     if (editBtn) {
       const taskEl = editBtn.closest('[data-task-id]');
       openTaskEditor(app, taskEl.dataset.day, taskEl.dataset.taskId);
+      return;
+    }
+
+    // Dispensar banner de copiar
+    const noBtn = e.target.closest('[data-copy-no]');
+    if (noBtn) {
+      const dId = noBtn.dataset.copyNo;
+      dismissedCopyBanners.add(dId);
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dId}"]`);
+      const day = weekData.find(d => d.id === dId);
+      if (dayCardEl && day) {
+        dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      }
       return;
     }
 
