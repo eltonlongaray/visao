@@ -459,23 +459,40 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
   const pct = totalTasks ? Math.round(totalDone / totalTasks * 100) : 0;
   const cls = pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low';
 
-  // Pontos fracos: top 3 categorias com menor %
-  const catAgg = {};
+  // Pontos fracos/fortes: agrupa por ATIVIDADE individual (categoria + título)
+  // Antes era por categoria, mas isso escondia qual tarefa específica falhava
+  // dentro de cada ritual (ex: "Noturno" tem 3-4 tarefas — qual delas é o problema?)
+  const actAgg = {};
   for (const d of days) {
     for (const t of d.tasks) {
-      const cid = t.categoryId;
-      if (!cid) continue;
-      if (!catAgg[cid]) catAgg[cid] = { done: 0, total: 0 };
-      catAgg[cid].total++;
-      if (t.done) catAgg[cid].done++;
+      if (!t.title || !t.categoryId) continue;
+      const key = `${t.categoryId}|${t.title}`;
+      if (!actAgg[key]) {
+        actAgg[key] = {
+          title: t.title,
+          cat: categories.find(c => c.id === t.categoryId),
+          done: 0, total: 0
+        };
+      }
+      actAgg[key].total++;
+      if (t.done) actAgg[key].done++;
     }
   }
-  const weakest = Object.entries(catAgg)
-    .filter(([, v]) => v.total >= 2)
-    .map(([cid, v]) => ({ cat: categories.find(c => c.id === cid), pct: v.done / v.total }))
-    .filter(x => x.cat && x.pct < 0.7)
-    .sort((a, b) => a.pct - b.pct)
+  const actsArr = Object.values(actAgg)
+    .filter(a => a.cat && a.total >= 2)
+    .map(a => ({ ...a, pct: a.done / a.total }));
+
+  const weakest = actsArr
+    .filter(a => a.pct < 0.7)
+    .sort((a, b) => a.pct - b.pct || b.total - a.total)
     .slice(0, 3);
+
+  const strongest = actsArr
+    .filter(a => a.pct >= 0.7)
+    .sort((a, b) => b.pct - a.pct || b.total - a.total)
+    .slice(0, 3);
+
+  const fmtAct = (a) => `<span style="color:${a.cat.color};font-weight:600">${a.cat.icon || ''} ${escape(a.title)}</span> <small style="color:var(--muted)">(${a.done}/${a.total})</small>`;
 
   const rangeLabel = `${String(monday.getDate()).padStart(2,'0')} ${MONTHS[monday.getMonth()]} → ${String(sunday.getDate()).padStart(2,'0')} ${MONTHS[sunday.getMonth()]}`;
 
@@ -496,7 +513,8 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
         <div class="week-insights">
           ${bestDay ? `<div class="week-insight"><span class="ins-icon">🏆</span> Melhor dia: <strong>${WEEKDAYS[bestDay.date.getDay()]}</strong> (${Math.round(bestDay.pct*100)}%)</div>` : ''}
           ${worstDay ? `<div class="week-insight"><span class="ins-icon">💪</span> Pior dia: <strong>${WEEKDAYS[worstDay.date.getDay()]}</strong> (${Math.round(worstDay.pct*100)}%)</div>` : ''}
-          ${weakest.length ? `<div class="week-insight"><span class="ins-icon">⚠️</span> Pontos fracos: ${weakest.map(w => `<span style="color:${w.cat.color}">${escape(w.cat.name)} (${Math.round(w.pct*100)}%)</span>`).join(' · ')}</div>` : ''}
+          ${strongest.length ? `<div class="week-insight"><span class="ins-icon">⭐</span> Pontos fortes: ${strongest.map(fmtAct).join(' · ')}</div>` : ''}
+          ${weakest.length ? `<div class="week-insight"><span class="ins-icon">⚠️</span> Pontos fracos: ${weakest.map(fmtAct).join(' · ')}</div>` : ''}
         </div>
 
         ${renderWeekSleep(days)}
