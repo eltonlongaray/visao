@@ -1,11 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Service Worker — cache offline básico
+// VISÃO · Service Worker — cache híbrido
 // Estratégia:
-//   - assets locais (HTML/CSS/JS/imagens) → cache-first
-//   - Firebase/Firestore/CDN → sempre rede (não cacheia)
+//   - HTML + JS  → network-first (sempre pega versão fresca, fallback cache offline)
+//   - CSS/imgs/manifest → cache-first (rápido, raramente muda)
+//   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v2';
+const CACHE_NAME = 'visao-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -45,28 +46,47 @@ self.addEventListener('activate', (event) => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: FETCH — cache-first pra mesmo origin, network pra externo
+// BLOCO 3: FETCH — network-first pra HTML/JS, cache-first pro resto
 // ═══════════════════════════════════════════════════════════════
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Não interceptar: Firebase, gstatic CDN, qualquer cross-origin
   if (url.origin !== self.location.origin) return;
-
-  // Apenas GET
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((res) => {
-        // Salva no cache pra próxima
+  const path = url.pathname;
+  const isHtml = path.endsWith('/') || path.endsWith('.html');
+  const isJs = path.endsWith('.js');
+  const isNavigate = event.request.mode === 'navigate';
+
+  // ── Network-first pra HTML/JS (código que muda a cada deploy) ──
+  if (isHtml || isJs || isNavigate) {
+    event.respondWith(
+      fetch(event.request).then((res) => {
         if (res.ok && res.type === 'basic') {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
         }
         return res;
-      }).catch(() => caches.match('./index.html')); // fallback offline
+      }).catch(() =>
+        caches.match(event.request).then((cached) => cached || caches.match('./index.html'))
+      )
+    );
+    return;
+  }
+
+  // ── Cache-first pra CSS/imgs/manifest (raramente mudam) ──
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((res) => {
+        if (res.ok && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match('./index.html'));
     })
   );
 });
