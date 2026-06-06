@@ -198,15 +198,21 @@ function renderBar(step) {
   const isFirst = i === 0;
   const primaryLabel = step.primaryBtn || (isLast ? 'Concluir' : 'Próximo →');
 
+  // Janela de 5 bolinhas em volta da etapa atual
+  const WIN = 5;
+  const half = Math.floor(WIN / 2);
+  let start = Math.max(0, i - half);
+  let end = Math.min(total, start + WIN);
+  if (end - start < WIN) start = Math.max(0, end - WIN);
+  const dotsHtml = Array.from({ length: end - start }, (_, k) => {
+    const idx = start + k;
+    return `<span class="tour2-dot${idx === i ? ' active' : ''}${idx < i ? ' done' : ''}"></span>`;
+  }).join('');
+
   dom.bar.innerHTML = `
     <div class="tour2-bar-inner">
       <div class="tour2-bar-progress">
-        <span class="tour2-step-num">${i + 1}/${total}</span>
-        <div class="tour2-dots">
-          ${Array.from({ length: total }, (_, k) =>
-            `<span class="tour2-dot${k === i ? ' active' : ''}${k < i ? ' done' : ''}"></span>`
-          ).join('')}
-        </div>
+        <div class="tour2-dots">${dotsHtml}</div>
       </div>
 
       <div class="tour2-bar-body">

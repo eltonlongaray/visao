@@ -10,8 +10,8 @@ export const ONBOARDING_STEPS = [
     route: '/home',
     target: '#wake-time, .pref-time, .home-section',
     holePad: 6,
-    title: 'Acordar e dormir',
-    message: 'Que horas você pretende acordar e dormir? Define aqui — é a base de uma boa qualidade de sono.',
+    title: 'Qualidade de sono',
+    message: 'Que horas você pretende acordar e dormir?',
     primaryBtn: 'Pronto →'
   },
 
@@ -109,18 +109,20 @@ export const ONBOARDING_STEPS = [
   },
   {
     id: 'ritual-day-close',
-    noSpotlight: true,
     route: '/ritual',
+    target: '.day-card[data-dow="1"] .day-card-header, .day-card.open .day-card-header',
+    holePad: 4,
     title: 'Feche a segunda',
-    message: 'Toque no topo da segunda pra fechá-la.',
+    message: 'Toque aqui pra fechar.',
     primaryBtn: 'Fechei →'
   },
   {
     id: 'ritual-day-tue',
-    noSpotlight: true,
     route: '/ritual',
+    target: '.day-card[data-dow="2"] .day-card-header',
+    holePad: 4,
     title: 'Abra a terça',
-    message: 'Agora toque na terça pra abrir (ela vai estar vazia).',
+    message: 'Toque aqui (ela vai estar vazia).',
     primaryBtn: 'Abri →'
   },
   {
