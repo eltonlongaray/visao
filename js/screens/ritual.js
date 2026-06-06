@@ -305,8 +305,8 @@ function renderUI(app) {
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
         <div class="day-info-center" id="week-pager-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">use as setas pra trocar de semana</div>
-          <div class="meta">dê 2 toques para abrir o calendário 📅</div>
+          <div class="meta">Use as setas pra trocar de semana</div>
+          <div class="meta">Dê 2 toques para abrir o calendário</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
@@ -734,7 +734,7 @@ function openTaskMenu(triggerEl) {
 // ═══════════════════════════════════════════════════════════════
 // CALENDÁRIO DO RITUAL — escolha qualquer dia pra ir direto na semana
 // ═══════════════════════════════════════════════════════════════
-function openRitualCalendar() {
+function openRitualCalendar(app) {
   const today = new Date();
   let viewYear = weekData[0]?.date?.getFullYear() || today.getFullYear();
   let viewMonth = weekData[0]?.date?.getMonth() ?? today.getMonth();
@@ -790,11 +790,12 @@ function openRitualCalendar() {
   const close = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) close(); };
   modal.querySelector('#cal-cancel').onclick = close;
-  modal.querySelector('#cal-today').onclick = () => {
+  modal.querySelector('#cal-today').onclick = async () => {
     weekStart = getWeekStart(new Date());
     expanded.clear(); expanded.add(dayId(new Date()));
     close();
-    loadWeek();
+    await loadWeek();
+    renderUI(app);
   };
   modal.querySelectorAll('[data-cal-nav]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -805,7 +806,7 @@ function openRitualCalendar() {
       renderGrid();
     });
   });
-  modal.addEventListener('click', (e) => {
+  modal.addEventListener('click', async (e) => {
     const cell = e.target.closest('[data-cal-day]');
     if (!cell) return;
     const id = cell.dataset.calDay;
@@ -814,7 +815,8 @@ function openRitualCalendar() {
     weekStart = getWeekStart(picked);
     expanded.clear(); expanded.add(id);
     close();
-    loadWeek();
+    await loadWeek();
+    renderUI(app);
   });
 }
 
@@ -871,7 +873,7 @@ function attachHandlers(app) {
       const now = Date.now();
       if (wkCenter._lastTap && now - wkCenter._lastTap < 400) {
         wkCenter._lastTap = 0;
-        openRitualCalendar();
+        openRitualCalendar(app);
         return;
       }
       wkCenter._lastTap = now;
