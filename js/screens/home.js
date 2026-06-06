@@ -109,10 +109,8 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
 
-  // Tour de boas-vindas — auto-inicia na 1ª vez
-  if (!tour.isCompleted() && !tour.isActive()) {
-    setTimeout(() => tour.start(ONBOARDING_STEPS), 600);
-  }
+  // Tour NÃO auto-inicia mais — só pode ser disparado via Ajustes
+  // (admin: 🛠️ Admin → Reiniciar tour de boas-vindas)
 }
 
 // ═══════════════════════════════════════════════════════════════
