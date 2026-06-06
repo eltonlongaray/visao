@@ -178,7 +178,37 @@ function attachHandlers(app) {
 async function refreshData() {
   // KPIs + month bar = sempre baseado no mês selecionado e os 4 anteriores
   // Categorias = baseado no period (semana/mes/6m)
-  await Promise.all([refreshMonthData(), refreshCatChart()]);
+  await Promise.all([refreshMonthData(), refreshCatChart(), refreshTabPercentages()]);
+}
+
+// Calcula a % de aderência geral pra cada período (semana/mês/ano) e atualiza os tabs
+async function refreshTabPercentages() {
+  const today = new Date();
+  const year = today.getFullYear();
+
+  // Pega o ano inteiro de uma vez (mais eficiente que 3 fetches separados)
+  const yearStart = new Date(year, 0, 1);
+  const allYearDays = await fetchDaysRange(yearStart, today);
+
+  // Filtra subconjuntos
+  const dow = today.getDay();
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dow);
+  const monthStart = new Date(year, today.getMonth(), 1);
+
+  const weekDays  = allYearDays.filter(d => new Date(d.id + 'T00:00:00') >= weekStart);
+  const monthDays = allYearDays.filter(d => new Date(d.id + 'T00:00:00') >= monthStart);
+
+  const weekPct  = aggregateTotal(weekDays).pct;
+  const monthPct = aggregateTotal(monthDays).pct;
+  const yearPct  = aggregateTotal(allYearDays).pct;
+
+  // Atualiza os labels dos tabs com a porcentagem
+  const tabs = document.querySelectorAll('#period-tabs .tab-btn');
+  if (tabs.length >= 3) {
+    tabs[0].innerHTML = `Esta semana <small class="tab-pct">${weekPct}%</small>`;
+    tabs[1].innerHTML = `Este mês <small class="tab-pct">${monthPct}%</small>`;
+    tabs[2].innerHTML = `Este ano <small class="tab-pct">${yearPct}%</small>`;
+  }
 }
 
 async function refreshMonthData() {
