@@ -1030,6 +1030,19 @@ body.time-picker-open { overflow: hidden; }
   background: rgba(167,139,250,0.10);
 }
 
+/* Hint pulsante (estilo tutorial) — destaca a hora de dormir após registrar nota */
+.time-pill.tp-hint {
+  border-color: var(--accent) !important;
+  animation: tpHintPulse 1.4s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+@keyframes tpHintPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(167,139,250,0.55), 0 2px 8px rgba(0,0,0,0.04); }
+  60%  { box-shadow: 0 0 0 10px rgba(167,139,250,0), 0 2px 8px rgba(0,0,0,0.04); }
+  100% { box-shadow: 0 0 0 0 rgba(167,139,250,0), 0 2px 8px rgba(0,0,0,0.04); }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    BLOCO: BOTÃO DE NOTA DO DIA (fecha o dia)
    ═══════════════════════════════════════════════════════════════ */

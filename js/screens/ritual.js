@@ -66,6 +66,7 @@ let weekData = [];                          // [{ date, id, meta, tasks }, ...7]
 const expanded = new Set();                 // ids dos dias abertos
 const saveTimers = {};                      // debounce de save por dayId+field
 let handlersAttached = false;               // FIX: evita listeners duplicados ao re-renderizar
+const prevNoteCache = new Map();             // cache: dayId -> hasNote (evita refetch a cada check)
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -83,6 +84,69 @@ function getWeekStart(date) {
 
 function isSameWeek(a, b) {
   return getWeekStart(a).getTime() === getWeekStart(b).getTime();
+}
+
+// Calcula o dayId (YYYY-MM-DD) anterior ao informado
+function prevDayId(idStr) {
+  const [y, m, d] = idStr.split('-').map(n => parseInt(n, 10));
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  return dayId(dt);
+}
+
+// Retorna true se o dia anterior tem nota preenchida (qualquer campo)
+async function previousDayHasNote(dayDocId) {
+  const prevId = prevDayId(dayDocId);
+  if (prevNoteCache.has(prevId)) return prevNoteCache.get(prevId);
+
+  // 1) Tenta no weekData (evita Firestore se possível)
+  const inWeek = weekData.find(d => d.id === prevId);
+  if (inWeek) {
+    const n = inWeek.meta.dayNote;
+    const has = !!(n && (n.prideFail || n.improve || n.daySleepHours || n.nightWakes || n.done || n.daySleep));
+    prevNoteCache.set(prevId, has);
+    return has;
+  }
+
+  // 2) Fallback: busca no Firestore
+  try {
+    const data = await getDay(prevId);
+    if (!data) { prevNoteCache.set(prevId, true); return true; } // dia inexistente = nada a cobrar
+    const n = data.dayNote;
+    const has = !!(n && (n.prideFail || n.improve || n.daySleepHours || n.nightWakes || n.done || n.daySleep));
+    prevNoteCache.set(prevId, has);
+    return has;
+  } catch (err) {
+    console.warn('[prev-note] erro ao buscar:', err);
+    return true; // erro = não chateia
+  }
+}
+
+// Mostra um aviso simples (não bloqueia o app). Botão "Preencher agora" abre o modal de nota.
+async function warnPreviousNoteMissing(app, currentDayId) {
+  const prevId = prevDayId(currentDayId);
+  // Formata data legível
+  const [y, m, d] = prevId.split('-').map(n => parseInt(n, 10));
+  const dt = new Date(y, m - 1, d);
+  const labelDia = WEEKDAYS_FULL[dt.getDay()];
+  const dataFmt = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  const ok = await confirmModal({
+    title: 'Nota pendente',
+    message: `Você ainda não fechou ${labelDia.toLowerCase()} (${dataFmt}). Quer preencher a nota agora?`,
+    confirmText: 'Preencher agora',
+    cancelText: 'Depois'
+  });
+  if (ok) {
+    // Garante que o dia anterior está em weekData; senão recarrega a semana dele
+    let prev = weekData.find(x => x.id === prevId);
+    if (!prev) {
+      weekStart = getWeekStart(dt);
+      await loadWeek();
+      renderUI(app);
+      prev = weekData.find(x => x.id === prevId);
+    }
+    if (prev) openDayNoteModal(prevId);
+  }
 }
 
 function weekOfMonth(date) {
@@ -919,6 +983,11 @@ function attachHandlers(app) {
           `<span class="done-check-big">✓</span><span class="done-check-text">${randomDoneMessage()}</span>`,
           'success'
         );
+        // Aviso: nota do dia anterior pendente (sempre dispara após o ✓)
+        const dayKey = taskEl.dataset.day;
+        previousDayHasNote(dayKey).then(hasNote => {
+          if (!hasNote) setTimeout(() => warnPreviousNoteMissing(app, dayKey), 900);
+        });
       } else if (wasDone && !t.done) {
         playUndone();
       }
@@ -1315,6 +1384,8 @@ function openDayNoteModal(dayDocId) {
     try {
       day.meta.dayNote = data;
       await setDayMeta(dayDocId, { dayNote: data });
+      // Atualiza cache: esse dia agora tem nota → não dispara mais o aviso
+      prevNoteCache.set(dayDocId, true);
 
       // Sucesso: cartão verde + vibração + som + mensagem
       const card = modal.querySelector('.note-modal');
@@ -1334,6 +1405,17 @@ function openDayNoteModal(dayDocId) {
         // Re-render só o botão de nota no card
         const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
         if (wrap) wrap.innerHTML = renderDayNoteButton(day);
+
+        // Destaca a "hora de dormir" estilo tutorial (pulsa até clicar / 12s)
+        const sleepBtn = document.querySelector(`.tp-pill-trigger[data-meta="sleepTime"][data-day="${dayDocId}"]`);
+        const sleepPill = sleepBtn?.closest('.time-pill');
+        if (sleepPill) {
+          sleepPill.classList.add('tp-hint');
+          sleepPill.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const off = () => sleepPill.classList.remove('tp-hint');
+          sleepBtn.addEventListener('click', off, { once: true });
+          setTimeout(off, 12000);
+        }
       }, 1500);
     } catch (err) {
       console.error('[note] save erro:', err);
