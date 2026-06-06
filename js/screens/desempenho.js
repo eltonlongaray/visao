@@ -614,8 +614,17 @@ function renderWeekSleep(days) {
   const avg = totalMin / durations.length;
   const hrs = avg / 60;
   const totalHrs = totalMin / 60;
-  const weekHrs = 7 * 24; // 168h totais possíveis
-  const pctOfWeek = Math.round((totalHrs / weekHrs) * 100);
+
+  // Total de horas registradas no app: dias com QUALQUER atividade × 24
+  // (sono, cochilo, despertares OU pelo menos 1 tarefa registrada)
+  const registeredDays = days.filter(d => {
+    const note = d.dayNote ?? d.meta?.dayNote;
+    return (d.wakeTime || d.sleepTime ||
+            (d.tasks && d.tasks.length > 0) ||
+            (note && (note.prideFail || note.improve || note.daySleepHours || note.nightAwakeHours || note.nightWakes)));
+  }).length;
+  const trackedHrs = Math.max(1, registeredDays * 24);
+  const pctOfWeek = Math.round((totalHrs / trackedHrs) * 100);
 
   let cls, label, emoji;
   if (hrs < 6)      { cls = 'bad';   label = 'ruim';        emoji = '😴'; }
@@ -634,7 +643,7 @@ function renderWeekSleep(days) {
       <div class="week-sleep-total">
         Você dormiu <strong>${formatDurationHM(totalMin)}</strong> ao longo dos
         ${durations.length} dia${durations.length === 1 ? '' : 's'} registrado${durations.length === 1 ? '' : 's'} —
-        <small>de <strong>168h</strong> totais possíveis na semana (${pctOfWeek}%)</small>
+        <small>de <strong>${trackedHrs}h</strong> registradas no app (${pctOfWeek}%)</small>
       </div>
       <div class="scale-marks">
         <span><strong>&lt;6h</strong></span>
