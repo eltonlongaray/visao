@@ -11,7 +11,7 @@ export const ONBOARDING_STEPS = [
     target: '#wake-time, .pref-time, .home-section',
     holePad: 6,
     title: 'Acordar e dormir',
-    message: 'Toque aqui pra definir os horários.',
+    message: 'Que horas você pretende acordar e dormir? Define aqui — é a base de uma boa qualidade de sono.',
     primaryBtn: 'Pronto →'
   },
 
@@ -95,8 +95,8 @@ export const ONBOARDING_STEPS = [
     target: '.day-card',
     holePad: 6,
     title: 'Sua semana',
-    message: 'Cada card é um dia (Seg → Dom).',
-    primaryBtn: 'Próximo →'
+    message: 'Cada card é um dia (Seg → Dom). Toque numa segunda pra abrir.',
+    primaryBtn: 'Abri →'
   },
   {
     id: 'ritual-task',
@@ -108,11 +108,27 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
   {
+    id: 'ritual-day-close',
+    noSpotlight: true,
+    route: '/ritual',
+    title: 'Feche a segunda',
+    message: 'Toque no topo da segunda pra fechá-la.',
+    primaryBtn: 'Fechei →'
+  },
+  {
+    id: 'ritual-day-tue',
+    noSpotlight: true,
+    route: '/ritual',
+    title: 'Abra a terça',
+    message: 'Agora toque na terça pra abrir (ela vai estar vazia).',
+    primaryBtn: 'Abri →'
+  },
+  {
     id: 'ritual-copy',
     noSpotlight: true,
     route: '/ritual',
-    title: 'Copiar do dia anterior',
-    message: 'Em dias vazios aparece a opção. <strong>Só aceite se o dia anterior estiver completo.</strong>',
+    title: 'Trazer atividades da segunda',
+    message: 'Como a segunda já tá preenchida, aparece a opção de trazer pra cá. <strong>Só aceite quando o dia anterior estiver TOTALMENTE preenchido.</strong>',
     primaryBtn: 'Entendi →'
   },
   {
