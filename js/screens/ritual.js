@@ -1543,14 +1543,38 @@ function openDayNoteModal(dayDocId) {
         </div>
       </div>
 
+      <div class="note-validate-msg" id="note-validate-msg" hidden>Preenche as duas perguntas pra registrar.</div>
       <div class="modal-actions">
         <button class="btn-secondary" id="note-cancel">Cancelar</button>
-        <button class="btn-primary" id="note-register">✓ Registrar</button>
+        <button class="btn-primary" id="note-register" disabled>✓ Registrar</button>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
   setTimeout(() => modal.querySelector('#note-pride-fail').focus(), 80);
+
+  // Validação: trava Registrar enquanto as duas perguntas não estiverem preenchidas
+  const tPride   = modal.querySelector('#note-pride-fail');
+  const tImprove = modal.querySelector('#note-improve');
+  const regBtn   = modal.querySelector('#note-register');
+  const valMsg   = modal.querySelector('#note-validate-msg');
+  const checkValid = () => {
+    const ok = tPride.value.trim().length > 0 && tImprove.value.trim().length > 0;
+    regBtn.disabled = !ok;
+    return ok;
+  };
+  tPride.addEventListener('input', () => {
+    tPride.classList.toggle('invalid', !tPride.value.trim());
+    checkValid();
+    if (checkValid()) valMsg.hidden = true;
+  });
+  tImprove.addEventListener('input', () => {
+    tImprove.classList.toggle('invalid', !tImprove.value.trim());
+    checkValid();
+    if (checkValid()) valMsg.hidden = true;
+  });
+  // Inicializa (caso já venha preenchido vindo do Firestore)
+  checkValid();
 
   // Back button do celular fecha o modal sem sair do Ritual
   let popped = false, cameFromPop = false;
@@ -1592,6 +1616,19 @@ function openDayNoteModal(dayDocId) {
   });
 
   modal.querySelector('#note-register').onclick = async () => {
+    // Guard: campos obrigatórios
+    if (!checkValid()) {
+      valMsg.hidden = false;
+      if (!tPride.value.trim()) {
+        tPride.classList.add('invalid');
+        tPride.focus();
+      } else if (!tImprove.value.trim()) {
+        tImprove.classList.add('invalid');
+        tImprove.focus();
+      }
+      if (navigator.vibrate) navigator.vibrate(40);
+      return;
+    }
     const dsMin = parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0;
     const naMin = parseInt(modal.querySelector('#stp-nightawake').dataset.val, 10) || 0;
     const data = {

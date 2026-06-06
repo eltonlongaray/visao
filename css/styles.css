@@ -1152,6 +1152,29 @@ body.time-picker-open { overflow: hidden; }
   max-width: 440px !important;
   max-height: 94vh !important;
 }
+/* Validação visual: textarea vazia tentando salvar fica vermelha */
+.modal.note-modal textarea.invalid {
+  border-color: #ef4444 !important;
+  background: rgba(239,68,68,0.07) !important;
+  animation: noteInvalidShake 0.35s ease;
+}
+@keyframes noteInvalidShake {
+  0%,100% { transform: translateX(0); }
+  25%     { transform: translateX(-4px); }
+  75%     { transform: translateX(4px); }
+}
+.note-validate-msg {
+  color: #ef4444;
+  font-size: 12.5px;
+  text-align: center;
+  margin: 6px 0 -2px;
+  font-weight: 600;
+}
+.modal.note-modal button#note-register:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(30%);
+}
 .modal-overlay .note-modal textarea,
 .modal.note-modal textarea {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, system-ui, sans-serif !important;
