@@ -498,6 +498,12 @@ function renderDayContent(d) {
     <div class="day-note-wrap" data-day="${d.id}">
       ${renderDayNoteButton(d)}
     </div>
+
+    <div class="day-clear-wrap">
+      <button type="button" class="day-clear-btn" data-action="clear-day" data-day="${d.id}">
+        🗑️ Limpar dados do dia
+      </button>
+    </div>
   `;
 }
 
@@ -1022,6 +1028,13 @@ function attachHandlers(app) {
       return;
     }
 
+    // Limpar dados do dia
+    const clearBtn = e.target.closest('[data-action="clear-day"]');
+    if (clearBtn) {
+      openClearDayModal(app, clearBtn.dataset.day);
+      return;
+    }
+
     // Editar tarefa
     const editBtn = e.target.closest('[data-action="edit"]');
     if (editBtn) {
@@ -1311,6 +1324,158 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 10: MODAIS — picker de atividade e editor de tarefa
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 9.4: LIMPAR DADOS DO DIA — por turno ou tudo
+// ═══════════════════════════════════════════════════════════════
+function openClearDayModal(app, dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+
+  const dayLabel = `${WEEKDAYS_FULL[day.date.getDay()]}, ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
+
+  // Conta tarefas por turno
+  const countByShift = (sid) => day.tasks.filter(t => t.shiftId === sid).length;
+
+  const shiftRows = shifts.map(s => {
+    const n = countByShift(s.id);
+    const empty = n === 0;
+    return `
+      <button type="button" class="clear-opt ${empty ? 'clear-opt-empty' : ''}" data-clear-shift="${s.id}" ${empty ? 'disabled' : ''}>
+        <span class="clear-opt-ic">${escape(s.icon || '🕘')}</span>
+        <span style="flex:1">${escape(s.name)}</span>
+        <small style="color:var(--muted)">${n} tarefa${n === 1 ? '' : 's'}</small>
+      </button>
+    `;
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:400px">
+      <div class="modal-title">🗑️ Limpar dados de ${escape(dayLabel)}</div>
+      <div class="modal-hint">Escolha o que apagar. Essa ação não tem volta.</div>
+
+      <div class="clear-options">
+        ${shiftRows}
+        <button type="button" class="clear-opt all" data-clear-all="1">
+          <span class="clear-opt-ic">💥</span>
+          <span style="flex:1"><strong>Apagar tudo do dia</strong><br><small style="color:var(--muted)">tarefas, horários, hidratação e nota</small></span>
+        </button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="clear-cancel">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Back-button do celular = cancelar
+  let popped = false, cameFromPop = false;
+  const onPop = () => { cameFromPop = true; finish(); };
+  window.addEventListener('popstate', onPop);
+  history.pushState({ clearModal: true }, '');
+  const finish = () => {
+    if (popped) return;
+    popped = true;
+    window.removeEventListener('popstate', onPop);
+    modal.remove();
+    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+  };
+
+  modal.querySelector('#clear-cancel').onclick = finish;
+  modal.addEventListener('click', e => { if (e.target === modal) finish(); });
+
+  // Clique em turno
+  modal.querySelectorAll('[data-clear-shift]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.classList.contains('clear-opt-empty')) return;
+      const sid = btn.dataset.clearShift;
+      const shift = shifts.find(s => s.id === sid);
+      const ok = await confirmModal({
+        title: `Limpar ${shift?.name || 'turno'}?`,
+        message: `Vai apagar todas as tarefas do turno "${shift?.name}" de ${dayLabel}.`,
+        confirmText: 'Limpar',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+      finish();
+      await clearDayShift(app, dayDocId, sid);
+    });
+  });
+
+  // Clique em "tudo"
+  modal.querySelector('[data-clear-all]').addEventListener('click', async () => {
+    const ok = await confirmModal({
+      title: 'Apagar tudo do dia?',
+      message: `Vai apagar TODAS as tarefas + horário acordou/dormiu + hidratação + nota de ${dayLabel}. Não dá pra desfazer.`,
+      confirmText: 'Apagar tudo',
+      cancelText: 'Cancelar',
+      danger: true
+    });
+    if (!ok) return;
+    finish();
+    await clearDayAll(app, dayDocId);
+  });
+}
+
+async function clearDayShift(app, dayDocId, shiftId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  const toDelete = day.tasks.filter(t => t.shiftId === shiftId);
+  if (toDelete.length === 0) return;
+  try {
+    await Promise.all(toDelete.map(t => deleteDayTask(dayDocId, t.id)));
+    day.tasks = day.tasks.filter(t => t.shiftId !== shiftId);
+    // Sincroniza template do dia-da-semana com o novo estado (sem essas tarefas)
+    syncTemplateForDay(dayDocId);
+    renderUI(app);
+    playDelete();
+    showToast(`Turno limpo: ${toDelete.length} tarefa(s)`, 'success');
+  } catch (err) {
+    console.error('[clear-shift] erro:', err);
+    showToast('Erro ao limpar o turno', 'error');
+  }
+}
+
+async function clearDayAll(app, dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  try {
+    // Apaga todas as tarefas
+    await Promise.all(day.tasks.map(t => deleteDayTask(dayDocId, t.id)));
+    day.tasks = [];
+
+    // Reseta meta: relógio + hidratação + nota + flag de auto-gen
+    const reset = {
+      wakeTime: '',
+      sleepTime: '',
+      hydrationMl: 0,
+      dayNote: null,
+      generated: false,
+      autoGeneratedFor: []
+    };
+    await setDayMeta(dayDocId, reset);
+    Object.assign(day.meta, reset);
+
+    // Cache do aviso de pendência também invalida
+    prevNoteCache.delete(dayDocId);
+
+    // Sincroniza template (agora vazio) — opcional: o usuário pode querer
+    // manter o template antigo. Por segurança NÃO sincronizo aqui pra
+    // não bagunçar a recorrência futura.
+
+    renderUI(app);
+    playDelete();
+    showToast('Dia limpo por completo', 'success');
+  } catch (err) {
+    console.error('[clear-all] erro:', err);
+    showToast('Erro ao limpar o dia', 'error');
+  }
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 9.5: FECHAMENTO DE DIA — Helpers de "dia completo"
 //   - Nota preenchida + sleepTime + hydrationMl > 0

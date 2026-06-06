@@ -1058,6 +1058,44 @@ body.time-picker-open { overflow: hidden; }
    ═══════════════════════════════════════════════════════════════ */
 .day-note-wrap { margin-top: 14px; }
 
+/* Botão discreto pra limpar dados do dia */
+.day-clear-wrap { margin-top: 12px; display: flex; justify-content: center; }
+.day-clear-btn {
+  background: transparent;
+  border: 1px dashed rgba(239,68,68,0.4);
+  color: #ef9b9b;
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.day-clear-btn:hover {
+  background: rgba(239,68,68,0.10);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+/* Modal de limpar — opções em lista */
+.clear-options { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 6px; }
+.clear-opt {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text); border-radius: 12px;
+  padding: 12px 14px; font-size: 14px; font-family: inherit;
+  cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
+}
+.clear-opt:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
+.clear-opt .clear-opt-ic { font-size: 18px; }
+.clear-opt.all {
+  border-color: rgba(239,68,68,0.45);
+  background: rgba(239,68,68,0.06);
+}
+.clear-opt.all:hover { background: rgba(239,68,68,0.16); }
+.clear-opt-empty { opacity: 0.45; cursor: not-allowed; }
+.clear-opt-empty:hover { background: var(--card); border-color: var(--border); }
+
 .day-note-btn {
   width: 100%;
   display: flex; align-items: center; gap: 12px;
