@@ -575,14 +575,32 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
 
 function renderWeekSleep(days) {
   const durations = [];
+  let totalDaySleep = 0;   // soma de horas de cochilo nas notas
+  let totalNightWakes = 0; // soma de despertares na madrugada
+  let notesCount = 0;
   for (const d of days) {
     if (d.wakeTime && d.sleepTime) {
       const dur = sleepDuration(d.sleepTime, d.wakeTime);
       if (dur && dur >= 60 && dur <= 16 * 60) durations.push(dur);
     }
+    const n = d.meta?.dayNote;
+    if (n) {
+      if (typeof n.daySleepHours === 'number') totalDaySleep += n.daySleepHours;
+      if (typeof n.nightWakes === 'number') totalNightWakes += n.nightWakes;
+      if (n.prideFail || n.improve || n.daySleepHours || n.nightWakes) notesCount++;
+    }
   }
+
+  // Card extra das notas (mesmo sem horários registrados)
+  const notesCard = (totalDaySleep > 0 || totalNightWakes > 0) ? `
+    <div class="sleep-extra">
+      ${totalDaySleep > 0 ? `<div class="sleep-extra-row">😴 <span><strong>${totalDaySleep}h</strong> de cochilo durante o dia (semana)</span></div>` : ''}
+      ${totalNightWakes > 0 ? `<div class="sleep-extra-row">🌃 <span>Acordou <strong>${totalNightWakes}x</strong> na madrugada</span></div>` : ''}
+    </div>
+  ` : '';
+
   if (durations.length === 0) {
-    return `<div class="week-sleep empty">🌙 Sono — sem registros nesta semana</div>`;
+    return `<div class="week-sleep empty">🌙 Sono — sem registros nesta semana</div>${notesCard}`;
   }
   const totalMin = durations.reduce((s,x) => s+x, 0);
   const avg = totalMin / durations.length;
@@ -625,6 +643,7 @@ function renderWeekSleep(days) {
       </div>
       <div class="week-sleep-meta">meta 7h+ por dia</div>
     </div>
+    ${notesCard}
   `;
 }
 

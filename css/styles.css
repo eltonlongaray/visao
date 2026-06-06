@@ -1100,6 +1100,81 @@ body.time-picker-open { overflow: hidden; }
   opacity: 0.9;
 }
 
+/* Modal de Nota — mais alto + fonte humana */
+.note-modal {
+  max-width: 420px !important;
+  max-height: 92vh !important;
+}
+.note-modal textarea {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-size: 14.5px;
+  line-height: 1.5;
+  letter-spacing: 0.1px;
+  padding: 12px 14px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  width: 100%;
+  resize: vertical;
+  min-height: 90px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.note-modal textarea:focus {
+  border-color: var(--accent);
+  background: rgba(167,139,250,0.06);
+}
+.note-modal textarea::placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Stepper numérico (‹ N ›) */
+.num-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  margin-top: 6px;
+  margin-bottom: 14px;
+}
+.step-arrow {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--accent-2);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.step-arrow:hover {
+  background: rgba(167,139,250,0.18);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.step-arrow:active { transform: scale(0.93); }
+.step-val {
+  flex: 1;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+
 /* Total de sono na semana (Desempenho) */
 .week-sleep-total {
   font-size: 12.5px;
@@ -1112,6 +1187,26 @@ body.time-picker-open { overflow: hidden; }
   line-height: 1.5;
 }
 .week-sleep-total strong { color: var(--accent-2); font-weight: 800; }
+
+/* Card extra: cochilos + despertares na madrugada (das notas diárias) */
+.sleep-extra {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0 0;
+}
+.sleep-extra-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.sleep-extra-row strong {
+  color: var(--orange, #f59e0b);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 .week-sleep-total small {
   display: block;
   font-size: 11px;

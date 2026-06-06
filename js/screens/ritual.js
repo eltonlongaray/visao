@@ -437,9 +437,9 @@ function renderDayContent(d) {
 
 function renderDayNoteButton(d) {
   const note = d.meta.dayNote;
-  const hasNote = note && (note.done || note.daySleep || note.improve);
+  const hasNote = note && (note.prideFail || note.improve || note.daySleepHours || note.nightWakes || note.done || note.daySleep);
   if (hasNote) {
-    const preview = (note.done || note.improve || '').trim().slice(0, 80);
+    const preview = (note.prideFail || note.done || note.improve || '').trim().slice(0, 80);
     return `
       <button class="day-note-btn registered" data-action="open-note" data-day="${d.id}">
         <span class="dnote-ic">✅</span>
@@ -1006,29 +1006,44 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
 function openDayNoteModal(dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
-  const note = day.meta.dayNote || { done: '', daySleep: '', improve: '' };
+  const note = day.meta.dayNote || {
+    prideFail: '', improve: '', daySleepHours: 0, nightWakes: 0
+  };
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal note-modal">
       <div class="modal-title">📝 Responda as Perguntas</div>
-      <div class="modal-hint">Fecha o dia com 3 perguntas rápidas.</div>
+      <div class="modal-hint">Fecha o dia com 4 perguntas rápidas.</div>
 
       <label class="input-field">
-        <div class="input-field-label">O que foi feito?</div>
-        <textarea id="note-done" rows="3" placeholder="Conta o que rolou no dia">${escape(note.done || '')}</textarea>
+        <div class="input-field-label">Do que você se orgulha hoje e onde falhou?</div>
+        <textarea id="note-pride-fail" rows="4" placeholder="Conquistas e tropeços do dia">${escape(note.prideFail || '')}</textarea>
       </label>
 
       <label class="input-field">
-        <div class="input-field-label">Eu dormi durante o dia? Quantas horas?</div>
-        <textarea id="note-day-sleep" rows="2" placeholder="Ex: Sim, 1h de cochilo à tarde / Não">${escape(note.daySleep || '')}</textarea>
+        <div class="input-field-label">Quais medidas tomarei pra fazer melhor amanhã?</div>
+        <textarea id="note-improve" rows="4" placeholder="Ajustes concretos pra amanhã">${escape(note.improve || '')}</textarea>
       </label>
 
-      <label class="input-field">
-        <div class="input-field-label">O que posso fazer pra amanhã ser melhor que hoje?</div>
-        <textarea id="note-improve" rows="3" placeholder="Pequenos ajustes ou intenções">${escape(note.improve || '')}</textarea>
-      </label>
+      <div class="input-field">
+        <div class="input-field-label">Quantas horas dormi durante o dia? <small style="color:var(--muted);font-weight:500">(cochilos)</small></div>
+        <div class="num-stepper" id="stp-daysleep" data-val="${note.daySleepHours || 0}" data-min="0" data-max="5" data-unit="h">
+          <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
+          <div class="step-val">${note.daySleepHours || 0}h</div>
+          <button type="button" class="step-arrow" data-step="+1" aria-label="aumentar">›</button>
+        </div>
+      </div>
+
+      <div class="input-field">
+        <div class="input-field-label">Acordei na madrugada? <small style="color:var(--muted);font-weight:500">(quantas vezes)</small></div>
+        <div class="num-stepper" id="stp-nightwake" data-val="${note.nightWakes || 0}" data-min="0" data-max="5" data-unit="x">
+          <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
+          <div class="step-val">${note.nightWakes || 0}x</div>
+          <button type="button" class="step-arrow" data-step="+1" aria-label="aumentar">›</button>
+        </div>
+      </div>
 
       <div class="modal-actions">
         <button class="btn-secondary" id="note-cancel">Cancelar</button>
@@ -1037,17 +1052,36 @@ function openDayNoteModal(dayDocId) {
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => modal.querySelector('#note-done').focus(), 80);
+  setTimeout(() => modal.querySelector('#note-pride-fail').focus(), 80);
 
   const close = () => modal.remove();
   modal.querySelector('#note-cancel').onclick = close;
   modal.onclick = (e) => { if (e.target === modal) close(); };
 
+  // Wire steppers
+  modal.querySelectorAll('.num-stepper').forEach(stp => {
+    const valEl = stp.querySelector('.step-val');
+    const unit = stp.dataset.unit;
+    const min = parseInt(stp.dataset.min, 10);
+    const max = parseInt(stp.dataset.max, 10);
+    stp.querySelectorAll('.step-arrow').forEach(btn => {
+      btn.addEventListener('click', () => {
+        let v = parseInt(stp.dataset.val, 10);
+        v += parseInt(btn.dataset.step, 10);
+        if (v < min) v = min; if (v > max) v = max;
+        stp.dataset.val = v;
+        valEl.textContent = `${v}${unit}`;
+        if (navigator.vibrate) navigator.vibrate(8);
+      });
+    });
+  });
+
   modal.querySelector('#note-register').onclick = async () => {
     const data = {
-      done:     modal.querySelector('#note-done').value.trim(),
-      daySleep: modal.querySelector('#note-day-sleep').value.trim(),
-      improve:  modal.querySelector('#note-improve').value.trim(),
+      prideFail:     modal.querySelector('#note-pride-fail').value.trim(),
+      improve:       modal.querySelector('#note-improve').value.trim(),
+      daySleepHours: parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0,
+      nightWakes:    parseInt(modal.querySelector('#stp-nightwake').dataset.val, 10) || 0,
       registeredAt: new Date().toISOString()
     };
 
