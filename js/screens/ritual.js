@@ -6,7 +6,7 @@ import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, dayId,
   getProfile, parseTime,
   getWeekdayTemplate, setWeekdayTemplate,
-  saveCategory
+  saveCategory, fetchDaysRange
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, showLocalToast, confirmModal } from '../toast.js';
@@ -741,15 +741,9 @@ function openRitualCalendar(app) {
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
-  // Detecta quais DOWs têm tarefas com lembrete nos templates
-  const dowsWithReminder = new Set();
-  const tpls = profile?.weekdayTemplates || {};
-  for (const dowKey of Object.keys(tpls)) {
-    const arr = tpls[dowKey];
-    if (Array.isArray(arr) && arr.some(t => t.reminderEnabled)) {
-      dowsWithReminder.add(parseInt(dowKey, 10));
-    }
-  }
+  // Set de dias (YYYY-MM-DD) com pelo menos 1 tarefa com lembrete
+  // Será preenchido por fetch sob demanda pra cada mês visualizado
+  const daysWithReminder = new Set();
 
   modal.innerHTML = `
     <div class="modal cal-modal">
@@ -788,24 +782,45 @@ function openRitualCalendar(app) {
       const date = new Date(viewYear, viewMonth, d);
       const idStr = dayId(date);
       const isToday = idStr === todayId;
-      const hasReminder = dowsWithReminder.has(date.getDay());
+      const hasReminder = daysWithReminder.has(idStr);
       html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''}" data-cal-day="${idStr}">
         ${d}${hasReminder ? '<span class="cal-pin">📌</span>' : ''}
       </button>`;
     }
     gridEl.innerHTML = html;
   };
+
+  // Busca dias do mês visualizado e identifica os com lembrete real
+  const loadRemindersFor = async (year, month) => {
+    try {
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0);
+      const days = await fetchDaysRange(start, end);
+      for (const dd of days) {
+        if ((dd.tasks || []).some(t => t.reminderEnabled)) {
+          daysWithReminder.add(dd.id);
+        }
+      }
+    } catch (err) {
+      console.warn('[cal] erro ao buscar lembretes:', err);
+    }
+  };
+
+  // Render inicial + busca dos lembretes
   renderGrid();
+  loadRemindersFor(viewYear, viewMonth).then(renderGrid);
 
   const close = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) close(); };
   modal.querySelector('#cal-back').onclick = close;
   modal.querySelectorAll('[data-cal-nav]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const delta = parseInt(btn.dataset.calNav, 10);
       viewMonth += delta;
       if (viewMonth < 0) { viewMonth = 11; viewYear--; }
       else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      renderGrid();
+      await loadRemindersFor(viewYear, viewMonth);
       renderGrid();
     });
   });

@@ -540,7 +540,9 @@ html, body {
   display: flex; align-items: center; justify-content: space-between;
   background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(96,165,250,0.10));
   border: 1px solid rgba(167,139,250,0.25);
-  border-radius: 20px; padding: 14px 12px; gap: 8px; margin-bottom: 12px;
+  border-radius: 18px; padding: 10px 10px; gap: 6px;
+  margin: 0 auto 12px;
+  max-width: 320px;
 }
 .swipe-arrow {
   width: 30px; height: 30px; border-radius: 10px;
