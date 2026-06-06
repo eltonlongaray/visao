@@ -337,6 +337,9 @@ function initTaskSortables() {
       touchStartThreshold: 5,
       forceFallback: true,
       fallbackTolerance: 5,
+      // CRITICAL: clone vai pro <body> pra escapar do `overflow: hidden` do .day-card
+      // (sem isso, o clone era cortado nas bordas do card e parecia "preso")
+      fallbackOnBody: true,
       // Auto-scroll quando o dedo chega perto da borda da viewport
       scroll: true,
       bubbleScroll: true,
