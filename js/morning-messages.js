@@ -134,7 +134,7 @@ function openMessageDetail(n) {
     btnLabel = 'Avançar para a última pergunta ›';
     btnAction = 'next';
   } else {
-    btnLabel = '‹ Voltar';
+    btnLabel = 'Sair';
     btnAction = 'close';
   }
 
