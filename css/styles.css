@@ -399,10 +399,10 @@ html, body {
 .day-card.today { border-color: rgba(167,139,250,0.45); box-shadow: 0 0 0 1px rgba(167,139,250,0.20); }
 .day-card.open {
   background: rgba(167,139,250,0.06);
+  /* Borda fina nos 3 lados (top/right/bottom) com a cor do dia — conecta com
+     a faixa colorida da esquerda sem engrossá-la */
   border-color: var(--dow-color, var(--accent));
-  box-shadow:
-    0 0 0 1px var(--dow-color, var(--accent)),
-    0 6px 20px -8px rgba(0,0,0,0.35);
+  box-shadow: 0 6px 20px -8px rgba(0,0,0,0.35);
 }
 .day-card.open .day-card-header {
   border-bottom: 1px solid var(--dow-color, rgba(167,139,250,0.45));
