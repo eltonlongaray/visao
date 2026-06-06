@@ -1158,13 +1158,20 @@ function openActivityPicker(app, dayDocId, shiftId) {
         </div>
       </label>
 
+      <div class="input-field-label" style="margin-top:8px">Repetir</div>
+      <div class="recur-chips" id="recur-chips">
+        <button type="button" class="recur-chip" data-recur="today">📌 Somente hoje</button>
+        <button type="button" class="recur-chip active" data-recur="weekly">🔁 Toda ${WEEKDAYS_FULL[day.date.getDay()].toLowerCase()}</button>
+        <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias</button>
+      </div>
+
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
         Nenhuma atividade cadastrada. Vai na <a href="#/home" style="color:var(--accent)">Home</a> pra criar.
       </div>` : ''}
 
       <div class="modal-actions">
         <button class="btn-secondary" id="m-cancel">Cancelar</button>
-        <button class="btn-primary" id="m-save">+ Adicionar ao dia</button>
+        <button class="btn-primary" id="m-save">+ Adicionar</button>
       </div>
     </div>
   `;
@@ -1185,29 +1192,87 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
+  // Wire dos chips de recorrência (seleção exclusiva)
+  modal.querySelectorAll('.recur-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      modal.querySelectorAll('.recur-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+
   modal.querySelector('#m-save').onclick = async () => {
     const categoryId = modal.querySelector('#m-cat').value || null;
     const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
     let title = modal.querySelector('#m-title').value.trim();
     if (!title) {
-      if (cat) title = cat.name; // se não tem título mas tem atividade, usa o nome da atividade
+      if (cat) title = cat.name;
       else { showToast('Digite um título ou escolha uma atividade', 'info'); return; }
     }
     const startTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
-    const order = day.tasks.filter(t => t.shiftId === shiftId).length;
-    const newTask = {
+    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'weekly';
+
+    const baseTask = {
       activityId: null, title, desc: '',
       startTime, shiftId, categoryId,
-      done: false, order, reminderEnabled
+      done: false, reminderEnabled
     };
-    const tid = await addDayTask(dayDocId, newTask);
-    day.tasks.push({ id: tid, ...newTask });
-    await propagateReminderToCategory(categoryId, reminderEnabled);
-    modal.remove();
-    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
-    if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-    updateDayCardStats(dayDocId);
+
+    try {
+      // Sempre adiciona no dia atual
+      const order = day.tasks.filter(t => t.shiftId === shiftId).length;
+      const tid = await addDayTask(dayDocId, { ...baseTask, order });
+      day.tasks.push({ id: tid, ...baseTask, order });
+      await propagateReminderToCategory(categoryId, reminderEnabled);
+
+      // RECORRÊNCIA
+      if (recur === 'daily') {
+        // Adiciona em todos os outros dias da semana atual
+        for (const otherDay of weekData) {
+          if (otherDay.id === dayDocId) continue;
+          const otherOrder = otherDay.tasks.filter(t => t.shiftId === shiftId).length;
+          const oid = await addDayTask(otherDay.id, { ...baseTask, order: otherOrder });
+          otherDay.tasks.push({ id: oid, ...baseTask, order: otherOrder });
+        }
+        // Salva no template de TODOS os 7 dias-da-semana
+        const templateTask = {
+          activityId: null, title, desc: '',
+          startTime, shiftId: shiftId || null, categoryId: categoryId || null,
+          icon: '', reminderEnabled
+        };
+        for (let dow = 0; dow < 7; dow++) {
+          const existing = (await getWeekdayTemplate(dow)) || [];
+          existing.push(templateTask);
+          await setWeekdayTemplate(dow, existing);
+        }
+      } else if (recur === 'today') {
+        // Somente hoje — sem sync de template
+        modal.remove();
+        const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+        if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+        updateDayCardStats(dayDocId, false); // false = NÃO sincroniza template
+        return;
+      }
+      // 'weekly' (default) — sync padrão pro DOW de hoje
+      modal.remove();
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+      if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId); // default true = sync template do DOW atual
+
+      // Se 'daily', re-renderiza outros day cards também
+      if (recur === 'daily') {
+        weekData.forEach(other => {
+          if (other.id === dayDocId) return;
+          const otherEl = document.querySelector(`.day-card[data-day-id="${other.id}"]`);
+          if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(other);
+          updateDayCardStats(other.id, false);
+        });
+        showToast('Tarefa adicionada em todos os dias!', 'success');
+      }
+    } catch (err) {
+      console.error('[add-task] erro:', err);
+      showToast('Erro ao salvar.', 'error');
+    }
   };
 }
 
