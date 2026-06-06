@@ -205,7 +205,7 @@ export const ONBOARDING_STEPS = [
     id: 'end',
     noSpotlight: true,
     title: 'Pronto!',
-    message: 'Boa rotina ✨',
+    message: 'Bom ritual ✨',
     primaryBtn: 'Concluir'
   }
 ];
