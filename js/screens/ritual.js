@@ -741,6 +741,16 @@ function openRitualCalendar(app) {
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
+  // Detecta quais DOWs têm tarefas com lembrete nos templates
+  const dowsWithReminder = new Set();
+  const tpls = profile?.weekdayTemplates || {};
+  for (const dowKey of Object.keys(tpls)) {
+    const arr = tpls[dowKey];
+    if (Array.isArray(arr) && arr.some(t => t.reminderEnabled)) {
+      dowsWithReminder.add(parseInt(dowKey, 10));
+    }
+  }
+
   modal.innerHTML = `
     <div class="modal cal-modal">
       <div class="cal-header">
@@ -754,8 +764,7 @@ function openRitualCalendar(app) {
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-hint">Toque num dia pra abrir a semana correspondente.</div>
       <div class="modal-actions">
-        <button class="btn-secondary" id="cal-today" type="button">📍 Hoje</button>
-        <button class="btn-secondary" id="cal-cancel" type="button">Cancelar</button>
+        <button class="btn-secondary" id="cal-back" type="button" style="flex:1">← Voltar</button>
       </div>
     </div>
   `;
@@ -774,14 +783,15 @@ function openRitualCalendar(app) {
     const todayId = dayId(today);
 
     let html = '';
-    // Espaços vazios antes do dia 1
     for (let i = 0; i < startDow; i++) html += '<span class="cal-cell empty"></span>';
-    // Dias do mês
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(viewYear, viewMonth, d);
       const idStr = dayId(date);
       const isToday = idStr === todayId;
-      html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''}" data-cal-day="${idStr}">${d}</button>`;
+      const hasReminder = dowsWithReminder.has(date.getDay());
+      html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''}" data-cal-day="${idStr}">
+        ${d}${hasReminder ? '<span class="cal-pin">📌</span>' : ''}
+      </button>`;
     }
     gridEl.innerHTML = html;
   };
@@ -789,14 +799,7 @@ function openRitualCalendar(app) {
 
   const close = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) close(); };
-  modal.querySelector('#cal-cancel').onclick = close;
-  modal.querySelector('#cal-today').onclick = async () => {
-    weekStart = getWeekStart(new Date());
-    expanded.clear(); expanded.add(dayId(new Date()));
-    close();
-    await loadWeek();
-    renderUI(app);
-  };
+  modal.querySelector('#cal-back').onclick = close;
   modal.querySelectorAll('[data-cal-nav]').forEach(btn => {
     btn.addEventListener('click', () => {
       const delta = parseInt(btn.dataset.calNav, 10);
