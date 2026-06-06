@@ -610,11 +610,10 @@ function taskCard(t, dayDocId) {
   return `
     <div class="task ${t.done ? 'done' : ''} ${t.reminderEnabled ? 'has-reminder' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
-      <span class="task-drag" title="Arraste pra reordenar">⋮⋮</span>
       <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>
       <div class="task-body">
         <div class="task-title">
-          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${t.reminderEnabled ? '<span class="task-reminder-indicator" title="Lembrete ativado">🔔</span>' : ''}
+          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}

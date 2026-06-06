@@ -625,8 +625,10 @@ html, body {
 /* === TASK CARD (Ritual) === */
 .task {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 14px; padding: 11px 11px; margin-bottom: 7px;
-  display: flex; gap: 10px; align-items: flex-start;
+  border-radius: 14px;
+  padding: 11px 11px 11px 8px;
+  margin-bottom: 7px;
+  display: flex; gap: 8px; align-items: flex-start;
 }
 .task.done { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.25); }
 .task.done .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(52,211,153,0.5); }
@@ -675,25 +677,18 @@ html, body {
 }
 .task-drag:hover { opacity: 0.9; }
 .task-drag:active { cursor: grabbing; }
-/* Pontinho vermelho pulsante quando a tarefa tem lembrete (🔔) ativado */
+/* Pontinho vermelho à direita quando a tarefa tem lembrete (🔔) ativado — sem animação */
 .task.has-reminder::before {
   content: '';
   position: absolute;
-  top: 8px; left: 8px;
+  top: 8px; right: 8px;
   width: 10px; height: 10px;
   border-radius: 50%;
   background: #ef4444;
   border: 2px solid var(--card);
-  box-shadow:
-    0 0 0 1px rgba(239,68,68,0.6),
-    0 0 8px rgba(239,68,68,0.6);
-  animation: taskReminderDotPulse 1.8s ease-in-out infinite;
-  z-index: 3;
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.5);
+  z-index: 4;
   pointer-events: none;
-}
-@keyframes taskReminderDotPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.25); opacity: 0.85; }
 }
 
 /* Bloqueia seleção de texto + callout do iOS no card inteiro
