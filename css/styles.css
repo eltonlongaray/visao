@@ -1225,12 +1225,13 @@ body.time-picker-open { overflow: hidden; }
 
 /* Card extra: cochilos + despertares na madrugada (das notas diárias) — CENTRALIZADO */
 .sleep-extra {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 8px;
   background: rgba(245,158,11,0.10);
   border: 1px solid rgba(245,158,11,0.25);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin: 8px 0 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 18px auto 22px;
+  max-width: 92%;
 }
 .sleep-extra-row {
   font-size: 13.5px;
