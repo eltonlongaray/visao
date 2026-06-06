@@ -583,6 +583,13 @@ async function copyDayTasksTo(fromId, toId) {
 }
 
 
+// Label da recorrência semanal respeitando gênero (sábado/domingo masculinos)
+function recurWeeklyLabel(dow) {
+  const names = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const isMasc = (dow === 0 || dow === 6); // Domingo e Sábado
+  return `${isMasc ? 'Todo' : 'Toda'} ${names[dow].toLowerCase()}`;
+}
+
 // Mapeia HH:MM → nome de turno padrão (Manhã 5-12, Tarde 12-19, Noite 19-5)
 function shiftNameFromTime(timeStr) {
   if (!timeStr) return null;
@@ -1160,7 +1167,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <div class="input-field-label" style="margin-top:8px">Repetir</div>
       <div class="recur-chips" id="recur-chips">
         <button type="button" class="recur-chip" data-recur="today">📌 Somente hoje</button>
-        <button type="button" class="recur-chip active" data-recur="weekly">🔁 Toda ${WEEKDAYS_FULL[day.date.getDay()].toLowerCase()}</button>
+        <button type="button" class="recur-chip active" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
         <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias</button>
       </div>
 
