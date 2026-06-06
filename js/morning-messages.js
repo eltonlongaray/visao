@@ -125,6 +125,19 @@ function openMessageDetail(n) {
   const msg = MESSAGES.find(m => m.n === n);
   if (!msg) return;
 
+  // Define o botão de acordo com qual mensagem estamos
+  let btnLabel, btnAction;
+  if (n === 1) {
+    btnLabel = 'Avançar para a próxima pergunta ›';
+    btnAction = 'next';
+  } else if (n === 2) {
+    btnLabel = 'Avançar para a última pergunta ›';
+    btnAction = 'next';
+  } else {
+    btnLabel = '‹ Voltar';
+    btnAction = 'close';
+  }
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay morning-msgs-overlay';
   overlay.innerHTML = `
@@ -133,7 +146,7 @@ function openMessageDetail(n) {
       <div class="mm-detail-title">${msg.title}</div>
       <div class="mm-detail-body">${msg.body}</div>
       <div class="modal-actions">
-        <button class="btn-primary" id="mm-back">Voltar</button>
+        <button class="btn-primary" id="mm-action">${btnLabel}</button>
       </div>
     </div>
   `;
@@ -151,6 +164,15 @@ function openMessageDetail(n) {
     if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
   };
 
-  overlay.querySelector('#mm-back').addEventListener('click', close);
+  overlay.querySelector('#mm-action').addEventListener('click', () => {
+    if (btnAction === 'next') {
+      // Fecha esse detalhe e abre o próximo logo em seguida
+      close();
+      // Pequeno delay pra animação do popstate completar
+      setTimeout(() => openMessageDetail(n + 1), 60);
+    } else {
+      close();
+    }
+  });
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
