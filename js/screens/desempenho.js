@@ -583,7 +583,8 @@ function renderWeekSleep(days) {
       const dur = sleepDuration(d.sleepTime, d.wakeTime);
       if (dur && dur >= 60 && dur <= 16 * 60) durations.push(dur);
     }
-    const n = d.meta?.dayNote;
+    // fetchDaysRange achata os dados no root, então dayNote tá direto em d
+    const n = d.dayNote ?? d.meta?.dayNote;
     if (n) {
       if (typeof n.daySleepHours === 'number') totalDaySleep += n.daySleepHours;
       const naw = n.nightAwakeHours ?? n.nightWakes;
