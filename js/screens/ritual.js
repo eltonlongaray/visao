@@ -608,7 +608,7 @@ function taskCard(t, dayDocId) {
   // Ícone próprio sobrescreve, senão usa o da categoria (fallback)
   const taskIcon = t.icon || cat?.icon || '🏷️';
   return `
-    <div class="task ${t.done ? 'done' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
+    <div class="task ${t.done ? 'done' : ''} ${t.reminderEnabled ? 'has-reminder' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
       <span class="task-drag" title="Arraste pra reordenar">⋮⋮</span>
       <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>

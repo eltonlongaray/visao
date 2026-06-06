@@ -675,6 +675,27 @@ html, body {
 }
 .task-drag:hover { opacity: 0.9; }
 .task-drag:active { cursor: grabbing; }
+/* Pontinho vermelho pulsante quando a tarefa tem lembrete (🔔) ativado */
+.task.has-reminder::before {
+  content: '';
+  position: absolute;
+  top: 8px; left: 8px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--card);
+  box-shadow:
+    0 0 0 1px rgba(239,68,68,0.6),
+    0 0 8px rgba(239,68,68,0.6);
+  animation: taskReminderDotPulse 1.8s ease-in-out infinite;
+  z-index: 3;
+  pointer-events: none;
+}
+@keyframes taskReminderDotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.85; }
+}
+
 /* Bloqueia seleção de texto + callout do iOS no card inteiro
    (impede que long-press dispare "Copiar/Selecionar" ao invés do drag) */
 .task,
