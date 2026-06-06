@@ -465,19 +465,20 @@ function renderDayContent(d) {
   const hydPct = Math.min(100, Math.round((d.meta.hydrationMl / d.meta.hydrationGoal) * 100 || 0));
   const wakeReal = toHHMM(d.meta.wakeTime);
   const sleepReal = toHHMM(d.meta.sleepTime);
-  const wakePh = profile.defaultWakeTime ? toHHMM(profile.defaultWakeTime) : '';
-  const sleepPh = profile.defaultSleepTime ? toHHMM(profile.defaultSleepTime) : '';
+  // Vazio mostra '--:--' explicito; o default do perfil é usado só pra abrir o picker
+  const wakeDisplay = wakeReal || '--:--';
+  const sleepDisplay = sleepReal || '--:--';
   const wakeIsEmpty = !wakeReal;
   const sleepIsEmpty = !sleepReal;
   return `
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
-        <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeReal || (wakePh ? wakePh : '--:--')}</button>
+        <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeDisplay}</button>
       </label>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
-        <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepReal || (sleepPh ? sleepPh : '--:--')}</button>
+        <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepDisplay}</button>
       </label>
     </div>
 
