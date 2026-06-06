@@ -583,6 +583,41 @@ async function copyDayTasksTo(fromId, toId) {
 }
 
 
+// Modal de escolha pra exclusão de tarefa recorrente
+// Retorna 'one' | 'all' | null (cancelado)
+function askDeleteScope(taskTitle, otherDaysCount) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:340px">
+        <div class="modal-title" style="text-align:center">⚠️ Excluir tarefa recorrente?</div>
+        <div class="modal-hint" style="text-align:center">
+          <strong>"${escape(taskTitle)}"</strong> aparece em mais ${otherDaysCount} dia${otherDaysCount === 1 ? '' : 's'} desta semana.
+        </div>
+        <button class="del-scope-btn" data-scope="one" type="button">
+          <strong>📌 Somente este dia</strong>
+          <small>Mantém nos outros dias</small>
+        </button>
+        <button class="del-scope-btn danger" data-scope="all" type="button">
+          <strong>🗑️ Toda a recorrência</strong>
+          <small>Remove dos ${otherDaysCount + 1} dias da semana</small>
+        </button>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="del-cancel">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    const close = (v) => { modal.remove(); resolve(v); };
+    modal.onclick = (e) => { if (e.target === modal) close(null); };
+    modal.querySelector('#del-cancel').onclick = () => close(null);
+    modal.querySelectorAll('.del-scope-btn').forEach(b =>
+      b.addEventListener('click', () => close(b.dataset.scope))
+    );
+  });
+}
+
 // Label da recorrência semanal respeitando gênero (sábado/domingo masculinos)
 function recurWeeklyLabel(dow) {
   const names = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
@@ -917,20 +952,54 @@ function attachHandlers(app) {
       const tid = taskEl.dataset.taskId;
       const day = weekData.find(d => d.id === dayDocId);
       const t = day?.tasks.find(x => x.id === tid);
-      const ok = await confirmModal({
-        title: 'Excluir tarefa?',
-        message: `"${t?.title || 'Tarefa'}" será removida deste dia. A atividade na Home não muda.`,
-        confirmText: 'Excluir',
-        danger: true
-      });
-      if (!ok) return;
+      if (!t) return;
+
+      // Detecta se essa tarefa se repete em outros dias da semana (mesmo título+categoria)
+      const recurringDays = weekData.filter(d =>
+        d.id !== dayDocId && d.tasks.some(x => x.title === t.title && x.categoryId === t.categoryId)
+      );
+      const isRecurring = recurringDays.length > 0;
+
+      let scope = 'one'; // 'one' | 'all'
+      if (isRecurring) {
+        scope = await askDeleteScope(t.title, recurringDays.length);
+        if (!scope) return; // cancelado
+      } else {
+        const ok = await confirmModal({
+          title: 'Excluir tarefa?',
+          message: `"${t.title}" será removida deste dia.`,
+          confirmText: 'Excluir',
+          danger: true
+        });
+        if (!ok) return;
+      }
+
       playDelete();
       taskEl.style.transition = 'all 0.25s';
       taskEl.style.opacity = '0';
       taskEl.style.transform = 'translateX(40px)';
+
       setTimeout(async () => {
         await deleteDayTask(dayDocId, tid);
-        day.tasks = day.tasks.filter(t => t.id !== tid);
+        day.tasks = day.tasks.filter(x => x.id !== tid);
+
+        if (scope === 'all') {
+          // Apaga das outras ocorrências também
+          for (const otherDay of recurringDays) {
+            const matches = otherDay.tasks.filter(x => x.title === t.title && x.categoryId === t.categoryId);
+            for (const m of matches) {
+              try { await deleteDayTask(otherDay.id, m.id); } catch {}
+              otherDay.tasks = otherDay.tasks.filter(x => x.id !== m.id);
+            }
+            const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
+            if (otherEl) {
+              otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
+              updateDayCardStats(otherDay.id, true);
+            }
+          }
+          showToast(`Removido de ${recurringDays.length + 1} dias`, 'success');
+        }
+
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) {
           dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
@@ -1321,6 +1390,13 @@ function openTaskEditor(app, dayDocId, taskId) {
         </div>
       </label>
 
+      <div class="input-field-label" style="margin-top:8px">Aplicar mudança a</div>
+      <div class="recur-chips" id="recur-chips">
+        <button type="button" class="recur-chip active" data-recur="today">📌 Somente este dia</button>
+        <button type="button" class="recur-chip" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
+        <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias da semana</button>
+      </div>
+
       <div class="modal-actions">
         <button class="btn-secondary" id="m-cancel">Cancelar</button>
         <button class="btn-primary" id="m-save">Salvar</button>
@@ -1330,6 +1406,14 @@ function openTaskEditor(app, dayDocId, taskId) {
   document.body.appendChild(modal);
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
+
+  // Wire chips de recorrência (seleção exclusiva)
+  modal.querySelectorAll('.recur-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      modal.querySelectorAll('.recur-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
   // Wire icon picker (seleção exclusiva)
   modal.querySelectorAll('#m-icon-picker .task-icon-opt').forEach(b => {
     b.addEventListener('click', () => {
@@ -1371,14 +1455,64 @@ function openTaskEditor(app, dayDocId, taskId) {
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked
     };
+    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'today';
+
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
+
+    // RECORRÊNCIA: replica a edição nos outros dias se o usuário pediu
+    if (recur === 'daily') {
+      // Aplica a TODOS os outros dias da semana com tarefa de mesmo título/categoria
+      // Se algum dia não tiver, adiciona
+      for (const otherDay of weekData) {
+        if (otherDay.id === dayDocId) continue;
+        const existing = otherDay.tasks.find(x => x.title === t.title && x.categoryId === t.categoryId);
+        const baseTask = {
+          activityId: t.activityId || null,
+          title: data.title, desc: data.desc,
+          startTime: data.startTime,
+          shiftId: data.shiftId,
+          categoryId: t.categoryId || null,
+          icon: data.icon || '',
+          reminderEnabled: data.reminderEnabled,
+          done: existing?.done || false,
+        };
+        if (existing) {
+          await updateDayTask(otherDay.id, existing.id, baseTask);
+          Object.assign(existing, baseTask);
+        } else {
+          const order = otherDay.tasks.filter(x => x.shiftId === baseTask.shiftId).length;
+          const newId = await addDayTask(otherDay.id, { ...baseTask, order });
+          otherDay.tasks.push({ id: newId, ...baseTask, order });
+        }
+      }
+    }
+    // Sync template do DOW pra 'weekly' (e 'daily', que sobrescreve abaixo)
+    // 'today' não sincroniza nada
+    if (recur === 'weekly' || recur === 'daily') {
+      // syncTemplateForDay vai rodar via updateDayCardStats(default true)
+    }
+
     modal.remove();
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) {
       dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-      updateDayCardStats(dayDocId);
+      updateDayCardStats(dayDocId, recur !== 'today');
+    }
+
+    // Re-renderiza outros dias se 'daily'
+    if (recur === 'daily') {
+      // Sincroniza template em TODOS os DOWs
+      for (const otherDay of weekData) {
+        if (otherDay.id === dayDocId) continue;
+        const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
+        if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
+        updateDayCardStats(otherDay.id, true);
+      }
+      showToast('Aplicado em todos os dias da semana', 'success');
+    } else if (recur === 'weekly') {
+      showToast('Aplicado nesta semana', 'success');
     }
   };
 }

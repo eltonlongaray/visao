@@ -1960,6 +1960,47 @@ body.time-picker-open { overflow: hidden; }
   box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
 }
 
+/* Botão de escolha de escopo na exclusão de tarefa recorrente */
+.del-scope-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 6px 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.del-scope-btn:hover {
+  border-color: var(--accent);
+  background: rgba(167,139,250,0.10);
+  transform: translateY(-1px);
+}
+.del-scope-btn strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+.del-scope-btn small {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+.del-scope-btn.danger {
+  background: rgba(248,113,113,0.08);
+  border-color: rgba(248,113,113,0.30);
+}
+.del-scope-btn.danger:hover {
+  border-color: var(--red, #f87171);
+  background: rgba(248,113,113,0.15);
+}
+.del-scope-btn.danger strong { color: var(--red, #f87171); }
+
 .chart-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 18px; padding: 16px; margin-bottom: 12px;
