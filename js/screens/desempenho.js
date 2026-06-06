@@ -608,8 +608,9 @@ function renderWeekSleep(days) {
     return `<div class="week-sleep empty">🌙 Sono — sem registros nesta semana</div>${notesCard}`;
   }
   const totalMinRaw = durations.reduce((s,x) => s+x, 0);
-  // Desconta os despertares da madrugada do tempo total dormindo
-  const totalMin = Math.max(0, totalMinRaw - nightAwakeMin);
+  // Soma cochilos do dia e desconta madrugada acordado(a)
+  const daySleepMin = totalDaySleep * 60;
+  const totalMin = Math.max(0, totalMinRaw - nightAwakeMin + daySleepMin);
   const avg = totalMin / durations.length;
   const hrs = avg / 60;
   const totalHrs = totalMin / 60;
