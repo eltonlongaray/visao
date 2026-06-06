@@ -18,6 +18,7 @@ import { navigate } from '../router.js';
 import * as tour from '../tour.js';
 import { ONBOARDING_STEPS } from '../tour-config.js';
 import { openTimePicker } from '../time-picker.js';
+import { openMorningMessages, hasUnreadToday } from '../morning-messages.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -88,6 +89,16 @@ export async function renderHome(app) {
           <div class="reminders-sub" id="reminders-sub">carregando…</div>
         </div>
         <div class="reminders-badge" id="reminders-badge" style="display:none">0</div>
+      </button>
+
+      <!-- MENSAGENS DA MANHÃ -->
+      <button class="reminders-card msgs-card" id="morning-msgs-card" type="button">
+        <div class="reminders-icon">💌</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Mensagens</div>
+          <div class="reminders-sub">A pergunta de todas as manhãs</div>
+        </div>
+        <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
       </button>
 
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
@@ -321,6 +332,13 @@ function attachHandlers() {
   // ─── Específicos (botões recriados a cada render) ─────────
   document.getElementById('add-cat').addEventListener('click', () => openCategoryEditor(null));
   document.getElementById('reminders-card').addEventListener('click', openRemindersModal);
+
+  // Card de mensagens — abre o modal e marca como lido (some a bolinha do dia)
+  document.getElementById('morning-msgs-card').addEventListener('click', () => {
+    openMorningMessages();
+    const dot = document.getElementById('msgs-dot');
+    if (dot) dot.style.display = 'none';
+  });
 
   // Toggle de tema dia/noite — o SVG reage automaticamente ao data-theme via CSS
   document.getElementById('theme-toggle').addEventListener('click', () => toggleTheme());
