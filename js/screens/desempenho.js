@@ -627,10 +627,9 @@ function renderWeekSleep(days) {
   const pctOfWeek = Math.round((totalHrs / trackedHrs) * 100);
 
   let cls, label, emoji;
-  if (hrs < 6)      { cls = 'bad';   label = 'ruim';        emoji = '😴'; }
-  else if (hrs < 7) { cls = 'mid';   label = 'mínimo';      emoji = '⚠️'; }
-  else if (hrs <= 8){ cls = 'good';  label = 'ideal';       emoji = '✅'; }
-  else              { cls = 'waste'; label = 'desperdício'; emoji = '💤'; }
+  if (hrs < 6)       { cls = 'bad';   label = 'ruim';        emoji = '😴'; }
+  else if (hrs <= 8) { cls = 'good';  label = 'ideal';       emoji = '✅'; }
+  else               { cls = 'waste'; label = 'desperdício'; emoji = '💤'; }
   const clamped = Math.max(4, Math.min(12, hrs));
   const pointerPct = ((clamped - 4) / 8) * 100;
   return `
@@ -645,20 +644,18 @@ function renderWeekSleep(days) {
         ${durations.length} dia${durations.length === 1 ? '' : 's'} registrado${durations.length === 1 ? '' : 's'} —
         <small>de <strong>${trackedHrs}h</strong> registradas no app (${pctOfWeek}%)</small>
       </div>
-      <div class="scale-marks">
+      <div class="scale-marks scale-marks-3">
         <span><strong>&lt;6h</strong></span>
-        <span><strong>6-7h</strong></span>
-        <span><strong>7-8h</strong></span>
+        <span><strong>6h - 8h</strong></span>
         <span><strong>8h+</strong></span>
       </div>
       <div class="scale-bar">
-        <div class="scale-seg bad"></div>
-        <div class="scale-seg mid"></div>
-        <div class="scale-seg good"></div>
-        <div class="scale-seg waste"></div>
+        <div class="scale-seg bad" style="flex:2"></div>
+        <div class="scale-seg good" style="flex:2"></div>
+        <div class="scale-seg waste" style="flex:1"></div>
         <div class="scale-pointer" style="left:${pointerPct}%"></div>
       </div>
-      <div class="week-sleep-meta">meta 7h+ por dia</div>
+      <div class="week-sleep-meta">ideal entre 6h e 8h por dia</div>
     </div>
     ${notesCard}
   `;

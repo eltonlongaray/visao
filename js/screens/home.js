@@ -251,13 +251,13 @@ function formatDurationVerbose(mins) {
 function sleepInfoHtml() {
   const dur = sleepDuration(profile.defaultSleepTime, profile.defaultWakeTime);
   if (dur === null) {
-    return `<span class="sleep-info-empty">Defina os horários pra ver suas horas de sono. Recomenda-se ao menos 7h.</span>`;
+    return `<span class="sleep-info-empty">Defina os horários pra ver suas horas de sono. Ideal: entre 6h e 8h.</span>`;
   }
   const hrs = dur / 60;
-  let cls = 'good', emoji = '💤', msg = '';
-  if (hrs >= 7) { cls = 'good'; msg = 'ótimo!'; }
-  else if (hrs >= 6) { cls = 'mid'; msg = 'pouco — recomenda-se 7h+'; emoji = '⚠️'; }
-  else { cls = 'bad'; msg = 'muito pouco — recomenda-se 7h+'; emoji = '⚠️'; }
+  let cls = 'good', emoji = '✅', msg = '';
+  if (hrs < 6)        { cls = 'bad';   emoji = '⚠️'; msg = 'pouco — ideal entre 6h e 8h'; }
+  else if (hrs <= 8)  { cls = 'good';  emoji = '✅'; msg = 'ideal!'; }
+  else                { cls = 'mid';   emoji = '💤'; msg = 'além do ideal (6h-8h)'; }
   return `<span class="sleep-info-tag ${cls}">${emoji} ${formatDurationVerbose(dur)} de sono — ${msg}</span>`;
 }
 
