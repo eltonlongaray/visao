@@ -99,10 +99,63 @@ function buildReportHtml(data) {
   const doneTasks  = data.days.reduce((s, d) => s + d.tasks.filter(t => t.done).length, 0);
   const aderencia  = totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0;
 
-  const sleepDays = data.days
-    .filter(d => d.meta?.sleepHours != null)
-    .map(d => Number(d.meta.sleepHours)).filter(Number.isFinite);
-  const sleepAvg = sleepDays.length ? (sleepDays.reduce((a,b)=>a+b,0)/sleepDays.length).toFixed(1) : '–';
+  // ── Cálculo de sono por dia (tempo na cama + cochilo − madrugada) ──
+  function parseHHMM(s) {
+    if (!s) return null;
+    const [hh, mm] = String(s).split(':').map(Number);
+    if (!isFinite(hh) || !isFinite(mm)) return null;
+    return hh * 60 + mm;
+  }
+  function dayBedMin(d) {
+    const w = parseHHMM(d.meta?.wakeTime);
+    const s = parseHHMM(d.meta?.sleepTime);
+    if (w == null || s == null) return 0;
+    let diff = w - s;
+    if (diff < 0) diff += 24 * 60;
+    return (diff >= 60 && diff <= 16 * 60) ? diff : 0;
+  }
+  function daySleepMin(d) {
+    let total = dayBedMin(d);
+    const n = d.meta?.dayNote;
+    if (n) {
+      if (typeof n.daySleepHours === 'number') total += n.daySleepHours * 60;
+      const naw = n.nightAwakeHours ?? n.nightWakes;
+      if (typeof naw === 'number') total -= naw * 60;
+    }
+    return Math.max(0, total);
+  }
+
+  // Sono médio diário (dias com pelo menos algum dado de sono)
+  const sleepDays = data.days.filter(d => daySleepMin(d) > 0);
+  const sleepAvg = sleepDays.length
+    ? (sleepDays.reduce((s,d) => s + daySleepMin(d), 0) / sleepDays.length / 60).toFixed(1)
+    : '–';
+
+  // Agregação por MÊS e por ANO
+  const monthLabels = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const byMonth = {}; // 'YYYY-MM' → { min, days }
+  const byYear  = {}; // 'YYYY'    → { min, days }
+  for (const d of data.days) {
+    const min = daySleepMin(d);
+    if (min <= 0) continue;
+    const month = d.id.substring(0, 7);
+    const year  = d.id.substring(0, 4);
+    if (!byMonth[month]) byMonth[month] = { min: 0, days: 0 };
+    if (!byYear[year])   byYear[year]   = { min: 0, days: 0 };
+    byMonth[month].min += min; byMonth[month].days++;
+    byYear[year].min   += min; byYear[year].days++;
+  }
+  const monthsSorted = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
+  const yearsSorted  = Object.entries(byYear).sort(([a],[b]) => b.localeCompare(a));
+  function fmtHM(min) {
+    const h = Math.floor(min / 60);
+    const m = Math.round(min % 60);
+    return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  }
+  function monthName(ym) {
+    const [y, m] = ym.split('-');
+    return `${monthLabels[parseInt(m, 10) - 1]} ${y}`;
+  }
 
   const categoriesById = Object.fromEntries(data.categories.map(c => [c.id, c]));
 
@@ -177,6 +230,23 @@ function buildReportHtml(data) {
   .week .note { font-size: 13px; color: #222; margin-top: 6px; white-space: pre-wrap; }
 
   .cat-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 20px; }
+  .sleep-tbl {
+    width: 100%; border-collapse: collapse;
+    margin: 8px 0 20px;
+    font-size: 13px;
+  }
+  .sleep-tbl th {
+    background: #f5f3ff; color: #5b21b6;
+    text-align: left; padding: 8px 12px;
+    border-bottom: 2px solid #7c3aed; font-weight: 700;
+    text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;
+  }
+  .sleep-tbl td {
+    padding: 8px 12px; border-bottom: 1px solid #eee;
+  }
+  .sleep-tbl tr:nth-child(even) td { background: #fafafa; }
+  .sleep-tbl tr:hover td { background: #f5f3ff; }
+
   .cat-pill {
     padding: 4px 10px; border-radius: 999px;
     font-size: 11px; font-weight: 600;
@@ -229,6 +299,40 @@ ${top.length
 ${bot.length
   ? `<ul class="acts">${bot.map(a => `<li style="border-left-color:${a.cat.color || '#f59e0b'}"><span class="pct">${Math.round(a.pct*100)}%</span><strong>${escape(a.cat.icon || '')} ${escape(a.cat.name)}</strong>${a.title.toLowerCase() !== (a.cat.name||'').toLowerCase() ? ' · ' + escape(a.title) : ''} <small>(${a.done}/${a.total})</small></li>`).join('')}</ul>`
   : '<p>Tudo em dia! 🎉</p>'}
+
+<h2>🌙 Sono por MÊS</h2>
+${monthsSorted.length ? `
+  <table class="sleep-tbl">
+    <thead><tr><th>Mês</th><th>Dias</th><th>Total dormido</th><th>Média/dia</th></tr></thead>
+    <tbody>
+      ${monthsSorted.map(([m, v]) => `
+        <tr>
+          <td><strong>${monthName(m)}</strong></td>
+          <td>${v.days}</td>
+          <td><strong>${fmtHM(v.min)}</strong></td>
+          <td>${fmtHM(v.min / v.days)}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+` : '<p>Sem registros de sono ainda.</p>'}
+
+<h2>🌙 Sono por ANO</h2>
+${yearsSorted.length ? `
+  <table class="sleep-tbl">
+    <thead><tr><th>Ano</th><th>Dias</th><th>Total dormido</th><th>Média/dia</th></tr></thead>
+    <tbody>
+      ${yearsSorted.map(([y, v]) => `
+        <tr>
+          <td><strong>${y}</strong></td>
+          <td>${v.days}</td>
+          <td><strong>${fmtHM(v.min)}</strong></td>
+          <td>${fmtHM(v.min / v.days)}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+` : ''}
 
 <h2>🏷️ Suas atividades</h2>
 <div class="cat-list">
