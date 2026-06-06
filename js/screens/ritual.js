@@ -1011,10 +1011,9 @@ function attachHandlers(app) {
         if (!registered) return;
         // Pequena pausa pra animação de "Registrado!" sumir
         await new Promise(r => setTimeout(r, 200));
-        // Continua o fluxo: sleep → água (só pede o que faltar)
+        // Continua o fluxo: sleep (confirma ou edita) → água (só se faltar)
         const day = weekData.find(d => d.id === dayKey);
-        const st = dayCompletionStatus(day);
-        if (!st.hasSleep) await promptSleepTimeFor(dayKey);
+        await confirmOrEditSleep(dayKey);
         const st2 = dayCompletionStatus(day);
         if (!st2.hasHydration) await promptHydrationFor(dayKey);
         // Invalida cache se esse dia for "anterior" de outro
@@ -1352,6 +1351,29 @@ async function promptSleepTimeFor(dayDocId) {
   return true;
 }
 
+// Confirma a hora de dormir (caso já tenha valor) ou abre o relógio (caso vazio).
+// Retorna true se o usuário confirmou/salvou algo válido pra prosseguir o flow.
+async function confirmOrEditSleep(dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return false;
+  const current = day.meta.sleepTime;
+  // Sem valor → abre relógio direto
+  if (!current) {
+    return await promptSleepTimeFor(dayDocId);
+  }
+  // Já tem valor → pergunta se foi esse mesmo (pode ter sido auto-preenchido)
+  const yes = await confirmModal({
+    title: 'Confere a hora de dormir',
+    message: `Você dormiu às ${current}?`,
+    confirmText: 'Sim, foi isso',
+    cancelText: 'Ajustar'
+  });
+  if (yes) return true;
+  // "Ajustar" → abre relógio; mesmo se cancelar, mantém valor anterior e segue
+  await promptSleepTimeFor(dayDocId);
+  return true;
+}
+
 // Modal mínimo de hidratação — força ao menos 250ml antes de confirmar
 function promptHydrationFor(dayDocId) {
   return new Promise((resolve) => {
@@ -1463,9 +1485,9 @@ async function runDayCompletionFlow(app, dayDocId) {
     st = dayCompletionStatus(day);
   }
 
-  // 2) Hora de dormir
-  if (!st.hasSleep) {
-    const ok = await promptSleepTimeFor(dayDocId);
+  // 2) Hora de dormir — pergunta sempre (pode ter sido auto-preenchido)
+  {
+    const ok = await confirmOrEditSleep(dayDocId);
     if (!ok) return false;
     st = dayCompletionStatus(day);
   }
