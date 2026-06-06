@@ -135,11 +135,32 @@ export function openTimePicker(initialValue = '') {
 
 
     // ── Cancelar / Salvar ──
+    // Estratégia pra back-button do celular: empilha um state ao abrir,
+    // se popstate dispara → trata como Cancelar (não navega pra fora do Ritual)
+    let closed = false;
+    let cameFromPop = false;
+
+    const onPopState = () => {
+      cameFromPop = true;
+      close(null);
+    };
+    window.addEventListener('popstate', onPopState);
+    history.pushState({ tp: true }, '');
+
     const close = (v) => {
+      if (closed) return;
+      closed = true;
+      window.removeEventListener('popstate', onPopState);
       overlay.remove();
       document.body.classList.remove('time-picker-open');
+      // Se fechou por ação do user (não pelo back), tira nosso state da history
+      if (!cameFromPop) {
+        // pequeno delay pra evitar reentrada em popstate antes do unmount completar
+        setTimeout(() => { try { history.back(); } catch {} }, 0);
+      }
       resolve(v);
     };
+
     overlay.querySelector('#tpCancel').addEventListener('click', () => close(null));
     overlay.querySelector('#tpSave').addEventListener('click', () => {
       const typedActive = !overlay.querySelector('[data-mode="typed"]').hasAttribute('hidden');

@@ -94,58 +94,59 @@ function prevDayId(idStr) {
   return dayId(dt);
 }
 
-// Retorna true se o dia anterior tem nota preenchida (qualquer campo)
-async function previousDayHasNote(dayDocId) {
+// Retorna { complete, missing[] } do dia anterior. Usa cache em memória.
+async function previousDayStatus(dayDocId) {
   const prevId = prevDayId(dayDocId);
   if (prevNoteCache.has(prevId)) return prevNoteCache.get(prevId);
 
   // 1) Tenta no weekData (evita Firestore se possível)
   const inWeek = weekData.find(d => d.id === prevId);
   if (inWeek) {
-    const n = inWeek.meta.dayNote;
-    const has = !!(n && (n.prideFail || n.improve || n.daySleepHours || n.nightWakes || n.done || n.daySleep));
-    prevNoteCache.set(prevId, has);
-    return has;
+    const st = dayCompletionStatus(inWeek);
+    prevNoteCache.set(prevId, st);
+    return st;
   }
 
   // 2) Fallback: busca no Firestore
   try {
     const data = await getDay(prevId);
-    if (!data) { prevNoteCache.set(prevId, true); return true; } // dia inexistente = nada a cobrar
-    const n = data.dayNote;
-    const has = !!(n && (n.prideFail || n.improve || n.daySleepHours || n.nightWakes || n.done || n.daySleep));
-    prevNoteCache.set(prevId, has);
-    return has;
+    if (!data) {
+      const st = { complete: true, missing: [], hasNote: true, hasSleep: true, hasHydration: true };
+      prevNoteCache.set(prevId, st); // dia inexistente = nada a cobrar
+      return st;
+    }
+    const st = dayCompletionStatus(data);
+    prevNoteCache.set(prevId, st);
+    return st;
   } catch (err) {
-    console.warn('[prev-note] erro ao buscar:', err);
-    return true; // erro = não chateia
+    console.warn('[prev-status] erro ao buscar:', err);
+    return { complete: true, missing: [], hasNote: true, hasSleep: true, hasHydration: true };
   }
 }
 
-// Mostra um aviso simples (não bloqueia o app). Botão "Preencher agora" abre o modal de nota.
-async function warnPreviousNoteMissing(app, currentDayId) {
+// Aviso de dia anterior pendente — dispara o fluxo completo (nota → sono → água)
+async function warnPreviousDayMissing(app, currentDayId, status) {
   const prevId = prevDayId(currentDayId);
-  // Formata data legível
   const [y, m, d] = prevId.split('-').map(n => parseInt(n, 10));
   const dt = new Date(y, m - 1, d);
   const labelDia = WEEKDAYS_FULL[dt.getDay()];
   const dataFmt = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  const faltaTxt = status.missing.length === 1
+    ? `falta preencher ${status.missing[0]}`
+    : `faltam: ${status.missing.join(', ')}`;
   const ok = await confirmModal({
-    title: 'Nota pendente',
-    message: `Você ainda não fechou ${labelDia.toLowerCase()} (${dataFmt}). Quer preencher a nota agora?`,
+    title: 'Fechamento pendente',
+    message: `Em ${labelDia.toLowerCase()} (${dataFmt}) ${faltaTxt}. Quer preencher agora?`,
     confirmText: 'Preencher agora',
     cancelText: 'Depois'
   });
   if (ok) {
-    // Garante que o dia anterior está em weekData; senão recarrega a semana dele
-    let prev = weekData.find(x => x.id === prevId);
-    if (!prev) {
-      weekStart = getWeekStart(dt);
-      await loadWeek();
-      renderUI(app);
-      prev = weekData.find(x => x.id === prevId);
+    const completed = await runDayCompletionFlow(app, prevId);
+    // Invalida cache do dia anterior pra refletir o estado atualizado
+    prevNoteCache.delete(prevId);
+    if (!completed) {
+      // Não terminou — re-mostra aviso com o que ainda falta no próximo check (cache será refeito)
     }
-    if (prev) openDayNoteModal(prevId);
   }
 }
 
@@ -983,10 +984,10 @@ function attachHandlers(app) {
           `<span class="done-check-big">✓</span><span class="done-check-text">${randomDoneMessage()}</span>`,
           'success'
         );
-        // Aviso: nota do dia anterior pendente (sempre dispara após o ✓)
+        // Aviso: dia anterior pendente (nota, sono ou hidratação) — sempre dispara após o ✓
         const dayKey = taskEl.dataset.day;
-        previousDayHasNote(dayKey).then(hasNote => {
-          if (!hasNote) setTimeout(() => warnPreviousNoteMissing(app, dayKey), 900);
+        previousDayStatus(dayKey).then(st => {
+          if (!st.complete) setTimeout(() => warnPreviousDayMissing(app, dayKey, st), 900);
         });
       } else if (wasDone && !t.done) {
         playUndone();
@@ -1001,10 +1002,24 @@ function attachHandlers(app) {
       return;
     }
 
-    // Abrir modal de nota do dia
+    // Abrir modal de nota do dia → após registrar, encadeia sono + água
     const noteBtn = e.target.closest('[data-action="open-note"]');
     if (noteBtn) {
-      openDayNoteModal(noteBtn.dataset.day);
+      const dayKey = noteBtn.dataset.day;
+      (async () => {
+        const registered = await openDayNoteModal(dayKey);
+        if (!registered) return;
+        // Pequena pausa pra animação de "Registrado!" sumir
+        await new Promise(r => setTimeout(r, 200));
+        // Continua o fluxo: sleep → água (só pede o que faltar)
+        const day = weekData.find(d => d.id === dayKey);
+        const st = dayCompletionStatus(day);
+        if (!st.hasSleep) await promptSleepTimeFor(dayKey);
+        const st2 = dayCompletionStatus(day);
+        if (!st2.hasHydration) await promptHydrationFor(dayKey);
+        // Invalida cache se esse dia for "anterior" de outro
+        prevNoteCache.delete(dayKey);
+      })();
       return;
     }
 
@@ -1297,14 +1312,201 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 10: MODAIS — picker de atividade e editor de tarefa
 // ═══════════════════════════════════════════════════════════════
-function openDayNoteModal(dayDocId) {
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 9.5: FECHAMENTO DE DIA — Helpers de "dia completo"
+//   - Nota preenchida + sleepTime + hydrationMl > 0
+//   - Chained flow: nota → relógio dormir → água → fim
+// ═══════════════════════════════════════════════════════════════
+function dayCompletionStatus(d) {
+  // d pode ser do weekData ({meta:{...}}) ou raw doc do Firestore (campos no top-level)
+  const src = d?.meta || d || {};
+  const n = src.dayNote;
+  const hasNote = !!(n && (n.prideFail || n.improve || n.daySleepHours || n.daySleepMinutes || n.nightWakes || n.nightAwakeHours || n.nightAwakeMinutes));
+  const hasSleep = !!src.sleepTime;
+  const hasHydration = (src.hydrationMl || 0) > 0;
+  return {
+    hasNote, hasSleep, hasHydration,
+    complete: hasNote && hasSleep && hasHydration,
+    missing: [
+      !hasNote && 'a nota',
+      !hasSleep && 'a hora de dormir',
+      !hasHydration && 'a hidratação'
+    ].filter(Boolean)
+  };
+}
+
+// Abre o relógio pra sleepTime do dia e persiste no Firestore + UI
+async function promptSleepTimeFor(dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
-  if (!day) return;
+  if (!day) return false;
+  const initial = day.meta.sleepTime || profile?.defaultSleepTime || '';
+  const result = await openTimePicker(initial);
+  if (!result) return false;
+  day.meta.sleepTime = result;
+  try {
+    await setDayMeta(dayDocId, { sleepTime: result });
+    // Atualiza botão da pílula se estiver visível
+    const btn = document.querySelector(`.tp-pill-trigger[data-meta="sleepTime"][data-day="${dayDocId}"]`);
+    if (btn) { btn.dataset.time = result; btn.textContent = result; }
+  } catch (err) { showToast('Erro ao salvar a hora de dormir', 'error'); return false; }
+  return true;
+}
+
+// Modal mínimo de hidratação — força ao menos 250ml antes de confirmar
+function promptHydrationFor(dayDocId) {
+  return new Promise((resolve) => {
+    const day = weekData.find(d => d.id === dayDocId);
+    if (!day) { resolve(false); return; }
+    let valMl = day.meta.hydrationMl || 0;
+    const goal = day.meta.hydrationGoal || 2000;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:380px">
+        <div class="modal-title">💧 Quanta água você bebeu?</div>
+        <div class="modal-hint">Marca pelo menos um copo (250ml) pra fechar o dia.</div>
+
+        <div class="hydration" style="margin:18px 0 8px">
+          <div class="hydration-top">
+            <div class="hydration-label">Total</div>
+            <div class="hydration-goal-label">meta: ${goal} ml</div>
+          </div>
+          <div class="hydration-stepper">
+            <button class="hyd-btn" id="hyd-mini-minus" title="−250ml">−</button>
+            <div class="hyd-value"><span id="hyd-mini-val">${valMl}</span><small>ml</small></div>
+            <button class="hyd-btn" id="hyd-mini-plus" title="+250ml">+</button>
+          </div>
+          <div class="hydration-bar"><div class="hydration-fill" id="hyd-mini-fill" style="width:${Math.min(100, Math.round(valMl/goal*100))}%"></div></div>
+          <div class="hydration-msg" id="hyd-mini-msg">${hydrationMsg(valMl, goal)}</div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" id="hyd-mini-cancel">Cancelar</button>
+          <button class="btn-primary" id="hyd-mini-save" ${valMl <= 0 ? 'disabled' : ''}>✓ Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Back button: trata como cancelar
+    let popped = false, cameFromPop = false;
+    const onPop = () => { cameFromPop = true; finish(false); };
+    window.addEventListener('popstate', onPop);
+    history.pushState({ hydModal: true }, '');
+
+    const finish = (saved) => {
+      if (popped) return;
+      popped = true;
+      window.removeEventListener('popstate', onPop);
+      modal.remove();
+      if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+      resolve(!!saved);
+    };
+
+    const valEl = modal.querySelector('#hyd-mini-val');
+    const fillEl = modal.querySelector('#hyd-mini-fill');
+    const msgEl = modal.querySelector('#hyd-mini-msg');
+    const saveBtn = modal.querySelector('#hyd-mini-save');
+    const update = (delta) => {
+      valMl = Math.max(0, valMl + delta);
+      valEl.textContent = valMl;
+      fillEl.style.width = Math.min(100, Math.round(valMl/goal*100)) + '%';
+      msgEl.textContent = hydrationMsg(valMl, goal);
+      saveBtn.disabled = valMl <= 0;
+    };
+    modal.querySelector('#hyd-mini-minus').onclick = () => update(-250);
+    modal.querySelector('#hyd-mini-plus').onclick  = () => update(+250);
+    modal.querySelector('#hyd-mini-cancel').onclick = () => finish(false);
+    modal.querySelector('#hyd-mini-save').onclick = async () => {
+      if (valMl <= 0) return;
+      day.meta.hydrationMl = valMl;
+      try {
+        await setDayMeta(dayDocId, { hydrationMl: valMl });
+        // Atualiza UI no card se visível
+        const card = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+        if (card) {
+          const mlEl = card.querySelector(`.hyd-ml[data-day="${dayDocId}"]`);
+          const cardFill = card.querySelector(`.hydration-fill[data-day="${dayDocId}"]`);
+          const cardMsg = card.querySelector(`.hydration-msg[data-day="${dayDocId}"]`);
+          if (mlEl) mlEl.textContent = valMl;
+          if (cardFill) cardFill.style.width = Math.min(100, Math.round(valMl/goal*100)) + '%';
+          if (cardMsg) cardMsg.textContent = hydrationMsg(valMl, goal);
+        }
+        finish(true);
+      } catch (err) { showToast('Erro ao salvar hidratação', 'error'); }
+    };
+    modal.addEventListener('click', e => { if (e.target === modal) finish(false); });
+  });
+}
+
+// Orquestra o fluxo de fechamento — só pede o que ainda falta. Retorna se completou.
+async function runDayCompletionFlow(app, dayDocId) {
+  // Garante que o dia tá em weekData (pode ser dia de outra semana)
+  let day = weekData.find(d => d.id === dayDocId);
+  if (!day) {
+    const [y, mo, dd] = dayDocId.split('-').map(n => parseInt(n, 10));
+    weekStart = getWeekStart(new Date(y, mo - 1, dd));
+    await loadWeek();
+    renderUI(app);
+    day = weekData.find(d => d.id === dayDocId);
+    if (!day) return false;
+  }
+  // Expande o card pra ela ver o progresso
+  expanded.add(dayDocId);
+
+  // 1) Nota
+  let st = dayCompletionStatus(day);
+  if (!st.hasNote) {
+    const ok = await openDayNoteModal(dayDocId);
+    if (!ok) return false;
+    st = dayCompletionStatus(day);
+  }
+
+  // 2) Hora de dormir
+  if (!st.hasSleep) {
+    const ok = await promptSleepTimeFor(dayDocId);
+    if (!ok) return false;
+    st = dayCompletionStatus(day);
+  }
+
+  // 3) Hidratação
+  if (!st.hasHydration) {
+    const ok = await promptHydrationFor(dayDocId);
+    if (!ok) return false;
+  }
+
+  // Re-render do card visível pra refletir tudo
+  const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
+  if (wrap) wrap.innerHTML = renderDayNoteButton(day);
+  return true;
+}
+
+
+function openDayNoteModal(dayDocId) {
+  return new Promise((resolve) => {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) { resolve(false); return; }
   const note = day.meta.dayNote || {
-    prideFail: '', improve: '', daySleepHours: 0, nightWakes: 0
+    prideFail: '', improve: '', daySleepMinutes: 0, nightAwakeMinutes: 0
   };
 
-  const nightAwakeInit = note.nightAwakeHours ?? note.nightWakes ?? 0;
+  // Backward compat: lê em minutos preferencialmente; fallback pra hours*60
+  const daySleepInit = (note.daySleepMinutes != null)
+    ? note.daySleepMinutes
+    : (note.daySleepHours || 0) * 60;
+  const nightAwakeInit = (note.nightAwakeMinutes != null)
+    ? note.nightAwakeMinutes
+    : ((note.nightAwakeHours ?? note.nightWakes ?? 0) * 60);
+
+  // Formata minutos: 0→"0", 15→"15min", 30→"30min", 60→"1h", 75→"1h15", 90→"1h30"...
+  const fmtMin = (m) => {
+    if (m <= 0) return '0';
+    if (m < 60) return `${m}min`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem === 0 ? `${h}h` : `${h}h${String(rem).padStart(2,'0')}`;
+  };
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -1324,19 +1526,19 @@ function openDayNoteModal(dayDocId) {
       </label>
 
       <div class="input-field">
-        <div class="input-field-label">Quantas horas dormi durante o dia? <small style="color:var(--muted);font-weight:500">(cochilos)</small></div>
-        <div class="num-stepper" id="stp-daysleep" data-val="${note.daySleepHours || 0}" data-min="0" data-max="5" data-unit="h">
+        <div class="input-field-label">Quanto tempo dormi durante o dia? <small style="color:var(--muted);font-weight:500">(cochilos)</small></div>
+        <div class="num-stepper" id="stp-daysleep" data-val="${daySleepInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
-          <div class="step-val">${note.daySleepHours || 0}h</div>
+          <div class="step-val">${fmtMin(daySleepInit)}</div>
           <button type="button" class="step-arrow" data-step="+1" aria-label="aumentar">›</button>
         </div>
       </div>
 
       <div class="input-field">
-        <div class="input-field-label">Quantas horas fiquei acordado(a) na madrugada?</div>
-        <div class="num-stepper" id="stp-nightawake" data-val="${nightAwakeInit}" data-min="0" data-max="5" data-unit="h">
+        <div class="input-field-label">Quanto tempo fiquei acordado(a) na madrugada?</div>
+        <div class="num-stepper" id="stp-nightawake" data-val="${nightAwakeInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
-          <div class="step-val">${nightAwakeInit}h</div>
+          <div class="step-val">${fmtMin(nightAwakeInit)}</div>
           <button type="button" class="step-arrow" data-step="+1" aria-label="aumentar">›</button>
         </div>
       </div>
@@ -1350,34 +1552,56 @@ function openDayNoteModal(dayDocId) {
   document.body.appendChild(modal);
   setTimeout(() => modal.querySelector('#note-pride-fail').focus(), 80);
 
-  const close = () => modal.remove();
+  // Back button do celular fecha o modal sem sair do Ritual
+  let popped = false, cameFromPop = false;
+  const onPop = () => { cameFromPop = true; finish(false); };
+  window.addEventListener('popstate', onPop);
+  history.pushState({ noteModal: true }, '');
+
+  const finish = (registered) => {
+    if (popped) return;
+    popped = true;
+    window.removeEventListener('popstate', onPop);
+    modal.remove();
+    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+    resolve(!!registered);
+  };
+  const close = () => finish(false);
   modal.querySelector('#note-cancel').onclick = close;
   modal.onclick = (e) => { if (e.target === modal) close(); };
 
-  // Wire steppers
+  // Wire steppers — suporta data-step-size (ex: 15 pra incrementos de 15min)
+  // Se data-unit existir (legado), usa unidade textual; senão usa fmtMin
   modal.querySelectorAll('.num-stepper').forEach(stp => {
     const valEl = stp.querySelector('.step-val');
     const unit = stp.dataset.unit;
+    const stepSize = parseInt(stp.dataset.stepSize, 10) || 1;
     const min = parseInt(stp.dataset.min, 10);
     const max = parseInt(stp.dataset.max, 10);
+    const fmt = unit ? (v) => `${v}${unit}` : fmtMin;
     stp.querySelectorAll('.step-arrow').forEach(btn => {
       btn.addEventListener('click', () => {
         let v = parseInt(stp.dataset.val, 10);
-        v += parseInt(btn.dataset.step, 10);
+        v += parseInt(btn.dataset.step, 10) * stepSize;
         if (v < min) v = min; if (v > max) v = max;
         stp.dataset.val = v;
-        valEl.textContent = `${v}${unit}`;
+        valEl.textContent = fmt(v);
         if (navigator.vibrate) navigator.vibrate(8);
       });
     });
   });
 
   modal.querySelector('#note-register').onclick = async () => {
+    const dsMin = parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0;
+    const naMin = parseInt(modal.querySelector('#stp-nightawake').dataset.val, 10) || 0;
     const data = {
-      prideFail:        modal.querySelector('#note-pride-fail').value.trim(),
-      improve:          modal.querySelector('#note-improve').value.trim(),
-      daySleepHours:    parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0,
-      nightAwakeHours:  parseInt(modal.querySelector('#stp-nightawake').dataset.val, 10) || 0,
+      prideFail:          modal.querySelector('#note-pride-fail').value.trim(),
+      improve:            modal.querySelector('#note-improve').value.trim(),
+      daySleepMinutes:    dsMin,
+      nightAwakeMinutes:  naMin,
+      // Mantém compat com leituras antigas (Desempenho usa daySleepHours)
+      daySleepHours:      Math.round(dsMin / 60 * 10) / 10,
+      nightAwakeHours:    Math.round(naMin / 60 * 10) / 10,
       registeredAt: new Date().toISOString()
     };
 
@@ -1401,27 +1625,17 @@ function openDayNoteModal(dayDocId) {
       playDone();
 
       setTimeout(() => {
-        close();
+        finish(true);
         // Re-render só o botão de nota no card
         const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
         if (wrap) wrap.innerHTML = renderDayNoteButton(day);
-
-        // Destaca a "hora de dormir" estilo tutorial (pulsa até clicar / 12s)
-        const sleepBtn = document.querySelector(`.tp-pill-trigger[data-meta="sleepTime"][data-day="${dayDocId}"]`);
-        const sleepPill = sleepBtn?.closest('.time-pill');
-        if (sleepPill) {
-          sleepPill.classList.add('tp-hint');
-          sleepPill.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          const off = () => sleepPill.classList.remove('tp-hint');
-          sleepBtn.addEventListener('click', off, { once: true });
-          setTimeout(off, 12000);
-        }
       }, 1500);
     } catch (err) {
       console.error('[note] save erro:', err);
       showToast('Erro ao salvar a nota.', 'error');
     }
   };
+  }); // end Promise
 }
 
 
