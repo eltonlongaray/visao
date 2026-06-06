@@ -1973,6 +1973,76 @@ body.time-picker-open { overflow: hidden; }
   box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
 }
 
+/* Calendário do Ritual */
+.cal-modal { max-width: 360px !important; }
+.cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 12px;
+}
+.cal-nav {
+  background: var(--card-2); border: 1px solid var(--border);
+  color: var(--accent-2);
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  font-size: 22px; font-weight: 800; line-height: 1;
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-nav:hover { background: rgba(167,139,250,0.15); border-color: var(--accent); }
+.cal-title { font-size: 16px; font-weight: 800; color: var(--text); }
+.cal-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 6px;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  padding: 0;
+}
+.cal-cell:hover {
+  background: rgba(167,139,250,0.15);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.cal-cell:active { transform: scale(0.95); }
+.cal-cell.empty { background: transparent; border: none; cursor: default; }
+.cal-cell.empty:hover { transform: none; background: transparent; }
+.cal-cell.today {
+  background: linear-gradient(135deg, var(--accent), var(--blue, #4f46e5));
+  color: #fff;
+  border-color: transparent;
+  font-weight: 800;
+  box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
+}
+.cal-hint {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  margin: 4px 0 8px;
+  font-style: italic;
+}
+
 /* Botão de escolha de escopo na exclusão de tarefa recorrente */
 .del-scope-btn {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;

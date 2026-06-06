@@ -303,9 +303,9 @@ function renderUI(app) {
 
       <div class="week-pager">
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
-        <div class="day-info-center">
+        <div class="day-info-center" id="week-pager-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">use as setas pra trocar de semana</div>
+          <div class="meta">dê dois toques para abrir o calendário 📅</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
@@ -731,6 +731,94 @@ function openTaskMenu(triggerEl) {
 
 
 // ═══════════════════════════════════════════════════════════════
+// CALENDÁRIO DO RITUAL — escolha qualquer dia pra ir direto na semana
+// ═══════════════════════════════════════════════════════════════
+function openRitualCalendar() {
+  const today = new Date();
+  let viewYear = weekData[0]?.date?.getFullYear() || today.getFullYear();
+  let viewMonth = weekData[0]?.date?.getMonth() ?? today.getMonth();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal cal-modal">
+      <div class="cal-header">
+        <button type="button" class="cal-nav" data-cal-nav="-1" aria-label="Mês anterior">‹</button>
+        <div class="cal-title" id="cal-title"></div>
+        <button type="button" class="cal-nav" data-cal-nav="1" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-hint">Toque num dia pra abrir a semana correspondente.</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cal-today" type="button">📍 Hoje</button>
+        <button class="btn-secondary" id="cal-cancel" type="button">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const renderGrid = () => {
+    const titleEl = modal.querySelector('#cal-title');
+    const gridEl = modal.querySelector('#cal-grid');
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    titleEl.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const lastDay = new Date(viewYear, viewMonth + 1, 0);
+    const startDow = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+    const todayId = dayId(today);
+
+    let html = '';
+    // Espaços vazios antes do dia 1
+    for (let i = 0; i < startDow; i++) html += '<span class="cal-cell empty"></span>';
+    // Dias do mês
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(viewYear, viewMonth, d);
+      const idStr = dayId(date);
+      const isToday = idStr === todayId;
+      html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''}" data-cal-day="${idStr}">${d}</button>`;
+    }
+    gridEl.innerHTML = html;
+  };
+  renderGrid();
+
+  const close = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+  modal.querySelector('#cal-cancel').onclick = close;
+  modal.querySelector('#cal-today').onclick = () => {
+    weekStart = getWeekStart(new Date());
+    expanded.clear(); expanded.add(dayId(new Date()));
+    close();
+    loadWeek();
+  };
+  modal.querySelectorAll('[data-cal-nav]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.calNav, 10);
+      viewMonth += delta;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      renderGrid();
+    });
+  });
+  modal.addEventListener('click', (e) => {
+    const cell = e.target.closest('[data-cal-day]');
+    if (!cell) return;
+    const id = cell.dataset.calDay;
+    const [y, m, d] = id.split('-').map(Number);
+    const picked = new Date(y, m - 1, d);
+    weekStart = getWeekStart(picked);
+    expanded.clear(); expanded.add(id);
+    close();
+    loadWeek();
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 9: HANDLERS DE EVENTOS (clicks, inputs, swipe)
 // FIX: anexa só 1 vez por sessão (evita duplicação ao re-renderizar)
 // ═══════════════════════════════════════════════════════════════
@@ -774,6 +862,18 @@ function attachHandlers(app) {
     if (addBtn) {
       openActivityPicker(app, addBtn.dataset.day, addBtn.dataset.addTo);
       return;
+    }
+
+    // Dois toques rápidos no header da semana → abre calendário
+    const wkCenter = e.target.closest('#week-pager-center');
+    if (wkCenter) {
+      const now = Date.now();
+      if (wkCenter._lastTap && now - wkCenter._lastTap < 400) {
+        wkCenter._lastTap = 0;
+        openRitualCalendar();
+        return;
+      }
+      wkCenter._lastTap = now;
     }
 
     // Marcar tarefa feita (👍 ↔ 👎)
