@@ -540,22 +540,21 @@ html, body {
   display: flex; align-items: center; justify-content: space-between;
   background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(96,165,250,0.10));
   border: 1px solid rgba(167,139,250,0.25);
-  border-radius: 18px; padding: 10px 10px; gap: 6px;
-  margin: 0 auto 12px;
-  max-width: 320px;
+  border-radius: 14px; padding: 4px 10px; gap: 6px;
+  margin: 0 0 12px;
 }
 .swipe-arrow {
-  width: 30px; height: 30px; border-radius: 10px;
+  width: 26px; height: 26px; border-radius: 8px;
   background: rgba(255,255,255,0.06); border: none; color: var(--accent-2);
-  cursor: pointer; font-size: 16px; display: grid; place-items: center; flex-shrink: 0;
+  cursor: pointer; font-size: 15px; display: grid; place-items: center; flex-shrink: 0;
 }
 .day-info-center {
   flex: 1; text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 4px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 2px 0;
 }
-.day-info-center .dt { font-size: 19px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 4px; }
-.day-info-center .meta { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.day-info-center .dt { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 1px; line-height: 1.2; }
+.day-info-center .meta { font-size: 10.5px; color: var(--muted); line-height: 1.25; }
 
 .time-pills { display: flex; gap: 10px; margin-bottom: 14px; }
 .time-pill {
