@@ -54,7 +54,7 @@ export async function renderHome(app) {
     <div class="screen-pad">
       <div class="screen-title">
         <h1>Sua biblioteca</h1>
-        <div class="sub">Turnos, categorias e atividades — o Ritual puxa daqui.</div>
+        <div class="sub">Categorias e atividades — o Ritual puxa daqui.</div>
       </div>
 
       <!-- PREFERÊNCIAS DE SONO + TEMA -->
