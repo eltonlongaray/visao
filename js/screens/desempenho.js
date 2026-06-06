@@ -176,39 +176,7 @@ function attachHandlers(app) {
 // BLOCO 6: DATA FETCH + CÁLCULO DE AGREGADOS (mês selecionado)
 // ═══════════════════════════════════════════════════════════════
 async function refreshData() {
-  // KPIs + month bar = sempre baseado no mês selecionado e os 4 anteriores
-  // Categorias = baseado no period (semana/mes/6m)
-  await Promise.all([refreshMonthData(), refreshCatChart(), refreshTabPercentages()]);
-}
-
-// Calcula a % de aderência geral pra cada período (semana/mês/ano) e atualiza os tabs
-async function refreshTabPercentages() {
-  const today = new Date();
-  const year = today.getFullYear();
-
-  // Pega o ano inteiro de uma vez (mais eficiente que 3 fetches separados)
-  const yearStart = new Date(year, 0, 1);
-  const allYearDays = await fetchDaysRange(yearStart, today);
-
-  // Filtra subconjuntos
-  const dow = today.getDay();
-  const weekStart = new Date(today); weekStart.setDate(today.getDate() - dow);
-  const monthStart = new Date(year, today.getMonth(), 1);
-
-  const weekDays  = allYearDays.filter(d => new Date(d.id + 'T00:00:00') >= weekStart);
-  const monthDays = allYearDays.filter(d => new Date(d.id + 'T00:00:00') >= monthStart);
-
-  const weekPct  = aggregateTotal(weekDays).pct;
-  const monthPct = aggregateTotal(monthDays).pct;
-  const yearPct  = aggregateTotal(allYearDays).pct;
-
-  // Atualiza os labels dos tabs com a porcentagem
-  const tabs = document.querySelectorAll('#period-tabs .tab-btn');
-  if (tabs.length >= 3) {
-    tabs[0].innerHTML = `Esta semana <small class="tab-pct">${weekPct}%</small>`;
-    tabs[1].innerHTML = `Este mês <small class="tab-pct">${monthPct}%</small>`;
-    tabs[2].innerHTML = `Este ano <small class="tab-pct">${yearPct}%</small>`;
-  }
+  await Promise.all([refreshMonthData(), refreshCatChart()]);
 }
 
 async function refreshMonthData() {
@@ -350,12 +318,43 @@ async function refreshCatChart() {
     options: {
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 30 } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + '%' } } },
       scales: {
         x: { display: false, max: 100, beginAtZero: true },
         y: { grid: { display: false }, ticks: { color: '#8893b3', font: { size: 12 }, padding: 4 } }
       }
-    }
+    },
+    plugins: [{
+      // Desenha a % dentro da barra (ou logo após se a barra for muito pequena)
+      id: 'inBarPct',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = '700 12px -apple-system, "Segoe UI", Roboto, system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+          const value = chart.data.datasets[0].data[i];
+          const text = value + '%';
+          const tw = ctx.measureText(text).width;
+          const barLen = bar.x - bar.base;
+          let x, fill;
+          if (barLen >= tw + 14) {
+            // Cabe dentro: texto à direita da barra com pequeno padding
+            x = bar.x - tw - 8;
+            fill = '#ffffff';
+          } else {
+            // Não cabe: texto fora à direita, na cor da barra
+            x = bar.x + 6;
+            fill = chart.data.datasets[0].backgroundColor[i] || '#888';
+          }
+          ctx.fillStyle = fill;
+          ctx.fillText(text, x, bar.y);
+        });
+        ctx.restore();
+      }
+    }]
   });
 }
 
