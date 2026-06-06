@@ -1325,118 +1325,21 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
 // BLOCO 10: MODAIS — picker de atividade e editor de tarefa
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 9.4: LIMPAR DADOS DO DIA — por turno ou tudo
+// BLOCO 9.4: LIMPAR DADOS DO DIA — zera tudo (tarefas + relógio + hidratação + nota)
 // ═══════════════════════════════════════════════════════════════
-function openClearDayModal(app, dayDocId) {
+async function openClearDayModal(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
-
   const dayLabel = `${WEEKDAYS_FULL[day.date.getDay()]}, ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
-
-  // Conta tarefas por turno
-  const countByShift = (sid) => day.tasks.filter(t => t.shiftId === sid).length;
-
-  const shiftRows = shifts.map(s => {
-    const n = countByShift(s.id);
-    const empty = n === 0;
-    return `
-      <button type="button" class="clear-opt ${empty ? 'clear-opt-empty' : ''}" data-clear-shift="${s.id}" ${empty ? 'disabled' : ''}>
-        <span class="clear-opt-ic">${escape(s.icon || '🕘')}</span>
-        <span style="flex:1">${escape(s.name)}</span>
-        <small style="color:var(--muted)">${n} tarefa${n === 1 ? '' : 's'}</small>
-      </button>
-    `;
-  }).join('');
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal" style="max-width:400px">
-      <div class="modal-title">🗑️ Limpar dados de ${escape(dayLabel)}</div>
-      <div class="modal-hint">Escolha o que apagar. Essa ação não tem volta.</div>
-
-      <div class="clear-options">
-        ${shiftRows}
-        <button type="button" class="clear-opt all" data-clear-all="1">
-          <span class="clear-opt-ic">💥</span>
-          <span style="flex:1"><strong>Apagar tudo do dia</strong><br><small style="color:var(--muted)">tarefas, horários, hidratação e nota</small></span>
-        </button>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-secondary" id="clear-cancel">Cancelar</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  // Back-button do celular = cancelar
-  let popped = false, cameFromPop = false;
-  const onPop = () => { cameFromPop = true; finish(); };
-  window.addEventListener('popstate', onPop);
-  history.pushState({ clearModal: true }, '');
-  const finish = () => {
-    if (popped) return;
-    popped = true;
-    window.removeEventListener('popstate', onPop);
-    modal.remove();
-    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
-  };
-
-  modal.querySelector('#clear-cancel').onclick = finish;
-  modal.addEventListener('click', e => { if (e.target === modal) finish(); });
-
-  // Clique em turno
-  modal.querySelectorAll('[data-clear-shift]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.classList.contains('clear-opt-empty')) return;
-      const sid = btn.dataset.clearShift;
-      const shift = shifts.find(s => s.id === sid);
-      const ok = await confirmModal({
-        title: `Limpar ${shift?.name || 'turno'}?`,
-        message: `Vai apagar todas as tarefas do turno "${shift?.name}" de ${dayLabel}.`,
-        confirmText: 'Limpar',
-        cancelText: 'Cancelar',
-        danger: true
-      });
-      if (!ok) return;
-      finish();
-      await clearDayShift(app, dayDocId, sid);
-    });
+  const ok = await confirmModal({
+    title: 'Limpar tudo do dia?',
+    message: `Vai apagar todas as tarefas, horário de acordar/dormir, hidratação e nota de ${dayLabel}. Não dá pra desfazer.`,
+    confirmText: 'Apagar tudo',
+    cancelText: 'Cancelar',
+    danger: true
   });
-
-  // Clique em "tudo"
-  modal.querySelector('[data-clear-all]').addEventListener('click', async () => {
-    const ok = await confirmModal({
-      title: 'Apagar tudo do dia?',
-      message: `Vai apagar TODAS as tarefas + horário acordou/dormiu + hidratação + nota de ${dayLabel}. Não dá pra desfazer.`,
-      confirmText: 'Apagar tudo',
-      cancelText: 'Cancelar',
-      danger: true
-    });
-    if (!ok) return;
-    finish();
-    await clearDayAll(app, dayDocId);
-  });
-}
-
-async function clearDayShift(app, dayDocId, shiftId) {
-  const day = weekData.find(d => d.id === dayDocId);
-  if (!day) return;
-  const toDelete = day.tasks.filter(t => t.shiftId === shiftId);
-  if (toDelete.length === 0) return;
-  try {
-    await Promise.all(toDelete.map(t => deleteDayTask(dayDocId, t.id)));
-    day.tasks = day.tasks.filter(t => t.shiftId !== shiftId);
-    // Sincroniza template do dia-da-semana com o novo estado (sem essas tarefas)
-    syncTemplateForDay(dayDocId);
-    renderUI(app);
-    playDelete();
-    showToast(`Turno limpo: ${toDelete.length} tarefa(s)`, 'success');
-  } catch (err) {
-    console.error('[clear-shift] erro:', err);
-    showToast('Erro ao limpar o turno', 'error');
-  }
+  if (!ok) return;
+  await clearDayAll(app, dayDocId);
 }
 
 async function clearDayAll(app, dayDocId) {
@@ -1687,7 +1590,9 @@ function openDayNoteModal(dayDocId) {
   return new Promise((resolve) => {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) { resolve(false); return; }
-  const note = day.meta.dayNote || {
+  const existingNote = day.meta.dayNote;
+  const isEditing = !!(existingNote && (existingNote.prideFail || existingNote.improve || existingNote.daySleepMinutes || existingNote.daySleepHours || existingNote.nightAwakeMinutes || existingNote.nightAwakeHours || existingNote.nightWakes));
+  const note = existingNote || {
     prideFail: '', improve: '', daySleepMinutes: 0, nightAwakeMinutes: 0
   };
 
@@ -1748,6 +1653,11 @@ function openDayNoteModal(dayDocId) {
         <button class="btn-secondary" id="note-cancel">Cancelar</button>
         <button class="btn-primary" id="note-register" disabled>✓ Registrar</button>
       </div>
+      ${isEditing ? `
+        <div class="note-delete-wrap">
+          <button type="button" class="note-delete-btn" id="note-delete">🗑️ Excluir nota</button>
+        </div>
+      ` : ''}
     </div>
   `;
   document.body.appendChild(modal);
@@ -1793,6 +1703,35 @@ function openDayNoteModal(dayDocId) {
   const close = () => finish(false);
   modal.querySelector('#note-cancel').onclick = close;
   modal.onclick = (e) => { if (e.target === modal) close(); };
+
+  // Excluir nota (só aparece em modo de edição)
+  const delBtn = modal.querySelector('#note-delete');
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      const ok = await confirmModal({
+        title: 'Excluir nota?',
+        message: 'Vai apagar essa nota do dia. Você pode registrar uma nova depois.',
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+      try {
+        day.meta.dayNote = null;
+        await setDayMeta(dayDocId, { dayNote: null });
+        prevNoteCache.delete(dayDocId);
+        playDelete();
+        showToast('Nota excluída', 'success');
+        // Re-render do botão de nota no card
+        const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
+        if (wrap) wrap.innerHTML = renderDayNoteButton(day);
+        finish(false);
+      } catch (err) {
+        console.error('[note-del] erro:', err);
+        showToast('Erro ao excluir a nota', 'error');
+      }
+    };
+  }
 
   // Wire steppers — suporta data-step-size (ex: 15 pra incrementos de 15min)
   // Se data-unit existir (legado), usa unidade textual; senão usa fmtMin

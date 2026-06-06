@@ -1077,24 +1077,30 @@ body.time-picker-open { overflow: hidden; }
   color: #fca5a5;
 }
 
-/* Modal de limpar — opções em lista */
-.clear-options { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 6px; }
-.clear-opt {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--card); border: 1px solid var(--border);
-  color: var(--text); border-radius: 12px;
-  padding: 12px 14px; font-size: 14px; font-family: inherit;
-  cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
+/* Botão "Excluir nota" — última opção dentro do modal de nota em modo edição */
+.note-delete-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
 }
-.clear-opt:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
-.clear-opt .clear-opt-ic { font-size: 18px; }
-.clear-opt.all {
-  border-color: rgba(239,68,68,0.45);
-  background: rgba(239,68,68,0.06);
+.note-delete-btn {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.35);
+  color: #ef9b9b;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
 }
-.clear-opt.all:hover { background: rgba(239,68,68,0.16); }
-.clear-opt-empty { opacity: 0.45; cursor: not-allowed; }
-.clear-opt-empty:hover { background: var(--card); border-color: var(--border); }
+.note-delete-btn:hover {
+  background: rgba(239,68,68,0.12);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
 
 .day-note-btn {
   width: 100%;
