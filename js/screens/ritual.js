@@ -305,7 +305,8 @@ function renderUI(app) {
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
         <div class="day-info-center" id="week-pager-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">dê dois toques para abrir o calendário 📅</div>
+          <div class="meta">use as setas pra trocar de semana</div>
+          <div class="meta">dê 2 toques para abrir o calendário 📅</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
