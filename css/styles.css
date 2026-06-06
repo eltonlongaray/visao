@@ -675,6 +675,24 @@ html, body {
 }
 .task-drag:hover { opacity: 0.9; }
 .task-drag:active { cursor: grabbing; }
+/* Bloqueia seleção de texto + callout do iOS no card inteiro
+   (impede que long-press dispare "Copiar/Selecionar" ao invés do drag) */
+.task,
+.task-body,
+.task-title,
+.task-sub,
+.task-tag,
+.task-icon-inline,
+.task-time,
+.task-drag,
+.task-icon-display {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Ghost = posição original durante o drag — INVISÍVEL (só ocupa espaço pro reordenar) */
 .task-ghost {
   opacity: 0 !important;

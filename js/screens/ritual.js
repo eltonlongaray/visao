@@ -329,21 +329,31 @@ function initTaskSortables() {
   document.querySelectorAll('.task-list').forEach(list => {
     new Sortable(list, {
       animation: 180,
-      // Drag pela tarefa inteira (não só pelo ⋮⋮)
-      // Filtro: botões/links/inputs continuam clicáveis sem iniciar drag
       filter: '.task-thumb, .task-menu-btn-corner, button, input, textarea, select, a',
       preventOnFilter: false,
       // Long-press de 250ms no touch — vibra leve e dá feedback visual ao começar
       delay: 250,
       delayOnTouchOnly: true,
       touchStartThreshold: 5,
-      forceFallback: true,           // melhor controle visual no mobile
+      forceFallback: true,
       fallbackTolerance: 5,
+      // Auto-scroll quando o dedo chega perto da borda da viewport
+      scroll: true,
+      bubbleScroll: true,
+      scrollSensitivity: 80,
+      scrollSpeed: 18,
+      swapThreshold: 0.55,
+      invertSwap: true,
       ghostClass: 'task-ghost',
       chosenClass: 'task-chosen',
       dragClass: 'task-dragging',
       onChoose: () => {
-        if (navigator.vibrate) navigator.vibrate(15);  // vibração leve qdo "agarra"
+        if (navigator.vibrate) navigator.vibrate(15);
+      },
+      onStart: (evt) => {
+        // Remove o chosenClass quando o drag de fato começa pra evitar conflito de transform
+        // (o scale do .task-chosen interfere no posicionamento do clone)
+        evt.item.classList.remove('task-chosen');
       },
       onEnd: async (evt) => {
         const taskEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
