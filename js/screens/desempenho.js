@@ -584,8 +584,13 @@ function renderWeekSleep(days) {
   if (durations.length === 0) {
     return `<div class="week-sleep empty">🌙 Sono — sem registros nesta semana</div>`;
   }
-  const avg = durations.reduce((s,x) => s+x, 0) / durations.length;
+  const totalMin = durations.reduce((s,x) => s+x, 0);
+  const avg = totalMin / durations.length;
   const hrs = avg / 60;
+  const totalHrs = totalMin / 60;
+  const weekHrs = 7 * 24; // 168h totais possíveis
+  const pctOfWeek = Math.round((totalHrs / weekHrs) * 100);
+
   let cls, label, emoji;
   if (hrs < 6)      { cls = 'bad';   label = 'ruim';        emoji = '😴'; }
   else if (hrs < 7) { cls = 'mid';   label = 'mínimo';      emoji = '⚠️'; }
@@ -600,6 +605,11 @@ function renderWeekSleep(days) {
         <div class="week-sleep-value">${formatDurationHM(avg)}</div>
         <div class="sleep-classification ${cls}">${emoji} ${label}</div>
       </div>
+      <div class="week-sleep-total">
+        Você dormiu <strong>${formatDurationHM(totalMin)}</strong> ao longo dos
+        ${durations.length} dia${durations.length === 1 ? '' : 's'} registrado${durations.length === 1 ? '' : 's'} —
+        <small>de <strong>168h</strong> totais possíveis na semana (${pctOfWeek}%)</small>
+      </div>
       <div class="scale-marks">
         <span><strong>&lt;6h</strong></span>
         <span><strong>6-7h</strong></span>
@@ -613,7 +623,7 @@ function renderWeekSleep(days) {
         <div class="scale-seg waste"></div>
         <div class="scale-pointer" style="left:${pointerPct}%"></div>
       </div>
-      <div class="week-sleep-meta">${durations.length} ${durations.length === 1 ? 'dia' : 'dias'} com registro · meta 7h+</div>
+      <div class="week-sleep-meta">meta 7h+ por dia</div>
     </div>
   `;
 }

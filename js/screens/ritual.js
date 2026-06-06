@@ -429,10 +429,37 @@ function renderDayContent(d) {
       <div class="hydration-msg" data-day="${d.id}">${hydrationMsg(d.meta.hydrationMl, d.meta.hydrationGoal)}</div>
     </div>
 
-    <div class="notes">
-      <div class="notes-label">📝 Anotações do dia</div>
-      <textarea class="notes-area" data-meta="notes" data-day="${d.id}" placeholder="Como foi o dia? O que funcionou, o que ficou pendente, sensações...">${escape(d.meta.notes || '')}</textarea>
+    <div class="day-note-wrap" data-day="${d.id}">
+      ${renderDayNoteButton(d)}
     </div>
+  `;
+}
+
+function renderDayNoteButton(d) {
+  const note = d.meta.dayNote;
+  const hasNote = note && (note.done || note.daySleep || note.improve);
+  if (hasNote) {
+    const preview = (note.done || note.improve || '').trim().slice(0, 80);
+    return `
+      <button class="day-note-btn registered" data-action="open-note" data-day="${d.id}">
+        <span class="dnote-ic">✅</span>
+        <span class="dnote-body">
+          <strong>Nota registrada</strong>
+          <small>${escape(preview)}${preview.length >= 80 ? '...' : ''}</small>
+        </span>
+        <span class="dnote-edit">✏️</span>
+      </button>
+    `;
+  }
+  return `
+    <button class="day-note-btn" data-action="open-note" data-day="${d.id}">
+      <span class="dnote-ic">📝</span>
+      <span class="dnote-body">
+        <strong>Registrar nota</strong>
+        <small>Responda 3 perguntas pra fechar o dia</small>
+      </span>
+      <span class="dnote-edit">›</span>
+    </button>
   `;
 }
 
@@ -739,6 +766,13 @@ function attachHandlers(app) {
       return;
     }
 
+    // Abrir modal de nota do dia
+    const noteBtn = e.target.closest('[data-action="open-note"]');
+    if (noteBtn) {
+      openDayNoteModal(noteBtn.dataset.day);
+      return;
+    }
+
     // Editar tarefa
     const editBtn = e.target.closest('[data-action="edit"]');
     if (editBtn) {
@@ -969,6 +1003,85 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 10: MODAIS — picker de atividade e editor de tarefa
 // ═══════════════════════════════════════════════════════════════
+function openDayNoteModal(dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  const note = day.meta.dayNote || { done: '', daySleep: '', improve: '' };
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal note-modal">
+      <div class="modal-title">📝 Responda as Perguntas</div>
+      <div class="modal-hint">Fecha o dia com 3 perguntas rápidas.</div>
+
+      <label class="input-field">
+        <div class="input-field-label">O que foi feito?</div>
+        <textarea id="note-done" rows="3" placeholder="Conta o que rolou no dia">${escape(note.done || '')}</textarea>
+      </label>
+
+      <label class="input-field">
+        <div class="input-field-label">Eu dormi durante o dia? Quantas horas?</div>
+        <textarea id="note-day-sleep" rows="2" placeholder="Ex: Sim, 1h de cochilo à tarde / Não">${escape(note.daySleep || '')}</textarea>
+      </label>
+
+      <label class="input-field">
+        <div class="input-field-label">O que posso fazer pra amanhã ser melhor que hoje?</div>
+        <textarea id="note-improve" rows="3" placeholder="Pequenos ajustes ou intenções">${escape(note.improve || '')}</textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" id="note-cancel">Cancelar</button>
+        <button class="btn-primary" id="note-register">✓ Registrar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.querySelector('#note-done').focus(), 80);
+
+  const close = () => modal.remove();
+  modal.querySelector('#note-cancel').onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+
+  modal.querySelector('#note-register').onclick = async () => {
+    const data = {
+      done:     modal.querySelector('#note-done').value.trim(),
+      daySleep: modal.querySelector('#note-day-sleep').value.trim(),
+      improve:  modal.querySelector('#note-improve').value.trim(),
+      registeredAt: new Date().toISOString()
+    };
+
+    try {
+      day.meta.dayNote = data;
+      await setDayMeta(dayDocId, { dayNote: data });
+
+      // Sucesso: cartão verde + vibração + som + mensagem
+      const card = modal.querySelector('.note-modal');
+      card.classList.add('registered-success');
+      card.innerHTML = `
+        <div class="note-success-block">
+          <div class="note-success-check">✓</div>
+          <div class="note-success-title">Registrado!</div>
+          <div class="note-success-sub">Bom dia fechado.</div>
+        </div>
+      `;
+      if (navigator.vibrate) navigator.vibrate([20, 60, 40]);
+      playDone();
+
+      setTimeout(() => {
+        close();
+        // Re-render só o botão de nota no card
+        const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
+        if (wrap) wrap.innerHTML = renderDayNoteButton(day);
+      }, 1500);
+    } catch (err) {
+      console.error('[note] save erro:', err);
+      showToast('Erro ao salvar a nota.', 'error');
+    }
+  };
+}
+
+
 function openActivityPicker(app, dayDocId, shiftId) {
   const day = weekData.find(d => d.id === dayDocId);
   const shift = shifts.find(s => s.id === shiftId);
