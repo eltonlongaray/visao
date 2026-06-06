@@ -677,15 +677,16 @@ html, body {
 }
 .task-drag:hover { opacity: 0.9; }
 .task-drag:active { cursor: grabbing; }
-/* Pontinho vermelho à direita quando a tarefa tem lembrete (🔔) ativado — sem animação */
+/* Pontinho vermelho — alinhado horizontalmente com o centro do ⋮,
+   vertical centralizado entre topo do card e topo do menu */
 .task.has-reminder::before {
   content: '';
   position: absolute;
-  top: 5px; right: 5px;
-  width: 6px; height: 6px;
+  top: 5px;
+  right: 19px;       /* centro do ⋮ = right 23 (6+34/2); ponto 8px → right 19 */
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: #ef4444;
-  box-shadow: 0 0 0 1px rgba(239,68,68,0.4);
   z-index: 4;
   pointer-events: none;
 }
