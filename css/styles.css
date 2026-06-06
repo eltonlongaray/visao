@@ -397,7 +397,20 @@ html, body {
   transition: all 0.2s;
 }
 .day-card.today { border-color: rgba(167,139,250,0.45); box-shadow: 0 0 0 1px rgba(167,139,250,0.20); }
-.day-card.open { background: rgba(167,139,250,0.06); }
+.day-card.open {
+  background: rgba(167,139,250,0.06);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 6px 20px -8px rgba(124,58,237,0.45);
+}
+.day-card.open .day-card-header {
+  border-bottom: 1px solid rgba(167,139,250,0.45);
+  background: rgba(167,139,250,0.10);
+}
+.day-card.open .day-card-content {
+  border-top: none; /* o header já tem o divisor */
+}
 
 /* Cor por dia da semana (borda esquerda) — dow: 0=Dom 1=Seg ... 6=Sáb */
 .day-card[data-dow="1"] { border-left-color: #a78bfa; }  /* Seg — roxo */
