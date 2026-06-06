@@ -463,17 +463,21 @@ function statsHtml(total, done, pct) {
 
 function renderDayContent(d) {
   const hydPct = Math.min(100, Math.round((d.meta.hydrationMl / d.meta.hydrationGoal) * 100 || 0));
+  const wakeReal = toHHMM(d.meta.wakeTime);
+  const sleepReal = toHHMM(d.meta.sleepTime);
   const wakePh = profile.defaultWakeTime ? toHHMM(profile.defaultWakeTime) : '';
   const sleepPh = profile.defaultSleepTime ? toHHMM(profile.defaultSleepTime) : '';
+  const wakeIsEmpty = !wakeReal;
+  const sleepIsEmpty = !sleepReal;
   return `
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
-        <button type="button" class="time-pill-input tp-pill-trigger" data-meta="wakeTime" data-day="${d.id}" data-time="${toHHMM(d.meta.wakeTime) || ''}">${toHHMM(d.meta.wakeTime) || wakePh || '--:--'}</button>
+        <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeReal || (wakePh ? wakePh : '--:--')}</button>
       </label>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
-        <button type="button" class="time-pill-input tp-pill-trigger" data-meta="sleepTime" data-day="${d.id}" data-time="${toHHMM(d.meta.sleepTime) || ''}">${toHHMM(d.meta.sleepTime) || sleepPh || '--:--'}</button>
+        <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepReal || (sleepPh ? sleepPh : '--:--')}</button>
       </label>
     </div>
 
@@ -1281,12 +1285,17 @@ function attachHandlers(app) {
   app.addEventListener('click', async (e) => {
     const trigger = e.target.closest('.tp-pill-trigger[data-meta]');
     if (!trigger) return;
-    const result = await openTimePicker(trigger.dataset.time || '');
+    const field = trigger.dataset.meta;
+    // Se vazio, usa o default do perfil (acordar/dormir) pra abrir o picker
+    const fallback = field === 'wakeTime'
+      ? (profile?.defaultWakeTime || '')
+      : (profile?.defaultSleepTime || '');
+    const result = await openTimePicker(trigger.dataset.time || fallback);
     if (!result) return;
     trigger.dataset.time = result;
     trigger.textContent = result;
+    trigger.classList.remove('is-placeholder');
     const dayDocId = trigger.dataset.day;
-    const field = trigger.dataset.meta;
     const day = weekData.find(d => d.id === dayDocId);
     if (day) {
       day.meta[field] = result;

@@ -1039,6 +1039,13 @@ body.time-picker-open { overflow: hidden; }
   border-color: var(--accent);
   background: rgba(167,139,250,0.10);
 }
+/* Quando o horário ainda não foi preenchido — mostra o default do perfil como sugestão visual */
+.tp-pill-trigger.is-placeholder {
+  color: var(--muted);
+  font-style: italic;
+  opacity: 0.65;
+  font-weight: 600;
+}
 
 /* Hint pulsante (estilo tutorial) — destaca a hora de dormir após registrar nota */
 .time-pill.tp-hint {
