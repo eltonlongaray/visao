@@ -585,23 +585,27 @@ async function copyDayTasksTo(fromId, toId) {
 
 // Modal de escolha pra exclusão de tarefa recorrente
 // Retorna 'one' | 'all' | null (cancelado)
-function askDeleteScope(taskTitle, otherDaysCount) {
+function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
   return new Promise((resolve) => {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
+    const subInfo = hasTemplateRecurrence
+      ? 'Esta tarefa também se repete em semanas futuras (template).'
+      : `Aparece em mais ${otherCount} dia${otherCount === 1 ? '' : 's'} desta semana.`;
     modal.innerHTML = `
       <div class="modal" style="max-width:340px">
         <div class="modal-title" style="text-align:center">⚠️ Excluir tarefa recorrente?</div>
         <div class="modal-hint" style="text-align:center">
-          <strong>"${escape(taskTitle)}"</strong> aparece em mais ${otherDaysCount} dia${otherDaysCount === 1 ? '' : 's'} desta semana.
+          <strong>"${escape(taskTitle)}"</strong><br>
+          ${subInfo}
         </div>
         <button class="del-scope-btn" data-scope="one" type="button">
           <strong>📌 Somente este dia</strong>
-          <small>Mantém nos outros dias</small>
+          <small>Mantém nos outros dias e nas próximas semanas</small>
         </button>
         <button class="del-scope-btn danger" data-scope="all" type="button">
           <strong>🗑️ Toda a recorrência</strong>
-          <small>Remove dos ${otherDaysCount + 1} dias da semana</small>
+          <small>Remove desta semana e das próximas (limpa o template)</small>
         </button>
         <div class="modal-actions">
           <button class="btn-secondary" id="del-cancel">Cancelar</button>
@@ -954,15 +958,24 @@ function attachHandlers(app) {
       const t = day?.tasks.find(x => x.id === tid);
       if (!t) return;
 
-      // Detecta se essa tarefa se repete em outros dias da semana (mesmo título+categoria)
+      // Detecta se essa tarefa se repete em outros dias DA SEMANA (mesmo título)
       const recurringDays = weekData.filter(d =>
-        d.id !== dayDocId && d.tasks.some(x => x.title === t.title && x.categoryId === t.categoryId)
+        d.id !== dayDocId && d.tasks.some(x => (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase())
       );
-      const isRecurring = recurringDays.length > 0;
+      // Também detecta se a tarefa está em algum weekdayTemplate (recorrência futura)
+      const tpls = profile?.weekdayTemplates || {};
+      const recurringInTemplates = Object.keys(tpls).filter(dow => {
+        const arr = tpls[dow];
+        if (!Array.isArray(arr)) return false;
+        return arr.some(x => (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase());
+      });
+      const isRecurring = recurringDays.length > 0 || recurringInTemplates.length > 0;
 
       let scope = 'one'; // 'one' | 'all'
       if (isRecurring) {
-        scope = await askDeleteScope(t.title, recurringDays.length);
+        // Mostra o total de ocorrências (na semana atual + templates futuros)
+        const totalOther = recurringDays.length + (recurringInTemplates.length > 0 ? 1 : 0);
+        scope = await askDeleteScope(t.title, totalOther, recurringInTemplates.length > 0);
         if (!scope) return; // cancelado
       } else {
         const ok = await confirmModal({
@@ -984,9 +997,10 @@ function attachHandlers(app) {
         day.tasks = day.tasks.filter(x => x.id !== tid);
 
         if (scope === 'all') {
-          // Apaga das outras ocorrências também
+          const titleLc = (t.title || '').trim().toLowerCase();
+          // 1) Apaga das outras ocorrências da semana
           for (const otherDay of recurringDays) {
-            const matches = otherDay.tasks.filter(x => x.title === t.title && x.categoryId === t.categoryId);
+            const matches = otherDay.tasks.filter(x => (x.title || '').trim().toLowerCase() === titleLc);
             for (const m of matches) {
               try { await deleteDayTask(otherDay.id, m.id); } catch {}
               otherDay.tasks = otherDay.tasks.filter(x => x.id !== m.id);
@@ -994,10 +1008,25 @@ function attachHandlers(app) {
             const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
             if (otherEl) {
               otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
-              updateDayCardStats(otherDay.id, true);
+              updateDayCardStats(otherDay.id, false);
             }
           }
-          showToast(`Removido de ${recurringDays.length + 1} dias`, 'success');
+          // 2) Limpa dos templates de TODOS os dias-da-semana onde aparece
+          try {
+            const tplsCur = profile?.weekdayTemplates || {};
+            for (const dow of Object.keys(tplsCur)) {
+              const arr = tplsCur[dow];
+              if (!Array.isArray(arr)) continue;
+              const filtered = arr.filter(x => (x.title || '').trim().toLowerCase() !== titleLc);
+              if (filtered.length !== arr.length) {
+                await setWeekdayTemplate(parseInt(dow, 10), filtered);
+                profile.weekdayTemplates[dow] = filtered;
+              }
+            }
+          } catch (err) {
+            console.warn('[del-recurring] template cleanup:', err);
+          }
+          showToast(`Removido de ${recurringDays.length + 1} dia${recurringDays.length === 0 ? '' : 's'} + recorrências futuras`, 'success');
         }
 
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
