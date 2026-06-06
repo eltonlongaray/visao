@@ -10,9 +10,11 @@ const ITEM_H = 44;  // altura de cada item da roleta
 // BLOCO 1: API PÚBLICA
 // ═══════════════════════════════════════════════════════════════
 // Retorna Promise<string|null>. Resolve com "HH:MM" ou null se cancelar.
-export function openTimePicker(initialValue = '') {
+// options.title — texto exibido acima da roleta (estilo título de modal)
+export function openTimePicker(initialValue = '', options = {}) {
   return new Promise((resolve) => {
     const [initH, initM] = parseHHMM(initialValue);
+    const title = options.title || '';
 
     const overlay = document.createElement('div');
     overlay.className = 'time-picker-overlay';
@@ -23,6 +25,7 @@ export function openTimePicker(initialValue = '') {
           <button class="tp-mode-toggle" id="tpModeToggle" title="Digitar">⌨️</button>
           <button class="tp-btn-primary" id="tpSave">Salvar</button>
         </div>
+        ${title ? `<div class="time-picker-title">${escapeTitle(title)}</div>` : ''}
 
         <div class="time-picker-body" data-mode="wheel">
           <div class="tp-wheels">
@@ -217,6 +220,10 @@ function pad(n) { return String(n).padStart(2, '0'); }
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
+}
+
+function escapeTitle(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function parseHHMM(s) {

@@ -1335,11 +1335,24 @@ function dayCompletionStatus(d) {
 }
 
 // Abre o relógio pra sleepTime do dia e persiste no Firestore + UI
+// Monta a pergunta contextual do relógio dependendo de qual dia é
+function sleepPromptTitle(dayDocId) {
+  const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+  const todayStr = dayId(todayDate);
+  if (dayDocId === todayStr) return 'Que horas você está indo dormir hoje?';
+  const [y, m, dd] = dayDocId.split('-').map(n => parseInt(n, 10));
+  const that = new Date(y, m - 1, dd); that.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((todayDate - that) / 86400000);
+  if (diffDays === 1) return 'Que horas você foi dormir ontem?';
+  const dataFmt = `${String(dd).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+  return `Que horas você foi dormir em ${dataFmt}?`;
+}
+
 async function promptSleepTimeFor(dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return false;
   const initial = day.meta.sleepTime || profile?.defaultSleepTime || '';
-  const result = await openTimePicker(initial);
+  const result = await openTimePicker(initial, { title: sleepPromptTitle(dayDocId) });
   if (!result) return false;
   day.meta.sleepTime = result;
   try {

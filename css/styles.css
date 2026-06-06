@@ -858,6 +858,16 @@ body.time-picker-open { overflow: hidden; }
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
 }
+/* Título contextual exibido acima da roleta (ex: "Que horas você foi dormir ontem?") */
+.time-picker-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+  padding: 4px 6px 14px;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+}
 .tp-btn-secondary, .tp-btn-primary {
   background: none;
   border: none;
