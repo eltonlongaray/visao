@@ -294,13 +294,10 @@ function attachPrefHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function renderCats() {
   const box = document.getElementById('cats-list');
-  box.innerHTML = categories.map(c => {
-    const hasReminder = categoryHasReminder(c.id);
-    return `
+  box.innerHTML = categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
-        ${hasReminder ? '<span class="cat-reminder-dot" title="Tem lembrete no Ritual"></span>' : ''}
       </div>
       <div class="cat-config-name-display">${escape(c.name)}</div>
       <div class="cat-config-swatch" style="background:${c.color || '#a78bfa'}"></div>
@@ -308,20 +305,8 @@ function renderCats() {
         <button data-action="edit-cat" title="Editar">✏️</button>
         <button class="del" data-action="del-cat" title="Excluir">🗑️</button>
       </div>
-    </div>`;
-  }).join('');
-}
-
-// True se alguma tarefa em qualquer weekdayTemplate dessa categoria tem reminderEnabled
-function categoryHasReminder(categoryId) {
-  const tpls = profile?.weekdayTemplates;
-  if (!tpls) return false;
-  for (const dow of Object.keys(tpls)) {
-    const arr = tpls[dow];
-    if (!Array.isArray(arr)) continue;
-    if (arr.some(t => t.categoryId === categoryId && t.reminderEnabled)) return true;
-  }
-  return false;
+    </div>
+  `).join('');
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
