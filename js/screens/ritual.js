@@ -1010,6 +1010,8 @@ function openDayNoteModal(dayDocId) {
     prideFail: '', improve: '', daySleepHours: 0, nightWakes: 0
   };
 
+  const nightAwakeInit = note.nightAwakeHours ?? note.nightWakes ?? 0;
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
@@ -1018,7 +1020,7 @@ function openDayNoteModal(dayDocId) {
       <div class="modal-hint">Fecha o dia com 4 perguntas rápidas.</div>
 
       <label class="input-field">
-        <div class="input-field-label">Do que você se orgulha hoje e onde falhou?</div>
+        <div class="input-field-label">Do que me orgulho hoje e onde falhei?</div>
         <textarea id="note-pride-fail" rows="4" placeholder="Conquistas e tropeços do dia">${escape(note.prideFail || '')}</textarea>
       </label>
 
@@ -1037,10 +1039,10 @@ function openDayNoteModal(dayDocId) {
       </div>
 
       <div class="input-field">
-        <div class="input-field-label">Acordei na madrugada? <small style="color:var(--muted);font-weight:500">(quantas vezes)</small></div>
-        <div class="num-stepper" id="stp-nightwake" data-val="${note.nightWakes || 0}" data-min="0" data-max="5" data-unit="x">
+        <div class="input-field-label">Quantas horas fiquei acordado(a) na madrugada?</div>
+        <div class="num-stepper" id="stp-nightawake" data-val="${nightAwakeInit}" data-min="0" data-max="5" data-unit="h">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
-          <div class="step-val">${note.nightWakes || 0}x</div>
+          <div class="step-val">${nightAwakeInit}h</div>
           <button type="button" class="step-arrow" data-step="+1" aria-label="aumentar">›</button>
         </div>
       </div>
@@ -1078,10 +1080,10 @@ function openDayNoteModal(dayDocId) {
 
   modal.querySelector('#note-register').onclick = async () => {
     const data = {
-      prideFail:     modal.querySelector('#note-pride-fail').value.trim(),
-      improve:       modal.querySelector('#note-improve').value.trim(),
-      daySleepHours: parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0,
-      nightWakes:    parseInt(modal.querySelector('#stp-nightwake').dataset.val, 10) || 0,
+      prideFail:        modal.querySelector('#note-pride-fail').value.trim(),
+      improve:          modal.querySelector('#note-improve').value.trim(),
+      daySleepHours:    parseInt(modal.querySelector('#stp-daysleep').dataset.val, 10) || 0,
+      nightAwakeHours:  parseInt(modal.querySelector('#stp-nightawake').dataset.val, 10) || 0,
       registeredAt: new Date().toISOString()
     };
 

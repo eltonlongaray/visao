@@ -586,8 +586,9 @@ function renderWeekSleep(days) {
     const n = d.meta?.dayNote;
     if (n) {
       if (typeof n.daySleepHours === 'number') totalDaySleep += n.daySleepHours;
-      if (typeof n.nightWakes === 'number') totalNightWakes += n.nightWakes;
-      if (n.prideFail || n.improve || n.daySleepHours || n.nightWakes) notesCount++;
+      const naw = n.nightAwakeHours ?? n.nightWakes;
+      if (typeof naw === 'number') totalNightWakes += naw;
+      if (n.prideFail || n.improve || n.daySleepHours || naw) notesCount++;
     }
   }
 
@@ -595,7 +596,7 @@ function renderWeekSleep(days) {
   const notesCard = (totalDaySleep > 0 || totalNightWakes > 0) ? `
     <div class="sleep-extra">
       ${totalDaySleep > 0 ? `<div class="sleep-extra-row">😴 <span><strong>${totalDaySleep}h</strong> de cochilo durante o dia (semana)</span></div>` : ''}
-      ${totalNightWakes > 0 ? `<div class="sleep-extra-row">🌃 <span>Acordou <strong>${totalNightWakes}x</strong> na madrugada</span></div>` : ''}
+      ${totalNightWakes > 0 ? `<div class="sleep-extra-row">🌃 <span><strong>${totalNightWakes}h</strong> acordado(a) na madrugada (semana)</span></div>` : ''}
     </div>
   ` : '';
 

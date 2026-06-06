@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v4';
+const CACHE_NAME = 'visao-v5';
 const CORE_ASSETS = [
   './',
   './index.html',

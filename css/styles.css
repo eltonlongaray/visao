@@ -1101,77 +1101,90 @@ body.time-picker-open { overflow: hidden; }
 }
 
 /* Modal de Nota — mais alto + fonte humana */
-.note-modal {
-  max-width: 420px !important;
-  max-height: 92vh !important;
+.modal-overlay .modal.note-modal {
+  max-width: 440px !important;
+  max-height: 94vh !important;
 }
-.note-modal textarea {
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
-  font-size: 14.5px;
-  line-height: 1.5;
-  letter-spacing: 0.1px;
-  padding: 12px 14px;
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: var(--text);
-  width: 100%;
-  resize: vertical;
-  min-height: 90px;
-  outline: none;
-  transition: border-color 0.15s;
+.modal-overlay .note-modal textarea,
+.modal.note-modal textarea {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, system-ui, sans-serif !important;
+  font-size: 14.5px !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0.1px !important;
+  padding: 12px 14px !important;
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+  width: 100% !important;
+  resize: vertical !important;
+  min-height: 80px !important;
+  outline: none !important;
+  margin-top: 6px !important;
+  box-sizing: border-box !important;
+}
+[data-theme="light"] .note-modal textarea {
+  background: rgba(0,0,0,0.04) !important;
 }
 .note-modal textarea:focus {
-  border-color: var(--accent);
-  background: rgba(167,139,250,0.06);
+  border-color: var(--accent) !important;
+  background: rgba(167,139,250,0.08) !important;
 }
 .note-modal textarea::placeholder {
-  color: var(--muted);
-  font-style: italic;
+  color: var(--muted) !important;
+  font-style: italic !important;
 }
 
-/* Stepper numérico (‹ N ›) */
+/* Stepper numérico (‹ N ›) — em LINHA, não coluna */
+.modal-overlay .num-stepper,
 .num-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 6px;
-  margin-top: 6px;
-  margin-bottom: 14px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 6px !important;
+  margin-top: 8px !important;
+  margin-bottom: 4px !important;
+  width: 100% !important;
 }
 .step-arrow {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--accent-2);
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-  font-family: inherit;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(96,165,250,0.10)) !important;
+  border: 1px solid rgba(167,139,250,0.35) !important;
+  color: var(--accent-2) !important;
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s !important;
+  -webkit-tap-highlight-color: transparent !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
 }
 .step-arrow:hover {
-  background: rgba(167,139,250,0.18);
-  border-color: var(--accent);
-  color: var(--text);
+  background: linear-gradient(135deg, rgba(167,139,250,0.30), rgba(96,165,250,0.18)) !important;
+  border-color: var(--accent) !important;
 }
-.step-arrow:active { transform: scale(0.93); }
+.step-arrow:active { transform: scale(0.92) !important; }
 .step-val {
-  flex: 1;
-  text-align: center;
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: 1px;
-  font-variant-numeric: tabular-nums;
+  flex: 1 !important;
+  text-align: center !important;
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: var(--text) !important;
+  letter-spacing: 1px !important;
+  font-variant-numeric: tabular-nums !important;
+  font-family: inherit !important;
 }
 
 
