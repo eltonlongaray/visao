@@ -423,19 +423,6 @@ function openCategoryEditor(id) {
         ${COLORS.map(col => `<button type="button" class="color-opt ${col === c.color ? 'sel' : ''}" data-color="${col}" style="background:${col}"></button>`).join('')}
       </div>
 
-      <div class="modal-section-label">Quando essa atividade acontece?</div>
-      <div class="dow-presets">
-        <button type="button" class="dow-preset" data-preset="todo-dia">Todo dia</button>
-        <button type="button" class="dow-preset" data-preset="dias-uteis">Seg–Sex</button>
-        <button type="button" class="dow-preset" data-preset="fim-semana">Fim de semana</button>
-      </div>
-      <div class="dow-grid">
-        ${[1,2,3,4,5,6,0].map(d => `
-          <button type="button" class="dow-btn ${c.daysOfWeek.includes(d) ? 'sel' : ''}" data-dow="${d}">${WEEKDAY_LABELS[d]}</button>
-        `).join('')}
-      </div>
-      <div class="dow-info" id="dow-info">${dowSummary(c.daysOfWeek)}</div>
-
       <div class="modal-actions">
         <button class="btn-secondary" id="m-cancel">Cancelar</button>
         <button class="btn-primary" id="m-save">${isNew ? 'Criar' : 'Salvar'}</button>
@@ -456,7 +443,6 @@ function openCategoryEditor(id) {
   }, 80);
 
   let pickedIcon = c.icon, pickedColor = c.color;
-  let pickedDays = [...c.daysOfWeek];
   modal.querySelectorAll('[data-icon]').forEach(b => b.onclick = () => {
     modal.querySelectorAll('[data-icon]').forEach(x => x.classList.remove('sel'));
     b.classList.add('sel'); pickedIcon = b.dataset.icon;
@@ -465,38 +451,18 @@ function openCategoryEditor(id) {
     modal.querySelectorAll('[data-color]').forEach(x => x.classList.remove('sel'));
     b.classList.add('sel'); pickedColor = b.dataset.color;
   });
-
-  // Toggle de cada dia individualmente
-  modal.querySelectorAll('[data-dow]').forEach(b => b.onclick = () => {
-    const d = parseInt(b.dataset.dow);
-    if (pickedDays.includes(d)) pickedDays = pickedDays.filter(x => x !== d);
-    else pickedDays.push(d);
-    b.classList.toggle('sel');
-    modal.querySelector('#dow-info').textContent = dowSummary(pickedDays);
-  });
-
-  // Presets
-  modal.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => {
-    const p = b.dataset.preset;
-    if (p === 'todo-dia') pickedDays = [0,1,2,3,4,5,6];
-    else if (p === 'dias-uteis') pickedDays = [1,2,3,4,5];
-    else if (p === 'fim-semana') pickedDays = [0,6];
-    modal.querySelectorAll('[data-dow]').forEach(btn => {
-      btn.classList.toggle('sel', pickedDays.includes(parseInt(btn.dataset.dow)));
-    });
-    modal.querySelector('#dow-info').textContent = dowSummary(pickedDays);
-  });
   modal.querySelector('#m-cancel').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   modal.querySelector('#m-save').onclick = async () => {
     const name = modal.querySelector('#m-name').value.trim();
     if (!name) { showToast('Dê um nome pra atividade.', 'info'); return; }
-    if (pickedDays.length === 0) { showToast('Escolha pelo menos um dia da semana.', 'info'); return; }
     const order = isNew
       ? (categories.length ? Math.max(...categories.map(x => x.order || 0)) : 0) + 1
       : c.order;
     try {
-      await saveCategory(id, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: pickedDays });
+      // daysOfWeek preservado pra retrocompatibilidade com docs antigos no Firestore
+      // (recorrência real agora vive em weekdayTemplates via per-task chips no Ritual)
+      await saveCategory(id, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: c.daysOfWeek || ALL_DAYS });
       categories = await getCategories();
       renderCats();
       modal.remove();
