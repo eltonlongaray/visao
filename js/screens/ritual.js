@@ -260,9 +260,12 @@ async function autoGenerateMissingTasks() {
 }
 
 // Helper: insere tarefas do template a partir de uma posição (order)
+// Se o template tem `order` definido, respeita ele (preserva posição em todas as semanas).
+// Se tem recurrenceGroupId, propaga (pra reconhecer recorrencia em delete/edit).
 async function addTemplateTasksToDay(day, templateTasks, startOrder) {
-  let order = startOrder;
+  let fallbackOrder = startOrder;
   for (const tmpl of templateTasks) {
+    const orderToUse = (tmpl.order != null && tmpl.order !== '') ? tmpl.order : fallbackOrder++;
     const newTask = {
       activityId: tmpl.activityId || null,
       title: tmpl.title || 'Sem título',
@@ -273,7 +276,8 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
       icon: tmpl.icon || '',
       reminderEnabled: tmpl.reminderEnabled || false,
       done: false,
-      order: order++
+      order: orderToUse,
+      ...(tmpl.recurrenceGroupId ? { recurrenceGroupId: tmpl.recurrenceGroupId } : {})
     };
     const tid = await addDayTask(day.id, newTask);
     day.tasks.push({ id: tid, ...newTask });
@@ -283,19 +287,37 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
 // Chave de identidade da tarefa: categoria + título + turno + horário
 // Usada pra evitar duplicar quando sincroniza template em dias já gerados
 function keyOf(t) {
+  // Se tem recurrenceGroupId, ele é a chave (instancias separadas com mesmo titulo
+  // sao distinguidas). Senão, fallback pra combinacao classica.
+  if (t.recurrenceGroupId) return `grp:${t.recurrenceGroupId}`;
   return `${t.categoryId || ''}|${t.title || ''}|${t.shiftId || ''}|${t.startTime || ''}`;
 }
 
-// Identidade pra recorrência: título + categoryId.
-// Duas tarefas só são "a mesma" se tiverem mesmo título E mesma categoria.
-// Categorias com nome igual mas categoryId diferente são tratadas como atividades separadas.
+// Identidade pra recorrência:
+//   - Se ambos têm recurrenceGroupId, match por groupId (instancias multiplas
+//     com mesmo titulo no mesmo turno sao tratadas como recorrencias distintas).
+//   - Senão, fallback pra titulo+categoryId (tarefas antigas sem grupo).
 function sameTaskIdentity(a, b) {
+  const ag = a?.recurrenceGroupId || '';
+  const bg = b?.recurrenceGroupId || '';
+  if (ag && bg) return ag === bg;
+  // Se um tem grupo e o outro não → nao são a mesma recorrência
+  if (ag || bg) return false;
+  // Legado: titulo + categoria
   const at = (a?.title || '').trim().toLowerCase();
   const bt = (b?.title || '').trim().toLowerCase();
   if (!at || at !== bt) return false;
   const ac = a?.categoryId || '';
   const bc = b?.categoryId || '';
   return ac === bc;
+}
+
+// Gera UUID curto (8 chars hex) — suficiente pra evitar colisão dentro de 1 user
+function genRecurId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return 'r_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+  }
+  return 'r_' + Math.random().toString(36).slice(2, 14);
 }
 
 // Sincroniza o template do dia-da-semana com o estado ATUAL do dia.
@@ -1944,10 +1966,14 @@ function openActivityPicker(app, dayDocId, shiftId) {
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
     const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'weekly';
 
+    // Se vai repetir (weekly/daily), gera ID de grupo. 'today' não precisa.
+    const recurrenceGroupId = (recur === 'daily' || recur === 'weekly') ? genRecurId() : null;
+
     const baseTask = {
       activityId: null, title, desc: '',
       startTime, shiftId, categoryId,
-      done: false, reminderEnabled
+      done: false, reminderEnabled,
+      ...(recurrenceGroupId ? { recurrenceGroupId } : {})
     };
 
     try {
@@ -1959,16 +1985,15 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
       // RECORRÊNCIA
       if (recur === 'daily') {
-        // Adiciona em TODOS os outros dias da semana atual.
-        // Anti-duplicata por título + categoria (atividades com mesmo nome em outra categoria seguem intactas)
+        // Adiciona em TODOS os outros dias da semana atual com MESMO recurrenceGroupId.
+        // Copia o `order` da fonte → cópias mantém a mesma posição relativa no turno.
         const otherDays = weekData.filter(d => d.id !== dayDocId);
-        const newRef = { title, categoryId };
         const results = await Promise.allSettled(otherDays.map(async (otherDay) => {
-          const dup = otherDay.tasks.find(x => sameTaskIdentity(x, newRef));
+          // Anti-duplicata: só pula se já existe outra com mesmo groupId nesse dia
+          const dup = otherDay.tasks.find(x => x.recurrenceGroupId === recurrenceGroupId);
           if (dup) return { day: otherDay.id, status: 'skip' };
-          const otherOrder = otherDay.tasks.filter(x => x.shiftId === shiftId).length;
-          const oid = await addDayTask(otherDay.id, { ...baseTask, order: otherOrder });
-          otherDay.tasks.push({ id: oid, ...baseTask, order: otherOrder });
+          const oid = await addDayTask(otherDay.id, { ...baseTask, order });
+          otherDay.tasks.push({ id: oid, ...baseTask, order });
           return { day: otherDay.id, status: 'ok' };
         }));
         const okCount = results.filter(r => r.status === 'fulfilled' && r.value.status === 'ok').length;
@@ -1981,11 +2006,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const templateTask = {
           activityId: null, title, desc: '',
           startTime, shiftId: shiftId || null, categoryId: categoryId || null,
-          icon: '', reminderEnabled
+          icon: '', reminderEnabled, order,
+          recurrenceGroupId
         };
         await Promise.all(Array.from({length: 7}, (_, dow) => (async () => {
           const existing = (await getWeekdayTemplate(dow)) || [];
-          if (existing.some(x => sameTaskIdentity(x, newRef))) return;
+          if (existing.some(x => x.recurrenceGroupId === recurrenceGroupId)) return;
           existing.push(templateTask);
           await setWeekdayTemplate(dow, existing);
         })()));
@@ -2006,13 +2032,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
       // Se 'daily', re-renderiza outros day cards também
       if (recur === 'daily') {
         let addedCount = 1; // o dia atual sempre conta
-        const ref = { title, categoryId };
         weekData.forEach(other => {
           if (other.id === dayDocId) return;
           const otherEl = document.querySelector(`.day-card[data-day-id="${other.id}"]`);
           if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(other);
           updateDayCardStats(other.id, false);
-          if (other.tasks.some(t => sameTaskIdentity(t, ref))) addedCount++;
+          if (other.tasks.some(t => t.recurrenceGroupId === recurrenceGroupId)) addedCount++;
         });
         showToast(`Adicionado em ${addedCount} dia${addedCount === 1 ? '' : 's'} da semana`, 'success');
       }
@@ -2134,12 +2159,20 @@ function openTaskEditor(app, dayDocId, taskId) {
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
 
     // RECORRÊNCIA: replica a edição nos outros 6 dias da semana
-    // Match por título + categoryId (atividades com mesmo nome em outra categoria ficam intactas)
+    // Identificação por recurrenceGroupId (essa instancia especifica)
+    // Se a tarefa nao tem grupo ainda, gera um agora — vira fonte da recorrencia
     if (recur === 'daily') {
+      const groupId = t.recurrenceGroupId || genRecurId();
+      if (!t.recurrenceGroupId) {
+        t.recurrenceGroupId = groupId;
+        await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
+      }
+      // Order da fonte = posição que as cópias devem ter no respectivo turno
+      const sourceOrder = t.order ?? 0;
+
       const otherDays = weekData.filter(d => d.id !== dayDocId);
-      const ref = { title: data.title, categoryId: t.categoryId };
       const results = await Promise.allSettled(otherDays.map(async (otherDay) => {
-        const existing = otherDay.tasks.find(x => sameTaskIdentity(x, ref));
+        const existing = otherDay.tasks.find(x => x.recurrenceGroupId === groupId);
         const baseTask = {
           activityId: t.activityId || null,
           title: data.title, desc: data.desc,
@@ -2149,15 +2182,16 @@ function openTaskEditor(app, dayDocId, taskId) {
           icon: data.icon || '',
           reminderEnabled: data.reminderEnabled,
           done: existing?.done || false,
+          recurrenceGroupId: groupId,
+          order: sourceOrder
         };
         if (existing) {
           await updateDayTask(otherDay.id, existing.id, baseTask);
           Object.assign(existing, baseTask);
           return { day: otherDay.id, status: 'update' };
         } else {
-          const order = otherDay.tasks.filter(x => x.shiftId === baseTask.shiftId).length;
-          const newId = await addDayTask(otherDay.id, { ...baseTask, order });
-          otherDay.tasks.push({ id: newId, ...baseTask, order });
+          const newId = await addDayTask(otherDay.id, baseTask);
+          otherDay.tasks.push({ id: newId, ...baseTask });
           return { day: otherDay.id, status: 'add' };
         }
       }));

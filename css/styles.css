@@ -909,16 +909,16 @@ body.time-picker-open { overflow: hidden; }
   flex: 0 0 100px;
   height: 220px;
   overflow-y: scroll;
-  scroll-snap-type: y proximity; /* proximity > mandatory: nao briga com teleporte programatico durante momentum */
+  /* SEM scroll-snap nativo — JS faz o snap pra nao brigar com teleporte infinito */
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: none;
+  overscroll-behavior: contain;
 }
 .tp-wheel::-webkit-scrollbar { display: none; }
 
 .tp-item, .tp-pad {
   height: 44px;
-  scroll-snap-align: center;
   display: flex; align-items: center; justify-content: center;
   font-size: 28px;
   font-weight: 500;
