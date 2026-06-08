@@ -1203,8 +1203,9 @@ function attachHandlers(app) {
 
         if (scope === 'all') {
           const titleLc = (t.title || '').trim().toLowerCase();
-          // 1) Apaga das outras ocorrências da semana
-          for (const otherDay of recurringDays) {
+          // Só apaga das ocorrências A PARTIR de hoje (não mexe em dias passados — eles são histórico)
+          const futureDays = recurringDays.filter(d => d.id >= dayDocId);
+          for (const otherDay of futureDays) {
             const matches = otherDay.tasks.filter(x => (x.title || '').trim().toLowerCase() === titleLc);
             for (const m of matches) {
               try { await deleteDayTask(otherDay.id, m.id); } catch {}
@@ -1216,7 +1217,7 @@ function attachHandlers(app) {
               updateDayCardStats(otherDay.id, false);
             }
           }
-          // 2) Limpa dos templates de TODOS os dias-da-semana onde aparece
+          // Limpa dos templates de TODOS os dias-da-semana — futuras semanas não vão mais gerar
           try {
             const tplsCur = profile?.weekdayTemplates || {};
             for (const dow of Object.keys(tplsCur)) {
@@ -1231,7 +1232,10 @@ function attachHandlers(app) {
           } catch (err) {
             console.warn('[del-recurring] template cleanup:', err);
           }
-          showToast(`Removido de ${recurringDays.length + 1} dia${recurringDays.length === 0 ? '' : 's'} + recorrências futuras`, 'success');
+          const totalRemoved = futureDays.length + 1; // +1 = o dia atual onde apagou
+          const pastKept = recurringDays.length - futureDays.length;
+          const pastNote = pastKept > 0 ? ` (${pastKept} dia${pastKept === 1 ? '' : 's'} anterior${pastKept === 1 ? '' : 'es'} mantido${pastKept === 1 ? '' : 's'})` : '';
+          showToast(`Removido de ${totalRemoved} dia${totalRemoved === 1 ? '' : 's'} + recorrências futuras${pastNote}`, 'success');
         }
 
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
