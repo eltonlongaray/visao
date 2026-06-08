@@ -1,9 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Time picker custom — wheel scroll + opção de digitar
+// VISÃO · Time picker custom — roleta INFINITA + opção de digitar
 // Pattern: bottom sheet com roleta HH e MM, header com Cancelar/Salvar
 // e botão ⌨️ pra alternar pra modo numérico digitado.
+//
+// Como funciona o "infinito":
+//   Renderiza N ciclos repetidos da lista (ex: 0..23 cinco vezes).
+//   Posiciona o scroll no ciclo do meio. Quando o user passa pra borda
+//   (1o ou ultimo ciclo), teleporta silenciosamente pro mesmo valor no
+//   ciclo central — sem animação, imperceptível. Sensação: scroll infinito.
 // ═══════════════════════════════════════════════════════════════
-const ITEM_H = 44;  // altura de cada item da roleta
+const ITEM_H = 44;       // altura de cada item da roleta
+const REPEATS = 5;       // quantos ciclos renderizados (mais = scroll maior antes de teleporte)
+const CENTER_REPEAT = 2; // ciclo onde o scroll inicia (meio dos 5)
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -29,9 +37,9 @@ export function openTimePicker(initialValue = '', options = {}) {
 
         <div class="time-picker-body" data-mode="wheel">
           <div class="tp-wheels">
-            <div class="tp-wheel" data-wheel="hour">${renderWheelItems(0, 23)}</div>
+            <div class="tp-wheel" data-wheel="hour" data-cycle="24">${renderWheelItems(24)}</div>
             <div class="tp-sep">:</div>
-            <div class="tp-wheel" data-wheel="minute">${renderWheelItems(0, 59)}</div>
+            <div class="tp-wheel" data-wheel="minute" data-cycle="60">${renderWheelItems(60)}</div>
             <div class="tp-center-marker"></div>
           </div>
         </div>
@@ -51,30 +59,20 @@ export function openTimePicker(initialValue = '', options = {}) {
     const hourWheel = overlay.querySelector('[data-wheel="hour"]');
     const minWheel  = overlay.querySelector('[data-wheel="minute"]');
 
-    // Posiciona scroll inicial nos valores recebidos
+    // Posiciona scroll no ciclo central com o valor inicial
     requestAnimationFrame(() => {
-      hourWheel.scrollTop = initH * ITEM_H;
-      minWheel.scrollTop  = initM * ITEM_H;
+      hourWheel.scrollTop = scrollPosFor(24, initH);
+      minWheel.scrollTop  = scrollPosFor(60, initM);
       highlightSelected(hourWheel);
       highlightSelected(minWheel);
     });
 
-    // Listeners de scroll pra destacar o item central
-    let hScrollTimer, mScrollTimer;
-    hourWheel.addEventListener('scroll', () => {
-      highlightSelected(hourWheel);
-      clearTimeout(hScrollTimer);
-      hScrollTimer = setTimeout(() => snapToNearest(hourWheel, 23), 150);
-    });
-    minWheel.addEventListener('scroll', () => {
-      highlightSelected(minWheel);
-      clearTimeout(mScrollTimer);
-      mScrollTimer = setTimeout(() => snapToNearest(minWheel, 59), 150);
-    });
+    // Listeners de scroll: highlight + teleporte infinito + snap final
+    attachInfiniteScroll(hourWheel);
+    attachInfiniteScroll(minWheel);
 
 
     // ── Modo digitado ──
-    // Input único com máscara HH:MM. O ":" é fixo (não dá pra apagar).
     const tpTyped = overlay.querySelector('#tpTyped');
     tpTyped.value = `${pad(initH)}:${pad(initM)}`;
 
@@ -88,7 +86,6 @@ export function openTimePicker(initialValue = '', options = {}) {
       tpTyped.value = formatTyped(tpTyped.value);
     });
 
-    // Backspace antes do ":" volta pra HH (pula o ":" automaticamente)
     tpTyped.addEventListener('keydown', (e) => {
       if (e.key === 'Backspace') {
         const cursor = tpTyped.selectionStart;
@@ -100,7 +97,6 @@ export function openTimePicker(initialValue = '', options = {}) {
       }
     });
 
-    // Lê HH e MM do input único
     const readTypedValue = () => {
       const v = tpTyped.value || '';
       const [hh, mm] = v.split(':');
@@ -114,18 +110,18 @@ export function openTimePicker(initialValue = '', options = {}) {
       const typedBody = overlay.querySelector('[data-mode="typed"]');
       const toBtn = overlay.querySelector('#tpModeToggle');
       if (wheelBody.hasAttribute('hidden')) {
-        // Voltar pro wheel — sync valor digitado
         const [h, m] = readTypedValue();
         wheelBody.removeAttribute('hidden');
         typedBody.setAttribute('hidden', '');
         requestAnimationFrame(() => {
-          hourWheel.scrollTop = h * ITEM_H;
-          minWheel.scrollTop  = m * ITEM_H;
+          hourWheel.scrollTop = scrollPosFor(24, h);
+          minWheel.scrollTop  = scrollPosFor(60, m);
+          highlightSelected(hourWheel);
+          highlightSelected(minWheel);
         });
         toBtn.textContent = '⌨️';
         toBtn.title = 'Digitar';
       } else {
-        // Vai pro modo digitado — sync valor do wheel
         const [h, m] = currentWheelValue(hourWheel, minWheel);
         tpTyped.value = `${pad(h)}:${pad(m)}`;
         wheelBody.setAttribute('hidden', '');
@@ -137,16 +133,11 @@ export function openTimePicker(initialValue = '', options = {}) {
     });
 
 
-    // ── Cancelar / Salvar ──
-    // Estratégia pra back-button do celular: empilha um state ao abrir,
-    // se popstate dispara → trata como Cancelar (não navega pra fora do Ritual)
+    // ── Cancelar / Salvar + back button do celular ──
     let closed = false;
     let cameFromPop = false;
 
-    const onPopState = () => {
-      cameFromPop = true;
-      close(null);
-    };
+    const onPopState = () => { cameFromPop = true; close(null); };
     window.addEventListener('popstate', onPopState);
     history.pushState({ tp: true }, '');
 
@@ -156,9 +147,7 @@ export function openTimePicker(initialValue = '', options = {}) {
       window.removeEventListener('popstate', onPopState);
       overlay.remove();
       document.body.classList.remove('time-picker-open');
-      // Se fechou por ação do user (não pelo back), tira nosso state da history
       if (!cameFromPop) {
-        // pequeno delay pra evitar reentrada em popstate antes do unmount completar
         setTimeout(() => { try { history.back(); } catch {} }, 0);
       }
       resolve(v);
@@ -171,7 +160,6 @@ export function openTimePicker(initialValue = '', options = {}) {
       close(`${pad(h)}:${pad(m)}`);
     });
 
-    // Clica fora → cancela
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) close(null);
     });
@@ -180,15 +168,22 @@ export function openTimePicker(initialValue = '', options = {}) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: WHEEL HELPERS
+// BLOCO 2: WHEEL HELPERS — render + scroll infinito + snap
 // ═══════════════════════════════════════════════════════════════
-function renderWheelItems(min, max) {
+function renderWheelItems(cycle) {
   let html = '<div class="tp-pad"></div>';
-  for (let i = min; i <= max; i++) {
-    html += `<div class="tp-item" data-v="${i}">${pad(i)}</div>`;
+  for (let r = 0; r < REPEATS; r++) {
+    for (let i = 0; i < cycle; i++) {
+      html += `<div class="tp-item" data-v="${i}">${pad(i)}</div>`;
+    }
   }
   html += '<div class="tp-pad"></div>';
   return html;
+}
+
+// scrollTop pra colocar o item `value` no centro do ciclo CENTER_REPEAT
+function scrollPosFor(cycle, value) {
+  return (CENTER_REPEAT * cycle + value) * ITEM_H;
 }
 
 function highlightSelected(wheel) {
@@ -197,19 +192,56 @@ function highlightSelected(wheel) {
   items.forEach((it, i) => it.classList.toggle('selected', i === idx));
 }
 
-function snapToNearest(wheel, max) {
+function attachInfiniteScroll(wheel) {
+  const cycle = parseInt(wheel.dataset.cycle, 10);
+  const cycleH = cycle * ITEM_H;
+  // Janela "segura" pro user scrollar sem precisar teleportar:
+  //   entre ciclo 1 (índice cycleH) e ciclo REPEATS-1 ((REPEATS-1)*cycleH).
+  // Fora disso, teleporta de volta pro ciclo central (CENTER_REPEAT).
+  const MIN_SAFE = cycleH;
+  const MAX_SAFE = (REPEATS - 1) * cycleH;
+  let teleporting = false;
+  let scrollTimer;
+
+  wheel.addEventListener('scroll', () => {
+    if (teleporting) return;
+
+    highlightSelected(wheel);
+
+    const st = wheel.scrollTop;
+    // Teleporte silencioso quando passa do limite seguro
+    if (st < MIN_SAFE || st >= MAX_SAFE) {
+      teleporting = true;
+      // Calcula offset dentro do ciclo atual e re-coloca no ciclo central
+      const offsetInCycle = ((st % cycleH) + cycleH) % cycleH;
+      const newScrollTop = CENTER_REPEAT * cycleH + offsetInCycle;
+      wheel.scrollTop = newScrollTop;
+      // Libera após o próximo frame (evita disparar handler 2x)
+      requestAnimationFrame(() => { teleporting = false; });
+      return;
+    }
+
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => snapToNearest(wheel), 150);
+  });
+}
+
+function snapToNearest(wheel) {
   const idx = Math.round(wheel.scrollTop / ITEM_H);
-  const clamped = Math.max(0, Math.min(max, idx));
-  const target = clamped * ITEM_H;
+  const target = idx * ITEM_H;
   if (Math.abs(wheel.scrollTop - target) > 1) {
     wheel.scrollTo({ top: target, behavior: 'smooth' });
   }
 }
 
 function currentWheelValue(hourWheel, minWheel) {
-  const h = Math.round(hourWheel.scrollTop / ITEM_H);
-  const m = Math.round(minWheel.scrollTop / ITEM_H);
-  return [clamp(h, 0, 23), clamp(m, 0, 59)];
+  const hCycle = parseInt(hourWheel.dataset.cycle, 10);
+  const mCycle = parseInt(minWheel.dataset.cycle, 10);
+  const hIdx = Math.round(hourWheel.scrollTop / ITEM_H);
+  const mIdx = Math.round(minWheel.scrollTop / ITEM_H);
+  const h = ((hIdx % hCycle) + hCycle) % hCycle;
+  const m = ((mIdx % mCycle) + mCycle) % mCycle;
+  return [h, m];
 }
 
 
