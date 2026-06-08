@@ -286,6 +286,18 @@ function keyOf(t) {
   return `${t.categoryId || ''}|${t.title || ''}|${t.shiftId || ''}|${t.startTime || ''}`;
 }
 
+// Identidade pra recorrência: título + categoryId.
+// Duas tarefas só são "a mesma" se tiverem mesmo título E mesma categoria.
+// Categorias com nome igual mas categoryId diferente são tratadas como atividades separadas.
+function sameTaskIdentity(a, b) {
+  const at = (a?.title || '').trim().toLowerCase();
+  const bt = (b?.title || '').trim().toLowerCase();
+  if (!at || at !== bt) return false;
+  const ac = a?.categoryId || '';
+  const bc = b?.categoryId || '';
+  return ac === bc;
+}
+
 // Sincroniza o template do dia-da-semana com o estado ATUAL do dia.
 // Chamado depois de cada modificação (add/edit/delete/dup/reorder).
 async function syncTemplateForDay(dayDocId) {
@@ -1163,16 +1175,16 @@ function attachHandlers(app) {
       const t = day?.tasks.find(x => x.id === tid);
       if (!t) return;
 
-      // Detecta se essa tarefa se repete em outros dias DA SEMANA (mesmo título)
+      // Detecta se essa tarefa se repete em outros dias DA SEMANA (mesmo título + categoria)
       const recurringDays = weekData.filter(d =>
-        d.id !== dayDocId && d.tasks.some(x => (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase())
+        d.id !== dayDocId && d.tasks.some(x => sameTaskIdentity(x, t))
       );
       // Também detecta se a tarefa está em algum weekdayTemplate (recorrência futura)
       const tpls = profile?.weekdayTemplates || {};
       const recurringInTemplates = Object.keys(tpls).filter(dow => {
         const arr = tpls[dow];
         if (!Array.isArray(arr)) return false;
-        return arr.some(x => (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase());
+        return arr.some(x => sameTaskIdentity(x, t));
       });
       const isRecurring = recurringDays.length > 0 || recurringInTemplates.length > 0;
 
@@ -1202,11 +1214,11 @@ function attachHandlers(app) {
         day.tasks = day.tasks.filter(x => x.id !== tid);
 
         if (scope === 'all') {
-          const titleLc = (t.title || '').trim().toLowerCase();
           // Só apaga das ocorrências A PARTIR de hoje (não mexe em dias passados — eles são histórico)
+          // Match por título + categoryId (não pega tarefas de outras categorias com mesmo título)
           const futureDays = recurringDays.filter(d => d.id >= dayDocId);
           for (const otherDay of futureDays) {
-            const matches = otherDay.tasks.filter(x => (x.title || '').trim().toLowerCase() === titleLc);
+            const matches = otherDay.tasks.filter(x => sameTaskIdentity(x, t));
             for (const m of matches) {
               try { await deleteDayTask(otherDay.id, m.id); } catch {}
               otherDay.tasks = otherDay.tasks.filter(x => x.id !== m.id);
@@ -1223,7 +1235,7 @@ function attachHandlers(app) {
             for (const dow of Object.keys(tplsCur)) {
               const arr = tplsCur[dow];
               if (!Array.isArray(arr)) continue;
-              const filtered = arr.filter(x => (x.title || '').trim().toLowerCase() !== titleLc);
+              const filtered = arr.filter(x => !sameTaskIdentity(x, t));
               if (filtered.length !== arr.length) {
                 await setWeekdayTemplate(parseInt(dow, 10), filtered);
                 profile.weekdayTemplates[dow] = filtered;
@@ -1922,12 +1934,11 @@ function openActivityPicker(app, dayDocId, shiftId) {
       // RECORRÊNCIA
       if (recur === 'daily') {
         // Adiciona em TODOS os outros dias da semana atual.
-        // Usa Promise.all (paralelo) — se um falhar, os outros continuam.
+        // Anti-duplicata por título + categoria (atividades com mesmo nome em outra categoria seguem intactas)
         const otherDays = weekData.filter(d => d.id !== dayDocId);
+        const newRef = { title, categoryId };
         const results = await Promise.allSettled(otherDays.map(async (otherDay) => {
-          // Anti-duplicata: se já existe tarefa com mesmo título nesse dia, pula.
-          const tNorm = title.trim().toLowerCase();
-          const dup = otherDay.tasks.find(x => (x.title || '').trim().toLowerCase() === tNorm);
+          const dup = otherDay.tasks.find(x => sameTaskIdentity(x, newRef));
           if (dup) return { day: otherDay.id, status: 'skip' };
           const otherOrder = otherDay.tasks.filter(x => x.shiftId === shiftId).length;
           const oid = await addDayTask(otherDay.id, { ...baseTask, order: otherOrder });
@@ -1946,10 +1957,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
           startTime, shiftId: shiftId || null, categoryId: categoryId || null,
           icon: '', reminderEnabled
         };
-        const tNorm = title.trim().toLowerCase();
         await Promise.all(Array.from({length: 7}, (_, dow) => (async () => {
           const existing = (await getWeekdayTemplate(dow)) || [];
-          if (existing.some(x => (x.title || '').trim().toLowerCase() === tNorm)) return;
+          if (existing.some(x => sameTaskIdentity(x, newRef))) return;
           existing.push(templateTask);
           await setWeekdayTemplate(dow, existing);
         })()));
@@ -1970,13 +1980,13 @@ function openActivityPicker(app, dayDocId, shiftId) {
       // Se 'daily', re-renderiza outros day cards também
       if (recur === 'daily') {
         let addedCount = 1; // o dia atual sempre conta
+        const ref = { title, categoryId };
         weekData.forEach(other => {
           if (other.id === dayDocId) return;
           const otherEl = document.querySelector(`.day-card[data-day-id="${other.id}"]`);
           if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(other);
           updateDayCardStats(other.id, false);
-          const tNorm = title.trim().toLowerCase();
-          if (other.tasks.some(t => (t.title || '').trim().toLowerCase() === tNorm)) addedCount++;
+          if (other.tasks.some(t => sameTaskIdentity(t, ref))) addedCount++;
         });
         showToast(`Adicionado em ${addedCount} dia${addedCount === 1 ? '' : 's'} da semana`, 'success');
       }
@@ -2098,13 +2108,12 @@ function openTaskEditor(app, dayDocId, taskId) {
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
 
     // RECORRÊNCIA: replica a edição nos outros 6 dias da semana
-    // Match por TÍTULO normalizado (case-insensitive, sem espaço extra). Ignora categoryId
-    // pra evitar match falso quando a categoria varia entre dias.
+    // Match por título + categoryId (atividades com mesmo nome em outra categoria ficam intactas)
     if (recur === 'daily') {
       const otherDays = weekData.filter(d => d.id !== dayDocId);
-      const tNorm = (data.title || '').trim().toLowerCase();
+      const ref = { title: data.title, categoryId: t.categoryId };
       const results = await Promise.allSettled(otherDays.map(async (otherDay) => {
-        const existing = otherDay.tasks.find(x => (x.title || '').trim().toLowerCase() === tNorm);
+        const existing = otherDay.tasks.find(x => sameTaskIdentity(x, ref));
         const baseTask = {
           activityId: t.activityId || null,
           title: data.title, desc: data.desc,
