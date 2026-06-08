@@ -1214,10 +1214,10 @@ function attachHandlers(app) {
         day.tasks = day.tasks.filter(x => x.id !== tid);
 
         if (scope === 'all') {
-          // Só apaga das ocorrências A PARTIR de hoje (não mexe em dias passados — eles são histórico)
-          // Match por título + categoryId (não pega tarefas de outras categorias com mesmo título)
-          const futureDays = recurringDays.filter(d => d.id >= dayDocId);
-          for (const otherDay of futureDays) {
+          // 1) Apaga das ocorrências A PARTIR de hoje na semana atual
+          //    (não mexe em dias passados — eles são histórico)
+          const futureDaysCurrentWeek = recurringDays.filter(d => d.id >= dayDocId);
+          for (const otherDay of futureDaysCurrentWeek) {
             const matches = otherDay.tasks.filter(x => sameTaskIdentity(x, t));
             for (const m of matches) {
               try { await deleteDayTask(otherDay.id, m.id); } catch {}
@@ -1229,7 +1229,9 @@ function attachHandlers(app) {
               updateDayCardStats(otherDay.id, false);
             }
           }
-          // Limpa dos templates de TODOS os dias-da-semana — futuras semanas não vão mais gerar
+
+          // 2) Limpa dos templates de TODOS os dias-da-semana
+          //    Futuras semanas que ainda nao foram visitadas nao vao mais gerar a tarefa.
           try {
             const tplsCur = profile?.weekdayTemplates || {};
             for (const dow of Object.keys(tplsCur)) {
@@ -1244,10 +1246,34 @@ function attachHandlers(app) {
           } catch (err) {
             console.warn('[del-recurring] template cleanup:', err);
           }
-          const totalRemoved = futureDays.length + 1; // +1 = o dia atual onde apagou
-          const pastKept = recurringDays.length - futureDays.length;
+
+          // 3) Apaga de TODOS os dias futuros que JÁ foram gravados no Firestore
+          //    (semanas que o usuário ja navegou pra frente e geraram dias com a tarefa)
+          //    Janela: do dia seguinte ao fim da semana atual até 1 ano à frente
+          let futureFirestoreCount = 0;
+          try {
+            const endOfCurrentWeek = new Date(weekStart);
+            endOfCurrentWeek.setDate(weekStart.getDate() + 6);
+            const startScan = new Date(endOfCurrentWeek);
+            startScan.setDate(endOfCurrentWeek.getDate() + 1);
+            const endScan = new Date(endOfCurrentWeek);
+            endScan.setDate(endOfCurrentWeek.getDate() + 365);
+            const futureDays = await fetchDaysRange(startScan, endScan);
+            await Promise.all(futureDays.map(async (fd) => {
+              const matches = (fd.tasks || []).filter(x => sameTaskIdentity(x, t));
+              for (const m of matches) {
+                try { await deleteDayTask(fd.id, m.id); futureFirestoreCount++; } catch {}
+              }
+            }));
+          } catch (err) {
+            console.warn('[del-recurring] future days cleanup:', err);
+          }
+
+          const totalRemoved = futureDaysCurrentWeek.length + 1; // +1 = o dia atual onde apagou
+          const pastKept = recurringDays.length - futureDaysCurrentWeek.length;
           const pastNote = pastKept > 0 ? ` (${pastKept} dia${pastKept === 1 ? '' : 's'} anterior${pastKept === 1 ? '' : 'es'} mantido${pastKept === 1 ? '' : 's'})` : '';
-          showToast(`Removido de ${totalRemoved} dia${totalRemoved === 1 ? '' : 's'} + recorrências futuras${pastNote}`, 'success');
+          const futNote = futureFirestoreCount > 0 ? ` + ${futureFirestoreCount} de semanas futuras` : '';
+          showToast(`Removido de ${totalRemoved} dia${totalRemoved === 1 ? '' : 's'}${futNote}${pastNote}`, 'success');
         }
 
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
