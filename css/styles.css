@@ -909,7 +909,7 @@ body.time-picker-open { overflow: hidden; }
   flex: 0 0 100px;
   height: 220px;
   overflow-y: scroll;
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity; /* proximity > mandatory: nao briga com teleporte programatico durante momentum */
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: none;

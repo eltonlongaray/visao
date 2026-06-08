@@ -9,9 +9,12 @@
 //   (1o ou ultimo ciclo), teleporta silenciosamente pro mesmo valor no
 //   ciclo central — sem animação, imperceptível. Sensação: scroll infinito.
 // ═══════════════════════════════════════════════════════════════
-const ITEM_H = 44;       // altura de cada item da roleta
-const REPEATS = 5;       // quantos ciclos renderizados (mais = scroll maior antes de teleporte)
-const CENTER_REPEAT = 2; // ciclo onde o scroll inicia (meio dos 5)
+const ITEM_H = 44;        // altura de cada item da roleta
+// Muitos ciclos = scroll maior antes de precisar teleportar.
+// 41 ciclos × 24h = 984 items, ~43000px. Usuário pode rolar muito antes de
+// chegar nas bordas (onde iOS pode ignorar o teleporte por causa do momentum).
+const REPEATS = 41;
+const CENTER_REPEAT = 20; // ciclo central (meio dos 41)
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -195,35 +198,42 @@ function highlightSelected(wheel) {
 function attachInfiniteScroll(wheel) {
   const cycle = parseInt(wheel.dataset.cycle, 10);
   const cycleH = cycle * ITEM_H;
-  // Janela "segura" pro user scrollar sem precisar teleportar:
-  //   entre ciclo 1 (índice cycleH) e ciclo REPEATS-1 ((REPEATS-1)*cycleH).
-  // Fora disso, teleporta de volta pro ciclo central (CENTER_REPEAT).
-  const MIN_SAFE = cycleH;
-  const MAX_SAFE = (REPEATS - 1) * cycleH;
+  // Janela segura ampla — com 41 ciclos, sobra muito espaço pros 2 lados antes do teleporte.
+  // Teleporta só quando passa de uns ~3 ciclos das pontas (evita disparar no meio do momentum).
+  const MIN_SAFE = 3 * cycleH;
+  const MAX_SAFE = (REPEATS - 3) * cycleH;
   let teleporting = false;
   let scrollTimer;
+  const supportsScrollEnd = 'onscrollend' in wheel;
+
+  const maybeTeleport = () => {
+    if (teleporting) return;
+    const st = wheel.scrollTop;
+    if (st >= MIN_SAFE && st < MAX_SAFE) return;
+    teleporting = true;
+    const offsetInCycle = ((st % cycleH) + cycleH) % cycleH;
+    const newScrollTop = CENTER_REPEAT * cycleH + offsetInCycle;
+    wheel.scrollTop = newScrollTop;
+    requestAnimationFrame(() => { teleporting = false; });
+  };
 
   wheel.addEventListener('scroll', () => {
     if (teleporting) return;
-
     highlightSelected(wheel);
-
-    const st = wheel.scrollTop;
-    // Teleporte silencioso quando passa do limite seguro
-    if (st < MIN_SAFE || st >= MAX_SAFE) {
-      teleporting = true;
-      // Calcula offset dentro do ciclo atual e re-coloca no ciclo central
-      const offsetInCycle = ((st % cycleH) + cycleH) % cycleH;
-      const newScrollTop = CENTER_REPEAT * cycleH + offsetInCycle;
-      wheel.scrollTop = newScrollTop;
-      // Libera após o próximo frame (evita disparar handler 2x)
-      requestAnimationFrame(() => { teleporting = false; });
-      return;
-    }
-
     clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => snapToNearest(wheel), 150);
+    // Em browsers sem scrollend, usa timer; teleporte só DEPOIS do momentum parar.
+    scrollTimer = setTimeout(() => {
+      snapToNearest(wheel);
+      if (!supportsScrollEnd) maybeTeleport();
+    }, 180);
   });
+
+  if (supportsScrollEnd) {
+    wheel.addEventListener('scrollend', () => {
+      snapToNearest(wheel);
+      maybeTeleport();
+    });
+  }
 }
 
 function snapToNearest(wheel) {
