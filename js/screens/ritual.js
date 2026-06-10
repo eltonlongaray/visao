@@ -1887,8 +1887,14 @@ function attachHandlers(app) {
         scope = await askDeleteScope(t.title, totalOther, recurringInTemplates.length > 0);
         if (!scope) return; // cancelado
       } else {
-        // Não-recorrente: exclui direto, sem confirmação
-        // (compromissos também excluem direto — se quiser desfazer, recria pelo +)
+        // Não-recorrente: confirma SEM oferecer a opção de excluir recorrências
+        const ok = await confirmModal({
+          title: 'Excluir?',
+          message: `"${t.title}" será removida deste dia.`,
+          confirmText: 'Excluir',
+          danger: true
+        });
+        if (!ok) return;
       }
 
       playDelete();
