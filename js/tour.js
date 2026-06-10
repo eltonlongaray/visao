@@ -29,10 +29,15 @@ export async function start(stepsArr) {
   await showStep();
 }
 
-export function end(completed = false) {
+export async function end(completed = false) {
   if (!active) return;
   active = false;
   cleanupTargetClick();
+  // Fecha qualquer coisa que o step atual abriu
+  const cur = steps[i];
+  if (cur?.onLeave) {
+    try { await cur.onLeave(); } catch (err) { console.warn('[tour] onLeave erro:', err); }
+  }
   if (completed) markDone();
   cleanupDom();
 }
@@ -40,16 +45,25 @@ export function end(completed = false) {
 export async function next() {
   if (!active) return;
   cleanupTargetClick();
+  // Cleanup do step atual antes de sair (fechar modais abertos, etc)
+  const cur = steps[i];
+  if (cur?.onLeave) {
+    try { await cur.onLeave(); } catch (err) { console.warn('[tour] onLeave erro:', err); }
+  }
   if (i + 1 >= steps.length) return end(true);
   i++;
   await showStep();
 }
 
-export function back() {
+export async function back() {
   if (!active || i === 0) return;
   cleanupTargetClick();
+  const cur = steps[i];
+  if (cur?.onLeave) {
+    try { await cur.onLeave(); } catch (err) { console.warn('[tour] onLeave erro:', err); }
+  }
   i--;
-  showStep();
+  await showStep();
 }
 
 function cleanupTargetClick() {
@@ -97,6 +111,12 @@ async function showStep() {
     const { navigate } = await import('./router.js');
     navigate(step.route);
     await wait(450);
+  }
+
+  // Executa açao automatizada ANTES de mostrar o step
+  // (ex: abrir modal, expandir card)
+  if (step.prepare) {
+    try { await step.prepare(); } catch (err) { console.warn('[tour] prepare erro:', err); }
   }
 
   // Procura o target (sem travar se não achar)
