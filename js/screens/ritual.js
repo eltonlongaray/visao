@@ -516,6 +516,20 @@ function getWeekCommitments() {
   return list;
 }
 
+// Re-renderiza o card de Compromissos no DOM (chamar após qualquer edit/delete/toggle)
+function refreshCommitmentsCard() {
+  const card = document.querySelector('.day-card.commitments-card');
+  if (!card) return;
+  const items = getWeekCommitments();
+  const total = items.length;
+  const done = items.filter(x => x.task.done).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const statsEl = card.querySelector('.day-card-stats');
+  if (statsEl) statsEl.innerHTML = statsHtml(total, done, pct);
+  const contentEl = card.querySelector('.day-card-content');
+  if (contentEl) contentEl.innerHTML = renderCommitmentsContent(items);
+}
+
 function commitmentsCard() {
   const items = getWeekCommitments();
   const isExpanded = expanded.has('commitments');
@@ -1318,10 +1332,16 @@ function attachHandlers(app) {
       if (!t) return;
       const wasDone = t.done;
       t.done = !t.done;
-      check.classList.toggle('done', t.done);
-      check.textContent = t.done ? '👍' : '👎';
-      check.title = t.done ? 'Feito!' : 'Marcar como feito';
-      taskEl.classList.toggle('done', t.done);
+      // Sincroniza TODAS as instâncias do task no DOM (pode estar em day card + aba Compromissos)
+      document.querySelectorAll(`.task[data-task-id="${taskEl.dataset.taskId}"]`).forEach(el => {
+        el.classList.toggle('done', t.done);
+        const elCheck = el.querySelector('[data-action="check"]');
+        if (elCheck) {
+          elCheck.classList.toggle('done', t.done);
+          elCheck.textContent = t.done ? '👍' : '👎';
+          elCheck.title = t.done ? 'Feito!' : 'Marcar como feito';
+        }
+      });
       await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done });
       updateDayCardStats(taskEl.dataset.day, false); // sem sync de template — done não vira modelo
       // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
@@ -1701,6 +1721,8 @@ function updateDayCardStats(dayDocId, syncTemplate = true) {
   // Salva o estado atual como template do dia-da-semana
   // (toda modificação que altera a lista — add/del/edit/dup/reorder)
   if (syncTemplate) syncTemplateForDay(dayDocId);
+  // Sempre refresca a aba Compromissos (caso essa task seja compromisso)
+  refreshCommitmentsCard();
 }
 
 
