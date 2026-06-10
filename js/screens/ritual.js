@@ -1887,13 +1887,8 @@ function attachHandlers(app) {
         scope = await askDeleteScope(t.title, totalOther, recurringInTemplates.length > 0);
         if (!scope) return; // cancelado
       } else {
-        const ok = await confirmModal({
-          title: 'Excluir tarefa?',
-          message: `"${t.title}" será removida deste dia.`,
-          confirmText: 'Excluir',
-          danger: true
-        });
-        if (!ok) return;
+        // Não-recorrente: exclui direto, sem confirmação
+        // (compromissos também excluem direto — se quiser desfazer, recria pelo +)
       }
 
       playDelete();
