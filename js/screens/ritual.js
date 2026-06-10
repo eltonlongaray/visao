@@ -594,12 +594,6 @@ function renderCommitmentsContent(items) {
 
 function renderDayContent(d) {
   const hydPct = Math.min(100, Math.round((d.meta.hydrationMl / d.meta.hydrationGoal) * 100 || 0));
-  const pullPrevBtn = `
-    <button class="pull-prev-day-btn" data-action="pull-prev-day" data-day="${d.id}" title="Trazer dados do dia anterior (substitui)">
-      <span class="pull-prev-arrow">↓</span>
-      <span class="pull-prev-text">Trazer dia anterior</span>
-    </button>
-  `;
   const wakeReal = toHHMM(d.meta.wakeTime);
   const sleepReal = toHHMM(d.meta.sleepTime);
   // Vazio mostra '--:--' explicito; o default do perfil é usado só pra abrir o picker
@@ -608,12 +602,12 @@ function renderDayContent(d) {
   const wakeIsEmpty = !wakeReal;
   const sleepIsEmpty = !sleepReal;
   return `
-    ${pullPrevBtn}
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeDisplay}</button>
       </label>
+      <button class="pull-prev-day-icon" data-action="pull-prev-day" data-day="${d.id}" title="Trazer de outro dia">↓</button>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepDisplay}</button>
@@ -797,54 +791,123 @@ async function copyDayTasksTo(fromId, toId) {
   return sorted.length;
 }
 
-// Traz dados do DIA ANTERIOR pro dia atual, substituindo o conteudo.
-// Funciona mesmo se o dia anterior está na semana passada (busca no Firestore).
+// Abre modal pra escolher QUAL dia anterior trazer (últimos 7 dias com tarefas).
 async function pullPrevDay(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
 
-  // Calcula id do dia anterior (D - 1)
+  // Coleta os últimos 7 dias anteriores que TÊM tarefas (mistura weekData + Firestore)
   const [y, m, dd] = dayDocId.split('-').map(n => parseInt(n, 10));
-  const prevDate = new Date(y, m - 1, dd);
-  prevDate.setDate(prevDate.getDate() - 1);
-  const prevId = dayId(prevDate);
+  const baseDate = new Date(y, m - 1, dd);
 
-  // Confirma com o usuário
+  // Tenta achar 7 candidatos com tarefas. Anda pra trás até 14 dias máximo
+  const candidates = [];
+  for (let back = 1; back <= 14 && candidates.length < 7; back++) {
+    const dt = new Date(baseDate);
+    dt.setDate(baseDate.getDate() - back);
+    const id = dayId(dt);
+    let tasks;
+    const inWeek = weekData.find(x => x.id === id);
+    if (inWeek) tasks = inWeek.tasks;
+    else {
+      try { tasks = await getDayTasks(id); }
+      catch { tasks = []; }
+    }
+    if (tasks && tasks.length > 0) {
+      candidates.push({ id, date: dt, tasks });
+    }
+  }
+
+  if (candidates.length === 0) {
+    showToast('Nenhum dia anterior com tarefas pra trazer', 'info');
+    return;
+  }
+
+  // Modal com opções
+  const choice = await pickPrevDayModal(candidates);
+  if (!choice) return;
+
+  await replaceDayWithPrev(app, dayDocId, choice);
+}
+
+// Modal de escolha do dia anterior — lista os candidatos com data + count de tarefas
+function pickPrevDayModal(candidates) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    const items = candidates.map(c => {
+      const dow = WEEKDAYS_FULL[c.date.getDay()];
+      const dataFmt = `${String(c.date.getDate()).padStart(2,'0')}/${String(c.date.getMonth()+1).padStart(2,'0')}`;
+      const n = c.tasks.length;
+      return `
+        <button type="button" class="pick-day-opt" data-id="${c.id}">
+          <span class="pick-day-arrow">↓</span>
+          <span class="pick-day-name">
+            <strong>${dow}</strong>
+            <small>${dataFmt}</small>
+          </span>
+          <span class="pick-day-count">${n} tarefa${n === 1 ? '' : 's'}</span>
+        </button>
+      `;
+    }).join('');
+    modal.innerHTML = `
+      <div class="modal" style="max-width:380px">
+        <div class="modal-title">Trazer qual dia pra cá?</div>
+        <div class="modal-hint">As tarefas atuais serão substituídas.</div>
+        <div class="pick-day-list">${items}</div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="pick-cancel">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    let resolved = false;
+    const finishClose = trapModalBack(() => {
+      modal.remove();
+      if (!resolved) { resolved = true; resolve(null); }
+    });
+    const pick = (val) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(val);
+      finishClose();
+    };
+    modal.querySelector('#pick-cancel').onclick = () => pick(null);
+    modal.querySelectorAll('[data-id]').forEach(btn => {
+      btn.onclick = () => {
+        const c = candidates.find(x => x.id === btn.dataset.id);
+        pick(c || null);
+      };
+    });
+    // Clique fora NÃO fecha aqui também (consistente com criar/editar)
+  });
+}
+
+// Executa a substituição depois do user confirmar a escolha
+async function replaceDayWithPrev(app, dayDocId, choice) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+  const dow = WEEKDAYS_FULL[choice.date.getDay()];
+  const dataFmt = `${String(choice.date.getDate()).padStart(2,'0')}/${String(choice.date.getMonth()+1).padStart(2,'0')}`;
   const ok = await confirmModal({
-    title: 'Trazer dia anterior?',
-    message: `Vai substituir as tarefas atuais pelas do dia anterior (${prevId}). As tarefas atuais serão apagadas. Pode dar boa?`,
+    title: `Trazer ${dow.toLowerCase()} (${dataFmt})?`,
+    message: `Vai substituir TODAS as tarefas atuais pelas ${choice.tasks.length} de ${dow.toLowerCase()} ${dataFmt}.`,
     confirmText: 'Trazer',
     cancelText: 'Cancelar',
     danger: true
   });
   if (!ok) return;
-
   try {
-    // Busca dia anterior — pode estar em weekData ou no Firestore
-    let prevTasks;
-    const prevInWeek = weekData.find(d => d.id === prevId);
-    if (prevInWeek) {
-      prevTasks = prevInWeek.tasks;
-    } else {
-      prevTasks = await getDayTasks(prevId);
-    }
-    if (!prevTasks || prevTasks.length === 0) {
-      showToast('Dia anterior está vazio — nada pra trazer', 'info');
-      return;
-    }
-
-    // Apaga tarefas atuais
     await Promise.all(day.tasks.map(t => deleteDayTask(dayDocId, t.id).catch(() => {})));
     day.tasks = [];
-
-    // Copia tarefas do dia anterior (reset done + ordem preservada)
-    const sorted = prevTasks.slice().sort(taskSort);
+    const sorted = choice.tasks.slice().sort(taskSort);
     let order = 0;
     for (const t of sorted) {
       const newTask = {
         activityId: t.activityId || null,
         title: t.title,
         desc: t.desc || '',
+        kind: t.kind || 'task',
         startTime: t.startTime || '',
         shiftId: t.shiftId || (shifts[0]?.id || null),
         categoryId: t.categoryId || null,
@@ -859,15 +922,13 @@ async function pullPrevDay(app, dayDocId) {
     }
     await setDayMeta(dayDocId, { generated: true });
     day.meta.generated = true;
-
-    // Re-render do card
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
     updateDayCardStats(dayDocId, false);
-    showToast(`Trazidas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} do dia anterior`, 'success');
+    showToast(`Trazidas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} de ${dow.toLowerCase()} ${dataFmt}`, 'success');
   } catch (err) {
-    console.error('[pull-prev-day] erro:', err);
-    showToast('Erro ao trazer dia anterior', 'error');
+    console.error('[replace-day-with-prev] erro:', err);
+    showToast('Erro ao trazer dia', 'error');
   }
 }
 

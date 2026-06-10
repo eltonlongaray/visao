@@ -1143,29 +1143,58 @@ body.time-picker-open { overflow: hidden; }
   border-bottom: 1px solid var(--border);
 }
 
-/* Botão discreto "trazer dia anterior" — sempre visível no topo do card aberto */
-.pull-prev-day-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(167,139,250,0.08);
-  border: 1px dashed rgba(167,139,250,0.35);
+/* Ícone "trazer outro dia" — pequeno, entre pílula Acordei e Dormi */
+.pull-prev-day-icon {
+  width: 30px; height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(167,139,250,0.10);
+  border: 1px dashed rgba(167,139,250,0.4);
   color: var(--accent, #a78bfa);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 800;
+  display: grid; place-items: center;
   cursor: pointer;
-  margin: 0 0 10px;
+  font-family: inherit;
+  align-self: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.pull-prev-day-icon:hover {
+  background: rgba(167,139,250,0.20);
+  border-color: var(--accent, #a78bfa);
+  transform: scale(1.08);
+}
+.pull-prev-day-icon:active { transform: scale(0.94); }
+
+/* Modal de escolha de dia anterior */
+.pick-day-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+.pick-day-opt {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
   transition: background 0.15s, border-color 0.15s;
 }
-.pull-prev-day-btn:hover {
-  background: rgba(167,139,250,0.16);
+.pick-day-opt:hover {
+  background: rgba(167,139,250,0.08);
   border-color: var(--accent, #a78bfa);
 }
-.pull-prev-arrow { font-size: 14px; line-height: 1; }
-.pull-prev-text { letter-spacing: 0.2px; }
+.pick-day-arrow {
+  font-size: 18px;
+  color: var(--accent, #a78bfa);
+  font-weight: 800;
+  width: 24px;
+  text-align: center;
+}
+.pick-day-name { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.pick-day-name strong { font-size: 14px; font-weight: 700; text-transform: capitalize; }
+.pick-day-name small { font-size: 11.5px; color: var(--muted); }
+.pick-day-count { font-size: 11.5px; color: var(--muted); font-weight: 600; }
 
 .day-clear-wrap { margin-top: 12px; display: flex; justify-content: center; }
 .day-clear-btn {
