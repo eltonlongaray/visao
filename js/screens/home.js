@@ -121,15 +121,7 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
 
-  // Auto-start do tour pra usuários novos (primeira vez que abre).
-  // Persistido em localStorage via tour.markDone() — não fica voltando.
-  if (!tour.isCompleted() && !tour.isActive()) {
-    setTimeout(() => {
-      if (!tour.isActive() && !tour.isCompleted()) {
-        tour.start(ONBOARDING_STEPS);
-      }
-    }, 1000);
-  }
+  // Tour NÃO auto-inicia — só dispara via Ajustes → "Rever tutorial de boas-vindas"
 }
 
 // ═══════════════════════════════════════════════════════════════
