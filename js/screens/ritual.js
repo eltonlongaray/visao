@@ -2709,9 +2709,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
       // RECORRÊNCIA
       if (recur === 'daily') {
-        // Adiciona em TODOS os outros dias da semana atual com MESMO recurrenceGroupId.
-        // Copia o `order` da fonte → cópias mantém a mesma posição relativa no turno.
-        const otherDays = weekData.filter(d => d.id !== dayDocId);
+        // Adiciona nos outros dias da semana atual A PARTIR do dia atual (forward-only).
+        // Dias passados são histórico — não devem receber tarefa nova.
+        // Próximas semanas vêm do template (filled abaixo) — todos os 7 DOWs.
+        const otherDays = weekData.filter(d => d.id !== dayDocId && d.id > dayDocId);
         const results = await Promise.allSettled(otherDays.map(async (otherDay) => {
           // Anti-duplicata: só pula se já existe outra com mesmo groupId nesse dia
           const dup = otherDay.tasks.find(x => x.recurrenceGroupId === recurrenceGroupId);
@@ -2800,7 +2801,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           updateDayCardStats(other.id, false);
           if (other.tasks.some(t => t.recurrenceGroupId === recurrenceGroupId)) addedCount++;
         });
-        showToast(`Repete todos os dias (${addedCount} dia${addedCount === 1 ? '' : 's'} já criados nesta semana)`, 'success');
+        showToast(`Repete todos os dias daqui em diante (${addedCount} dia${addedCount === 1 ? '' : 's'} desta semana)`, 'success');
       }
     } catch (err) {
       console.error('[add-task] erro:', err);
@@ -3032,6 +3033,8 @@ function openTaskEditor(app, dayDocId, taskId) {
           Object.assign(existing, baseTask);
           return { day: otherDay.id, status: 'update' };
         } else {
+          // Só cria nova instância em dias FUTUROS (≥ hoje); passados são historico
+          if (otherDay.id < dayDocId) return { day: otherDay.id, status: 'skip-past' };
           const newId = await addDayTask(otherDay.id, baseTask);
           otherDay.tasks.push({ id: newId, ...baseTask });
           return { day: otherDay.id, status: 'add' };
