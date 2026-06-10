@@ -899,6 +899,99 @@ async function checkOverdueReminders(app) {
   }
 }
 
+// Date picker simples: calendário pra escolher uma data. Retorna Date ou null.
+// initialDate: ponto de partida (default hoje).
+function openDatePicker(initialDate = new Date(), options = {}) {
+  return new Promise((resolve) => {
+    const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+    let viewYear = initialDate.getFullYear();
+    let viewMonth = initialDate.getMonth();
+    let selectedId = dayId(initialDate);
+    const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal date-picker-modal">
+        ${options.title ? `<div class="modal-title">${escape(options.title)}</div>` : ''}
+        <div class="cal-header">
+          <button type="button" class="cal-nav" data-dp-nav="-1">‹</button>
+          <div class="cal-title" id="dp-title"></div>
+          <button type="button" class="cal-nav" data-dp-nav="1">›</button>
+        </div>
+        <div class="cal-grid-wrap">
+          <div class="cal-weekdays">
+            <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
+          </div>
+          <div class="cal-grid" id="dp-grid"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="dp-cancel">Cancelar</button>
+          <button class="btn-primary" id="dp-save">Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const titleEl = overlay.querySelector('#dp-title');
+    const gridEl = overlay.querySelector('#dp-grid');
+
+    let resolved = false;
+    const trapClose = trapModalBack(() => {
+      overlay.remove();
+      if (!resolved) { resolved = true; resolve(null); }
+    });
+    const finish = (val) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(val);
+      trapClose();
+    };
+
+    const renderGrid = () => {
+      titleEl.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+      const firstDay = new Date(viewYear, viewMonth, 1);
+      const lastDay = new Date(viewYear, viewMonth + 1, 0);
+      const startDow = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      const todayIdStr = dayId(todayDate);
+      let html = '';
+      for (let i = 0; i < startDow; i++) html += '<span class="cal-cell empty"></span>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dt = new Date(viewYear, viewMonth, d);
+        const idStr = dayId(dt);
+        const isToday = idStr === todayIdStr;
+        const isSelected = idStr === selectedId;
+        html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-dp-day="${idStr}">${d}</button>`;
+      }
+      gridEl.innerHTML = html;
+    };
+    renderGrid();
+
+    overlay.querySelectorAll('[data-dp-nav]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const delta = parseInt(btn.dataset.dpNav, 10);
+        viewMonth += delta;
+        if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+        else if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+        renderGrid();
+      });
+    });
+
+    gridEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-dp-day]');
+      if (!cell) return;
+      selectedId = cell.dataset.dpDay;
+      renderGrid();
+    });
+
+    overlay.querySelector('#dp-cancel').onclick = () => finish(null);
+    overlay.querySelector('#dp-save').onclick = () => {
+      const [y, m, d] = selectedId.split('-').map(n => parseInt(n, 10));
+      finish(new Date(y, m - 1, d));
+    };
+  });
+}
+
 async function showOverdueReminderModal(app, day, t) {
   overdueModalOpen = true;
   const dataFmt = `${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
@@ -953,15 +1046,62 @@ async function showOverdueReminderModal(app, day, t) {
 
   modal.querySelector('[data-overdue="reschedule"]').onclick = async () => {
     close();
-    const newTime = await openTimePicker(toHHMM(t.startTime) || '', { title: 'Novo horário pra essa tarefa' });
+    // 1) Escolhe DATA via calendário
+    const newDate = await openDatePicker(day.date, { title: 'Reagendar pra qual dia?' });
+    if (!newDate) return;
+    // 2) Escolhe HORA via relógio
+    const newTime = await openTimePicker(toHHMM(t.startTime) || '', { title: 'Reagendar pra qual horário?' });
     if (!newTime) return;
     try {
-      t.startTime = newTime;
-      await updateDayTask(day.id, t.id, { startTime: newTime });
+      const newDayId = dayId(newDate);
+      const newCount = (t.rescheduleCount || 0) + 1;
+      if (newDayId === day.id) {
+        // Mesmo dia → só atualiza hora
+        t.startTime = newTime;
+        t.rescheduleCount = newCount;
+        await updateDayTask(day.id, t.id, { startTime: newTime, rescheduleCount: newCount });
+      } else {
+        // Dia diferente → MOVE: apaga do dia antigo, cria no novo
+        await deleteDayTask(day.id, t.id);
+        day.tasks = day.tasks.filter(x => x.id !== t.id);
+        // Garante que o dia destino existe no Firestore (se virgem) — addDayTask cria sob demanda
+        const newTask = {
+          activityId: t.activityId || null,
+          title: t.title,
+          desc: t.desc || '',
+          kind: t.kind || 'task',
+          startTime: newTime,
+          shiftId: t.shiftId || null,
+          categoryId: t.categoryId || null,
+          icon: t.icon || '',
+          done: false,
+          cancelled: false,
+          order: 0,
+          reminderEnabled: t.reminderEnabled || false,
+          rescheduleCount: newCount,
+          ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {})
+        };
+        await addDayTask(newDayId, newTask);
+        // Se o dia destino estava em weekData, adiciona localmente também
+        const destInWeek = weekData.find(d => d.id === newDayId);
+        if (destInWeek) {
+          newTask.order = destInWeek.tasks.length;
+          destInWeek.tasks.push({ ...newTask });
+        }
+      }
       overdueShownThisSession.delete(t.id);
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${day.id}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-      showToast(`Reagendado pra ${newTime}`, 'success');
+      updateDayCardStats(day.id, false);
+      // Re-render do destino se na mesma semana
+      const destDay = weekData.find(d => d.id === newDayId);
+      if (destDay) {
+        const destEl = document.querySelector(`.day-card[data-day-id="${newDayId}"]`);
+        if (destEl) destEl.querySelector('.day-card-content').innerHTML = renderDayContent(destDay);
+        updateDayCardStats(newDayId, false);
+      }
+      const dateLabel = `${String(newDate.getDate()).padStart(2,'0')}/${String(newDate.getMonth()+1).padStart(2,'0')}`;
+      showToast(`Reagendado pra ${dateLabel} às ${newTime}`, 'success');
     } catch (err) {
       console.error('[overdue-resched] erro:', err);
       showToast('Erro ao reagendar', 'error');
@@ -1068,16 +1208,23 @@ function taskCard(t, dayDocId) {
   const taskIcon = t.icon || cat?.icon || '🏷️';
   const isCommitment = t.kind === 'commitment';
   // Compromissos usam check ✓ (vazio → verde); tarefas usam thumb 👎/👍
-  const checkContent = isCommitment
-    ? (t.done ? '✓' : '')
-    : (t.done ? '👍' : '👎');
+  // Conteudo do check: 🚫 se cancelado, ✓/vazio pra compromisso, 👍/👎 pra tarefa
+  let checkContent;
+  if (t.cancelled) checkContent = '🚫';
+  else if (isCommitment) checkContent = t.done ? '✓' : '';
+  else checkContent = t.done ? '👍' : '👎';
+
+  const rescheduleBadge = (t.rescheduleCount > 0)
+    ? `<span class="task-reschedule-badge" title="Reagendado ${t.rescheduleCount}x">↻${t.rescheduleCount}</span>`
+    : '';
+
   return `
     <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''} ${isCommitment ? 'is-commitment' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
-      <button class="task-thumb ${t.done ? 'done' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${checkContent}</button>
+      <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? 'Cancelada' : (t.done ? 'Feito!' : 'Marcar como feito')}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
-          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}
+          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${rescheduleBadge}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}

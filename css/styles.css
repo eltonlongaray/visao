@@ -705,6 +705,29 @@ html, body {
   filter: saturate(1.2);
 }
 
+/* Tarefa cancelada: thumb fica cinza com 🚫 */
+.task-thumb.is-cancelled {
+  background: rgba(148,163,184,0.20) !important;
+  border-color: rgba(148,163,184,0.5) !important;
+  color: var(--muted);
+  filter: grayscale(0.5);
+}
+
+/* Badge de reagendamento: pequena pílula no título indicando quantas vezes */
+.task-reschedule-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #f59e0b;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.35);
+  padding: 1px 6px;
+  border-radius: 999px;
+  vertical-align: middle;
+  letter-spacing: 0.3px;
+}
+
 /* Variante "check" pra compromissos: vazio com borda → verde solido com ✓ ao marcar */
 .task-thumb.task-check {
   background: transparent;
@@ -2395,6 +2418,13 @@ body.time-picker-open { overflow: hidden; }
   font-weight: 800;
   box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
 }
+/* Date picker: dia selecionado tem ring distinto (se for hoje, ganha o ring por cima) */
+.cal-cell.selected {
+  outline: 3px solid var(--accent, #a78bfa);
+  outline-offset: -1px;
+  font-weight: 800;
+}
+.date-picker-modal { max-width: 400px; }
 /* Pin nos dias que têm lembrete ativo no template */
 .cal-cell { position: relative; }
 .cal-pin {
