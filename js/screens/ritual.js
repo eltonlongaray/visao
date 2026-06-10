@@ -2017,8 +2017,9 @@ function attachHandlers(app) {
             const endScan = new Date(endOfCurrentWeek);
             endScan.setDate(endOfCurrentWeek.getDate() + 365);
             const futureDays = await fetchDaysRange(startScan, endScan);
+            // Match LAX aqui também (mesma lógica do passo 2)
             await Promise.all(futureDays.map(async (fd) => {
-              const matches = (fd.tasks || []).filter(x => sameTaskIdentity(x, t));
+              const matches = (fd.tasks || []).filter(x => matchesT(x));
               for (const m of matches) {
                 try { await deleteDayTask(fd.id, m.id); futureFirestoreCount++; } catch {}
               }

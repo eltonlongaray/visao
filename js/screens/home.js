@@ -186,9 +186,13 @@ async function loadAndRenderReminders() {
 
 function collectReminders(days) {
   const out = [];
+  // Hoje em formato YYYY-MM-DD (string-compare funciona como data)
+  const todayStr = new Date().toISOString().slice(0, 10);
   for (const d of days) {
+    if (d.id < todayStr) continue; // pula dias passados — lembrete de ontem nao serve mais
     const date = new Date(d.id + 'T00:00:00');
     for (const t of (d.tasks || [])) {
+      if (t.cancelled) continue; // canceladas tambem nao aparecem
       if (t.reminderEnabled && !t.done) out.push({ ...t, dayId: d.id, date });
     }
   }
