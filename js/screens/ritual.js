@@ -1400,9 +1400,17 @@ function openTaskMenu(triggerEl) {
   const taskEl = triggerEl.closest('[data-task-id]');
   if (!taskEl) return;
 
+  // Detecta se a tarefa está cancelada (menu reduzido: só Restaurar + Excluir)
+  const day = weekData.find(d => d.id === taskEl.dataset.day);
+  const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+  const isCancelled = !!t?.cancelled;
+
   const menu = document.createElement('div');
   menu.className = 'task-menu-pop';
-  menu.innerHTML = `
+  menu.innerHTML = isCancelled ? `
+    <button class="task-menu-item" data-menu-action="restore">↩️ Restaurar</button>
+    <button class="task-menu-item danger" data-menu-action="del">🗑️ Excluir</button>
+  ` : `
     <button class="task-menu-item" data-menu-action="edit">✏️ Editar</button>
     <button class="task-menu-item" data-menu-action="dup">📑 Duplicar</button>
     <button class="task-menu-item danger" data-menu-action="del">🗑️ Excluir</button>
@@ -1633,23 +1641,8 @@ function attachHandlers(app) {
       const day = weekData.find(d => d.id === taskEl.dataset.day);
       const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
       if (!t) return;
-      // Cancelada: NÃO toca som, oferece reativar
-      if (t.cancelled) {
-        const reactivate = await confirmModal({
-          title: 'Atividade cancelada',
-          message: 'Quer reativar essa atividade?',
-          confirmText: 'Reativar',
-          cancelText: 'Não'
-        });
-        if (reactivate) {
-          t.cancelled = false;
-          await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { cancelled: false });
-          syncTaskInDom(t);
-          updateDayCardStats(taskEl.dataset.day, false);
-          showToast('Atividade reativada', 'success');
-        }
-        return;
-      }
+      // Cancelada: clicar no 🚫 é no-op (sem som). Pra restaurar, usa o menu ⋮ → Restaurar
+      if (t.cancelled) return;
       const wasDone = t.done;
       t.done = !t.done;
       const isCommitment = t.kind === 'commitment';
@@ -1721,6 +1714,28 @@ function attachHandlers(app) {
     if (editBtn) {
       const taskEl = editBtn.closest('[data-task-id]');
       openTaskEditor(app, taskEl.dataset.day, taskEl.dataset.taskId);
+      return;
+    }
+
+    // Restaurar tarefa cancelada (some o 🚫 + abre edição)
+    const restoreBtn = e.target.closest('[data-action="restore"]');
+    if (restoreBtn) {
+      const taskEl = restoreBtn.closest('[data-task-id]');
+      const day = weekData.find(d => d.id === taskEl.dataset.day);
+      const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+      if (!t) return;
+      try {
+        t.cancelled = false;
+        await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { cancelled: false });
+        syncTaskInDom(t);
+        updateDayCardStats(taskEl.dataset.day, false);
+        showToast('Atividade restaurada', 'success');
+        // Abre o editor pra usuário ajustar o que precisar
+        openTaskEditor(app, taskEl.dataset.day, taskEl.dataset.taskId);
+      } catch (err) {
+        console.error('[restore] erro:', err);
+        showToast('Erro ao restaurar', 'error');
+      }
       return;
     }
 
