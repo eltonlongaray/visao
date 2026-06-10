@@ -60,12 +60,26 @@ export function confirmModal({ title, message, confirmText = 'Confirmar', cancel
       </div>
     `;
     document.body.appendChild(modal);
-    const close = (result) => { modal.remove(); resolve(result); };
+
+    // Back button do celular = cancelar (não navega pra fora da aba atual)
+    let popped = false, cameFromPop = false;
+    const onPop = () => { cameFromPop = true; close(false); };
+    window.addEventListener('popstate', onPop);
+    history.pushState({ confirmModal: true }, '');
+
+    const close = (result) => {
+      if (popped) return;
+      popped = true;
+      window.removeEventListener('popstate', onPop);
+      document.removeEventListener('keydown', esc);
+      modal.remove();
+      if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+      resolve(result);
+    };
     modal.querySelector('[data-act="cancel"]').onclick = () => close(false);
     modal.querySelector('[data-act="confirm"]').onclick = () => close(true);
     modal.addEventListener('click', e => { if (e.target === modal) close(false); });
-    // Esc também cancela
-    const esc = (ev) => { if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(false); } };
+    const esc = (ev) => { if (ev.key === 'Escape') close(false); };
     document.addEventListener('keydown', esc);
   });
 }

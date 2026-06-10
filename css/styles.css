@@ -1066,6 +1066,30 @@ body.time-picker-open { overflow: hidden; }
 .day-note-wrap { margin-top: 14px; }
 
 /* Botão discreto pra limpar dados do dia */
+/* Botão discreto "trazer dia anterior" — sempre visível no topo do card aberto */
+.pull-prev-day-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(167,139,250,0.08);
+  border: 1px dashed rgba(167,139,250,0.35);
+  color: var(--accent, #a78bfa);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  margin: 0 0 10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pull-prev-day-btn:hover {
+  background: rgba(167,139,250,0.16);
+  border-color: var(--accent, #a78bfa);
+}
+.pull-prev-arrow { font-size: 14px; line-height: 1; }
+.pull-prev-text { letter-spacing: 0.2px; }
+
 .day-clear-wrap { margin-top: 12px; display: flex; justify-content: center; }
 .day-clear-btn {
   background: transparent;

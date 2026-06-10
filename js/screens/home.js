@@ -19,6 +19,7 @@ import * as tour from '../tour.js';
 import { ONBOARDING_STEPS } from '../tour-config.js';
 import { openTimePicker } from '../time-picker.js';
 import { openMorningMessages, hasUnreadToday } from '../morning-messages.js';
+import { trapModalBack } from '../modal-back.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -237,8 +238,9 @@ function openRemindersModal() {
     </div>
   `;
   document.body.appendChild(modal);
-  modal.querySelector('#m-close').onclick = () => modal.remove();
-  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  const close = trapModalBack(() => modal.remove());
+  modal.querySelector('#m-close').onclick = close;
+  modal.onclick = e => { if (e.target === modal) close(); };
 }
 
 function toHHMM(timeStr) {
@@ -451,8 +453,9 @@ function openCategoryEditor(id) {
     modal.querySelectorAll('[data-color]').forEach(x => x.classList.remove('sel'));
     b.classList.add('sel'); pickedColor = b.dataset.color;
   });
-  modal.querySelector('#m-cancel').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  const close = trapModalBack(() => modal.remove());
+  modal.querySelector('#m-cancel').onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
   modal.querySelector('#m-save').onclick = async () => {
     const name = modal.querySelector('#m-name').value.trim();
     if (!name) { showToast('Dê um nome pra atividade.', 'info'); return; }
@@ -465,7 +468,7 @@ function openCategoryEditor(id) {
       await saveCategory(id, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: c.daysOfWeek || ALL_DAYS });
       categories = await getCategories();
       renderCats();
-      modal.remove();
+      close();
       showToast(isNew ? 'Atividade criada' : 'Atividade atualizada', 'success');
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   };

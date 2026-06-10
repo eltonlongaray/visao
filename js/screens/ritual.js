@@ -12,6 +12,7 @@ import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, showLocalToast, confirmModal } from '../toast.js';
 import { playDone, playUndone, playDelete } from '../sounds.js';
 import { openTimePicker } from '../time-picker.js';
+import { trapModalBack } from '../modal-back.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -480,6 +481,12 @@ function statsHtml(total, done, pct) {
 
 function renderDayContent(d) {
   const hydPct = Math.min(100, Math.round((d.meta.hydrationMl / d.meta.hydrationGoal) * 100 || 0));
+  const pullPrevBtn = `
+    <button class="pull-prev-day-btn" data-action="pull-prev-day" data-day="${d.id}" title="Trazer dados do dia anterior (substitui)">
+      <span class="pull-prev-arrow">↓</span>
+      <span class="pull-prev-text">Trazer dia anterior</span>
+    </button>
+  `;
   const wakeReal = toHHMM(d.meta.wakeTime);
   const sleepReal = toHHMM(d.meta.sleepTime);
   // Vazio mostra '--:--' explicito; o default do perfil é usado só pra abrir o picker
@@ -488,6 +495,7 @@ function renderDayContent(d) {
   const wakeIsEmpty = !wakeReal;
   const sleepIsEmpty = !sleepReal;
   return `
+    ${pullPrevBtn}
     <div class="time-pills">
       <label class="time-pill">
         <span class="time-pill-label">🌅 Acordei</span>
@@ -676,6 +684,80 @@ async function copyDayTasksTo(fromId, toId) {
   return sorted.length;
 }
 
+// Traz dados do DIA ANTERIOR pro dia atual, substituindo o conteudo.
+// Funciona mesmo se o dia anterior está na semana passada (busca no Firestore).
+async function pullPrevDay(app, dayDocId) {
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+
+  // Calcula id do dia anterior (D - 1)
+  const [y, m, dd] = dayDocId.split('-').map(n => parseInt(n, 10));
+  const prevDate = new Date(y, m - 1, dd);
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prevId = dayId(prevDate);
+
+  // Confirma com o usuário
+  const ok = await confirmModal({
+    title: 'Trazer dia anterior?',
+    message: `Vai substituir as tarefas atuais pelas do dia anterior (${prevId}). As tarefas atuais serão apagadas. Pode dar boa?`,
+    confirmText: 'Trazer',
+    cancelText: 'Cancelar',
+    danger: true
+  });
+  if (!ok) return;
+
+  try {
+    // Busca dia anterior — pode estar em weekData ou no Firestore
+    let prevTasks;
+    const prevInWeek = weekData.find(d => d.id === prevId);
+    if (prevInWeek) {
+      prevTasks = prevInWeek.tasks;
+    } else {
+      prevTasks = await getDayTasks(prevId);
+    }
+    if (!prevTasks || prevTasks.length === 0) {
+      showToast('Dia anterior está vazio — nada pra trazer', 'info');
+      return;
+    }
+
+    // Apaga tarefas atuais
+    await Promise.all(day.tasks.map(t => deleteDayTask(dayDocId, t.id).catch(() => {})));
+    day.tasks = [];
+
+    // Copia tarefas do dia anterior (reset done + ordem preservada)
+    const sorted = prevTasks.slice().sort(taskSort);
+    let order = 0;
+    for (const t of sorted) {
+      const newTask = {
+        activityId: t.activityId || null,
+        title: t.title,
+        desc: t.desc || '',
+        startTime: t.startTime || '',
+        shiftId: t.shiftId || (shifts[0]?.id || null),
+        categoryId: t.categoryId || null,
+        icon: t.icon || '',
+        done: false,
+        order: order++,
+        reminderEnabled: t.reminderEnabled || false,
+        ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {})
+      };
+      const tid = await addDayTask(dayDocId, newTask);
+      day.tasks.push({ id: tid, ...newTask });
+    }
+    await setDayMeta(dayDocId, { generated: true });
+    day.meta.generated = true;
+
+    // Re-render do card
+    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+    if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+    updateDayCardStats(dayDocId, false);
+    showToast(`Trazidas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} do dia anterior`, 'success');
+  } catch (err) {
+    console.error('[pull-prev-day] erro:', err);
+    showToast('Erro ao trazer dia anterior', 'error');
+  }
+}
+
 
 // Modal de escolha pra exclusão de tarefa recorrente
 // Retorna 'one' | 'all' | null (cancelado)
@@ -707,7 +789,17 @@ function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
       </div>
     `;
     document.body.appendChild(modal);
-    const close = (v) => { modal.remove(); resolve(v); };
+    let resolved = false;
+    const finishClose = trapModalBack(() => {
+      modal.remove();
+      if (!resolved) { resolved = true; resolve(null); }
+    });
+    const close = (v) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(v);
+      finishClose();
+    };
     modal.onclick = (e) => { if (e.target === modal) close(null); };
     modal.querySelector('#del-cancel').onclick = () => close(null);
     modal.querySelectorAll('.del-scope-btn').forEach(b =>
@@ -903,7 +995,7 @@ function openRitualCalendar(app) {
   renderGrid();
   loadRemindersFor(viewYear, viewMonth).then(renderGrid);
 
-  const close = () => modal.remove();
+  const close = trapModalBack(() => modal.remove());
   modal.onclick = (e) => { if (e.target === modal) close(); };
   modal.querySelector('#cal-back').onclick = close;
   modal.querySelectorAll('[data-cal-nav]').forEach(btn => {
@@ -1027,6 +1119,13 @@ function attachHandlers(app) {
     const menuBtn = e.target.closest('[data-action="menu"]');
     if (menuBtn) {
       openTaskMenu(menuBtn);
+      return;
+    }
+
+    // Trazer dados do dia anterior (substitui o atual)
+    const pullBtn = e.target.closest('[data-action="pull-prev-day"]');
+    if (pullBtn) {
+      pullPrevDay(app, pullBtn.dataset.day);
       return;
     }
 
@@ -1943,8 +2042,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
     }
   });
 
-  modal.querySelector('#m-cancel').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  const close = trapModalBack(() => modal.remove());
+  modal.querySelector('#m-cancel').onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
 
   // Wire dos chips de recorrência (seleção exclusiva)
   modal.querySelectorAll('.recur-chip').forEach(chip => {
@@ -2017,14 +2117,14 @@ function openActivityPicker(app, dayDocId, shiftId) {
         })()));
       } else if (recur === 'today') {
         // Somente hoje — sem sync de template
-        modal.remove();
+        close();
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false); // false = NÃO sincroniza template
         return;
       }
       // 'weekly' (default) — sync padrão pro DOW de hoje
-      modal.remove();
+      close();
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
       updateDayCardStats(dayDocId); // default true = sync template do DOW atual
@@ -2053,6 +2153,27 @@ function openTaskEditor(app, dayDocId, taskId) {
   const t = day?.tasks.find(x => x.id === taskId);
   if (!t) return;
   const shiftOpts = shifts.map(s => `<option value="${s.id}" ${t.shiftId === s.id ? 'selected' : ''}>${escape(s.icon || '')} ${escape(s.name)}</option>`).join('');
+
+  // Detecta recorrência atual pelo template do DOW (pra pre-selecionar o chip certo)
+  // 'daily' = grupo aparece em TODOS os 7 DOWs
+  // 'weekly' = grupo aparece SÓ no DOW desse dia
+  // 'today' = sem grupo OU grupo não aparece em nenhum template
+  let currentRecur = 'today';
+  if (t.recurrenceGroupId) {
+    const tpls = profile?.weekdayTemplates || {};
+    const dowsWithGroup = [];
+    for (let dow = 0; dow < 7; dow++) {
+      const arr = tpls[String(dow)];
+      if (Array.isArray(arr) && arr.some(x => x.recurrenceGroupId === t.recurrenceGroupId)) {
+        dowsWithGroup.push(dow);
+      }
+    }
+    if (dowsWithGroup.length >= 7) currentRecur = 'daily';
+    else if (dowsWithGroup.length === 1 && dowsWithGroup[0] === day.date.getDay()) currentRecur = 'weekly';
+    else if (dowsWithGroup.length > 0) currentRecur = 'weekly'; // qualquer subset não-vazio, trata como weekly
+  }
+  const isActive = (mode) => currentRecur === mode ? 'active' : '';
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
@@ -2087,11 +2208,11 @@ function openTaskEditor(app, dayDocId, taskId) {
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">Aplicar mudança a</div>
+      <div class="input-field-label" style="margin-top:8px">Repetir</div>
       <div class="recur-chips" id="recur-chips">
-        <button type="button" class="recur-chip active" data-recur="today">📌 Somente este dia</button>
-        <button type="button" class="recur-chip" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
-        <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias da semana</button>
+        <button type="button" class="recur-chip ${isActive('today')}" data-recur="today">📌 Somente este dia</button>
+        <button type="button" class="recur-chip ${isActive('weekly')}" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
+        <button type="button" class="recur-chip ${isActive('daily')}" data-recur="daily">📅 Todos os dias da semana</button>
       </div>
 
       <div class="modal-actions">
@@ -2101,8 +2222,9 @@ function openTaskEditor(app, dayDocId, taskId) {
     </div>
   `;
   document.body.appendChild(modal);
-  modal.querySelector('#m-cancel').onclick = () => modal.remove();
-  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  const close = trapModalBack(() => modal.remove());
+  modal.querySelector('#m-cancel').onclick = close;
+  modal.onclick = e => { if (e.target === modal) close(); };
 
   // Wire chips de recorrência (seleção exclusiva)
   modal.querySelectorAll('.recur-chip').forEach(chip => {
@@ -2206,7 +2328,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       // syncTemplateForDay vai rodar via updateDayCardStats(default true)
     }
 
-    modal.remove();
+    close();
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) {
       dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
