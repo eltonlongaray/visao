@@ -2702,9 +2702,37 @@ function openTaskEditor(app, dayDocId, taskId) {
       console.log(`[edit-recur-daily] ok=${okCount} fail=${failCount}`);
     }
     // Sync template do DOW pra 'weekly' (e 'daily', que sobrescreve abaixo)
-    // 'today' não sincroniza nada
+    // 'today' e 'monthly' não sincronizam template do DOW
     if (recur === 'weekly' || recur === 'daily') {
-      // syncTemplateForDay vai rodar via updateDayCardStats(default true)
+      // syncTemplateForDay vai rodar via updateDayCardStats(true)
+    }
+
+    // RECORRÊNCIA MENSAL (só compromissos): adiciona no profile.monthlyCommitments
+    if (recur === 'monthly') {
+      const groupId = t.recurrenceGroupId || genRecurId();
+      if (!t.recurrenceGroupId) {
+        t.recurrenceGroupId = groupId;
+        await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
+      }
+      const dom = day.date.getDate();
+      const monthlyTask = {
+        activityId: t.activityId || null,
+        title: data.title, desc: data.desc,
+        kind: 'commitment',
+        startTime: data.startTime,
+        shiftId: data.shiftId,
+        categoryId: t.categoryId || null,
+        icon: data.icon || '',
+        reminderEnabled: data.reminderEnabled,
+        dayOfMonth: dom,
+        recurrenceGroupId: groupId
+      };
+      const list = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+      const idx = list.findIndex(x => x.recurrenceGroupId === groupId);
+      if (idx >= 0) list[idx] = monthlyTask;
+      else list.push(monthlyTask);
+      await setProfile({ monthlyCommitments: list });
+      profile.monthlyCommitments = list;
     }
 
     close();
@@ -2723,9 +2751,11 @@ function openTaskEditor(app, dayDocId, taskId) {
         if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
         updateDayCardStats(otherDay.id, true);
       }
-      showToast('Aplicado em todos os dias da semana', 'success');
+      showToast('Repete todos os dias da semana', 'success');
     } else if (recur === 'weekly') {
-      showToast('Aplicado nesta semana', 'success');
+      showToast(`Repete ${recurWeeklyLabel(day.date.getDay()).toLowerCase()}`, 'success');
+    } else if (recur === 'monthly') {
+      showToast(`Repete todo dia ${day.date.getDate()}`, 'success');
     }
   };
 }
