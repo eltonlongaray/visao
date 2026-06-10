@@ -708,6 +708,15 @@ html, body {
   z-index: 4;
   pointer-events: none;
 }
+/* Tarefa concluida ou cancelada nao mostra mais a bolinha */
+.task.done.has-reminder::before,
+.task.cancelled.has-reminder::before { display: none; }
+
+/* Tarefa cancelada — visual distinto (tachado + cinza) */
+.task.cancelled .task-title,
+.task.cancelled .task-sub { text-decoration: line-through; color: var(--muted); }
+.task.cancelled { opacity: 0.62; }
+.task.cancelled .task-check { background: rgba(148,163,184,0.18); color: var(--muted); }
 
 /* Bloqueia seleção de texto + callout do iOS no card inteiro
    (impede que long-press dispare "Copiar/Selecionar" ao invés do drag) */
@@ -1066,6 +1075,55 @@ body.time-picker-open { overflow: hidden; }
 .day-note-wrap { margin-top: 14px; }
 
 /* Botão discreto pra limpar dados do dia */
+/* Chips de tipo (Tarefa / Compromisso) no modal de adicionar */
+.kind-chips {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.kind-chip {
+  flex: 1;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.kind-chip:hover { border-color: var(--accent, #a78bfa); }
+.kind-chip.active {
+  background: linear-gradient(135deg, rgba(167,139,250,0.22), rgba(96,165,250,0.16));
+  border-color: var(--accent, #a78bfa);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(167,139,250,0.18);
+}
+
+/* Card "Compromissos" — estilo distinto (azul/roxo) */
+.day-card.commitments-card {
+  border-color: rgba(96,165,250,0.4);
+  background: linear-gradient(135deg, rgba(96,165,250,0.06), rgba(167,139,250,0.05));
+}
+.day-card.commitments-card.open {
+  border-color: rgba(96,165,250,0.7) !important;
+  box-shadow: 0 4px 24px rgba(96,165,250,0.15);
+}
+.commitments-day-group { margin-bottom: 14px; }
+.commitments-day-group:last-child { margin-bottom: 0; }
+.commitments-day-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-2, #60a5fa);
+  margin: 6px 14px 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Botão discreto "trazer dia anterior" — sempre visível no topo do card aberto */
 .pull-prev-day-btn {
   display: inline-flex;

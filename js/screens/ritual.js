@@ -4,7 +4,7 @@
 import {
   getShifts, getCategories, getActivities,
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, dayId,
-  getProfile, parseTime,
+  getProfile, setProfile, parseTime,
   getWeekdayTemplate, setWeekdayTemplate,
   saveCategory, fetchDaysRange
 } from '../store.js';
@@ -68,6 +68,9 @@ const expanded = new Set();                 // ids dos dias abertos
 const saveTimers = {};                      // debounce de save por dayId+field
 let handlersAttached = false;               // FIX: evita listeners duplicados ao re-renderizar
 const prevNoteCache = new Map();             // cache: dayId -> hasNote (evita refetch a cada check)
+const overdueShownThisSession = new Set();   // task ids ja mostrados como vencidos na sessao atual
+let overdueCheckerTimer = null;
+let overdueModalOpen = false;
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -257,6 +260,20 @@ async function autoGenerateMissingTasks() {
         await addTemplateTasksToDay(day, missing, day.tasks.length);
       }
     }
+
+    // ────── 3) Compromissos mensais: dia do mês bate com dayOfMonth do template ──────
+    const monthly = profile?.monthlyCommitments;
+    if (Array.isArray(monthly) && monthly.length > 0 && day.id >= todayId) {
+      const dom = day.date.getDate();
+      const matching = monthly.filter(m => m.dayOfMonth === dom);
+      if (matching.length > 0) {
+        const existing = new Set(day.tasks.map(t => keyOf(t)));
+        const toAdd = matching.filter(m => !existing.has(keyOf(m)));
+        if (toAdd.length > 0) {
+          await addTemplateTasksToDay(day, toAdd, day.tasks.length);
+        }
+      }
+    }
   }
 }
 
@@ -271,6 +288,7 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
       activityId: tmpl.activityId || null,
       title: tmpl.title || 'Sem título',
       desc: tmpl.desc || '',
+      kind: tmpl.kind || 'task',
       startTime: tmpl.startTime || '',
       shiftId: tmpl.shiftId || shifts[0]?.id || null,
       categoryId: tmpl.categoryId || null,
@@ -396,12 +414,14 @@ function renderUI(app) {
 
       <div class="days-list">
         ${weekData.map(d => dayCard(d)).join('')}
+        ${commitmentsCard()}
       </div>
     </div>
     ${bottomNav('ritual')}
   `;
   attachHandlers(app);
   initTaskSortables();  // habilita drag-drop em cada task-list
+  startOverdueChecker(app); // varre lembretes vencidos a cada 30s
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -477,6 +497,70 @@ function dayCard(d) {
 function statsHtml(total, done, pct) {
   if (!total) return '<small class="day-empty-tag">vazio</small>';
   return `<span class="pct ${pctClass(pct)}">${pct}%</span><small>${done}/${total}</small>`;
+}
+
+// Coleta TODOS os compromissos (kind=='commitment') da semana ordenados por (dia, hora)
+function getWeekCommitments() {
+  const list = [];
+  for (const day of weekData) {
+    for (const t of day.tasks) {
+      if (t.kind === 'commitment') list.push({ day, task: t });
+    }
+  }
+  list.sort((a, b) => {
+    if (a.day.id !== b.day.id) return a.day.id < b.day.id ? -1 : 1;
+    const at = parseTime(a.task.startTime) ?? 1e9;
+    const bt = parseTime(b.task.startTime) ?? 1e9;
+    return at - bt;
+  });
+  return list;
+}
+
+function commitmentsCard() {
+  const items = getWeekCommitments();
+  const isExpanded = expanded.has('commitments');
+  const total = items.length;
+  const done = items.filter(x => x.task.done).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  return `
+    <div class="day-card commitments-card ${isExpanded ? 'open' : ''}" data-day-id="commitments">
+      <button class="day-card-header" data-toggle-day="commitments">
+        <div class="day-card-name">
+          <span class="dow">📅 Compromissos</span>
+          <span class="dnum">da semana</span>
+        </div>
+        <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
+        <span class="day-card-chevron">▾</span>
+      </button>
+      <div class="day-card-content">${renderCommitmentsContent(items)}</div>
+    </div>
+  `;
+}
+
+function renderCommitmentsContent(items) {
+  if (items.length === 0) {
+    return `
+      <div style="padding:22px 14px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5">
+        Sem compromissos nesta semana.<br>
+        <small>Crie um pelo + de qualquer dia escolhendo "📅 Compromisso".</small>
+      </div>
+    `;
+  }
+  const byDay = {};
+  for (const it of items) {
+    if (!byDay[it.day.id]) byDay[it.day.id] = { day: it.day, list: [] };
+    byDay[it.day.id].list.push(it.task);
+  }
+  return Object.values(byDay).map(({ day, list }) => `
+    <div class="commitments-day-group">
+      <div class="commitments-day-label">
+        ${WEEKDAYS_FULL[day.date.getDay()]} · ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}
+      </div>
+      <div class="task-list">
+        ${list.sort(taskSort).map(t => taskCard(t, day.id)).join('')}
+      </div>
+    </div>
+  `).join('');
 }
 
 function renderDayContent(d) {
@@ -759,6 +843,149 @@ async function pullPrevDay(app, dayDocId) {
 }
 
 
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6.7: LEMBRETES VENCIDOS — Checker + Modal de ação
+//
+// A cada 30s, varre as tarefas da semana atual procurando:
+//   reminderEnabled === true
+//   && !done
+//   && !cancelled
+//   && (data+hora do startTime já passou)
+//   && não foi mostrada nessa sessão
+// Pra cada uma, abre um modal com 3 opções:
+//   1. Marcar como feito → done = true
+//   2. Reagendar → abre time picker pra novo horário
+//   3. Cancelar atividade → cancelled = true
+// ═══════════════════════════════════════════════════════════════
+function startOverdueChecker(app) {
+  if (overdueCheckerTimer) clearInterval(overdueCheckerTimer);
+  const tick = () => checkOverdueReminders(app);
+  // Roda agora + a cada 30s
+  setTimeout(tick, 800);
+  overdueCheckerTimer = setInterval(tick, 30000);
+}
+
+function stopOverdueChecker() {
+  if (overdueCheckerTimer) {
+    clearInterval(overdueCheckerTimer);
+    overdueCheckerTimer = null;
+  }
+}
+
+async function checkOverdueReminders(app) {
+  if (overdueModalOpen) return;
+  // So roda se o usuario tá no Ritual (nao poluir outras telas)
+  if (!location.hash.startsWith('#/ritual')) return;
+  const now = Date.now();
+  // Acha o primeiro lembrete vencido ainda não tratado
+  for (const day of weekData) {
+    for (const t of day.tasks) {
+      if (!t.reminderEnabled) continue;
+      if (t.done || t.cancelled) continue;
+      if (!t.startTime) continue;
+      if (overdueShownThisSession.has(t.id)) continue;
+      // Constrói timestamp da tarefa
+      const [y, m, dd] = day.id.split('-').map(n => parseInt(n, 10));
+      const startMin = parseTime(t.startTime);
+      if (startMin === null) continue;
+      const taskDt = new Date(y, m - 1, dd, Math.floor(startMin/60), startMin % 60);
+      if (taskDt.getTime() <= now) {
+        // É vencida! Mostra modal e marca como vista nessa sessão.
+        overdueShownThisSession.add(t.id);
+        await showOverdueReminderModal(app, day, t);
+        return; // só uma por vez — próxima fica pro próximo tick
+      }
+    }
+  }
+}
+
+async function showOverdueReminderModal(app, day, t) {
+  overdueModalOpen = true;
+  const dataFmt = `${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
+  const horaFmt = toHHMM(t.startTime) || '—';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:400px">
+      <div class="modal-title">⏰ Lembrete vencido</div>
+      <div class="modal-hint" style="text-align:center; line-height:1.55; padding: 6px 0">
+        <strong>${escape(t.title)}</strong><br>
+        agendada pra <strong>${dataFmt} às ${horaFmt}</strong> ainda não foi tratada.<br>
+        <small style="color:var(--muted)">O que aconteceu?</small>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px">
+        <button class="btn-primary" data-overdue="done">✅ Marcar como feito</button>
+        <button class="btn-secondary" data-overdue="reschedule">🕐 Reagendar</button>
+        <button class="btn-secondary" data-overdue="cancel">🚫 Atividade cancelada</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // close() limpa modal + history state. Usado tanto pelo back quanto pelas ações.
+  const close = trapModalBack(() => {
+    modal.remove();
+    overdueModalOpen = false;
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+
+  modal.querySelector('[data-overdue="done"]').onclick = async () => {
+    try {
+      t.done = true;
+      await updateDayTask(day.id, t.id, { done: true });
+      playDone();
+      updateDayCardStats(day.id, false);
+      const taskEl = document.querySelector(`.task[data-task-id="${t.id}"]`);
+      if (taskEl) {
+        taskEl.classList.add('done');
+        const check = taskEl.querySelector('[data-action="check"]');
+        if (check) { check.classList.add('done'); check.textContent = '👍'; }
+      }
+      overdueShownThisSession.delete(t.id);
+      close();
+      showToast('Marcado como feito ✓', 'success');
+    } catch (err) {
+      console.error('[overdue-done] erro:', err);
+      showToast('Erro ao marcar feito', 'error');
+    }
+  };
+
+  modal.querySelector('[data-overdue="reschedule"]').onclick = async () => {
+    close();
+    const newTime = await openTimePicker(toHHMM(t.startTime) || '', { title: 'Novo horário pra essa tarefa' });
+    if (!newTime) return;
+    try {
+      t.startTime = newTime;
+      await updateDayTask(day.id, t.id, { startTime: newTime });
+      overdueShownThisSession.delete(t.id);
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${day.id}"]`);
+      if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      showToast(`Reagendado pra ${newTime}`, 'success');
+    } catch (err) {
+      console.error('[overdue-resched] erro:', err);
+      showToast('Erro ao reagendar', 'error');
+    }
+  };
+
+  modal.querySelector('[data-overdue="cancel"]').onclick = async () => {
+    try {
+      t.cancelled = true;
+      await updateDayTask(day.id, t.id, { cancelled: true });
+      playUndone();
+      updateDayCardStats(day.id, false);
+      const taskEl = document.querySelector(`.task[data-task-id="${t.id}"]`);
+      if (taskEl) taskEl.classList.add('cancelled');
+      close();
+      showToast('Atividade marcada como cancelada', 'info');
+    } catch (err) {
+      console.error('[overdue-cancel] erro:', err);
+      showToast('Erro ao cancelar', 'error');
+    }
+  };
+}
+
+
 // Modal de escolha pra exclusão de tarefa recorrente
 // Retorna 'one' | 'all' | null (cancelado)
 function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
@@ -840,7 +1067,7 @@ function taskCard(t, dayDocId) {
   // Ícone próprio sobrescreve, senão usa o da categoria (fallback)
   const taskIcon = t.icon || cat?.icon || '🏷️';
   return `
-    <div class="task ${t.done ? 'done' : ''} ${t.reminderEnabled ? 'has-reminder' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
+    <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
       <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>
       <div class="task-body">
@@ -1983,8 +2210,14 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">Adicionar tarefa</div>
+      <div class="modal-title">Adicionar</div>
       <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(WEEKDAYS_FULL[day.date.getDay()])} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(MONTHS[day.date.getMonth()])}.</div>
+
+      <div class="input-field-label">Tipo</div>
+      <div class="kind-chips" id="kind-chips">
+        <button type="button" class="kind-chip active" data-kind="task">📋 Tarefa</button>
+        <button type="button" class="kind-chip" data-kind="commitment">📅 Compromisso</button>
+      </div>
 
       <label class="input-field"><div class="input-field-label">Atividade</div>
         <select id="m-cat">
@@ -1995,7 +2228,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <label class="input-field"><div class="input-field-label">O que fazer</div>
         <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
 
-      <div class="input-field-label">Horário (opcional)</div>
+      <div class="input-field-label">Horário <small style="color:var(--muted);font-weight:500" id="m-time-hint">(opcional)</small></div>
       <button type="button" class="tp-trigger" id="m-time-trigger" data-time="">
         <span class="tp-trigger-icon">🕐</span>
         <span class="tp-trigger-time">— : —</span>
@@ -2016,6 +2249,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
         <button type="button" class="recur-chip" data-recur="today">📌 Somente hoje</button>
         <button type="button" class="recur-chip active" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
         <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias</button>
+        <button type="button" class="recur-chip kind-only-commitment" data-recur="monthly" hidden>📆 Todo mês</button>
       </div>
 
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
@@ -2046,6 +2280,28 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = close;
   modal.onclick = (e) => { if (e.target === modal) close(); };
 
+  // Wire dos chips de TIPO (Tarefa / Compromisso)
+  // Compromisso: mostra chip "Todo mês" + sugere horário obrigatório
+  modal.querySelectorAll('.kind-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      modal.querySelectorAll('.kind-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const isCommitment = chip.dataset.kind === 'commitment';
+      modal.querySelectorAll('.kind-only-commitment').forEach(el => {
+        el.hidden = !isCommitment;
+      });
+      modal.querySelector('#m-time-hint').textContent = isCommitment ? '(obrigatório pra compromissos)' : '(opcional)';
+      // Se sair do compromisso e o chip "monthly" estiver ativo, volta pra weekly
+      if (!isCommitment) {
+        const monthly = modal.querySelector('[data-recur="monthly"]');
+        if (monthly?.classList.contains('active')) {
+          monthly.classList.remove('active');
+          modal.querySelector('[data-recur="weekly"]').classList.add('active');
+        }
+      }
+    });
+  });
+
   // Wire dos chips de recorrência (seleção exclusiva)
   modal.querySelectorAll('.recur-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -2057,20 +2313,27 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-save').onclick = async () => {
     const categoryId = modal.querySelector('#m-cat').value || null;
     const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
+    const kind = modal.querySelector('.kind-chip.active')?.dataset.kind || 'task';
     let title = modal.querySelector('#m-title').value.trim();
     if (!title) {
       if (cat) title = cat.name;
       else { showToast('Digite um título ou escolha uma atividade', 'info'); return; }
     }
     const startTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
+    // Compromisso exige horário (sem isso não dá pra ordenar nem agendar)
+    if (kind === 'commitment' && !startTime) {
+      showToast('Compromisso precisa de horário', 'info');
+      return;
+    }
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
     const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'weekly';
 
-    // Se vai repetir (weekly/daily), gera ID de grupo. 'today' não precisa.
-    const recurrenceGroupId = (recur === 'daily' || recur === 'weekly') ? genRecurId() : null;
+    // Se vai repetir (weekly/daily/monthly), gera ID de grupo. 'today' não precisa.
+    const recurrenceGroupId = (recur === 'daily' || recur === 'weekly' || recur === 'monthly') ? genRecurId() : null;
 
     const baseTask = {
       activityId: null, title, desc: '',
+      kind,
       startTime, shiftId, categoryId,
       done: false, reminderEnabled,
       ...(recurrenceGroupId ? { recurrenceGroupId } : {})
@@ -2120,7 +2383,30 @@ function openActivityPicker(app, dayDocId, shiftId) {
         close();
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-        updateDayCardStats(dayDocId, false); // false = NÃO sincroniza template
+        updateDayCardStats(dayDocId, false);
+        return;
+      } else if (recur === 'monthly') {
+        // Compromisso mensal: salva no profile.monthlyCommitments com dia do mês
+        const dom = day.date.getDate();
+        const monthlyTask = {
+          activityId: null, title, desc: '',
+          kind: 'commitment',
+          startTime, shiftId: shiftId || null, categoryId: categoryId || null,
+          icon: '', reminderEnabled,
+          dayOfMonth: dom,
+          recurrenceGroupId
+        };
+        const list = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+        if (!list.some(x => x.recurrenceGroupId === recurrenceGroupId)) {
+          list.push(monthlyTask);
+          await setProfile({ monthlyCommitments: list });
+          profile.monthlyCommitments = list;
+        }
+        close();
+        const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+        if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+        updateDayCardStats(dayDocId, false);
+        showToast(`Compromisso "${title}" agendado pra todo dia ${dom}`, 'success');
         return;
       }
       // 'weekly' (default) — sync padrão pro DOW de hoje
@@ -2170,16 +2456,30 @@ function openTaskEditor(app, dayDocId, taskId) {
     }
     if (dowsWithGroup.length >= 7) currentRecur = 'daily';
     else if (dowsWithGroup.length === 1 && dowsWithGroup[0] === day.date.getDay()) currentRecur = 'weekly';
-    else if (dowsWithGroup.length > 0) currentRecur = 'weekly'; // qualquer subset não-vazio, trata como weekly
+    else if (dowsWithGroup.length > 0) currentRecur = 'weekly';
+  }
+  // Compromisso mensal: detecta no profile.monthlyCommitments
+  if (t.recurrenceGroupId && Array.isArray(profile?.monthlyCommitments) &&
+      profile.monthlyCommitments.some(x => x.recurrenceGroupId === t.recurrenceGroupId)) {
+    currentRecur = 'monthly';
   }
   const isActive = (mode) => currentRecur === mode ? 'active' : '';
+  const kind = t.kind || 'task';
+  const isCommitment = kind === 'commitment';
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">Editar tarefa</div>
+      <div class="modal-title">Editar ${isCommitment ? 'compromisso' : 'tarefa'}</div>
       <div class="modal-hint">A edição vale só pra este dia. A atividade original na Home não muda.</div>
+
+      <div class="input-field-label">Tipo</div>
+      <div class="kind-chips" id="kind-chips">
+        <button type="button" class="kind-chip ${kind === 'task' ? 'active' : ''}" data-kind="task">📋 Tarefa</button>
+        <button type="button" class="kind-chip ${isCommitment ? 'active' : ''}" data-kind="commitment">📅 Compromisso</button>
+      </div>
+
       <label class="input-field"><div class="input-field-label">Título</div>
         <input id="m-title" value="${escape(t.title)}" /></label>
       <label class="input-field"><div class="input-field-label">Descrição (opcional)</div>
@@ -2213,6 +2513,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         <button type="button" class="recur-chip ${isActive('today')}" data-recur="today">📌 Somente este dia</button>
         <button type="button" class="recur-chip ${isActive('weekly')}" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
         <button type="button" class="recur-chip ${isActive('daily')}" data-recur="daily">📅 Todos os dias da semana</button>
+        <button type="button" class="recur-chip kind-only-commitment ${isActive('monthly')}" data-recur="monthly" ${isCommitment ? '' : 'hidden'}>📆 Todo mês</button>
       </div>
 
       <div class="modal-actions">
@@ -2225,6 +2526,25 @@ function openTaskEditor(app, dayDocId, taskId) {
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
   modal.onclick = e => { if (e.target === modal) close(); };
+
+  // Wire chips de TIPO (Tarefa / Compromisso) — mostra/esconde chip "Todo mês"
+  modal.querySelectorAll('.kind-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      modal.querySelectorAll('.kind-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const newKindIsCommitment = chip.dataset.kind === 'commitment';
+      modal.querySelectorAll('.kind-only-commitment').forEach(el => {
+        el.hidden = !newKindIsCommitment;
+      });
+      if (!newKindIsCommitment) {
+        const monthly = modal.querySelector('[data-recur="monthly"]');
+        if (monthly?.classList.contains('active')) {
+          monthly.classList.remove('active');
+          modal.querySelector('[data-recur="today"]').classList.add('active');
+        }
+      }
+    });
+  });
 
   // Wire chips de recorrência (seleção exclusiva)
   modal.querySelectorAll('.recur-chip').forEach(chip => {
@@ -2254,7 +2574,14 @@ function openTaskEditor(app, dayDocId, taskId) {
 
   modal.querySelector('#m-save').onclick = async () => {
     const newTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
+    const newKind = modal.querySelector('.kind-chip.active')?.dataset.kind || 'task';
     let newShiftId = modal.querySelector('#m-shift').value || null;
+
+    // Compromisso exige horário
+    if (newKind === 'commitment' && !newTime) {
+      showToast('Compromisso precisa de horário', 'info');
+      return;
+    }
 
     // Auto-ajuste: se o horário caiu em outro turno, move pra ele
     // (Manhã 5-12, Tarde 12-19, Noite 19-5)
@@ -2269,6 +2596,7 @@ function openTaskEditor(app, dayDocId, taskId) {
     const data = {
       title: modal.querySelector('#m-title').value.trim() || 'Sem título',
       desc: modal.querySelector('#m-desc').value.trim(),
+      kind: newKind,
       shiftId: newShiftId,
       startTime: newTime,
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
