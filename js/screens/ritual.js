@@ -935,62 +935,84 @@ function openRecurrenceChooser(options = {}) {
   return new Promise((resolve) => {
     const currentDate = options.currentDate || new Date();
     const dow = currentDate.getDay();
-    const dowLabel = recurWeeklyLabel(dow); // "Toda quarta" / "Todo sábado"
+    const dowLabel = recurWeeklyLabel(dow);
     const isCommitment = !!options.isCommitment;
-    const cur = options.currentRecur || 'today';
+    const initialRecur = options.currentRecur || 'today';
+    const initialDays = Array.isArray(options.currentDaysOfMonth) ? options.currentDaysOfMonth.slice() : [];
+
+    // Estado local: qual opção está selecionada + dias (se specific)
+    // 'specific' significa monthly com dias customizados (não o dia atual)
+    let selectedKey = initialRecur === 'monthly' && initialDays.length > 0 && !(initialDays.length === 1 && initialDays[0] === currentDate.getDate())
+      ? 'specific'
+      : initialRecur;
+    let chosenDays = selectedKey === 'specific' ? initialDays.slice() : [];
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
+
+    const renderSpecificLabel = () => {
+      if (chosenDays.length === 0) return 'Abre calendário pra escolher dia(s) do mês';
+      if (chosenDays.length === 1) return `Selecionado: dia ${chosenDays[0]}`;
+      return `Selecionados: dias ${chosenDays.join(', ')}`;
+    };
+
+    const renderHTML = () => `
       <div class="modal recur-chooser-modal">
         <div class="modal-title">Repetir como?</div>
-        <div class="modal-hint">Escolha a frequência. Pra dias específicos, use a opção de baixo.</div>
+        <div class="modal-hint">Escolha uma frequência e clique em Confirmar.</div>
 
         <div class="recur-options">
-          <button type="button" class="recur-opt ${cur === 'today' ? 'sel' : ''}" data-recur="today">
+          <button type="button" class="recur-opt ${selectedKey === 'today' ? 'sel' : ''}" data-recur="today">
             <span class="recur-opt-ic">📌</span>
             <span class="recur-opt-text">
               <strong>Somente este dia</strong>
               <small>Não repete</small>
             </span>
+            <span class="recur-opt-check">✓</span>
           </button>
-          <button type="button" class="recur-opt ${cur === 'weekly' ? 'sel' : ''}" data-recur="weekly">
+          <button type="button" class="recur-opt ${selectedKey === 'weekly' ? 'sel' : ''}" data-recur="weekly">
             <span class="recur-opt-ic">🔁</span>
             <span class="recur-opt-text">
               <strong>${escape(dowLabel)}</strong>
               <small>Repete no mesmo dia da semana</small>
             </span>
+            <span class="recur-opt-check">✓</span>
           </button>
-          <button type="button" class="recur-opt ${cur === 'daily' ? 'sel' : ''}" data-recur="daily">
+          <button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
               <strong>Todos os dias da semana</strong>
               <small>De segunda a domingo</small>
             </span>
+            <span class="recur-opt-check">✓</span>
           </button>
           ${isCommitment ? `
-            <button type="button" class="recur-opt ${cur === 'monthly' ? 'sel' : ''}" data-recur="monthly">
+            <button type="button" class="recur-opt ${selectedKey === 'monthly' ? 'sel' : ''}" data-recur="monthly">
               <span class="recur-opt-ic">📆</span>
               <span class="recur-opt-text">
                 <strong>Todo dia ${currentDate.getDate()}</strong>
                 <small>Mensal — todo mês neste dia</small>
               </span>
+              <span class="recur-opt-check">✓</span>
             </button>
           ` : ''}
-          <button type="button" class="recur-opt recur-opt-custom" data-recur="specific">
+          <button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
             <span class="recur-opt-ic">🗓️</span>
             <span class="recur-opt-text">
               <strong>Escolher dia específico</strong>
-              <small>Abre calendário pra você selecionar um ou vários dias do mês</small>
+              <small>${escape(renderSpecificLabel())}</small>
             </span>
+            <span class="recur-opt-check">✓</span>
           </button>
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" id="rc-cancel">‹ Voltar</button>
+          <button class="btn-secondary" id="rc-cancel">Cancelar</button>
+          <button class="btn-primary" id="rc-confirm">Confirmar</button>
         </div>
       </div>
     `;
+    overlay.innerHTML = renderHTML();
     document.body.appendChild(overlay);
 
     let resolved = false;
@@ -1005,36 +1027,48 @@ function openRecurrenceChooser(options = {}) {
       trapClose();
     };
 
-    overlay.querySelector('#rc-cancel').onclick = () => finish(null);
+    const rerender = () => {
+      overlay.innerHTML = renderHTML();
+      wire();
+    };
 
-    overlay.querySelectorAll('[data-recur]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const choice = btn.dataset.recur;
-        if (choice === 'specific') {
-          // Abre o date picker em modo multi-select
-          const dates = await openDatePicker(currentDate, {
-            multiSelect: true,
-            title: 'Escolha o(s) dia(s) do mês'
-          });
-          if (!dates || dates.length === 0) return; // continua no chooser
-          // Extrai os dias do mês únicos (1-31)
-          const daysOfMonth = [...new Set(dates.map(d => d.getDate()))].sort((a,b) => a-b);
-          const label = daysOfMonth.length === 1
-            ? `Repetir todo dia ${daysOfMonth[0]}?`
-            : `Repetir todo dia ${daysOfMonth.slice(0,-1).join(', ')} e ${daysOfMonth[daysOfMonth.length-1]}?`;
-          const ok = await confirmModal({
-            title: 'Confirmar repetição',
-            message: label,
-            confirmText: 'Sim, repetir',
-            cancelText: 'Voltar'
-          });
-          if (!ok) return; // continua no chooser
-          finish({ recur: 'monthly', daysOfMonth });
+    const wire = () => {
+      overlay.querySelector('#rc-cancel').onclick = () => finish(null);
+      overlay.querySelector('#rc-confirm').onclick = () => {
+        if (selectedKey === 'specific') {
+          if (chosenDays.length === 0) {
+            showToast('Toque em "Escolher dia específico" pra abrir o calendário', 'info');
+            return;
+          }
+          finish({ recur: 'monthly', daysOfMonth: chosenDays });
+        } else if (selectedKey === 'monthly') {
+          finish({ recur: 'monthly' }); // usa day.date.getDate() no save
         } else {
-          finish({ recur: choice });
+          finish({ recur: selectedKey });
         }
+      };
+      overlay.querySelectorAll('[data-recur]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const choice = btn.dataset.recur;
+          if (choice === 'specific') {
+            // Abre calendário multi-select
+            const dates = await openDatePicker(currentDate, {
+              multiSelect: true,
+              title: 'Escolha o(s) dia(s) do mês'
+            });
+            if (!dates || dates.length === 0) return; // mantém estado
+            chosenDays = [...new Set(dates.map(d => d.getDate()))].sort((a,b) => a-b);
+            selectedKey = 'specific';
+            rerender();
+          } else {
+            selectedKey = choice;
+            if (choice !== 'specific') chosenDays = [];
+            rerender();
+          }
+        });
       });
-    });
+    };
+    wire();
   });
 }
 
@@ -2613,6 +2647,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
     const result = await openRecurrenceChooser({
       currentDate: day.date,
       currentRecur: recurState.recur,
+      currentDaysOfMonth: recurState.daysOfMonth,
       isCommitment: isCommit
     });
     if (!result) return;
@@ -2889,6 +2924,7 @@ function openTaskEditor(app, dayDocId, taskId) {
     const result = await openRecurrenceChooser({
       currentDate: day.date,
       currentRecur: recurState.recur,
+      currentDaysOfMonth: recurState.daysOfMonth,
       isCommitment: isCommit
     });
     if (!result) return;
