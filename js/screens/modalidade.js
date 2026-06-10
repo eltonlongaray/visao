@@ -58,9 +58,9 @@ export function renderModalidade(app) {
         Você pode trocar de modalidade a qualquer momento — sai e entra de novo no app.
       </div>
 
-      <div style="margin-top:16px;text-align:center">
-        <button id="btnSairModalidade" class="login-link" style="background:none;border:none;cursor:pointer">
-          Sair da conta
+      <div style="margin-top:22px;text-align:center">
+        <button id="btnSairModalidade" class="btn-sair-modalidade" type="button">
+          ↪ Sair da conta
         </button>
       </div>
     </div>
