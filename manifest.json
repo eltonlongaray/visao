@@ -1,7 +1,7 @@
 {
-  "name": "Visão — Consultor Pessoal",
+  "name": "Visão — Assistente Pessoal",
   "short_name": "Visão",
-  "description": "Consultor Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.",
+  "description": "Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

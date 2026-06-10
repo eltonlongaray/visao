@@ -345,7 +345,7 @@ ${weeksWithNotes.length
   : '<p>Você ainda não escreveu reflexões semanais.</p>'}
 
 <footer>
-  Visão · Consultor Pessoal de Planejamento Estratégico<br>
+  Visão · Assistente Pessoal de Planejamento Estratégico<br>
   Documento exportado em ${formatBr(data.exportedAt)} · Total de ${data.days.length} dias na base
 </footer>
 

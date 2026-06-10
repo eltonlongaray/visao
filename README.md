@@ -1,4 +1,4 @@
-# 👁 Visão — Consultor Pessoal de Planejamento Estratégico
+# 👁 Visão — Assistente Pessoal de Planejamento Estratégico
 
 > App PWA para organizar rotina diária e acompanhar desempenho de hábitos.
 > Login, sincronização entre dispositivos, gráficos de aderência, reflexões semanais.

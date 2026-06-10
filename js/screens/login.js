@@ -9,7 +9,7 @@ export function renderLogin(app) {
     <div class="login-screen">
       <div class="login-logo">👁</div>
       <div class="login-title">Visão</div>
-      <div class="login-sub">Consultor pessoal de planejamento estratégico</div>
+      <div class="login-sub">Assistente pessoal de planejamento estratégico</div>
 
       <form class="login-form" id="login-form">
         <label class="input-field">
