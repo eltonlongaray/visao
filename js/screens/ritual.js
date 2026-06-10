@@ -2110,12 +2110,23 @@ function updateDayCardStats(dayDocId, syncTemplate = false) {
     const count = day.tasks.filter(t => t.shiftId === sid).length;
     el.querySelector('.shift-count').textContent = `${count} tarefas`;
   });
+
+  // Atualiza o ponto vermelho no header do dia (lembrete pendente)
+  const hasPending = day.tasks.some(t => t.reminderEnabled && !t.done && !t.cancelled);
+  card.classList.toggle('has-pending-reminder', hasPending);
+  const dowEl = card.querySelector('.day-card-name .dow');
+  if (dowEl) {
+    const existingDot = dowEl.querySelector('.day-reminder-dot');
+    if (hasPending && !existingDot) {
+      dowEl.insertAdjacentHTML('beforeend', '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>');
+    } else if (!hasPending && existingDot) {
+      existingDot.remove();
+    }
+  }
+
   // Re-anexa Sortable nas task-lists recém-renderizadas
   initTaskSortables();
-  // Salva o estado atual como template do dia-da-semana
-  // (toda modificação que altera a lista — add/del/edit/dup/reorder)
   if (syncTemplate) syncTemplateForDay(dayDocId);
-  // Sempre refresca a aba Compromissos (caso essa task seja compromisso)
   refreshCommitmentsCard();
 }
 
