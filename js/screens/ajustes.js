@@ -69,18 +69,16 @@ export async function renderAjustes(app) {
           </button>
         </section>
 
-        ${isAdmin() ? `
-          <section class="ajustes-section">
-            <div class="ajustes-section-title">🛠️ Admin</div>
-            <button class="ajustes-row clickable" id="restartTourBtn">
-              <div class="ajustes-row-main">
-                <div class="ajustes-row-title">Reiniciar tour de boas-vindas</div>
-                <div class="ajustes-row-sub">Simula 1ª vez (só admin)</div>
-              </div>
-              <span class="ajustes-row-arrow">›</span>
-            </button>
-          </section>
-        ` : ''}
+        <section class="ajustes-section">
+          <div class="ajustes-section-title">✨ Tutorial</div>
+          <button class="ajustes-row clickable" id="restartTourBtn">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Rever tutorial de boas-vindas</div>
+              <div class="ajustes-row-sub">Passa por tudo de novo, do começo</div>
+            </div>
+            <span class="ajustes-row-arrow">›</span>
+          </button>
+        </section>
 
         <section class="ajustes-section">
           <div class="ajustes-section-title">📄 Legal</div>
@@ -223,11 +221,14 @@ async function wire(app) {
     }
   });
 
-  // ── Admin: reiniciar tour ──
-  app.querySelector('#restartTourBtn')?.addEventListener('click', () => {
+  // ── Reiniciar tour de boas-vindas ──
+  app.querySelector('#restartTourBtn')?.addEventListener('click', async () => {
     tour.reset();
+    showToast('Iniciando tutorial...', 'success');
     navigate('/home');
-    showToast('Tour reiniciado. Indo pra Home...', 'success');
+    // Aguarda Home renderizar antes de iniciar o tour
+    const { ONBOARDING_STEPS } = await import('../tour-config.js');
+    setTimeout(() => tour.start(ONBOARDING_STEPS), 700);
   });
 
   // ── Sair ──

@@ -121,8 +121,15 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
 
-  // Tour NÃO auto-inicia mais — só pode ser disparado via Ajustes
-  // (admin: 🛠️ Admin → Reiniciar tour de boas-vindas)
+  // Auto-start do tour pra usuários novos (primeira vez que abre).
+  // Persistido em localStorage via tour.markDone() — não fica voltando.
+  if (!tour.isCompleted() && !tour.isActive()) {
+    setTimeout(() => {
+      if (!tour.isActive() && !tour.isCompleted()) {
+        tour.start(ONBOARDING_STEPS);
+      }
+    }, 1000);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
