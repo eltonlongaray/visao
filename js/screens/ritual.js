@@ -684,10 +684,9 @@ function renderShiftsForDay(d) {
     </div>`;
   }
 
-  // Sugestão: copiar do dia anterior preenchido na semana
-  const copyBanner = renderCopyDayBanner(d);
+  // (Banner antigo "Trazer dia anterior" removido — agora usa o icone ↓ entre as pilulas)
 
-  return copyBanner + shifts.map(s => `
+  return shifts.map(s => `
     <div class="shift" data-shift-id="${s.id}" data-day-shift="${d.id}">
       <div class="shift-header">
         <div class="shift-icon" style="background:${s.gradient || 'linear-gradient(135deg,#a78bfa,#60a5fa)'}">${s.icon || '🕐'}</div>
@@ -700,95 +699,6 @@ function renderShiftsForDay(d) {
       </div>
     </div>
   `).join('');
-}
-
-// Banner "Trazer dados de [dia anterior]" — em dia vazio com dias anteriores preenchidos
-const WEEKDAY_NAMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const WEEKDAY_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-const dismissedCopyBanners = new Set();  // ids de dia que o usuário dispensou na sessão
-
-function renderCopyDayBanner(d) {
-  if (d.tasks.length > 0) return '';
-  if (dismissedCopyBanners.has(d.id)) return '';
-  const prevDays = findAllPrevDaysWithTasks(d.id);
-  if (prevDays.length === 0) return '';
-
-  // ── Caso 1: apenas 1 dia anterior preenchido → pergunta direta Sim/Não ──
-  if (prevDays.length === 1) {
-    const prev = prevDays[0];
-    const n = prev.tasks.length;
-    return `
-      <div class="copy-day-banner">
-        <div class="copy-day-ic">📋</div>
-        <div class="copy-day-body">
-          <strong>Trazer dados de ${WEEKDAY_NAMES[prev.date.getDay()]}?</strong>
-          <small>${n} tarefa${n === 1 ? '' : 's'} pra reaproveitar</small>
-        </div>
-        <div class="copy-day-actions">
-          <button class="copy-day-btn" data-copy-from="${prev.id}" data-copy-to="${d.id}">Sim, trazer</button>
-          <button class="copy-day-no" data-copy-no="${d.id}">Não</button>
-        </div>
-      </div>
-    `;
-  }
-
-  // ── Caso 2: 2+ dias anteriores → chips pra escolher qual dia copiar ──
-  const dayList = prevDays.map(p => WEEKDAY_NAMES[p.date.getDay()]);
-  const dayListStr = dayList.length === 2
-    ? dayList.join(' ou ')
-    : dayList.slice(0, -1).join(', ') + ' ou ' + dayList[dayList.length - 1];
-
-  const chips = prevDays.map(p =>
-    `<button class="copy-day-chip" data-copy-from="${p.id}" data-copy-to="${d.id}" title="${p.tasks.length} tarefa${p.tasks.length===1?'':'s'}">
-       ${WEEKDAY_SHORT[p.date.getDay()]} <small>(${p.tasks.length})</small>
-     </button>`
-  ).join('');
-
-  return `
-    <div class="copy-day-banner copy-day-banner-multi">
-      <div class="copy-day-ic">📋</div>
-      <div class="copy-day-body">
-        <strong>Trazer atividades de ${dayListStr}?</strong>
-        <small>Se sim, toque no dia:</small>
-        <div class="copy-day-chips">${chips}</div>
-      </div>
-      <button class="copy-day-no copy-day-no-corner" data-copy-no="${d.id}" title="Dispensar">×</button>
-    </div>
-  `;
-}
-
-function findAllPrevDaysWithTasks(dayId) {
-  const idx = weekData.findIndex(d => d.id === dayId);
-  if (idx <= 0) return [];
-  return weekData.slice(0, idx).filter(d => d.tasks.length > 0);
-}
-
-async function copyDayTasksTo(fromId, toId) {
-  const fromDay = weekData.find(d => d.id === fromId);
-  const toDay   = weekData.find(d => d.id === toId);
-  if (!fromDay || !toDay) return 0;
-
-  const sorted = fromDay.tasks.slice().sort(taskSort);
-  let order = 0;
-  for (const t of sorted) {
-    const newTask = {
-      activityId: t.activityId || null,
-      title: t.title,
-      desc: t.desc || '',
-      startTime: t.startTime || '',
-      shiftId: t.shiftId || (shifts[0]?.id || null),
-      categoryId: t.categoryId || null,
-      icon: t.icon || '',
-      done: false,
-      order: order++,
-      reminderEnabled: t.reminderEnabled || false
-    };
-    const tid = await addDayTask(toId, newTask);
-    toDay.tasks.push({ id: tid, ...newTask });
-  }
-  await setDayMeta(toId, { generated: true });
-  toDay.meta.generated = true;
-  return sorted.length;
 }
 
 // Abre modal pra escolher QUAL dia anterior trazer (últimos 7 dias com tarefas).
@@ -1498,45 +1408,7 @@ function attachHandlers(app) {
       return;
     }
 
-    // Dispensar banner de copiar
-    const noBtn = e.target.closest('[data-copy-no]');
-    if (noBtn) {
-      const dId = noBtn.dataset.copyNo;
-      dismissedCopyBanners.add(dId);
-      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dId}"]`);
-      const day = weekData.find(d => d.id === dId);
-      if (dayCardEl && day) {
-        dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-      }
-      return;
-    }
-
-    // Copiar tarefas do dia anterior preenchido
-    const copyBtn = e.target.closest('[data-copy-from]');
-    if (copyBtn) {
-      const fromId = copyBtn.dataset.copyFrom;
-      const toId   = copyBtn.dataset.copyTo;
-      copyBtn.disabled = true;
-      copyBtn.textContent = 'Copiando...';
-      try {
-        const n = await copyDayTasksTo(fromId, toId);
-        const dayCardEl = document.querySelector(`.day-card[data-day-id="${toId}"]`);
-        const toDay = weekData.find(d => d.id === toId);
-        if (dayCardEl && toDay) {
-          dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(toDay);
-          updateDayCardStats(toId);
-          initTaskSortables();
-        }
-        playDone();
-        showToast(`${n} tarefa${n === 1 ? '' : 's'} copiada${n === 1 ? '' : 's'}!`, 'success');
-      } catch (err) {
-        console.error('[ritual] copy day failed:', err);
-        showToast('Erro ao copiar.', 'error');
-        copyBtn.disabled = false;
-        copyBtn.textContent = '📥 Copiar';
-      }
-      return;
-    }
+    // (Banners "Trazer dia anterior" / "Dispensar" removidos — substituidos pelo icone ↓ entre as pilulas)
 
     // Duplicar tarefa LOGO ABAIXO da original (renumera os seguintes)
     const dupBtn = e.target.closest('[data-action="dup"]');
