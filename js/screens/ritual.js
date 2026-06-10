@@ -13,6 +13,7 @@ import { showToast, showLocalToast, confirmModal } from '../toast.js';
 import { playDone, playUndone, playDelete } from '../sounds.js';
 import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
+import { isActive as tourIsActive } from '../tour.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -2690,7 +2691,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => modal.querySelector('#m-title').focus(), 50);
+  // Não auto-foca o título quando o tour está rodando (evita abrir teclado mobile)
+  if (!tourIsActive()) {
+    setTimeout(() => modal.querySelector('#m-title').focus(), 50);
+  }
 
   // Botão de horário → abre time picker
   modal.querySelector('#m-time-trigger')?.addEventListener('click', async (e) => {

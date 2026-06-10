@@ -4031,9 +4031,13 @@ body.tour2-active .bottom-nav { bottom: 0; }
 }
 .tour2-bar.collapsed .tour2-bar-progress,
 .tour2-bar.collapsed .tour2-bar-body,
-.tour2-bar.collapsed .tour2-btn-back,
-.tour2-bar.collapsed .tour2-btn-skip {
+.tour2-bar.collapsed .tour2-btn-back {
   display: none !important;
+}
+/* X de sair fica SEMPRE visivel pra user nao ficar preso no tour */
+.tour2-bar .tour2-btn-skip {
+  z-index: 10003;
+  pointer-events: auto !important;
 }
 .tour2-bar.collapsed .tour2-bar-actions {
   display: flex;
