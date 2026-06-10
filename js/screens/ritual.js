@@ -465,8 +465,8 @@ function initTaskSortables() {
           }
         });
         await Promise.all(updates);
-        // Reordenou — atualiza template do dia-da-semana
-        syncTemplateForDay(dayDocId);
+        // Reordenar NAO sincroniza template — é mudança local do dia.
+        // (template só é tocado por recur='weekly'/'daily' explícito.)
       }
     });
   });
@@ -1701,7 +1701,10 @@ function attachHandlers(app) {
   // (Swipe entre semanas removido — só pelas setas ‹ ›)
 }
 
-function updateDayCardStats(dayDocId, syncTemplate = true) {
+// IMPORTANTE: syncTemplate default = FALSE. Templates só são tocados quando o
+// usuário EXPLICITAMENTE escolhe recur='weekly' ou recur='daily' nos chips.
+// Sem isso, cada modificação no dia virava "todas as semanas se repetem", o que não é desejado.
+function updateDayCardStats(dayDocId, syncTemplate = false) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
   const card = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
@@ -2268,8 +2271,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
       <div class="input-field-label" style="margin-top:8px">Repetir</div>
       <div class="recur-chips" id="recur-chips">
-        <button type="button" class="recur-chip" data-recur="today">📌 Somente hoje</button>
-        <button type="button" class="recur-chip active" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
+        <button type="button" class="recur-chip active" data-recur="today">📌 Somente hoje</button>
+        <button type="button" class="recur-chip" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
         <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias</button>
         <button type="button" class="recur-chip kind-only-commitment" data-recur="monthly" hidden>📆 Todo mês</button>
       </div>
@@ -2348,7 +2351,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       return;
     }
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
-    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'weekly';
+    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'today';
 
     // Se vai repetir (weekly/daily/monthly), gera ID de grupo. 'today' não precisa.
     const recurrenceGroupId = (recur === 'daily' || recur === 'weekly' || recur === 'monthly') ? genRecurId() : null;
@@ -2431,11 +2434,11 @@ function openActivityPicker(app, dayDocId, shiftId) {
         showToast(`Compromisso "${title}" agendado pra todo dia ${dom}`, 'success');
         return;
       }
-      // 'weekly' (default) — sync padrão pro DOW de hoje
+      // recur === 'weekly' ou 'daily' — sincroniza template explicitamente
       close();
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-      updateDayCardStats(dayDocId); // default true = sync template do DOW atual
+      updateDayCardStats(dayDocId, true); // EXPLICITO: usuario escolheu recorrencia
 
       // Se 'daily', re-renderiza outros day cards também
       if (recur === 'daily') {
