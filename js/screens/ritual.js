@@ -898,27 +898,27 @@ function stopOverdueChecker() {
 
 async function checkOverdueReminders(app) {
   if (overdueModalOpen) return;
-  // So roda se o usuario tá no Ritual (nao poluir outras telas)
   if (!location.hash.startsWith('#/ritual')) return;
   const now = Date.now();
-  // Acha o primeiro lembrete vencido ainda não tratado
-  for (const day of weekData) {
-    for (const t of day.tasks) {
-      if (!t.reminderEnabled) continue;
-      if (t.done || t.cancelled) continue;
-      if (!t.startTime) continue;
-      if (overdueShownThisSession.has(t.id)) continue;
-      // Constrói timestamp da tarefa
-      const [y, m, dd] = day.id.split('-').map(n => parseInt(n, 10));
-      const startMin = parseTime(t.startTime);
-      if (startMin === null) continue;
-      const taskDt = new Date(y, m - 1, dd, Math.floor(startMin/60), startMin % 60);
-      if (taskDt.getTime() <= now) {
-        // É vencida! Mostra modal e marca como vista nessa sessão.
-        overdueShownThisSession.add(t.id);
-        await showOverdueReminderModal(app, day, t);
-        return; // só uma por vez — próxima fica pro próximo tick
-      }
+  const todayStr = dayId(new Date());
+  // SÓ verifica vencidos de HOJE — dias passados são histórico, não devem cobrar
+  // Antes, tarefas diárias recorrentes com horário passado disparavam o modal pra
+  // CADA instância semanal (1 por dia), enchendo o saco do usuário.
+  const today = weekData.find(d => d.id === todayStr);
+  if (!today) return;
+  for (const t of today.tasks) {
+    if (!t.reminderEnabled) continue;
+    if (t.done || t.cancelled) continue;
+    if (!t.startTime) continue;
+    if (overdueShownThisSession.has(t.id)) continue;
+    const startMin = parseTime(t.startTime);
+    if (startMin === null) continue;
+    const [y, m, dd] = todayStr.split('-').map(n => parseInt(n, 10));
+    const taskDt = new Date(y, m - 1, dd, Math.floor(startMin/60), startMin % 60);
+    if (taskDt.getTime() <= now) {
+      overdueShownThisSession.add(t.id);
+      await showOverdueReminderModal(app, today, t);
+      return;
     }
   }
 }
