@@ -57,6 +57,21 @@ function randomDoneMessage() {
   return DONE_MESSAGES[Math.floor(Math.random() * DONE_MESSAGES.length)];
 }
 
+// Mensagens específicas pra compromissos (tom mais formal/objetivo)
+const COMMITMENT_DONE_MESSAGES = [
+  'Missão cumprida ✓',
+  'Tá feito!',
+  'Registrado',
+  'Resolvido',
+  'Compromisso honrado 🤝',
+  'Pago / entregue ✓',
+  'Mais um na conta!',
+  'Dever cumprido'
+];
+function randomCommitmentDoneMessage() {
+  return COMMITMENT_DONE_MESSAGES[Math.floor(Math.random() * COMMITMENT_DONE_MESSAGES.length)];
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: ESTADO DO MÓDULO
@@ -1080,10 +1095,15 @@ function taskCard(t, dayDocId) {
   const cat = categories.find(c => c.id === t.categoryId);
   // Ícone próprio sobrescreve, senão usa o da categoria (fallback)
   const taskIcon = t.icon || cat?.icon || '🏷️';
+  const isCommitment = t.kind === 'commitment';
+  // Compromissos usam check ✓ (vazio → verde); tarefas usam thumb 👎/👍
+  const checkContent = isCommitment
+    ? (t.done ? '✓' : '')
+    : (t.done ? '👍' : '👎');
   return `
-    <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
+    <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''} ${isCommitment ? 'is-commitment' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
       <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
-      <button class="task-thumb ${t.done ? 'done' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${t.done ? '👍' : '👎'}</button>
+      <button class="task-thumb ${t.done ? 'done' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.done ? 'Feito!' : 'Marcar como feito'}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
           <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}
@@ -1332,13 +1352,18 @@ function attachHandlers(app) {
       if (!t) return;
       const wasDone = t.done;
       t.done = !t.done;
+      const isCommitment = t.kind === 'commitment';
       // Sincroniza TODAS as instâncias do task no DOM (pode estar em day card + aba Compromissos)
       document.querySelectorAll(`.task[data-task-id="${taskEl.dataset.taskId}"]`).forEach(el => {
         el.classList.toggle('done', t.done);
         const elCheck = el.querySelector('[data-action="check"]');
         if (elCheck) {
           elCheck.classList.toggle('done', t.done);
-          elCheck.textContent = t.done ? '👍' : '👎';
+          if (isCommitment) {
+            elCheck.textContent = t.done ? '✓' : '';
+          } else {
+            elCheck.textContent = t.done ? '👍' : '👎';
+          }
           elCheck.title = t.done ? 'Feito!' : 'Marcar como feito';
         }
       });
@@ -1347,8 +1372,9 @@ function attachHandlers(app) {
       // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
       if (!wasDone && t.done) {
         playDone();
+        const msg = isCommitment ? randomCommitmentDoneMessage() : randomDoneMessage();
         showLocalToast(taskEl,
-          `<span class="done-check-big">✓</span><span class="done-check-text">${randomDoneMessage()}</span>`,
+          `<span class="done-check-big">✓</span><span class="done-check-text">${msg}</span>`,
           'success'
         );
         // Aviso: dia anterior pendente (nota, sono ou hidratação) — sempre dispara após o ✓

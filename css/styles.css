@@ -681,6 +681,25 @@ html, body {
   filter: saturate(1.2);
 }
 
+/* Variante "check" pra compromissos: vazio com borda → verde solido com ✓ ao marcar */
+.task-thumb.task-check {
+  background: transparent;
+  border: 2px solid var(--border);
+  color: transparent;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+.task-thumb.task-check:hover {
+  border-color: var(--green, #10b981);
+}
+.task-thumb.task-check.done {
+  background: var(--green, #10b981);
+  border-color: var(--green, #10b981);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.45);
+}
+
 /* === Drag handle === */
 .task-drag {
   color: var(--muted);
