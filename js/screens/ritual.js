@@ -1966,13 +1966,27 @@ function attachHandlers(app) {
             }
           }
 
+          // Match LAX pra cleanup: bate por groupId OU por título+categoria
+          // (cobre dados legados sem groupId que stricty sameTaskIdentity rejeitaria)
+          const tTitleKey = (t.title || '').trim().toLowerCase();
+          const tCatKey = t.categoryId || '';
+          const tGroupId = t.recurrenceGroupId || '';
+          const matchesT = (x) => {
+            // groupId match (estrito quando ambos têm)
+            if (tGroupId && x.recurrenceGroupId === tGroupId) return true;
+            // Fallback título+categoria (legado)
+            const xTitle = (x.title || '').trim().toLowerCase();
+            const xCat = x.categoryId || '';
+            return xTitle && xTitle === tTitleKey && xCat === tCatKey;
+          };
+
           // 2a) Limpa dos templates de TODOS os dias-da-semana (semanal/diário)
           try {
             const tplsCur = profile?.weekdayTemplates || {};
             for (const dow of Object.keys(tplsCur)) {
               const arr = tplsCur[dow];
               if (!Array.isArray(arr)) continue;
-              const filtered = arr.filter(x => !sameTaskIdentity(x, t));
+              const filtered = arr.filter(x => !matchesT(x));
               if (filtered.length !== arr.length) {
                 await setWeekdayTemplate(parseInt(dow, 10), filtered);
                 profile.weekdayTemplates[dow] = filtered;
@@ -1981,7 +1995,7 @@ function attachHandlers(app) {
             // 2b) Limpa dos compromissos mensais (profile.monthlyCommitments)
             //     Esse era o gap pro temperos voltar — auto-gen mensal renascia ele
             const monthlyCur = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
-            const monthlyFiltered = monthlyCur.filter(x => !sameTaskIdentity(x, t));
+            const monthlyFiltered = monthlyCur.filter(x => !matchesT(x));
             if (monthlyFiltered.length !== monthlyCur.length) {
               await setProfile({ monthlyCommitments: monthlyFiltered });
               profile.monthlyCommitments = monthlyFiltered;
