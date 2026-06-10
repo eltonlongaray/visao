@@ -644,7 +644,7 @@ html, body {
 .task {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 11px 11px 11px 8px;
+  padding: 16px 11px 11px 8px;
   margin-bottom: 7px;
   display: flex; gap: 8px; align-items: flex-start;
 }
@@ -811,14 +811,15 @@ html, body {
 .task { position: relative; padding-right: 44px; }
 .task-menu-btn-corner {
   position: absolute;
-  top: 50%; right: 6px;
-  transform: translateY(-50%);
+  top: 18px;       /* top-alinhado: deixa espaco acima pra bolinha do lembrete sem encostar */
+  right: 6px;
+  transform: none;
   background: rgba(167,139,250,0.08);
   border: 1px solid var(--border);
   color: var(--muted);
-  width: 34px; height: 46px;
+  width: 34px; height: 38px;
   border-radius: 10px;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 900;
   line-height: 1;
   cursor: pointer;
@@ -833,7 +834,7 @@ html, body {
   color: var(--accent);
   border-color: var(--accent);
 }
-.task-menu-btn-corner:active { transform: translateY(-50%) scale(0.92); }
+.task-menu-btn-corner:active { transform: scale(0.92); }
 
 /* Emoji da tarefa — badge inline antes do título */
 .task-icon-inline {
