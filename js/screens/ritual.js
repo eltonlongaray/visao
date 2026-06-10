@@ -981,8 +981,8 @@ function openRecurrenceChooser(options = {}) {
           <button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
-              <strong>Todos os dias da semana</strong>
-              <small>De segunda a domingo</small>
+              <strong>Todos os dias</strong>
+              <small>Repete todos os dias daqui em diante</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
@@ -2800,7 +2800,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           updateDayCardStats(other.id, false);
           if (other.tasks.some(t => t.recurrenceGroupId === recurrenceGroupId)) addedCount++;
         });
-        showToast(`Adicionado em ${addedCount} dia${addedCount === 1 ? '' : 's'} da semana`, 'success');
+        showToast(`Repete todos os dias (${addedCount} dia${addedCount === 1 ? '' : 's'} já criados nesta semana)`, 'success');
       }
     } catch (err) {
       console.error('[add-task] erro:', err);
@@ -3094,7 +3094,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
         updateDayCardStats(otherDay.id, true);
       }
-      showToast('Repete todos os dias da semana', 'success');
+      showToast('Repete todos os dias', 'success');
     } else if (recur === 'weekly') {
       showToast(`Repete ${recurWeeklyLabel(day.date.getDay()).toLowerCase()}`, 'success');
     } else if (recur === 'monthly') {
