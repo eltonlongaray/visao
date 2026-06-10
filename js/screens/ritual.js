@@ -921,14 +921,132 @@ async function checkOverdueReminders(app) {
   }
 }
 
-// Date picker simples: calendário pra escolher uma data. Retorna Date ou null.
-// initialDate: ponto de partida (default hoje).
+// Abre sub-modal pra escolher tipo de recorrência. Retorna:
+//   { recur: 'today'|'weekly'|'daily'|'monthly', daysOfMonth?: [int] }
+//   ou null se cancelar
+//
+// options:
+//   currentDate    — Date base (usado pra label "Toda quarta")
+//   currentRecur   — recorrência atual (pré-seleciona visual)
+//   isCommitment   — se true, mostra "Todo mês"
+function openRecurrenceChooser(options = {}) {
+  return new Promise((resolve) => {
+    const currentDate = options.currentDate || new Date();
+    const dow = currentDate.getDay();
+    const dowLabel = recurWeeklyLabel(dow); // "Toda quarta" / "Todo sábado"
+    const isCommitment = !!options.isCommitment;
+    const cur = options.currentRecur || 'today';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal recur-chooser-modal">
+        <div class="modal-title">Repetir como?</div>
+        <div class="modal-hint">Escolha a frequência. Pra dias específicos, use a opção de baixo.</div>
+
+        <div class="recur-options">
+          <button type="button" class="recur-opt ${cur === 'today' ? 'sel' : ''}" data-recur="today">
+            <span class="recur-opt-ic">📌</span>
+            <span class="recur-opt-text">
+              <strong>Somente este dia</strong>
+              <small>Não repete</small>
+            </span>
+          </button>
+          <button type="button" class="recur-opt ${cur === 'weekly' ? 'sel' : ''}" data-recur="weekly">
+            <span class="recur-opt-ic">🔁</span>
+            <span class="recur-opt-text">
+              <strong>${escape(dowLabel)}</strong>
+              <small>Repete no mesmo dia da semana</small>
+            </span>
+          </button>
+          <button type="button" class="recur-opt ${cur === 'daily' ? 'sel' : ''}" data-recur="daily">
+            <span class="recur-opt-ic">📅</span>
+            <span class="recur-opt-text">
+              <strong>Todos os dias da semana</strong>
+              <small>De segunda a domingo</small>
+            </span>
+          </button>
+          ${isCommitment ? `
+            <button type="button" class="recur-opt ${cur === 'monthly' ? 'sel' : ''}" data-recur="monthly">
+              <span class="recur-opt-ic">📆</span>
+              <span class="recur-opt-text">
+                <strong>Todo dia ${currentDate.getDate()}</strong>
+                <small>Mensal — todo mês neste dia</small>
+              </span>
+            </button>
+          ` : ''}
+          <button type="button" class="recur-opt recur-opt-custom" data-recur="specific">
+            <span class="recur-opt-ic">🗓️</span>
+            <span class="recur-opt-text">
+              <strong>Escolher dia específico</strong>
+              <small>Abre calendário pra você selecionar um ou vários dias do mês</small>
+            </span>
+          </button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" id="rc-cancel">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    let resolved = false;
+    const trapClose = trapModalBack(() => {
+      overlay.remove();
+      if (!resolved) { resolved = true; resolve(null); }
+    });
+    const finish = (val) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(val);
+      trapClose();
+    };
+
+    overlay.querySelector('#rc-cancel').onclick = () => finish(null);
+
+    overlay.querySelectorAll('[data-recur]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const choice = btn.dataset.recur;
+        if (choice === 'specific') {
+          // Abre o date picker em modo multi-select
+          const dates = await openDatePicker(currentDate, {
+            multiSelect: true,
+            title: 'Escolha o(s) dia(s) do mês'
+          });
+          if (!dates || dates.length === 0) return; // continua no chooser
+          // Extrai os dias do mês únicos (1-31)
+          const daysOfMonth = [...new Set(dates.map(d => d.getDate()))].sort((a,b) => a-b);
+          const label = daysOfMonth.length === 1
+            ? `Repetir todo dia ${daysOfMonth[0]}?`
+            : `Repetir todo dia ${daysOfMonth.slice(0,-1).join(', ')} e ${daysOfMonth[daysOfMonth.length-1]}?`;
+          const ok = await confirmModal({
+            title: 'Confirmar repetição',
+            message: label,
+            confirmText: 'Sim, repetir',
+            cancelText: 'Voltar'
+          });
+          if (!ok) return; // continua no chooser
+          finish({ recur: 'monthly', daysOfMonth });
+        } else {
+          finish({ recur: choice });
+        }
+      });
+    });
+  });
+}
+
+// Date picker: calendário pra escolher uma ou mais datas.
+//   options.multiSelect=true → retorna array de Date (toggle on click)
+//   senão                    → retorna 1 Date ou null
 function openDatePicker(initialDate = new Date(), options = {}) {
   return new Promise((resolve) => {
+    const multiSelect = !!options.multiSelect;
     const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
     let viewYear = initialDate.getFullYear();
     let viewMonth = initialDate.getMonth();
-    let selectedId = dayId(initialDate);
+    // No multi: array de YYYY-MM-DD; no single: 1 string
+    let selectedIds = multiSelect ? new Set() : new Set([dayId(initialDate)]);
     const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
     const overlay = document.createElement('div');
@@ -936,6 +1054,7 @@ function openDatePicker(initialDate = new Date(), options = {}) {
     overlay.innerHTML = `
       <div class="modal date-picker-modal">
         ${options.title ? `<div class="modal-title">${escape(options.title)}</div>` : ''}
+        ${multiSelect ? '<div class="modal-hint">Toque pra selecionar/desselecionar. Pode escolher vários dias do mês.</div>' : ''}
         <div class="cal-header">
           <button type="button" class="cal-nav" data-dp-nav="-1">‹</button>
           <div class="cal-title" id="dp-title"></div>
@@ -982,7 +1101,7 @@ function openDatePicker(initialDate = new Date(), options = {}) {
         const dt = new Date(viewYear, viewMonth, d);
         const idStr = dayId(dt);
         const isToday = idStr === todayIdStr;
-        const isSelected = idStr === selectedId;
+        const isSelected = selectedIds.has(idStr);
         html += `<button type="button" class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-dp-day="${idStr}">${d}</button>`;
       }
       gridEl.innerHTML = html;
@@ -1002,14 +1121,27 @@ function openDatePicker(initialDate = new Date(), options = {}) {
     gridEl.addEventListener('click', (e) => {
       const cell = e.target.closest('[data-dp-day]');
       if (!cell) return;
-      selectedId = cell.dataset.dpDay;
+      const id = cell.dataset.dpDay;
+      if (multiSelect) {
+        if (selectedIds.has(id)) selectedIds.delete(id);
+        else selectedIds.add(id);
+      } else {
+        selectedIds = new Set([id]);
+      }
       renderGrid();
     });
 
     overlay.querySelector('#dp-cancel').onclick = () => finish(null);
     overlay.querySelector('#dp-save').onclick = () => {
-      const [y, m, d] = selectedId.split('-').map(n => parseInt(n, 10));
-      finish(new Date(y, m - 1, d));
+      if (selectedIds.size === 0) {
+        showToast('Escolha pelo menos um dia', 'info');
+        return;
+      }
+      const dates = [...selectedIds].sort().map(id => {
+        const [y, m, d] = id.split('-').map(n => parseInt(n, 10));
+        return new Date(y, m - 1, d);
+      });
+      finish(multiSelect ? dates : dates[0]);
     };
   });
 }
@@ -1408,13 +1540,28 @@ function openRitualCalendar(app) {
     const cell = e.target.closest('[data-cal-day]');
     if (!cell) return;
     const id = cell.dataset.calDay;
+    close();
+    // Abre o criador de atividade direto pra esse dia.
+    // Se for dia de outra semana, navega pra semana correspondente primeiro
+    // pra weekData ter o dia e o openActivityPicker poder achar ele.
     const [y, m, d] = id.split('-').map(Number);
     const picked = new Date(y, m - 1, d);
-    weekStart = getWeekStart(picked);
-    expanded.clear(); expanded.add(id);
-    close();
-    await loadWeek();
-    renderUI(app);
+    const targetWeekStart = getWeekStart(picked);
+    if (targetWeekStart.getTime() !== weekStart.getTime()) {
+      weekStart = targetWeekStart;
+      expanded.clear(); expanded.add(id);
+      await loadWeek();
+      renderUI(app);
+    } else {
+      expanded.add(id);
+    }
+    // Usa o primeiro turno como padrão (se user setar horário, auto-corrige)
+    const defaultShiftId = shifts[0]?.id || null;
+    if (!defaultShiftId) {
+      showToast('Configure pelo menos um turno na Home antes de criar atividades', 'info');
+      return;
+    }
+    openActivityPicker(app, id, defaultShiftId);
   });
 }
 
@@ -2378,13 +2525,13 @@ function openActivityPicker(app, dayDocId, shiftId) {
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">Repetir</div>
-      <div class="recur-chips" id="recur-chips">
-        <button type="button" class="recur-chip active" data-recur="today">📌 Somente hoje</button>
-        <button type="button" class="recur-chip" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
-        <button type="button" class="recur-chip" data-recur="daily">📅 Todos os dias</button>
-        <button type="button" class="recur-chip kind-only-commitment" data-recur="monthly" hidden>📆 Todo mês</button>
-      </div>
+      <div class="input-field-label" style="margin-top:8px">Repetição</div>
+      <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
+        <span class="recur-btn-ic">🔁</span>
+        <span class="recur-btn-text">Repetir atividade</span>
+        <span class="recur-btn-label">Somente hoje</span>
+        <span class="recur-btn-edit">›</span>
+      </button>
 
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
         Nenhuma atividade cadastrada. Vai na <a href="#/home" style="color:var(--accent)">Home</a> pra criar.
@@ -2414,33 +2561,43 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
 
+  // Estado de recorrência (escolhido via sub-modal)
+  let recurState = { recur: 'today' };
+  const recurBtn = modal.querySelector('#m-recur-btn');
+  const recurLabel = recurBtn.querySelector('.recur-btn-label');
+  const refreshRecurLabel = () => {
+    if (recurState.recur === 'today') recurLabel.textContent = 'Somente hoje';
+    else if (recurState.recur === 'weekly') recurLabel.textContent = recurWeeklyLabel(day.date.getDay());
+    else if (recurState.recur === 'daily') recurLabel.textContent = 'Todos os dias';
+    else if (recurState.recur === 'monthly') {
+      const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
+      recurLabel.textContent = dom.length === 1 ? `Todo dia ${dom[0]}` : `Dias ${dom.join(', ')}`;
+    }
+  };
+  recurBtn.addEventListener('click', async () => {
+    const isCommit = modal.querySelector('.kind-chip.active')?.dataset.kind === 'commitment';
+    const result = await openRecurrenceChooser({
+      currentDate: day.date,
+      currentRecur: recurState.recur,
+      isCommitment: isCommit
+    });
+    if (!result) return;
+    recurState = result;
+    refreshRecurLabel();
+  });
+
   // Wire dos chips de TIPO (Tarefa / Compromisso)
-  // Compromisso: mostra chip "Todo mês" + sugere horário obrigatório
   modal.querySelectorAll('.kind-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       modal.querySelectorAll('.kind-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       const isCommitment = chip.dataset.kind === 'commitment';
-      modal.querySelectorAll('.kind-only-commitment').forEach(el => {
-        el.hidden = !isCommitment;
-      });
       modal.querySelector('#m-time-hint').textContent = isCommitment ? '(obrigatório pra compromissos)' : '(opcional)';
-      // Se sair do compromisso e o chip "monthly" estiver ativo, volta pra weekly
-      if (!isCommitment) {
-        const monthly = modal.querySelector('[data-recur="monthly"]');
-        if (monthly?.classList.contains('active')) {
-          monthly.classList.remove('active');
-          modal.querySelector('[data-recur="weekly"]').classList.add('active');
-        }
+      // Se sair do compromisso e estava monthly, volta pra today
+      if (!isCommitment && recurState.recur === 'monthly') {
+        recurState = { recur: 'today' };
+        refreshRecurLabel();
       }
-    });
-  });
-
-  // Wire dos chips de recorrência (seleção exclusiva)
-  modal.querySelectorAll('.recur-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      modal.querySelectorAll('.recur-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
     });
   });
 
@@ -2460,7 +2617,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
       return;
     }
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
-    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'today';
+    const recur = recurState.recur || 'today';
+    const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
 
     // Se vai repetir (weekly/daily/monthly), gera ID de grupo. 'today' não precisa.
     const recurrenceGroupId = (recur === 'daily' || recur === 'weekly' || recur === 'monthly') ? genRecurId() : null;
@@ -2520,19 +2678,27 @@ function openActivityPicker(app, dayDocId, shiftId) {
         updateDayCardStats(dayDocId, false);
         return;
       } else if (recur === 'monthly') {
-        // Compromisso mensal: salva no profile.monthlyCommitments com dia do mês
-        const dom = day.date.getDate();
-        const monthlyTask = {
-          activityId: null, title, desc: '',
-          kind: 'commitment',
-          startTime, shiftId: shiftId || null, categoryId: categoryId || null,
-          icon: '', reminderEnabled,
-          dayOfMonth: dom,
-          recurrenceGroupId
-        };
+        // Compromisso mensal: cria 1 entrada em profile.monthlyCommitments por dia escolhido
+        // (todos compartilhando o mesmo recurrenceGroupId pra edicao/exclusao em conjunto)
+        const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
         const list = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
-        if (!list.some(x => x.recurrenceGroupId === recurrenceGroupId)) {
-          list.push(monthlyTask);
+        let added = 0;
+        for (const dom of days) {
+          const exists = list.some(x =>
+            x.recurrenceGroupId === recurrenceGroupId && x.dayOfMonth === dom
+          );
+          if (exists) continue;
+          list.push({
+            activityId: null, title, desc: '',
+            kind: 'commitment',
+            startTime, shiftId: shiftId || null, categoryId: categoryId || null,
+            icon: '', reminderEnabled,
+            dayOfMonth: dom,
+            recurrenceGroupId
+          });
+          added++;
+        }
+        if (added > 0) {
           await setProfile({ monthlyCommitments: list });
           profile.monthlyCommitments = list;
         }
@@ -2540,7 +2706,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false);
-        showToast(`Compromisso "${title}" agendado pra todo dia ${dom}`, 'success');
+        const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
+        showToast(`Compromisso "${title}" repete ${label}`, 'success');
         return;
       }
       // recur === 'weekly' ou 'daily' — sincroniza template explicitamente
@@ -2642,13 +2809,13 @@ function openTaskEditor(app, dayDocId, taskId) {
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">Repetir</div>
-      <div class="recur-chips" id="recur-chips">
-        <button type="button" class="recur-chip ${isActive('today')}" data-recur="today">📌 Somente este dia</button>
-        <button type="button" class="recur-chip ${isActive('weekly')}" data-recur="weekly">🔁 ${recurWeeklyLabel(day.date.getDay())}</button>
-        <button type="button" class="recur-chip ${isActive('daily')}" data-recur="daily">📅 Todos os dias da semana</button>
-        <button type="button" class="recur-chip kind-only-commitment ${isActive('monthly')}" data-recur="monthly" ${isCommitment ? '' : 'hidden'}>📆 Todo mês</button>
-      </div>
+      <div class="input-field-label" style="margin-top:8px">Repetição</div>
+      <button type="button" class="recur-btn" id="m-recur-btn">
+        <span class="recur-btn-ic">🔁</span>
+        <span class="recur-btn-text">Repetir atividade</span>
+        <span class="recur-btn-label" id="m-recur-label">—</span>
+        <span class="recur-btn-edit">›</span>
+      </button>
 
       <div class="modal-actions">
         <button class="btn-secondary" id="m-cancel">Cancelar</button>
@@ -2661,30 +2828,45 @@ function openTaskEditor(app, dayDocId, taskId) {
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder edições)
 
-  // Wire chips de TIPO (Tarefa / Compromisso) — mostra/esconde chip "Todo mês"
+  // Estado de recorrência iniciado com o atual da tarefa
+  let recurState = { recur: currentRecur };
+  if (currentRecur === 'monthly' && Array.isArray(profile?.monthlyCommitments)) {
+    const entries = profile.monthlyCommitments.filter(x => x.recurrenceGroupId === t.recurrenceGroupId);
+    if (entries.length > 0) recurState.daysOfMonth = entries.map(x => x.dayOfMonth).filter(Number.isInteger).sort((a,b)=>a-b);
+  }
+  const recurLabelEl = modal.querySelector('#m-recur-label');
+  const refreshRecurLabel = () => {
+    if (recurState.recur === 'today') recurLabelEl.textContent = 'Somente este dia';
+    else if (recurState.recur === 'weekly') recurLabelEl.textContent = recurWeeklyLabel(day.date.getDay());
+    else if (recurState.recur === 'daily') recurLabelEl.textContent = 'Todos os dias';
+    else if (recurState.recur === 'monthly') {
+      const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
+      recurLabelEl.textContent = dom.length === 1 ? `Todo dia ${dom[0]}` : `Dias ${dom.join(', ')}`;
+    }
+  };
+  refreshRecurLabel();
+  modal.querySelector('#m-recur-btn').addEventListener('click', async () => {
+    const isCommit = modal.querySelector('.kind-chip.active')?.dataset.kind === 'commitment';
+    const result = await openRecurrenceChooser({
+      currentDate: day.date,
+      currentRecur: recurState.recur,
+      isCommitment: isCommit
+    });
+    if (!result) return;
+    recurState = result;
+    refreshRecurLabel();
+  });
+
+  // Wire chips de TIPO (Tarefa / Compromisso)
   modal.querySelectorAll('.kind-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       modal.querySelectorAll('.kind-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       const newKindIsCommitment = chip.dataset.kind === 'commitment';
-      modal.querySelectorAll('.kind-only-commitment').forEach(el => {
-        el.hidden = !newKindIsCommitment;
-      });
-      if (!newKindIsCommitment) {
-        const monthly = modal.querySelector('[data-recur="monthly"]');
-        if (monthly?.classList.contains('active')) {
-          monthly.classList.remove('active');
-          modal.querySelector('[data-recur="today"]').classList.add('active');
-        }
+      if (!newKindIsCommitment && recurState.recur === 'monthly') {
+        recurState = { recur: 'today' };
+        refreshRecurLabel();
       }
-    });
-  });
-
-  // Wire chips de recorrência (seleção exclusiva)
-  modal.querySelectorAll('.recur-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      modal.querySelectorAll('.recur-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
     });
   });
   // Wire icon picker (seleção exclusiva)
@@ -2736,7 +2918,8 @@ function openTaskEditor(app, dayDocId, taskId) {
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked
     };
-    const recur = modal.querySelector('.recur-chip.active')?.dataset.recur || 'today';
+    const recur = recurState.recur || 'today';
+    const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
 
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
@@ -2790,32 +2973,34 @@ function openTaskEditor(app, dayDocId, taskId) {
       // syncTemplateForDay vai rodar via updateDayCardStats(true)
     }
 
-    // RECORRÊNCIA MENSAL (só compromissos): adiciona no profile.monthlyCommitments
+    // RECORRÊNCIA MENSAL (só compromissos): substitui as entradas do grupo
+    // por uma nova lista (1 entrada por dia escolhido), todas com o mesmo groupId
     if (recur === 'monthly') {
       const groupId = t.recurrenceGroupId || genRecurId();
       if (!t.recurrenceGroupId) {
         t.recurrenceGroupId = groupId;
         await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
       }
-      const dom = day.date.getDate();
-      const monthlyTask = {
-        activityId: t.activityId || null,
-        title: data.title, desc: data.desc,
-        kind: 'commitment',
-        startTime: data.startTime,
-        shiftId: data.shiftId,
-        categoryId: t.categoryId || null,
-        icon: data.icon || '',
-        reminderEnabled: data.reminderEnabled,
-        dayOfMonth: dom,
-        recurrenceGroupId: groupId
-      };
-      const list = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
-      const idx = list.findIndex(x => x.recurrenceGroupId === groupId);
-      if (idx >= 0) list[idx] = monthlyTask;
-      else list.push(monthlyTask);
-      await setProfile({ monthlyCommitments: list });
-      profile.monthlyCommitments = list;
+      const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
+      const baseList = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+      // Remove entradas antigas do grupo, depois adiciona as novas
+      const filtered = baseList.filter(x => x.recurrenceGroupId !== groupId);
+      for (const dom of days) {
+        filtered.push({
+          activityId: t.activityId || null,
+          title: data.title, desc: data.desc,
+          kind: 'commitment',
+          startTime: data.startTime,
+          shiftId: data.shiftId,
+          categoryId: t.categoryId || null,
+          icon: data.icon || '',
+          reminderEnabled: data.reminderEnabled,
+          dayOfMonth: dom,
+          recurrenceGroupId: groupId
+        });
+      }
+      await setProfile({ monthlyCommitments: filtered });
+      profile.monthlyCommitments = filtered;
     }
 
     close();
