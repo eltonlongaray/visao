@@ -7,7 +7,8 @@ import {
   getActivities, saveActivity, deleteActivity,
   getProfile, setProfile,
   parseTime, formatTime, sleepDuration,
-  fetchDaysRange
+  fetchDaysRange,
+  deleteDayTask, setWeekdayTemplate, getWeekdayTemplate
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { showToast, confirmModal } from '../toast.js';
@@ -206,7 +207,7 @@ function reminderItemsHtml(list, emptyMsg) {
   return list.map(r => {
     const dStr = `${WEEKDAYS_SHORT[r.date.getDay()]}, ${String(r.date.getDate()).padStart(2,'0')} ${MONTHS_SHORT[r.date.getMonth()]}`;
     const cat = categories.find(c => c.id === r.categoryId);
-    return `<div class="reminder-item">
+    return `<div class="reminder-item" data-day-id="${r.dayId}" data-task-id="${r.id}">
       <div class="reminder-time">
         <div class="reminder-day">${dStr}</div>
         ${r.startTime ? `<div class="reminder-hour">${escape(r.startTime)}</div>` : ''}
@@ -215,17 +216,16 @@ function reminderItemsHtml(list, emptyMsg) {
         <div class="reminder-task-title">${escape(r.title)}</div>
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
       </div>
+      <button class="reminder-del-btn" data-del-reminder title="Apagar este lembrete">×</button>
     </div>`;
   }).join('');
 }
 
 function openRemindersModal() {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
+  const renderInner = () => `
     <div class="modal">
       <div class="modal-title">🔔 Lembretes</div>
-      <div class="modal-hint">Tarefas com lembrete que ainda não foram feitas.</div>
+      <div class="modal-hint">Toque no × pra apagar um lembrete que não vai acontecer.</div>
 
       <div class="reminder-section-label">📍 Esta semana ${weekReminders.length ? `<span class="reminder-count">${weekReminders.length}</span>` : ''}</div>
       <div class="reminder-list">${reminderItemsHtml(weekReminders, 'Nada pendente esta semana 🎉')}</div>
@@ -240,10 +240,92 @@ function openRemindersModal() {
       </div>
     </div>
   `;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = renderInner();
   document.body.appendChild(modal);
+
   const close = trapModalBack(() => modal.remove());
-  modal.querySelector('#m-close').onclick = close;
-  modal.onclick = e => { if (e.target === modal) close(); };
+  const refreshInner = () => { modal.innerHTML = renderInner(); wire(); };
+  const wire = () => {
+    modal.querySelector('#m-close').onclick = close;
+    modal.querySelectorAll('[data-del-reminder]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const item = btn.closest('.reminder-item');
+        const dayId = item.dataset.dayId;
+        const taskId = item.dataset.taskId;
+        const allReminders = [...weekReminders, ...nextWeekReminders];
+        const reminder = allReminders.find(r => r.id === taskId && r.dayId === dayId);
+        if (!reminder) return;
+        await deleteReminderFromAllSources(reminder);
+        await loadAndRenderReminders();
+        refreshInner();
+      });
+    });
+  };
+  wire();
+}
+
+// Apaga o lembrete em todos os lugares onde ele pode estar:
+// 1) Tarefa do dia no Firestore
+// 2) Template do DOW correspondente (pra não regenerar)
+// 3) profile.monthlyCommitments (pra não regenerar)
+async function deleteReminderFromAllSources(reminder) {
+  const ok = await confirmModal({
+    title: 'Apagar lembrete?',
+    message: `"${reminder.title}" — apaga essa ocorrência e remove de templates de recorrência (pra não voltar).`,
+    confirmText: 'Apagar',
+    cancelText: 'Cancelar',
+    danger: true
+  });
+  if (!ok) return;
+  try {
+    // 1) Apaga a tarefa do Firestore
+    try { await deleteDayTask(reminder.dayId, reminder.id); } catch {}
+
+    // Helper: matcher LAX (groupId OU titulo+categoria)
+    const titleKey = (reminder.title || '').trim().toLowerCase();
+    const catKey = reminder.categoryId || '';
+    const groupId = reminder.recurrenceGroupId || '';
+    const matches = (x) => {
+      if (groupId && x.recurrenceGroupId === groupId) return true;
+      const xTitle = (x.title || '').trim().toLowerCase();
+      const xCat = x.categoryId || '';
+      return xTitle && xTitle === titleKey && xCat === catKey;
+    };
+
+    // 2) Limpa templates de TODOS os DOWs
+    try {
+      const tpls = profile?.weekdayTemplates || {};
+      for (const dow of Object.keys(tpls)) {
+        const arr = tpls[dow];
+        if (!Array.isArray(arr)) continue;
+        const filtered = arr.filter(x => !matches(x));
+        if (filtered.length !== arr.length) {
+          await setWeekdayTemplate(parseInt(dow, 10), filtered);
+          if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
+          profile.weekdayTemplates[dow] = filtered;
+        }
+      }
+    } catch (err) { console.warn('[del-reminder] template cleanup:', err); }
+
+    // 3) Limpa monthlyCommitments
+    try {
+      const monthly = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+      const filtered = monthly.filter(x => !matches(x));
+      if (filtered.length !== monthly.length) {
+        await setProfile({ monthlyCommitments: filtered });
+        profile.monthlyCommitments = filtered;
+      }
+    } catch (err) { console.warn('[del-reminder] monthly cleanup:', err); }
+
+    showToast('Lembrete apagado', 'success');
+  } catch (err) {
+    console.error('[del-reminder] erro:', err);
+    showToast('Erro ao apagar', 'error');
+  }
 }
 
 function toHHMM(timeStr) {

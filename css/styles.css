@@ -2086,8 +2086,29 @@ body.time-picker-open { overflow: hidden; }
   display: flex; gap: 12px; align-items: flex-start;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
 .reminder-item:last-child { border-bottom: none; }
+.reminder-del-btn {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(239,68,68,0.10);
+  border: 1px solid rgba(239,68,68,0.30);
+  color: #ef9b9b;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid; place-items: center;
+  align-self: center;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.reminder-del-btn:hover {
+  background: rgba(239,68,68,0.22);
+  color: #fca5a5;
+}
+.reminder-del-btn:active { transform: scale(0.92); }
 .reminder-time {
   flex-shrink: 0; min-width: 60px;
   text-align: center;
