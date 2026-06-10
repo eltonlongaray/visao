@@ -1633,6 +1633,23 @@ function attachHandlers(app) {
       const day = weekData.find(d => d.id === taskEl.dataset.day);
       const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
       if (!t) return;
+      // Cancelada: NÃO toca som, oferece reativar
+      if (t.cancelled) {
+        const reactivate = await confirmModal({
+          title: 'Atividade cancelada',
+          message: 'Quer reativar essa atividade?',
+          confirmText: 'Reativar',
+          cancelText: 'Não'
+        });
+        if (reactivate) {
+          t.cancelled = false;
+          await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { cancelled: false });
+          syncTaskInDom(t);
+          updateDayCardStats(taskEl.dataset.day, false);
+          showToast('Atividade reativada', 'success');
+        }
+        return;
+      }
       const wasDone = t.done;
       t.done = !t.done;
       const isCommitment = t.kind === 'commitment';

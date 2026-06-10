@@ -721,12 +721,16 @@ html, body {
   filter: saturate(1.2);
 }
 
-/* Tarefa cancelada: thumb fica cinza com 🚫 */
+/* Tarefa cancelada: thumb fica cinza com 🚫 e cursor "help" (pode ser reativada) */
 .task-thumb.is-cancelled {
   background: rgba(148,163,184,0.20) !important;
   border-color: rgba(148,163,184,0.5) !important;
   color: var(--muted);
   filter: grayscale(0.5);
+  cursor: help;
+}
+.task-thumb.is-cancelled:hover {
+  background: rgba(148,163,184,0.30) !important;
 }
 
 /* Badge de reagendamento: pequena pílula no título indicando quantas vezes */
