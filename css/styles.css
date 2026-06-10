@@ -455,8 +455,24 @@ html, body {
   text-align: left;
 }
 .day-card-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.day-card-name .dow { font-size: 14px; font-weight: 700; }
+.day-card-name .dow { font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
 .day-card-name .dnum { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* Bolinha vermelha ao lado do nome do dia quando ha lembrete pendente — visivel mesmo com a aba fechada */
+.day-reminder-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239,68,68,0.55);
+  animation: dayReminderPulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes dayReminderPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.55); }
+  60%  { box-shadow: 0 0 0 6px rgba(239,68,68,0);    }
+  100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);    }
+}
 .today-badge {
   font-size: 9px; font-weight: 800;
   background: var(--accent); color: white;
@@ -2484,11 +2500,21 @@ body.time-picker-open { overflow: hidden; }
   font-weight: 800;
   box-shadow: 0 4px 12px -3px rgba(124,58,237,0.55);
 }
-/* Date picker: dia selecionado tem ring distinto (se for hoje, ganha o ring por cima) */
-.cal-cell.selected {
+/* Date picker: dia selecionado tem ring distinto.
+   Hoje ja tem visual proprio (gradient roxo) — se for hoje + selecionado,
+   ganha um check no canto pra distinguir SEM ring redundante */
+.cal-cell.selected:not(.today) {
   outline: 3px solid var(--accent, #a78bfa);
   outline-offset: -1px;
   font-weight: 800;
+}
+.cal-cell.selected.today::after {
+  content: '✓';
+  position: absolute;
+  top: 1px; right: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.95);
 }
 .date-picker-modal { max-width: 400px; }
 /* Pin nos dias que têm lembrete ativo no template */

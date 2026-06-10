@@ -493,11 +493,13 @@ function dayCard(d) {
   const total = d.tasks.length;
   const done = d.tasks.filter(t => t.done).length;
   const pct = total ? Math.round(done / total * 100) : 0;
+  // Dot vermelho no header se tem QUALQUER tarefa com lembrete ainda pendente
+  const hasPendingReminder = d.tasks.some(t => t.reminderEnabled && !t.done && !t.cancelled);
   return `
-    <div class="day-card ${isExpanded ? 'open' : ''} ${isToday ? 'today' : ''}" data-day-id="${d.id}" data-dow="${d.date.getDay()}">
+    <div class="day-card ${isExpanded ? 'open' : ''} ${isToday ? 'today' : ''} ${hasPendingReminder ? 'has-pending-reminder' : ''}" data-day-id="${d.id}" data-dow="${d.date.getDay()}">
       <button class="day-card-header" data-toggle-day="${d.id}">
         <div class="day-card-name">
-          <span class="dow">${WEEKDAYS_FULL[d.date.getDay()]}</span>
+          <span class="dow">${WEEKDAYS_FULL[d.date.getDay()]}${hasPendingReminder ? '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>' : ''}</span>
           <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${MONTHS[d.date.getMonth()]}</span>
           ${isToday ? '<span class="today-badge">HOJE</span>' : ''}
         </div>
@@ -985,7 +987,7 @@ function openRecurrenceChooser(options = {}) {
         </div>
 
         <div class="modal-actions">
-          <button class="btn-secondary" id="rc-cancel">Cancelar</button>
+          <button class="btn-secondary" id="rc-cancel">‹ Voltar</button>
         </div>
       </div>
     `;
@@ -2678,9 +2680,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
         updateDayCardStats(dayDocId, false);
         return;
       } else if (recur === 'monthly') {
-        // Compromisso mensal: cria 1 entrada em profile.monthlyCommitments por dia escolhido
+        // Mensal: cria 1 entrada em profile.monthlyCommitments por dia escolhido
         // (todos compartilhando o mesmo recurrenceGroupId pra edicao/exclusao em conjunto)
         const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
+        console.log('[recur-monthly] save', { kind, recur, days, groupId: recurrenceGroupId });
         const list = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
         let added = 0;
         for (const dom of days) {
@@ -2690,7 +2693,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           if (exists) continue;
           list.push({
             activityId: null, title, desc: '',
-            kind: 'commitment',
+            kind, // respeita escolha do user (task ou commitment)
             startTime, shiftId: shiftId || null, categoryId: categoryId || null,
             icon: '', reminderEnabled,
             dayOfMonth: dom,
@@ -2701,13 +2704,17 @@ function openActivityPicker(app, dayDocId, shiftId) {
         if (added > 0) {
           await setProfile({ monthlyCommitments: list });
           profile.monthlyCommitments = list;
+          console.log('[recur-monthly] saved', added, 'entries, total:', list.length);
+        } else {
+          console.warn('[recur-monthly] no entries added! days=', days, 'list=', list);
         }
         close();
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false);
         const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
-        showToast(`Compromisso "${title}" repete ${label}`, 'success');
+        const noun = kind === 'commitment' ? 'Compromisso' : 'Tarefa';
+        showToast(`${noun} "${title}" repete ${label}`, 'success');
         return;
       }
       // recur === 'weekly' ou 'daily' — sincroniza template explicitamente
@@ -2973,7 +2980,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       // syncTemplateForDay vai rodar via updateDayCardStats(true)
     }
 
-    // RECORRÊNCIA MENSAL (só compromissos): substitui as entradas do grupo
+    // RECORRÊNCIA MENSAL: substitui as entradas do grupo
     // por uma nova lista (1 entrada por dia escolhido), todas com o mesmo groupId
     if (recur === 'monthly') {
       const groupId = t.recurrenceGroupId || genRecurId();
@@ -2982,14 +2989,14 @@ function openTaskEditor(app, dayDocId, taskId) {
         await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
       }
       const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
+      console.log('[edit-monthly] save', { kind: newKind, days, groupId });
       const baseList = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
-      // Remove entradas antigas do grupo, depois adiciona as novas
       const filtered = baseList.filter(x => x.recurrenceGroupId !== groupId);
       for (const dom of days) {
         filtered.push({
           activityId: t.activityId || null,
           title: data.title, desc: data.desc,
-          kind: 'commitment',
+          kind: newKind, // respeita escolha do user
           startTime: data.startTime,
           shiftId: data.shiftId,
           categoryId: t.categoryId || null,
@@ -3023,7 +3030,9 @@ function openTaskEditor(app, dayDocId, taskId) {
     } else if (recur === 'weekly') {
       showToast(`Repete ${recurWeeklyLabel(day.date.getDay()).toLowerCase()}`, 'success');
     } else if (recur === 'monthly') {
-      showToast(`Repete todo dia ${day.date.getDate()}`, 'success');
+      const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
+      const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
+      showToast(`Repete ${label}`, 'success');
     }
   };
 }
