@@ -531,6 +531,28 @@ function getWeekCommitments() {
   return list;
 }
 
+// Sincroniza TODAS as instâncias do task no DOM (card do dia + aba Compromissos)
+// Atualiza classes (done/cancelled), textContent do thumb, titulo
+function syncTaskInDom(t) {
+  const isCommitment = t.kind === 'commitment';
+  let checkContent;
+  if (t.cancelled) checkContent = '🚫';
+  else if (isCommitment) checkContent = t.done ? '✓' : '';
+  else checkContent = t.done ? '👍' : '👎';
+
+  document.querySelectorAll(`.task[data-task-id="${t.id}"]`).forEach(el => {
+    el.classList.toggle('done', !!t.done);
+    el.classList.toggle('cancelled', !!t.cancelled);
+    const thumb = el.querySelector('[data-action="check"]');
+    if (thumb) {
+      thumb.classList.toggle('done', !!t.done);
+      thumb.classList.toggle('is-cancelled', !!t.cancelled);
+      thumb.textContent = checkContent;
+      thumb.title = t.cancelled ? 'Cancelada' : (t.done ? 'Feito!' : 'Marcar como feito');
+    }
+  });
+}
+
 // Re-renderiza o card de Compromissos no DOM (chamar após qualquer edit/delete/toggle)
 function refreshCommitmentsCard() {
   const card = document.querySelector('.day-card.commitments-card');
@@ -1028,13 +1050,8 @@ async function showOverdueReminderModal(app, day, t) {
       t.done = true;
       await updateDayTask(day.id, t.id, { done: true });
       playDone();
+      syncTaskInDom(t); // atualiza day card + aba Compromissos
       updateDayCardStats(day.id, false);
-      const taskEl = document.querySelector(`.task[data-task-id="${t.id}"]`);
-      if (taskEl) {
-        taskEl.classList.add('done');
-        const check = taskEl.querySelector('[data-action="check"]');
-        if (check) { check.classList.add('done'); check.textContent = '👍'; }
-      }
       overdueShownThisSession.delete(t.id);
       close();
       showToast('Marcado como feito ✓', 'success');
@@ -1113,9 +1130,8 @@ async function showOverdueReminderModal(app, day, t) {
       t.cancelled = true;
       await updateDayTask(day.id, t.id, { cancelled: true });
       playUndone();
+      syncTaskInDom(t); // atualiza day card + aba Compromissos (vira 🚫 em ambos)
       updateDayCardStats(day.id, false);
-      const taskEl = document.querySelector(`.task[data-task-id="${t.id}"]`);
-      if (taskEl) taskEl.classList.add('cancelled');
       close();
       showToast('Atividade marcada como cancelada', 'info');
     } catch (err) {
@@ -1471,20 +1487,7 @@ function attachHandlers(app) {
       const wasDone = t.done;
       t.done = !t.done;
       const isCommitment = t.kind === 'commitment';
-      // Sincroniza TODAS as instâncias do task no DOM (pode estar em day card + aba Compromissos)
-      document.querySelectorAll(`.task[data-task-id="${taskEl.dataset.taskId}"]`).forEach(el => {
-        el.classList.toggle('done', t.done);
-        const elCheck = el.querySelector('[data-action="check"]');
-        if (elCheck) {
-          elCheck.classList.toggle('done', t.done);
-          if (isCommitment) {
-            elCheck.textContent = t.done ? '✓' : '';
-          } else {
-            elCheck.textContent = t.done ? '👍' : '👎';
-          }
-          elCheck.title = t.done ? 'Feito!' : 'Marcar como feito';
-        }
-      });
+      syncTaskInDom(t); // sincroniza day card + aba Compromissos (e qualquer outra instancia)
       await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done });
       updateDayCardStats(taskEl.dataset.day, false); // sem sync de template — done não vira modelo
       // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
