@@ -9,6 +9,8 @@
 //   (1o ou ultimo ciclo), teleporta silenciosamente pro mesmo valor no
 //   ciclo central — sem animação, imperceptível. Sensação: scroll infinito.
 // ═══════════════════════════════════════════════════════════════
+import { trapModalBack } from './modal-back.js';
+
 const ITEM_H = 44;        // altura de cada item da roleta
 // Muitos ciclos = scroll maior antes de precisar teleportar.
 // 41 ciclos × 24h = 984 items, ~43000px. Usuário pode rolar muito antes de
@@ -136,24 +138,19 @@ export function openTimePicker(initialValue = '', options = {}) {
     });
 
 
-    // ── Cancelar / Salvar + back button do celular ──
+    // ── Cancelar / Salvar + back button do celular (aninhamento via trapModalBack) ──
     let closed = false;
-    let cameFromPop = false;
-
-    const onPopState = () => { cameFromPop = true; close(null); };
-    window.addEventListener('popstate', onPopState);
-    history.pushState({ tp: true }, '');
-
-    const close = (v) => {
+    let pendingValue = null;
+    const trapClose = trapModalBack(() => {
       if (closed) return;
       closed = true;
-      window.removeEventListener('popstate', onPopState);
       overlay.remove();
       document.body.classList.remove('time-picker-open');
-      if (!cameFromPop) {
-        setTimeout(() => { try { history.back(); } catch {} }, 0);
-      }
-      resolve(v);
+      resolve(pendingValue);
+    });
+    const close = (v) => {
+      pendingValue = v;
+      trapClose();
     };
 
     overlay.querySelector('#tpCancel').addEventListener('click', () => close(null));
@@ -163,9 +160,7 @@ export function openTimePicker(initialValue = '', options = {}) {
       close(`${pad(h)}:${pad(m)}`);
     });
 
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close(null);
-    });
+    // NÃO fecha ao clicar fora — só pelo botão Cancelar ou back do celular
   });
 }
 

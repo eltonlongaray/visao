@@ -2329,7 +2329,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
-  modal.onclick = (e) => { if (e.target === modal) close(); };
+  // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
 
   // Wire dos chips de TIPO (Tarefa / Compromisso)
   // Compromisso: mostra chip "Todo mês" + sugere horário obrigatório
@@ -2576,7 +2576,7 @@ function openTaskEditor(app, dayDocId, taskId) {
   document.body.appendChild(modal);
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
-  modal.onclick = e => { if (e.target === modal) close(); };
+  // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder edições)
 
   // Wire chips de TIPO (Tarefa / Compromisso) — mostra/esconde chip "Todo mês"
   modal.querySelectorAll('.kind-chip').forEach(chip => {

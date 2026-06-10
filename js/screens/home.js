@@ -455,7 +455,7 @@ function openCategoryEditor(id) {
   });
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
-  modal.onclick = (e) => { if (e.target === modal) close(); };
+  // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder o que digitou)
   modal.querySelector('#m-save').onclick = async () => {
     const name = modal.querySelector('#m-name').value.trim();
     if (!name) { showToast('Dê um nome pra atividade.', 'info'); return; }
