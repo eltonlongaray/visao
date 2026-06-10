@@ -1966,8 +1966,7 @@ function attachHandlers(app) {
             }
           }
 
-          // 2) Limpa dos templates de TODOS os dias-da-semana
-          //    Futuras semanas que ainda nao foram visitadas nao vao mais gerar a tarefa.
+          // 2a) Limpa dos templates de TODOS os dias-da-semana (semanal/diário)
           try {
             const tplsCur = profile?.weekdayTemplates || {};
             for (const dow of Object.keys(tplsCur)) {
@@ -1978,6 +1977,15 @@ function attachHandlers(app) {
                 await setWeekdayTemplate(parseInt(dow, 10), filtered);
                 profile.weekdayTemplates[dow] = filtered;
               }
+            }
+            // 2b) Limpa dos compromissos mensais (profile.monthlyCommitments)
+            //     Esse era o gap pro temperos voltar — auto-gen mensal renascia ele
+            const monthlyCur = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+            const monthlyFiltered = monthlyCur.filter(x => !sameTaskIdentity(x, t));
+            if (monthlyFiltered.length !== monthlyCur.length) {
+              await setProfile({ monthlyCommitments: monthlyFiltered });
+              profile.monthlyCommitments = monthlyFiltered;
+              console.log('[del-all] limpou', monthlyCur.length - monthlyFiltered.length, 'entradas monthly');
             }
           } catch (err) {
             console.warn('[del-recurring] template cleanup:', err);
