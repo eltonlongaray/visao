@@ -257,10 +257,23 @@ async function autoGenerateMissingTasks() {
     const dow = day.date.getDay();
     const template = profile?.weekdayTemplates?.[String(dow)];
 
+    // Helper: filtra tarefas que o user excluiu (escopo "Só este dia") nesse dia
+    const excludedGroups = Array.isArray(day.meta.excludedRecurrenceGroups) ? day.meta.excludedRecurrenceGroups : [];
+    const excludedTitles = Array.isArray(day.meta.excludedRecurrenceTitles) ? day.meta.excludedRecurrenceTitles : [];
+    const isExcluded = (tmpl) => {
+      if (tmpl.recurrenceGroupId && excludedGroups.includes(tmpl.recurrenceGroupId)) return true;
+      if (!tmpl.recurrenceGroupId) {
+        const key = `${(tmpl.title || '').trim().toLowerCase()}::${tmpl.categoryId || ''}`;
+        if (excludedTitles.includes(key)) return true;
+      }
+      return false;
+    };
+
     // Dia virgem (sem tarefas + nunca gerado) → preenche do template do DOW (se houver)
     if (day.tasks.length === 0 && !day.meta.generated) {
       if (Array.isArray(template) && template.length > 0) {
-        await addTemplateTasksToDay(day, template, 0);
+        const tplFiltered = template.filter(x => !isExcluded(x));
+        if (tplFiltered.length > 0) await addTemplateTasksToDay(day, tplFiltered, 0);
       }
       await setDayMeta(day.id, { generated: true });
       day.meta.generated = true;
@@ -270,7 +283,7 @@ async function autoGenerateMissingTasks() {
     // Dia já gerado: sincroniza apenas tarefas FALTANTES do template (hoje em diante)
     if (day.meta.generated && Array.isArray(template) && template.length > 0 && day.id >= todayId) {
       const existing = new Set(day.tasks.map(t => keyOf(t)));
-      const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)));
+      const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)) && !isExcluded(tmpl));
       if (missing.length > 0) {
         await addTemplateTasksToDay(day, missing, day.tasks.length);
       }
@@ -280,7 +293,7 @@ async function autoGenerateMissingTasks() {
     const monthly = profile?.monthlyCommitments;
     if (Array.isArray(monthly) && monthly.length > 0 && day.id >= todayId) {
       const dom = day.date.getDate();
-      const matching = monthly.filter(m => m.dayOfMonth === dom);
+      const matching = monthly.filter(m => m.dayOfMonth === dom && !isExcluded(m));
       if (matching.length > 0) {
         const existing = new Set(day.tasks.map(t => keyOf(t)));
         const toAdd = matching.filter(m => !existing.has(keyOf(m)));
@@ -1905,6 +1918,36 @@ function attachHandlers(app) {
       setTimeout(async () => {
         await deleteDayTask(dayDocId, tid);
         day.tasks = day.tasks.filter(x => x.id !== tid);
+
+        // ESCOPO 'one' em recorrente: marca o dia pra não regenerar essa recorrência
+        // (Senão, o autoGen do template traz a tarefa de volta a cada load.)
+        if (scope === 'one' && isRecurring) {
+          const groupId = t.recurrenceGroupId;
+          const titleKey = (t.title || '').trim().toLowerCase();
+          if (groupId || titleKey) {
+            const excludedGroups = Array.isArray(day.meta.excludedRecurrenceGroups) ? day.meta.excludedRecurrenceGroups.slice() : [];
+            const excludedTitles = Array.isArray(day.meta.excludedRecurrenceTitles) ? day.meta.excludedRecurrenceTitles.slice() : [];
+            let changed = false;
+            if (groupId && !excludedGroups.includes(groupId)) {
+              excludedGroups.push(groupId);
+              changed = true;
+            }
+            // Legado sem groupId: usa titulo+categoria como chave
+            if (!groupId && titleKey) {
+              const catKey = `${titleKey}::${t.categoryId || ''}`;
+              if (!excludedTitles.includes(catKey)) {
+                excludedTitles.push(catKey);
+                changed = true;
+              }
+            }
+            if (changed) {
+              day.meta.excludedRecurrenceGroups = excludedGroups;
+              day.meta.excludedRecurrenceTitles = excludedTitles;
+              try { await setDayMeta(dayDocId, { excludedRecurrenceGroups: excludedGroups, excludedRecurrenceTitles: excludedTitles }); }
+              catch (err) { console.warn('[del-one] excl save:', err); }
+            }
+          }
+        }
 
         if (scope === 'all') {
           // 1) Apaga das ocorrências A PARTIR de hoje na semana atual
