@@ -520,40 +520,70 @@ function initTaskSortables() {
   document.querySelectorAll('.task-list').forEach(list => {
     new Sortable(list, {
       animation: 180,
+      // GROUP compartilhado entre TODOS os turnos do mesmo dia → drag livre entre eles
+      group: 'tasks',
       filter: '.task-thumb, .task-menu-btn-corner, button, input, textarea, select, a',
       preventOnFilter: false,
       delay: 250,
       delayOnTouchOnly: true,
       touchStartThreshold: 5,
-      // Auto-scroll perto da borda
       scroll: true,
       scrollSensitivity: 80,
       scrollSpeed: 18,
       ghostClass: 'task-ghost',
       dragClass: 'task-dragging',
-      // Sem chosenClass (transform interferia no clone) — feedback fica só pelo onChoose
       onChoose: () => {
         if (navigator.vibrate) navigator.vibrate(15);
       },
       onEnd: async (evt) => {
-        const taskEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
-        const dayDocId = taskEls[0]?.dataset.day;
-        if (!dayDocId) return;
+        const movedEl = evt.item;
+        const taskId = movedEl?.dataset.taskId;
+        const dayDocId = movedEl?.dataset.day;
+        if (!taskId || !dayDocId) return;
         const day = weekData.find(d => d.id === dayDocId);
         if (!day) return;
-        // Atualiza order de cada tarefa daquele turno
+
+        // Detecta novo turno baseado em onde o item caiu
+        // evt.to é o container destino (.task-list dentro de .shift[data-shift-id])
+        const destShiftEl = evt.to.closest('[data-shift-id]');
+        const newShiftId = destShiftEl?.dataset.shiftId || null;
+        const t = day.tasks.find(x => x.id === taskId);
+        if (!t) return;
+
         const updates = [];
-        taskEls.forEach((el, idx) => {
+        // Se mudou de turno, atualiza o shiftId da task movida
+        if (newShiftId && t.shiftId !== newShiftId) {
+          t.shiftId = newShiftId;
+          updates.push(updateDayTask(dayDocId, taskId, { shiftId: newShiftId }));
+        }
+
+        // Atualiza order do destino (todas as tarefas no turno destino)
+        const destEls = Array.from(evt.to.querySelectorAll('[data-task-id]'));
+        destEls.forEach((el, idx) => {
           const tid = el.dataset.taskId;
-          const t = day.tasks.find(x => x.id === tid);
-          if (t && t.order !== idx) {
-            t.order = idx;
+          const tt = day.tasks.find(x => x.id === tid);
+          if (tt && tt.order !== idx) {
+            tt.order = idx;
             updates.push(updateDayTask(dayDocId, tid, { order: idx }));
           }
         });
+
+        // Se a tarefa saiu de um turno diferente, atualiza order do origem também
+        if (evt.from !== evt.to) {
+          const fromEls = Array.from(evt.from.querySelectorAll('[data-task-id]'));
+          fromEls.forEach((el, idx) => {
+            const tid = el.dataset.taskId;
+            const tt = day.tasks.find(x => x.id === tid);
+            if (tt && tt.order !== idx) {
+              tt.order = idx;
+              updates.push(updateDayTask(dayDocId, tid, { order: idx }));
+            }
+          });
+          // Atualiza contadores dos shifts no DOM
+          updateDayCardStats(dayDocId, false);
+        }
+
         await Promise.all(updates);
-        // Reordenar NAO sincroniza template — é mudança local do dia.
-        // (template só é tocado por recur='weekly'/'daily' explícito.)
       }
     });
   });
@@ -703,7 +733,10 @@ function renderDayContent(d) {
         <span class="time-pill-label">🌅 Acordei</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeDisplay}</button>
       </label>
-      <button class="pull-prev-day-icon" data-action="pull-prev-day" data-day="${d.id}" title="Trazer de outro dia">↓</button>
+      <button class="pull-prev-day-pretty" data-action="pull-prev-day" data-day="${d.id}" title="Trazer atividades de outro dia">
+        <span class="pull-prev-ic">📥</span>
+        <span class="pull-prev-txt">Trazer dia</span>
+      </button>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepDisplay}</button>
@@ -857,9 +890,9 @@ function pickPrevDayModal(candidates) {
       `;
     }).join('');
     modal.innerHTML = `
-      <div class="modal" style="max-width:380px">
+      <div class="modal" style="max-width:400px">
         <div class="modal-title">Trazer qual dia pra cá?</div>
-        <div class="modal-hint">As tarefas atuais serão substituídas.</div>
+        <div class="modal-hint">As atividades serão ACRESCENTADAS às suas atuais (sem apagar nada).</div>
         <div class="pick-day-list">${items}</div>
         <div class="modal-actions">
           <button class="btn-secondary" id="pick-cancel">Cancelar</button>

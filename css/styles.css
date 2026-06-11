@@ -1211,28 +1211,37 @@ body.time-picker-open { overflow: hidden; }
   border-bottom: 1px solid var(--border);
 }
 
-/* Ícone "trazer outro dia" — pequeno, entre pílula Acordei e Dormi */
-.pull-prev-day-icon {
-  width: 30px; height: 30px;
+/* Botão "Trazer dia" — visual moderno e claro */
+.pull-prev-day-pretty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(167,139,250,0.10);
-  border: 1px dashed rgba(167,139,250,0.4);
-  color: var(--accent, #a78bfa);
-  font-size: 16px;
-  font-weight: 800;
-  display: grid; place-items: center;
-  cursor: pointer;
+  height: 38px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, rgba(167,139,250,0.20), rgba(96,165,250,0.15));
+  border: 1.5px solid rgba(167,139,250,0.45);
+  border-radius: 999px;
+  color: var(--text);
   font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
   align-self: center;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(167,139,250,0.18);
+  transition: background 0.18s, border-color 0.18s, transform 0.12s, box-shadow 0.18s;
 }
-.pull-prev-day-icon:hover {
-  background: rgba(167,139,250,0.20);
+.pull-prev-day-pretty:hover {
+  background: linear-gradient(135deg, rgba(167,139,250,0.32), rgba(96,165,250,0.22));
   border-color: var(--accent, #a78bfa);
-  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(167,139,250,0.30);
+  transform: translateY(-1px);
 }
-.pull-prev-day-icon:active { transform: scale(0.94); }
+.pull-prev-day-pretty:active { transform: scale(0.96); }
+.pull-prev-ic { font-size: 16px; line-height: 1; }
+.pull-prev-txt { color: var(--text); }
 
 /* Botão único "Repetir atividade" — substitui os 3-4 chips antigos */
 .recur-btn {
