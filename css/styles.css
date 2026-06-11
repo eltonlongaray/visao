@@ -4094,18 +4094,36 @@ body.tour2-active .bottom-nav { bottom: 0; }
 .tour2-bar.collapsed .tour2-btn-back {
   display: none !important;
 }
-/* X de sair fica SEMPRE visivel pra user nao ficar preso no tour.
-   z-index altissimo + position relative pra criar stacking context proprio,
-   ficando ACIMA de qualquer modal que o tour eventualmente abra. */
-.tour2-bar .tour2-btn-skip {
-  position: relative;
-  z-index: 999999 !important;
-  pointer-events: auto !important;
+/* X FLUTUANTE no top-right — SEMPRE clicável, acima de qualquer modal */
+.tour2-floating-x {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(8, 9, 15, 0.78);
+  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
+  z-index: 2147483647;  /* INT max — fica acima de TUDO */
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.4), 0 0 0 4px rgba(255,255,255,0.12);
+  font-family: inherit;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-/* Quando tem modal aberto durante o tour, o X precisa flutuar por cima.
-   Faz isso clonando o X virtualmente via posicionamento fixed. */
-.tour2-bar.collapsed .tour2-btn-skip { display: grid !important; }
+.tour2-floating-x:hover, .tour2-floating-x:active {
+  background: rgba(239,68,68,0.95);
+  transform: scale(1.06);
+}
+/* Esconde o X antigo da barra (agora temos o flutuante) */
+.tour2-bar .tour2-btn-skip { display: none !important; }
 .tour2-bar.collapsed .tour2-bar-actions {
   display: flex;
   pointer-events: auto;

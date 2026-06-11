@@ -87,6 +87,19 @@ function buildDom() {
   dom.bar.className = 'tour2-bar';
   document.body.appendChild(dom.bar);
 
+  // X FLUTUANTE no top-right da tela — SEPARADO da barra pra não ser
+  // bloqueado por modais que o tour eventualmente abra (z-index altissimo,
+  // position fixed por cima de TUDO).
+  dom.floatingX = document.createElement('button');
+  dom.floatingX.className = 'tour2-floating-x';
+  dom.floatingX.setAttribute('aria-label', 'Sair do tutorial');
+  dom.floatingX.textContent = '×';
+  const closeTour = (e) => { if (e) { e.stopPropagation(); e.preventDefault(); } end(false); };
+  dom.floatingX.addEventListener('click', closeTour);
+  dom.floatingX.addEventListener('pointerdown', closeTour);
+  dom.floatingX.addEventListener('touchend', closeTour);
+  document.body.appendChild(dom.floatingX);
+
   document.body.classList.add('tour2-active');
 }
 

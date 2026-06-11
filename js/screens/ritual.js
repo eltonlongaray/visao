@@ -897,14 +897,15 @@ async function replaceDayWithPrev(app, dayDocId, choice) {
   });
   if (!ok) return;
   try {
-    // Anti-dup: ignora tarefas que ja existem no dia (mesmo titulo+categoria)
+    // Anti-dup ROBUSTO: por groupId (recorrentes) OU por título+categoria
+    // Evita duplicar tarefas diárias/semanais que já estão no dia atual
     const matchesT = (a, b) => {
+      if (a.recurrenceGroupId && b.recurrenceGroupId && a.recurrenceGroupId === b.recurrenceGroupId) return true;
       const at = (a.title || '').trim().toLowerCase();
       const bt = (b.title || '').trim().toLowerCase();
       if (!at || at !== bt) return false;
       return (a.categoryId || '') === (b.categoryId || '');
     };
-    // Tarefas pra adicionar (sem duplicar)
     const toAdd = choice.tasks.filter(ct => !day.tasks.some(et => matchesT(et, ct)));
     if (toAdd.length === 0) {
       showToast('Essas tarefas já estão neste dia', 'info');
@@ -2886,6 +2887,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
           if (existing.some(x => x.recurrenceGroupId === recurrenceGroupId)) return;
           existing.push(templateTask);
           await setWeekdayTemplate(dow, existing);
+          // Atualiza local pra detecção subsequente (edit/delete) funcionar IMEDIATAMENTE
+          if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
+          profile.weekdayTemplates[String(dow)] = existing;
         })()));
       } else if (recur === 'today') {
         // Somente hoje — sem sync de template
