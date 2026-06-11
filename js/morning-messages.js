@@ -206,7 +206,7 @@ async function openMessageDetail(n) {
 
   const isFirst = n === 1;
   const isLast = n === MESSAGES.length;
-  const nextLabel = isLast ? 'Fechar' : 'Próxima ›';
+  const nextLabel = isLast ? 'Eu Decreto!' : 'Próxima ›';
 
   // Garante que as notas estão carregadas do Firestore antes de mostrar a UI
   if (msg.hasNotes && !notesCache) {
