@@ -325,7 +325,8 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
       reminderEnabled: tmpl.reminderEnabled || false,
       done: false,
       order: orderToUse,
-      ...(tmpl.recurrenceGroupId ? { recurrenceGroupId: tmpl.recurrenceGroupId } : {})
+      ...(tmpl.recurrenceGroupId ? { recurrenceGroupId: tmpl.recurrenceGroupId } : {}),
+      ...(tmpl.recurrenceType ? { recurrenceType: tmpl.recurrenceType } : {})
     };
     const tid = await addDayTask(day.id, newTask);
     day.tasks.push({ id: tid, ...newTask });
@@ -381,11 +382,16 @@ async function syncTemplateForDay(dayDocId) {
       activityId: t.activityId || null,
       title: t.title,
       desc: t.desc || '',
+      kind: t.kind || 'task',
       startTime: t.startTime || '',
       shiftId: t.shiftId || null,
       categoryId: t.categoryId || null,
       icon: t.icon || '',
-      reminderEnabled: t.reminderEnabled || false
+      reminderEnabled: t.reminderEnabled || false,
+      // PRESERVA recurrenceGroupId e recurrenceType na sincronização
+      // (antes esses campos eram perdidos, quebrando detecção em edições)
+      ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {}),
+      ...(t.recurrenceType ? { recurrenceType: t.recurrenceType } : {})
     }));
   try {
     await setWeekdayTemplate(dow, templates);
@@ -2834,7 +2840,6 @@ function openActivityPicker(app, dayDocId, shiftId) {
       return;
     }
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
-    const recur = recurState.recur || 'today';
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
 
     // Se vai repetir (weekly/daily/monthly), gera ID de grupo. 'today' não precisa.
@@ -2845,6 +2850,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       kind,
       startTime, shiftId, categoryId,
       done: false, reminderEnabled,
+      recurrenceType: recur, // FONTE DA VERDADE pra detecção (não inferir do template depois)
       ...(recurrenceGroupId ? { recurrenceGroupId } : {})
     };
 
@@ -2878,9 +2884,11 @@ function openActivityPicker(app, dayDocId, shiftId) {
         // Salva no template de TODOS os 7 dias-da-semana (pra próximas semanas)
         const templateTask = {
           activityId: null, title, desc: '',
+          kind,
           startTime, shiftId: shiftId || null, categoryId: categoryId || null,
           icon: '', reminderEnabled, order,
-          recurrenceGroupId
+          recurrenceGroupId,
+          recurrenceType: 'daily'
         };
         await Promise.all(Array.from({length: 7}, (_, dow) => (async () => {
           const existing = (await getWeekdayTemplate(dow)) || [];
@@ -2971,8 +2979,9 @@ function openTaskEditor(app, dayDocId, taskId) {
   // 'daily' = grupo aparece em TODOS os 7 DOWs
   // 'weekly' = grupo aparece SÓ no DOW desse dia
   // 'today' = sem grupo OU grupo não aparece em nenhum template
+  // PRIMEIRO: lê t.recurrenceType direto (fonte da verdade, gravado na task)
+  // Se não tiver (legado), cai no fallback de inferir pelo template
   let currentRecur = 'today';
-  // Match LAX (groupId OU titulo+categoria) — pega legado sem groupId tambem
   const matchesT = (x) => {
     if (t.recurrenceGroupId && x.recurrenceGroupId === t.recurrenceGroupId) return true;
     const titleKey = (t.title || '').trim().toLowerCase();
@@ -2980,18 +2989,23 @@ function openTaskEditor(app, dayDocId, taskId) {
     if (!titleKey || titleKey !== xTitle) return false;
     return (x.categoryId || '') === (t.categoryId || '');
   };
-  const tpls = profile?.weekdayTemplates || {};
-  const dowsWithMatch = [];
-  for (let dow = 0; dow < 7; dow++) {
-    const arr = tpls[String(dow)];
-    if (Array.isArray(arr) && arr.some(matchesT)) dowsWithMatch.push(dow);
-  }
-  if (dowsWithMatch.length >= 7) currentRecur = 'daily';
-  else if (dowsWithMatch.length >= 1) currentRecur = 'weekly';
-  // Compromisso mensal: detecta no profile.monthlyCommitments (mesmo match LAX)
-  if (Array.isArray(profile?.monthlyCommitments) &&
-      profile.monthlyCommitments.some(matchesT)) {
-    currentRecur = 'monthly';
+
+  if (t.recurrenceType && ['today','weekly','daily','monthly'].includes(t.recurrenceType)) {
+    currentRecur = t.recurrenceType;
+  } else {
+    // FALLBACK (legado): infere pelo template
+    const tpls = profile?.weekdayTemplates || {};
+    const dowsWithMatch = [];
+    for (let dow = 0; dow < 7; dow++) {
+      const arr = tpls[String(dow)];
+      if (Array.isArray(arr) && arr.some(matchesT)) dowsWithMatch.push(dow);
+    }
+    if (dowsWithMatch.length >= 5) currentRecur = 'daily'; // 5+ DOWs = daily (mais leniente)
+    else if (dowsWithMatch.length >= 1) currentRecur = 'weekly';
+    if (Array.isArray(profile?.monthlyCommitments) &&
+        profile.monthlyCommitments.some(matchesT)) {
+      currentRecur = 'monthly';
+    }
   }
   const isActive = (mode) => currentRecur === mode ? 'active' : '';
   const kind = t.kind || 'task';
@@ -3139,6 +3153,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       }
     }
 
+    const recur = recurState.recur || 'today';
     const data = {
       title: modal.querySelector('#m-title').value.trim() || 'Sem título',
       desc: modal.querySelector('#m-desc').value.trim(),
@@ -3146,9 +3161,9 @@ function openTaskEditor(app, dayDocId, taskId) {
       shiftId: newShiftId,
       startTime: newTime,
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
-      reminderEnabled: modal.querySelector('#m-reminder').checked
+      reminderEnabled: modal.querySelector('#m-reminder').checked,
+      recurrenceType: recur // PERSIST tipo de recorrencia direto na task (fonte da verdade)
     };
-    const recur = recurState.recur || 'today';
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
 
     Object.assign(t, data);
@@ -3180,6 +3195,7 @@ function openTaskEditor(app, dayDocId, taskId) {
           reminderEnabled: data.reminderEnabled,
           done: existing?.done || false,
           recurrenceGroupId: groupId,
+          recurrenceType: 'daily', // estamos no branch daily do edit
           order: sourceOrder
         };
         if (existing) {
