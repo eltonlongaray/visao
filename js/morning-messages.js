@@ -1,14 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Mensagens da manhã — 3 perguntas reflexivas pra começar o dia
-// Não é entrada de dados: é leitura/reflexão.
-// Marca como "lido hoje" no localStorage pra esconder a bolinha vermelha.
+// VISÃO · Mensagens da manhã — 3 perguntas reflexivas
+// Mensagens 1 e 2 têm campo de anotações persistente (localStorage).
+// Navegação: anterior / próxima, com X de fechar (botão Sair na última).
+// NÃO fecha ao clicar fora — apenas pelos botões.
 // ═══════════════════════════════════════════════════════════════
+import { trapModalBack } from './modal-back.js';
+
 const STORAGE_LAST_READ = 'visao_msgs_last_read_day';
+const STORAGE_NOTE_PREFIX = 'visao_msg_note_';
 
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 1: STATE — leitura do dia
-// ═══════════════════════════════════════════════════════════════
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -20,6 +20,13 @@ export function hasUnreadToday() {
 
 function markReadToday() {
   localStorage.setItem(STORAGE_LAST_READ, todayKey());
+}
+
+function getNote(n) {
+  return localStorage.getItem(STORAGE_NOTE_PREFIX + n) || '';
+}
+function saveNote(n, text) {
+  localStorage.setItem(STORAGE_NOTE_PREFIX + n, text || '');
 }
 
 
@@ -34,7 +41,9 @@ const MESSAGES = [
       <p>Reserve um instante para enxergar essa versão — como ela age, como fala, como respira o dia.</p>
       <p>Se o corpo te interromper pedindo comida, conforto ou descanso, responda com firmeza tranquila:</p>
       <blockquote>"Calma, corpo. Agora quem está no comando sou eu, a mente.<br>Logo te dou tudo o que você precisa."</blockquote>
-    `
+    `,
+    hasNotes: true,
+    notesPlaceholder: 'Anote quem você quer ser hoje, traços, atitudes, decisões...'
   },
   {
     n: 2,
@@ -49,7 +58,9 @@ const MESSAGES = [
         <li>"Vou conseguir antes do tempo que imagino."</li>
         <li>"Vai ser mais rápido do que eu espero."</li>
       </ul>
-    `
+    `,
+    hasNotes: true,
+    notesPlaceholder: 'Pensamentos estratégicos pro dia...'
   },
   {
     n: 3,
@@ -57,13 +68,14 @@ const MESSAGES = [
     body: `
       <p>Instale essas respostas mentalmente — assumindo um novo estado, uma nova forma de se comunicar com você mesmo(a).</p>
       <p>É a partir desse acordo interno que o dia toma forma.</p>
-    `
+    `,
+    hasNotes: false
   }
 ];
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: ABRE O MODAL
+// BLOCO 3: ABRE A LISTA DAS 3 MENSAGENS
 // ═══════════════════════════════════════════════════════════════
 export function openMorningMessages() {
   markReadToday();
@@ -94,49 +106,47 @@ export function openMorningMessages() {
   `;
   document.body.appendChild(overlay);
 
-  // Back button do celular fecha o modal
-  let popped = false, cameFromPop = false;
-  const onPop = () => { cameFromPop = true; close(); };
-  window.addEventListener('popstate', onPop);
-  history.pushState({ mmModal: true }, '');
-  const close = () => {
-    if (popped) return;
-    popped = true;
-    window.removeEventListener('popstate', onPop);
-    overlay.remove();
-    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
-  };
-
+  const close = trapModalBack(() => overlay.remove());
   overlay.querySelector('#mm-close').addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  // CLICK FORA NÃO FECHA (omitido propositalmente conforme pedido do user)
   overlay.querySelectorAll('[data-mm]').forEach(btn => {
     btn.addEventListener('click', () => {
       const n = parseInt(btn.dataset.mm, 10);
-      openMessageDetail(n);
+      // Fecha a lista e abre o detalhe pra evitar trap aninhado complexo
+      close();
+      setTimeout(() => openMessageDetail(n, () => openMorningMessages()), 120);
     });
   });
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: DETALHE DE UMA MENSAGEM
+// BLOCO 4: DETALHE DE UMA MENSAGEM (com nav prev/next + notas persistentes)
+// onReturn (opcional): callback chamado ao fechar/sair — útil pra reabrir a lista
 // ═══════════════════════════════════════════════════════════════
-function openMessageDetail(n) {
+function openMessageDetail(n, onReturn) {
   const msg = MESSAGES.find(m => m.n === n);
   if (!msg) return;
 
-  // Define o botão de acordo com qual mensagem estamos
-  let btnLabel, btnAction;
-  if (n === 1) {
-    btnLabel = 'Avançar para a próxima pergunta ›';
-    btnAction = 'next';
-  } else if (n === 2) {
-    btnLabel = 'Avançar para a última pergunta ›';
-    btnAction = 'next';
-  } else {
-    btnLabel = 'Sair';
-    btnAction = 'close';
-  }
+  // Botões: prev (se n>1) + próxima/sair
+  const isFirst = n === 1;
+  const isLast = n === MESSAGES.length;
+  const nextLabel = isLast ? 'Sair' : 'Próxima ›';
+
+  // Bloco de anotações: textarea com placeholder + load + auto-save
+  const notesBlockHtml = msg.hasNotes ? `
+    <div class="mm-notes-wrap">
+      <button type="button" class="mm-notes-toggle" id="mm-notes-toggle">
+        <span class="mm-notes-toggle-ic">📝</span>
+        <span class="mm-notes-toggle-text">Suas anotações</span>
+        <span class="mm-notes-toggle-chev">▾</span>
+      </button>
+      <div class="mm-notes-body" id="mm-notes-body" hidden>
+        <textarea id="mm-notes-textarea" placeholder="${msg.notesPlaceholder.replace(/"/g, '&quot;')}" rows="6">${(getNote(msg.n) || '').replace(/</g, '&lt;')}</textarea>
+        <div class="mm-notes-hint">Salvo automaticamente. Volte aqui pra reler quando quiser.</div>
+      </div>
+    </div>
+  ` : '';
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay morning-msgs-overlay';
@@ -145,34 +155,72 @@ function openMessageDetail(n) {
       <div class="mm-detail-num">${msg.n}</div>
       <div class="mm-detail-title">${msg.title}</div>
       <div class="mm-detail-body">${msg.body}</div>
-      <div class="modal-actions">
-        <button class="btn-primary" id="mm-action">${btnLabel}</button>
+      ${notesBlockHtml}
+      <div class="modal-actions mm-detail-actions">
+        ${!isFirst ? '<button class="btn-secondary" id="mm-prev">‹ Anterior</button>' : ''}
+        <button class="btn-primary" id="mm-next">${nextLabel}</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
 
-  let popped = false, cameFromPop = false;
-  const onPop = () => { cameFromPop = true; close(); };
-  window.addEventListener('popstate', onPop);
-  history.pushState({ mmDetail: true }, '');
-  const close = () => {
-    if (popped) return;
-    popped = true;
-    window.removeEventListener('popstate', onPop);
+  // Toggle do bloco de notas (expandido se ja tem conteudo)
+  const notesToggle = overlay.querySelector('#mm-notes-toggle');
+  const notesBody = overlay.querySelector('#mm-notes-body');
+  if (notesToggle && notesBody) {
+    if ((getNote(msg.n) || '').trim().length > 0) {
+      notesBody.hidden = false;
+      notesToggle.classList.add('open');
+    }
+    notesToggle.addEventListener('click', () => {
+      notesBody.hidden = !notesBody.hidden;
+      notesToggle.classList.toggle('open', !notesBody.hidden);
+      if (!notesBody.hidden) {
+        setTimeout(() => overlay.querySelector('#mm-notes-textarea')?.focus(), 100);
+      }
+    });
+  }
+
+  // Auto-save da nota (debounced) — não perde nada se o app fechar
+  const textarea = overlay.querySelector('#mm-notes-textarea');
+  let saveTimer = null;
+  if (textarea) {
+    textarea.addEventListener('input', () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveNote(msg.n, textarea.value), 250);
+    });
+  }
+
+  const finishClose = trapModalBack(() => {
+    if (textarea) saveNote(msg.n, textarea.value); // garante salvar ao fechar
     overlay.remove();
-    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+    if (onReturn) onReturn();
+  });
+
+  // CLICK FORA NÃO FECHA (omitido propositalmente)
+
+  const goNext = () => {
+    if (textarea) saveNote(msg.n, textarea.value);
+    if (isLast) {
+      // Última mensagem: o "Sair" fecha tudo (sem reabrir a lista)
+      overlay.remove();
+      // Limpa o trap manualmente
+      try { history.back(); } catch {}
+      return;
+    }
+    // Vai pra próxima — fecha esse detalhe (sem callback de volta) e abre o próximo
+    overlay.remove();
+    try { history.back(); } catch {}
+    setTimeout(() => openMessageDetail(n + 1, onReturn), 60);
   };
 
-  overlay.querySelector('#mm-action').addEventListener('click', () => {
-    if (btnAction === 'next') {
-      // Fecha esse detalhe e abre o próximo logo em seguida
-      close();
-      // Pequeno delay pra animação do popstate completar
-      setTimeout(() => openMessageDetail(n + 1), 60);
-    } else {
-      close();
-    }
-  });
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  const goPrev = () => {
+    if (textarea) saveNote(msg.n, textarea.value);
+    overlay.remove();
+    try { history.back(); } catch {}
+    setTimeout(() => openMessageDetail(n - 1, onReturn), 60);
+  };
+
+  overlay.querySelector('#mm-next').addEventListener('click', goNext);
+  overlay.querySelector('#mm-prev')?.addEventListener('click', goPrev);
 }

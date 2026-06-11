@@ -416,6 +416,58 @@ export async function renderRitual(app) {
   if (expanded.size === 0) expanded.add(dayId(new Date()));
   await loadWeek();
   renderUI(app);
+  // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
+  // só dispara se as mensagens da manhã NÃO foram abertas hoje
+  maybeShowSovereigntyPrompt();
+}
+
+const SOVEREIGNTY_KEY_PREFIX = 'visao_sovereignty_prompt_dismissed_';
+function sovereigntyTodayKey() {
+  const d = new Date();
+  return `${SOVEREIGNTY_KEY_PREFIX}${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function maybeShowSovereigntyPrompt() {
+  // Se já dispensou hoje (ou abriu as mensagens), não mostra
+  if (localStorage.getItem(sovereigntyTodayKey()) === '1') return;
+  // hasUnreadToday() retorna true se NÃO leu hoje; queremos disparar se NÃO leu
+  const { hasUnreadToday, openMorningMessages } = await import('../morning-messages.js');
+  if (!hasUnreadToday()) {
+    // Já leu as mensagens hoje — não precisa do prompt
+    localStorage.setItem(sovereigntyTodayKey(), '1');
+    return;
+  }
+
+  // Dá um respiro pra UI renderizar antes do modal
+  setTimeout(() => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:380px;text-align:center">
+        <div style="font-size:42px;margin-bottom:8px">👑</div>
+        <div class="modal-title">Vamos começar o dia com soberania?</div>
+        <div class="modal-hint" style="margin-bottom:16px">
+          As 3 perguntas da manhã te ajudam a se posicionar e escolher a melhor versão de você hoje.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn-primary" id="sov-open">✨ Abrir mensagens</button>
+          <button class="btn-secondary" id="sov-later">Deixar pra depois</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = trapModalBack(() => overlay.remove());
+    // NÃO fecha ao clicar fora (omitido propositalmente)
+    overlay.querySelector('#sov-open').onclick = () => {
+      localStorage.setItem(sovereigntyTodayKey(), '1');
+      close();
+      setTimeout(() => openMorningMessages(), 150);
+    };
+    overlay.querySelector('#sov-later').onclick = () => {
+      localStorage.setItem(sovereigntyTodayKey(), '1');
+      close();
+    };
+  }, 600);
 }
 
 
@@ -831,7 +883,7 @@ function pickPrevDayModal(candidates) {
   });
 }
 
-// Executa a substituição depois do user confirmar a escolha
+// Executa a ADIÇÃO de tarefas do dia escolhido (sem apagar as atuais)
 async function replaceDayWithPrev(app, dayDocId, choice) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
@@ -839,17 +891,28 @@ async function replaceDayWithPrev(app, dayDocId, choice) {
   const dataFmt = `${String(choice.date.getDate()).padStart(2,'0')}/${String(choice.date.getMonth()+1).padStart(2,'0')}`;
   const ok = await confirmModal({
     title: `Trazer ${dow.toLowerCase()} (${dataFmt})?`,
-    message: `Vai substituir TODAS as tarefas atuais pelas ${choice.tasks.length} de ${dow.toLowerCase()} ${dataFmt}.`,
-    confirmText: 'Trazer',
-    cancelText: 'Cancelar',
-    danger: true
+    message: `Vai ACRESCENTAR as ${choice.tasks.length} tarefas de ${dow.toLowerCase()} ${dataFmt} às suas atuais (sem apagar as que já existem).`,
+    confirmText: 'Acrescentar',
+    cancelText: 'Cancelar'
   });
   if (!ok) return;
   try {
-    await Promise.all(day.tasks.map(t => deleteDayTask(dayDocId, t.id).catch(() => {})));
-    day.tasks = [];
-    const sorted = choice.tasks.slice().sort(taskSort);
-    let order = 0;
+    // Anti-dup: ignora tarefas que ja existem no dia (mesmo titulo+categoria)
+    const matchesT = (a, b) => {
+      const at = (a.title || '').trim().toLowerCase();
+      const bt = (b.title || '').trim().toLowerCase();
+      if (!at || at !== bt) return false;
+      return (a.categoryId || '') === (b.categoryId || '');
+    };
+    // Tarefas pra adicionar (sem duplicar)
+    const toAdd = choice.tasks.filter(ct => !day.tasks.some(et => matchesT(et, ct)));
+    if (toAdd.length === 0) {
+      showToast('Essas tarefas já estão neste dia', 'info');
+      return;
+    }
+    const sorted = toAdd.slice().sort(taskSort);
+    // order começa a partir do final das tarefas existentes
+    let order = day.tasks.length;
     for (const t of sorted) {
       const newTask = {
         activityId: t.activityId || null,
@@ -873,7 +936,7 @@ async function replaceDayWithPrev(app, dayDocId, choice) {
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
     updateDayCardStats(dayDocId, false);
-    showToast(`Trazidas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} de ${dow.toLowerCase()} ${dataFmt}`, 'success');
+    showToast(`Acrescentadas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} de ${dow.toLowerCase()} ${dataFmt}`, 'success');
   } catch (err) {
     console.error('[replace-day-with-prev] erro:', err);
     showToast('Erro ao trazer dia', 'error');
@@ -1599,9 +1662,9 @@ function openRitualCalendar(app) {
     if (!cell) return;
     const id = cell.dataset.calDay;
     close();
-    // Abre o criador de atividade direto pra esse dia.
-    // Se for dia de outra semana, navega pra semana correspondente primeiro
-    // pra weekData ter o dia e o openActivityPicker poder achar ele.
+    // Delay pra deixar o trapModalBack do calendário finalizar history.back()
+    // ANTES de abrir o openActivityPicker (evita o pai fechar o filho)
+    await new Promise(r => setTimeout(r, 120));
     const [y, m, d] = id.split('-').map(Number);
     const picked = new Date(y, m - 1, d);
     const targetWeekStart = getWeekStart(picked);
@@ -1613,7 +1676,6 @@ function openRitualCalendar(app) {
     } else {
       expanded.add(id);
     }
-    // Usa o primeiro turno como padrão (se user setar horário, auto-corrige)
     const defaultShiftId = shifts[0]?.id || null;
     if (!defaultShiftId) {
       showToast('Configure pelo menos um turno na Home antes de criar atividades', 'info');
@@ -1816,11 +1878,14 @@ function attachHandlers(app) {
       await Promise.all(updates);
 
       // Cria a cópia com order = posição logo após o original
+      // PRESERVA kind (task vs commitment) + reminderEnabled — antes virava tarefa normal
       const newTask = {
         activityId: t.activityId || null,
         title: t.title, desc: t.desc || '', startTime: t.startTime || '',
         shiftId: t.shiftId, categoryId: t.categoryId || null,
         icon: t.icon || '',
+        kind: t.kind || 'task',
+        reminderEnabled: t.reminderEnabled || false,
         done: false, order: insertOrder
       };
       const tid = await addDayTask(dayDocId, newTask);
@@ -2903,22 +2968,25 @@ function openTaskEditor(app, dayDocId, taskId) {
   // 'weekly' = grupo aparece SÓ no DOW desse dia
   // 'today' = sem grupo OU grupo não aparece em nenhum template
   let currentRecur = 'today';
-  if (t.recurrenceGroupId) {
-    const tpls = profile?.weekdayTemplates || {};
-    const dowsWithGroup = [];
-    for (let dow = 0; dow < 7; dow++) {
-      const arr = tpls[String(dow)];
-      if (Array.isArray(arr) && arr.some(x => x.recurrenceGroupId === t.recurrenceGroupId)) {
-        dowsWithGroup.push(dow);
-      }
-    }
-    if (dowsWithGroup.length >= 7) currentRecur = 'daily';
-    else if (dowsWithGroup.length === 1 && dowsWithGroup[0] === day.date.getDay()) currentRecur = 'weekly';
-    else if (dowsWithGroup.length > 0) currentRecur = 'weekly';
+  // Match LAX (groupId OU titulo+categoria) — pega legado sem groupId tambem
+  const matchesT = (x) => {
+    if (t.recurrenceGroupId && x.recurrenceGroupId === t.recurrenceGroupId) return true;
+    const titleKey = (t.title || '').trim().toLowerCase();
+    const xTitle = (x.title || '').trim().toLowerCase();
+    if (!titleKey || titleKey !== xTitle) return false;
+    return (x.categoryId || '') === (t.categoryId || '');
+  };
+  const tpls = profile?.weekdayTemplates || {};
+  const dowsWithMatch = [];
+  for (let dow = 0; dow < 7; dow++) {
+    const arr = tpls[String(dow)];
+    if (Array.isArray(arr) && arr.some(matchesT)) dowsWithMatch.push(dow);
   }
-  // Compromisso mensal: detecta no profile.monthlyCommitments
-  if (t.recurrenceGroupId && Array.isArray(profile?.monthlyCommitments) &&
-      profile.monthlyCommitments.some(x => x.recurrenceGroupId === t.recurrenceGroupId)) {
+  if (dowsWithMatch.length >= 7) currentRecur = 'daily';
+  else if (dowsWithMatch.length >= 1) currentRecur = 'weekly';
+  // Compromisso mensal: detecta no profile.monthlyCommitments (mesmo match LAX)
+  if (Array.isArray(profile?.monthlyCommitments) &&
+      profile.monthlyCommitments.some(matchesT)) {
     currentRecur = 'monthly';
   }
   const isActive = (mode) => currentRecur === mode ? 'active' : '';
@@ -2988,7 +3056,7 @@ function openTaskEditor(app, dayDocId, taskId) {
   // Estado de recorrência iniciado com o atual da tarefa
   let recurState = { recur: currentRecur };
   if (currentRecur === 'monthly' && Array.isArray(profile?.monthlyCommitments)) {
-    const entries = profile.monthlyCommitments.filter(x => x.recurrenceGroupId === t.recurrenceGroupId);
+    const entries = profile.monthlyCommitments.filter(matchesT);
     if (entries.length > 0) recurState.daysOfMonth = entries.map(x => x.dayOfMonth).filter(Number.isInteger).sort((a,b)=>a-b);
   }
   const recurLabelEl = modal.querySelector('#m-recur-label');

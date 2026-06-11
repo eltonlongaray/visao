@@ -2055,6 +2055,66 @@ body.time-picker-open { overflow: hidden; }
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Bloco de anotacoes nas mensagens 1 e 2 — colapsavel */
+.mm-notes-wrap {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.mm-notes-toggle {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  background: rgba(167,139,250,0.08);
+  border: 1px solid rgba(167,139,250,0.3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.mm-notes-toggle:hover { background: rgba(167,139,250,0.16); }
+.mm-notes-toggle-ic { font-size: 16px; }
+.mm-notes-toggle-text { flex: 1; }
+.mm-notes-toggle-chev {
+  color: var(--muted);
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+.mm-notes-toggle.open .mm-notes-toggle-chev { transform: rotate(180deg); }
+.mm-notes-body { margin-top: 10px; }
+.mm-notes-body textarea {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+.mm-notes-body textarea:focus {
+  border-color: var(--accent, #a78bfa);
+}
+.mm-notes-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-align: center;
+}
+.mm-detail-actions { display: flex; gap: 8px; }
+.mm-detail-actions .btn-primary,
+.mm-detail-actions .btn-secondary { flex: 1; }
+
 .reminders-text { flex: 1; min-width: 0; }
 .reminders-title { font-size: 13px; font-weight: 700; }
 .reminders-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -4034,11 +4094,18 @@ body.tour2-active .bottom-nav { bottom: 0; }
 .tour2-bar.collapsed .tour2-btn-back {
   display: none !important;
 }
-/* X de sair fica SEMPRE visivel pra user nao ficar preso no tour */
+/* X de sair fica SEMPRE visivel pra user nao ficar preso no tour.
+   z-index altissimo + position relative pra criar stacking context proprio,
+   ficando ACIMA de qualquer modal que o tour eventualmente abra. */
 .tour2-bar .tour2-btn-skip {
-  z-index: 10003;
+  position: relative;
+  z-index: 999999 !important;
   pointer-events: auto !important;
+  cursor: pointer;
 }
+/* Quando tem modal aberto durante o tour, o X precisa flutuar por cima.
+   Faz isso clonando o X virtualmente via posicionamento fixed. */
+.tour2-bar.collapsed .tour2-btn-skip { display: grid !important; }
 .tour2-bar.collapsed .tour2-bar-actions {
   display: flex;
   pointer-events: auto;

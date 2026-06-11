@@ -250,7 +250,14 @@ function renderBar(step) {
 
   dom.bar.querySelector('[data-tour-next]')?.addEventListener('click', () => next());
   dom.bar.querySelector('[data-tour-back]')?.addEventListener('click', () => back());
-  dom.bar.querySelector('[data-tour-skip]')?.addEventListener('click', () => end(false));
+  // X de sair: usa pointerdown (mais confiavel que click em mobile com modais sobrepostos)
+  // + stopPropagation pra evitar handlers globais interferirem
+  const skipBtn = dom.bar.querySelector('[data-tour-skip]');
+  if (skipBtn) {
+    const onSkip = (e) => { e.stopPropagation(); e.preventDefault(); end(false); };
+    skipBtn.addEventListener('click', onSkip);
+    skipBtn.addEventListener('pointerdown', onSkip);
+  }
 }
 
 
