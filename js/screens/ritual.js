@@ -735,7 +735,6 @@ function renderDayContent(d) {
       </label>
       <button class="pull-prev-day-pretty" data-action="pull-prev-day" data-day="${d.id}" title="Trazer atividades de outro dia">
         <span class="pull-prev-ic">📥</span>
-        <span class="pull-prev-txt">Trazer dia</span>
       </button>
       <label class="time-pill">
         <span class="time-pill-label">🌙 Dormi</span>
@@ -866,6 +865,9 @@ async function pullPrevDay(app, dayDocId) {
   const choice = await pickPrevDayModal(candidates);
   if (!choice) return;
 
+  // Delay pra deixar o history.back do trap do picker settle ANTES de abrir
+  // o confirmModal — senão o pop chega no confirmModal e fecha ele silenciosamente
+  await new Promise(r => setTimeout(r, 150));
   await replaceDayWithPrev(app, dayDocId, choice);
 }
 
