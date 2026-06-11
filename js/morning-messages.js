@@ -57,50 +57,67 @@ async function preloadNotesFromFirestore() {
   }
 }
 
-// Salva em localStorage (instant) + Firestore (debounced — junta várias edições)
+// Salva em localStorage (instant) + Firestore (debounced curto OU imediato)
 let firestoreSaveTimer = null;
 let pendingNotesToSave = {};
-function saveNote(n, text) {
-  if (!notesCache) notesCache = {};
-  notesCache[n] = text || '';
-  pendingNotesToSave[n] = text || '';
 
-  // Save sincrono no localStorage (instant, pra fast-reload na mesma sessão)
-  try { localStorage.setItem(STORAGE_NOTE_PREFIX + n, text || ''); }
-  catch (err) { console.warn('[mm-note] localStorage falhou:', err); }
-
-  // Save debounced no Firestore (1.5s — junta digitação contínua em 1 write)
-  clearTimeout(firestoreSaveTimer);
-  firestoreSaveTimer = setTimeout(async () => {
-    const batch = { ...pendingNotesToSave };
-    pendingNotesToSave = {};
-    try {
-      // Lê o profile atual e mescla pra não sobrescrever outras notas
-      const profile = await getProfile() || {};
-      const remote = profile.morningNotes || {};
-      await setProfile({ morningNotes: { ...remote, ...batch } });
-    } catch (err) {
-      console.warn('[mm-note] Firestore falhou (notas ainda estão em localStorage):', err);
-      // Re-adiciona ao pending pra tentar de novo no próximo save
-      Object.assign(pendingNotesToSave, batch);
-    }
-  }, 1500);
-}
-
-// Força save sincrono do que tá pendente (ao fechar, navegar, etc)
-async function flushNoteSave() {
+// Função interna que faz o write real no Firestore (mescla com remoto)
+async function writeNotesToFirestore() {
   if (Object.keys(pendingNotesToSave).length === 0) return;
-  clearTimeout(firestoreSaveTimer);
   const batch = { ...pendingNotesToSave };
   pendingNotesToSave = {};
   try {
     const profile = await getProfile() || {};
     const remote = profile.morningNotes || {};
-    await setProfile({ morningNotes: { ...remote, ...batch } });
+    const merged = { ...remote, ...batch };
+    await setProfile({ morningNotes: merged });
+    console.log('[mm-note] ✓ Firestore SAVED:', Object.keys(batch).map(k => `${k}=${batch[k].length}c`).join(', '));
   } catch (err) {
-    console.warn('[mm-note] flush Firestore falhou:', err);
-    Object.assign(pendingNotesToSave, batch); // recupera pra próxima
+    console.error('[mm-note] ✗ Firestore FAILED:', err);
+    Object.assign(pendingNotesToSave, batch);  // re-coloca pra próxima tentativa
+    throw err;
   }
+}
+
+function saveNote(n, text) {
+  if (!notesCache) notesCache = {};
+  notesCache[n] = text || '';
+  pendingNotesToSave[n] = text || '';
+
+  // Save SÍNCRONO em localStorage
+  try { localStorage.setItem(STORAGE_NOTE_PREFIX + n, text || ''); }
+  catch (err) { console.warn('[mm-note] localStorage falhou:', err); }
+
+  // Save debounced curto (500ms) no Firestore
+  clearTimeout(firestoreSaveTimer);
+  firestoreSaveTimer = setTimeout(() => {
+    writeNotesToFirestore().catch(() => {}); // erro já logado
+  }, 500);
+}
+
+// Força flush IMEDIATO (await). Usado em close/navigate.
+async function flushNoteSave() {
+  clearTimeout(firestoreSaveTimer);
+  if (Object.keys(pendingNotesToSave).length === 0) return;
+  try { await writeNotesToFirestore(); }
+  catch (err) { /* já logado em writeNotesToFirestore */ }
+}
+
+// Quando o usuário minimiza/fecha o app, FORÇA flush pra Firestore
+// antes que ele perca a conexão ou os dados locais sejam limpos
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && Object.keys(pendingNotesToSave).length > 0) {
+      // fire-and-forget — o navegador pode matar o request, mas vale tentar
+      writeNotesToFirestore().catch(() => {});
+    }
+  });
+  // pagehide é mais confiável em iOS Safari pra "tab vai fechar"
+  window.addEventListener('pagehide', () => {
+    if (Object.keys(pendingNotesToSave).length > 0) {
+      writeNotesToFirestore().catch(() => {});
+    }
+  });
 }
 
 
@@ -277,7 +294,11 @@ async function openMessageDetail(n) {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(persistNote, 250);
     });
-    textarea.addEventListener('blur', persistNote);
+    // Blur (perdeu foco) → IMEDIATO save no Firestore (não espera o debounce)
+    textarea.addEventListener('blur', async () => {
+      persistNote();
+      await flushNoteSave();
+    });
     // Quando textarea recebe foco, rola pra mantê-lo visível acima do teclado
     textarea.addEventListener('focus', () => {
       setTimeout(() => textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }), 280);
