@@ -4,11 +4,19 @@
 // Botões: ‹ Anterior · Próxima › / Fechar
 // "Fechar" na última encerra TUDO (não volta pra lista).
 // NÃO fecha ao clicar fora.
+//
+// Notas são salvas em DOIS lugares:
+//   • Firestore (profile.morningNotes) — persiste mesmo limpando navegador
+//   • localStorage (cache rápido) — pra abrir sem esperar Firestore
 // ═══════════════════════════════════════════════════════════════
 import { trapModalBack } from './modal-back.js';
+import { getProfile, setProfile } from './store.js';
 
 const STORAGE_LAST_READ = 'visao_msgs_last_read_day';
 const STORAGE_NOTE_PREFIX = 'visao_msg_note_';
+
+// Cache em memória das notas (preenchido pela 1a leitura)
+let notesCache = null;
 
 function todayKey() {
   const d = new Date();
@@ -23,16 +31,75 @@ function markReadToday() {
   localStorage.setItem(STORAGE_LAST_READ, todayKey());
 }
 
-function getNote(n) {
+// Lê do cache em memória → senão localStorage
+function getNoteLocal(n) {
+  if (notesCache && notesCache[n] != null) return notesCache[n];
   try {
     return localStorage.getItem(STORAGE_NOTE_PREFIX + n) || '';
   } catch { return ''; }
 }
-function saveNote(n, text) {
+
+// Pré-carrega do Firestore e atualiza cache + localStorage
+async function preloadNotesFromFirestore() {
   try {
-    localStorage.setItem(STORAGE_NOTE_PREFIX + n, text || '');
+    const profile = await getProfile();
+    const remote = profile?.morningNotes || {};
+    notesCache = {};
+    for (const key of Object.keys(remote)) {
+      notesCache[key] = remote[key] || '';
+      // Sincroniza com localStorage pra fast-load próximo
+      try { localStorage.setItem(STORAGE_NOTE_PREFIX + key, remote[key] || ''); } catch {}
+    }
+    return notesCache;
   } catch (err) {
-    console.warn('[mm-note] save falhou:', err);
+    console.warn('[mm-note] preload Firestore falhou:', err);
+    return null;
+  }
+}
+
+// Salva em localStorage (instant) + Firestore (debounced — junta várias edições)
+let firestoreSaveTimer = null;
+let pendingNotesToSave = {};
+function saveNote(n, text) {
+  if (!notesCache) notesCache = {};
+  notesCache[n] = text || '';
+  pendingNotesToSave[n] = text || '';
+
+  // Save sincrono no localStorage (instant, pra fast-reload na mesma sessão)
+  try { localStorage.setItem(STORAGE_NOTE_PREFIX + n, text || ''); }
+  catch (err) { console.warn('[mm-note] localStorage falhou:', err); }
+
+  // Save debounced no Firestore (1.5s — junta digitação contínua em 1 write)
+  clearTimeout(firestoreSaveTimer);
+  firestoreSaveTimer = setTimeout(async () => {
+    const batch = { ...pendingNotesToSave };
+    pendingNotesToSave = {};
+    try {
+      // Lê o profile atual e mescla pra não sobrescrever outras notas
+      const profile = await getProfile() || {};
+      const remote = profile.morningNotes || {};
+      await setProfile({ morningNotes: { ...remote, ...batch } });
+    } catch (err) {
+      console.warn('[mm-note] Firestore falhou (notas ainda estão em localStorage):', err);
+      // Re-adiciona ao pending pra tentar de novo no próximo save
+      Object.assign(pendingNotesToSave, batch);
+    }
+  }, 1500);
+}
+
+// Força save sincrono do que tá pendente (ao fechar, navegar, etc)
+async function flushNoteSave() {
+  if (Object.keys(pendingNotesToSave).length === 0) return;
+  clearTimeout(firestoreSaveTimer);
+  const batch = { ...pendingNotesToSave };
+  pendingNotesToSave = {};
+  try {
+    const profile = await getProfile() || {};
+    const remote = profile.morningNotes || {};
+    await setProfile({ morningNotes: { ...remote, ...batch } });
+  } catch (err) {
+    console.warn('[mm-note] flush Firestore falhou:', err);
+    Object.assign(pendingNotesToSave, batch); // recupera pra próxima
   }
 }
 
@@ -85,6 +152,9 @@ const MESSAGES = [
 // ═══════════════════════════════════════════════════════════════
 export function openMorningMessages() {
   markReadToday();
+  // Pré-carrega as notas do Firestore em background (não bloqueia abrir a lista)
+  // Quando o user abrir o detalhe da msg 3, o cache já estará pronto
+  if (!notesCache) preloadNotesFromFirestore();
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay morning-msgs-overlay';
@@ -130,7 +200,7 @@ export function openMorningMessages() {
 // Navegação entre messages via prev/next.
 // "Fechar" (na última) encerra de vez (não volta pra lista).
 // ═══════════════════════════════════════════════════════════════
-function openMessageDetail(n) {
+async function openMessageDetail(n) {
   const msg = MESSAGES.find(m => m.n === n);
   if (!msg) return;
 
@@ -138,7 +208,11 @@ function openMessageDetail(n) {
   const isLast = n === MESSAGES.length;
   const nextLabel = isLast ? 'Fechar' : 'Próxima ›';
 
-  const initialNote = msg.hasNotes ? getNote(msg.n) : '';
+  // Garante que as notas estão carregadas do Firestore antes de mostrar a UI
+  if (msg.hasNotes && !notesCache) {
+    await preloadNotesFromFirestore();
+  }
+  const initialNote = msg.hasNotes ? getNoteLocal(msg.n) : '';
   const notesBlockHtml = msg.hasNotes ? `
     <div class="mm-notes-wrap">
       <button type="button" class="mm-notes-toggle" id="mm-notes-toggle">
@@ -210,28 +284,29 @@ function openMessageDetail(n) {
     });
   }
 
-  // trapModalBack: ao fechar via back-button do celular, persiste a nota
+  // trapModalBack: ao fechar via back-button do celular, persiste + flush Firestore
   const closeViaTrap = trapModalBack(() => {
     persistNote();
+    flushNoteSave(); // garante salvar no Firestore agora (não espera o debounce)
     overlay.remove();
   });
 
   // CLICK FORA NÃO FECHA
 
-  const goNext = () => {
+  const goNext = async () => {
     persistNote();
+    await flushNoteSave();
     if (isLast) {
-      // FECHAR — encerra de vez, sem voltar pra lista
       closeViaTrap();
       return;
     }
-    // Próxima — fecha esse detalhe e abre o próximo
     closeViaTrap();
     setTimeout(() => openMessageDetail(n + 1), 120);
   };
 
-  const goPrev = () => {
+  const goPrev = async () => {
     persistNote();
+    await flushNoteSave();
     closeViaTrap();
     setTimeout(() => openMessageDetail(n - 1), 120);
   };
