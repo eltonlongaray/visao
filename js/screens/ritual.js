@@ -2875,6 +2875,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       return;
     }
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
+    const recur = recurState.recur || 'today'; // ← estava faltando, quebrava o save inteiro
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
 
     // Se vai repetir (weekly/daily/monthly), gera ID de grupo. 'today' não precisa.
