@@ -434,6 +434,8 @@ function sovereigntyTodayKey() {
 }
 
 async function maybeShowSovereigntyPrompt() {
+  // Durante o tour, não mostra esse modal (atrapalha a navegação guiada)
+  if (tourIsActive()) return;
   // Se já dispensou hoje (ou abriu as mensagens), não mostra
   if (localStorage.getItem(sovereigntyTodayKey()) === '1') return;
   // hasUnreadToday() retorna true se NÃO leu hoje; queremos disparar se NÃO leu
