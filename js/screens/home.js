@@ -122,7 +122,10 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
 
-  // Tour NÃO auto-inicia — só dispara via Ajustes → "Rever tutorial de boas-vindas"
+  // Tour auto-inicia para novos usuários (uma vez só — flag em localStorage via tour.js)
+  if (!tour.isCompleted() && !tour.isActive()) {
+    setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -766,7 +766,7 @@ function renderDayContent(d) {
 
     <div class="day-clear-wrap">
       <button type="button" class="day-clear-btn" data-action="clear-day" data-day="${d.id}">
-        🗑️ Limpar dados do dia
+        🗑️ Apagar tudo deste dia
       </button>
     </div>
   `;

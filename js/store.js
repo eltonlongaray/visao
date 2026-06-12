@@ -240,8 +240,7 @@ export async function seedOrganizacaoPessoal() {
     { name: 'Hidratação',  icon: '💧', color: '#60a5fa', order: 1, daysOfWeek: ALL_DAYS },
     { name: 'Alimentação', icon: '🥗', color: '#34d399', order: 2, daysOfWeek: ALL_DAYS },
     { name: 'Treino',      icon: '💪', color: '#f472b6', order: 3, daysOfWeek: [1,2,3,4] }, // Seg-Qui
-    { name: 'Estudo',      icon: '📚', color: '#a78bfa', order: 4, daysOfWeek: [1,2,3,4,5] }, // Seg-Sex
-    { name: 'Sono',        icon: '🌙', color: '#fbbf24', order: 5, daysOfWeek: ALL_DAYS }
+    { name: 'Estudo',      icon: '📚', color: '#a78bfa', order: 4, daysOfWeek: [1,2,3,4,5] } // Seg-Sex
   ];
   for (const c of cats) await addDoc(colRef('categories'), c);
 }
