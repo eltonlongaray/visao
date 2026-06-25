@@ -44,7 +44,9 @@ export function showLocalToast(triggerEl, message, type = 'success') {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: CONFIRM MODAL (substitui o confirm() feio do navegador)
 // ═══════════════════════════════════════════════════════════════
-export function confirmModal({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', danger = false }) {
+// chainedFlow: true → quando o usuário confirma, usa replaceState em vez de history.back()
+// Evita que o back() dispare o popstate do próximo modal no fluxo encadeado
+export function confirmModal({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', danger = false, chainedFlow = false }) {
   return new Promise(resolve => {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
@@ -73,7 +75,15 @@ export function confirmModal({ title, message, confirmText = 'Confirmar', cancel
       window.removeEventListener('popstate', onPop);
       document.removeEventListener('keydown', esc);
       modal.remove();
-      if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+      if (!cameFromPop) {
+        if (result && chainedFlow) {
+          // Fluxo encadeado: substitui a entrada do histórico em vez de voltar,
+          // evitando que o popstate feche o próximo modal da cadeia
+          try { history.replaceState(null, ''); } catch {}
+        } else {
+          setTimeout(() => { try { history.back(); } catch {} }, 0);
+        }
+      }
       resolve(result);
     };
     modal.querySelector('[data-act="cancel"]').onclick = () => close(false);

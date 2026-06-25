@@ -158,7 +158,8 @@ async function warnPreviousDayMissing(app, currentDayId, status) {
     title: 'Fechamento pendente',
     message: `Em ${labelDia.toLowerCase()} (${dataFmt}) ${faltaTxt}. Quer preencher agora?`,
     confirmText: 'Preencher agora',
-    cancelText: 'Depois'
+    cancelText: 'Depois',
+    chainedFlow: true  // evita que o history.back() deste modal feche o próximo da cadeia
   });
   if (ok) {
     const completed = await runDayCompletionFlow(app, prevId);
