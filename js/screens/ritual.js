@@ -2368,7 +2368,8 @@ async function confirmOrEditSleep(dayDocId) {
     title: 'Confere a hora de dormir',
     message: `Você dormiu às ${current}?`,
     confirmText: 'Sim, foi isso',
-    cancelText: 'Ajustar'
+    cancelText: 'Ajustar',
+    chainedFlow: true  // seguido de promptHydrationFor
   });
   if (yes) return true;
   // "Ajustar" → abre relógio; mesmo se cancelar, mantém valor anterior e segue
@@ -2618,7 +2619,8 @@ function openDayNoteModal(dayDocId) {
     popped = true;
     window.removeEventListener('popstate', onPop);
     modal.remove();
-    if (!cameFromPop) setTimeout(() => { try { history.back(); } catch {} }, 0);
+    // replaceState em vez de back(): evita que o popstate quebre o próximo modal da cadeia
+    if (!cameFromPop) try { history.replaceState(null, ''); } catch {}
     resolve(!!registered);
   };
   const close = () => finish(false);
