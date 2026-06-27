@@ -67,6 +67,29 @@ async function renderUI(app) {
         <div class="month-bar-chart"><canvas id="chart-months"></canvas></div>
       </div>
 
+      <div class="consistency-card" id="consistency-card">
+        <div class="con-title">🔥 Consistência</div>
+        <div class="con-row">
+          <div class="con-item">
+            <div class="con-val con-cold" id="streak-current">—</div>
+            <div class="con-lbl">dias seguidos</div>
+            <div class="con-sub" id="streak-current-sub">sequência atual</div>
+          </div>
+          <div class="con-divider"></div>
+          <div class="con-item">
+            <div class="con-val" id="streak-longest">—</div>
+            <div class="con-lbl">recorde</div>
+            <div class="con-sub">melhor sequência</div>
+          </div>
+          <div class="con-divider"></div>
+          <div class="con-item">
+            <div class="con-val" id="streak-rate">—</div>
+            <div class="con-lbl">consistência</div>
+            <div class="con-sub" id="streak-rate-sub">desde o início</div>
+          </div>
+        </div>
+      </div>
+
       <div class="tab-switch" id="period-tabs">
         <button class="tab-btn ${period==='semana'?'active':''}" data-period="semana">Esta semana</button>
         <button class="tab-btn ${period==='mes'?'active':''}" data-period="mes">Este mês</button>
@@ -217,6 +240,7 @@ async function refreshMonthData() {
   const recordsEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0);
   fetchDaysRange(recordsStart, recordsEnd).then(allHistoryDays => {
     renderRecords(allHistoryDays);
+    renderStreakCard(calculateStreaks(allHistoryDays));
   }).catch(err => console.error('[Visão] erro ao buscar histórico:', err));
 }
 
@@ -715,6 +739,73 @@ function recordRow(t) {
     </div>
     <div class="record-status ${t.done ? 'ok' : 'no'}">${t.done ? 'FEITO' : 'PEND'}</div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.5: SCORE DE CONSISTÊNCIA
+// Sequência atual, recorde e taxa de dias registrados desde o início.
+// Dias sem doc no Firestore = sem registro = streak interrompida.
+// Sono e outros dados desses dias permanecem nulos (sem bridging).
+// ═══════════════════════════════════════════════════════════════
+function calculateStreaks(allDays) {
+  if (!allDays.length) return { current: 0, longest: 0, rate: 0, totalRegistered: 0, totalDays: 0 };
+
+  const registeredSet = new Set(allDays.map(d => d.id));
+  const sortedIds = [...registeredSet].sort();
+
+  const [fy, fm, fd] = sortedIds[0].split('-').map(Number);
+  const firstDate = new Date(fy, fm - 1, fd);
+  firstDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const totalDays = Math.floor((today - firstDate) / 86400000) + 1;
+  const totalRegistered = registeredSet.size;
+  const rate = totalDays > 0 ? Math.round((totalRegistered / totalDays) * 100) : 0;
+
+  // Sequência atual: retrocede a partir de hoje
+  let current = 0;
+  const cursor = new Date(today);
+  while (cursor >= firstDate) {
+    if (!registeredSet.has(dayId(cursor))) break;
+    current++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  // Recorde: percorre todos os dias do histórico
+  let longest = 0, streak = 0;
+  const scan = new Date(firstDate);
+  while (scan <= today) {
+    if (registeredSet.has(dayId(scan))) {
+      streak++;
+      if (streak > longest) longest = streak;
+    } else {
+      streak = 0;
+    }
+    scan.setDate(scan.getDate() + 1);
+  }
+
+  return { current, longest, rate, totalRegistered, totalDays };
+}
+
+function renderStreakCard({ current, longest, rate, totalRegistered, totalDays }) {
+  const curEl = document.getElementById('streak-current');
+  const curSub = document.getElementById('streak-current-sub');
+  const lonEl = document.getElementById('streak-longest');
+  const ratEl = document.getElementById('streak-rate');
+  const ratSub = document.getElementById('streak-rate-sub');
+  if (!curEl) return;
+
+  curEl.textContent = current > 0 ? `${current}d` : '0';
+  curEl.className = 'con-val ' + (current >= 14 ? 'con-fire' : current >= 7 ? 'con-hot' : current >= 3 ? 'con-warm' : 'con-cold');
+
+  const streakMsg = current >= 14 ? 'imparável! 🚀' : current >= 7 ? 'uma semana! 🔥' : current >= 3 ? 'mantendo o ritmo' : current === 1 ? 'recomeçando hoje' : 'retome hoje!';
+  curSub.textContent = streakMsg;
+
+  lonEl.textContent = longest > 0 ? `${longest}d` : '—';
+  ratEl.textContent = totalDays > 0 ? `${rate}%` : '—';
+  if (ratSub) ratSub.textContent = `${totalRegistered} de ${totalDays} dias`;
 }
 
 // ═══════════════════════════════════════════════════════════════
