@@ -466,6 +466,9 @@ async function renderRecords(days) {
     return;
   }
 
+  // Mapa id→doc para lookup cross-day no cálculo de sono
+  const dayMap = new Map(days.map(d => [d.id, d]));
+
   // Agrupa dias por semana (Monday id)
   const weeks = new Map();
   for (const d of days) {
@@ -515,7 +518,7 @@ async function renderRecords(days) {
           <span class="year-stats">${list.length} ${list.length === 1 ? 'semana' : 'semanas'} · ${yearPct}%</span>
         </div>
         <div class="year-weeks">
-          ${list.map(({ mondayId, week, note }) => renderWeekCard(mondayId, week, note)).join('')}
+          ${list.map(({ mondayId, week, note }) => renderWeekCard(mondayId, week, note, dayMap)).join('')}
         </div>
       </div>
     `;
@@ -523,7 +526,7 @@ async function renderRecords(days) {
   box.innerHTML = html;
 }
 
-function renderWeekCard(mondayId, { monday, days }, weekNote) {
+function renderWeekCard(mondayId, { monday, days }, weekNote, dayMap) {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   const isOpen = openedWeeks.has(mondayId);
@@ -611,7 +614,7 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
           ${weakest.length ? `<div class="week-insight"><span class="ins-icon">⚠️</span> Pontos fracos: ${weakest.map(fmtAct).join(' · ')}</div>` : ''}
         </div>
 
-        ${renderWeekSleep(days)}
+        ${renderWeekSleep(days, dayMap)}
 
         <div class="week-days-list">
           ${days.sort((a,b) => a.date - b.date).map(d => renderDayCompactRow(d)).join('')}
@@ -626,14 +629,16 @@ function renderWeekCard(mondayId, { monday, days }, weekNote) {
   `;
 }
 
-function renderWeekSleep(days) {
+function renderWeekSleep(days, dayMap) {
   const durations = [];
   let totalDaySleep = 0;    // soma de horas de cochilo nas notas
   let totalNightAwake = 0;  // soma de horas acordado na madrugada
   let notesCount = 0;
   for (const d of days) {
-    if (d.wakeTime && d.sleepTime) {
-      const dur = sleepDuration(d.sleepTime, d.wakeTime);
+    // Sono real = sleepTime do dia ANTERIOR → wakeTime deste dia
+    const prev = dayMap?.get(prevId(d.id));
+    if (d.wakeTime && prev?.sleepTime) {
+      const dur = sleepDuration(prev.sleepTime, d.wakeTime);
       if (dur && dur >= 60 && dur <= 16 * 60) durations.push(dur);
     }
     // fetchDaysRange achata os dados no root
@@ -819,6 +824,12 @@ function errorBox(err) {
 }
 
 function escape(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function prevId(id) {
+  const [y, m, d] = id.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  return dayId(dt);
+}
 function hexA(hex, a) {
   if (!hex) return `rgba(167,139,250,${a})`;
   const m = hex.match(/^#?([0-9a-f]{6})$/i);
