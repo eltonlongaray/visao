@@ -220,11 +220,9 @@ async function routeCommand(text) {
   if (convState?.type === 'waiting_type') {
     const { name, date } = convState;
     convState = null;
-    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t)) return cmdConfirmarRegistro(name, true,  date || new Date());
-    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t)) return cmdConfirmarRegistro(name, false, date || new Date());
-    // aceita resposta livre "atividade" ou "compromisso" em qualquer posição
-    if (/atividade/i.test(t)) return cmdConfirmarRegistro(name, true,  date || new Date());
-    if (/compromisso/i.test(t)) return cmdConfirmarRegistro(name, false, date || new Date());
+    const d = date || new Date();
+    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t))   { showRegistroPreview(name, true,  d); return null; }
+    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) { showRegistroPreview(name, false, d); return null; }
     return 'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
   }
 
@@ -255,8 +253,8 @@ async function routeCommand(text) {
       return 'O que você quer registrar?';
     }
 
-    if (tipoExplicito === 'compromisso') return cmdConfirmarRegistro(nameRaw, false, targetDate);
-    if (tipoExplicito === 'atividade')   return cmdConfirmarRegistro(nameRaw, true,  targetDate);
+    if (tipoExplicito === 'compromisso') { showRegistroPreview(nameRaw, false, targetDate); return null; }
+    if (tipoExplicito === 'atividade')   { showRegistroPreview(nameRaw, true,  targetDate); return null; }
 
     // Tipo não especificado — pergunta
     return askType(nameRaw, targetDate);
@@ -369,9 +367,12 @@ async function cmdTarefas() {
 
 function askType(name, date = new Date()) {
   convState = { type: 'waiting_type', name, date };
-  const quando = isToday(date) ? 'hoje' : 'amanhã';
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const dd = date.getDate().toString().padStart(2, '0');
+  const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+  const label = isToday(date) ? 'hoje' : `${DIAS[date.getDay()]} (${dd}/${mm})`;
   addChoices(
-    `"<strong>${name}</strong>" para <strong>${quando}</strong> — atividade ou compromisso?`,
+    `"<strong>${name}</strong>" para <strong>${label}</strong> — atividade ou compromisso?`,
     [
       { label: '✅ Atividade (já fiz)', value: 'atividade' },
       { label: '📌 Compromisso (vou fazer)', value: 'compromisso' }
@@ -380,42 +381,75 @@ function askType(name, date = new Date()) {
   return null;
 }
 
-async function cmdConfirmarRegistro(name, done, date = new Date()) {
+// Mostra card de pré-visualização com botão de confirmar — NÃO escreve no Firebase ainda
+function showRegistroPreview(name, done, date = new Date()) {
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const dd = date.getDate().toString().padStart(2, '0');
+  const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+  const diaSemana = DIAS[date.getDay()];
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const alvo = new Date(date); alvo.setHours(0,0,0,0);
+  const diff = Math.round((alvo - hoje) / 86400000);
+  const quandoLabel = diff === 0 ? `hoje, ${diaSemana} (${dd}/${mm})`
+                    : diff === 1 ? `amanhã, ${diaSemana} (${dd}/${mm})`
+                    : `${diaSemana} (${dd}/${mm})`;
+
+  const tipoIcon  = done ? '✅' : '📌';
+  const tipoLabel = done ? 'atividade' : 'compromisso';
+
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `
+    <span class="pet-preview-card">
+      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
+      <span class="pet-preview-sub">${quandoLabel} · ${tipoLabel}</span>
+      <button class="pet-reg-btn">${tipoIcon} Registrar ${tipoLabel}</button>
+    </span>`;
+
+  const btn = div.querySelector('.pet-reg-btn');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Registrando...';
+    try {
+      await executeRegistro(name, done, date);
+      btn.textContent = '✓ Registrado';
+      btn.classList.add('pet-reg-done');
+      if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
+      showCenterToast(done ? 'Atividade registrada!' : 'Compromisso registrado!');
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = `${tipoIcon} Registrar ${tipoLabel}`;
+      addMessage('Erro ao registrar. Tente novamente.', 'bot');
+      console.error('[pet] registro:', err);
+    }
+  });
+
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Escreve no Firebase — chamado SOMENTE pelo botão de confirmação
+async function executeRegistro(name, done, date) {
   const targetId = dayId(date);
   await setDayMeta(targetId, {});
   const tasks = await getDayTasks(targetId);
   await addDayTask(targetId, { title: name, done, order: tasks.length });
+}
 
-  const dd   = date.getDate().toString().padStart(2, '0');
-  const mm   = (date.getMonth() + 1).toString().padStart(2, '0');
-  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const diaSemana = DIAS[date.getDay()];
-
-  // Avisa se cai fora da semana atual do Ritual (hoje é domingo = último dia)
-  const hoje = new Date();
-  hoje.setHours(0,0,0,0);
-  const alvo = new Date(date);
-  alvo.setHours(0,0,0,0);
-  const diffDias = Math.round((alvo - hoje) / 86400000);
-
-  let label, dica = '';
-  if (diffDias === 0)       label = `hoje, ${diaSemana} (${dd}/${mm})`;
-  else if (diffDias === 1)  label = `amanhã, ${diaSemana} (${dd}/${mm})`;
-  else                      label = `${diaSemana} (${dd}/${mm})`;
-
-  // Se hoje é domingo (getDay() === 0) e o alvo é amanhã → semana seguinte no Ritual
-  if (hoje.getDay() === 0 && diffDias >= 1) {
-    dica = `<br><small style="color:var(--muted)">⚠️ Hoje é domingo — use a seta → no Ritual para ver a próxima semana.</small>`;
-  } else if (diffDias >= 1) {
-    dica = `<br><small style="color:var(--muted)">Abra o Ritual de ${diaSemana} para ver.</small>`;
-  }
-
-  if (done) {
-    setPetState('excited');
-    setTimeout(() => setPetState('idle'), 1800);
-    return `✅ "<strong>${name}</strong>" registrado — ${label}.${dica}`;
-  }
-  return `📌 "<strong>${name}</strong>" como compromisso — ${label}.${dica}`;
+// Toast centralizado na tela após registro confirmado
+function showCenterToast(message) {
+  const el = document.createElement('div');
+  el.className = 'pet-center-toast';
+  el.textContent = message;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('pet-center-toast-show'));
+  setTimeout(() => {
+    el.classList.remove('pet-center-toast-show');
+    setTimeout(() => el.remove(), 300);
+  }, 2200);
 }
 
 function cmdAjuda() {

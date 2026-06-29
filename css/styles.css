@@ -4761,3 +4761,54 @@ body.tour-active { overflow: hidden; }
 .pet-choice-btn.pet-choice-selected  { background: var(--accent); color: white; border-color: var(--accent); }
 .pet-choice-btn.pet-choice-used:not(.pet-choice-selected) { opacity: 0.35; }
 .pet-choice-btn:disabled { cursor: default; }
+
+/* Card de preview de registro */
+.pet-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pet-preview-title { font-size: 13px; }
+.pet-preview-sub   { font-size: 11px; color: var(--muted); }
+
+/* Botão de confirmar registro */
+.pet-reg-btn {
+  margin-top: 8px;
+  align-self: flex-start;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.pet-reg-btn:hover:not(:disabled) { opacity: 0.88; transform: scale(1.03); }
+.pet-reg-btn:disabled { opacity: 0.6; cursor: default; }
+.pet-reg-btn.pet-reg-done { background: var(--green); }
+
+/* Toast central — aparece no meio da tela após registro */
+.pet-center-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: var(--accent);
+  color: white;
+  padding: 14px 28px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+}
+.pet-center-toast.pet-center-toast-show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
