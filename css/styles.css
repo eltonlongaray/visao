@@ -4475,8 +4475,8 @@ body.tour-active { overflow: hidden; }
 
 /* Corpo do pet */
 .pet-body {
-  width: 54px;
-  height: 54px;
+  width: 44px;
+  height: 44px;
   background: #7c3aed;
   border-radius: 50%;
   cursor: pointer;
@@ -4513,22 +4513,17 @@ body.tour-active { overflow: hidden; }
 /* SVG do olho */
 .pet-eye-svg { width: 100%; height: 100%; display: block; }
 
-/* Pálpebras — posicionadas fora do olho, animam para dentro */
+/* Pálpebras — partem de fora do SVG e animam para dentro */
 .pet-lid-top { transform: translateY(0); transition: transform 0.12s ease; }
 .pet-lid-bot { transform: translateY(0); transition: transform 0.12s ease; }
 
-/* Cílios — somem quando olho fecha */
-.pet-lashes { transition: opacity 0.1s; }
+/* PISCAR (idle) — pálpebra superior desce ~22px para cobrir metade do olho */
+#visao-pet.pet-blinking .pet-lid-top { transform: translateY(22px); }
 
-/* PISCAR (idle) */
-#visao-pet.pet-blinking .pet-lid-top { transform: translateY(16px); }
-#visao-pet.pet-blinking .pet-lashes  { opacity: 0; }
-
-/* DORMINDO */
-#visao-pet[data-state="sleeping"] .pet-lid-top { transform: translateY(18px); transition: transform 0.5s ease; }
-#visao-pet[data-state="sleeping"] .pet-lid-bot { transform: translateY(-18px); transition: transform 0.5s ease; }
+/* DORMINDO — as duas pálpebras se fecham totalmente */
+#visao-pet[data-state="sleeping"] .pet-lid-top { transform: translateY(30px); transition: transform 0.5s ease; }
+#visao-pet[data-state="sleeping"] .pet-lid-bot { transform: translateY(-30px); transition: transform 0.5s ease; }
 #visao-pet[data-state="sleeping"] .pet-pupil   { opacity: 0; transition: opacity 0.3s; }
-#visao-pet[data-state="sleeping"] .pet-lashes  { opacity: 0; }
 
 /* Zs de sono */
 .pet-zzz {
@@ -4701,16 +4696,19 @@ body.tour-active { overflow: hidden; }
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 17px;
-  padding: 4px;
+  padding: 6px;
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .pet-mic-btn        { color: var(--muted); }
-.pet-mic-btn:hover  { transform: scale(1.15); }
-.pet-mic-btn.pet-mic-active { animation: petMicPulse 0.8s ease infinite; }
-.pet-send-btn       { color: var(--accent); }
-.pet-send-btn:hover { transform: scale(1.15); }
+.pet-mic-btn:hover  { color: var(--text); transform: scale(1.1); }
+.pet-mic-btn svg    { display: block; }
+.pet-mic-btn.pet-mic-active { color: #ef4444; animation: petMicPulse 0.8s ease infinite; }
+.pet-send-btn       { color: var(--accent); font-size: 15px; }
+.pet-send-btn:hover { transform: scale(1.1); }
 @keyframes petMicPulse {
   0%, 100% { transform: scale(1); }
   50%       { transform: scale(1.2); }

@@ -27,6 +27,12 @@ export function hidePet() {
   if (el) el.classList.add('pet-hidden');
 }
 
+// Abre o pet + painel de chat (chamado pelo botão da home)
+export function openPetChat() {
+  showPet();
+  setTimeout(openChatPanel, 60);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: ESTADOS — idle | sleeping | excited | thinking
 // ═══════════════════════════════════════════════════════════════
@@ -84,29 +90,36 @@ function buildPetHTML() {
         autocorrect="off"
         autocapitalize="sentences"
       />
-      <button class="pet-mic-btn" id="pet-mic-btn" title="Falar" aria-label="Microfone">🎤</button>
+      <button class="pet-mic-btn" id="pet-mic-btn" title="Falar" aria-label="Microfone">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
       <button class="pet-send-btn" id="pet-send-btn" aria-label="Enviar">➤</button>
     </div>
   </div>
 
-  <!-- Corpo do pet (o olho) -->
+  <!-- Corpo do pet — O OLHO INTEIRO -->
   <div class="pet-body" id="pet-body" role="button" aria-label="Abrir chat do Visão" tabindex="0">
     <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="30" cy="33" rx="19" ry="15" fill="white"/>
-      <circle cx="30" cy="33" r="10" fill="#4f46e5"/>
-      <circle cx="30" cy="33" r="6" fill="#0a0e1a" class="pet-pupil"/>
-      <circle cx="35" cy="28" r="2.5" fill="white" opacity="0.8"/>
-      <circle cx="38" cy="32" r="1.2" fill="white" opacity="0.4"/>
-      <ellipse cx="30" cy="18" rx="21" ry="17" fill="#7c3aed" class="pet-lid-top"/>
-      <ellipse cx="30" cy="50" rx="21" ry="17" fill="#7c3aed" class="pet-lid-bot"/>
-      <g class="pet-lashes" stroke="#0a0e1a" stroke-width="1.5" stroke-linecap="round">
-        <line x1="14" y1="25" x2="12" y2="20"/>
-        <line x1="20" y1="20" x2="19" y2="15"/>
-        <line x1="30" y1="18" x2="30" y2="13"/>
-        <line x1="40" y1="20" x2="41" y2="15"/>
-        <line x1="46" y1="25" x2="48" y2="20"/>
-      </g>
+      <!-- Esclera: preenche o círculo inteiro -->
+      <circle cx="30" cy="30" r="30" fill="white"/>
+      <!-- Íris grande -->
+      <circle cx="30" cy="33" r="17" fill="#4f46e5"/>
+      <!-- Pupila -->
+      <circle cx="30" cy="33" r="10" fill="#080614" class="pet-pupil"/>
+      <!-- Brilho principal -->
+      <circle cx="37" cy="26" r="4.5" fill="white" opacity="0.75"/>
+      <!-- Brilho secundário -->
+      <circle cx="22" cy="29" r="2" fill="white" opacity="0.35"/>
+      <!-- Pálpebra superior (fecha de cima) -->
+      <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
+      <!-- Pálpebra inferior (fecha de baixo) -->
+      <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
     <div class="pet-zzz" aria-hidden="true">
       <span style="--d:0s">z</span>
@@ -413,7 +426,6 @@ function startMic() {
   recognition.interimResults = false;
 
   const micBtn = document.getElementById('pet-mic-btn');
-  micBtn.textContent = '🔴';
   micBtn.classList.add('pet-mic-active');
   setPetState('thinking');
 
@@ -433,7 +445,7 @@ function startMic() {
 
 function resetMicBtn() {
   const btn = document.getElementById('pet-mic-btn');
-  if (btn) { btn.textContent = '🎤'; btn.classList.remove('pet-mic-active'); }
+  if (btn) btn.classList.remove('pet-mic-active');
 }
 
 function formatTranscript(raw) {
