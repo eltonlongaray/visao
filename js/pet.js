@@ -202,43 +202,91 @@ async function dispatchCommand(text) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ROTEADOR DE COMANDOS
 // ═══════════════════════════════════════════════════════════════
+
+// Verbos que indicam intenção de registrar algo
+const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\b/i;
+
 async function routeCommand(text) {
   const t = text.toLowerCase();
 
-  // ── Resposta de estado de conversa ──
+  // ── Continua conversa em andamento ──
   if (convState?.type === 'waiting_name') {
     const name = text;
+    const date = convState.date || new Date();
     convState = null;
-    return askType(name);
+    return askType(name, date);
   }
 
   if (convState?.type === 'waiting_type') {
-    const name = convState.name;
+    const { name, date } = convState;
     convState = null;
-    if (/atividade|fiz|feito|conclu/i.test(t)) return cmdConfirmarRegistro(name, true);
-    if (/compromisso|vou|farei|pendente/i.test(t)) return cmdConfirmarRegistro(name, false);
-    return 'Não entendi. Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
+    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t)) return cmdConfirmarRegistro(name, true,  date || new Date());
+    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t)) return cmdConfirmarRegistro(name, false, date || new Date());
+    // aceita resposta livre "atividade" ou "compromisso" em qualquer posição
+    if (/atividade/i.test(t)) return cmdConfirmarRegistro(name, true,  date || new Date());
+    if (/compromisso/i.test(t)) return cmdConfirmarRegistro(name, false, date || new Date());
+    return 'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
   }
 
-  // ── Comandos diretos ──
-  if (/dormi|sono|horas de sono|acordei/i.test(t))       return cmdSono();
-  if (/sequência|sequencia|streak|seguidos|consecutiv/i.test(t)) return cmdSequencia();
-  if (/hidrat|água|agua|beber|ml/i.test(t))               return cmdHidratacao();
-  if (/tarefa|atividade de hoje|compromisso de hoje|to.?do/i.test(t) && !/registrar|adicionar/i.test(t)) return cmdTarefas();
+  // ── Consultas ──
+  if (/dormi|sono|horas de sono|acordei/i.test(t))                   return cmdSono();
+  if (/sequência|sequencia|streak|seguidos|consecutiv/i.test(t))     return cmdSequencia();
+  if (/hidrat|água|agua|beber|bebi|\bml\b/i.test(t))                 return cmdHidratacao();
+  if (/tarefas?|to.?do|lista de hoje|o que tenho/i.test(t) && !REGISTER_TRIGGERS.test(t)) return cmdTarefas();
+  if (/ajuda|help|comando|o que (você|vc) (faz|sabe)/i.test(t))      return cmdAjuda();
 
-  const registrarMatch = t.match(/registrar?|adicionar?|criar?\s+(.+)/i);
-  if (/registrar|adicionar/i.test(t)) {
-    const nameRaw = text.replace(/^(registrar?|adicionar?|criar?)\s*/i, '').trim();
+  // ── Intenção de registrar ──
+  if (REGISTER_TRIGGERS.test(t) || /registrar|adicionar/i.test(t)) {
+    // Detecta data alvo
+    const targetDate = /amanhã|amanha/i.test(t) ? dateOffset(1)
+                     : /depois de amanhã|depois de amanha/i.test(t) ? dateOffset(2)
+                     : new Date();
+
+    // Detecta tipo diretamente na frase
+    const tipoExplicito = /\bcompromisso\b/i.test(t) ? 'compromisso'
+                        : /\batividade\b/i.test(t)   ? 'atividade'
+                        : null;
+
+    // Extrai o nome da tarefa
+    const nameRaw = extractTaskName(text);
+
     if (!nameRaw) {
-      convState = { type: 'waiting_name' };
+      convState = { type: 'waiting_name', date: targetDate };
       return 'O que você quer registrar?';
     }
-    return askType(nameRaw);
+
+    if (tipoExplicito === 'compromisso') return cmdConfirmarRegistro(nameRaw, false, targetDate);
+    if (tipoExplicito === 'atividade')   return cmdConfirmarRegistro(nameRaw, true,  targetDate);
+
+    // Tipo não especificado — pergunta
+    return askType(nameRaw, targetDate);
   }
 
-  if (/ajuda|help|comando|o que (você|vc) faz/i.test(t)) return cmdAjuda();
+  return `Não entendi. Digite <strong>ajuda</strong> pra ver o que sei fazer.`;
+}
 
-  return `Não reconheci esse comando. Digite <strong>ajuda</strong> pra ver o que sei fazer.`;
+// Extrai o nome da tarefa limpando verbos, artigos, tipo e data da frase
+function extractTaskName(text) {
+  return text
+    .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\s*/i, '')
+    .replace(/^(um|uma|o|a)\s+/i, '')
+    .replace(/\b(pra mim|para mim)\b/gi, '')
+    .replace(/\b(compromisso|atividade)\b\s*/gi, '')
+    .replace(/\b(amanhã|amanha|depois de amanhã|depois de amanha|hoje|agora)\b\s*/gi, '')
+    .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Retorna uma data N dias à frente de hoje
+function dateOffset(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function isToday(date) {
+  return dayId(date) === dayId(new Date());
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -317,43 +365,43 @@ async function cmdTarefas() {
   return msg;
 }
 
-function askType(name) {
-  convState = { type: 'waiting_type', name };
+function askType(name, date = new Date()) {
+  convState = { type: 'waiting_type', name, date };
+  const quando = isToday(date) ? 'hoje' : 'amanhã';
   addChoices(
-    `"<strong>${name}</strong>" é uma atividade ou compromisso?`,
+    `"<strong>${name}</strong>" para <strong>${quando}</strong> — atividade ou compromisso?`,
     [
       { label: '✅ Atividade (já fiz)', value: 'atividade' },
       { label: '📌 Compromisso (vou fazer)', value: 'compromisso' }
     ]
   );
-  return null; // mensagem já adicionada por addChoices
+  return null;
 }
 
-async function cmdConfirmarRegistro(name, done) {
-  const today = dayId(new Date());
+async function cmdConfirmarRegistro(name, done, date = new Date()) {
+  const targetId = dayId(date);
+  await setDayMeta(targetId, {});
+  const tasks = await getDayTasks(targetId);
+  await addDayTask(targetId, { title: name, done, order: tasks.length });
 
-  // Garante que o documento do dia existe
-  await setDayMeta(today, {});
-
-  const tasks = await getDayTasks(today);
-  const order = tasks.length;
-  await addDayTask(today, { title: name, done, order });
-
+  const quando = isToday(date) ? 'hoje' : 'amanhã';
   if (done) {
     setPetState('excited');
     setTimeout(() => setPetState('idle'), 1800);
-    return `✅ "<strong>${name}</strong>" registrado como atividade concluída!`;
+    return `✅ "<strong>${name}</strong>" registrado como atividade de ${quando}!`;
   }
-  return `📌 "<strong>${name}</strong>" adicionado como compromisso pra hoje.`;
+  return `📌 "<strong>${name}</strong>" adicionado como compromisso de ${quando}.`;
 }
 
 function cmdAjuda() {
-  return `👁 <strong>Comandos disponíveis:</strong><br>
-• <em>quanto dormi?</em> — horas de sono da noite<br>
-• <em>minha sequência?</em> — dias seguidos de registro<br>
-• <em>hidratação de hoje?</em> — água consumida vs meta<br>
-• <em>tarefas de hoje?</em> — lista de tarefas do dia<br>
-• <em>registrar [nome]</em> — registra atividade ou compromisso`;
+  return `👁 <strong>O que eu entendo:</strong><br>
+• <em>quanto dormi?</em><br>
+• <em>minha sequência?</em><br>
+• <em>hidratação de hoje?</em><br>
+• <em>tarefas de hoje?</em><br>
+• <em>marca um compromisso amanhã pra pagar a conta</em><br>
+• <em>registrar treino</em> · <em>adicionar reunião</em><br>
+• <em>coloca lembrete de amanhã pra ligar pro médico</em>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
