@@ -17,6 +17,7 @@ import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 import { hasTerms } from './consent.js';
+import { initPet, showPet, hidePet } from './pet.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -36,6 +37,7 @@ registerRoute('/ajustes', renderAjustes);
 
 forceRender();
 initAutoLock();
+initPet();
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -56,6 +58,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
     lastUid = null;
+    hidePet();
     if (isLocked()) hideLock();
     if (!isPublic) navigate('/login');
     else if (!location.hash) navigate('/login');
@@ -85,6 +88,7 @@ onAuthStateChanged(auth, async (user) => {
 
   // ── Aceite OK: vai pra modalidade ──
   navigate('/modalidade');
+  showPet();
 
   // Cold-open: trava se bio configurada
   if (biometric.isEnabledForUser(user.uid)) {
