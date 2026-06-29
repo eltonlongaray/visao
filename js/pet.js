@@ -237,9 +237,9 @@ async function routeCommand(text) {
 
   // ── Intenção de registrar ──
   if (REGISTER_TRIGGERS.test(t) || /registrar|adicionar/i.test(t)) {
-    // Detecta data alvo
-    const targetDate = /amanhã|amanha/i.test(t) ? dateOffset(1)
-                     : /depois de amanhã|depois de amanha/i.test(t) ? dateOffset(2)
+    // Detecta data alvo — "depois de amanhã" antes de "amanhã" (evita match parcial)
+    const targetDate = /depois\s+de\s+aman(h[ãa]|ha)/i.test(t) ? dateOffset(2)
+                     : /aman(h[ãa]|ha)/i.test(t)                ? dateOffset(1)
                      : new Date();
 
     // Detecta tipo diretamente na frase
@@ -272,7 +272,9 @@ function extractTaskName(text) {
     .replace(/^(um|uma|o|a)\s+/i, '')
     .replace(/\b(pra mim|para mim)\b/gi, '')
     .replace(/\b(compromisso|atividade)\b\s*/gi, '')
-    .replace(/\b(amanhã|amanha|depois de amanhã|depois de amanha|hoje|agora)\b\s*/gi, '')
+    .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
+    .replace(/aman(h[ãa]|ha)\s*/gi, '')
+    .replace(/\b(hoje|agora)\b\s*/gi, '')
     .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -384,13 +386,17 @@ async function cmdConfirmarRegistro(name, done, date = new Date()) {
   const tasks = await getDayTasks(targetId);
   await addDayTask(targetId, { title: name, done, order: tasks.length });
 
-  const quando = isToday(date) ? 'hoje' : 'amanhã';
+  // Data legível: "hoje (28/06)" ou "amanhã (29/06)"
+  const d  = date.getDate().toString().padStart(2, '0');
+  const m  = (date.getMonth() + 1).toString().padStart(2, '0');
+  const quando = isToday(date) ? `hoje (${d}/${m})` : `amanhã (${d}/${m})`;
+
   if (done) {
     setPetState('excited');
     setTimeout(() => setPetState('idle'), 1800);
-    return `✅ "<strong>${name}</strong>" registrado como atividade de ${quando}!`;
+    return `✅ "<strong>${name}</strong>" registrado como atividade — ${quando}.`;
   }
-  return `📌 "<strong>${name}</strong>" adicionado como compromisso de ${quando}.`;
+  return `📌 "<strong>${name}</strong>" como compromisso — ${quando}.<br><small style="color:var(--muted)">Abra o Ritual de ${quando.split(' ')[0]} para ver.</small>`;
 }
 
 function cmdAjuda() {
