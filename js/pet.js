@@ -386,17 +386,36 @@ async function cmdConfirmarRegistro(name, done, date = new Date()) {
   const tasks = await getDayTasks(targetId);
   await addDayTask(targetId, { title: name, done, order: tasks.length });
 
-  // Data legível: "hoje (28/06)" ou "amanhã (29/06)"
-  const d  = date.getDate().toString().padStart(2, '0');
-  const m  = (date.getMonth() + 1).toString().padStart(2, '0');
-  const quando = isToday(date) ? `hoje (${d}/${m})` : `amanhã (${d}/${m})`;
+  const dd   = date.getDate().toString().padStart(2, '0');
+  const mm   = (date.getMonth() + 1).toString().padStart(2, '0');
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const diaSemana = DIAS[date.getDay()];
+
+  // Avisa se cai fora da semana atual do Ritual (hoje é domingo = último dia)
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  const alvo = new Date(date);
+  alvo.setHours(0,0,0,0);
+  const diffDias = Math.round((alvo - hoje) / 86400000);
+
+  let label, dica = '';
+  if (diffDias === 0)       label = `hoje, ${diaSemana} (${dd}/${mm})`;
+  else if (diffDias === 1)  label = `amanhã, ${diaSemana} (${dd}/${mm})`;
+  else                      label = `${diaSemana} (${dd}/${mm})`;
+
+  // Se hoje é domingo (getDay() === 0) e o alvo é amanhã → semana seguinte no Ritual
+  if (hoje.getDay() === 0 && diffDias >= 1) {
+    dica = `<br><small style="color:var(--muted)">⚠️ Hoje é domingo — use a seta → no Ritual para ver a próxima semana.</small>`;
+  } else if (diffDias >= 1) {
+    dica = `<br><small style="color:var(--muted)">Abra o Ritual de ${diaSemana} para ver.</small>`;
+  }
 
   if (done) {
     setPetState('excited');
     setTimeout(() => setPetState('idle'), 1800);
-    return `✅ "<strong>${name}</strong>" registrado como atividade — ${quando}.`;
+    return `✅ "<strong>${name}</strong>" registrado — ${label}.${dica}`;
   }
-  return `📌 "<strong>${name}</strong>" como compromisso — ${quando}.<br><small style="color:var(--muted)">Abra o Ritual de ${quando.split(' ')[0]} para ver.</small>`;
+  return `📌 "<strong>${name}</strong>" como compromisso — ${label}.${dica}`;
 }
 
 function cmdAjuda() {
