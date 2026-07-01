@@ -291,11 +291,15 @@ function extractTaskName(text) {
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
     .replace(/\b(hoje|agora)\b\s*/gi, '')
     .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
-    // Remove expressões de horário do título (ordem importa: mais específico primeiro)
-    .replace(/\b(?:às?|as|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
+    // Remove expressões de horário — preposição + número + unidade
+    .replace(/(?:às?|as|das?|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
+    // Remove horários soltos que restaram
     .replace(/\b\d{1,2}:\d{2}\b/g, '')
     .replace(/\b\d{1,2}h\d{2}\b/gi, '')
     .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
+    // Remove resíduos orphãos
+    .replace(/\bhoras?\b/gi, '')
+    .replace(/(?:às?|as|das?)\s*(?=\s|$|[,.])/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   return result ? result.charAt(0).toUpperCase() + result.slice(1) : result;
