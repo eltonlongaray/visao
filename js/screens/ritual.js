@@ -815,6 +815,12 @@ function renderShiftsForDay(d) {
     </div>`;
   }
 
+  // Tasks sem turno vão pro primeiro shift (evita sumirem no _none não-renderizado)
+  if (byShift['_none'].length > 0) {
+    byShift[shifts[0].id].push(...byShift['_none']);
+    byShift['_none'] = [];
+  }
+
   // (Banner antigo "Trazer dia anterior" removido — agora usa o icone ↓ entre as pilulas)
 
   return shifts.map(s => `
