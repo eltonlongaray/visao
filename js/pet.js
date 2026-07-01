@@ -2,7 +2,7 @@
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
 import {
-  getDay, setDayMeta, getDayTasks, addDayTask,
+  getDay, setDayMeta, getDayTasks, addDayTask, getShifts,
   dayId, sleepDuration, formatTime
 } from './store.js';
 
@@ -456,8 +456,11 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
 // Escreve no Firebase — chamado SOMENTE pelo botão de confirmação
 async function executeRegistro(name, done, date, time = '') {
   const targetId = dayId(date);
-  await setDayMeta(targetId, {});
-  const tasks = await getDayTasks(targetId);
+  const [, tasks, shifts] = await Promise.all([
+    setDayMeta(targetId, {}),
+    getDayTasks(targetId),
+    getShifts(),
+  ]);
   await addDayTask(targetId, {
     title: name,
     done,
@@ -467,7 +470,7 @@ async function executeRegistro(name, done, date, time = '') {
     desc: '',
     icon: '',
     categoryId: null,
-    shiftId: null,
+    shiftId: shifts[0]?.id || null,
     reminderEnabled: false,
   });
 }
