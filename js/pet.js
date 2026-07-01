@@ -282,7 +282,7 @@ function extractTime(text) {
 
 // Extrai o nome da tarefa limpando verbos, artigos, tipo, data e horário da frase
 function extractTaskName(text) {
-  return text
+  const result = text
     .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\s*/i, '')
     .replace(/^(um|uma|o|a)\s+/i, '')
     .replace(/\b(pra mim|para mim)\b/gi, '')
@@ -298,6 +298,7 @@ function extractTaskName(text) {
     .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
+  return result ? result.charAt(0).toUpperCase() + result.slice(1) : result;
 }
 
 // Retorna uma data N dias à frente de hoje
