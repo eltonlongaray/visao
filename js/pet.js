@@ -218,11 +218,11 @@ async function routeCommand(text) {
   }
 
   if (convState?.type === 'waiting_type') {
-    const { name, date } = convState;
+    const { name, date, time } = convState;
     convState = null;
     const d = date || new Date();
-    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t))   { showRegistroPreview(name, true,  d); return null; }
-    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) { showRegistroPreview(name, false, d); return null; }
+    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t))   { showRegistroPreview(name, true,  d, time || ''); return null; }
+    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) { showRegistroPreview(name, false, d, time || ''); return null; }
     return 'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
   }
 
@@ -245,25 +245,42 @@ async function routeCommand(text) {
                         : /\batividade\b/i.test(t)   ? 'atividade'
                         : null;
 
-    // Extrai o nome da tarefa
-    const nameRaw = extractTaskName(text);
+    // Extrai horário e nome da tarefa
+    const taskTime = extractTime(text);
+    const nameRaw  = extractTaskName(text);
 
     if (!nameRaw) {
-      convState = { type: 'waiting_name', date: targetDate };
+      convState = { type: 'waiting_name', date: targetDate, time: taskTime };
       return 'O que você quer registrar?';
     }
 
-    if (tipoExplicito === 'compromisso') { showRegistroPreview(nameRaw, false, targetDate); return null; }
-    if (tipoExplicito === 'atividade')   { showRegistroPreview(nameRaw, true,  targetDate); return null; }
+    if (tipoExplicito === 'compromisso') { showRegistroPreview(nameRaw, false, targetDate, taskTime); return null; }
+    if (tipoExplicito === 'atividade')   { showRegistroPreview(nameRaw, true,  targetDate, taskTime); return null; }
 
     // Tipo não especificado — pergunta
-    return askType(nameRaw, targetDate);
+    return askType(nameRaw, targetDate, taskTime);
   }
 
   return `Não entendi. Digite <strong>ajuda</strong> pra ver o que sei fazer.`;
 }
 
-// Extrai o nome da tarefa limpando verbos, artigos, tipo e data da frase
+// Extrai horário da frase → "HH:MM" ou '' se não encontrar
+function extractTime(text) {
+  const t = text.toLowerCase();
+  let m = t.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
+  m = t.match(/\b(\d{1,2})h(\d{2})\b/);
+  if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
+  m = t.match(/\b(?:às?|as)\s+(\d{1,2})\s*h(?:oras?)?\b/);
+  if (m) return `${m[1].padStart(2,'0')}:00`;
+  m = t.match(/\b(?:às?|as)\s+(\d{1,2})\b/);
+  if (m) return `${m[1].padStart(2,'0')}:00`;
+  m = t.match(/\b(\d{1,2})\s*h(?:oras?)?\b/);
+  if (m) return `${m[1].padStart(2,'0')}:00`;
+  return '';
+}
+
+// Extrai o nome da tarefa limpando verbos, artigos, tipo, data e horário da frase
 function extractTaskName(text) {
   return text
     .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\s*/i, '')
@@ -274,6 +291,11 @@ function extractTaskName(text) {
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
     .replace(/\b(hoje|agora)\b\s*/gi, '')
     .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
+    // Remove expressões de horário do título
+    .replace(/\b(?:às?|as|para\s+as?|pra\s+as?)\s+\d{1,2}(?:\s*h(?:oras?)?)?\b/gi, '')
+    .replace(/\b\d{1,2}:\d{2}\b/g, '')
+    .replace(/\b\d{1,2}h\d{2}\b/gi, '')
+    .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -365,14 +387,14 @@ async function cmdTarefas() {
   return msg;
 }
 
-function askType(name, date = new Date()) {
-  convState = { type: 'waiting_type', name, date };
+function askType(name, date = new Date(), time = '') {
+  convState = { type: 'waiting_type', name, date, time };
   const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const dd = date.getDate().toString().padStart(2, '0');
   const mm = (date.getMonth() + 1).toString().padStart(2, '0');
   const label = isToday(date) ? 'hoje' : `${DIAS[date.getDay()]} (${dd}/${mm})`;
   addChoices(
-    `"<strong>${name}</strong>" para <strong>${label}</strong> — atividade ou compromisso?`,
+    `"<strong>${name}</strong>" para <strong>${label}</strong>${time ? ` às <strong>${time}</strong>` : ''} — atividade ou compromisso?`,
     [
       { label: '✅ Atividade (já fiz)', value: 'atividade' },
       { label: '📌 Compromisso (vou fazer)', value: 'compromisso' }
@@ -382,7 +404,7 @@ function askType(name, date = new Date()) {
 }
 
 // Mostra card de pré-visualização com botão de confirmar — NÃO escreve no Firebase ainda
-function showRegistroPreview(name, done, date = new Date()) {
+function showRegistroPreview(name, done, date = new Date(), time = '') {
   const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const dd = date.getDate().toString().padStart(2, '0');
   const mm = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -405,7 +427,7 @@ function showRegistroPreview(name, done, date = new Date()) {
   div.innerHTML = `
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
-      <span class="pet-preview-sub">${quandoLabel} · ${tipoLabel}</span>
+      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <button class="pet-reg-btn">${tipoIcon} Registrar ${tipoLabel}</button>
     </span>`;
 
@@ -414,7 +436,7 @@ function showRegistroPreview(name, done, date = new Date()) {
     btn.disabled = true;
     btn.textContent = 'Registrando...';
     try {
-      await executeRegistro(name, done, date);
+      await executeRegistro(name, done, date, time);
       btn.textContent = '✓ Registrado';
       btn.classList.add('pet-reg-done');
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
@@ -432,11 +454,22 @@ function showRegistroPreview(name, done, date = new Date()) {
 }
 
 // Escreve no Firebase — chamado SOMENTE pelo botão de confirmação
-async function executeRegistro(name, done, date) {
+async function executeRegistro(name, done, date, time = '') {
   const targetId = dayId(date);
   await setDayMeta(targetId, {});
   const tasks = await getDayTasks(targetId);
-  await addDayTask(targetId, { title: name, done, order: tasks.length });
+  await addDayTask(targetId, {
+    title: name,
+    done,
+    kind: done ? 'task' : 'commitment',
+    startTime: time,
+    order: tasks.length,
+    desc: '',
+    icon: '',
+    categoryId: null,
+    shiftId: null,
+    reminderEnabled: false,
+  });
 }
 
 // Toast centralizado na tela após registro confirmado
