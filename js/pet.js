@@ -297,9 +297,11 @@ function extractTaskName(text) {
     .replace(/\b\d{1,2}:\d{2}\b/g, '')
     .replace(/\b\d{1,2}h\d{2}\b/gi, '')
     .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
-    // Remove resíduos orphãos
+    // Remove resíduos: "horas", "às", "as", "das" isolados (sem \b — não funciona com acentos)
     .replace(/\bhoras?\b/gi, '')
-    .replace(/(?:às?|as|das?)\s*(?=\s|$|[,.])/gi, '')
+    .replace(/ às /gi, ' ').replace(/ às$/gi, '').replace(/^às /gi, '')
+    .replace(/ as /gi, ' ').replace(/ as$/gi, '').replace(/^as /gi, '')
+    .replace(/ das /gi, ' ').replace(/ das$/gi, '').replace(/^das /gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   return result ? result.charAt(0).toUpperCase() + result.slice(1) : result;
