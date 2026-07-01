@@ -1035,7 +1035,8 @@ async function checkOverdueReminders(app) {
   const today = weekData.find(d => d.id === todayStr);
   if (!today) return;
   for (const t of today.tasks) {
-    if (!t.reminderEnabled) continue;
+    // compromissos com horário são sempre cobrados; tarefas só se reminderEnabled=true
+    if (t.kind !== 'commitment' && !t.reminderEnabled) continue;
     if (t.done || t.cancelled) continue;
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
