@@ -579,84 +579,116 @@ function addChoices(label, choices) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 10: MICROFONE — waveform visual + continuous recognition
 // ═══════════════════════════════════════════════════════════════
-let recognition    = null;
-let micStream      = null;
-let audioCtx       = null;
-let analyser       = null;
-let waveAnimId     = null;
-let accumulated    = '';
-let confirmOnEnd   = false;
+let recognition  = null;
+let micStream    = null;
+let audioCtx     = null;
+let analyser     = null;
+let waveAnimId   = null;
+let accumulated  = '';
+let recording    = false; // true enquanto usuário grava
+let confirming   = false; // true quando ✓ foi pressionado
 
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { addMessage('Seu navegador não suporta reconhecimento de voz.', 'bot'); return; }
-  if (recognition) return;
+  if (recording) return;
 
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    micStream = stream;
+  accumulated = '';
+  recording   = true;
+  confirming  = false;
 
-    // Analyser para waveform — fftSize alto para boa resolução temporal
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 1024;
-    analyser.smoothingTimeConstant = 0.6;
-    audioCtx.createMediaStreamSource(stream).connect(analyser);
+  // Inicia o recognition primeiro — waveform é opcional
+  recognition = new SR();
+  recognition.lang           = 'pt-BR';
+  recognition.continuous     = true;
+  recognition.interimResults = false;
 
-    // Recognition contínuo — não corta nas pausas
-    accumulated    = '';
-    confirmOnEnd   = false;
-    recognition    = new SR();
-    recognition.lang           = 'pt-BR';
-    recognition.continuous     = true;
-    recognition.interimResults = false;
+  recognition.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
+    }
+  };
 
-    recognition.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
-      }
-    };
-
-    // onend dispara DEPOIS do último onresult — momento certo para ler accumulated
-    recognition.onend = () => {
+  // No Android o Chrome para sozinho por silêncio e dispara onend.
+  // Se recording ainda estiver true (usuário não agiu), reinicia.
+  recognition.onend = () => {
+    if (confirming) {
+      confirming  = false;
+      recording   = false;
       recognition = null;
-      if (confirmOnEnd) {
-        const clean = formatTranscript(accumulated.trim());
-        accumulated = '';
-        const inp = document.getElementById('pet-input');
-        if (inp && clean) { inp.value = clean; inp.focus(); }
+      const clean = formatTranscript(accumulated.trim());
+      accumulated = '';
+      const inp = document.getElementById('pet-input');
+      if (inp && clean) { inp.value = clean; inp.focus(); }
+      teardownMic();
+      hideRecordingUI();
+      setPetState('idle');
+    } else if (recording) {
+      // Auto-parou por silêncio — reinicia sem perder o acumulado
+      try { recognition.start(); } catch (_) {
+        recording   = false;
+        recognition = null;
         teardownMic();
         hideRecordingUI();
         setPetState('idle');
       }
-    };
-
-    recognition.onerror = () => {
+    } else {
       recognition = null;
-      accumulated = '';
-      teardownMic();
-      hideRecordingUI();
-      setPetState('idle');
-    };
+    }
+  };
 
-    recognition.start();
-    showRecordingUI();
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    recording   = false;
+    recognition = null;
+    accumulated = '';
+    teardownMic();
+    hideRecordingUI();
+    setPetState('idle');
+  };
+
+  recognition.start();
+
+  // Tenta stream de áudio para waveform (opcional — recognition já iniciou)
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    if (!recording) { stream.getTracks().forEach(t => t.stop()); return; }
+    micStream = stream;
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize               = 512;
+    analyser.smoothingTimeConstant = 0.15;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
     drawWaveform();
-    setPetState('thinking');
-  }).catch(() => {
-    addMessage('Não consegui acessar o microfone.', 'bot');
-  });
+  }).catch(() => {}); // waveform é opcional
+
+  showRecordingUI();
+  setPetState('thinking');
 }
 
 function stopMicConfirm() {
-  if (!recognition) return;
-  confirmOnEnd = true;
-  recognition.stop(); // onend cuida do resto após último onresult
+  if (!recording) return;
+  confirming = true;
+  if (recognition) {
+    recognition.stop(); // onend processa accumulated
+  } else {
+    // recognition parado pelo Android — processa direto
+    recording  = false;
+    confirming = false;
+    const clean = formatTranscript(accumulated.trim());
+    accumulated = '';
+    const inp = document.getElementById('pet-input');
+    if (inp && clean) { inp.value = clean; inp.focus(); }
+    teardownMic();
+    hideRecordingUI();
+    setPetState('idle');
+  }
 }
 
 function stopMicCancel() {
-  if (!recognition) return;
-  confirmOnEnd = false;
-  recognition.stop();
+  if (!recording) return;
+  recording  = false;
+  confirming = false;
+  if (recognition) { recognition.stop(); recognition = null; }
   accumulated = '';
   teardownMic();
   hideRecordingUI();
