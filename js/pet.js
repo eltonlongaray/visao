@@ -102,7 +102,6 @@ function buildPetHTML() {
     </div>
     <div id="pet-recording-bar" class="pet-recording-bar" style="display:none">
       <canvas id="pet-waveform" class="pet-waveform"></canvas>
-      <span id="pet-rec-label" class="pet-rec-label"></span>
       <button id="pet-rec-cancel" class="pet-rec-cancel" aria-label="Cancelar">×</button>
       <button id="pet-rec-confirm" class="pet-rec-confirm" aria-label="Confirmar">✓</button>
     </div>
@@ -608,13 +607,8 @@ function startMic() {
         if (e.results[i].isFinal) {
           accumulated += e.results[i][0].transcript + ' ';
           pendingText  = '';
-          // mostra no label o que já foi capturado
-          const lbl = document.getElementById('pet-rec-label');
-          if (lbl) lbl.textContent = accumulated.trim();
         } else {
           pendingText = e.results[i][0].transcript;
-          const lbl = document.getElementById('pet-rec-label');
-          if (lbl) lbl.textContent = (accumulated + pendingText).trim();
         }
       }
     };
@@ -712,8 +706,6 @@ function teardownMic() {
 }
 
 function showRecordingUI() {
-  const lbl = document.getElementById('pet-rec-label');
-  if (lbl) lbl.textContent = '';
   document.getElementById('pet-input-row').style.display     = 'none';
   document.getElementById('pet-recording-bar').style.display = 'flex';
 }
