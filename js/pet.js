@@ -584,6 +584,8 @@ let waveAnimId   = null;
 let accumulated  = '';
 let recording    = false;
 let confirming   = false;
+let voiceActive  = false; // true quando speech recognition detecta voz
+let voiceTimer   = null;
 
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -598,12 +600,16 @@ function startMic() {
     const r = new SR();
     r.lang           = 'pt-BR';
     r.continuous     = false;
-    r.interimResults = false; // sem texto parcial — só resultado final
+    r.interimResults = true; // interim para acionar animação do waveform
 
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
       }
+      // qualquer resultado = voz detectada → acende waveform
+      voiceActive = true;
+      clearTimeout(voiceTimer);
+      voiceTimer = setTimeout(() => { voiceActive = false; }, 400);
     };
 
     r.onend = () => {
@@ -688,6 +694,8 @@ function stopMicCancel() {
 
 function teardownMic() {
   cancelAnimationFrame(waveAnimId);
+  voiceActive = false;
+  clearTimeout(voiceTimer);
 }
 
 function showRecordingUI() {
@@ -709,31 +717,35 @@ function drawWaveform() {
   const W = canvas.width, H = canvas.height;
   const BAR = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
 
-  // Waveform simulado — anima sem getUserMedia para não conflitar com SpeechRecognition
-  const heights = new Float32Array(N).fill(0.15);
-  const targets = new Float32Array(N).fill(0.15);
+  // Reage ao voiceActive: alto/rápido quando fala, baixo/calmo no silêncio
+  const heights = new Float32Array(N).fill(0.08);
+  const targets = new Float32Array(N).fill(0.08);
   let tick = 0;
 
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
     tick++;
 
-    // A cada ~6 frames atualiza targets de um grupo de barras
-    if (tick % 6 === 0) {
-      const start = Math.floor(Math.random() * N * 0.4);
-      const len   = Math.floor(N * 0.25 + Math.random() * N * 0.5);
-      for (let i = start; i < start + len && i < N; i++) {
-        targets[i] = 0.08 + Math.random() * 0.82;
+    const active = voiceActive;
+    // quando falando: atualiza a cada 3 frames; silêncio: a cada 10
+    if (tick % (active ? 3 : 10) === 0) {
+      const maxH = active ? 0.88 : 0.18;
+      const minH = active ? 0.20 : 0.04;
+      const start = Math.floor(Math.random() * N * 0.3);
+      const len   = Math.floor(N * (active ? 0.4 : 0.2) + Math.random() * N * 0.4);
+      for (let i = start; i < Math.min(start + len, N); i++) {
+        targets[i] = minH + Math.random() * (maxH - minH);
       }
     }
 
     ctx.clearRect(0, 0, W, H);
     const totalW = N * (BAR + GAP) - GAP;
     let x = (W - totalW) / 2;
+    const speed = voiceActive ? 0.35 : 0.12; // mais rápido quando falando
 
     for (let i = 0; i < N; i++) {
-      heights[i] += (targets[i] - heights[i]) * 0.2;
-      const bH = Math.max(3, heights[i] * H * 0.85);
+      heights[i] += (targets[i] - heights[i]) * speed;
+      const bH = Math.max(3, heights[i] * H * 0.9);
       const y  = (H - bH) / 2;
       ctx.fillStyle = '#7c3aed';
       ctx.beginPath();
