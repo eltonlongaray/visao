@@ -582,7 +582,6 @@ function addChoices(label, choices) {
 let recognition  = null;
 let waveAnimId   = null;
 let accumulated  = '';
-let pendingText  = ''; // interim result mais recente
 let recording    = false;
 let confirming   = false;
 
@@ -592,24 +591,18 @@ function startMic() {
   if (recording) return;
 
   accumulated = '';
-  pendingText = '';
   recording   = true;
   confirming  = false;
 
   function buildRecognition() {
     const r = new SR();
     r.lang           = 'pt-BR';
-    r.continuous     = false; // false = mais confiável no Android Chrome
-    r.interimResults = true;
+    r.continuous     = false;
+    r.interimResults = false; // sem texto parcial — só resultado final
 
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          accumulated += e.results[i][0].transcript + ' ';
-          pendingText  = '';
-        } else {
-          pendingText = e.results[i][0].transcript;
-        }
+        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
       }
     };
 
@@ -618,17 +611,14 @@ function startMic() {
         confirming  = false;
         recording   = false;
         recognition = null;
-        const full  = (accumulated + ' ' + pendingText).trim();
+        const clean = formatTranscript(accumulated.trim());
         accumulated = '';
-        pendingText = '';
-        const clean = formatTranscript(full);
         const inp   = document.getElementById('pet-input');
         if (inp && clean) { inp.value = clean; inp.focus(); }
         teardownMic();
         hideRecordingUI();
         setPetState('idle');
       } else if (recording) {
-        // reinicia para próxima fala
         try {
           recognition = buildRecognition();
           recognition.start();
@@ -645,13 +635,11 @@ function startMic() {
     };
 
     r.onerror = (e) => {
-      if (e.error === 'no-speech') return; // silêncio — onend reiniciará
-      // mostra erro para diagnóstico
+      if (e.error === 'no-speech') return;
       addMessage(`Microfone: ${e.error}`, 'bot');
       recording   = false;
       recognition = null;
       accumulated = '';
-      pendingText = '';
       teardownMic();
       hideRecordingUI();
       setPetState('idle');
@@ -672,15 +660,13 @@ function stopMicConfirm() {
   if (!recording) return;
   confirming = true;
   if (recognition) {
-    recognition.stop(); // onend processa accumulated + pendingText
+    recognition.stop(); // onend processa accumulated
   } else {
-    // recognition parado pelo Android — processa direto
+    // recognition já parou (Android) — processa direto
     recording  = false;
     confirming = false;
-    const full  = (accumulated + ' ' + pendingText).trim();
+    const clean = formatTranscript(accumulated.trim());
     accumulated = '';
-    pendingText = '';
-    const clean = formatTranscript(full);
     const inp   = document.getElementById('pet-input');
     if (inp && clean) { inp.value = clean; inp.focus(); }
     teardownMic();
@@ -695,7 +681,6 @@ function stopMicCancel() {
   confirming  = false;
   if (recognition) { recognition.stop(); recognition = null; }
   accumulated = '';
-  pendingText = '';
   teardownMic();
   hideRecordingUI();
   setPetState('idle');
