@@ -470,9 +470,18 @@ async function executeRegistro(name, done, date, time = '') {
     desc: '',
     icon: '',
     categoryId: null,
-    shiftId: shifts[0]?.id || null,
+    shiftId: pickShift(shifts, time),
     reminderEnabled: false,
   });
+}
+
+// Escolhe o turno pelo horário (Manhã 5-12, Tarde 12-19, Noite 19-5)
+function pickShift(shifts, time) {
+  if (!shifts.length) return null;
+  if (!time) return shifts[0].id;
+  const [h] = time.split(':').map(Number);
+  const name = h >= 5 && h < 12 ? 'Manhã' : h >= 12 && h < 19 ? 'Tarde' : 'Noite';
+  return (shifts.find(s => s.name === name) || shifts[0]).id;
 }
 
 // Toast centralizado na tela após registro confirmado
