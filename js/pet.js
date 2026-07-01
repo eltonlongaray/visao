@@ -303,6 +303,7 @@ function extractTaskName(text) {
     .replace(/ as /gi, ' ').replace(/ as$/gi, '').replace(/^as /gi, '')
     .replace(/ das /gi, ' ').replace(/ das$/gi, '').replace(/^das /gi, '')
     .replace(/\s+/g, ' ')
+    .replace(/[\s.,;:!?]+$/, '')
     .trim();
   return result ? result.charAt(0).toUpperCase() + result.slice(1) : result;
 }
