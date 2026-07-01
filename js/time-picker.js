@@ -141,17 +141,23 @@ export function openTimePicker(initialValue = '', options = {}) {
     // ── Cancelar / Salvar + back button do celular (aninhamento via trapModalBack) ──
     let closed = false;
     let pendingValue = null;
-    const trapClose = trapModalBack(() => {
+
+    const doClose = (v) => {
       if (closed) return;
       closed = true;
       overlay.remove();
       document.body.classList.remove('time-picker-open');
-      resolve(pendingValue);
-    });
-    const close = (v) => {
-      pendingValue = v;
-      trapClose();
+      resolve(v);
     };
+
+    // embedded: true → sem trapModalBack, sem history.back() — chamado de dentro de outro modal
+    let close;
+    if (options.embedded) {
+      close = (v) => doClose(v);
+    } else {
+      const trapClose = trapModalBack(() => doClose(pendingValue));
+      close = (v) => { pendingValue = v; trapClose(); };
+    }
 
     overlay.querySelector('#tpCancel').addEventListener('click', () => close(null));
     overlay.querySelector('#tpSave').addEventListener('click', () => {

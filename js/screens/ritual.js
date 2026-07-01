@@ -1313,6 +1313,123 @@ function openDatePicker(initialDate = new Date(), options = {}) {
   });
 }
 
+// Modal combinado data + hora no estilo cal-modal — evita chain de dois modais separados
+// Retorna { date: Date, time: "HH:MM" } ou null se cancelar.
+function openReschedulePicker(initialDate = new Date(), initialTime = '') {
+  return new Promise((resolve) => {
+    const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const DAY_NAMES   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    let selDate   = new Date(initialDate);
+    let selTime   = initialTime || '';
+    let viewYear  = selDate.getFullYear();
+    let viewMonth = selDate.getMonth();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const buildGrid = () => {
+      const firstDay    = new Date(viewYear, viewMonth, 1);
+      const lastDay     = new Date(viewYear, viewMonth + 1, 0);
+      const startDow    = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      const todayStr    = dayId(new Date());
+      const selStr      = dayId(selDate);
+      let html = '';
+      for (let i = 0; i < startDow; i++) html += '<span class="cal-cell empty"></span>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const id = dayId(new Date(viewYear, viewMonth, d));
+        html += `<button type="button" class="cal-cell${id === todayStr ? ' today' : ''}${id === selStr ? ' selected' : ''}" data-rp-day="${id}">${d}</button>`;
+      }
+      return html;
+    };
+
+    const buildHint = () =>
+      `${DAY_NAMES[selDate.getDay()]}, ${String(selDate.getDate()).padStart(2,'0')} de ${MONTH_NAMES[selDate.getMonth()]}`;
+
+    overlay.innerHTML = `
+      <div class="modal cal-modal">
+        <div class="modal-title">Reagendar</div>
+        <div class="cal-header">
+          <button type="button" class="cal-nav" data-rp-nav="-1">‹</button>
+          <div class="cal-title" id="rp-month"></div>
+          <button type="button" class="cal-nav" data-rp-nav="1">›</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+        </div>
+        <div class="cal-grid" id="rp-grid"></div>
+        <div class="cal-hint" id="rp-hint"></div>
+        <div class="input-field-label" style="margin-top:4px">Horário</div>
+        <button type="button" class="tp-trigger" id="rp-time">
+          <span class="tp-trigger-icon">🕐</span>
+          <span class="tp-trigger-time" id="rp-time-label">${selTime || '— : —'}</span>
+          <span class="tp-trigger-edit">›</span>
+        </button>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="rp-cancel">Cancelar</button>
+          <button class="btn-primary" id="rp-save">Confirmar</button>
+        </div>
+      </div>
+    `;
+
+    let resolved = false;
+    const trapClose = trapModalBack(() => {
+      overlay.remove();
+      if (!resolved) { resolved = true; resolve(null); }
+    });
+    const finish = (val) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(val);
+      trapClose();
+    };
+
+    const refreshMonth = () => {
+      overlay.querySelector('#rp-month').textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+      overlay.querySelector('#rp-grid').innerHTML = buildGrid();
+    };
+
+    refreshMonth();
+    overlay.querySelector('#rp-hint').textContent = buildHint();
+
+    overlay.querySelectorAll('[data-rp-nav]').forEach(btn => {
+      btn.onclick = () => {
+        viewMonth += parseInt(btn.dataset.rpNav, 10);
+        if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+        if (viewMonth > 11) { viewMonth = 0;  viewYear++; }
+        refreshMonth();
+      };
+    });
+
+    overlay.querySelector('#rp-grid').addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-rp-day]');
+      if (!cell) return;
+      const [y, m, d] = cell.dataset.rpDay.split('-').map(Number);
+      selDate = new Date(y, m - 1, d);
+      overlay.querySelector('#rp-hint').textContent = buildHint();
+      overlay.querySelector('#rp-grid').innerHTML = buildGrid();
+    });
+
+    overlay.querySelector('#rp-time').onclick = async () => {
+      const result = await openTimePicker(selTime, { embedded: true });
+      if (result) {
+        selTime = result;
+        overlay.querySelector('#rp-time-label').textContent = selTime;
+      }
+    };
+
+    overlay.querySelector('#rp-cancel').onclick = () => finish(null);
+    overlay.querySelector('#rp-save').onclick = () => {
+      if (!selTime) { showToast('Escolha um horário', 'info'); return; }
+      finish({ date: selDate, time: selTime });
+    };
+
+    overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
+    document.body.appendChild(overlay);
+  });
+}
+
 async function showOverdueReminderModal(app, day, t) {
   overdueModalOpen = true;
   const dataFmt = `${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
@@ -1365,16 +1482,9 @@ async function showOverdueReminderModal(app, day, t) {
   };
 
   modal.querySelector('[data-overdue="reschedule"]').onclick = async () => {
-    // Pega data ANTES de fechar — close() dispara history.back() em setTimeout(0)
-    // que mataria o próximo modal se aberto sem aguardar o popstate
-    const newDate = await openDatePicker(day.date, { title: 'Reagendar pra qual dia?' });
-    if (!newDate) return;
-    // Aguarda o history.back() do calendário processar antes de abrir o relógio
-    await new Promise(r => setTimeout(r, 80));
-    const newTime = await openTimePicker(toHHMM(t.startTime) || '', { title: 'Reagendar pra qual horário?' });
-    if (!newTime) return;
-    // Aguarda o history.back() do relógio antes de fechar o modal
-    await new Promise(r => setTimeout(r, 80));
+    const result = await openReschedulePicker(day.date, toHHMM(t.startTime) || '');
+    if (!result) return;
+    const { date: newDate, time: newTime } = result;
     actionTaken = true;
     overdueShownThisSession.add(t.id);
     close();
