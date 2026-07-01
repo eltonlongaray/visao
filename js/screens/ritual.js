@@ -1365,13 +1365,16 @@ async function showOverdueReminderModal(app, day, t) {
   };
 
   modal.querySelector('[data-overdue="reschedule"]').onclick = async () => {
-    // Pega data e hora ANTES de fechar — close() dispara history.back() assíncrono
-    // que mataria o calendário/relógio se abertos depois dele
+    // Pega data ANTES de fechar — close() dispara history.back() em setTimeout(0)
+    // que mataria o próximo modal se aberto sem aguardar o popstate
     const newDate = await openDatePicker(day.date, { title: 'Reagendar pra qual dia?' });
     if (!newDate) return;
+    // Aguarda o history.back() do calendário processar antes de abrir o relógio
+    await new Promise(r => setTimeout(r, 80));
     const newTime = await openTimePicker(toHHMM(t.startTime) || '', { title: 'Reagendar pra qual horário?' });
     if (!newTime) return;
-    // Só fecha o modal após confirmar data e hora
+    // Aguarda o history.back() do relógio antes de fechar o modal
+    await new Promise(r => setTimeout(r, 80));
     actionTaken = true;
     overdueShownThisSession.add(t.id);
     close();
