@@ -585,6 +585,7 @@ let audioCtx       = null;
 let analyser       = null;
 let waveAnimId     = null;
 let accumulated    = '';
+let confirmOnEnd   = false;
 
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -594,26 +595,50 @@ function startMic() {
   navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     micStream = stream;
 
-    // Analyser para waveform
-    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
-    analyser  = audioCtx.createAnalyser();
-    analyser.fftSize = 128;
+    // Analyser para waveform — fftSize alto para boa resolução temporal
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.6;
     audioCtx.createMediaStreamSource(stream).connect(analyser);
 
     // Recognition contínuo — não corta nas pausas
-    accumulated = '';
-    recognition = new SR();
-    recognition.lang = 'pt-BR';
-    recognition.continuous = true;
+    accumulated    = '';
+    confirmOnEnd   = false;
+    recognition    = new SR();
+    recognition.lang           = 'pt-BR';
+    recognition.continuous     = true;
     recognition.interimResults = false;
+
     recognition.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
       }
     };
-    recognition.onerror = () => stopMicCancel();
-    recognition.start();
 
+    // onend dispara DEPOIS do último onresult — momento certo para ler accumulated
+    recognition.onend = () => {
+      recognition = null;
+      if (confirmOnEnd) {
+        const clean = formatTranscript(accumulated.trim());
+        accumulated = '';
+        const inp = document.getElementById('pet-input');
+        if (inp && clean) { inp.value = clean; inp.focus(); }
+        teardownMic();
+        hideRecordingUI();
+        setPetState('idle');
+      }
+    };
+
+    recognition.onerror = () => {
+      recognition = null;
+      accumulated = '';
+      teardownMic();
+      hideRecordingUI();
+      setPetState('idle');
+    };
+
+    recognition.start();
     showRecordingUI();
     drawWaveform();
     setPetState('thinking');
@@ -623,32 +648,29 @@ function startMic() {
 }
 
 function stopMicConfirm() {
-  if (recognition) { recognition.stop(); recognition = null; }
-  teardownMic();
-  const clean = formatTranscript(accumulated.trim());
-  accumulated = '';
-  const inp = document.getElementById('pet-input');
-  if (inp && clean) { inp.value = clean; inp.focus(); }
-  hideRecordingUI();
-  setPetState('idle');
+  if (!recognition) return;
+  confirmOnEnd = true;
+  recognition.stop(); // onend cuida do resto após último onresult
 }
 
 function stopMicCancel() {
-  if (recognition) { recognition.stop(); recognition = null; }
-  teardownMic();
+  if (!recognition) return;
+  confirmOnEnd = false;
+  recognition.stop();
   accumulated = '';
+  teardownMic();
   hideRecordingUI();
   setPetState('idle');
 }
 
 function teardownMic() {
   cancelAnimationFrame(waveAnimId);
-  if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
-  if (audioCtx)   { audioCtx.close(); audioCtx = null; analyser = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx)  { audioCtx.close(); audioCtx = null; analyser = null; }
 }
 
 function showRecordingUI() {
-  document.getElementById('pet-input-row').style.display    = 'none';
+  document.getElementById('pet-input-row').style.display     = 'none';
   document.getElementById('pet-recording-bar').style.display = 'flex';
 }
 
@@ -661,22 +683,31 @@ function drawWaveform() {
   const canvas = document.getElementById('pet-waveform');
   if (!canvas || !analyser) return;
   const ctx = canvas.getContext('2d');
-  canvas.width  = canvas.offsetWidth  || 200;
+  canvas.width  = canvas.offsetWidth || 200;
   canvas.height = canvas.offsetHeight || 40;
   const W = canvas.width, H = canvas.height;
-  const data = new Uint8Array(analyser.frequencyBinCount);
-  const BAR  = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
+
+  // getByteTimeDomainData reage à amplitude real da voz (não às frequências)
+  const data = new Uint8Array(analyser.fftSize);
+  const BAR = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
+  const SPB = Math.floor(data.length / N); // samples por barra
 
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
-    analyser.getByteFrequencyData(data);
+    analyser.getByteTimeDomainData(data);
     ctx.clearRect(0, 0, W, H);
-    const step    = Math.floor(data.length / N);
-    const totalW  = N * (BAR + GAP) - GAP;
-    let x         = (W - totalW) / 2;
+
+    const totalW = N * (BAR + GAP) - GAP;
+    let x = (W - totalW) / 2;
+
     for (let i = 0; i < N; i++) {
-      const v  = data[i * step] / 255;
-      const bH = Math.max(3, v * H * 0.85);
+      // Pega o pico de amplitude no bloco de amostras desta barra
+      let peak = 0;
+      for (let j = 0; j < SPB; j++) {
+        const v = Math.abs(data[i * SPB + j] - 128) / 128;
+        if (v > peak) peak = v;
+      }
+      const bH = Math.max(3, peak * H * 0.9);
       const y  = (H - bH) / 2;
       ctx.fillStyle = '#7c3aed';
       ctx.beginPath();
