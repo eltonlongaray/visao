@@ -609,7 +609,7 @@ function startMic() {
       // qualquer resultado = voz detectada → acende waveform
       voiceActive = true;
       clearTimeout(voiceTimer);
-      voiceTimer = setTimeout(() => { voiceActive = false; }, 400);
+      voiceTimer = setTimeout(() => { voiceActive = false; }, 250);
     };
 
     r.onend = () => {
@@ -721,18 +721,26 @@ function drawWaveform() {
   const heights = new Float32Array(N).fill(0.08);
   const targets = new Float32Array(N).fill(0.08);
   let tick = 0;
+  let wasActive = false;
 
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
     tick++;
 
     const active = voiceActive;
-    // quando falando: atualiza a cada 3 frames; silêncio: a cada 10
-    if (tick % (active ? 3 : 10) === 0) {
-      const maxH = active ? 0.88 : 0.18;
-      const minH = active ? 0.20 : 0.04;
+
+    // Transição fala → silêncio: zera TODOS os targets imediatamente
+    if (wasActive && !active) {
+      for (let i = 0; i < N; i++) targets[i] = 0.04 + Math.random() * 0.08;
+    }
+    wasActive = active;
+
+    // Atualiza targets: rápido durante fala, lento no silêncio
+    if (tick % (active ? 3 : 12) === 0) {
+      const maxH = active ? 0.88 : 0.12;
+      const minH = active ? 0.18 : 0.03;
       const start = Math.floor(Math.random() * N * 0.3);
-      const len   = Math.floor(N * (active ? 0.4 : 0.2) + Math.random() * N * 0.4);
+      const len   = Math.floor(N * (active ? 0.4 : 0.15) + Math.random() * N * 0.4);
       for (let i = start; i < Math.min(start + len, N); i++) {
         targets[i] = minH + Math.random() * (maxH - minH);
       }
@@ -741,7 +749,8 @@ function drawWaveform() {
     ctx.clearRect(0, 0, W, H);
     const totalW = N * (BAR + GAP) - GAP;
     let x = (W - totalW) / 2;
-    const speed = voiceActive ? 0.35 : 0.12; // mais rápido quando falando
+    // ao parar de falar, desce rápido (0.3); falando sobe rápido (0.35); idle suave (0.12)
+    const speed = active ? 0.35 : (wasActive ? 0.3 : 0.12);
 
     for (let i = 0; i < N; i++) {
       heights[i] += (targets[i] - heights[i]) * speed;
