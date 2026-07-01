@@ -84,7 +84,8 @@ const expanded = new Set();                 // ids dos dias abertos
 const saveTimers = {};                      // debounce de save por dayId+field
 let handlersAttached = false;               // FIX: evita listeners duplicados ao re-renderizar
 const prevNoteCache = new Map();             // cache: dayId -> hasNote (evita refetch a cada check)
-const overdueShownThisSession = new Set();   // task ids ja mostrados como vencidos na sessao atual
+const overdueShownThisSession = new Set();   // task ids permanentemente resolvidos (done/cancel/reagendado)
+const overdueDismissed = new Set();           // dispensados sem ação — limpo ao entrar no ritual
 let overdueCheckerTimer = null;
 let overdueModalOpen = false;
 
@@ -1010,6 +1011,7 @@ async function replaceDayWithPrev(app, dayDocId, choice) {
 //   3. Cancelar atividade → cancelled = true
 // ═══════════════════════════════════════════════════════════════
 function startOverdueChecker(app) {
+  overdueDismissed.clear(); // re-entrou na tela → compromissos dispensados reaparecem
   if (overdueCheckerTimer) clearInterval(overdueCheckerTimer);
   const tick = () => checkOverdueReminders(app);
   // Roda agora + a cada 30s
@@ -1040,12 +1042,12 @@ async function checkOverdueReminders(app) {
     if (t.done || t.cancelled) continue;
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
+    if (overdueDismissed.has(t.id)) continue;
     const startMin = parseTime(t.startTime);
     if (startMin === null) continue;
     const [y, m, dd] = todayStr.split('-').map(n => parseInt(n, 10));
     const taskDt = new Date(y, m - 1, dd, Math.floor(startMin/60), startMin % 60);
     if (taskDt.getTime() <= now) {
-      overdueShownThisSession.add(t.id);
       await showOverdueReminderModal(app, today, t);
       return;
     }
@@ -1336,9 +1338,12 @@ async function showOverdueReminderModal(app, day, t) {
   document.body.appendChild(modal);
 
   // close() limpa modal + history state. Usado tanto pelo back quanto pelas ações.
+  let actionTaken = false;
   const close = trapModalBack(() => {
     modal.remove();
     overdueModalOpen = false;
+    // Se fechou sem ação: entra em overdueDismissed (reaparece ao voltar para a tela)
+    if (!actionTaken) overdueDismissed.add(t.id);
   });
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
 
@@ -1349,7 +1354,8 @@ async function showOverdueReminderModal(app, day, t) {
       playDone();
       syncTaskInDom(t); // atualiza day card + aba Compromissos
       updateDayCardStats(day.id, false);
-      overdueShownThisSession.delete(t.id);
+      actionTaken = true;
+      overdueShownThisSession.add(t.id);
       close();
       showToast('Marcado como feito ✓', 'success');
     } catch (err) {
@@ -1359,6 +1365,8 @@ async function showOverdueReminderModal(app, day, t) {
   };
 
   modal.querySelector('[data-overdue="reschedule"]').onclick = async () => {
+    actionTaken = true;
+    overdueShownThisSession.add(t.id);
     close();
     // 1) Escolhe DATA via calendário
     const newDate = await openDatePicker(day.date, { title: 'Reagendar pra qual dia?' });
@@ -1403,7 +1411,6 @@ async function showOverdueReminderModal(app, day, t) {
           destInWeek.tasks.push({ ...newTask });
         }
       }
-      overdueShownThisSession.delete(t.id);
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${day.id}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
       updateDayCardStats(day.id, false);
@@ -1429,6 +1436,8 @@ async function showOverdueReminderModal(app, day, t) {
       playUndone();
       syncTaskInDom(t); // atualiza day card + aba Compromissos (vira 🚫 em ambos)
       updateDayCardStats(day.id, false);
+      actionTaken = true;
+      overdueShownThisSession.add(t.id);
       close();
       showToast('Atividade marcada como cancelada', 'info');
     } catch (err) {
