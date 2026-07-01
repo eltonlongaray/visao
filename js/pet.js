@@ -80,7 +80,7 @@ function buildPetHTML() {
       </div>
     </div>
 
-    <div class="pet-chat-input-row">
+    <div id="pet-input-row" class="pet-chat-input-row">
       <input
         type="text"
         id="pet-input"
@@ -99,6 +99,11 @@ function buildPetHTML() {
         </svg>
       </button>
       <button class="pet-send-btn" id="pet-send-btn" aria-label="Enviar">➤</button>
+    </div>
+    <div id="pet-recording-bar" class="pet-recording-bar" style="display:none">
+      <canvas id="pet-waveform" class="pet-waveform"></canvas>
+      <button id="pet-rec-cancel" class="pet-rec-cancel" aria-label="Cancelar">×</button>
+      <button id="pet-rec-confirm" class="pet-rec-confirm" aria-label="Confirmar">✓</button>
     </div>
   </div>
 
@@ -144,6 +149,8 @@ function attachHandlers() {
     if (e.key === 'Enter') handleSend();
   });
   document.getElementById('pet-mic-btn').addEventListener('click', startMic);
+  document.getElementById('pet-rec-cancel').addEventListener('click', stopMicCancel);
+  document.getElementById('pet-rec-confirm').addEventListener('click', stopMicConfirm);
 
   // Botões de atalho
   document.getElementById('pet-quick-actions').addEventListener('click', e => {
@@ -570,42 +577,116 @@ function addChoices(label, choices) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 10: MICROFONE — Web Speech API, só transcrição
+// BLOCO 10: MICROFONE — waveform visual + continuous recognition
 // ═══════════════════════════════════════════════════════════════
-let recognition = null;
+let recognition    = null;
+let micStream      = null;
+let audioCtx       = null;
+let analyser       = null;
+let waveAnimId     = null;
+let accumulated    = '';
 
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { addMessage('Seu navegador não suporta reconhecimento de voz.', 'bot'); return; }
+  if (recognition) return;
 
-  if (recognition) { recognition.stop(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    micStream = stream;
 
-  recognition = new SR();
-  recognition.lang = 'pt-BR';
-  recognition.continuous = false;
-  recognition.interimResults = false;
+    // Analyser para waveform
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize = 128;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
 
-  const micBtn = document.getElementById('pet-mic-btn');
-  micBtn.classList.add('pet-mic-active');
-  setPetState('thinking');
+    // Recognition contínuo — não corta nas pausas
+    accumulated = '';
+    recognition = new SR();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
+      }
+    };
+    recognition.onerror = () => stopMicCancel();
+    recognition.start();
 
-  recognition.onresult = (e) => {
-    const raw   = e.results[0][0].transcript;
-    const clean = formatTranscript(raw);
-    const inp   = document.getElementById('pet-input');
-    if (inp) { inp.value = clean; inp.focus(); }
-    resetMicBtn();
-    setPetState('idle');
-    recognition = null;
-  };
-  recognition.onerror = () => { resetMicBtn(); setPetState('idle'); recognition = null; };
-  recognition.onend   = () => { resetMicBtn(); recognition = null; };
-  recognition.start();
+    showRecordingUI();
+    drawWaveform();
+    setPetState('thinking');
+  }).catch(() => {
+    addMessage('Não consegui acessar o microfone.', 'bot');
+  });
 }
 
-function resetMicBtn() {
-  const btn = document.getElementById('pet-mic-btn');
-  if (btn) btn.classList.remove('pet-mic-active');
+function stopMicConfirm() {
+  if (recognition) { recognition.stop(); recognition = null; }
+  teardownMic();
+  const clean = formatTranscript(accumulated.trim());
+  accumulated = '';
+  const inp = document.getElementById('pet-input');
+  if (inp && clean) { inp.value = clean; inp.focus(); }
+  hideRecordingUI();
+  setPetState('idle');
+}
+
+function stopMicCancel() {
+  if (recognition) { recognition.stop(); recognition = null; }
+  teardownMic();
+  accumulated = '';
+  hideRecordingUI();
+  setPetState('idle');
+}
+
+function teardownMic() {
+  cancelAnimationFrame(waveAnimId);
+  if (micStream)  { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx)   { audioCtx.close(); audioCtx = null; analyser = null; }
+}
+
+function showRecordingUI() {
+  document.getElementById('pet-input-row').style.display    = 'none';
+  document.getElementById('pet-recording-bar').style.display = 'flex';
+}
+
+function hideRecordingUI() {
+  document.getElementById('pet-recording-bar').style.display = 'none';
+  document.getElementById('pet-input-row').style.display     = 'flex';
+}
+
+function drawWaveform() {
+  const canvas = document.getElementById('pet-waveform');
+  if (!canvas || !analyser) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width  = canvas.offsetWidth  || 200;
+  canvas.height = canvas.offsetHeight || 40;
+  const W = canvas.width, H = canvas.height;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  const BAR  = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
+
+  function frame() {
+    waveAnimId = requestAnimationFrame(frame);
+    analyser.getByteFrequencyData(data);
+    ctx.clearRect(0, 0, W, H);
+    const step    = Math.floor(data.length / N);
+    const totalW  = N * (BAR + GAP) - GAP;
+    let x         = (W - totalW) / 2;
+    for (let i = 0; i < N; i++) {
+      const v  = data[i * step] / 255;
+      const bH = Math.max(3, v * H * 0.85);
+      const y  = (H - bH) / 2;
+      ctx.fillStyle = '#7c3aed';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, BAR, bH, 1.5);
+      else ctx.rect(x, y, BAR, bH);
+      ctx.fill();
+      x += BAR + GAP;
+    }
+  }
+  frame();
 }
 
 function formatTranscript(raw) {

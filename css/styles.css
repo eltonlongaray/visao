@@ -4713,6 +4713,25 @@ body.tour-active { overflow: hidden; }
   0%, 100% { transform: scale(1); }
   50%       { transform: scale(1.2); }
 }
+.pet-recording-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+}
+.pet-waveform { flex: 1; height: 40px; border-radius: 8px; }
+.pet-rec-cancel, .pet-rec-confirm {
+  width: 32px; height: 32px;
+  border-radius: 50%; border: none; cursor: pointer;
+  font-size: 18px; display: flex;
+  align-items: center; justify-content: center;
+  flex-shrink: 0; transition: transform 0.15s;
+}
+.pet-rec-cancel  { background: var(--border); color: var(--text); }
+.pet-rec-confirm { background: #7c3aed; color: #fff; }
+.pet-rec-cancel:hover, .pet-rec-confirm:hover { transform: scale(1.1); }
 
 /* Atalhos rápidos */
 .pet-quick-actions {
