@@ -580,13 +580,11 @@ function addChoices(label, choices) {
 // BLOCO 10: MICROFONE — waveform visual + continuous recognition
 // ═══════════════════════════════════════════════════════════════
 let recognition  = null;
-let micStream    = null;
-let audioCtx     = null;
-let analyser     = null;
 let waveAnimId   = null;
 let accumulated  = '';
-let recording    = false; // true enquanto usuário grava
-let confirming   = false; // true quando ✓ foi pressionado
+let pendingText  = ''; // interim result mais recente
+let recording    = false;
+let confirming   = false;
 
 function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -594,37 +592,43 @@ function startMic() {
   if (recording) return;
 
   accumulated = '';
+  pendingText = '';
   recording   = true;
   confirming  = false;
 
-  // Inicia o recognition primeiro — waveform é opcional
   recognition = new SR();
   recognition.lang           = 'pt-BR';
   recognition.continuous     = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true; // captura interim para não perder última fala
 
   recognition.onresult = (e) => {
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
+      if (e.results[i].isFinal) {
+        accumulated += e.results[i][0].transcript + ' ';
+        pendingText  = '';
+      } else {
+        pendingText = e.results[i][0].transcript;
+      }
     }
   };
 
-  // No Android o Chrome para sozinho por silêncio e dispara onend.
-  // Se recording ainda estiver true (usuário não agiu), reinicia.
+  // Android para o recognition por silêncio e dispara onend.
+  // Se recording ainda for true, reinicia sem perder o acumulado.
   recognition.onend = () => {
     if (confirming) {
       confirming  = false;
       recording   = false;
       recognition = null;
-      const clean = formatTranscript(accumulated.trim());
+      const full  = (accumulated + ' ' + pendingText).trim();
       accumulated = '';
-      const inp = document.getElementById('pet-input');
+      pendingText = '';
+      const clean = formatTranscript(full);
+      const inp   = document.getElementById('pet-input');
       if (inp && clean) { inp.value = clean; inp.focus(); }
       teardownMic();
       hideRecordingUI();
       setPetState('idle');
     } else if (recording) {
-      // Auto-parou por silêncio — reinicia sem perder o acumulado
       try { recognition.start(); } catch (_) {
         recording   = false;
         recognition = null;
@@ -642,26 +646,15 @@ function startMic() {
     recording   = false;
     recognition = null;
     accumulated = '';
+    pendingText = '';
     teardownMic();
     hideRecordingUI();
     setPetState('idle');
   };
 
   recognition.start();
-
-  // Tenta stream de áudio para waveform (opcional — recognition já iniciou)
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    if (!recording) { stream.getTracks().forEach(t => t.stop()); return; }
-    micStream = stream;
-    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
-    analyser  = audioCtx.createAnalyser();
-    analyser.fftSize               = 512;
-    analyser.smoothingTimeConstant = 0.15;
-    audioCtx.createMediaStreamSource(stream).connect(analyser);
-    drawWaveform();
-  }).catch(() => {}); // waveform é opcional
-
   showRecordingUI();
+  drawWaveform(); // waveform simulado — sem getUserMedia, sem conflito de mic
   setPetState('thinking');
 }
 
@@ -669,14 +662,16 @@ function stopMicConfirm() {
   if (!recording) return;
   confirming = true;
   if (recognition) {
-    recognition.stop(); // onend processa accumulated
+    recognition.stop(); // onend processa accumulated + pendingText
   } else {
     // recognition parado pelo Android — processa direto
     recording  = false;
     confirming = false;
-    const clean = formatTranscript(accumulated.trim());
+    const full  = (accumulated + ' ' + pendingText).trim();
     accumulated = '';
-    const inp = document.getElementById('pet-input');
+    pendingText = '';
+    const clean = formatTranscript(full);
+    const inp   = document.getElementById('pet-input');
     if (inp && clean) { inp.value = clean; inp.focus(); }
     teardownMic();
     hideRecordingUI();
@@ -686,10 +681,11 @@ function stopMicConfirm() {
 
 function stopMicCancel() {
   if (!recording) return;
-  recording  = false;
-  confirming = false;
+  recording   = false;
+  confirming  = false;
   if (recognition) { recognition.stop(); recognition = null; }
   accumulated = '';
+  pendingText = '';
   teardownMic();
   hideRecordingUI();
   setPetState('idle');
@@ -697,8 +693,6 @@ function stopMicCancel() {
 
 function teardownMic() {
   cancelAnimationFrame(waveAnimId);
-  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
-  if (audioCtx)  { audioCtx.close(); audioCtx = null; analyser = null; }
 }
 
 function showRecordingUI() {
@@ -713,33 +707,38 @@ function hideRecordingUI() {
 
 function drawWaveform() {
   const canvas = document.getElementById('pet-waveform');
-  if (!canvas || !analyser) return;
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  canvas.width  = canvas.offsetWidth || 200;
+  canvas.width  = canvas.offsetWidth  || 200;
   canvas.height = canvas.offsetHeight || 40;
   const W = canvas.width, H = canvas.height;
-
-  // getByteTimeDomainData reage à amplitude real da voz (não às frequências)
-  const data = new Uint8Array(analyser.fftSize);
   const BAR = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
-  const SPB = Math.floor(data.length / N); // samples por barra
+
+  // Waveform simulado — anima sem getUserMedia para não conflitar com SpeechRecognition
+  const heights = new Float32Array(N).fill(0.15);
+  const targets = new Float32Array(N).fill(0.15);
+  let tick = 0;
 
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
-    analyser.getByteTimeDomainData(data);
-    ctx.clearRect(0, 0, W, H);
+    tick++;
 
+    // A cada ~6 frames atualiza targets de um grupo de barras
+    if (tick % 6 === 0) {
+      const start = Math.floor(Math.random() * N * 0.4);
+      const len   = Math.floor(N * 0.25 + Math.random() * N * 0.5);
+      for (let i = start; i < start + len && i < N; i++) {
+        targets[i] = 0.08 + Math.random() * 0.82;
+      }
+    }
+
+    ctx.clearRect(0, 0, W, H);
     const totalW = N * (BAR + GAP) - GAP;
     let x = (W - totalW) / 2;
 
     for (let i = 0; i < N; i++) {
-      // Pega o pico de amplitude no bloco de amostras desta barra
-      let peak = 0;
-      for (let j = 0; j < SPB; j++) {
-        const v = Math.abs(data[i * SPB + j] - 128) / 128;
-        if (v > peak) peak = v;
-      }
-      const bH = Math.max(3, peak * H * 0.9);
+      heights[i] += (targets[i] - heights[i]) * 0.2;
+      const bH = Math.max(3, heights[i] * H * 0.85);
       const y  = (H - bH) / 2;
       ctx.fillStyle = '#7c3aed';
       ctx.beginPath();
