@@ -587,14 +587,35 @@ let confirming   = false;
 let voiceActive  = false; // true quando speech recognition detecta voz
 let voiceTimer   = null;
 
-function startMic() {
+async function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { addMessage('Seu navegador não suporta reconhecimento de voz.', 'bot'); return; }
+  if (!SR) { addMessage('Voz não suportada neste navegador.', 'bot'); return; }
   if (recording) return;
+
+  // iOS Safari precisa de getUserMedia para liberar permissão ANTES do SpeechRecognition.
+  // Android: getUserMedia conflita com SpeechRecognition — não usar lá.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop()); // libera mic imediatamente
+      await new Promise(r => setTimeout(r, 80)); // deixa o mic soltar antes do SR pegar
+    } catch (err) {
+      const denied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
+      addMessage(
+        denied
+          ? 'Microfone bloqueado. Ajustes → Safari → Microfone → Permitir'
+          : 'Não foi possível acessar o microfone.',
+        'bot'
+      );
+      return;
+    }
+  }
 
   accumulated = '';
   recording   = true;
   confirming  = false;
+  let abortCount = 0; // iOS dispara 'aborted' antes do áudio estabilizar
 
   function buildRecognition() {
     const r = new SR();
@@ -642,7 +663,14 @@ function startMic() {
 
     r.onerror = (e) => {
       if (e.error === 'no-speech') return;
-      addMessage(`Microfone: ${e.error}`, 'bot');
+      // 'aborted' no iOS é transitório — deixa onend tentar reiniciar (máx 3x)
+      if (e.error === 'aborted') {
+        abortCount++;
+        if (abortCount <= 3) return;
+      }
+      if (e.error === 'audio-capture' || e.error === 'not-allowed') {
+        addMessage('Microfone inacessível. No iPhone: Ajustes → Safari → Microfone → Permitir', 'bot');
+      }
       recording   = false;
       recognition = null;
       accumulated = '';
@@ -655,7 +683,6 @@ function startMic() {
   }
 
   recognition = buildRecognition();
-
   recognition.start();
   showRecordingUI();
   drawWaveform(); // waveform simulado — sem getUserMedia, sem conflito de mic
