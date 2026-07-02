@@ -367,15 +367,13 @@ async function cmdSequencia() {
   for (let i = 0; i < 120; i++) {
     const id  = dayId(cursor);
     const doc = await getDay(id);
-    if (!doc) break; // dia não existe → fim da sequência
+    if (!doc) break;
 
-    // Dia conta se tem atividade real: flag, hidratação, sono ou tarefas
-    const hasDocActivity = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
-    if (!hasDocActivity) {
-      // Fallback: busca tasks da subcollection (dia pode ser só "gerado" vazio)
-      const tasks = await getDayTasks(id);
-      if (tasks.length === 0) break; // dia vazio → fim da sequência
-    }
+    // hasActivity é setado por addDayTask em cada dia com task real.
+    // Também aceita hydrationMl ou sleepTime como evidência de uso.
+    // Dias criados só por "generated: true" (abrir a tela) NÃO contam.
+    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
+    if (!isActive) break;
 
     streak++;
     cursor.setDate(cursor.getDate() - 1);

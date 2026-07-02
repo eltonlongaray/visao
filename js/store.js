@@ -133,6 +133,8 @@ export async function getDayTasks(dayDocId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 export async function addDayTask(dayDocId, task) {
+  // Marca o dia como tendo atividade real — usado na contagem de sequência
+  await setDoc(itemRef('days', dayDocId), { hasActivity: true }, { merge: true });
   const ref = await addDoc(collection(db, 'users', uid(), 'days', dayDocId, 'tasks'), task);
   return ref.id;
 }
