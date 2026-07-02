@@ -4672,7 +4672,7 @@ body.tour-active { overflow: hidden; }
 /* Input row */
 .pet-chat-input-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 6px;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
@@ -4682,13 +4682,18 @@ body.tour-active { overflow: hidden; }
   flex: 1;
   background: var(--card-2);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 8px 12px;
   font-size: 13px;
   color: var(--text);
   outline: none;
   transition: border-color 0.15s;
   min-width: 0;
+  resize: none;
+  overflow-y: hidden;
+  line-height: 1.4;
+  font-family: inherit;
+  display: block;
 }
 .pet-input:focus { border-color: var(--accent); }
 .pet-input::placeholder { color: var(--muted); }

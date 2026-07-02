@@ -82,15 +82,15 @@ function buildPetHTML() {
     </div>
 
     <div id="pet-input-row" class="pet-chat-input-row">
-      <input
-        type="text"
+      <textarea
         id="pet-input"
         class="pet-input"
         placeholder="Digite um comando..."
         autocomplete="off"
         autocorrect="off"
         autocapitalize="sentences"
-      />
+        rows="1"
+      ></textarea>
       <button class="pet-mic-btn" id="pet-mic-btn" title="Falar" aria-label="Microfone">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="2" width="6" height="12" rx="3"/>
@@ -139,6 +139,11 @@ function buildPetHTML() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 5: HANDLERS — click, fechar, atalhos, Enter
 // ═══════════════════════════════════════════════════════════════
+function resizePetInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+}
+
 function attachHandlers() {
   document.getElementById('pet-body').addEventListener('click', toggleChat);
   document.getElementById('pet-body').addEventListener('keydown', e => {
@@ -146,9 +151,11 @@ function attachHandlers() {
   });
   document.getElementById('pet-chat-close').addEventListener('click', closeChatPanel);
   document.getElementById('pet-send-btn').addEventListener('click', handleSend);
-  document.getElementById('pet-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleSend();
+  const petInput = document.getElementById('pet-input');
+  petInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   });
+  petInput.addEventListener('input', () => resizePetInput(petInput));
   document.getElementById('pet-mic-btn').addEventListener('click', startMic);
   document.getElementById('pet-rec-cancel').addEventListener('click', stopMicCancel);
   document.getElementById('pet-rec-confirm').addEventListener('click', stopMicConfirm);
@@ -193,6 +200,7 @@ async function handleSend() {
   const text  = (input?.value || '').trim();
   if (!text) return;
   input.value = '';
+  resizePetInput(input);
   addMessage(text, 'user');
   await dispatchCommand(text);
 }
@@ -718,7 +726,7 @@ async function startMic() {
         const clean = formatTranscript(accumulated.trim());
         accumulated = '';
         const inp   = document.getElementById('pet-input');
-        if (inp && clean) { inp.value = clean; inp.focus(); }
+        if (inp && clean) { inp.value = clean; resizePetInput(inp); inp.focus(); }
         teardownMic();
         hideRecordingUI();
         setPetState('idle');
@@ -778,7 +786,7 @@ function stopMicConfirm() {
     const clean = formatTranscript(accumulated.trim());
     accumulated = '';
     const inp   = document.getElementById('pet-input');
-    if (inp && clean) { inp.value = clean; inp.focus(); }
+    if (inp && clean) { inp.value = clean; resizePetInput(inp); inp.focus(); }
     teardownMic();
     hideRecordingUI();
     setPetState('idle');
