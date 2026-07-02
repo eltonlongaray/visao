@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, getShifts,
+  getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './store.js';
 
@@ -242,6 +243,7 @@ async function routeCommand(text) {
   if (/hidrat|água|agua|beber|bebi|\bml\b/i.test(t))                 return cmdHidratacao();
   if (/tarefas?|to.?do|lista de hoje|o que tenho/i.test(t) && !REGISTER_TRIGGERS.test(t)) return cmdTarefas();
   if (/ajuda|help|comando|o que (você|vc) (faz|sabe)/i.test(t))      return cmdAjuda();
+  if (/^início:\s*\d|zerar\s+sequência|começo\s+da\s+sequência/i.test(t)) return cmdDefinirInicio(text);
 
   // ── Intenção de registrar ──
   if (REGISTER_TRIGGERS.test(t) || /registrar|adicionar/i.test(t)) {
@@ -333,6 +335,65 @@ function isToday(date) {
 // BLOCO 8: HANDLERS DE COMANDOS
 // ═══════════════════════════════════════════════════════════════
 
+// Streak de dias consecutivos — respeita streakOrigin do perfil do usuário
+async function calcStreak() {
+  const profile  = await getProfile();
+  const originId = profile?.streakOrigin || null;
+  const origin   = originId ? (() => {
+    const [y, m, d] = originId.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setHours(0, 0, 0, 0);
+    return dt;
+  })() : null;
+
+  let streak = 0;
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 365; i++) {
+    if (origin && cursor < origin) break;
+    const id  = dayId(cursor);
+    const doc = await getDay(id);
+    if (!doc) break;
+    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
+    if (!isActive) break;
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// Dias falhados na semana atual (segunda→hoje, excluindo dias futuros)
+async function calcWeekFailures() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysFromMon = (today.getDay() + 6) % 7; // seg=0 dom=6
+  const weekStart   = new Date(today);
+  weekStart.setDate(today.getDate() - daysFromMon);
+
+  let failed = 0;
+  const cursor = new Date(weekStart);
+  while (cursor <= today) {
+    const doc       = await getDay(dayId(cursor));
+    const isActive  = doc && (doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime);
+    if (!isActive) failed++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return failed;
+}
+
+// Bloco de consistência — reutilizado em Sono e Sequência
+async function consistenciaBlock() {
+  const [streak, failed] = await Promise.all([calcStreak(), calcWeekFailures()]);
+  const weekPart   = failed === 0
+    ? '✅ Semana perfeita até agora!'
+    : `⚠️ Essa semana você <strong>falhou ${failed} dia${failed > 1 ? 's' : ''}</strong>.`;
+  const streakPart = streak === 0
+    ? 'Nenhum dia consecutivo registrado ainda.'
+    : `Você está a <strong>${streak} dia${streak > 1 ? 's' : ''}</strong> consecutivos em atividade.`;
+  return `${weekPart} ${streakPart}`;
+}
+
 async function cmdSono() {
   const today     = new Date();
   const yesterday = new Date(today);
@@ -346,42 +407,49 @@ async function cmdSono() {
   const wake  = todayDoc?.wakeTime;
   const sleep = yestDoc?.sleepTime;
 
-  if (!wake && !sleep) return '😴 Nenhum horário de sono registrado hoje.';
-  if (!wake)  return `😴 Horário de dormir: <strong>${sleep}</strong>. Ainda sem horário de acordar hoje.`;
-  if (!sleep) return `☀️ Você acordou às <strong>${wake}</strong>, mas não há horário de dormir de ontem.`;
+  let sleepMsg;
+  if (!wake && !sleep) {
+    sleepMsg = '😴 Nenhum horário de sono registrado hoje.';
+  } else if (!wake) {
+    sleepMsg = `😴 Horário de dormir: <strong>${sleep}</strong>. Ainda sem acordar registrado.`;
+  } else if (!sleep) {
+    sleepMsg = `☀️ Acordou às <strong>${wake}</strong>, mas sem horário de dormir de ontem.`;
+  } else {
+    const mins = sleepDuration(sleep, wake);
+    if (!mins) {
+      sleepMsg = '😴 Não consegui calcular a duração do sono.';
+    } else {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      const av = mins >= 420 ? '✅ Ótimo!' : mins >= 360 ? '🟡 Razoável.' : '🔴 Pouco sono.';
+      sleepMsg = `😴 Você dormiu <strong>${h}h${m > 0 ? m + 'min' : ''}</strong> (${sleep} → ${wake}). ${av}`;
+    }
+  }
 
-  const mins = sleepDuration(sleep, wake);
-  if (!mins)  return '😴 Não consegui calcular a duração do sono com os dados disponíveis.';
-
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const avaliacao = mins >= 420 ? '✅ Ótimo!' : mins >= 360 ? '🟡 Razoável.' : '🔴 Pouco sono.';
-  return `😴 Você dormiu <strong>${h}h${m > 0 ? m + 'min' : ''}</strong> (${sleep} → ${wake}). ${avaliacao}`;
+  const consist = await consistenciaBlock();
+  return `${sleepMsg}<br><br>${consist}`;
 }
 
 async function cmdSequencia() {
-  let streak = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
+  const consist = await consistenciaBlock();
+  return `🔥 ${consist}<br><small style="color:var(--muted)">Diga <em>início: DD/MM</em> pra definir o começo da contagem.</small>`;
+}
 
-  for (let i = 0; i < 120; i++) {
-    const id  = dayId(cursor);
-    const doc = await getDay(id);
-    if (!doc) break;
-
-    // hasActivity é setado por addDayTask em cada dia com task real.
-    // Também aceita hydrationMl ou sleepTime como evidência de uso.
-    // Dias criados só por "generated: true" (abrir a tela) NÃO contam.
-    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
-    if (!isActive) break;
-
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
+// Define a data de início da sequência (ex: "início: 09/06")
+async function cmdDefinirInicio(text) {
+  const match = text.match(/(\d{1,2})[\/\-](\d{1,2})/);
+  if (/zerar/i.test(text)) {
+    await setProfile({ streakOrigin: dayId(new Date()) });
+    return '✅ Sequência zerada. Contagem começa de hoje.';
   }
-
-  if (streak === 0) return '🔥 Nenhum registro encontrado ainda. Comece hoje!';
-  const emoji = streak >= 30 ? '🏆' : streak >= 14 ? '🔥' : streak >= 7 ? '⚡' : '✨';
-  return `${emoji} Você está com <strong>${streak} dia${streak !== 1 ? 's' : ''} seguidos</strong> de registro!`;
+  if (!match) return 'Para definir o início diga: <strong>início: DD/MM</strong> (ex: início: 09/06)';
+  const day   = parseInt(match[1]);
+  const month = parseInt(match[2]) - 1;
+  const year  = new Date().getFullYear();
+  const origin = new Date(year, month, day);
+  await setProfile({ streakOrigin: dayId(origin) });
+  const label = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+  return `✅ Início da sequência definido para <strong>${label}</strong>. Dias antes dessa data não contam.`;
 }
 
 async function cmdHidratacao() {

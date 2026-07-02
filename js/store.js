@@ -132,9 +132,17 @@ export async function getDayTasks(dayDocId) {
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
+let _streakOriginChecked = false; // evita leitura extra a cada task após o primeiro check
+
 export async function addDayTask(dayDocId, task) {
-  // Marca o dia como tendo atividade real — usado na contagem de sequência
   await setDoc(itemRef('days', dayDocId), { hasActivity: true }, { merge: true });
+  if (!_streakOriginChecked) {
+    _streakOriginChecked = true;
+    const snap = await getDoc(userRef());
+    if (!snap.exists() || !snap.data()?.streakOrigin) {
+      await setDoc(userRef(), { streakOrigin: dayDocId }, { merge: true });
+    }
+  }
   const ref = await addDoc(collection(db, 'users', uid(), 'days', dayDocId, 'tasks'), task);
   return ref.id;
 }
