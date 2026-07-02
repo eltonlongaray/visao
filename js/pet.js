@@ -152,11 +152,14 @@ function attachHandlers() {
   document.getElementById('pet-rec-cancel').addEventListener('click', stopMicCancel);
   document.getElementById('pet-rec-confirm').addEventListener('click', stopMicConfirm);
 
-  // Botões de atalho
-  document.getElementById('pet-quick-actions').addEventListener('click', e => {
+  // Botões de atalho — guard para evitar disparo duplo por toque
+  let qaDispatching = false;
+  document.getElementById('pet-quick-actions').addEventListener('click', async e => {
     const btn = e.target.closest('.pet-qa-btn');
-    if (!btn) return;
-    dispatchCommand(btn.dataset.cmd);
+    if (!btn || qaDispatching) return;
+    qaDispatching = true;
+    await dispatchCommand(btn.dataset.cmd);
+    qaDispatching = false;
   });
 }
 
@@ -361,10 +364,19 @@ async function cmdSequencia() {
   const cursor = new Date();
   cursor.setHours(0, 0, 0, 0);
 
-  // Vai para trás até encontrar um dia sem registro (máx 120 dias)
   for (let i = 0; i < 120; i++) {
-    const doc = await getDay(dayId(cursor));
-    if (!doc) break;
+    const id  = dayId(cursor);
+    const doc = await getDay(id);
+    if (!doc) break; // dia não existe → fim da sequência
+
+    // Dia conta se tem atividade real: flag, hidratação, sono ou tarefas
+    const hasDocActivity = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
+    if (!hasDocActivity) {
+      // Fallback: busca tasks da subcollection (dia pode ser só "gerado" vazio)
+      const tasks = await getDayTasks(id);
+      if (tasks.length === 0) break; // dia vazio → fim da sequência
+    }
+
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -383,10 +395,9 @@ async function cmdHidratacao() {
   const pct  = Math.min(100, Math.round((ml / goal) * 100));
   const remaining = Math.max(0, goal - ml);
 
-  const filled  = Math.round(pct / 10);
-  const bar     = '█'.repeat(filled) + '░'.repeat(10 - filled);
   const status  = remaining === 0 ? '🎉 Meta atingida!' : `Faltam <strong>${remaining}ml</strong>`;
-  return `💧 <strong>${ml}ml</strong> de ${goal}ml (${pct}%)<br><span style="letter-spacing:1px;font-family:monospace">${bar}</span><br>${status}`;
+  const barHtml = `<div style="margin:6px 0;height:8px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px;transition:width .3s"></div></div>`;
+  return `💧 <strong>${ml}ml</strong> de ${goal}ml (${pct}%)${barHtml}${status}`;
 }
 
 async function cmdTarefas() {
