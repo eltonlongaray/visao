@@ -363,7 +363,9 @@ async function calcStreak() {
     const id  = dayId(cursor);
     const doc = await getDay(id);
     if (!doc) break;
-    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime;
+    // hasActivity = set pelo addDayTask novo; fallback: doc existe com qualquer dado além de "generated"
+    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime
+      || Object.keys(doc).some(k => k !== 'id' && k !== 'generated');
     if (!isActive) break;
     streak++;
     cursor.setDate(cursor.getDate() - 1);
