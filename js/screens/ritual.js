@@ -386,25 +386,60 @@ async function syncTemplateForDay(dayDocId) {
     .filter(t => t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
     .slice()
     .sort(taskSort)
-    .map(t => ({
-      activityId: t.activityId || null,
-      title: t.title,
-      desc: t.desc || '',
-      kind: t.kind || 'task',
-      startTime: t.startTime || '',
-      shiftId: t.shiftId || null,
-      categoryId: t.categoryId || null,
-      icon: t.icon || '',
-      reminderEnabled: t.reminderEnabled || false,
-      ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {}),
-      ...(t.recurrenceType ? { recurrenceType: t.recurrenceType } : {})
-    }));
+    .map(t => {
+      // Garante recurrenceGroupId em TODAS as tasks do template — sem isso,
+      // isExcluded cai no check por título e tarefas excluídas via "apagar dia" nunca voltam.
+      const grpId = t.recurrenceGroupId || genRecurId();
+      if (!t.recurrenceGroupId) {
+        t.recurrenceGroupId = grpId;
+        updateDayTask(dayDocId, t.id, { recurrenceGroupId: grpId }).catch(console.error);
+      }
+      return {
+        activityId: t.activityId || null,
+        title: t.title,
+        desc: t.desc || '',
+        kind: t.kind || 'task',
+        startTime: t.startTime || '',
+        shiftId: t.shiftId || null,
+        categoryId: t.categoryId || null,
+        icon: t.icon || '',
+        reminderEnabled: t.reminderEnabled || false,
+        recurrenceGroupId: grpId,
+        ...(t.recurrenceType ? { recurrenceType: t.recurrenceType } : {})
+      };
+    });
   try {
     await setWeekdayTemplate(dow, templates);
     if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
     profile.weekdayTemplates[String(dow)] = templates;
   } catch (err) {
     console.error('[Visão] Erro ao salvar template:', err);
+  }
+}
+
+
+// Migração única: percorre weekdayTemplates e atribui recurrenceGroupId a tasks
+// que são recorrentes (recurrenceType !== 'today') mas ainda não têm groupId.
+// Necessário para que isExcluded use check por groupId (não por título), evitando
+// que tasks apagadas via "apagar dia" fiquem permanentemente excluídas.
+async function _migrateTemplateGroupIds() {
+  if (!profile?.weekdayTemplates) return;
+  let changed = false;
+  const updatedTemplates = {};
+  for (const [dow, tasks] of Object.entries(profile.weekdayTemplates)) {
+    if (!Array.isArray(tasks)) { updatedTemplates[dow] = tasks; continue; }
+    const migrated = tasks.map(t => {
+      if (!t.recurrenceGroupId && t.recurrenceType && t.recurrenceType !== 'today') {
+        changed = true;
+        return { ...t, recurrenceGroupId: genRecurId() };
+      }
+      return t;
+    });
+    updatedTemplates[dow] = migrated;
+  }
+  if (changed) {
+    await setProfile({ weekdayTemplates: updatedTemplates });
+    profile.weekdayTemplates = updatedTemplates;
   }
 }
 
@@ -426,6 +461,9 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
+  // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
+  // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
+  await _migrateTemplateGroupIds();
   await loadWeek();
   renderUI(app);
   // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
