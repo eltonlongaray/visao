@@ -215,32 +215,35 @@ function weekRangeLabel() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 6: DATA LOADING (Firestore)
 // ═══════════════════════════════════════════════════════════════
+function _normalizeMeta(meta) {
+  const m = { wakeTime: '', sleepTime: '', hydrationMl: 0, hydrationGoal: 2000, notes: '', ...(meta || {}) };
+  if (!m.hydrationGoal || m.hydrationGoal <= 0) m.hydrationGoal = 2000;
+  return m;
+}
+
+async function _fetchWeekDays(startDate) {
+  return Promise.all(
+    Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const id = dayId(d);
+      return (async () => {
+        const [meta, tasks] = await Promise.all([getDay(id), getDayTasks(id)]);
+        return { date: d, id, meta: _normalizeMeta(meta), tasks };
+      })();
+    })
+  );
+}
+
 async function loadWeek() {
-  const promises = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    const id = dayId(d);
-    promises.push((async () => {
-      const [meta, tasks] = await Promise.all([getDay(id), getDayTasks(id)]);
-      // FIX: sempre aplica defaults — se Firestore tem meta parcial (ex: só wake/sleep
-      // gravado antes da feature de hidratação), os campos faltantes voltam ao padrão.
-      const fullMeta = {
-        wakeTime: '', sleepTime: '',
-        hydrationMl: 0, hydrationGoal: 2000,
-        notes: '',
-        ...(meta || {})
-      };
-      // Se hydrationGoal ainda for 0/undefined/NaN, força 2000
-      if (!fullMeta.hydrationGoal || fullMeta.hydrationGoal <= 0) {
-        fullMeta.hydrationGoal = 2000;
-      }
-      return { date: d, id, meta: fullMeta, tasks };
-    })());
-  }
-  weekData = await Promise.all(promises);
-  // Após carregar, auto-gera tarefas dos dias virgens
-  await autoGenerateMissingTasks();
+  weekData = await _fetchWeekDays(weekStart);
+  // Garante tarefas recorrentes na semana atual
+  await autoGenerateMissingTasks(weekData);
+  // Garante tarefas recorrentes na PRÓXIMA semana (geração preventiva)
+  const nextStart = new Date(weekStart);
+  nextStart.setDate(weekStart.getDate() + 7);
+  const nextWeekDays = await _fetchWeekDays(nextStart);
+  await autoGenerateMissingTasks(nextWeekDays);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -254,9 +257,9 @@ async function loadWeek() {
 //   • Auto-gen baseado em categories.daysOfWeek — substituído pelo
 //     mecanismo per-task no próprio Ritual.
 // ═══════════════════════════════════════════════════════════════
-async function autoGenerateMissingTasks() {
+async function autoGenerateMissingTasks(days = weekData) {
   const todayId = dayId(new Date());
-  for (const day of weekData) {
+  for (const day of days) {
     const dow = day.date.getDay();
     const template = profile?.weekdayTemplates?.[String(dow)];
 
@@ -3588,31 +3591,12 @@ function openTaskEditor(app, dayDocId, taskId) {
       showToast('Só este dia — recorrência removida', 'success');
     }
 
-    // When changing to weekly, push to same-DOW days that are missing the task.
-    // Covers: (A) days in the current weekData, (B) upcoming days NOT in weekData (e.g. current
-    // week when the user is viewing a past week — weekData won't contain those days).
+    // Propaga para mesmo DOW dentro do weekData atual (semana sendo visualizada)
+    // Semanas futuras são cobertas pelo autoGenerateMissingTasks no próximo loadWeek
     if (recur === 'weekly' && t.recurrenceGroupId) {
       const groupId = t.recurrenceGroupId;
       const taskDow = day.date.getDay();
-      const todayDate = new Date();
-      const todayIdStr = dayId(todayDate);
-
-      const _buildPropagated = () => ({
-        activityId: t.activityId || null,
-        title: t.title, desc: t.desc || '',
-        kind: t.kind || 'task',
-        startTime: t.startTime || '',
-        shiftId: t.shiftId || null,
-        categoryId: t.categoryId || null,
-        icon: t.icon || '',
-        reminderEnabled: t.reminderEnabled || false,
-        done: false,
-        recurrenceGroupId: groupId,
-        recurrenceType: 'weekly',
-        order: t.order ?? 0
-      });
-
-      // (A) Days already loaded in weekData
+      const todayIdStr = dayId(new Date());
       for (const otherDay of weekData) {
         if (otherDay.id === dayDocId) continue;
         if (otherDay.date.getDay() !== taskDow) continue;
@@ -3621,38 +3605,29 @@ function openTaskEditor(app, dayDocId, taskId) {
         const excluded = (otherDay.meta?.excludedRecurrenceGroups || []).includes(groupId);
         if (!alreadyHas && !excluded) {
           try {
-            const newId = await addDayTask(otherDay.id, _buildPropagated());
-            otherDay.tasks.push({ id: newId, ..._buildPropagated() });
+            const propagated = {
+              activityId: t.activityId || null,
+              title: t.title, desc: t.desc || '',
+              kind: t.kind || 'task',
+              startTime: t.startTime || '',
+              shiftId: t.shiftId || null,
+              categoryId: t.categoryId || null,
+              icon: t.icon || '',
+              reminderEnabled: t.reminderEnabled || false,
+              done: false,
+              recurrenceGroupId: groupId,
+              recurrenceType: 'weekly',
+              order: t.order ?? 0
+            };
+            const newId = await addDayTask(otherDay.id, propagated);
+            otherDay.tasks.push({ id: newId, ...propagated });
             const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
             if (otherEl) {
               otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
               updateDayCardStats(otherDay.id, false);
             }
-          } catch (e) { console.error('[edit-weekly-propagate-in-week]', e); }
+          } catch (e) { console.error('[edit-weekly-propagate]', e); }
         }
-      }
-
-      // (B) Upcoming same-DOW days NOT in weekData — check next 14 days directly in Firestore
-      for (let ahead = 0; ahead < 14; ahead++) {
-        const checkDate = new Date(todayDate);
-        checkDate.setDate(todayDate.getDate() + ahead);
-        if (checkDate.getDay() !== taskDow) continue;
-        const checkId = dayId(checkDate);
-        if (checkId === dayDocId) continue;
-        if (weekData.some(d => d.id === checkId)) continue; // already handled in (A)
-        try {
-          const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
-          const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
-          const has = chkTasks.some(x =>
-            x.recurrenceGroupId === groupId ||
-            (!x.recurrenceGroupId &&
-              (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase() &&
-              (x.categoryId || '') === (t.categoryId || ''))
-          );
-          if (!has && !excl) {
-            await addDayTask(checkId, _buildPropagated());
-          }
-        } catch (e) { console.error('[edit-weekly-propagate-ahead]', checkId, e); }
       }
     }
   };
