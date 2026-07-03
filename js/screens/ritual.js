@@ -260,7 +260,10 @@ async function loadWeek() {
 async function autoGenerateMissingTasks(days = weekData) {
   const todayId = dayId(new Date());
   for (const day of days) {
-    const dow = day.date.getDay();
+    // Usa o id do dia (YYYY-MM-DD) para calcular DOW em hora local — evita bug de timezone
+    // onde day.date (timestamp UTC meia-noite) retorna o dia anterior no Brasil (UTC-3)
+    const [_iy, _im, _id] = day.id.split('-').map(Number);
+    const dow = new Date(_iy, _im - 1, _id).getDay();
     const template = profile?.weekdayTemplates?.[String(dow)];
 
     // Helper: filtra tarefas que o user excluiu (escopo "Só este dia") nesse dia
@@ -381,7 +384,9 @@ function genRecurId() {
 async function syncTemplateForDay(dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
-  const dow = day.date.getDay();
+  // Usa o id do dia (YYYY-MM-DD) — evita bug de timezone com day.date.getDay()
+  const [_sy, _sm, _sd] = dayDocId.split('-').map(Number);
+  const dow = new Date(_sy, _sm - 1, _sd).getDay();
   const templates = day.tasks
     .filter(t => t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
     .slice()
@@ -461,7 +466,7 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
-  showToast('[DBG] ritual v42 carregado', 'info');
+  showToast('[DBG] ritual v43 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
@@ -3268,7 +3273,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
       } else if (recur === 'weekly') {
         // Salva no weekdayTemplate do DOW desta data (pra próximas semanas)
         // NOTA: 'daily' já salva nos 7 DOWs acima. 'weekly' só salva no DOW específico.
-        const dowW = day.date.getDay();
+        const [_nty, _ntm, _ntd] = dayDocId.split('-').map(Number);
+        const dowW = new Date(_nty, _ntm - 1, _ntd).getDay();
         const templateTask = {
           activityId: null, title, desc: '',
           kind,
@@ -3568,8 +3574,10 @@ function openTaskEditor(app, dayDocId, taskId) {
       }
       showToast(`[DBG] Salvando template...`, 'info');
       await syncTemplateForDay(dayDocId);
-      const savedTpl = profile?.weekdayTemplates?.[String(day.date.getDay())];
-      showToast(`[DBG] Template salvo: ${savedTpl?.length ?? 0} tarefas`, 'info');
+      const [_dby, _dbm, _dbd] = dayDocId.split('-').map(Number);
+      const _dbdow = new Date(_dby, _dbm - 1, _dbd).getDay();
+      const savedTpl = profile?.weekdayTemplates?.[String(_dbdow)];
+      showToast(`[DBG] Template salvo DOW=${_dbdow}: ${savedTpl?.length ?? 0} tarefas`, 'info');
     }
 
     // RECORRÊNCIA MENSAL: substitui as entradas do grupo
