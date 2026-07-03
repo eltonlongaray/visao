@@ -1391,12 +1391,6 @@ body.time-picker-open { overflow: hidden; }
   flex-shrink: 0;
 }
 .day-undo-btn:hover { background: rgba(167,139,250,0.10); border-color: var(--accent); }
-.day-undo-count {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--muted);
-  min-width: 16px;
-}
 
 /* Botão "Excluir nota" — última opção dentro do modal de nota em modo edição */
 .note-delete-wrap {

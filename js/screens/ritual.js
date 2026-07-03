@@ -989,6 +989,7 @@ async function replaceDayWithPrev(app, dayDocId, choice) {
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
     updateDayCardStats(dayDocId, false);
+    _clearUndoForDay(dayDocId);
     showToast(`Acrescentadas ${sorted.length} tarefa${sorted.length === 1 ? '' : 's'} de ${dow.toLowerCase()} ${dataFmt}`, 'success');
   } catch (err) {
     console.error('[replace-day-with-prev] erro:', err);
@@ -2073,6 +2074,7 @@ function attachHandlers(app) {
       };
       const tid = await addDayTask(dayDocId, newTask);
       day.tasks.push({ id: tid, ...newTask });
+      _clearUndoForDay(dayDocId);
 
       playDone();
 
@@ -2391,9 +2393,7 @@ function updateDayCardStats(dayDocId, syncTemplate = false) {
 // BLOCO 9.4: LIMPAR DADOS DO DIA — zera tudo (tarefas + relógio + hidratação + nota)
 // ═══════════════════════════════════════════════════════════════
 // ── Estado de undo para "apagar dia" ──────────────────────────
-const _clearUndoTimers = new Map(); // dayDocId → timeoutId
-const _clearUndoData   = new Map(); // dayDocId → { tasks, meta }
-const UNDO_SECS = 8;
+const _clearUndoData = new Map(); // dayDocId → { tasks, meta }
 
 async function openClearDayModal(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
@@ -2407,11 +2407,7 @@ async function clearDayAll(app, dayDocId) {
   if (!day) return;
   try {
     // Cancela undo pendente anterior para este dia (se houver)
-    if (_clearUndoTimers.has(dayDocId)) {
-      clearTimeout(_clearUndoTimers.get(dayDocId));
-      _clearUndoTimers.delete(dayDocId);
-      _clearUndoData.delete(dayDocId);
-    }
+    _clearUndoData.delete(dayDocId);
 
     // Snapshot para possível undo (antes de qualquer deleção)
     const tasksSnapshot = day.tasks.map(t => ({ ...t }));
@@ -2460,16 +2456,8 @@ async function clearDayAll(app, dayDocId) {
     if ((day.meta.hydrationMl || metaSnapshot.hydrationMl || 0) > 0) keptParts.push('hidratação');
     if (metaSnapshot.dayNote && Object.values(metaSnapshot.dayNote).some(v => v)) keptParts.push('nota');
 
-    // Substitui o botão de apagar pelo resumo + botão de desfazer com countdown
-    _showClearUndoBtn(dayDocId, UNDO_SECS, tasksSnapshot.length, keptParts);
-
-    // Expira o undo após UNDO_SECS segundos
-    const timer = setTimeout(() => {
-      _clearUndoTimers.delete(dayDocId);
-      _clearUndoData.delete(dayDocId);
-      _restoreClearBtn(dayDocId);
-    }, UNDO_SECS * 1000);
-    _clearUndoTimers.set(dayDocId, timer);
+    // Substitui o botão de apagar pelo resumo + botão de desfazer (fica até nova tarefa ser adicionada)
+    _showClearUndoBtn(dayDocId, tasksSnapshot.length, keptParts);
 
   } catch (err) {
     console.error('[clear-all] erro:', err);
@@ -2477,29 +2465,27 @@ async function clearDayAll(app, dayDocId) {
   }
 }
 
-function _showClearUndoBtn(dayDocId, secs, taskCount, keptParts) {
+function _showClearUndoBtn(dayDocId, taskCount, keptParts) {
   const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
   const wrap = dayCardEl?.querySelector('.day-clear-wrap');
   if (!wrap) return;
 
   const keptStr = keptParts.length ? keptParts.join(', ') + ' mantidos' : '';
-  let remaining = secs;
   wrap.innerHTML = `
     <div class="day-undo-row">
       <span class="day-undo-info">
         🗑️ ${taskCount} atividade${taskCount !== 1 ? 's' : ''} apagada${taskCount !== 1 ? 's' : ''}${keptStr ? ` · ${keptStr}` : ''}
       </span>
       <button type="button" class="day-undo-btn" data-action="undo-clear" data-day="${dayDocId}">
-        ↩ Desfazer <span class="day-undo-count">${remaining}s</span>
+        ↩ Desfazer
       </button>
     </div>`;
+}
 
-  const countEl = wrap.querySelector('.day-undo-count');
-  const tick = setInterval(() => {
-    remaining--;
-    if (remaining <= 0 || !countEl.isConnected) { clearInterval(tick); return; }
-    countEl.textContent = `${remaining}s`;
-  }, 1000);
+function _clearUndoForDay(dayDocId) {
+  if (!_clearUndoData.has(dayDocId)) return;
+  _clearUndoData.delete(dayDocId);
+  _restoreClearBtn(dayDocId);
 }
 
 function _restoreClearBtn(dayDocId) {
@@ -2514,9 +2500,6 @@ async function undoClearDay(app, dayDocId) {
   const data = _clearUndoData.get(dayDocId);
   if (!data) return;
 
-  // Cancela o timer de expiração
-  clearTimeout(_clearUndoTimers.get(dayDocId));
-  _clearUndoTimers.delete(dayDocId);
   _clearUndoData.delete(dayDocId);
 
   const day = weekData.find(d => d.id === dayDocId);
@@ -3154,6 +3137,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       const order = day.tasks.filter(t => t.shiftId === shiftId).length;
       const tid = await addDayTask(dayDocId, { ...baseTask, order });
       day.tasks.push({ id: tid, ...baseTask, order });
+      _clearUndoForDay(dayDocId);
       await propagateReminderToCategory(categoryId, reminderEnabled);
 
       // RECORRÊNCIA
@@ -3168,6 +3152,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           if (dup) return { day: otherDay.id, status: 'skip' };
           const oid = await addDayTask(otherDay.id, { ...baseTask, order });
           otherDay.tasks.push({ id: oid, ...baseTask, order });
+          _clearUndoForDay(otherDay.id);
           return { day: otherDay.id, status: 'ok' };
         }));
         const okCount = results.filter(r => r.status === 'fulfilled' && r.value.status === 'ok').length;
@@ -3481,6 +3466,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       recurrenceType: recur // PERSIST tipo de recorrencia direto na task (fonte da verdade)
     };
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
+    const prevRecurType = t.recurrenceType || 'today';
 
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
@@ -3531,7 +3517,15 @@ function openTaskEditor(app, dayDocId, taskId) {
       if (failCount > 0) console.error('[edit-recur-daily] falhas:', results.filter(r => r.status === 'rejected'));
       console.log(`[edit-recur-daily] ok=${okCount} fail=${failCount}`);
     }
-    // Sync template do DOW pra 'weekly' (e 'daily', que sobrescreve abaixo)
+    // Para 'weekly': garante recurrenceGroupId (mesma lógica de daily/monthly)
+    if (recur === 'weekly') {
+      const groupId = t.recurrenceGroupId || genRecurId();
+      if (!t.recurrenceGroupId) {
+        t.recurrenceGroupId = groupId;
+        await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
+      }
+    }
+    // Sync template do DOW pra 'weekly' (e 'daily', que trata acima)
     // 'today' e 'monthly' não sincronizam template do DOW
     if (recur === 'weekly' || recur === 'daily') {
       // syncTemplateForDay vai rodar via updateDayCardStats(true)
@@ -3590,6 +3584,76 @@ function openTaskEditor(app, dayDocId, taskId) {
       const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
       const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
       showToast(`Repete ${label}`, 'success');
+    } else if (recur === 'today' && prevRecurType !== 'today') {
+      showToast('Só este dia — recorrência removida', 'success');
+    }
+
+    // When changing to weekly, push to same-DOW days that are missing the task.
+    // Covers: (A) days in the current weekData, (B) upcoming days NOT in weekData (e.g. current
+    // week when the user is viewing a past week — weekData won't contain those days).
+    if (recur === 'weekly' && t.recurrenceGroupId) {
+      const groupId = t.recurrenceGroupId;
+      const taskDow = day.date.getDay();
+      const todayDate = new Date();
+      const todayIdStr = dayId(todayDate);
+
+      const _buildPropagated = () => ({
+        activityId: t.activityId || null,
+        title: t.title, desc: t.desc || '',
+        kind: t.kind || 'task',
+        startTime: t.startTime || '',
+        shiftId: t.shiftId || null,
+        categoryId: t.categoryId || null,
+        icon: t.icon || '',
+        reminderEnabled: t.reminderEnabled || false,
+        done: false,
+        recurrenceGroupId: groupId,
+        recurrenceType: 'weekly',
+        order: t.order ?? 0
+      });
+
+      // (A) Days already loaded in weekData
+      for (const otherDay of weekData) {
+        if (otherDay.id === dayDocId) continue;
+        if (otherDay.date.getDay() !== taskDow) continue;
+        if (otherDay.id < todayIdStr) continue;
+        const alreadyHas = otherDay.tasks.some(x => x.recurrenceGroupId === groupId);
+        const excluded = (otherDay.meta?.excludedRecurrenceGroups || []).includes(groupId);
+        if (!alreadyHas && !excluded) {
+          try {
+            const newId = await addDayTask(otherDay.id, _buildPropagated());
+            otherDay.tasks.push({ id: newId, ..._buildPropagated() });
+            const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
+            if (otherEl) {
+              otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
+              updateDayCardStats(otherDay.id, false);
+            }
+          } catch (e) { console.error('[edit-weekly-propagate-in-week]', e); }
+        }
+      }
+
+      // (B) Upcoming same-DOW days NOT in weekData — check next 14 days directly in Firestore
+      for (let ahead = 0; ahead < 14; ahead++) {
+        const checkDate = new Date(todayDate);
+        checkDate.setDate(todayDate.getDate() + ahead);
+        if (checkDate.getDay() !== taskDow) continue;
+        const checkId = dayId(checkDate);
+        if (checkId === dayDocId) continue;
+        if (weekData.some(d => d.id === checkId)) continue; // already handled in (A)
+        try {
+          const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
+          const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
+          const has = chkTasks.some(x =>
+            x.recurrenceGroupId === groupId ||
+            (!x.recurrenceGroupId &&
+              (x.title || '').trim().toLowerCase() === (t.title || '').trim().toLowerCase() &&
+              (x.categoryId || '') === (t.categoryId || ''))
+          );
+          if (!has && !excl) {
+            await addDayTask(checkId, _buildPropagated());
+          }
+        } catch (e) { console.error('[edit-weekly-propagate-ahead]', checkId, e); }
+      }
     }
   };
 }
