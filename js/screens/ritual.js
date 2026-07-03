@@ -461,7 +461,7 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
-  showToast('[DBG] ritual v41 carregado', 'info');
+  showToast('[DBG] ritual v42 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
@@ -3630,88 +3630,66 @@ function openTaskEditor(app, dayDocId, taskId) {
       showToast('Só este dia — recorrência removida', 'success');
     }
 
-    // Propaga para dias com mesmo DOW: (A) weekData atual + (B) próximos 14 dias fora do weekData
+    // Propaga para as próximas 2 semanas usando +7 e +14 dias direto do dayDocId.
+    // NÃO usa getDay() — elimina qualquer bug de timezone, dia da semana, etc.
+    // Se karate está em 26/jun, vai para 26+7=03/jul e 26+14=10/jul. Simples.
     if (recur === 'weekly' && t.recurrenceGroupId) {
       const groupId = t.recurrenceGroupId;
-      // USA dayId do dia (string YYYY-MM-DD) para extrair DOW — evita bug de timezone
-      // onde day.date.getDay() retorna o dia errado por estar em UTC em vez de local
-      const [_y, _m, _d] = dayDocId.split('-').map(Number);
-      const taskDow = new Date(_y, _m - 1, _d).getDay();
-      showToast(`[DBG] dayDocId=${dayDocId} taskDow=${taskDow} date.getDay=${day.date.getDay()}`, 'info');
-      const todayDate = new Date();
-      const todayIdStr = dayId(todayDate);
+      const todayIdStr = dayId(new Date());
+      const [sy, sm, sd] = dayDocId.split('-').map(Number);
 
-      // (A) Dias do weekData atual com mesmo DOW (ex: outro Thursday da mesma semana — improvável mas cobre)
-      for (const otherDay of weekData) {
-        if (otherDay.id === dayDocId) continue;
-        if (otherDay.date.getDay() !== taskDow) continue;
-        if (otherDay.id < todayIdStr) continue;
-        const alreadyHas = otherDay.tasks.some(x => x.recurrenceGroupId === groupId);
-        const excluded = (otherDay.meta?.excludedRecurrenceGroups || []).includes(groupId);
-        if (!alreadyHas && !excluded) {
-          try {
-            const propagated = {
-              activityId: t.activityId || null,
-              title: t.title, desc: t.desc || '',
-              kind: t.kind || 'task',
-              startTime: t.startTime || '',
-              shiftId: t.shiftId || null,
-              categoryId: t.categoryId || null,
-              icon: t.icon || '',
-              reminderEnabled: t.reminderEnabled || false,
-              done: false,
-              recurrenceGroupId: groupId,
-              recurrenceType: 'weekly',
-              order: t.order ?? 0
-            };
-            const newId = await addDayTask(otherDay.id, propagated);
-            otherDay.tasks.push({ id: newId, ...propagated });
-            const otherEl = document.querySelector(`.day-card[data-day-id="${otherDay.id}"]`);
-            if (otherEl) {
-              otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
-              updateDayCardStats(otherDay.id, false);
-            }
-          } catch (e) { console.error('[edit-weekly-propagate]', e); }
-        }
-      }
-
-      // (B) Próximos 14 dias com mesmo DOW que NÃO estão no weekData (ex: quinta da semana atual
-      // quando o usuário está visualizando a semana passada). Busca direto no Firestore e insere.
-      showToast(`[DBG] Propagando para dias fora do view (DOW=${taskDow})...`, 'info');
-      for (let ahead = 0; ahead < 14; ahead++) {
-        const checkDate = new Date(todayDate);
-        checkDate.setDate(todayDate.getDate() + ahead);
-        if (checkDate.getDay() !== taskDow) continue;
-        const checkId = dayId(checkDate);
-        if (checkId === dayDocId) continue;
-        if (weekData.some(d => d.id === checkId)) continue; // já tratado em (A)
+      for (let weeks = 1; weeks <= 2; weeks++) {
+        // new Date(year, month-1, day) usa hora LOCAL — sem ambiguidade de UTC
+        const targetDate = new Date(sy, sm - 1, sd + weeks * 7);
+        const checkId = dayId(targetDate);
+        showToast(`[DBG] Semana +${weeks}: ${checkId}`, 'info');
         if (checkId < todayIdStr) continue;
+        if (weekData.some(d => d.id === checkId)) {
+          // Está no weekData — trata inline sem Firestore
+          const otherDay = weekData.find(d => d.id === checkId);
+          const alreadyHas = otherDay.tasks.some(x => x.recurrenceGroupId === groupId);
+          const excluded = (otherDay.meta?.excludedRecurrenceGroups || []).includes(groupId);
+          showToast(`[DBG] ${checkId} (view): has=${alreadyHas} excl=${excluded}`, 'info');
+          if (!alreadyHas && !excluded) {
+            try {
+              const propagated = {
+                activityId: t.activityId || null, title: t.title, desc: t.desc || '',
+                kind: t.kind || 'task', startTime: t.startTime || '',
+                shiftId: t.shiftId || null, categoryId: t.categoryId || null,
+                icon: t.icon || '', reminderEnabled: t.reminderEnabled || false,
+                done: false, recurrenceGroupId: groupId, recurrenceType: 'weekly', order: t.order ?? 0
+              };
+              const newId = await addDayTask(checkId, propagated);
+              otherDay.tasks.push({ id: newId, ...propagated });
+              const otherEl = document.querySelector(`.day-card[data-day-id="${checkId}"]`);
+              if (otherEl) {
+                otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
+                updateDayCardStats(checkId, false);
+              }
+              showToast(`[DBG] ADICIONADO (view) em ${checkId}`, 'success');
+            } catch (e) { console.error('[propagate-weekly-view]', e); }
+          }
+          continue;
+        }
+        // Não está no weekData — busca Firestore e insere
         try {
-          showToast(`[DBG] Checando ${checkId}...`, 'info');
           const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
           const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
           const has = chkTasks.some(x => x.recurrenceGroupId === groupId);
           showToast(`[DBG] ${checkId}: excl=${excl} has=${has} tasks=${chkTasks.length}`, 'info');
           if (!has && !excl) {
             await addDayTask(checkId, {
-              activityId: t.activityId || null,
-              title: t.title, desc: t.desc || '',
-              kind: t.kind || 'task',
-              startTime: t.startTime || '',
-              shiftId: t.shiftId || null,
-              categoryId: t.categoryId || null,
-              icon: t.icon || '',
-              reminderEnabled: t.reminderEnabled || false,
-              done: false,
-              recurrenceGroupId: groupId,
-              recurrenceType: 'weekly',
-              order: t.order ?? 0
+              activityId: t.activityId || null, title: t.title, desc: t.desc || '',
+              kind: t.kind || 'task', startTime: t.startTime || '',
+              shiftId: t.shiftId || null, categoryId: t.categoryId || null,
+              icon: t.icon || '', reminderEnabled: t.reminderEnabled || false,
+              done: false, recurrenceGroupId: groupId, recurrenceType: 'weekly', order: t.order ?? 0
             });
             showToast(`[DBG] ADICIONADO em ${checkId}`, 'success');
           }
         } catch (e) {
           showToast(`[DBG] ERRO ${checkId}: ${e.message}`, 'info');
-          console.error('[edit-weekly-propagate-ahead]', checkId, e);
+          console.error('[propagate-weekly-firestore]', checkId, e);
         }
       }
     }
