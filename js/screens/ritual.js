@@ -466,7 +466,7 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
-  showToast('[DBG] ritual v44 carregado', 'info');
+  showToast('[DBG] ritual v45 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
@@ -3643,7 +3643,6 @@ function openTaskEditor(app, dayDocId, taskId) {
     // Se karate está em 26/jun, vai para 26+7=03/jul e 26+14=10/jul. Simples.
     if (recur === 'weekly' && t.recurrenceGroupId) {
       const groupId = t.recurrenceGroupId;
-      const todayIdStr = dayId(new Date());
       const [sy, sm, sd] = dayDocId.split('-').map(Number);
 
       for (let weeks = 1; weeks <= 2; weeks++) {
@@ -3651,7 +3650,8 @@ function openTaskEditor(app, dayDocId, taskId) {
         const targetDate = new Date(sy, sm - 1, sd + weeks * 7);
         const checkId = dayId(targetDate);
         showToast(`[DBG] Semana +${weeks}: ${checkId}`, 'info');
-        if (checkId < todayIdStr) continue;
+        // Sem filtro por "hoje" — no Brasil UTC-3 o "hoje" do sistema pode ser amanhã,
+        // então july/2 ficaria < todayIdStr e seria pulado erroneamente.
         if (weekData.some(d => d.id === checkId)) {
           // Está no weekData — trata inline sem Firestore
           const otherDay = weekData.find(d => d.id === checkId);
