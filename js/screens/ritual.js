@@ -2399,15 +2399,6 @@ async function openClearDayModal(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
   if (!day.tasks.length) { showToast('Nenhuma atividade para apagar', 'info'); return; }
-  const dayLabel = `${WEEKDAYS_FULL[day.date.getDay()]}, ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
-  const ok = await confirmModal({
-    title: 'Apagar atividades do dia?',
-    message: `Vai apagar todas as tarefas de ${dayLabel}. Sono, hidratação e nota são mantidos.`,
-    confirmText: 'Apagar atividades',
-    cancelText: 'Cancelar',
-    danger: true
-  });
-  if (!ok) return;
   await clearDayAll(app, dayDocId);
 }
 
@@ -2463,8 +2454,14 @@ async function clearDayAll(app, dayDocId) {
     }
     playDelete();
 
-    // Substitui o botão de apagar pelo botão de desfazer com countdown
-    _showClearUndoBtn(dayDocId, UNDO_SECS);
+    // Monta o resumo do que foi mantido (sono/hidratação/nota)
+    const keptParts = [];
+    if (day.meta.sleepTime || metaSnapshot.sleepTime) keptParts.push('sono');
+    if ((day.meta.hydrationMl || metaSnapshot.hydrationMl || 0) > 0) keptParts.push('hidratação');
+    if (metaSnapshot.dayNote && Object.values(metaSnapshot.dayNote).some(v => v)) keptParts.push('nota');
+
+    // Substitui o botão de apagar pelo resumo + botão de desfazer com countdown
+    _showClearUndoBtn(dayDocId, UNDO_SECS, tasksSnapshot.length, keptParts);
 
     // Expira o undo após UNDO_SECS segundos
     const timer = setTimeout(() => {
@@ -2480,16 +2477,22 @@ async function clearDayAll(app, dayDocId) {
   }
 }
 
-function _showClearUndoBtn(dayDocId, secs) {
+function _showClearUndoBtn(dayDocId, secs, taskCount, keptParts) {
   const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
   const wrap = dayCardEl?.querySelector('.day-clear-wrap');
   if (!wrap) return;
 
+  const keptStr = keptParts.length ? keptParts.join(', ') + ' mantidos' : '';
   let remaining = secs;
   wrap.innerHTML = `
-    <button type="button" class="day-undo-btn" data-action="undo-clear" data-day="${dayDocId}">
-      ↩ Desfazer <span class="day-undo-count">${remaining}s</span>
-    </button>`;
+    <div class="day-undo-row">
+      <span class="day-undo-info">
+        🗑️ ${taskCount} atividade${taskCount !== 1 ? 's' : ''} apagada${taskCount !== 1 ? 's' : ''}${keptStr ? ` · ${keptStr}` : ''}
+      </span>
+      <button type="button" class="day-undo-btn" data-action="undo-clear" data-day="${dayDocId}">
+        ↩ Desfazer <span class="day-undo-count">${remaining}s</span>
+      </button>
+    </div>`;
 
   const countEl = wrap.querySelector('.day-undo-count');
   const tick = setInterval(() => {
