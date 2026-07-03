@@ -3633,7 +3633,11 @@ function openTaskEditor(app, dayDocId, taskId) {
     // Propaga para dias com mesmo DOW: (A) weekData atual + (B) próximos 14 dias fora do weekData
     if (recur === 'weekly' && t.recurrenceGroupId) {
       const groupId = t.recurrenceGroupId;
-      const taskDow = day.date.getDay();
+      // USA dayId do dia (string YYYY-MM-DD) para extrair DOW — evita bug de timezone
+      // onde day.date.getDay() retorna o dia errado por estar em UTC em vez de local
+      const [_y, _m, _d] = dayDocId.split('-').map(Number);
+      const taskDow = new Date(_y, _m - 1, _d).getDay();
+      showToast(`[DBG] dayDocId=${dayDocId} taskDow=${taskDow} date.getDay=${day.date.getDay()}`, 'info');
       const todayDate = new Date();
       const todayIdStr = dayId(todayDate);
 
