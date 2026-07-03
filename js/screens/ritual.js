@@ -371,13 +371,16 @@ function genRecurId() {
   return 'r_' + Math.random().toString(36).slice(2, 14);
 }
 
-// Sincroniza o template do dia-da-semana com o estado ATUAL do dia.
-// Chamado depois de cada modificação (add/edit/delete/dup/reorder).
+// Sincroniza o template do dia-da-semana com as tarefas RECORRENTES do dia.
+// Inclui apenas tarefas com recurrenceGroupId ou recurrenceType !== 'today'.
+// Pet tasks e compromissos únicos (sem groupId e sem recurrenceType) ficam de fora
+// — do contrário, eles poluem o template e aparecem toda semana.
 async function syncTemplateForDay(dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
   const dow = day.date.getDay();
   const templates = day.tasks
+    .filter(t => t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
     .slice()
     .sort(taskSort)
     .map(t => ({
@@ -390,8 +393,6 @@ async function syncTemplateForDay(dayDocId) {
       categoryId: t.categoryId || null,
       icon: t.icon || '',
       reminderEnabled: t.reminderEnabled || false,
-      // PRESERVA recurrenceGroupId e recurrenceType na sincronização
-      // (antes esses campos eram perdidos, quebrando detecção em edições)
       ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {}),
       ...(t.recurrenceType ? { recurrenceType: t.recurrenceType } : {})
     }));
@@ -2132,7 +2133,11 @@ function attachHandlers(app) {
         if (!Array.isArray(arr)) return false;
         return arr.some(x => sameTaskIdentity(x, t));
       });
-      const isRecurring = recurringDays.length > 0 || recurringInTemplates.length > 0;
+      // Dialog de recorrência só aparece se a tarefa foi explicitamente marcada como tal.
+      // Tarefas criadas pelo pet (sem recurrenceGroupId nem recurrenceType) nunca disparam
+      // o dialog — evita falso-positivo por match casual de título+categoria.
+      const taskIsRecurring = !!(t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'));
+      const isRecurring = taskIsRecurring && (recurringDays.length > 0 || recurringInTemplates.length > 0);
 
       let scope = 'one'; // 'one' | 'all'
       if (isRecurring) {
@@ -3120,8 +3125,29 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const noun = kind === 'commitment' ? 'Compromisso' : 'Tarefa';
         showToast(`${noun} "${title}" repete ${label}`, 'success');
         return;
+      } else if (recur === 'weekly') {
+        // Salva no weekdayTemplate do DOW desta data (pra próximas semanas)
+        // NOTA: 'daily' já salva nos 7 DOWs acima. 'weekly' só salva no DOW específico.
+        const dowW = day.date.getDay();
+        const templateTask = {
+          activityId: null, title, desc: '',
+          kind,
+          startTime, shiftId: shiftId || null, categoryId: categoryId || null,
+          icon: '', reminderEnabled,
+          recurrenceGroupId,
+          recurrenceType: 'weekly'
+        };
+        const tplExisting = (await getWeekdayTemplate(dowW)) || [];
+        if (!tplExisting.some(x => x.recurrenceGroupId === recurrenceGroupId)) {
+          tplExisting.push(templateTask);
+          await setWeekdayTemplate(dowW, tplExisting);
+          if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
+          profile.weekdayTemplates[String(dowW)] = tplExisting;
+        }
+        const noun2 = kind === 'commitment' ? 'Compromisso' : 'Tarefa';
+        showToast(`${noun2} "${title}" repete ${recurWeeklyLabel(dowW).toLowerCase()}`, 'success');
       }
-      // recur === 'weekly' ou 'daily' — sincroniza template explicitamente
+      // recur === 'daily' (já tem template salvo acima) — cai aqui só pra close + render
       close();
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
