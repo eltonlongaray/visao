@@ -466,7 +466,6 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
-  showToast('[DBG] ritual v45 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
@@ -3572,12 +3571,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         t.recurrenceGroupId = groupId;
         await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
       }
-      showToast(`[DBG] Salvando template...`, 'info');
       await syncTemplateForDay(dayDocId);
-      const [_dby, _dbm, _dbd] = dayDocId.split('-').map(Number);
-      const _dbdow = new Date(_dby, _dbm - 1, _dbd).getDay();
-      const savedTpl = profile?.weekdayTemplates?.[String(_dbdow)];
-      showToast(`[DBG] Template salvo DOW=${_dbdow}: ${savedTpl?.length ?? 0} tarefas`, 'info');
     }
 
     // RECORRÊNCIA MENSAL: substitui as entradas do grupo
@@ -3649,15 +3643,10 @@ function openTaskEditor(app, dayDocId, taskId) {
         // new Date(year, month-1, day) usa hora LOCAL — sem ambiguidade de UTC
         const targetDate = new Date(sy, sm - 1, sd + weeks * 7);
         const checkId = dayId(targetDate);
-        showToast(`[DBG] Semana +${weeks}: ${checkId}`, 'info');
-        // Sem filtro por "hoje" — no Brasil UTC-3 o "hoje" do sistema pode ser amanhã,
-        // então july/2 ficaria < todayIdStr e seria pulado erroneamente.
         if (weekData.some(d => d.id === checkId)) {
-          // Está no weekData — trata inline sem Firestore
           const otherDay = weekData.find(d => d.id === checkId);
           const alreadyHas = otherDay.tasks.some(x => x.recurrenceGroupId === groupId);
           const excluded = (otherDay.meta?.excludedRecurrenceGroups || []).includes(groupId);
-          showToast(`[DBG] ${checkId} (view): has=${alreadyHas} excl=${excluded}`, 'info');
           if (!alreadyHas && !excluded) {
             try {
               const propagated = {
@@ -3674,17 +3663,14 @@ function openTaskEditor(app, dayDocId, taskId) {
                 otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
                 updateDayCardStats(checkId, false);
               }
-              showToast(`[DBG] ADICIONADO (view) em ${checkId}`, 'success');
             } catch (e) { console.error('[propagate-weekly-view]', e); }
           }
           continue;
         }
-        // Não está no weekData — busca Firestore e insere
         try {
           const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
           const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
           const has = chkTasks.some(x => x.recurrenceGroupId === groupId);
-          showToast(`[DBG] ${checkId}: excl=${excl} has=${has} tasks=${chkTasks.length}`, 'info');
           if (!has && !excl) {
             await addDayTask(checkId, {
               activityId: t.activityId || null, title: t.title, desc: t.desc || '',
@@ -3693,12 +3679,8 @@ function openTaskEditor(app, dayDocId, taskId) {
               icon: t.icon || '', reminderEnabled: t.reminderEnabled || false,
               done: false, recurrenceGroupId: groupId, recurrenceType: 'weekly', order: t.order ?? 0
             });
-            showToast(`[DBG] ADICIONADO em ${checkId}`, 'success');
           }
-        } catch (e) {
-          showToast(`[DBG] ERRO ${checkId}: ${e.message}`, 'info');
-          console.error('[propagate-weekly-firestore]', checkId, e);
-        }
+        } catch (e) { console.error('[propagate-weekly-firestore]', checkId, e); }
       }
     }
   };
