@@ -7,6 +7,30 @@
 <meta name="description" content="Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.">
 <title>Visão — Assistente Pessoal de Planejamento Estratégico</title>
 
+<!-- Force-update: limpa SW e caches antigos automaticamente -->
+<script>
+  (function() {
+    var V = '44';
+    if (localStorage.getItem('_visao_build') !== V) {
+      localStorage.setItem('_visao_build', V);
+      var cleared = false;
+      if ('caches' in window) {
+        caches.keys().then(function(ks) { ks.forEach(function(k) { caches.delete(k); }); });
+        cleared = true;
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(rs) {
+          Promise.all(rs.map(function(r) { return r.unregister(); })).then(function() {
+            window.location.reload(true);
+          });
+        });
+      } else if (cleared) {
+        window.location.reload(true);
+      }
+    }
+  })();
+</script>
+
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -15,7 +39,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Visão">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20260703m">
+<link rel="stylesheet" href="css/styles.css?v=20260703n">
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
   (function() {
@@ -36,7 +60,7 @@
       <div>Carregando Visão...</div>
     </div>
   </div>
-  <script type="module" src="js/main.js?v=20260611d"></script>
+  <script type="module" src="js/main.js?v=20260703n"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>

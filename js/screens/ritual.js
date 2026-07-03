@@ -466,7 +466,7 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
-  showToast('[DBG] ritual v43 carregado', 'info');
+  showToast('[DBG] ritual v44 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
