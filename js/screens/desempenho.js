@@ -5,7 +5,7 @@
 import {
   getCategories, fetchDaysRange, aggregateByCategory, aggregateTotal,
   sleepDuration, formatTime,
-  getWeekNote, setWeekNote, dayId
+  getWeekNote, setWeekNote, dayId, getProfile
 } from '../store.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { isAdmin } from '../admin.js';
@@ -31,6 +31,7 @@ let period = 'mes';            // 'semana' | 'mes' | 'ano'
 let monthChart = null;         // instância Chart.js
 let catChart = null;
 let handlersAttached = false;  // FIX: evita listeners duplicados
+let userProfile = null;        // cache do perfil (streakOrigin)
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 4: ENTRY POINT — render da tela Desempenho
@@ -88,6 +89,7 @@ async function renderUI(app) {
             <div class="con-sub" id="streak-rate-sub">desde o início</div>
           </div>
         </div>
+        <div id="con-details"></div>
       </div>
 
       <div class="tab-switch" id="period-tabs">
@@ -238,9 +240,12 @@ async function refreshMonthData() {
   // Busca janela ampla (5 anos pra trás). Firestore retorna só docs existentes.
   const recordsStart = new Date(viewMonth.getFullYear() - 5, 0, 1);
   const recordsEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0);
-  fetchDaysRange(recordsStart, recordsEnd).then(allHistoryDays => {
+  fetchDaysRange(recordsStart, recordsEnd).then(async allHistoryDays => {
+    if (!userProfile) userProfile = await getProfile().catch(() => null);
     renderRecords(allHistoryDays);
-    renderStreakCard(calculateStreaks(allHistoryDays));
+    const streakData = calculateStreaks(allHistoryDays, userProfile?.streakOrigin || null);
+    renderStreakCard(streakData);
+    renderConstanciaDetails(allHistoryDays, userProfile?.streakOrigin || null, streakData);
   }).catch(err => console.error('[Visão] erro ao buscar histórico:', err));
 }
 
@@ -748,32 +753,53 @@ function recordRow(t) {
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8.5: SCORE DE CONSISTÊNCIA
-// Sequência atual, recorde e taxa de dias registrados desde o início.
-// Dias sem doc no Firestore = sem registro = streak interrompida.
-// Sono e outros dados desses dias permanecem nulos (sem bridging).
+// Sequência atual, recorde e taxa — usa hasActivity + dados reais.
+// Docs sem atividade (auto-gerados) não contam como dia ativo.
 // ═══════════════════════════════════════════════════════════════
-function calculateStreaks(allDays) {
+function isActiveDay(d) {
+  return !!(
+    d.hasActivity ||
+    (d.hydrationMl || 0) > 0 ||
+    d.sleepTime ||
+    d.wakeTime ||
+    (Array.isArray(d.tasks) && d.tasks.length > 0)
+  );
+}
+
+function calculateStreaks(allDays, streakOriginId) {
   if (!allDays.length) return { current: 0, longest: 0, rate: 0, totalRegistered: 0, totalDays: 0 };
 
-  const registeredSet = new Set(allDays.map(d => d.id));
-  const sortedIds = [...registeredSet].sort();
-
-  const [fy, fm, fd] = sortedIds[0].split('-').map(Number);
-  const firstDate = new Date(fy, fm - 1, fd);
-  firstDate.setHours(0, 0, 0, 0);
+  // Só conta dias com atividade real
+  const activeDays = allDays.filter(isActiveDay);
+  const activeSet = new Set(activeDays.map(d => d.id));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Origem: streakOriginId do perfil (ex: "2026-06-09") ou primeiro dia ativo
+  let firstDate;
+  if (streakOriginId) {
+    const [fy, fm, fd] = streakOriginId.split('-').map(Number);
+    firstDate = new Date(fy, fm - 1, fd);
+    firstDate.setHours(0, 0, 0, 0);
+  } else if (activeDays.length) {
+    const sortedIds = [...activeSet].sort();
+    const [fy, fm, fd] = sortedIds[0].split('-').map(Number);
+    firstDate = new Date(fy, fm - 1, fd);
+    firstDate.setHours(0, 0, 0, 0);
+  } else {
+    return { current: 0, longest: 0, rate: 0, totalRegistered: 0, totalDays: 0 };
+  }
+
   const totalDays = Math.floor((today - firstDate) / 86400000) + 1;
-  const totalRegistered = registeredSet.size;
+  const totalRegistered = activeDays.filter(d => d.id >= dayId(firstDate)).length;
   const rate = totalDays > 0 ? Math.round((totalRegistered / totalDays) * 100) : 0;
 
   // Sequência atual: retrocede a partir de hoje
   let current = 0;
   const cursor = new Date(today);
   while (cursor >= firstDate) {
-    if (!registeredSet.has(dayId(cursor))) break;
+    if (!activeSet.has(dayId(cursor))) break;
     current++;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -782,7 +808,7 @@ function calculateStreaks(allDays) {
   let longest = 0, streak = 0;
   const scan = new Date(firstDate);
   while (scan <= today) {
-    if (registeredSet.has(dayId(scan))) {
+    if (activeSet.has(dayId(scan))) {
       streak++;
       if (streak > longest) longest = streak;
     } else {
@@ -791,7 +817,7 @@ function calculateStreaks(allDays) {
     scan.setDate(scan.getDate() + 1);
   }
 
-  return { current, longest, rate, totalRegistered, totalDays };
+  return { current, longest, rate, totalRegistered, totalDays, firstDate };
 }
 
 function renderStreakCard({ current, longest, rate, totalRegistered, totalDays }) {
@@ -811,6 +837,76 @@ function renderStreakCard({ current, longest, rate, totalRegistered, totalDays }
   lonEl.textContent = longest > 0 ? `${longest}d` : '—';
   ratEl.textContent = totalDays > 0 ? `${rate}%` : '—';
   if (ratSub) ratSub.textContent = `${totalRegistered} de ${totalDays} dias`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.6: DETALHES DE CONSTÂNCIA — dias falhos por período
+// ═══════════════════════════════════════════════════════════════
+function renderConstanciaDetails(allDays, streakOriginId, { rate, firstDate }) {
+  const el = document.getElementById('con-details');
+  if (!el) return;
+
+  const activeSet = new Set(allDays.filter(isActiveDay).map(d => d.id));
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  // ── Este mês ──
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthFailedDays = [];
+  const scan1 = new Date(monthStart);
+  while (scan1 <= today) {
+    const id = dayId(scan1);
+    if (!activeSet.has(id)) {
+      monthFailedDays.push(new Date(scan1));
+    }
+    scan1.setDate(scan1.getDate() + 1);
+  }
+  const monthTotal = Math.floor((today - monthStart) / 86400000) + 1;
+  const monthActive = monthTotal - monthFailedDays.length;
+  const monthRate = Math.round((monthActive / monthTotal) * 100);
+
+  // ── Período total (desde origem) ──
+  const origin = firstDate || monthStart;
+  let totalFailed = 0;
+  const scan2 = new Date(origin);
+  while (scan2 <= today) {
+    if (!activeSet.has(dayId(scan2))) totalFailed++;
+    scan2.setDate(scan2.getDate() + 1);
+  }
+  const totalSpan = Math.floor((today - origin) / 86400000) + 1;
+  const totalActive = totalSpan - totalFailed;
+
+  const fmtDate = (d) => {
+    const dow = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+    return `${dow} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  };
+  const fmtOrigin = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+  const monthChips = monthFailedDays.length
+    ? monthFailedDays.map(d => `<span class="con-fail-chip">${fmtDate(d)}</span>`).join('')
+    : `<span class="con-ok-chip">Nenhuma falta! 🏆</span>`;
+
+  const totalFailedText = totalFailed === 0
+    ? `<span class="con-ok-chip">Nenhuma falta! 🏆</span>`
+    : `<span class="con-fail-count">${totalFailed} dia${totalFailed === 1 ? '' : 's'} sem registro</span>`;
+
+  el.innerHTML = `
+    <div class="con-details-inner">
+      <div class="con-period">
+        <div class="con-period-head">
+          <span class="con-period-title">📅 ${MONTHS_FULL[today.getMonth()]}</span>
+          <span class="con-period-stat ${monthRate >= 80 ? 'good' : monthRate >= 60 ? 'mid' : 'bad'}">${monthRate}% · ${monthActive}/${monthTotal} dias</span>
+        </div>
+        <div class="con-fail-row">${monthChips}</div>
+      </div>
+      <div class="con-period">
+        <div class="con-period-head">
+          <span class="con-period-title">📊 Desde ${fmtOrigin(origin)}</span>
+          <span class="con-period-stat ${rate >= 80 ? 'good' : rate >= 60 ? 'mid' : 'bad'}">${rate}% · ${totalActive}/${totalSpan} dias</span>
+        </div>
+        <div class="con-fail-row">${totalFailedText}</div>
+      </div>
+    </div>
+  `;
 }
 
 // ═══════════════════════════════════════════════════════════════
