@@ -461,6 +461,7 @@ export async function renderRitual(app) {
     return;
   }
   if (expanded.size === 0) expanded.add(dayId(new Date()));
+  showToast('[DBG] ritual v41 carregado', 'info');
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
@@ -3559,16 +3560,16 @@ function openTaskEditor(app, dayDocId, taskId) {
       console.log(`[edit-recur-daily] ok=${okCount} fail=${failCount}`);
     }
     // Para 'weekly': garante recurrenceGroupId + salva template COM await
-    // Await aqui é crítico: garante que Firestore tem o template atualizado
-    // ANTES do usuário navegar para outra semana (sem await, loadWeek da semana atual
-    // lê profile desatualizado e não gera a tarefa nos dias futuros).
     if (recur === 'weekly') {
       const groupId = t.recurrenceGroupId || genRecurId();
       if (!t.recurrenceGroupId) {
         t.recurrenceGroupId = groupId;
         await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
       }
+      showToast(`[DBG] Salvando template...`, 'info');
       await syncTemplateForDay(dayDocId);
+      const savedTpl = profile?.weekdayTemplates?.[String(day.date.getDay())];
+      showToast(`[DBG] Template salvo: ${savedTpl?.length ?? 0} tarefas`, 'info');
     }
 
     // RECORRÊNCIA MENSAL: substitui as entradas do grupo
@@ -3672,6 +3673,7 @@ function openTaskEditor(app, dayDocId, taskId) {
 
       // (B) Próximos 14 dias com mesmo DOW que NÃO estão no weekData (ex: quinta da semana atual
       // quando o usuário está visualizando a semana passada). Busca direto no Firestore e insere.
+      showToast(`[DBG] Propagando para dias fora do view (DOW=${taskDow})...`, 'info');
       for (let ahead = 0; ahead < 14; ahead++) {
         const checkDate = new Date(todayDate);
         checkDate.setDate(todayDate.getDate() + ahead);
@@ -3681,9 +3683,11 @@ function openTaskEditor(app, dayDocId, taskId) {
         if (weekData.some(d => d.id === checkId)) continue; // já tratado em (A)
         if (checkId < todayIdStr) continue;
         try {
+          showToast(`[DBG] Checando ${checkId}...`, 'info');
           const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
           const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
           const has = chkTasks.some(x => x.recurrenceGroupId === groupId);
+          showToast(`[DBG] ${checkId}: excl=${excl} has=${has} tasks=${chkTasks.length}`, 'info');
           if (!has && !excl) {
             await addDayTask(checkId, {
               activityId: t.activityId || null,
@@ -3699,8 +3703,12 @@ function openTaskEditor(app, dayDocId, taskId) {
               recurrenceType: 'weekly',
               order: t.order ?? 0
             });
+            showToast(`[DBG] ADICIONADO em ${checkId}`, 'success');
           }
-        } catch (e) { console.error('[edit-weekly-propagate-ahead]', checkId, e); }
+        } catch (e) {
+          showToast(`[DBG] ERRO ${checkId}: ${e.message}`, 'info');
+          console.error('[edit-weekly-propagate-ahead]', checkId, e);
+        }
       }
     }
   };
