@@ -3558,18 +3558,17 @@ function openTaskEditor(app, dayDocId, taskId) {
       if (failCount > 0) console.error('[edit-recur-daily] falhas:', results.filter(r => r.status === 'rejected'));
       console.log(`[edit-recur-daily] ok=${okCount} fail=${failCount}`);
     }
-    // Para 'weekly': garante recurrenceGroupId (mesma lógica de daily/monthly)
+    // Para 'weekly': garante recurrenceGroupId + salva template COM await
+    // Await aqui é crítico: garante que Firestore tem o template atualizado
+    // ANTES do usuário navegar para outra semana (sem await, loadWeek da semana atual
+    // lê profile desatualizado e não gera a tarefa nos dias futuros).
     if (recur === 'weekly') {
       const groupId = t.recurrenceGroupId || genRecurId();
       if (!t.recurrenceGroupId) {
         t.recurrenceGroupId = groupId;
         await updateDayTask(dayDocId, t.id, { recurrenceGroupId: groupId });
       }
-    }
-    // Sync template do DOW pra 'weekly' (e 'daily', que trata acima)
-    // 'today' e 'monthly' não sincronizam template do DOW
-    if (recur === 'weekly' || recur === 'daily') {
-      // syncTemplateForDay vai rodar via updateDayCardStats(true)
+      await syncTemplateForDay(dayDocId);
     }
 
     // RECORRÊNCIA MENSAL: substitui as entradas do grupo
@@ -3606,7 +3605,8 @@ function openTaskEditor(app, dayDocId, taskId) {
     const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
     if (dayCardEl) {
       dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
-      updateDayCardStats(dayDocId, recur !== 'today');
+      // 'weekly' já sincronizou template com await acima; 'daily' usa fire-and-forget aqui
+      updateDayCardStats(dayDocId, recur === 'daily');
     }
 
     // Re-renderiza outros dias se 'daily'
@@ -3629,12 +3629,14 @@ function openTaskEditor(app, dayDocId, taskId) {
       showToast('Só este dia — recorrência removida', 'success');
     }
 
-    // Propaga para mesmo DOW dentro do weekData atual (semana sendo visualizada)
-    // Semanas futuras são cobertas pelo autoGenerateMissingTasks no próximo loadWeek
+    // Propaga para dias com mesmo DOW: (A) weekData atual + (B) próximos 14 dias fora do weekData
     if (recur === 'weekly' && t.recurrenceGroupId) {
       const groupId = t.recurrenceGroupId;
       const taskDow = day.date.getDay();
-      const todayIdStr = dayId(new Date());
+      const todayDate = new Date();
+      const todayIdStr = dayId(todayDate);
+
+      // (A) Dias do weekData atual com mesmo DOW (ex: outro Thursday da mesma semana — improvável mas cobre)
       for (const otherDay of weekData) {
         if (otherDay.id === dayDocId) continue;
         if (otherDay.date.getDay() !== taskDow) continue;
@@ -3666,6 +3668,39 @@ function openTaskEditor(app, dayDocId, taskId) {
             }
           } catch (e) { console.error('[edit-weekly-propagate]', e); }
         }
+      }
+
+      // (B) Próximos 14 dias com mesmo DOW que NÃO estão no weekData (ex: quinta da semana atual
+      // quando o usuário está visualizando a semana passada). Busca direto no Firestore e insere.
+      for (let ahead = 0; ahead < 14; ahead++) {
+        const checkDate = new Date(todayDate);
+        checkDate.setDate(todayDate.getDate() + ahead);
+        if (checkDate.getDay() !== taskDow) continue;
+        const checkId = dayId(checkDate);
+        if (checkId === dayDocId) continue;
+        if (weekData.some(d => d.id === checkId)) continue; // já tratado em (A)
+        if (checkId < todayIdStr) continue;
+        try {
+          const [chkMeta, chkTasks] = await Promise.all([getDay(checkId), getDayTasks(checkId)]);
+          const excl = (chkMeta?.excludedRecurrenceGroups || []).includes(groupId);
+          const has = chkTasks.some(x => x.recurrenceGroupId === groupId);
+          if (!has && !excl) {
+            await addDayTask(checkId, {
+              activityId: t.activityId || null,
+              title: t.title, desc: t.desc || '',
+              kind: t.kind || 'task',
+              startTime: t.startTime || '',
+              shiftId: t.shiftId || null,
+              categoryId: t.categoryId || null,
+              icon: t.icon || '',
+              reminderEnabled: t.reminderEnabled || false,
+              done: false,
+              recurrenceGroupId: groupId,
+              recurrenceType: 'weekly',
+              order: t.order ?? 0
+            });
+          }
+        } catch (e) { console.error('[edit-weekly-propagate-ahead]', checkId, e); }
       }
     }
   };
