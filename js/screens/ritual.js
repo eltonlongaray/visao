@@ -1995,6 +1995,13 @@ function attachHandlers(app) {
       return;
     }
 
+    // Desfazer limpeza do dia
+    const undoBtn = e.target.closest('[data-action="undo-clear"]');
+    if (undoBtn) {
+      undoClearDay(app, undoBtn.dataset.day);
+      return;
+    }
+
     // Editar tarefa
     const editBtn = e.target.closest('[data-action="edit"]');
     if (editBtn) {
@@ -2383,13 +2390,19 @@ function updateDayCardStats(dayDocId, syncTemplate = false) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 9.4: LIMPAR DADOS DO DIA — zera tudo (tarefas + relógio + hidratação + nota)
 // ═══════════════════════════════════════════════════════════════
+// ── Estado de undo para "apagar dia" ──────────────────────────
+const _clearUndoTimers = new Map(); // dayDocId → timeoutId
+const _clearUndoData   = new Map(); // dayDocId → { tasks, meta }
+const UNDO_SECS = 8;
+
 async function openClearDayModal(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
+  if (!day.tasks.length) { showToast('Nenhuma atividade para apagar', 'info'); return; }
   const dayLabel = `${WEEKDAYS_FULL[day.date.getDay()]}, ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}`;
   const ok = await confirmModal({
     title: 'Apagar atividades do dia?',
-    message: `Vai apagar todas as tarefas de ${dayLabel}. Sono, hidratação e nota são mantidos. Não dá pra desfazer.`,
+    message: `Vai apagar todas as tarefas de ${dayLabel}. Sono, hidratação e nota são mantidos.`,
     confirmText: 'Apagar atividades',
     cancelText: 'Cancelar',
     danger: true
@@ -2402,8 +2415,18 @@ async function clearDayAll(app, dayDocId) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
   try {
-    // Coleta grupos de recorrência das tarefas que serão apagadas
-    // pra impedir que o autoGen traga de volta no próximo load
+    // Cancela undo pendente anterior para este dia (se houver)
+    if (_clearUndoTimers.has(dayDocId)) {
+      clearTimeout(_clearUndoTimers.get(dayDocId));
+      _clearUndoTimers.delete(dayDocId);
+      _clearUndoData.delete(dayDocId);
+    }
+
+    // Snapshot para possível undo (antes de qualquer deleção)
+    const tasksSnapshot = day.tasks.map(t => ({ ...t }));
+    const metaSnapshot  = { ...day.meta };
+
+    // Coleta grupos de recorrência pra impedir re-geração pelo autoGen
     const recurGroups = [...new Set(
       day.tasks.filter(t => t.recurrenceGroupId).map(t => t.recurrenceGroupId)
     )];
@@ -2417,26 +2440,113 @@ async function clearDayAll(app, dayDocId) {
     await Promise.all(day.tasks.map(t => deleteDayTask(dayDocId, t.id)));
     day.tasks = [];
 
-    // Monta exclusões para o autoGen não regenerar essas recorrências
     const existingGroups = Array.isArray(day.meta.excludedRecurrenceGroups) ? day.meta.excludedRecurrenceGroups : [];
     const existingTitles = Array.isArray(day.meta.excludedRecurrenceTitles) ? day.meta.excludedRecurrenceTitles : [];
     const metaUpdate = {
       hasActivity: false,
-      generated: true, // mantém true: não é dia virgem, só foi esvaziado
+      generated: true,
       excludedRecurrenceGroups: [...new Set([...existingGroups, ...recurGroups])],
       excludedRecurrenceTitles: [...new Set([...existingTitles, ...recurTitleKeys])]
     };
     await setDayMeta(dayDocId, metaUpdate);
     Object.assign(day.meta, metaUpdate);
-
     prevNoteCache.delete(dayDocId);
 
-    renderUI(app);
+    // Guarda snapshot para undo
+    _clearUndoData.set(dayDocId, { tasks: tasksSnapshot, meta: metaSnapshot });
+
+    // Re-renderiza só o day card (não o app inteiro — preserva o undo button)
+    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+    if (dayCardEl) {
+      dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId, false);
+    }
     playDelete();
-    showToast('Atividades apagadas', 'success');
+
+    // Substitui o botão de apagar pelo botão de desfazer com countdown
+    _showClearUndoBtn(dayDocId, UNDO_SECS);
+
+    // Expira o undo após UNDO_SECS segundos
+    const timer = setTimeout(() => {
+      _clearUndoTimers.delete(dayDocId);
+      _clearUndoData.delete(dayDocId);
+      _restoreClearBtn(dayDocId);
+    }, UNDO_SECS * 1000);
+    _clearUndoTimers.set(dayDocId, timer);
+
   } catch (err) {
     console.error('[clear-all] erro:', err);
     showToast('Erro ao limpar o dia', 'error');
+  }
+}
+
+function _showClearUndoBtn(dayDocId, secs) {
+  const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+  const wrap = dayCardEl?.querySelector('.day-clear-wrap');
+  if (!wrap) return;
+
+  let remaining = secs;
+  wrap.innerHTML = `
+    <button type="button" class="day-undo-btn" data-action="undo-clear" data-day="${dayDocId}">
+      ↩ Desfazer <span class="day-undo-count">${remaining}s</span>
+    </button>`;
+
+  const countEl = wrap.querySelector('.day-undo-count');
+  const tick = setInterval(() => {
+    remaining--;
+    if (remaining <= 0 || !countEl.isConnected) { clearInterval(tick); return; }
+    countEl.textContent = `${remaining}s`;
+  }, 1000);
+}
+
+function _restoreClearBtn(dayDocId) {
+  const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+  const wrap = dayCardEl?.querySelector('.day-clear-wrap');
+  if (wrap) {
+    wrap.innerHTML = `<button type="button" class="day-clear-btn" data-action="clear-day" data-day="${dayDocId}">🗑️ Apagar tudo deste dia</button>`;
+  }
+}
+
+async function undoClearDay(app, dayDocId) {
+  const data = _clearUndoData.get(dayDocId);
+  if (!data) return;
+
+  // Cancela o timer de expiração
+  clearTimeout(_clearUndoTimers.get(dayDocId));
+  _clearUndoTimers.delete(dayDocId);
+  _clearUndoData.delete(dayDocId);
+
+  const day = weekData.find(d => d.id === dayDocId);
+  if (!day) return;
+
+  try {
+    // Re-adiciona as tarefas no Firestore na mesma ordem
+    for (const t of data.tasks) {
+      const { id: _oldId, ...taskData } = t;
+      const newId = await addDayTask(dayDocId, taskData);
+      day.tasks.push({ id: newId, ...taskData });
+    }
+
+    // Restaura os metadados originais (exclusões de recorrência, hasActivity, etc.)
+    const restoreMeta = {
+      hasActivity: data.tasks.length > 0,
+      excludedRecurrenceGroups: data.meta.excludedRecurrenceGroups || [],
+      excludedRecurrenceTitles: data.meta.excludedRecurrenceTitles || []
+    };
+    await setDayMeta(dayDocId, restoreMeta);
+    Object.assign(day.meta, restoreMeta);
+    prevNoteCache.delete(dayDocId);
+
+    // Re-renderiza o day card com as tarefas restauradas
+    const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+    if (dayCardEl) {
+      dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId, false);
+    }
+    showToast('Atividades restauradas', 'success');
+  } catch (err) {
+    console.error('[undo-clear] erro:', err);
+    showToast('Erro ao desfazer', 'error');
   }
 }
 
