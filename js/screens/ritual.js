@@ -3705,9 +3705,8 @@ function launchCelebration() {
       100% { transform: translateY(110vh) rotateZ(calc(var(--r) + 540deg)); opacity:0; }
     }
     @keyframes balloonRise {
-      0%   { transform: translateY(0) scale(0.5); opacity:0; }
-      12%  { opacity:1; transform: translateY(-10px) scale(1); }
-      100% { transform: translateY(-130vh) scale(1.08); opacity:1; }
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(-150vh); }
     }
   `;
   document.head.appendChild(s);
@@ -3764,13 +3763,12 @@ function launchCelebration() {
   [5, 17, 29, 41, 53, 65, 77, 89].forEach((baseLeft, i) => {
     const left   = baseLeft + (Math.random() * 8 - 4);
     const sz     = 68 + Math.floor(Math.random() * 52);        // 68-120px
-    const startB = -(60 + Math.floor(Math.random() * 160));    // -60 a -220px
+    const svgH   = Math.round(sz * 1.85);                      // altura total incluindo cordinha
+    const startB = -(svgH + 20 + Math.floor(Math.random() * 120)); // começa totalmente fora da tela
     const delay  = Math.random() * 1.6;
     const dur    = 2.8 + Math.random() * 2.0;
     const zIdx   = Math.round(sz / 20);
     const c      = balloonColors[i];
-    // viewBox alto o suficiente para cordinha longa
-    const svgH   = Math.round(sz * 1.85);
 
     const wrap = document.createElement('div');
     wrap.style.cssText = `position:absolute;bottom:${startB}px;left:${left}%;z-index:${zIdx};animation:balloonRise ${dur}s ease-out ${delay}s both;`;
