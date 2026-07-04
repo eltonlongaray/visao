@@ -323,6 +323,13 @@ function extractTime(text) {
   if (m) return `${m[1].padStart(2,'0')}:00`;
   m = t.match(/\b(\d{1,2})\s*h(?:oras?)?\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
+  // "13 e 14" → 13:14 (horas e minutos por extenso)
+  m = t.match(/\b(\d{1,2})\s+e\s+(\d{1,2})\b/);
+  if (m) {
+    const h = parseInt(m[1]), min = parseInt(m[2]);
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
+      return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+  }
   return '';
 }
 
