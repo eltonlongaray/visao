@@ -3733,14 +3733,22 @@ function launchCelebration() {
     overlay.appendChild(el);
   }
 
-  // 5 balões coloridos em SVG — sem transparência, sobem até sair da tela
+  // 5 balões coloridos em SVG — posições, tamanhos e timing aleatórios
   const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ef4444'];
-  [10, 26, 44, 62, 78].forEach((left, i) => {
-    const sz = 90 + Math.floor(Math.random() * 30);
+  // Posições horizontais distribuídas com mais espaço entre elas
+  [6, 24, 45, 65, 83].forEach((baseLeft, i) => {
+    const left    = baseLeft + (Math.random() * 10 - 5);       // ±5% variação horizontal
+    const sz      = 72 + Math.floor(Math.random() * 58);       // 72-130px — tamanho = profundidade
+    const startB  = -(80 + Math.floor(Math.random() * 140));   // -80 a -220px — altura inicial variada
+    const delay   = Math.random() * 1.4;                        // 0–1.4s delay independente
+    const dur     = 2.8 + Math.random() * 1.8;                 // 2.8–4.6s duração variada
+    const zIdx    = Math.round(sz / 20);                        // maior = mais na frente
+
     const wrap = document.createElement('div');
     wrap.style.cssText = `
-      position:absolute;bottom:-150px;left:${left + (Math.random()*6-3)}%;
-      animation:balloonRise ${2.8 + Math.random() * 0.7}s ease-out ${i * 0.15}s forwards;
+      position:absolute;bottom:${startB}px;left:${left}%;
+      z-index:${zIdx};
+      animation:balloonRise ${dur}s ease-out ${delay}s forwards;
     `;
     const c = balloonColors[i];
     wrap.innerHTML = `<svg width="${sz}" height="${Math.round(sz*1.38)}" viewBox="0 0 60 83" xmlns="http://www.w3.org/2000/svg">
