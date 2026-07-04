@@ -3734,7 +3734,7 @@ function launchCelebration() {
   }
 
   // 5 balões coloridos em SVG — sem transparência, sobem até sair da tela
-  const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ec4899'];
+  const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ef4444'];
   [10, 26, 44, 62, 78].forEach((left, i) => {
     const sz = 90 + Math.floor(Math.random() * 30);
     const wrap = document.createElement('div');
