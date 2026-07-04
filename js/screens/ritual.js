@@ -3728,7 +3728,7 @@ function launchCelebration() {
     const dur   = 2.2 + Math.random() * 2.0;
     const anim  = `confettiFall ${dur}s cubic-bezier(.25,.46,.45,.94) ${delay}s both`;
     const base  = `position:absolute;top:-24px;left:${left}%;--r:${rot}deg;animation:${anim};`;
-    const kind  = i % 3;  // 0=círculo, 1=estrela, 2=fitinha
+    const kind  = i % 5;  // 0=círculo, 1=estrela, 2=círculo, 3=estrela, 4=fitinha
 
     if (kind === 1) {
       // estrela SVG
@@ -3743,7 +3743,7 @@ function launchCelebration() {
       p.setAttribute('fill', color);
       svg.appendChild(p);
       overlay.appendChild(svg);
-    } else if (kind === 2) {
+    } else if (kind === 4) {
       // fitinha — longa e fina, gira bastante
       const el = document.createElement('div');
       const w  = 2 + Math.random() * 2;
@@ -3759,30 +3759,27 @@ function launchCelebration() {
     }
   }
 
-  // 5 balões coloridos em SVG — posições, tamanhos e timing aleatórios
-  const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ef4444'];
-  // Posições horizontais distribuídas com mais espaço entre elas
-  [6, 24, 45, 65, 83].forEach((baseLeft, i) => {
-    const left    = baseLeft + (Math.random() * 10 - 5);       // ±5% variação horizontal
-    const sz      = 72 + Math.floor(Math.random() * 58);       // 72-130px — tamanho = profundidade
-    const startB  = -(80 + Math.floor(Math.random() * 140));   // -80 a -220px — altura inicial variada
-    const delay   = Math.random() * 1.4;                        // 0–1.4s delay independente
-    const dur     = 2.8 + Math.random() * 1.8;                 // 2.8–4.6s duração variada
-    const zIdx    = Math.round(sz / 20);                        // maior = mais na frente
+  // 8 balões coloridos em SVG — posições, tamanhos e timing aleatórios
+  const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ef4444','#ec4899','#06b6d4','#f97316'];
+  [5, 17, 29, 41, 53, 65, 77, 89].forEach((baseLeft, i) => {
+    const left   = baseLeft + (Math.random() * 8 - 4);
+    const sz     = 68 + Math.floor(Math.random() * 52);        // 68-120px
+    const startB = -(60 + Math.floor(Math.random() * 160));    // -60 a -220px
+    const delay  = Math.random() * 1.6;
+    const dur    = 2.8 + Math.random() * 2.0;
+    const zIdx   = Math.round(sz / 20);
+    const c      = balloonColors[i];
+    // viewBox alto o suficiente para cordinha longa
+    const svgH   = Math.round(sz * 1.85);
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = `
-      position:absolute;bottom:${startB}px;left:${left}%;
-      z-index:${zIdx};
-      animation:balloonRise ${dur}s ease-out ${delay}s both;
-    `;
-    const c = balloonColors[i];
-    wrap.innerHTML = `<svg width="${sz}" height="${Math.round(sz*1.38)}" viewBox="0 0 60 83" xmlns="http://www.w3.org/2000/svg">
+    wrap.style.cssText = `position:absolute;bottom:${startB}px;left:${left}%;z-index:${zIdx};animation:balloonRise ${dur}s ease-out ${delay}s both;`;
+    wrap.innerHTML = `<svg width="${sz}" height="${svgH}" viewBox="0 0 60 111" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="30" cy="28" rx="26" ry="28" fill="${c}"/>
       <ellipse cx="19" cy="15" rx="9" ry="7" fill="white" opacity="0.25"/>
       <ellipse cx="38" cy="12" rx="4" ry="3" fill="white" opacity="0.15"/>
-      <polygon points="30,56 27,63 33,63" fill="${c}"/>
-      <path d="M30 63 Q38 73 25 81" stroke="rgba(0,0,0,0.25)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <polygon points="30,56 27,62 33,62" fill="${c}"/>
+      <path d="M30 62 Q40 75 22 88 Q10 98 28 108" stroke="#555" stroke-width="1.5" fill="none" stroke-linecap="round"/>
     </svg>`;
     overlay.appendChild(wrap);
   });
