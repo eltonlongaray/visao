@@ -3739,7 +3739,7 @@ function launchCelebration() {
     const el = document.createElement('div');
     el.style.cssText = `
       position:absolute;bottom:-80px;left:${4 + i * 14 + Math.random() * 6}%;
-      font-size:${4 + Math.random() * 2}rem;line-height:1;
+      font-size:${70 + Math.floor(Math.random() * 40)}px;line-height:1;
       animation:balloonRise ${2.4 + Math.random() * 1.2}s ease-out ${Math.random() * 0.7}s forwards;
     `;
     el.textContent = emojis[i % emojis.length];
