@@ -3695,56 +3695,63 @@ function openTaskEditor(app, dayDocId, taskId) {
 // BLOCO 11: CELEBRAÇÃO — balões e confete ao completar todas as tarefas
 // ═══════════════════════════════════════════════════════════════
 function launchCelebration() {
-  if (!document.getElementById('celebration-kf')) {
-    const s = document.createElement('style');
-    s.id = 'celebration-kf';
-    s.textContent = `
-      @keyframes confettiFall {
-        0%   { transform: translateY(0) rotateZ(var(--r)); opacity:1; }
-        80%  { opacity:1; }
-        100% { transform: translateY(110vh) rotateZ(calc(var(--r) + 540deg)); opacity:0; }
-      }
-      @keyframes balloonRise {
-        0%   { transform: translateY(0) scale(0.5); opacity:0; }
-        12%  { opacity:1; transform: translateY(-5px) scale(1); }
-        100% { transform: translateY(-120vh) scale(1.15); opacity:0.2; }
-      }
-    `;
-    document.head.appendChild(s);
-  }
+  document.getElementById('celebration-kf')?.remove();
+  const s = document.createElement('style');
+  s.id = 'celebration-kf';
+  s.textContent = `
+    @keyframes confettiFall {
+      0%   { transform: translateY(0) rotateZ(var(--r)); opacity:1; }
+      85%  { opacity:1; }
+      100% { transform: translateY(110vh) rotateZ(calc(var(--r) + 540deg)); opacity:0; }
+    }
+    @keyframes balloonRise {
+      0%   { transform: translateY(0) scale(0.5); opacity:0; }
+      12%  { opacity:1; transform: translateY(-10px) scale(1); }
+      100% { transform: translateY(-130vh) scale(1.08); opacity:1; }
+    }
+  `;
+  document.head.appendChild(s);
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;overflow:hidden';
   document.body.appendChild(overlay);
 
-  const colors = ['#7c3aed','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#06b6d4','#a855f7'];
+  // Confetes
+  const confColors = ['#7c3aed','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#06b6d4','#a855f7'];
   for (let i = 0; i < 90; i++) {
     const el = document.createElement('div');
     const size = 5 + Math.random() * 9;
     const isCircle = Math.random() > 0.4;
-    const rot = Math.floor(Math.random() * 360);
     el.style.cssText = `
       position:absolute;top:-24px;left:${Math.random() * 100}%;
       width:${size}px;height:${isCircle ? size : size * 0.38}px;
-      background:${colors[i % colors.length]};
+      background:${confColors[i % confColors.length]};
       border-radius:${isCircle ? '50%' : '2px'};
-      --r:${rot}deg;
+      --r:${Math.floor(Math.random() * 360)}deg;
       animation:confettiFall ${2.2 + Math.random() * 1.8}s cubic-bezier(.25,.46,.45,.94) ${Math.random() * 1.6}s forwards;
     `;
     overlay.appendChild(el);
   }
 
-  const emojis = ['🎈','🎉','🎊','🎈','🎈','🎉','🎊','🎈'];
-  for (let i = 0; i < 7; i++) {
-    const el = document.createElement('div');
-    el.style.cssText = `
-      position:absolute;bottom:-80px;left:${4 + i * 14 + Math.random() * 6}%;
-      font-size:${70 + Math.floor(Math.random() * 40)}px;line-height:1;
-      animation:balloonRise ${2.4 + Math.random() * 1.2}s ease-out ${Math.random() * 0.7}s forwards;
+  // 5 balões coloridos em SVG — sem transparência, sobem até sair da tela
+  const balloonColors = ['#7c3aed','#10b981','#f59e0b','#3b82f6','#ec4899'];
+  [10, 26, 44, 62, 78].forEach((left, i) => {
+    const sz = 90 + Math.floor(Math.random() * 30);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      position:absolute;bottom:-150px;left:${left + (Math.random()*6-3)}%;
+      animation:balloonRise ${2.8 + Math.random() * 0.7}s ease-out ${i * 0.15}s forwards;
     `;
-    el.textContent = emojis[i % emojis.length];
-    overlay.appendChild(el);
-  }
+    const c = balloonColors[i];
+    wrap.innerHTML = `<svg width="${sz}" height="${Math.round(sz*1.38)}" viewBox="0 0 60 83" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="30" cy="28" rx="26" ry="28" fill="${c}"/>
+      <ellipse cx="19" cy="15" rx="9" ry="7" fill="white" opacity="0.25"/>
+      <ellipse cx="38" cy="12" rx="4" ry="3" fill="white" opacity="0.15"/>
+      <polygon points="30,56 27,63 33,63" fill="${c}"/>
+      <path d="M30 63 Q38 73 25 81" stroke="rgba(0,0,0,0.25)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </svg>`;
+    overlay.appendChild(wrap);
+  });
 
   setTimeout(() => overlay.remove(), 5500);
 }
