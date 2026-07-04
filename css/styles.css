@@ -4596,8 +4596,8 @@ body.tour-active { overflow: hidden; }
   100% { opacity: 0; transform: translateY(-14px) scale(1.3); }
 }
 
-/* PENSANDO */
-#visao-pet[data-state="thinking"] .pet-pupil {
+/* PENSANDO — move íris inteira (iris + pupila + brilhos) */
+#visao-pet[data-state="thinking"] .pet-iris-group {
   animation: petThink 0.8s ease-in-out infinite;
 }
 @keyframes petThink {

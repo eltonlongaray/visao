@@ -114,14 +114,13 @@ function buildPetHTML() {
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <!-- Esclera: preenche o círculo inteiro -->
       <circle cx="30" cy="30" r="30" fill="white"/>
-      <!-- Íris grande -->
-      <circle cx="30" cy="33" r="17" fill="#4f46e5"/>
-      <!-- Pupila -->
-      <circle cx="30" cy="33" r="10" fill="#080614" class="pet-pupil"/>
-      <!-- Brilho principal -->
-      <circle cx="37" cy="26" r="4.5" fill="white" opacity="0.75"/>
-      <!-- Brilho secundário -->
-      <circle cx="22" cy="29" r="2" fill="white" opacity="0.35"/>
+      <!-- Íris + pupila + brilhos movem juntos -->
+      <g class="pet-iris-group">
+        <circle cx="30" cy="33" r="17" fill="#4f46e5"/>
+        <circle cx="30" cy="33" r="10" fill="#080614" class="pet-pupil"/>
+        <circle cx="37" cy="26" r="4.5" fill="white" opacity="0.75"/>
+        <circle cx="22" cy="29" r="2" fill="white" opacity="0.35"/>
+      </g>
       <!-- Pálpebra superior (fecha de cima) -->
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <!-- Pálpebra inferior (fecha de baixo) -->
@@ -238,11 +237,31 @@ async function routeCommand(text) {
 
   if (convState?.type === 'waiting_type') {
     const { name, date, time } = convState;
-    convState = null;
     const d = date || new Date();
-    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t))   { showRegistroPreview(name, true,  d, time || ''); return null; }
-    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) { showRegistroPreview(name, false, d, time || ''); return null; }
+    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t)) {
+      convState = null;
+      showRegistroPreview(name, true, d, time || '');
+      return null;
+    }
+    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) {
+      if (!time) {
+        convState = { type: 'waiting_time', name, date: d };
+        return 'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)';
+      }
+      convState = null;
+      showRegistroPreview(name, false, d, time);
+      return null;
+    }
     return 'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
+  }
+
+  if (convState?.type === 'waiting_time') {
+    const { name, date } = convState;
+    const time = extractTime(text);
+    if (!time) return 'Informe um horário válido (ex: 15:30 ou 15h).';
+    convState = null;
+    showRegistroPreview(name, false, date, time);
+    return null;
   }
 
   // ── Consultas ──
@@ -274,7 +293,14 @@ async function routeCommand(text) {
       return 'O que você quer registrar?';
     }
 
-    if (tipoExplicito === 'compromisso') { showRegistroPreview(nameRaw, false, targetDate, taskTime); return null; }
+    if (tipoExplicito === 'compromisso') {
+      if (!taskTime) {
+        convState = { type: 'waiting_time', name: nameRaw, date: targetDate };
+        return 'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)';
+      }
+      showRegistroPreview(nameRaw, false, targetDate, taskTime);
+      return null;
+    }
     if (tipoExplicito === 'atividade')   { showRegistroPreview(nameRaw, true,  targetDate, taskTime); return null; }
 
     // Tipo não especificado — pergunta

@@ -3006,6 +3006,10 @@ function openDayNoteModal(dayDocId) {
       if (navigator.vibrate) navigator.vibrate([20, 60, 40]);
       playDone();
 
+      // Celebração se todas as tarefas do dia estão concluídas
+      const allDone = day.tasks.length > 0 && day.tasks.every(t => t.done);
+      if (allDone) launchCelebration();
+
       setTimeout(() => {
         finish(true);
         // Re-render só o botão de nota no card
@@ -3688,7 +3692,65 @@ function openTaskEditor(app, dayDocId, taskId) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 11: HELPERS UTILITÁRIOS (escape, conversões)
+// BLOCO 11: CELEBRAÇÃO — balões e confete ao completar todas as tarefas
+// ═══════════════════════════════════════════════════════════════
+function launchCelebration() {
+  if (!document.getElementById('celebration-kf')) {
+    const s = document.createElement('style');
+    s.id = 'celebration-kf';
+    s.textContent = `
+      @keyframes confettiFall {
+        0%   { transform: translateY(0) rotateZ(var(--r)); opacity:1; }
+        80%  { opacity:1; }
+        100% { transform: translateY(110vh) rotateZ(calc(var(--r) + 540deg)); opacity:0; }
+      }
+      @keyframes balloonRise {
+        0%   { transform: translateY(0) scale(0.5); opacity:0; }
+        12%  { opacity:1; transform: translateY(-5px) scale(1); }
+        100% { transform: translateY(-120vh) scale(1.15); opacity:0.2; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;overflow:hidden';
+  document.body.appendChild(overlay);
+
+  const colors = ['#7c3aed','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#06b6d4','#a855f7'];
+  for (let i = 0; i < 90; i++) {
+    const el = document.createElement('div');
+    const size = 5 + Math.random() * 9;
+    const isCircle = Math.random() > 0.4;
+    const rot = Math.floor(Math.random() * 360);
+    el.style.cssText = `
+      position:absolute;top:-24px;left:${Math.random() * 100}%;
+      width:${size}px;height:${isCircle ? size : size * 0.38}px;
+      background:${colors[i % colors.length]};
+      border-radius:${isCircle ? '50%' : '2px'};
+      --r:${rot}deg;
+      animation:confettiFall ${2.2 + Math.random() * 1.8}s cubic-bezier(.25,.46,.45,.94) ${Math.random() * 1.6}s forwards;
+    `;
+    overlay.appendChild(el);
+  }
+
+  const emojis = ['🎈','🎉','🎊','🎈','🎈','🎉','🎊','🎈'];
+  for (let i = 0; i < 7; i++) {
+    const el = document.createElement('div');
+    el.style.cssText = `
+      position:absolute;bottom:-80px;left:${4 + i * 14 + Math.random() * 6}%;
+      font-size:${1.8 + Math.random() * 0.8}rem;line-height:1;
+      animation:balloonRise ${2.4 + Math.random() * 1.2}s ease-out ${Math.random() * 0.7}s forwards;
+    `;
+    el.textContent = emojis[i % emojis.length];
+    overlay.appendChild(el);
+  }
+
+  setTimeout(() => overlay.remove(), 5500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 12: HELPERS UTILITÁRIOS (escape, conversões)
 // ═══════════════════════════════════════════════════════════════
 // Marca a atividade (categoria) com reminderEnabled=true quando uma tarefa dela ativa lembrete.
 // Aparece como indicador 🔔 na Home. Não desmarca automaticamente (usuário pode ter outras tarefas).
