@@ -3748,7 +3748,7 @@ function launchCelebration() {
     wrap.style.cssText = `
       position:absolute;bottom:${startB}px;left:${left}%;
       z-index:${zIdx};
-      animation:balloonRise ${dur}s ease-out ${delay}s forwards;
+      animation:balloonRise ${dur}s ease-out ${delay}s both;
     `;
     const c = balloonColors[i];
     wrap.innerHTML = `<svg width="${sz}" height="${Math.round(sz*1.38)}" viewBox="0 0 60 83" xmlns="http://www.w3.org/2000/svg">
