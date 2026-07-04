@@ -3716,21 +3716,47 @@ function launchCelebration() {
   overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9998;overflow:hidden';
   document.body.appendChild(overlay);
 
-  // Confetes
-  const confColors = ['#7c3aed','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#06b6d4','#a855f7'];
-  for (let i = 0; i < 90; i++) {
-    const el = document.createElement('div');
-    const size = 5 + Math.random() * 9;
-    const isCircle = Math.random() > 0.4;
-    el.style.cssText = `
-      position:absolute;top:-24px;left:${Math.random() * 100}%;
-      width:${size}px;height:${isCircle ? size : size * 0.38}px;
-      background:${confColors[i % confColors.length]};
-      border-radius:${isCircle ? '50%' : '2px'};
-      --r:${Math.floor(Math.random() * 360)}deg;
-      animation:confettiFall ${2.2 + Math.random() * 1.8}s cubic-bezier(.25,.46,.45,.94) ${Math.random() * 1.6}s forwards;
-    `;
-    overlay.appendChild(el);
+  // Confetes — círculos, estrelinhas SVG e fitinhas
+  const confColors = ['#7c3aed','#10b981','#f59e0b','#ef4444','#3b82f6','#ec4899','#06b6d4','#a855f7','#f97316','#14b8a6'];
+  const starPath = 'M10,0 L12.35,6.76 L19.51,6.91 L13.80,11.24 L15.88,18.09 L10,14 L4.12,18.09 L6.20,11.24 L0.49,6.91 L7.65,6.76 Z';
+
+  for (let i = 0; i < 100; i++) {
+    const color = confColors[i % confColors.length];
+    const left  = Math.random() * 100;
+    const rot   = Math.floor(Math.random() * 360);
+    const delay = Math.random() * 1.8;
+    const dur   = 2.2 + Math.random() * 2.0;
+    const anim  = `confettiFall ${dur}s cubic-bezier(.25,.46,.45,.94) ${delay}s both`;
+    const base  = `position:absolute;top:-24px;left:${left}%;--r:${rot}deg;animation:${anim};`;
+    const kind  = i % 3;  // 0=círculo, 1=estrela, 2=fitinha
+
+    if (kind === 1) {
+      // estrela SVG
+      const sz = 8 + Math.random() * 8;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 20 20');
+      svg.setAttribute('width', sz);
+      svg.setAttribute('height', sz);
+      svg.style.cssText = base;
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', starPath);
+      p.setAttribute('fill', color);
+      svg.appendChild(p);
+      overlay.appendChild(svg);
+    } else if (kind === 2) {
+      // fitinha — longa e fina, gira bastante
+      const el = document.createElement('div');
+      const w  = 2 + Math.random() * 2;
+      const h  = 14 + Math.random() * 10;
+      el.style.cssText = base + `width:${w}px;height:${h}px;background:${color};border-radius:1px;`;
+      overlay.appendChild(el);
+    } else {
+      // círculo
+      const sz = 5 + Math.random() * 7;
+      const el = document.createElement('div');
+      el.style.cssText = base + `width:${sz}px;height:${sz}px;background:${color};border-radius:50%;`;
+      overlay.appendChild(el);
+    }
   }
 
   // 5 balões coloridos em SVG — posições, tamanhos e timing aleatórios
