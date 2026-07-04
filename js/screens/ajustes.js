@@ -108,6 +108,17 @@ export async function renderAjustes(app) {
         </section>
 
         <section class="ajustes-section">
+          <div class="ajustes-section-title">🔄 App</div>
+          <button class="ajustes-row clickable" id="forceUpdateBtn">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Forçar atualização</div>
+              <div class="ajustes-row-sub">Limpa cache e reinicia o app na versão mais recente</div>
+            </div>
+            <span class="ajustes-row-arrow">›</span>
+          </button>
+        </section>
+
+        <section class="ajustes-section">
           <div class="ajustes-section-title">🚪 Conta</div>
           <button class="ajustes-row clickable" id="signOutBtn">
             <div class="ajustes-row-main">
@@ -229,6 +240,31 @@ async function wire(app) {
     // Aguarda Home renderizar antes de iniciar o tour
     const { ONBOARDING_STEPS } = await import('../tour-config.js');
     setTimeout(() => tour.start(ONBOARDING_STEPS), 700);
+  });
+
+  // ── Forçar atualização ──
+  app.querySelector('#forceUpdateBtn')?.addEventListener('click', async () => {
+    const btn = app.querySelector('#forceUpdateBtn');
+    const sub = btn.querySelector('.ajustes-row-sub');
+    sub.textContent = 'Limpando cache...';
+    btn.disabled = true;
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      localStorage.removeItem('_visao_build');
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      sub.textContent = 'Reiniciando...';
+      setTimeout(() => window.location.reload(true), 400);
+    } catch (err) {
+      console.error('[ajustes] forceUpdate:', err);
+      sub.textContent = 'Erro ao atualizar. Tente de novo.';
+      btn.disabled = false;
+    }
   });
 
   // ── Sair ──

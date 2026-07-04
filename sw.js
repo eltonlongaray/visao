@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v53';
+const CACHE_NAME = 'visao-v54';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
   // ── Network-first pra HTML/JS (código que muda a cada deploy) ──
   if (isHtml || isJs || isNavigate) {
     event.respondWith(
-      fetch(event.request).then((res) => {
+      fetch(isJs ? new Request(event.request, { cache: 'no-store' }) : event.request).then((res) => {
         if (res.ok && res.type === 'basic') {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
