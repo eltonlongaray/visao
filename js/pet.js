@@ -597,7 +597,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       if (!done || time) {
         const gcalUrl = petGCalUrl(name, date, time || '09:00');
         setTimeout(() => addMessage(
-          `Quer receber uma notificação? Se abrir vazio (sem evento), volte aqui e toque novamente.<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
+          `Quer receber uma notificação? Se abrir vazio (sem evento), volte aqui e toque no botão abaixo novamente.<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
           'bot'
         ), 350);
       }
