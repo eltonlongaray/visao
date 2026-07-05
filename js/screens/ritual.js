@@ -1711,7 +1711,10 @@ function taskCard(t, dayDocId) {
           <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${rescheduleBadge}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
-        ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
+        <div class="task-footer">
+          ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
+          ${t.startTime && !t.cancelled ? `<a class="task-gcal-btn" href="${makeGCalUrl(t, dayDocId)}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda">📅 Google Agenda</a>` : ''}
+        </div>
       </div>
     </div>
   `;
@@ -3786,7 +3789,24 @@ function launchCelebration() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 12: HELPERS UTILITÁRIOS (escape, conversões)
+// BLOCO 12: GOOGLE AGENDA — link pré-preenchido sem OAuth
+// ═══════════════════════════════════════════════════════════════
+function makeGCalUrl(t, dayDocId) {
+  const [y, mo, d] = dayDocId.split('-').map(Number);
+  const [h, mi]    = (t.startTime || '00:00').split(':').map(Number);
+  const pad        = n => String(n).padStart(2, '0');
+  const dateStr    = `${y}${pad(mo)}${pad(d)}`;
+  const startFmt   = `${dateStr}T${pad(h)}${pad(mi)}00`;
+  const endH       = Math.min(h + 1, 23);
+  const endFmt     = `${dateStr}T${pad(endH)}${pad(mi)}00`;
+  const detail     = t.kind === 'commitment' ? 'Compromisso registrado no Visão' : 'Atividade registrada no Visão';
+  const params     = new URLSearchParams({ action: 'TEMPLATE', text: t.title, dates: `${startFmt}/${endFmt}`, details: t.desc || detail });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 13: HELPERS UTILITÁRIOS (escape, conversões)
 // ═══════════════════════════════════════════════════════════════
 // Marca a atividade (categoria) com reminderEnabled=true quando uma tarefa dela ativa lembrete.
 // Aparece como indicador 🔔 na Home. Não desmarca automaticamente (usuário pode ter outras tarefas).

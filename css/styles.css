@@ -874,6 +874,16 @@ html, body {
   display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 6px;
   margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
 }
+/* Footer da task: tag + botão Google Agenda lado a lado */
+.task-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.task-gcal-btn {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--muted); text-decoration: none;
+  padding: 2px 7px; border-radius: 8px; background: var(--surface2);
+  transition: background 0.15s, color 0.15s; white-space: nowrap;
+}
+.task-gcal-btn:hover, .task-gcal-btn:active { background: var(--border); color: var(--text); }
+
 /* Botão ⋮ centralizado no lado direito do card (maior, fácil de tocar) */
 .task { position: relative; padding-right: 44px; }
 .task-menu-btn-corner {
