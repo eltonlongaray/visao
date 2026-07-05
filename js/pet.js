@@ -540,6 +540,22 @@ function askType(name, date = new Date(), time = '') {
   return null;
 }
 
+// Gera URL pré-preenchida do Google Agenda
+function petGCalUrl(name, date, time) {
+  const y  = date.getFullYear();
+  const mo = date.getMonth() + 1;
+  const d  = date.getDate();
+  const [h, mi] = time.split(':').map(Number);
+  const pad     = n => String(n).padStart(2, '0');
+  const ds      = `${y}${pad(mo)}${pad(d)}`;
+  const params  = new URLSearchParams({
+    action: 'TEMPLATE', text: name,
+    dates: `${ds}T${pad(h)}${pad(mi)}00/${ds}T${pad(Math.min(h+1,23))}${pad(mi)}00`,
+    details: 'Registrado no Visão',
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
 // Mostra card de pré-visualização com botão de confirmar — NÃO escreve no Firebase ainda
 function showRegistroPreview(name, done, date = new Date(), time = '') {
   const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -578,6 +594,14 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       btn.classList.add('pet-reg-done');
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(done ? 'Atividade registrada!' : 'Compromisso registrado!');
+      if (time) {
+        const gcalUrl = petGCalUrl(name, date, time);
+        const notifDiv = document.createElement('div');
+        notifDiv.className = 'pet-msg pet-msg-bot';
+        notifDiv.innerHTML = `<span>Quer receber uma notificação no horário?<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a></span>`;
+        box.appendChild(notifDiv);
+        box.scrollTop = box.scrollHeight;
+      }
     } catch (err) {
       btn.disabled = false;
       btn.textContent = `${tipoIcon} Registrar ${tipoLabel}`;

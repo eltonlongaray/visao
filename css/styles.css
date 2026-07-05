@@ -4870,6 +4870,15 @@ body.tour-active { overflow: hidden; }
 .pet-reg-btn:disabled { opacity: 0.6; cursor: default; }
 .pet-reg-btn.pet-reg-done { background: var(--green); }
 
+/* Botão Google Agenda no chat do Pet */
+.pet-gcal-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  background: #1a73e8; color: #fff; text-decoration: none;
+  padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+  transition: opacity 0.15s;
+}
+.pet-gcal-link:active { opacity: 0.8; }
+
 /* Toast central — aparece no meio da tela após registro */
 .pet-center-toast {
   position: fixed;
