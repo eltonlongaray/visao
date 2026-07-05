@@ -140,7 +140,9 @@ function buildPetHTML() {
 // ═══════════════════════════════════════════════════════════════
 function resizePetInput(el) {
   el.style.height = '0px';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  requestAnimationFrame(() => {
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  });
 }
 
 function attachHandlers() {
@@ -761,7 +763,7 @@ async function startMic() {
         const clean = formatTranscript(accumulated.trim());
         accumulated = '';
         const inp   = document.getElementById('pet-input');
-        if (inp && clean) { inp.value = clean; resizePetInput(inp); inp.focus(); }
+        if (inp && clean) { inp.value = clean; requestAnimationFrame(() => { resizePetInput(inp); inp.focus(); }); }
         teardownMic();
         hideRecordingUI();
         setPetState('idle');
@@ -821,7 +823,7 @@ function stopMicConfirm() {
     const clean = formatTranscript(accumulated.trim());
     accumulated = '';
     const inp   = document.getElementById('pet-input');
-    if (inp && clean) { inp.value = clean; resizePetInput(inp); inp.focus(); }
+    if (inp && clean) { inp.value = clean; requestAnimationFrame(() => { resizePetInput(inp); inp.focus(); }); }
     teardownMic();
     hideRecordingUI();
     setPetState('idle');
