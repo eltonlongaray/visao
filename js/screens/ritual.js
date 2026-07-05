@@ -1918,6 +1918,24 @@ function openRitualCalendar(app) {
 
 
 // ═══════════════════════════════════════════════════════════════
+// BLOCO 8.9: AUTO-AGENDAMENTO DE NOTIFICAÇÃO
+// Chamado ao salvar tarefa com reminderEnabled=true + horário.
+// Agenda push local silenciosamente (sem toast extra se já foi pedida permissão).
+// ═══════════════════════════════════════════════════════════════
+async function autoScheduleNotif(dayDocId, task) {
+  if (!task.reminderEnabled || !task.startTime) return;
+  if (!triggerSupported()) return;
+  const [y, mo, d] = dayDocId.split('-').map(Number);
+  const [h, mi]    = task.startTime.split(':').map(Number);
+  const ts = new Date(y, mo - 1, d, h, mi).getTime();
+  if (ts <= Date.now()) return;
+  const tag = notifTag(dayDocId, task.title || '');
+  const result = await scheduleNotif({ title: task.title || 'Visão', body: 'Lembrete do Ritual', tag, timestamp: ts });
+  if (result === 'scheduled') showToast(`🔔 Notificação agendada para ${task.startTime}`, 'success');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 9: HANDLERS DE EVENTOS (clicks, inputs, swipe)
 // FIX: anexa só 1 vez por sessão (evita duplicação ao re-renderizar)
 // ═══════════════════════════════════════════════════════════════
@@ -3240,6 +3258,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       day.tasks.push({ id: tid, ...baseTask, order });
       _clearUndoForDay(dayDocId);
       await propagateReminderToCategory(categoryId, reminderEnabled);
+      await autoScheduleNotif(dayDocId, baseTask);
 
       // RECORRÊNCIA
       if (recur === 'daily') {
@@ -3573,6 +3592,7 @@ function openTaskEditor(app, dayDocId, taskId) {
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
+    await autoScheduleNotif(dayDocId, t);
 
     // RECORRÊNCIA: replica a edição nos outros 6 dias da semana
     // Identificação por recurrenceGroupId (essa instancia especifica)
