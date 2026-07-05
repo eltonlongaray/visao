@@ -12,6 +12,7 @@ import { playDelete } from '../sounds.js';
 import * as tour from '../tour.js';
 import { isAdmin } from '../admin.js';
 import { bottomNav } from '../components/bottom-nav.js';
+import { t } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -25,24 +26,24 @@ export async function renderAjustes(app) {
     <div class="ajustes-screen">
       <div class="ajustes-content">
         <div class="screen-title">
-          <h1>⚙️ Ajustes</h1>
-          <div class="sub">Sua conta, seus dados e suas preferências.</div>
+          <h1>${t('ajustes.title')}</h1>
+          <div class="sub">${t('ajustes.sub')}</div>
         </div>
 
         <div class="ajustes-account">
           <div class="ajustes-avatar">👁</div>
           <div class="ajustes-account-info">
             <strong>${escape(email)}</strong>
-            <small>Logado · Plano gratuito</small>
+            <small>${t('ajustes.plan')}</small>
           </div>
         </div>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">🔐 Segurança</div>
+          <div class="ajustes-section-title">${t('ajustes.security')}</div>
           <div class="ajustes-row" id="rowBio">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Bloqueio biométrico</div>
-              <div class="ajustes-row-sub">Face ID, digital ou senha do celular</div>
+              <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
             </div>
             <label class="ajustes-toggle">
               <input type="checkbox" id="bioToggle">
@@ -52,11 +53,11 @@ export async function renderAjustes(app) {
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">📊 Seus dados</div>
+          <div class="ajustes-section-title">${t('ajustes.data')}</div>
           <button class="ajustes-row clickable" id="exportJsonBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Exportar como JSON</div>
-              <div class="ajustes-row-sub">Backup técnico (portabilidade LGPD)</div>
+              <div class="ajustes-row-title">${t('ajustes.json.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.json.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
@@ -70,67 +71,67 @@ export async function renderAjustes(app) {
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">✨ Tutorial</div>
+          <div class="ajustes-section-title">${t('ajustes.tutorial')}</div>
           <button class="ajustes-row clickable" id="restartTourBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Rever tutorial de boas-vindas</div>
-              <div class="ajustes-row-sub">Passa por tudo de novo, do começo</div>
+              <div class="ajustes-row-title">${t('ajustes.tutorial.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.tutorial.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">📄 Legal</div>
+          <div class="ajustes-section-title">${t('ajustes.legal')}</div>
           <button class="ajustes-row clickable" data-route="/termos">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Termos de Uso</div>
+              <div class="ajustes-row-title">${t('ajustes.terms.title')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
           <button class="ajustes-row clickable" data-route="/privacidade">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Política de Privacidade</div>
+              <div class="ajustes-row-title">${t('ajustes.privacy.title')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">🎯 Modalidade</div>
+          <div class="ajustes-section-title">${t('ajustes.modal.section')}</div>
           <button class="ajustes-row clickable" id="trocarModalidadeBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Trocar de modalidade</div>
-              <div class="ajustes-row-sub">Voltar pra tela de Pessoal / Financeira</div>
+              <div class="ajustes-row-title">${t('ajustes.modal.change')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.modal.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">🔄 App</div>
+          <div class="ajustes-section-title">${t('ajustes.app')}</div>
           <button class="ajustes-row clickable" id="forceUpdateBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Forçar atualização</div>
-              <div class="ajustes-row-sub">Limpa cache e reinicia o app na versão mais recente</div>
+              <div class="ajustes-row-title">${t('ajustes.update.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.update.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
         </section>
 
         <section class="ajustes-section">
-          <div class="ajustes-section-title">🚪 Conta</div>
+          <div class="ajustes-section-title">${t('ajustes.account')}</div>
           <button class="ajustes-row clickable" id="signOutBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Sair</div>
-              <div class="ajustes-row-sub">Você precisará logar de novo</div>
+              <div class="ajustes-row-title">${t('ajustes.signout')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.signout.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
           <button class="ajustes-row clickable danger" id="deleteAccountBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Excluir minha conta</div>
-              <div class="ajustes-row-sub">Apaga TODOS os seus dados permanentemente</div>
+              <div class="ajustes-row-title">${t('ajustes.delete.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.delete.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>

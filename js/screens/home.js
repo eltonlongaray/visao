@@ -21,6 +21,7 @@ import { ONBOARDING_STEPS } from '../tour-config.js';
 import { openTimePicker } from '../time-picker.js';
 import { openMorningMessages, hasUnreadToday } from '../morning-messages.js';
 import { trapModalBack } from '../modal-back.js';
+import { t } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -37,7 +38,7 @@ let handlersAttached = false;   // FIX: evita listeners duplicados
 // ═══════════════════════════════════════════════════════════════
 
 export async function renderHome(app) {
-  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">Carregando...</div>`;
+  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('home.loading')}</div>`;
 
   try {
     [shifts, categories, activities, profile] = await Promise.all([
@@ -56,14 +57,14 @@ export async function renderHome(app) {
   app.innerHTML = `
     <div class="screen-pad">
       <div class="screen-title">
-        <h1>Sua biblioteca</h1>
-        <div class="sub">Categorias e atividades — o Ritual puxa daqui.</div>
+        <h1>${t('home.title')}</h1>
+        <div class="sub">${t('home.sub')}</div>
       </div>
 
       <!-- PREFERÊNCIAS DE SONO + TEMA -->
       <div class="home-section">
         <div class="home-section-title">
-          <span>🛏️ MEU DIA</span>
+          <span>${t('home.myday')}</span>
           <button class="theme-toggle" id="theme-toggle" title="Trocar tema (clique pra alternar dia/noite)">
             ${themeIconSVG()}
           </button>
@@ -71,11 +72,11 @@ export async function renderHome(app) {
         <div class="sleep-prefs">
           <div class="time-pills">
             <label class="time-pill">
-              <span class="time-pill-label">🌅 Acordar</span>
+              <span class="time-pill-label">${t('home.wake')}</span>
               <button type="button" class="time-pill-input tp-pill-trigger" id="pref-wake" data-time="${toHHMM(profile.defaultWakeTime) || ''}">${toHHMM(profile.defaultWakeTime) || '--:--'}</button>
             </label>
             <label class="time-pill">
-              <span class="time-pill-label">🌙 Dormir</span>
+              <span class="time-pill-label">${t('home.sleep')}</span>
               <button type="button" class="time-pill-input tp-pill-trigger" id="pref-sleep" data-time="${toHHMM(profile.defaultSleepTime) || ''}">${toHHMM(profile.defaultSleepTime) || '--:--'}</button>
             </label>
           </div>
