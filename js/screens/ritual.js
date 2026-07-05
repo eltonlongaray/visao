@@ -14,6 +14,7 @@ import { playDone, playUndone, playDelete } from '../sounds.js';
 import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
 import { isActive as tourIsActive } from '../tour.js';
+import { scheduleNotif, triggerSupported, notifTag } from '../notifications.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1713,7 +1714,10 @@ function taskCard(t, dayDocId) {
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         <div class="task-footer">
           ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
-          ${t.startTime && !t.cancelled ? `<a class="task-gcal-btn" href="${makeGCalUrl(t, dayDocId)}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda">📅 Google Agenda</a>` : ''}
+          ${t.startTime && !t.cancelled ? `
+            <button class="task-notif-btn" data-notif-title="${escape(t.title)}" data-notif-time="${t.startTime}" data-notif-day="${dayDocId}" title="Agendar notificação">🔔</button>
+            <a class="task-gcal-btn" href="${makeGCalUrl(t, dayDocId)}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda">📅 Google Agenda</a>
+          ` : ''}
         </div>
       </div>
     </div>
@@ -2346,6 +2350,49 @@ function attachHandlers(app) {
         }
       }, 250);
       return;
+    }
+  });
+
+  // Google Agenda — mostra dica de lembrete antes de abrir
+  app.addEventListener('click', (e) => {
+    const btn = e.target.closest('.task-gcal-btn');
+    if (!btn) return;
+    showToast('No Google Agenda, role até 🔔 Adicionar notificação e configure antes de salvar.', 'info');
+  });
+
+  // 🔔 Agendar notificação local para a tarefa
+  app.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.task-notif-btn');
+    if (!btn) return;
+    const { notifTitle, notifTime, notifDay } = btn.dataset;
+    const [y, mo, d] = notifDay.split('-').map(Number);
+    const [h, mi]    = notifTime.split(':').map(Number);
+    const ts         = new Date(y, mo - 1, d, h, mi).getTime();
+
+    if (!triggerSupported()) {
+      showToast('Seu navegador não suporta notificações agendadas. Use o 📅 Google Agenda.', 'info');
+      return;
+    }
+    if (ts <= Date.now()) {
+      showToast('Esse horário já passou.', 'info');
+      return;
+    }
+
+    btn.textContent = '⏳';
+    btn.disabled = true;
+    const tag    = notifTag(notifDay, notifTitle);
+    const result = await scheduleNotif({ title: notifTitle, body: 'Compromisso no Visão', tag, timestamp: ts });
+    btn.disabled = false;
+
+    if (result === 'scheduled') {
+      btn.textContent = '✅';
+      showToast(`🔔 Notificação agendada para as ${notifTime}!`, 'success');
+    } else if (result === 'denied') {
+      btn.textContent = '🔔';
+      showToast('Permissão negada. Ative notificações nas configurações do celular.', 'error');
+    } else {
+      btn.textContent = '🔔';
+      showToast('Não foi possível agendar. Use o 📅 Google Agenda.', 'info');
     }
   });
 
@@ -3799,8 +3846,9 @@ function makeGCalUrl(t, dayDocId) {
   const startFmt   = `${dateStr}T${pad(h)}${pad(mi)}00`;
   const endH       = Math.min(h + 1, 23);
   const endFmt     = `${dateStr}T${pad(endH)}${pad(mi)}00`;
-  const detail     = t.kind === 'commitment' ? 'Compromisso registrado no Visão' : 'Atividade registrada no Visão';
-  const params     = new URLSearchParams({ action: 'TEMPLATE', text: t.title, dates: `${startFmt}/${endFmt}`, details: t.desc || detail });
+  const base    = t.kind === 'commitment' ? 'Compromisso registrado no Visão' : 'Atividade registrada no Visão';
+  const detail  = `⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\n${t.desc || base}`;
+  const params  = new URLSearchParams({ action: 'TEMPLATE', text: t.title, dates: `${startFmt}/${endFmt}`, details: detail });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 

@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v60';
+const CACHE_NAME = 'visao-v64';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -87,6 +87,24 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       }).catch(() => caches.match('./index.html'));
+    })
+  );
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: NOTIFICAÇÃO — abre o app ao tocar na notificação
+// ═══════════════════════════════════════════════════════════════
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow('/');
     })
   );
 });

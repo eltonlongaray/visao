@@ -1,14 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
-// Tela de escolha de modalidade — aparece logo após o login, antes da Home.
-// O usuário escolhe entre "Organização Pessoal" (módulo atual) e
-// "Organização Financeira" (em breve).
 import { auth, db, doc, getDoc } from '../firebase.js';
 import { navigate } from '../router.js';
 import { showToast } from '../toast.js';
 import { maybeOpenBioPrompt } from '../bio-prompt-modal.js';
 import { ensurePessoalConsent } from '../pessoal-consent-modal.js';
+import { t, LANGS, getLang, setLang } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -23,44 +21,59 @@ export function renderModalidade(app) {
       <div class="onboarding-logo">👁</div>
       <div class="onboarding-title">Visão</div>
       <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">
-        Olá, ${escapeHtml(firstName)} 👋
+        ${t('modal.hello', { name: escapeHtml(firstName) })}
       </div>
-      <div class="onboarding-sub">Por onde você quer começar hoje?</div>
+      <div class="onboarding-sub">${t('modal.start')}</div>
 
-      <div class="onb-section-label">🎯 Modalidades</div>
+      <!-- SELETOR DE IDIOMA -->
+      <div class="lang-picker">
+        <span class="lang-picker-label">${t('modal.lang.title')}</span>
+        <div class="lang-flags">
+          ${LANGS.map(l => `
+            <button
+              class="lang-flag-btn ${getLang() === l.code ? 'active' : ''}"
+              data-lang="${l.code}"
+              title="${l.label}"
+              aria-label="${l.label}"
+            >${l.flag}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="onb-section-label">${t('modal.section')}</div>
 
       <div class="template-card featured modalidade-card" data-modalidade="pessoal">
         <span class="modalidade-badge dispo">
           <span class="modalidade-badge-dot"></span>
-          Disponível
+          ${t('modal.pessoal.badge')}
         </span>
         <div class="template-icon" style="background:rgba(124,58,237,0.20)">📋</div>
         <div class="template-info">
-          <div class="template-name">Organização Pessoal</div>
-          <div class="template-desc">Rotina, hábitos, atividades por turno e gráficos de aderência.</div>
+          <div class="template-name">${t('modal.pessoal.name')}</div>
+          <div class="template-desc">${t('modal.pessoal.desc')}</div>
         </div>
         <div class="template-arrow">›</div>
       </div>
 
       <div class="template-card template-financeiro modalidade-card" data-modalidade="financeira">
         <span class="modalidade-badge soon">
-          ⏳ Em breve
+          ${t('modal.fin.badge')}
         </span>
         <div class="template-icon" style="background:rgba(245,158,11,0.20)">💰</div>
         <div class="template-info">
-          <div class="template-name">Organização Financeira</div>
-          <div class="template-desc">Ganhos, gastos, metas e investimentos sob seu olhar.</div>
+          <div class="template-name">${t('modal.fin.name')}</div>
+          <div class="template-desc">${t('modal.fin.desc')}</div>
         </div>
         <div class="template-arrow">›</div>
       </div>
 
       <div class="onb-footer">
-        Você pode trocar de modalidade a qualquer momento — sai e entra de novo no app.
+        ${t('modal.footer')}
       </div>
 
       <div style="margin-top:22px;text-align:center">
         <button id="btnSairModalidade" class="btn-sair-modalidade" type="button">
-          ↪ Sair da conta
+          ${t('modal.logout')}
         </button>
       </div>
     </div>
@@ -68,15 +81,24 @@ export function renderModalidade(app) {
 
   attachHandlers(app);
 
-  // Pequeno atraso pro modal não competir com a animação de entrada da tela
   setTimeout(() => { maybeOpenBioPrompt(); }, 450);
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: HANDLERS DE MODALIDADE
+// BLOCO 3: HANDLERS
 // ═══════════════════════════════════════════════════════════════
 function attachHandlers(app) {
+  // ── Flags de idioma ──────────────────────────────────────────
+  app.querySelectorAll('.lang-flag-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.lang;
+      await setLang(code);
+      renderModalidade(app);
+    });
+  });
+
+  // ── Pessoal ──────────────────────────────────────────────────
   app.querySelector('[data-modalidade="pessoal"]')?.addEventListener('click', async () => {
     const card = app.querySelector('[data-modalidade="pessoal"]');
     card.style.opacity = '0.6';
@@ -85,7 +107,6 @@ function attachHandlers(app) {
       const user = auth.currentUser;
       if (!user) { navigate('/login'); return; }
 
-      // Gate: consent específico pra dados sensíveis de saúde
       const ok = await ensurePessoalConsent();
       if (!ok) {
         card.style.opacity = '1';
@@ -98,18 +119,20 @@ function attachHandlers(app) {
       navigate(hasTemplate ? '/home' : '/welcome');
     } catch (err) {
       console.error('[Visão] modalidade pessoal erro:', err);
-      showToast('Erro ao carregar. Tente novamente.', 'error');
+      showToast(t('toast.error.load'), 'error');
       card.style.opacity = '1';
       card.style.pointerEvents = 'auto';
     }
   });
 
+  // ── Financeira ───────────────────────────────────────────────
   app.querySelector('[data-modalidade="financeira"]')?.addEventListener('click', () => {
-    showToast('💰 Organização Financeira em desenvolvimento — em breve!', 'info');
+    showToast(t('toast.fin.soon'), 'info');
   });
 
   app.querySelector('#goAjustesBtn')?.addEventListener('click', () => navigate('/ajustes'));
 
+  // ── Sair ─────────────────────────────────────────────────────
   app.querySelector('#btnSairModalidade')?.addEventListener('click', async () => {
     try {
       const { signOut } = await import('../firebase.js');
@@ -117,7 +140,7 @@ function attachHandlers(app) {
       navigate('/login');
     } catch (err) {
       console.error('[Visão] signOut erro:', err);
-      showToast('Erro ao sair. Tente novamente.', 'error');
+      showToast(t('toast.error.load'), 'error');
     }
   });
 }

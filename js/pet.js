@@ -6,6 +6,7 @@ import {
   getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './store.js';
+import { scheduleNotif, triggerSupported, notifTag, requestPermission } from './notifications.js';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -551,7 +552,7 @@ function petGCalUrl(name, date, time) {
   const params  = new URLSearchParams({
     action: 'TEMPLATE', text: name,
     dates: `${ds}T${pad(h)}${pad(mi)}00/${ds}T${pad(Math.min(h+1,23))}${pad(mi)}00`,
-    details: 'Registrado no Visão',
+    details: '⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\nRegistrado no Visão.',
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
@@ -594,10 +595,30 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       btn.classList.add('pet-reg-done');
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(done ? 'Atividade registrada! ✓' : 'Compromisso registrado! ✓');
-      if (!done || time) {
-        const gcalUrl = petGCalUrl(name, date, time || '09:00');
+      if (time) {
+        const [h, mi]  = time.split(':').map(Number);
+        const ts       = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi).getTime();
+        const tag      = notifTag(dayId(date), name);
+        const result   = await scheduleNotif({ title: name, body: done ? 'Atividade no Visão' : 'Compromisso no Visão', tag, timestamp: ts });
+        if (result === 'scheduled') {
+          setTimeout(() => addMessage(
+            `🔔 Notificação agendada para as <strong>${time}</strong>. Você será avisado no horário!`,
+            'bot'
+          ), 350);
+        } else {
+          const gcalUrl = petGCalUrl(name, date, time);
+          const hint    = result === 'denied'
+            ? 'Notificações bloqueadas. Adicione ao Google Agenda para receber aviso:'
+            : 'Adicione ao Google Agenda para ser lembrado no horário:';
+          setTimeout(() => addMessage(
+            `${hint}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
+            'bot'
+          ), 350);
+        }
+      } else if (!done) {
+        const gcalUrl = petGCalUrl(name, date, '09:00');
         setTimeout(() => addMessage(
-          `Quer receber uma notificação? Se abrir vazio (sem evento), volte aqui e toque no botão abaixo novamente.<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
+          `Quer ser lembrado? Adicione ao Google Agenda:<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
           'bot'
         ), 350);
       }

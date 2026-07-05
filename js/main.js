@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { auth, onAuthStateChanged } from './firebase.js';
 import { registerRoute, navigate, forceRender } from './router.js';
+import { initI18n } from './i18n.js';
 import { renderLogin } from './screens/login.js';
 import { renderSignup } from './screens/signup.js';
 import { renderWelcome } from './screens/welcome.js';
@@ -17,7 +18,7 @@ import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 import { hasTerms } from './consent.js';
-import { initPet, showPet, hidePet } from './pet.js?v=20260705d';
+import { initPet, showPet, hidePet } from './pet.js?v=20260705h';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -35,6 +36,7 @@ registerRoute('/privacidade', renderPrivacidade);
 registerRoute('/aceite', renderLegalConsent);
 registerRoute('/ajustes', renderAjustes);
 
+await initI18n();
 forceRender();
 initAutoLock();
 initPet();
