@@ -139,8 +139,8 @@ function buildPetHTML() {
 // BLOCO 5: HANDLERS — click, fechar, atalhos, Enter
 // ═══════════════════════════════════════════════════════════════
 function resizePetInput(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 110) + 'px';
+  el.style.height = '0px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
 function attachHandlers() {

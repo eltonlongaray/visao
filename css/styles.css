@@ -4744,11 +4744,13 @@ body.tour-active { overflow: hidden; }
   outline: none;
   transition: border-color 0.15s;
   min-width: 0;
+  min-height: 36px;
   resize: none;
   overflow-y: hidden;
   line-height: 1.4;
   font-family: inherit;
   display: block;
+  box-sizing: border-box;
 }
 .pet-input:focus { border-color: var(--accent); }
 .pet-input::placeholder { color: var(--muted); }
