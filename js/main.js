@@ -17,7 +17,7 @@ import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 import { hasTerms } from './consent.js';
-import { initPet, showPet, hidePet } from './pet.js?v=20260705b';
+import { initPet, showPet, hidePet } from './pet.js?v=20260705c';
 
 
 // ═══════════════════════════════════════════════════════════════
