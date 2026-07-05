@@ -63,8 +63,8 @@ export async function renderAjustes(app) {
           </button>
           <button class="ajustes-row clickable" id="exportPdfBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Gerar relatório (PDF)</div>
-              <div class="ajustes-row-sub">Resumo bonito da sua rotina</div>
+              <div class="ajustes-row-title">${t('ajustes.pdf.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.pdf.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>

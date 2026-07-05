@@ -15,6 +15,7 @@ import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
 import { isActive as tourIsActive } from '../tour.js';
 import { scheduleNotif, triggerSupported, notifTag } from '../notifications.js';
+import { t } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -454,7 +455,7 @@ async function _migrateTemplateGroupIds() {
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
 export async function renderRitual(app) {
-  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">Carregando ritual...</div>`;
+  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('ritual.loading')}</div>`;
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
   try {
@@ -666,7 +667,7 @@ function dayCard(d) {
 }
 
 function statsHtml(total, done, pct) {
-  if (!total) return '<small class="day-empty-tag">vazio</small>';
+  if (!total) return `<small class="day-empty-tag">${t('ritual.day.empty')}</small>`;
   return `<span class="pct ${pctClass(pct)}">${pct}%</span><small>${done}/${total}</small>`;
 }
 
@@ -748,8 +749,8 @@ function renderCommitmentsContent(items) {
   if (items.length === 0) {
     return `
       <div style="padding:22px 14px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5">
-        Sem compromissos nesta semana.<br>
-        <small>Crie um pelo + de qualquer dia escolhendo "📅 Compromisso".</small>
+        ${t('ritual.no.commitments')}<br>
+        <small>${t('ritual.commitments.hint')}</small>
       </div>
     `;
   }
@@ -860,7 +861,7 @@ function renderShiftsForDay(d) {
 
   if (shifts.length === 0) {
     return `<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px">
-      Sem turnos. Vai pra <a href="#/home" style="color:var(--accent)">Home</a> configurar.
+      ${t('ritual.no.shifts')}
     </div>`;
   }
 
@@ -877,11 +878,11 @@ function renderShiftsForDay(d) {
       <div class="shift-header">
         <div class="shift-icon" style="background:${s.gradient || 'linear-gradient(135deg,#a78bfa,#60a5fa)'}">${s.icon || '🕐'}</div>
         <div class="shift-title">${escape(s.name)}</div>
-        <div class="shift-count">${byShift[s.id].length} tarefas</div>
+        <div class="shift-count">${byShift[s.id].length} ${t('ritual.tasks')}</div>
         <button class="shift-add" data-add-to="${s.id}" data-day="${d.id}" title="Adicionar atividade">+</button>
       </div>
       <div class="task-list">
-        ${byShift[s.id].sort(taskSort).map(t => taskCard(t, d.id)).join('') || '<div class="empty-shift">vazio — toque em + pra adicionar</div>'}
+        ${byShift[s.id].sort(taskSort).map(t => taskCard(t, d.id)).join('') || `<div class="empty-shift">${t('ritual.shift.empty')}</div>`}
       </div>
     </div>
   `).join('');
@@ -2459,7 +2460,7 @@ function updateDayCardStats(dayDocId, syncTemplate = false) {
   card.querySelectorAll('[data-shift-id]').forEach(el => {
     const sid = el.dataset.shiftId;
     const count = day.tasks.filter(t => t.shiftId === sid).length;
-    el.querySelector('.shift-count').textContent = `${count} tarefas`;
+    el.querySelector('.shift-count').textContent = `${count} ${t('ritual.tasks')}`;
   });
 
   // Atualiza o ponto vermelho no header do dia (lembrete pendente)
@@ -3130,7 +3131,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       </button>
 
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
-        Nenhuma atividade cadastrada. Vai na <a href="#/home" style="color:var(--accent)">Home</a> pra criar.
+        ${t('ritual.no.activities')}
       </div>` : ''}
 
       <div class="modal-actions">

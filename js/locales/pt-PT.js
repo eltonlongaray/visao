@@ -70,6 +70,13 @@ export default {
   'ritual.gcal':          '📅 Google Calendar',
   'ritual.done':          'Concluída',
   'ritual.cancel':        'Cancelar',
+  'ritual.day.empty':     'vazio',
+  'ritual.tasks':         'tarefas',
+  'ritual.shift.empty':   'vazio — toca em + para adicionar',
+  'ritual.no.shifts':     'Sem turnos. Configura na Início.',
+  'ritual.no.commitments': 'Sem compromissos esta semana.',
+  'ritual.commitments.hint': 'Cria um com + em qualquer dia escolhendo "📅 Compromisso".',
+  'ritual.no.activities': 'Nenhuma actividade criada. Vai à Início criar.',
 
   // ── Desempenho ───────────────────────────────────────────────
   'desempenho.title': 'Desempenho',
