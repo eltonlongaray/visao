@@ -88,8 +88,8 @@ export async function renderHome(app) {
       <button class="reminders-card" id="reminders-card" type="button">
         <div class="reminders-icon">🔔</div>
         <div class="reminders-text">
-          <div class="reminders-title">Lembretes da semana</div>
-          <div class="reminders-sub" id="reminders-sub">carregando…</div>
+          <div class="reminders-title">${t('home.reminders.title')}</div>
+          <div class="reminders-sub" id="reminders-sub">${t('home.reminders.loading')}</div>
         </div>
         <div class="reminders-badge" id="reminders-badge" style="display:none">0</div>
       </button>
@@ -98,8 +98,8 @@ export async function renderHome(app) {
       <button class="reminders-card msgs-card" id="morning-msgs-card" type="button">
         <div class="reminders-icon">💌</div>
         <div class="reminders-text">
-          <div class="reminders-title">Mensagens</div>
-          <div class="reminders-sub">A pergunta de todas as manhãs</div>
+          <div class="reminders-title">${t('home.msgs.title')}</div>
+          <div class="reminders-sub">${t('home.msgs.sub')}</div>
         </div>
         <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
       </button>
@@ -107,11 +107,11 @@ export async function renderHome(app) {
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
       <div class="home-section">
         <div class="home-section-title">
-          <span>📋 ATIVIDADES</span>
-          <button class="home-add-btn" id="add-cat" title="Nova atividade">+</button>
+          <span>${t('home.activities')}</span>
+          <button class="home-add-btn" id="add-cat" title="${t('home.activity.new')}">+</button>
         </div>
         <div id="cats-list"></div>
-        <div class="home-section-hint">São os tipos de coisa que você faz na rotina (Hidratação, Treino, Estudo...). No Ritual você adiciona uma e escreve o que rolou no dia.</div>
+        <div class="home-section-hint">${t('home.activities.hint')}</div>
       </div>
 
     </div>
@@ -166,13 +166,13 @@ async function loadAndRenderReminders() {
     const badge = document.getElementById('reminders-badge');
     const total = weekReminders.length + nextWeekReminders.length;
     if (total === 0) {
-      sub.textContent = 'Sem lembretes nas próximas 2 semanas';
+      sub.textContent = t('home.reminders.empty');
       badge.style.display = 'none';
     } else {
       const parts = [];
-      if (weekReminders.length) parts.push(`${weekReminders.length} esta semana`);
-      if (nextWeekReminders.length) parts.push(`${nextWeekReminders.length} próxima`);
-      sub.textContent = parts.join(' · ') + ' · toque pra ver';
+      if (weekReminders.length) parts.push(`${weekReminders.length} ${t('home.reminders.thisweek')}`);
+      if (nextWeekReminders.length) parts.push(`${nextWeekReminders.length} ${t('home.reminders.nextweek')}`);
+      sub.textContent = parts.join(' · ') + ' · ' + t('home.reminders.tap');
       // badge mostra só a semana atual (urgência imediata)
       if (weekReminders.length > 0) {
         badge.textContent = weekReminders.length;
@@ -182,7 +182,7 @@ async function loadAndRenderReminders() {
       }
     }
   } catch (err) {
-    document.getElementById('reminders-sub').textContent = 'Erro ao carregar lembretes';
+    document.getElementById('reminders-sub').textContent = t('home.reminders.error');
   }
 }
 
@@ -227,19 +227,19 @@ function openRemindersModal() {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">🔔 Lembretes</div>
-      <div class="modal-hint">Tarefas com lembrete pendentes. Pra editar/apagar, vá no Ritual.</div>
+      <div class="modal-title">${t('home.reminders.modal.title')}</div>
+      <div class="modal-hint">${t('home.reminders.modal.hint')}</div>
 
-      <div class="reminder-section-label">📍 Esta semana ${weekReminders.length ? `<span class="reminder-count">${weekReminders.length}</span>` : ''}</div>
-      <div class="reminder-list">${reminderItemsHtml(weekReminders, 'Nada pendente esta semana 🎉')}</div>
+      <div class="reminder-section-label">${t('home.reminders.week.label')} ${weekReminders.length ? `<span class="reminder-count">${weekReminders.length}</span>` : ''}</div>
+      <div class="reminder-list">${reminderItemsHtml(weekReminders, t('home.reminders.week.empty'))}</div>
 
       <div class="reminder-divider"></div>
 
-      <div class="reminder-section-label">🔜 Semana que vem ${nextWeekReminders.length ? `<span class="reminder-count">${nextWeekReminders.length}</span>` : ''}</div>
-      <div class="reminder-list">${reminderItemsHtml(nextWeekReminders, 'Sem lembretes ainda — você verá aqui assim que marcar tarefas com 🔔')}</div>
+      <div class="reminder-section-label">${t('home.reminders.next.label')} ${nextWeekReminders.length ? `<span class="reminder-count">${nextWeekReminders.length}</span>` : ''}</div>
+      <div class="reminder-list">${reminderItemsHtml(nextWeekReminders, t('home.reminders.next.empty'))}</div>
 
       <div class="modal-actions">
-        <button class="btn-primary" id="m-close">Fechar</button>
+        <button class="btn-primary" id="m-close">${t('home.close')}</button>
       </div>
     </div>
   `;
@@ -415,25 +415,25 @@ function openCategoryEditor(id) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">${isNew ? 'Nova atividade' : 'Editar atividade'}</div>
-      <div class="modal-hint">Dê um nome, escolha um ícone e uma cor. Ex: Hidratação, Treino, Estudo, Caminhada...</div>
+      <div class="modal-title">${isNew ? t('home.activity.new') : t('home.activity.edit')}</div>
+      <div class="modal-hint">${t('home.activity.hint')}</div>
 
       <label class="input-field"><div class="input-field-label">Nome</div>
         <input id="m-name" value="${escape(c.name)}" placeholder="ex: Meditação, Trabalho, Lazer..." /></label>
 
-      <div class="modal-section-label">Ícone</div>
+      <div class="modal-section-label">${t('home.activity.icon')}</div>
       <div class="icon-picker">
         ${ICONS.map(i => `<button type="button" class="icon-opt ${i === c.icon ? 'sel' : ''}" data-icon="${i}">${i}</button>`).join('')}
       </div>
 
-      <div class="modal-section-label">Cor</div>
+      <div class="modal-section-label">${t('home.activity.color')}</div>
       <div class="color-picker">
         ${COLORS.map(col => `<button type="button" class="color-opt ${col === c.color ? 'sel' : ''}" data-color="${col}" style="background:${col}"></button>`).join('')}
       </div>
 
       <div class="modal-actions">
-        <button class="btn-secondary" id="m-cancel">Cancelar</button>
-        <button class="btn-primary" id="m-save">${isNew ? 'Criar' : 'Salvar'}</button>
+        <button class="btn-secondary" id="m-cancel">${t('ritual.cancel')}</button>
+        <button class="btn-primary" id="m-save">${isNew ? t('home.activity.create') : t('home.activity.save')}</button>
       </div>
     </div>
   `;
@@ -464,7 +464,7 @@ function openCategoryEditor(id) {
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder o que digitou)
   modal.querySelector('#m-save').onclick = async () => {
     const name = modal.querySelector('#m-name').value.trim();
-    if (!name) { showToast('Dê um nome pra atividade.', 'info'); return; }
+    if (!name) { showToast(t('home.activity.name.required'), 'info'); return; }
     const order = isNew
       ? (categories.length ? Math.max(...categories.map(x => x.order || 0)) : 0) + 1
       : c.order;
@@ -475,7 +475,7 @@ function openCategoryEditor(id) {
       categories = await getCategories();
       renderCats();
       close();
-      showToast(isNew ? 'Atividade criada' : 'Atividade atualizada', 'success');
+      showToast(isNew ? t('home.activity.created') : t('home.activity.updated'), 'success');
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   };
 }
