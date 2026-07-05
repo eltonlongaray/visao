@@ -1924,7 +1924,13 @@ function openRitualCalendar(app) {
 // ═══════════════════════════════════════════════════════════════
 async function autoScheduleNotif(dayDocId, task) {
   if (!task.reminderEnabled || !task.startTime) return;
-  if (!triggerSupported()) return;
+  if (!triggerSupported()) {
+    // Abre GCal automaticamente como fallback de lembrete
+    const url = makeGCalUrl(task, dayDocId);
+    window.open(url, '_blank', 'noopener');
+    showToast('📅 Abra o Google Agenda e adicione 🔔 notificação antes de salvar.', 'info');
+    return;
+  }
   const [y, mo, d] = dayDocId.split('-').map(Number);
   const [h, mi]    = task.startTime.split(':').map(Number);
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
@@ -2389,7 +2395,13 @@ function attachHandlers(app) {
     const ts         = new Date(y, mo - 1, d, h, mi).getTime();
 
     if (!triggerSupported()) {
-      showToast('Seu navegador não suporta notificações agendadas. Use o 📅 Google Agenda.', 'info');
+      // Abre Google Agenda direto — fallback transparente
+      const dayObj  = weekData.find(d => d.id === notifDay);
+      const taskObj = dayObj?.tasks.find(t => t.title === notifTitle && t.startTime === notifTime);
+      const url = taskObj ? makeGCalUrl(taskObj, notifDay)
+        : `https://calendar.google.com/calendar/r`;
+      window.open(url, '_blank', 'noopener');
+      showToast('No Google Agenda, role até 🔔 Adicionar notificação antes de salvar.', 'info');
       return;
     }
     if (ts <= Date.now()) {
