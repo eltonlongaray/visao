@@ -598,7 +598,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
         const gcalUrl = petGCalUrl(name, date, time);
         const notifDiv = document.createElement('div');
         notifDiv.className = 'pet-msg pet-msg-bot';
-        notifDiv.innerHTML = `<span>Quer receber uma notificação no horário?<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a></span>`;
+        notifDiv.innerHTML = `<span>Quer receber uma notificação no horário?<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a><br><small style="color:var(--muted);font-size:10px">Se abrir vazio, volte aqui e toque nesse botão novamente.</small></span>`;
         box.appendChild(notifDiv);
         box.scrollTop = box.scrollHeight;
       }
