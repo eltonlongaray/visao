@@ -78,11 +78,11 @@ html, body {
 .login-logo {
   width: 92px; height: 92px;
   border-radius: 28px;
-  background: #0d1b2e;
+  background: #1e3058;
   display: grid; place-items: center;
   margin: 10px auto 14px;
   overflow: hidden;
-  box-shadow: 0 14px 40px rgba(13,27,46,0.6), inset 0 2px 0 rgba(255,255,255,0.08);
+  box-shadow: 0 14px 40px rgba(30,48,88,0.7), inset 0 2px 0 rgba(255,255,255,0.10);
   position: relative;
 }
 .login-logo::after {
