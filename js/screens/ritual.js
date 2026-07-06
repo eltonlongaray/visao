@@ -14,7 +14,7 @@ import { playDone, playUndone, playDelete } from '../sounds.js';
 import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
 import { isActive as tourIsActive } from '../tour.js';
-import { scheduleNotif, triggerSupported, notifTag } from '../notifications.js';
+import { scheduleNotif, notifTag } from '../notifications.js';
 import { t } from '../i18n.js';
 
 
