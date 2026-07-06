@@ -6,7 +6,7 @@ import {
   getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './store.js';
-import { scheduleNotif, triggerSupported, notifTag, requestPermission } from './notifications.js';
+import { scheduleNotif, notifTag, requestPermission } from './notifications.js';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
