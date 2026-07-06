@@ -1,25 +1,21 @@
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 1: SUPORTE — verifica se o browser suporta notificações
+// VISÃO · Notifications
+// Entrega notificações via Cloudflare Worker (Web Push + VAPID).
+// Fallback: localStorage + setInterval quando app está aberto.
+// ═══════════════════════════════════════════════════════════════
+
+// ── Config ───────────────────────────────────────────────────
+// Preenchidos após deploy do Worker (ver instruções em visao-push-worker/)
+const WORKER_URL    = 'https://visao-push-worker.REPLACE_SEU_USUARIO.workers.dev';
+const WORKER_API_KEY = 'REPLACE_API_KEY';
+const VAPID_PUBLIC_KEY = 'BKbrmYvllDJCioKNwG0m_v52AqCcPBI2khD_FsYYkzZSbhY9QNp3E5CvfoKYGmdUJ7H4ySI-YyO7Hbxoum089ZY';
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 1: SUPORTE
 // ═══════════════════════════════════════════════════════════════
 export function notifSupported() {
-  return 'Notification' in window && 'serviceWorker' in navigator;
-}
-
-export function triggerSupported() {
-  try { return typeof TimestampTrigger !== 'undefined'; }
-  catch { return false; }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 2: PERMISSÃO
-// ═══════════════════════════════════════════════════════════════
-export async function requestPermission() {
-  if (!notifSupported()) return 'unsupported';
-  if (Notification.permission === 'granted') return 'granted';
-  if (Notification.permission === 'denied')  return 'denied';
-  const result = await Notification.requestPermission();
-  return result; // 'granted' | 'denied' | 'default'
+  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
 export function permissionStatus() {
@@ -29,29 +25,63 @@ export function permissionStatus() {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: PERSISTÊNCIA — localStorage para o checador do main thread
+// BLOCO 2: PERMISSÃO + ASSINATURA WEB PUSH
 // ═══════════════════════════════════════════════════════════════
-const SCHED_KEY = 'visao_notif_schedule';
-
-function saveToSchedule({ title, body, tag, icon, badge, timestamp }) {
-  const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
-  const filtered = list.filter(n => n.tag !== tag); // substitui se já existe com mesmo tag
-  filtered.push({ title, body, tag, icon, badge, timestamp });
-  localStorage.setItem(SCHED_KEY, JSON.stringify(filtered));
+export async function requestPermission() {
+  if (!notifSupported()) return 'unsupported';
+  if (Notification.permission === 'granted') return 'granted';
+  if (Notification.permission === 'denied')  return 'denied';
+  return Notification.requestPermission();
 }
 
-export function cancelFromSchedule(tag) {
-  const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
-  localStorage.setItem(SCHED_KEY, JSON.stringify(list.filter(n => n.tag !== tag)));
+// Converte VAPID public key de base64url para Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+// Retorna o userId atual (Firebase Auth)
+function getUserId() {
+  try {
+    const { auth } = globalThis._visaoAuth || {};
+    return auth?.currentUser?.uid || null;
+  } catch { return null; }
+}
+
+// Assina no PushManager e registra o subscription no Worker
+export async function subscribeToPush() {
+  if (!notifSupported()) return;
+  if (Notification.permission !== 'granted') return;
+  if (WORKER_URL.includes('REPLACE')) return; // Worker ainda não configurado
+
+  const userId = getUserId();
+  if (!userId) return;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    // Envia assinatura ao Worker
+    await fetch(`${WORKER_URL}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+      body: JSON.stringify({ userId, subscription: sub.toJSON() }),
+    });
+  } catch (err) {
+    console.warn('[notif] subscribeToPush:', err.message);
+  }
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: AGENDAR
-// Camada 1 — TimestampTrigger (Chrome experimental): funciona com app fechado
-// Camada 2 — SW postMessage + setTimeout: funciona enquanto SW está vivo (~5 min)
-// Camada 3 — localStorage + setInterval no main thread: funciona enquanto app aberto
-// Retorna: 'scheduled' | 'denied' | 'past' | 'unsupported'
+// BLOCO 3: AGENDAR VIA WORKER
 // ═══════════════════════════════════════════════════════════════
 export async function scheduleNotif({ title, body, tag, timestamp }) {
   if (!notifSupported())       return 'unsupported';
@@ -60,48 +90,67 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
   const perm = await requestPermission();
   if (perm !== 'granted')      return 'denied';
 
-  const reg = await navigator.serviceWorker.ready;
-  const options = {
-    body,
-    icon:               '/icons/icon-192.png',
-    badge:              '/icons/favicon-32.png',
-    tag,
-    vibrate:            [200, 100, 200],
-    requireInteraction: true,
-    data:               { url: '/' },
-  };
+  const userId = getUserId();
 
-  // Camada 1: TimestampTrigger (melhor opção — funciona com app fechado)
-  if (triggerSupported()) {
-    options.showTrigger = new TimestampTrigger(timestamp);
-    await reg.showNotification(title, options);
-    return 'scheduled';
+  // ── Via Worker (notificação mesmo com app fechado) ───────────
+  if (userId && !WORKER_URL.includes('REPLACE')) {
+    try {
+      await subscribeToPush(); // garante que a subscription existe
+      await fetch(`${WORKER_URL}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+        body: JSON.stringify({ userId, title, body, tag, timestamp }),
+      });
+      // Também salva localmente como fallback se app estiver aberto
+      _saveLocal({ title, body, tag, timestamp });
+      return 'scheduled';
+    } catch (err) {
+      console.warn('[notif] worker schedule falhou, usando fallback local:', err.message);
+    }
   }
 
-  const delayMs = timestamp - Date.now();
-
-  // Camada 2: SW setTimeout (funciona enquanto SW está vivo)
-  if (reg.active) {
-    reg.active.postMessage({
-      type: 'SCHEDULE_NOTIF',
-      title, body, tag,
-      icon: options.icon,
-      badge: options.badge,
-      delayMs,
-    });
-  }
-
-  // Camada 3: localStorage (dispara quando o app estiver aberto no horário)
-  saveToSchedule({ title, body, tag, icon: options.icon, badge: options.badge, timestamp });
-
+  // ── Fallback: notificação só enquanto app estiver aberto ─────
+  _saveLocal({ title, body, tag, timestamp });
   return 'scheduled';
+}
+
+// ─── Cancelar ─────────────────────────────────────────────────
+export async function cancelNotif(tag) {
+  _removeLocal(tag);
+  const userId = getUserId();
+  if (userId && !WORKER_URL.includes('REPLACE')) {
+    fetch(`${WORKER_URL}/schedule`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+      body: JSON.stringify({ tag }),
+    }).catch(() => {});
+  }
+  // Cancela do SW (se TimestampTrigger ou pushManager)
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const list = await reg.getNotifications({ tag, includeTriggered: true });
+    list.forEach(n => n.close());
+  } catch {}
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 5: CHECKER — roda no main thread, verifica notificações vencidas
-// Chame uma vez no startup (main.js). Intervalo: 30s.
+// BLOCO 4: FALLBACK LOCAL (app aberto)
 // ═══════════════════════════════════════════════════════════════
+const SCHED_KEY = 'visao_notif_schedule';
+
+function _saveLocal(entry) {
+  const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
+  const filtered = list.filter(n => n.tag !== entry.tag);
+  filtered.push(entry);
+  localStorage.setItem(SCHED_KEY, JSON.stringify(filtered));
+}
+
+function _removeLocal(tag) {
+  const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
+  localStorage.setItem(SCHED_KEY, JSON.stringify(list.filter(n => n.tag !== tag)));
+}
+
 export async function startNotifChecker() {
   if (!notifSupported() || Notification.permission !== 'granted') return;
 
@@ -116,36 +165,21 @@ export async function startNotifChecker() {
       const reg = await navigator.serviceWorker.ready;
       for (const n of due) {
         await reg.showNotification(n.title, {
-          body: n.body, icon: n.icon, badge: n.badge, tag: n.tag,
+          body: n.body, icon: '/icons/icon-192.png',
+          badge: '/icons/favicon-32.png', tag: n.tag,
           vibrate: [200, 100, 200], requireInteraction: true, data: { url: '/' },
         });
       }
-    } catch (err) {
-      console.warn('[notif-checker]', err);
-    }
+    } catch (err) { console.warn('[notif-checker]', err); }
   };
 
-  await check(); // checa imediatamente ao abrir
+  await check();
   setInterval(check, 30_000);
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 6: CANCELAR — cancela notificação pelo tag
-// ═══════════════════════════════════════════════════════════════
-export async function cancelNotif(tag) {
-  cancelFromSchedule(tag);
-  if (!notifSupported()) return;
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const list = await reg.getNotifications({ tag, includeTriggered: true });
-    list.forEach(n => n.close());
-  } catch { /* ignora se SW não suportar */ }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 7: TAG ÚNICA — gera tag reproduzível para um evento
+// BLOCO 5: TAG ÚNICA
 // ═══════════════════════════════════════════════════════════════
 export function notifTag(dayDocId, title) {
   return `visao-${dayDocId}-${title.slice(0, 30).replace(/\s+/g, '-')}`;

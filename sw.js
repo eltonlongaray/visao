@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v70';
+const CACHE_NAME = 'visao-v71';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -117,7 +117,30 @@ self.addEventListener('message', (event) => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 5: NOTIFICAÇÃO — abre o app ao tocar na notificação
+// BLOCO 5: PUSH — recebe notificação do Worker e exibe
+// ═══════════════════════════════════════════════════════════════
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data?.json() || {}; } catch {}
+  const title = data.title || 'Visão';
+  const body  = data.body  || 'Você tem um lembrete';
+  const tag   = data.tag   || 'visao-notif';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon:               '/icons/icon-192.png',
+      badge:              '/icons/favicon-32.png',
+      tag,
+      vibrate:            [200, 100, 200],
+      requireInteraction: true,
+      data:               { url: '/' },
+    })
+  );
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: NOTIFICATIONCLICK — abre o app ao tocar na notificação
 // ═══════════════════════════════════════════════════════════════
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

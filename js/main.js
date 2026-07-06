@@ -4,7 +4,7 @@
 import { auth, onAuthStateChanged } from './firebase.js';
 import { registerRoute, navigate, forceRender } from './router.js';
 import { initI18n } from './i18n.js';
-import { startNotifChecker } from './notifications.js';
+import { startNotifChecker, subscribeToPush } from './notifications.js';
 import { renderLogin } from './screens/login.js';
 import { renderSignup } from './screens/signup.js';
 import { renderWelcome } from './screens/welcome.js';
@@ -19,7 +19,7 @@ import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
 import { hasTerms } from './consent.js';
-import { initPet, showPet, hidePet } from './pet.js?v=20260705n';
+import { initPet, showPet, hidePet } from './pet.js?v=20260705o';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -90,9 +90,13 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  // ── Expõe auth globalmente para notifications.js acessar userId ──
+  globalThis._visaoAuth = { auth };
+
   // ── Aceite OK: vai pra modalidade ──
   navigate('/modalidade');
   showPet();
+  subscribeToPush(); // registra push subscription no Worker (se configurado)
 
   // Cold-open: trava se bio configurada
   if (biometric.isEnabledForUser(user.uid)) {
