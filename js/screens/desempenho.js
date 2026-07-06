@@ -12,14 +12,16 @@ import { isAdmin } from '../admin.js';
 import { deleteWeek } from '../account-delete.js';
 import { confirmModal, showToast } from '../toast.js';
 import { playDelete } from '../sounds.js';
+import { t, getLang } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: CONSTANTES (labels)
+// BLOCO 2: HELPERS DE DATA (Intl — funciona em qualquer idioma)
 // ═══════════════════════════════════════════════════════════════
-const MONTHS_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const _cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function _wdShort(d) { return _cap(new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(d).replace(/\./g, '')); }
+function _moShort(d) { return _cap(new Intl.DateTimeFormat(getLang(), { month:   'short' }).format(d).replace(/\./g, '')); }
+function _moFull(d)  { return _cap(new Intl.DateTimeFormat(getLang(), { month:   'long'  }).format(d)); }
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -37,7 +39,7 @@ let userProfile = null;        // cache do perfil (streakOrigin)
 // BLOCO 4: ENTRY POINT — render da tela Desempenho
 // ═══════════════════════════════════════════════════════════════
 export async function renderDesempenho(app) {
-  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">Carregando desempenho...</div>`;
+  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('desempenho.loading')}</div>`;
   try {
     categories = await getCategories();
   } catch (err) {
@@ -48,68 +50,68 @@ export async function renderDesempenho(app) {
 }
 
 async function renderUI(app) {
-  const monthLabel = MONTHS_FULL[viewMonth.getMonth()] + ' ' + viewMonth.getFullYear();
+  const monthLabel = _moFull(viewMonth) + ' ' + viewMonth.getFullYear();
 
   app.innerHTML = `
     <div class="screen-pad">
       <div class="month-header">
         <button class="month-nav" data-nav="prev-month">‹</button>
-        <div class="month-name">${monthLabel}<small>desempenho</small></div>
+        <div class="month-name">${monthLabel}<small>${t('desempenho.label')}</small></div>
         <button class="month-nav" data-nav="next-month">›</button>
       </div>
 
 
       <div class="summary-top">
         <div class="summary-stats" id="kpis">
-          <div class="summary-stat feitas"><div class="lbl">Feitas</div><div class="val">—</div></div>
-          <div class="summary-stat pend"><div class="lbl">Pendentes</div><div class="val">—</div></div>
-          <div class="summary-stat pct"><div class="lbl">Aderência</div><div class="val">—</div></div>
+          <div class="summary-stat feitas"><div class="lbl">${t('desempenho.kpi.done')}</div><div class="val">—</div></div>
+          <div class="summary-stat pend"><div class="lbl">${t('desempenho.kpi.pending')}</div><div class="val">—</div></div>
+          <div class="summary-stat pct"><div class="lbl">${t('desempenho.kpi.adherence')}</div><div class="val">—</div></div>
         </div>
         <div class="month-bar-chart"><canvas id="chart-months"></canvas></div>
       </div>
 
       <div class="consistency-card" id="consistency-card">
-        <div class="con-title">🔥 Consistência</div>
+        <div class="con-title">${t('desempenho.consistency.title')}</div>
         <div class="con-row">
           <div class="con-item">
             <div class="con-val con-cold" id="streak-current">—</div>
-            <div class="con-lbl">dias seguidos</div>
-            <div class="con-sub" id="streak-current-sub">sequência atual</div>
+            <div class="con-lbl">${t('desempenho.streak.days')}</div>
+            <div class="con-sub" id="streak-current-sub">${t('desempenho.streak.cur.sub')}</div>
           </div>
           <div class="con-divider"></div>
           <div class="con-item">
             <div class="con-val" id="streak-longest">—</div>
-            <div class="con-lbl">recorde</div>
-            <div class="con-sub">melhor sequência</div>
+            <div class="con-lbl">${t('desempenho.streak.record.lbl')}</div>
+            <div class="con-sub">${t('desempenho.streak.record.sub')}</div>
           </div>
           <div class="con-divider"></div>
           <div class="con-item">
             <div class="con-val" id="streak-rate">—</div>
-            <div class="con-lbl">consistência</div>
-            <div class="con-sub" id="streak-rate-sub">desde o início</div>
+            <div class="con-lbl">${t('desempenho.streak.rate.lbl')}</div>
+            <div class="con-sub" id="streak-rate-sub">${t('desempenho.streak.rate.sub')}</div>
           </div>
         </div>
         <div id="con-details"></div>
       </div>
 
       <div class="tab-switch" id="period-tabs">
-        <button class="tab-btn ${period==='semana'?'active':''}" data-period="semana">Esta semana</button>
-        <button class="tab-btn ${period==='mes'?'active':''}" data-period="mes">Este mês</button>
-        <button class="tab-btn ${period==='ano'?'active':''}" data-period="ano">Este ano</button>
+        <button class="tab-btn ${period==='semana'?'active':''}" data-period="semana">${t('desempenho.period.week')}</button>
+        <button class="tab-btn ${period==='mes'?'active':''}" data-period="mes">${t('desempenho.period.month')}</button>
+        <button class="tab-btn ${period==='ano'?'active':''}" data-period="ano">${t('desempenho.period.year')}</button>
       </div>
 
       <div class="chart-card">
-        <div class="chart-title">% feito por categoria</div>
-        <div class="chart-sub" id="cats-sub">carregando...</div>
+        <div class="chart-title">${t('desempenho.chart.pct.title')}</div>
+        <div class="chart-sub" id="cats-sub">${t('desempenho.chart.loading')}</div>
         <div class="chart-wrap"><canvas id="chart-cats"></canvas></div>
       </div>
 
       <div class="records-header">
-        <div class="records-title">📜 Trajetória semanal</div>
-        <div class="records-sub">Todas as semanas registradas · toque pra expandir</div>
+        <div class="records-title">${t('desempenho.records.title')}</div>
+        <div class="records-sub">${t('desempenho.records.sub')}</div>
       </div>
       <div class="records-list" id="records-list">
-        <div style="text-align:center;color:var(--muted);font-size:12px;padding:14px">Carregando histórico...</div>
+        <div style="text-align:center;color:var(--muted);font-size:12px;padding:14px">${t('desempenho.records.loading')}</div>
       </div>
     </div>
     ${bottomNav('desempenho')}
@@ -155,7 +157,7 @@ function attachHandlers(app) {
       const dir = nav.dataset.nav;
       if (dir === 'prev-month') viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
       else if (dir === 'next-month') viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
-      const monthLabel = MONTHS_FULL[viewMonth.getMonth()] + ' ' + viewMonth.getFullYear();
+      const monthLabel = _moFull(viewMonth) + ' ' + viewMonth.getFullYear();
       document.querySelector('.month-name').firstChild.textContent = monthLabel;
       await refreshData();
       return;
@@ -219,7 +221,7 @@ async function refreshMonthData() {
     const monthDays = allDays.filter(d => d.id.startsWith(ymKey));
     const agg = aggregateTotal(monthDays);
     monthsData.push({
-      label: MONTHS[m.getMonth()],
+      label: _moShort(m),
       year: m.getFullYear(),
       month: m.getMonth(),
       ...agg
@@ -272,11 +274,11 @@ function renderMonthChart(monthsData) {
         if (!els.length) return;
         const md = monthsData[els[0].index];
         viewMonth = new Date(md.year, md.month, 1);
-        const monthLabel = MONTHS_FULL[viewMonth.getMonth()] + ' ' + viewMonth.getFullYear();
+        const monthLabel = _moFull(viewMonth) + ' ' + viewMonth.getFullYear();
         document.querySelector('.month-name').firstChild.textContent = monthLabel;
         refreshData();
       },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + '% feito' } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + `% ${t('desempenho.chart.done')}` } } },
       scales: {
         x: { grid: { display: false }, ticks: { color: '#8893b3', font: { size: 12, weight: '600' } } },
         y: { display: false, max: 100, beginAtZero: true }
@@ -293,15 +295,17 @@ async function refreshCatChart() {
     const dow = today.getDay(); // 0 = dom
     start = new Date(today); start.setDate(today.getDate() - dow);
     end = new Date(today);
-    sub = `Esta semana — ${dow + 1} dia${dow > 0 ? 's' : ''}`;
+    const n1 = dow + 1;
+    sub = `${t('desempenho.period.week')} — ${n1} ${n1 === 1 ? t('desempenho.day') : t('desempenho.days')}`;
   } else if (period === 'mes') {
     start = new Date(today.getFullYear(), today.getMonth(), 1);
     end = today;
-    sub = `Este mês — ${today.getDate()} dias`;
+    const n2 = today.getDate();
+    sub = `${t('desempenho.period.month')} — ${n2} ${n2 === 1 ? t('desempenho.day') : t('desempenho.days')}`;
   } else { // ano
     start = new Date(today.getFullYear(), 0, 1); // 1º de janeiro
     end = today;
-    sub = `Este ano · ${today.getFullYear()}`;
+    sub = `${t('desempenho.period.year')} · ${today.getFullYear()}`;
   }
 
   const days = await fetchDaysRange(start, end);
@@ -519,8 +523,8 @@ async function renderRecords(days) {
       <div class="year-section ${isPast ? 'past-year' : ''}">
         <div class="year-header">
           <span class="year-icon">📅</span>
-          <span class="year-label">${year}${isPast ? '' : ' · em andamento'}</span>
-          <span class="year-stats">${list.length} ${list.length === 1 ? 'semana' : 'semanas'} · ${yearPct}%</span>
+          <span class="year-label">${year}${isPast ? '' : ' · ' + t('desempenho.year.ongoing')}</span>
+          <span class="year-stats">${list.length} ${list.length === 1 ? t('desempenho.week.s') : t('desempenho.weeks.s')} · ${yearPct}%</span>
         </div>
         <div class="year-weeks">
           ${list.map(({ mondayId, week, note }) => renderWeekCard(mondayId, week, note, dayMap)).join('')}
@@ -595,7 +599,7 @@ function renderWeekCard(mondayId, { monday, days }, weekNote, dayMap) {
     return catLabel + descLabel + count;
   };
 
-  const rangeLabel = `${String(monday.getDate()).padStart(2,'0')} ${MONTHS[monday.getMonth()]} → ${String(sunday.getDate()).padStart(2,'0')} ${MONTHS[sunday.getMonth()]}`;
+  const rangeLabel = `${String(monday.getDate()).padStart(2,'0')} ${_moShort(monday)} → ${String(sunday.getDate()).padStart(2,'0')} ${_moShort(sunday)}`;
 
   return `
     <div class="week-card ${isOpen ? 'open' : ''}" data-week-id="${mondayId}">
@@ -603,7 +607,7 @@ function renderWeekCard(mondayId, { monday, days }, weekNote, dayMap) {
       <button class="week-card-header" data-toggle-week="${mondayId}">
         <div class="week-card-title">
           <div class="week-range">${rangeLabel}</div>
-          <div class="week-sub">${days.length} dia${days.length === 1 ? '' : 's'} com registro</div>
+          <div class="week-sub">${days.length} ${days.length === 1 ? t('desempenho.day') : t('desempenho.days')} ${t('desempenho.with.record')}</div>
         </div>
         <div class="week-card-stats">
           <span class="pct ${cls}">${pct}%</span>
@@ -613,10 +617,10 @@ function renderWeekCard(mondayId, { monday, days }, weekNote, dayMap) {
       </button>
       <div class="week-card-content">
         <div class="week-insights">
-          ${bestDay ? `<div class="week-insight"><span class="ins-icon">🏆</span> Melhor dia: <strong>${WEEKDAYS[bestDay.date.getDay()]}</strong> (${Math.round(bestDay.pct*100)}%)</div>` : ''}
-          ${worstDay ? `<div class="week-insight"><span class="ins-icon">💪</span> Pior dia: <strong>${WEEKDAYS[worstDay.date.getDay()]}</strong> (${Math.round(worstDay.pct*100)}%)</div>` : ''}
-          ${strongest.length ? `<div class="week-insight"><span class="ins-icon">⭐</span> Pontos fortes: ${strongest.map(fmtAct).join(' · ')}</div>` : ''}
-          ${weakest.length ? `<div class="week-insight"><span class="ins-icon">⚠️</span> Pontos fracos: ${weakest.map(fmtAct).join(' · ')}</div>` : ''}
+          ${bestDay ? `<div class="week-insight"><span class="ins-icon">🏆</span> ${t('desempenho.week.best')} <strong>${_wdShort(bestDay.date)}</strong> (${Math.round(bestDay.pct*100)}%)</div>` : ''}
+          ${worstDay ? `<div class="week-insight"><span class="ins-icon">💪</span> ${t('desempenho.week.worst')} <strong>${_wdShort(worstDay.date)}</strong> (${Math.round(worstDay.pct*100)}%)</div>` : ''}
+          ${strongest.length ? `<div class="week-insight"><span class="ins-icon">⭐</span> ${t('desempenho.week.strong')} ${strongest.map(fmtAct).join(' · ')}</div>` : ''}
+          ${weakest.length ? `<div class="week-insight"><span class="ins-icon">⚠️</span> ${t('desempenho.week.weak')} ${weakest.map(fmtAct).join(' · ')}</div>` : ''}
         </div>
 
         ${renderWeekSleep(days, dayMap)}
@@ -626,8 +630,8 @@ function renderWeekCard(mondayId, { monday, days }, weekNote, dayMap) {
         </div>
 
         <div class="week-note-box">
-          <label class="week-note-label">📝 Reflexão da semana — o que melhorar?</label>
-          <textarea class="week-note" data-week-id="${mondayId}" placeholder="Olhando os dados acima: que ajustes posso fazer pra próxima semana?">${escape(weekNote?.note || '')}</textarea>
+          <label class="week-note-label">${t('desempenho.week.note.label')}</label>
+          <textarea class="week-note" data-week-id="${mondayId}" placeholder="${t('desempenho.week.note.placeholder')}">${escape(weekNote?.note || '')}</textarea>
         </div>
       </div>
     </div>
@@ -668,7 +672,7 @@ function renderWeekSleep(days, dayMap) {
   ` : '';
 
   if (durations.length === 0) {
-    return `<div class="week-sleep empty">🌙 Sono — sem registros nesta semana</div>${notesCard}`;
+    return `<div class="week-sleep empty">${t('desempenho.sleep.empty')}</div>${notesCard}`;
   }
   const totalMinRaw = durations.reduce((s,x) => s+x, 0);
   // Soma cochilos do dia e desconta madrugada acordado(a)
@@ -718,7 +722,7 @@ function renderWeekSleep(days, dayMap) {
         <div class="scale-seg waste" style="flex:1"></div>
         <div class="scale-pointer" style="left:${pointerPct}%"></div>
       </div>
-      <div class="week-sleep-meta">ideal entre 6h e 8h por dia</div>
+      <div class="week-sleep-meta">${t('desempenho.sleep.ideal')}</div>
     </div>
     ${notesCard}
   `;
@@ -730,8 +734,8 @@ function renderDayCompactRow(d) {
   const pct = total ? Math.round(done / total * 100) : 0;
   const cls = pct >= 80 ? 'high' : pct >= 60 ? 'mid' : 'low';
   return `<div class="week-day-row">
-    <div class="week-day-name">${WEEKDAYS[d.date.getDay()]}</div>
-    <div class="week-day-date">${String(d.date.getDate()).padStart(2,'0')} ${MONTHS[d.date.getMonth()]}</div>
+    <div class="week-day-name">${_wdShort(d.date)}</div>
+    <div class="week-day-date">${String(d.date.getDate()).padStart(2,'0')} ${_moShort(d.date)}</div>
     <div class="week-day-bar"><div class="week-day-fill ${cls}" style="width:${pct}%"></div></div>
     <div class="week-day-pct ${cls}">${pct}%</div>
   </div>`;
@@ -831,7 +835,7 @@ function renderStreakCard({ current, longest, rate, totalRegistered, totalDays }
   curEl.textContent = current > 0 ? `${current}d` : '0';
   curEl.className = 'con-val ' + (current >= 14 ? 'con-fire' : current >= 7 ? 'con-hot' : current >= 3 ? 'con-warm' : 'con-cold');
 
-  const streakMsg = current >= 14 ? 'imparável! 🚀' : current >= 7 ? 'uma semana! 🔥' : current >= 3 ? 'mantendo o ritmo' : current === 1 ? 'recomeçando hoje' : 'retome hoje!';
+  const streakMsg = current >= 14 ? t('desempenho.streak.fire') : current >= 7 ? t('desempenho.streak.week') : current >= 3 ? t('desempenho.streak.going') : current === 1 ? t('desempenho.streak.restart') : t('desempenho.streak.resume');
   curSub.textContent = streakMsg;
 
   lonEl.textContent = longest > 0 ? `${longest}d` : '—';
@@ -876,31 +880,30 @@ function renderConstanciaDetails(allDays, streakOriginId, { rate, firstDate }) {
   const totalActive = totalSpan - totalFailed;
 
   const fmtDate = (d) => {
-    const dow = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
-    return `${dow} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    return `${_wdShort(d)} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
   };
   const fmtOrigin = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
   const monthChips = monthFailedDays.length
     ? monthFailedDays.map(d => `<span class="con-fail-chip">${fmtDate(d)}</span>`).join('')
-    : `<span class="con-ok-chip">Nenhuma falta! 🏆</span>`;
+    : `<span class="con-ok-chip">${t('desempenho.con.nofail')}</span>`;
 
   const totalFailedText = totalFailed === 0
-    ? `<span class="con-ok-chip">Nenhuma falta! 🏆</span>`
-    : `<span class="con-fail-count">${totalFailed} dia${totalFailed === 1 ? '' : 's'} sem registro</span>`;
+    ? `<span class="con-ok-chip">${t('desempenho.con.nofail')}</span>`
+    : `<span class="con-fail-count">${totalFailed} ${totalFailed === 1 ? t('desempenho.day') : t('desempenho.days')} ${t('desempenho.noreg')}</span>`;
 
   el.innerHTML = `
     <div class="con-details-inner">
       <div class="con-period">
         <div class="con-period-head">
-          <span class="con-period-title">📅 ${MONTHS_FULL[today.getMonth()]}</span>
+          <span class="con-period-title">📅 ${_moFull(today)}</span>
           <span class="con-period-stat ${monthRate >= 80 ? 'good' : monthRate >= 60 ? 'mid' : 'bad'}">${monthRate}% · ${monthActive}/${monthTotal} dias</span>
         </div>
         <div class="con-fail-row">${monthChips}</div>
       </div>
       <div class="con-period">
         <div class="con-period-head">
-          <span class="con-period-title">📊 Desde ${fmtOrigin(origin)}</span>
+          <span class="con-period-title">📊 ${t('desempenho.con.since')} ${fmtOrigin(origin)}</span>
           <span class="con-period-stat ${rate >= 80 ? 'good' : rate >= 60 ? 'mid' : 'bad'}">${rate}% · ${totalActive}/${totalSpan} dias</span>
         </div>
         <div class="con-fail-row">${totalFailedText}</div>

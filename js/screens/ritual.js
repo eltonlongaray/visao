@@ -15,15 +15,17 @@ import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
 import { isActive as tourIsActive } from '../tour.js';
 import { scheduleNotif, notifTag } from '../notifications.js';
-import { t } from '../i18n.js';
+import { t, getLang } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: CONSTANTES (labels de data + frases motivacionais)
 // ═══════════════════════════════════════════════════════════════
-const WEEKDAYS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const MONTHS_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+// Helpers de data usando Intl — funciona em qualquer idioma automaticamente
+const _cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function _wdFull(d)  { return _cap(new Intl.DateTimeFormat(getLang(), { weekday: 'long'  }).format(d)); }
+function _wdShort(d) { return _cap(new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(d).replace(/\./g, '')); }
+function _moShort(d) { return _cap(new Intl.DateTimeFormat(getLang(), { month:   'short' }).format(d).replace(/\./g, '')); }
 
 // Mensagens aleatórias quando tarefa é marcada feita (clássico + gym bro)
 const DONE_MESSAGES = [
@@ -152,7 +154,7 @@ async function warnPreviousDayMissing(app, currentDayId, status) {
   const prevId = prevDayId(currentDayId);
   const [y, m, d] = prevId.split('-').map(n => parseInt(n, 10));
   const dt = new Date(y, m - 1, d);
-  const labelDia = WEEKDAYS_FULL[dt.getDay()];
+  const labelDia = _wdFull(dt);
   const dataFmt = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
   const faltaTxt = status.missing.length === 1
     ? `falta preencher ${status.missing[0]}`
@@ -210,7 +212,7 @@ function weekRangeLabel() {
   const rep = weekData[3].date; // quinta-feira (meio da semana Seg→Dom)
   const w = weekOfMonth(rep);
   const s = weekData[0].date, e = weekData[6].date;
-  return `${w}ª semana · ${String(s.getDate()).padStart(2,'0')} ${MONTHS[s.getMonth()]} → ${String(e.getDate()).padStart(2,'0')} ${MONTHS[e.getMonth()]}`;
+  return `${w}ª semana · ${String(s.getDate()).padStart(2,'0')} ${_moShort(s)} → ${String(e.getDate()).padStart(2,'0')} ${_moShort(e)}`;
 }
 
 
@@ -654,8 +656,8 @@ function dayCard(d) {
     <div class="day-card ${isExpanded ? 'open' : ''} ${isToday ? 'today' : ''} ${hasPendingReminder ? 'has-pending-reminder' : ''}" data-day-id="${d.id}" data-dow="${d.date.getDay()}">
       <button class="day-card-header" data-toggle-day="${d.id}">
         <div class="day-card-name">
-          <span class="dow">${WEEKDAYS_FULL[d.date.getDay()]}${hasPendingReminder ? '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>' : ''}</span>
-          <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${MONTHS[d.date.getMonth()]}</span>
+          <span class="dow">${_wdFull(d.date)}${hasPendingReminder ? '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>' : ''}</span>
+          <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${_moShort(d.date)}</span>
           ${isToday ? '<span class="today-badge">HOJE</span>' : ''}
         </div>
         <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
@@ -762,7 +764,7 @@ function renderCommitmentsContent(items) {
   return Object.values(byDay).map(({ day, list }) => `
     <div class="commitments-day-group">
       <div class="commitments-day-label">
-        ${WEEKDAYS_FULL[day.date.getDay()]} · ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}
+        ${_wdFull(day.date)} · ${String(day.date.getDate()).padStart(2,'0')}/${String(day.date.getMonth()+1).padStart(2,'0')}
       </div>
       <div class="task-list">
         ${list.sort(taskSort).map(t => taskCard(t, day.id)).join('')}
@@ -936,7 +938,7 @@ function pickPrevDayModal(candidates) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     const items = candidates.map(c => {
-      const dow = WEEKDAYS_FULL[c.date.getDay()];
+      const dow = _wdFull(c.date);
       const dataFmt = `${String(c.date.getDate()).padStart(2,'0')}/${String(c.date.getMonth()+1).padStart(2,'0')}`;
       const n = c.tasks.length;
       return `
@@ -987,7 +989,7 @@ function pickPrevDayModal(candidates) {
 async function replaceDayWithPrev(app, dayDocId, choice) {
   const day = weekData.find(d => d.id === dayDocId);
   if (!day) return;
-  const dow = WEEKDAYS_FULL[choice.date.getDay()];
+  const dow = _wdFull(choice.date);
   const dataFmt = `${String(choice.date.getDate()).padStart(2,'0')}/${String(choice.date.getMonth()+1).padStart(2,'0')}`;
   const ok = await confirmModal({
     title: `Trazer ${dow.toLowerCase()} (${dataFmt})?`,
@@ -3103,7 +3105,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.innerHTML = `
     <div class="modal">
       <div class="modal-title">Adicionar</div>
-      <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(WEEKDAYS_FULL[day.date.getDay()])} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(MONTHS[day.date.getMonth()])}.</div>
+      <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(_wdFull(day.date))} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(_moShort(day.date))}.</div>
 
       <div class="input-field-label">Tipo</div>
       <div class="kind-chips" id="kind-chips">
