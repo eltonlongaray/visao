@@ -1924,13 +1924,6 @@ function openRitualCalendar(app) {
 // ═══════════════════════════════════════════════════════════════
 async function autoScheduleNotif(dayDocId, task) {
   if (!task.reminderEnabled || !task.startTime) return;
-  if (!triggerSupported()) {
-    // Abre GCal automaticamente como fallback de lembrete
-    const url = makeGCalUrl(task, dayDocId);
-    window.open(url, '_blank', 'noopener');
-    showToast('📅 Abra o Google Agenda e adicione 🔔 notificação antes de salvar.', 'info');
-    return;
-  }
   const [y, mo, d] = dayDocId.split('-').map(Number);
   const [h, mi]    = task.startTime.split(':').map(Number);
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
@@ -1938,6 +1931,7 @@ async function autoScheduleNotif(dayDocId, task) {
   const tag = notifTag(dayDocId, task.title || '');
   const result = await scheduleNotif({ title: task.title || 'Visão', body: 'Lembrete do Ritual', tag, timestamp: ts });
   if (result === 'scheduled') showToast(`🔔 Notificação agendada para ${task.startTime}`, 'success');
+  else if (result === 'denied') showToast('Ative as notificações do Visão nas configurações do celular.', 'info');
 }
 
 
@@ -2394,16 +2388,6 @@ function attachHandlers(app) {
     const [h, mi]    = notifTime.split(':').map(Number);
     const ts         = new Date(y, mo - 1, d, h, mi).getTime();
 
-    if (!triggerSupported()) {
-      // Abre Google Agenda direto — fallback transparente
-      const dayObj  = weekData.find(d => d.id === notifDay);
-      const taskObj = dayObj?.tasks.find(t => t.title === notifTitle && t.startTime === notifTime);
-      const url = taskObj ? makeGCalUrl(taskObj, notifDay)
-        : `https://calendar.google.com/calendar/r`;
-      window.open(url, '_blank', 'noopener');
-      showToast('No Google Agenda, role até 🔔 Adicionar notificação antes de salvar.', 'info');
-      return;
-    }
     if (ts <= Date.now()) {
       showToast('Esse horário já passou.', 'info');
       return;

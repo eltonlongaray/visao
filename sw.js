@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v69';
+const CACHE_NAME = 'visao-v70';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -93,7 +93,31 @@ self.addEventListener('fetch', (event) => {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: NOTIFICAÇÃO — abre o app ao tocar na notificação
+// BLOCO 4: AGENDAR via SW setTimeout (fallback quando TimestampTrigger indisponível)
+// O main thread manda { type:'SCHEDULE_NOTIF', title, body, tag, icon, badge, delayMs }
+// ═══════════════════════════════════════════════════════════════
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'SCHEDULE_NOTIF') return;
+  const { title, body, tag, icon, badge, delayMs } = event.data;
+  // Mantém o SW vivo durante o delay (até 5 min; além disso o SO pode matar o SW)
+  event.waitUntil(
+    new Promise(resolve => {
+      setTimeout(async () => {
+        await self.registration.showNotification(title, {
+          body, icon, badge, tag,
+          vibrate: [200, 100, 200],
+          requireInteraction: true,
+          data: { url: '/' },
+        });
+        resolve();
+      }, delayMs);
+    })
+  );
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: NOTIFICAÇÃO — abre o app ao tocar na notificação
 // ═══════════════════════════════════════════════════════════════
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
