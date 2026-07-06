@@ -6,8 +6,8 @@
 
 // ── Config ───────────────────────────────────────────────────
 // Preenchidos após deploy do Worker (ver instruções em visao-push-worker/)
-const WORKER_URL    = 'https://visao-push-worker.REPLACE_SEU_USUARIO.workers.dev';
-const WORKER_API_KEY = 'REPLACE_API_KEY';
+const WORKER_URL    = 'https://visao-push-worker.eltonvisao.workers.dev';
+const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
 const VAPID_PUBLIC_KEY = 'BKbrmYvllDJCioKNwG0m_v52AqCcPBI2khD_FsYYkzZSbhY9QNp3E5CvfoKYGmdUJ7H4ySI-YyO7Hbxoum089ZY';
 
 
