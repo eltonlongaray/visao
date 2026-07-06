@@ -78,11 +78,11 @@ html, body {
 .login-logo {
   width: 92px; height: 92px;
   border-radius: 28px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
+  background: #0d1b2e;
   display: grid; place-items: center;
-  font-size: 46px;
   margin: 10px auto 14px;
-  box-shadow: 0 14px 40px rgba(167,139,250,0.45), inset 0 2px 0 rgba(255,255,255,0.18);
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(13,27,46,0.6), inset 0 2px 0 rgba(255,255,255,0.08);
   position: relative;
 }
 .login-logo::after {
@@ -90,8 +90,8 @@ html, body {
   position: absolute;
   inset: -6px;
   border-radius: 32px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  opacity: 0.15;
+  background: linear-gradient(135deg, #e8a020, #0d1b2e);
+  opacity: 0.18;
   z-index: -1;
   filter: blur(12px);
 }
