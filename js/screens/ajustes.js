@@ -255,9 +255,11 @@ async function wire(app) {
         await Promise.all(keys.map(k => caches.delete(k)));
       }
       localStorage.removeItem('_visao_build');
+      // NÃO desregistra o SW — a subscription de push ficaria perdida.
+      // updateViaCache:'none' + skipWaiting() já garantem o SW mais recente no reload.
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
+        await Promise.all(regs.map(r => r.update()));
       }
       sub.textContent = 'Reiniciando...';
       setTimeout(() => window.location.reload(true), 400);
