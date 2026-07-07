@@ -345,7 +345,9 @@ function extractTaskName(text) {
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
     .replace(/\b(hoje|agora)\b\s*/gi, '')
     // Remove nomes/abreviações de dia da semana
-    .replace(/\b(próxim[oa]\s+)?(dom(ingo)?|seg(unda(-feira)?)?|ter([cç][aã]|ca)(-feira)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?)\b\s*/gi, '')
+    .replace(/\b(próxim[oa]\s+)?(dom(ingo)?|seg(unda(-feira)?)?|ter(([cç][aã]|ca)(-feira)?)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?)\b\s*/gi, '')
+    // Remove "dia " quando seguido de número (ex: "dia 13/07")
+    .replace(/\bdia\s+(?=\d)/gi, '')
     // Remove data explícita DD/MM com ou sem parênteses
     .replace(/\(?\b\d{1,2}\/\d{1,2}\)?\s*/g, '')
     .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
