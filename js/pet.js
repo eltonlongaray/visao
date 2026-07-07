@@ -277,10 +277,8 @@ async function routeCommand(text) {
 
   // ── Intenção de registrar ──
   if (REGISTER_TRIGGERS.test(t) || /registrar|adicionar/i.test(t)) {
-    // Detecta data alvo — "depois de amanhã" antes de "amanhã" (evita match parcial)
-    const targetDate = /depois\s+de\s+aman(h[ãa]|ha)/i.test(t) ? dateOffset(2)
-                     : /aman(h[ãa]|ha)/i.test(t)                ? dateOffset(1)
-                     : new Date();
+    // Detecta data alvo com suporte a DD/MM, nomes de dia e amanhã
+    const targetDate = extractDate(text);
 
     // Detecta tipo diretamente na frase
     const tipoExplicito = /\bcompromisso\b/i.test(t) ? 'compromisso'
@@ -346,6 +344,10 @@ function extractTaskName(text) {
     .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
     .replace(/\b(hoje|agora)\b\s*/gi, '')
+    // Remove nomes/abreviações de dia da semana
+    .replace(/\b(próxim[oa]\s+)?(dom(ingo)?|seg(unda(-feira)?)?|ter([cç][aã]|ca)(-feira)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?)\b\s*/gi, '')
+    // Remove data explícita DD/MM com ou sem parênteses
+    .replace(/\(?\b\d{1,2}\/\d{1,2}\)?\s*/g, '')
     .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
     // Remove expressões de horário — preposição + número + unidade
     .replace(/(?:às?|as|das?|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
@@ -369,6 +371,50 @@ function dateOffset(n) {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return d;
+}
+
+// === BLOCO: EXTRAÇÃO DE DATA ===
+// Reconhece DD/MM, nomes/abreviações de dia da semana, amanhã, depois de amanhã
+function extractDate(text) {
+  const t = text.toLowerCase();
+
+  // Prioridade 1: data explícita DD/MM (com ou sem parênteses) — ex: 13/07, (13/07)
+  const dmMatch = t.match(/\(?\b(\d{1,2})\/(\d{1,2})\)?/);
+  if (dmMatch) {
+    const day   = parseInt(dmMatch[1], 10);
+    const month = parseInt(dmMatch[2], 10) - 1;
+    const now   = new Date();
+    const d     = new Date(now.getFullYear(), month, day);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (d < today) d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+
+  // Prioridade 2: relativos
+  if (/depois\s+de\s+aman(h[ãa]|ha)/i.test(t)) return dateOffset(2);
+  if (/aman(h[ãa]|ha)/i.test(t))                return dateOffset(1);
+  if (/\bhoje\b/i.test(t))                       return new Date();
+
+  // Prioridade 3: nome/abreviação do dia da semana → próxima ocorrência
+  const WD_MAP = [
+    [/\bdom(ingo)?\b/i,                            0],
+    [/\bseg(unda(-feira)?)?\b/i,                   1],
+    [/\bter([cç][aã](-feira)?|ca(-feira)?)?\b/i,   2],
+    [/\bqua(rta(-feira)?)?\b/i,                    3],
+    [/\bqui(nta(-feira)?)?\b/i,                    4],
+    [/\bsex(ta(-feira)?)?\b/i,                     5],
+    [/\bs[aá]b(ado)?\b/i,                          6],
+  ];
+  for (const [re, wd] of WD_MAP) {
+    if (re.test(t)) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      let diff = (wd - today.getDay() + 7) % 7;
+      if (diff === 0) diff = 7; // mesmo dia → próxima semana
+      return dateOffset(diff);
+    }
+  }
+
+  return new Date();
 }
 
 function isToday(date) {
