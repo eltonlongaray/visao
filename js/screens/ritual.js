@@ -1091,7 +1091,7 @@ async function checkOverdueReminders(app) {
   for (const t of today.tasks) {
     // compromissos com horário são sempre cobrados; tarefas só se reminderEnabled=true
     if (t.kind !== 'commitment' && !t.reminderEnabled) continue;
-    if (t.done || t.cancelled) continue;
+    if (t.done || t.cancelled || t.rescheduled) continue;
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
     if (overdueDismissed.has(t.id)) continue;
@@ -1547,7 +1547,8 @@ async function showOverdueReminderModal(app, day, t) {
         // Mesmo dia → só atualiza hora
         t.startTime = newTime;
         t.rescheduleCount = newCount;
-        await updateDayTask(day.id, t.id, { startTime: newTime, rescheduleCount: newCount });
+        t.rescheduled = true;
+        await updateDayTask(day.id, t.id, { startTime: newTime, rescheduleCount: newCount, rescheduled: true });
       } else {
         // Dia diferente → MOVE: apaga do dia antigo, cria no novo
         await deleteDayTask(day.id, t.id);
@@ -1564,6 +1565,7 @@ async function showOverdueReminderModal(app, day, t) {
           icon: t.icon || '',
           done: false,
           cancelled: false,
+          rescheduled: true,
           order: 0,
           reminderEnabled: t.reminderEnabled || false,
           rescheduleCount: newCount,
