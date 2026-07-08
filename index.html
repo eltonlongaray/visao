@@ -10,7 +10,7 @@
 <!-- Force-update: limpa caches e atualiza SW sem desregistrar -->
 <script>
   (function() {
-    var V = '86';
+    var V = '87';
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
       if ('caches' in window) {
@@ -41,7 +41,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20260708a">
+<link rel="stylesheet" href="css/styles.css?v=20260708b">
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
   (function() {
@@ -62,7 +62,7 @@
       <div>Carregando Falcon...</div>
     </div>
   </div>
-  <script type="module" src="js/main.js?v=20260708a"></script>
+  <script type="module" src="js/main.js?v=20260708b"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>
