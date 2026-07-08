@@ -276,7 +276,7 @@ function buildReportHtml(data) {
 <button class="print-btn no-print" onclick="window.print()">🖨️ Salvar como PDF</button>
 
 <div class="cover">
-  <div class="logo">👁</div>
+  <div class="logo">🦅</div>
   <h1>Falcon · Seu Relatório Pessoal</h1>
   <div class="meta">${escape(data.user.email || '')}</div>
   <div class="meta">Gerado em ${formatBr(data.exportedAt)}</div>

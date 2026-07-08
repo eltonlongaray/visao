@@ -10,7 +10,7 @@
 <!-- Force-update: limpa SW e caches antigos automaticamente -->
 <script>
   (function() {
-    var V = '83';
+    var V = '84';
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
       var cleared = false;
@@ -56,11 +56,11 @@
 <body>
   <div id="app">
     <div style="padding:80px 20px;text-align:center;color:var(--muted)">
-      <div style="font-size:60px;margin-bottom:12px">👁</div>
+      <img src="icons/icon-192.png" style="width:64px;height:64px;border-radius:18px;display:block;margin:0 auto 14px;object-fit:cover;">
       <div>Carregando Falcon...</div>
     </div>
   </div>
-  <script type="module" src="js/main.js?v=20260707b"></script>
+  <script type="module" src="js/main.js?v=20260707c"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>
