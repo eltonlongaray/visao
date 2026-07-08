@@ -4,8 +4,9 @@
 // Fallback: localStorage + setInterval quando app está aberto.
 // ═══════════════════════════════════════════════════════════════
 
+import { auth } from './firebase.js';
+
 // ── Config ───────────────────────────────────────────────────
-// Preenchidos após deploy do Worker (ver instruções em visao-push-worker/)
 const WORKER_URL    = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
 const VAPID_PUBLIC_KEY = 'BHpOJJHb1-0cA7RuvguRjD9a5xNNIO1nivGUwmeiWdgwdU7LqCqxs4mLkamFLTSjCnBON2Asj9eM98FU8v1iwnQ';
@@ -42,12 +43,9 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from(raw, c => c.charCodeAt(0));
 }
 
-// Retorna o userId atual (Firebase Auth)
+// Retorna o userId atual — usa auth importado diretamente, sem depender de globalThis
 function getUserId() {
-  try {
-    const { auth } = globalThis._visaoAuth || {};
-    return auth?.currentUser?.uid || null;
-  } catch { return null; }
+  return auth?.currentUser?.uid || null;
 }
 
 const VAPID_KEY_STORE = 'visao_vapid_key';
