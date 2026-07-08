@@ -209,7 +209,20 @@ export async function startNotifChecker() {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 5: TAG ÚNICA
+// BLOCO 5: FOREGROUND PUSH LISTENER
+// Quando o SW recebe push e o app está aberto, o SW manda postMessage.
+// Aqui registramos o listener e chamamos o callback com { title, body, tag }.
+// ═══════════════════════════════════════════════════════════════
+export function startForegroundPushListener(onPush) {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'PUSH_FOREGROUND') onPush(e.data);
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: TAG ÚNICA
 // ═══════════════════════════════════════════════════════════════
 export function notifTag(dayDocId, title) {
   return `visao-${dayDocId}-${title.slice(0, 30).replace(/\s+/g, '-')}`;

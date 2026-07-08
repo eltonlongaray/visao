@@ -62,6 +62,28 @@ export function playUndone() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: BRRRR (deletar — grave com vibrato/tremor)
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 2.5: DING (notificação de lembrete — triplo ascendente)
+// ═══════════════════════════════════════════════════════════════
+export function playAlert() {
+  if (muted) return;
+  const c = getCtx(); if (!c) return;
+  const notes = [523, 659, 784]; // C5 → E5 → G5
+  notes.forEach((freq, i) => {
+    const t = c.currentTime + i * 0.18;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.22, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  });
+}
+
+
 export function playDelete() {
   if (muted) return;
   const c = getCtx(); if (!c) return;

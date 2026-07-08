@@ -4,7 +4,7 @@
 import { auth, onAuthStateChanged } from './firebase.js';
 import { registerRoute, navigate, forceRender } from './router.js';
 import { initI18n } from './i18n.js';
-import { startNotifChecker, subscribeToPush } from './notifications.js';
+import { startNotifChecker, subscribeToPush, startForegroundPushListener } from './notifications.js';
 import { renderLogin } from './screens/login.js';
 import { renderSignup } from './screens/signup.js';
 import { renderWelcome } from './screens/welcome.js';
@@ -18,6 +18,8 @@ import { renderLegalConsent } from './screens/legal-consent.js';
 import { renderAjustes } from './screens/ajustes.js';
 import * as biometric from './biometric.js';
 import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
+import { showToast } from './toast.js';
+import { playAlert } from './sounds.js';
 import { hasTerms } from './consent.js';
 import { initPet, showPet, hidePet } from './pet.js?v=20260705o';
 
@@ -42,6 +44,11 @@ forceRender();
 initAutoLock();
 initPet();
 startNotifChecker();
+startForegroundPushListener(({ title, body }) => {
+  showToast(`🔔 ${title}${body ? ' — ' + body : ''}`, 'info', 8000);
+  playAlert();
+  if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
+});
 
 
 // ═══════════════════════════════════════════════════════════════

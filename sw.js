@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v108';
+const CACHE_NAME = 'visao-v109';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -128,17 +128,23 @@ self.addEventListener('push', (event) => {
   const body  = data.body  || 'Você tem um lembrete';
   const tag   = data.tag   || 'visao-notif';
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon:               '/icons/icon-192.png',
-      badge:              '/icons/favicon-32.png',
-      tag,
-      vibrate:            [300, 150, 300, 150, 300],
-      requireInteraction: true,
-      renotify:           true,
-      silent:             false,
-      data:               { url: '/' },
-    })
+    Promise.all([
+      self.registration.showNotification(title, {
+        body,
+        icon:               '/icons/icon-192.png',
+        badge:              '/icons/favicon-32.png',
+        tag,
+        vibrate:            [300, 150, 300, 150, 300],
+        requireInteraction: true,
+        renotify:           true,
+        silent:             false,
+        data:               { url: '/' },
+      }),
+      // Notifica o app aberto (foreground) para mostrar banner + som internamente
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+        clients.forEach(c => c.postMessage({ type: 'PUSH_FOREGROUND', title, body, tag }));
+      }),
+    ])
   );
 });
 
