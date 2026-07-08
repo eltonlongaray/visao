@@ -118,9 +118,9 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
     }
   }
 
-  // ── SW setTimeout — disparo exato em até 5 min (funciona com app em background) ──
+  // ── SW setTimeout — disparo exato em até 60 min (funciona com app em background/fechado parcial) ──
   const delayMs = timestamp - Date.now();
-  if (delayMs > 0 && delayMs < 5 * 60_000) {
+  if (delayMs > 0 && delayMs < 60 * 60_000) {
     navigator.serviceWorker.ready.then(reg => {
       reg.active?.postMessage({
         type: 'SCHEDULE_NOTIF', title, body, tag, delayMs,

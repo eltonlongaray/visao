@@ -2406,6 +2406,16 @@ function attachHandlers(app) {
     if (result === 'scheduled') {
       btn.textContent = '✅';
       showToast(`🔔 Notificação agendada para as ${notifTime}!`, 'success');
+      // Marca reminderEnabled=true → overdue modal dispara quando o horário chegar
+      const taskId = btn.closest('[data-task-id]')?.dataset.taskId;
+      if (taskId) {
+        const dayEntry = weekData.find(d => d.id === notifDay);
+        const task = dayEntry?.tasks.find(t => t.id === taskId);
+        if (task && !task.reminderEnabled) {
+          task.reminderEnabled = true;
+          updateDayTask(notifDay, taskId, { reminderEnabled: true }).catch(() => {});
+        }
+      }
     } else if (result === 'denied') {
       btn.textContent = '🔔';
       showToast('Permissão negada. Ative notificações nas configurações do celular.', 'error');
