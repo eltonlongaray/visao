@@ -6,13 +6,13 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v95';
+const CACHE_NAME = 'visao-v96';
 const CORE_ASSETS = [
   './',
   './index.html',
   './css/styles.css',
   './manifest.json',
-  './icons/icon-192.png?v=94',
+  './icons/icon-192.png?v=95',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
