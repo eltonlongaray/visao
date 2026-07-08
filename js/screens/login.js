@@ -7,7 +7,7 @@ import { showToast } from '../toast.js';
 export function renderLogin(app) {
   app.innerHTML = `
     <div class="login-screen">
-      <div class="login-logo"><img src="icons/icon-192.png" alt="Falcon" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+      <div class="login-logo"><img src="icons/icon-192.png?v=92" alt="Falcon" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
       <div class="login-title">Falcon</div>
       <div class="login-sub">Assistente pessoal de planejamento estratégico</div>
 
