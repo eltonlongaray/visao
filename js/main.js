@@ -1,25 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
-import { auth, onAuthStateChanged } from './firebase.js?v=20260708e';
-import { registerRoute, navigate, forceRender } from './router.js?v=20260708e';
-import { initI18n } from './i18n.js?v=20260708e';
-import { startNotifChecker, subscribeToPush } from './notifications.js?v=20260708e';
-import { renderLogin } from './screens/login.js?v=20260708e';
-import { renderSignup } from './screens/signup.js?v=20260708e';
-import { renderWelcome } from './screens/welcome.js?v=20260708e';
-import { renderModalidade } from './screens/modalidade.js?v=20260708e';
-import { renderHome } from './screens/home.js?v=20260708e';
-import { renderRitual } from './screens/ritual.js?v=20260708e';
-import { renderDesempenho } from './screens/desempenho.js?v=20260708e';
-import { renderTermos } from './screens/termos.js?v=20260708e';
-import { renderPrivacidade } from './screens/privacidade.js?v=20260708e';
-import { renderLegalConsent } from './screens/legal-consent.js?v=20260708e';
-import { renderAjustes } from './screens/ajustes.js?v=20260708e';
-import * as biometric from './biometric.js?v=20260708e';
-import { showLock, hideLock, initAutoLock, isLocked } from './lock.js?v=20260708e';
-import { hasTerms } from './consent.js?v=20260708e';
-import { initPet, showPet, hidePet } from './pet.js?v=20260708e';
+import { auth, onAuthStateChanged } from './firebase.js';
+import { registerRoute, navigate, forceRender } from './router.js';
+import { initI18n } from './i18n.js';
+import { startNotifChecker, subscribeToPush } from './notifications.js';
+import { renderLogin } from './screens/login.js';
+import { renderSignup } from './screens/signup.js';
+import { renderWelcome } from './screens/welcome.js';
+import { renderModalidade } from './screens/modalidade.js';
+import { renderHome } from './screens/home.js';
+import { renderRitual } from './screens/ritual.js';
+import { renderDesempenho } from './screens/desempenho.js';
+import { renderTermos } from './screens/termos.js';
+import { renderPrivacidade } from './screens/privacidade.js';
+import { renderLegalConsent } from './screens/legal-consent.js';
+import { renderAjustes } from './screens/ajustes.js';
+import * as biometric from './biometric.js';
+import { showLock, hideLock, initAutoLock, isLocked } from './lock.js';
+import { hasTerms } from './consent.js';
+import { initPet, showPet, hidePet } from './pet.js?v=20260705o';
 
 
 // ═══════════════════════════════════════════════════════════════
