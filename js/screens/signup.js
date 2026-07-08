@@ -6,7 +6,7 @@ import { recordTerms } from '../consent.js';
 export function renderSignup(app) {
   app.innerHTML = `
     <div class="login-screen">
-      <div class="login-logo"><img src="icons/icon-192.png?v=92" alt="Falcon" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+      <div class="login-logo"><img src="icons/icon-192.png?v=93" alt="Falcon" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
       <div class="login-title">Falcon</div>
       <div class="login-sub">Crie sua conta para começar</div>
 

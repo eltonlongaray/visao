@@ -31,7 +31,7 @@ export async function renderAjustes(app) {
         </div>
 
         <div class="ajustes-account">
-          <div class="ajustes-avatar" style="background:#4f46e5"><img src="icons/icon-192.png?v=92" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
+          <div class="ajustes-avatar" style="background:#4f46e5"><img src="icons/icon-192.png?v=93" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
           <div class="ajustes-account-info">
             <strong>${escape(email)}</strong>
             <small>${t('ajustes.plan')}</small>

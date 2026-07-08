@@ -18,7 +18,7 @@ export function renderModalidade(app) {
 
   app.innerHTML = `
     <div class="onboarding modalidade-screen">
-      <div class="onboarding-logo" style="background:#4f46e5"><img src="icons/icon-192.png?v=92" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
+      <div class="onboarding-logo" style="background:#4f46e5"><img src="icons/icon-192.png?v=93" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
       <div class="onboarding-title">Falcon</div>
       <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">
         ${t('modal.hello', { name: escapeHtml(firstName) })}
