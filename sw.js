@@ -122,7 +122,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data?.json() || {}; } catch {}
-  const title = data.title || 'Visão';
+  const title = data.title || 'Falcon';
   const body  = data.body  || 'Você tem um lembrete';
   const tag   = data.tag   || 'visao-notif';
   event.waitUntil(

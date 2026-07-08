@@ -138,7 +138,7 @@ export async function renderAjustes(app) {
         </section>
 
         <div class="ajustes-version">
-          Visão · v1.0.0 · MVP<br>
+          Falcon · v1.0.0 · MVP<br>
           Desenvolvido por Élton Longaray
         </div>
       </div>
@@ -177,7 +177,7 @@ async function wire(app) {
       bioToggle.disabled = true;
       try {
         const user = auth.currentUser;
-        await biometric.register(user.uid, user.email || 'Visão');
+        await biometric.register(user.uid, user.email || 'Falcon');
         showToast('Bloqueio biométrico ativado.', 'success');
       } catch (err) {
         console.warn('[ajustes] bio enable falhou:', err);

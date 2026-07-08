@@ -1,6 +1,6 @@
 {
-  "name": "Visão — Assistente Pessoal",
-  "short_name": "Visão",
+  "name": "Falcon — Assistente Pessoal",
+  "short_name": "Falcon",
   "description": "Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.",
   "start_url": "./",
   "scope": "./",

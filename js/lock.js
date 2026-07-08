@@ -25,7 +25,7 @@ export function showLock() {
   overlay.innerHTML = `
     <div class="lock-card">
       <div class="lock-icon">🔒</div>
-      <div class="lock-title">Visão</div>
+      <div class="lock-title">Falcon</div>
       <div class="lock-sub">Toque pra desbloquear</div>
       <button class="lock-btn" id="lockUnlockBtn">
         <span class="lock-btn-icon">🔓</span>

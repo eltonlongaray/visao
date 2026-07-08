@@ -17,7 +17,7 @@ export const ONBOARDING_STEPS = [
     noSpotlight: true,
     noCollapse: true,
     route: '/home',
-    title: 'Bem-vindo ao Visão ✨',
+    title: 'Bem-vindo ao Falcon ✨',
     message: 'Em 30 segundos te mostro o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
     primaryBtn: 'Vamos →'
   },

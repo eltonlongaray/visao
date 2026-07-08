@@ -15,26 +15,26 @@ export const RESPONSAVEL = 'Élton de Oliveira Longaray';
 // TERMOS DE USO
 // ═══════════════════════════════════════════════════════════════
 export const TERMOS_HTML = `
-  <h1>Termos de Uso · Visão</h1>
+  <h1>Termos de Uso · Falcon</h1>
   <p class="legal-meta">Vigência: ${VIGENCIA}</p>
 
-  <h2>1. O que é o Visão</h2>
+  <h2>1. O que é o Falcon</h2>
   <p>
-    Visão é um aplicativo pessoal de planejamento estratégico que ajuda você
+    Falcon é um aplicativo pessoal de planejamento estratégico que ajuda você
     a organizar sua rotina, acompanhar hábitos e refletir sobre seu desempenho.
     Atualmente é um projeto pessoal, oferecido gratuitamente em fase de testes.
   </p>
 
   <h2>2. Cadastro e Conta</h2>
   <ul>
-    <li>Você deve ter pelo menos <strong>18 anos</strong> pra usar o Visão.</li>
+    <li>Você deve ter pelo menos <strong>18 anos</strong> pra usar o Falcon.</li>
     <li>Você é responsável pela veracidade dos dados que cadastrar.</li>
     <li>Você é responsável pela segurança do seu e-mail e senha. Não compartilhe sua senha com terceiros.</li>
     <li>Se desconfiar de acesso indevido, troque sua senha imediatamente.</li>
   </ul>
 
   <h2>3. Uso permitido</h2>
-  <p>O Visão deve ser usado exclusivamente para <strong>uso pessoal e não comercial</strong>.</p>
+  <p>O Falcon deve ser usado exclusivamente para <strong>uso pessoal e não comercial</strong>.</p>
   <p>É proibido:</p>
   <ul>
     <li>Tentar acessar dados de outros usuários ou burlar a autenticação.</li>
@@ -51,7 +51,7 @@ export const TERMOS_HTML = `
 
   <h2>5. Disponibilidade do serviço</h2>
   <p>
-    O Visão é oferecido <strong>"como está"</strong>. Não garantimos disponibilidade
+    O Falcon é oferecido <strong>"como está"</strong>. Não garantimos disponibilidade
     100% do tempo nem ausência de bugs. Em caso de manutenção ou falhas, faremos
     o possível pra resolver rapidamente, mas não nos responsabilizamos por perdas
     de dados decorrentes de problemas técnicos ou força maior.
@@ -94,7 +94,7 @@ export const TERMOS_HTML = `
 // POLÍTICA DE PRIVACIDADE
 // ═══════════════════════════════════════════════════════════════
 export const PRIVACIDADE_HTML = `
-  <h1>Política de Privacidade · Visão</h1>
+  <h1>Política de Privacidade · Falcon</h1>
   <p class="legal-meta">Vigência: ${VIGENCIA}</p>
   <p class="legal-meta">Base legal: Lei nº 13.709/2018 (LGPD)</p>
 
@@ -216,7 +216,7 @@ export const PRIVACIDADE_HTML = `
 
   <h2>11. Menores de idade</h2>
   <p>
-    O Visão não é destinado a menores de 18 anos. Se identificarmos cadastro de
+    O Falcon não é destinado a menores de 18 anos. Se identificarmos cadastro de
     menor, removeremos os dados.
   </p>
 

@@ -1933,9 +1933,9 @@ async function autoScheduleNotif(dayDocId, task) {
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
   if (ts <= Date.now()) return;
   const tag = notifTag(dayDocId, task.title || '');
-  const result = await scheduleNotif({ title: task.title || 'Visão', body: 'Lembrete do Ritual', tag, timestamp: ts });
+  const result = await scheduleNotif({ title: task.title || 'Falcon', body: 'Lembrete do Ritual', tag, timestamp: ts });
   if (result === 'scheduled') showToast(`🔔 Notificação agendada para ${task.startTime}`, 'success');
-  else if (result === 'denied') showToast('Ative as notificações do Visão nas configurações do celular.', 'info');
+  else if (result === 'denied') showToast('Ative as notificações do Falcon nas configurações do celular.', 'info');
 }
 
 
@@ -2400,7 +2400,7 @@ function attachHandlers(app) {
     btn.textContent = '⏳';
     btn.disabled = true;
     const tag    = notifTag(notifDay, notifTitle);
-    const result = await scheduleNotif({ title: notifTitle, body: 'Compromisso no Visão', tag, timestamp: ts });
+    const result = await scheduleNotif({ title: notifTitle, body: 'Compromisso no Falcon', tag, timestamp: ts });
     btn.disabled = false;
 
     if (result === 'scheduled') {
@@ -3867,7 +3867,7 @@ function makeGCalUrl(t, dayDocId) {
   const startFmt   = `${dateStr}T${pad(h)}${pad(mi)}00`;
   const endH       = Math.min(h + 1, 23);
   const endFmt     = `${dateStr}T${pad(endH)}${pad(mi)}00`;
-  const base    = t.kind === 'commitment' ? 'Compromisso registrado no Visão' : 'Atividade registrada no Visão';
+  const base    = t.kind === 'commitment' ? 'Compromisso registrado no Falcon' : 'Atividade registrada no Falcon';
   const detail  = `⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\n${t.desc || base}`;
   const params  = new URLSearchParams({ action: 'TEMPLATE', text: t.title, dates: `${startFmt}/${endFmt}`, details: detail });
   return `https://calendar.google.com/calendar/render?${params}`;

@@ -20,7 +20,7 @@ export function renderLegalConsent(app) {
         <div class="consent-gate-icon">📜</div>
         <h1 class="consent-gate-title">Antes de começar</h1>
         <p class="consent-gate-text">
-          Pra usar o Visão, você precisa ler e aceitar
+          Pra usar o Falcon, você precisa ler e aceitar
           nossos Termos de Uso e Política de Privacidade.
         </p>
 

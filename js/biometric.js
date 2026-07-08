@@ -83,7 +83,7 @@ export async function register(userId, userName) {
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: randomChallenge(),
-      rp: { name: 'Visão' },
+      rp: { name: 'Falcon' },
       user: {
         id: new TextEncoder().encode(userId),
         name: userName,

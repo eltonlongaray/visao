@@ -63,7 +63,7 @@ function buildPetHTML() {
     <div class="pet-chat-header">
       <div class="pet-chat-title">
         <div class="pet-eye-mini"></div>
-        <span>Visão</span>
+        <span>Falcon</span>
       </div>
       <button class="pet-chat-close" id="pet-chat-close" aria-label="Fechar">×</button>
     </div>
@@ -110,7 +110,7 @@ function buildPetHTML() {
   </div>
 
   <!-- Corpo do pet — O OLHO INTEIRO -->
-  <div class="pet-body" id="pet-body" role="button" aria-label="Abrir chat do Visão" tabindex="0">
+  <div class="pet-body" id="pet-body" role="button" aria-label="Abrir chat do Falcon" tabindex="0">
     <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <!-- Esclera: preenche o círculo inteiro -->
@@ -600,7 +600,7 @@ function petGCalUrl(name, date, time) {
   const params  = new URLSearchParams({
     action: 'TEMPLATE', text: name,
     dates: `${ds}T${pad(h)}${pad(mi)}00/${ds}T${pad(Math.min(h+1,23))}${pad(mi)}00`,
-    details: '⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\nRegistrado no Visão.',
+    details: '⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\nRegistrado no Falcon.',
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
@@ -647,7 +647,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
         const [h, mi]  = time.split(':').map(Number);
         const ts       = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi).getTime();
         const tag      = notifTag(dayId(date), name);
-        const result   = await scheduleNotif({ title: name, body: done ? 'Atividade no Visão' : 'Compromisso no Visão', tag, timestamp: ts });
+        const result   = await scheduleNotif({ title: name, body: done ? 'Atividade no Falcon' : 'Compromisso no Falcon', tag, timestamp: ts });
         if (result === 'scheduled') {
           setTimeout(() => addMessage(
             `🔔 Notificação agendada para as <strong>${time}</strong>. Você será avisado no horário!`,

@@ -179,7 +179,7 @@ function buildReportHtml(data) {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Relatório Visão · ${escape(data.user.email || '')}</title>
+<title>Relatório Falcon · ${escape(data.user.email || '')}</title>
 <style>
   @page { margin: 16mm; }
   * { box-sizing: border-box; }
@@ -277,7 +277,7 @@ function buildReportHtml(data) {
 
 <div class="cover">
   <div class="logo">👁</div>
-  <h1>Visão · Seu Relatório Pessoal</h1>
+  <h1>Falcon · Seu Relatório Pessoal</h1>
   <div class="meta">${escape(data.user.email || '')}</div>
   <div class="meta">Gerado em ${formatBr(data.exportedAt)}</div>
 </div>
@@ -345,7 +345,7 @@ ${weeksWithNotes.length
   : '<p>Você ainda não escreveu reflexões semanais.</p>'}
 
 <footer>
-  Visão · Assistente Pessoal de Planejamento Estratégico<br>
+  Falcon · Assistente Pessoal de Planejamento Estratégico<br>
   Documento exportado em ${formatBr(data.exportedAt)} · Total de ${data.days.length} dias na base
 </footer>
 

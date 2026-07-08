@@ -7,7 +7,7 @@ export function renderWelcome(app) {
   app.innerHTML = `
     <div class="onboarding">
       <div class="onboarding-logo">👁</div>
-      <div class="onboarding-title">Visão</div>
+      <div class="onboarding-title">Falcon</div>
       <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">Bem-vindo!</div>
       <div class="onboarding-sub">Conta criada. Escolha um template pra começar.</div>
 

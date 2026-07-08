@@ -54,7 +54,7 @@ function offerHtml() {
   return `
     <div class="bio-modal-card">
       <div class="bio-modal-icon">🔐</div>
-      <h2 class="bio-modal-title">Proteja seu Visão</h2>
+      <h2 class="bio-modal-title">Proteja seu Falcon</h2>
       <p class="bio-modal-text" style="margin-bottom:24px">
         Trave o app com o <strong>desbloqueio do seu celular</strong> —
         Face ID, digital ou senha.
@@ -109,7 +109,7 @@ function wireOffer() {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('Usuário não autenticado');
-      await biometric.register(user.uid, user.email || user.displayName || 'Visão User');
+      await biometric.register(user.uid, user.email || user.displayName || 'Falcon User');
       flashSuccess();
     } catch (err) {
       console.warn('[bio] register falhou:', err?.name, err?.message);
