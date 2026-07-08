@@ -13,6 +13,10 @@ import * as tour from '../tour.js';
 import { isAdmin } from '../admin.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { t } from '../i18n.js';
+import { subscribeToPush, notifSupported, permissionStatus } from '../notifications.js';
+
+const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
+const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -114,6 +118,13 @@ export async function renderAjustes(app) {
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">${t('ajustes.update.title')}</div>
               <div class="ajustes-row-sub">${t('ajustes.update.sub')}</div>
+            </div>
+            <span class="ajustes-row-arrow">›</span>
+          </button>
+          <button class="ajustes-row clickable" id="testPushBtn">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Testar notificação</div>
+              <div class="ajustes-row-sub" id="testPushSub">Envia um push de teste agora</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
@@ -270,6 +281,64 @@ async function wire(app) {
       sub.textContent = 'Erro ao atualizar. Tente de novo.';
       btn.disabled = false;
     }
+  });
+
+  // ── Testar push ──
+  app.querySelector('#testPushBtn')?.addEventListener('click', async () => {
+    const btn = app.querySelector('#testPushBtn');
+    const sub = app.querySelector('#testPushSub');
+    btn.disabled = true;
+
+    if (!notifSupported()) {
+      sub.textContent = '❌ Notificações não suportadas neste browser.';
+      btn.disabled = false;
+      return;
+    }
+    if (permissionStatus() !== 'granted') {
+      sub.textContent = '❌ Permissão negada. Ative nas configurações do celular.';
+      btn.disabled = false;
+      return;
+    }
+
+    sub.textContent = 'Registrando subscription...';
+    await subscribeToPush();
+
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      sub.textContent = '❌ Usuário não autenticado.';
+      btn.disabled = false;
+      return;
+    }
+
+    sub.textContent = 'Enviando push de teste...';
+    try {
+      const res = await fetch(`${WORKER_URL}/test-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        sub.textContent = `✅ Push enviado (status ${data.status}) — deve chegar em segundos!`;
+        showToast('Push de teste enviado!', 'success');
+      } else if (data.error === 'no_subscription') {
+        sub.textContent = '⚠️ Subscription não registrada. Aguarde 10s e tente de novo.';
+        showToast('Registrando... tente de novo em 10 segundos.', 'info');
+      } else if (data.error === 'subscription_stale') {
+        sub.textContent = '⚠️ Subscription expirada, foi limpa. Tente de novo.';
+        await subscribeToPush();
+        showToast('Subscription renovada. Tente de novo.', 'info');
+      } else {
+        sub.textContent = `❌ Erro: ${data.error || data.status || 'desconhecido'}`;
+        showToast('Falha no push de teste.', 'error');
+      }
+    } catch (err) {
+      sub.textContent = `❌ Erro de rede: ${err.message}`;
+      showToast('Sem conexão com o Worker.', 'error');
+    }
+
+    btn.disabled = false;
   });
 
   // ── Sair ──
