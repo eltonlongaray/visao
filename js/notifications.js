@@ -8,7 +8,7 @@
 // Preenchidos após deploy do Worker (ver instruções em visao-push-worker/)
 const WORKER_URL    = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
-const VAPID_PUBLIC_KEY = 'BKbrmYvllDJCioKNwG0m_v52AqCcPBI2khD_FsYYkzZSbhY9QNp3E5CvfoKYGmdUJ7H4ySI-YyO7Hbxoum089ZY';
+const VAPID_PUBLIC_KEY = 'BHpOJJHb1-0cA7RuvguRjD9a5xNNIO1nivGUwmeiWdgwdU7LqCqxs4mLkamFLTSjCnBON2Asj9eM98FU8v1iwnQ';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -50,11 +50,14 @@ function getUserId() {
   } catch { return null; }
 }
 
-// Assina no PushManager e registra o subscription no Worker
+const VAPID_KEY_STORE = 'visao_vapid_key';
+
+// Assina no PushManager e registra o subscription no Worker.
+// Re-inscreve automaticamente se a VAPID key mudou (ex: após rotação de chaves).
 export async function subscribeToPush() {
   if (!notifSupported()) return;
   if (Notification.permission !== 'granted') return;
-  if (WORKER_URL.includes('REPLACE')) return; // Worker ainda não configurado
+  if (WORKER_URL.includes('REPLACE')) return;
 
   const userId = getUserId();
   if (!userId) return;
@@ -62,12 +65,21 @@ export async function subscribeToPush() {
   try {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+
+    // Se a chave VAPID mudou, força nova subscription
+    if (sub && localStorage.getItem(VAPID_KEY_STORE) !== VAPID_PUBLIC_KEY) {
+      await sub.unsubscribe();
+      sub = null;
+    }
+
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
+      localStorage.setItem(VAPID_KEY_STORE, VAPID_PUBLIC_KEY);
     }
+
     // Envia assinatura ao Worker
     await fetch(`${WORKER_URL}/subscribe`, {
       method: 'POST',
