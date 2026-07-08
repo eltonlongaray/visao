@@ -13,7 +13,7 @@ import * as tour from '../tour.js';
 import { isAdmin } from '../admin.js';
 import { bottomNav } from '../components/bottom-nav.js';
 import { t } from '../i18n.js';
-import { subscribeToPush, notifSupported, permissionStatus } from '../notifications.js';
+import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNotifMuted } from '../notifications.js';
 
 const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
@@ -121,6 +121,16 @@ export async function renderAjustes(app) {
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
+          <div class="ajustes-row" id="rowMuteNotif">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Silenciar notificações</div>
+              <div class="ajustes-row-sub">Receba alertas sem som e vibração</div>
+            </div>
+            <label class="ajustes-toggle">
+              <input type="checkbox" id="muteNotifToggle">
+              <span class="ajustes-toggle-slider"></span>
+            </label>
+          </div>
           <button class="ajustes-row clickable" id="testPushBtn">
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">Testar notificação</div>
@@ -206,6 +216,16 @@ async function wire(app) {
       showToast('Bloqueio biométrico desativado.', 'info');
     }
   });
+
+  // ── Mute notificações ──
+  const muteToggle = app.querySelector('#muteNotifToggle');
+  if (muteToggle) {
+    muteToggle.checked = getNotifMuted();
+    muteToggle.addEventListener('change', () => {
+      setNotifMuted(muteToggle.checked);
+      showToast(muteToggle.checked ? 'Notificações silenciadas' : 'Som de notificações ativado', 'info');
+    });
+  }
 
   // ── Export JSON ──
   app.querySelector('#exportJsonBtn')?.addEventListener('click', async () => {

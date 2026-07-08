@@ -188,15 +188,16 @@ export async function startNotifChecker() {
     try {
       const reg = await navigator.serviceWorker.ready;
       for (const n of due) {
+        const muted = getNotifMuted();
         await reg.showNotification(n.title, {
           body:               n.body,
           icon:               '/icons/icon-192.png',
           badge:              '/icons/favicon-32.png',
           tag:                n.tag,
-          vibrate:            [300, 150, 300, 150, 300],
+          vibrate:            muted ? [] : [300, 150, 300, 150, 300],
           requireInteraction: true,
           renotify:           true,
-          silent:             false,
+          silent:             muted,
           data:               { url: '/' },
         });
       }
@@ -205,6 +206,23 @@ export async function startNotifChecker() {
 
   await check();
   setInterval(check, 30_000);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6.5: MUTE GLOBAL
+// ═══════════════════════════════════════════════════════════════
+const MUTE_KEY = 'visao_notif_muted';
+
+export function getNotifMuted() {
+  return localStorage.getItem(MUTE_KEY) === '1';
+}
+
+export function setNotifMuted(muted) {
+  localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+  navigator.serviceWorker?.ready.then(reg => {
+    reg.active?.postMessage({ type: 'SET_MUTED', muted: !!muted });
+  }).catch(() => {});
 }
 
 
@@ -222,7 +240,7 @@ export function startForegroundPushListener(onPush) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 6: TAG ÚNICA
+// BLOCO 7: TAG ÚNICA
 // ═══════════════════════════════════════════════════════════════
 export function notifTag(dayDocId, title) {
   return `visao-${dayDocId}-${title.slice(0, 30).replace(/\s+/g, '-')}`;

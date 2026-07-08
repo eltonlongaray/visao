@@ -6,7 +6,10 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v109';
+const CACHE_NAME = 'visao-v110';
+
+// Estado de mute — atualizado via postMessage do app principal
+let _muted = false;
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -97,6 +100,10 @@ self.addEventListener('fetch', (event) => {
 // O main thread manda { type:'SCHEDULE_NOTIF', title, body, tag, icon, badge, delayMs }
 // ═══════════════════════════════════════════════════════════════
 self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SET_MUTED') {
+    _muted = !!event.data.muted;
+    return;
+  }
   if (event.data?.type !== 'SCHEDULE_NOTIF') return;
   const { title, body, tag, icon, badge, delayMs } = event.data;
   // Mantém o SW vivo durante o delay (até 5 min; além disso o SO pode matar o SW)
@@ -105,10 +112,10 @@ self.addEventListener('message', (event) => {
       setTimeout(async () => {
         await self.registration.showNotification(title, {
           body, icon, badge, tag,
-          vibrate:            [300, 150, 300, 150, 300],
+          vibrate:            _muted ? [] : [300, 150, 300, 150, 300],
           requireInteraction: true,
           renotify:           true,
-          silent:             false,
+          silent:             _muted,
           data:               { url: '/' },
         });
         resolve();
@@ -134,10 +141,10 @@ self.addEventListener('push', (event) => {
         icon:               '/icons/icon-192.png',
         badge:              '/icons/favicon-32.png',
         tag,
-        vibrate:            [300, 150, 300, 150, 300],
+        vibrate:            _muted ? [] : [300, 150, 300, 150, 300],
         requireInteraction: true,
         renotify:           true,
-        silent:             false,
+        silent:             _muted,
         data:               { url: '/' },
       }),
       // Notifica o app aberto (foreground) para mostrar banner + som internamente

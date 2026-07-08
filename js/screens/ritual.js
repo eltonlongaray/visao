@@ -564,6 +564,17 @@ function renderUI(app) {
   attachHandlers(app);
   initTaskSortables();  // habilita drag-drop em cada task-list
   startOverdueChecker(app); // varre lembretes vencidos a cada 30s
+  scheduleAllTodayNotifs();  // auto-agenda tasks com horário de hoje
+}
+
+async function scheduleAllTodayNotifs() {
+  const todayStr = dayId(new Date());
+  const today = weekData.find(d => d.id === todayStr);
+  if (!today) return;
+  for (const task of today.tasks) {
+    if (task.done || task.cancelled) continue;
+    await autoScheduleNotif(todayStr, task);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1089,8 +1100,6 @@ async function checkOverdueReminders(app) {
   const today = weekData.find(d => d.id === todayStr);
   if (!today) return;
   for (const t of today.tasks) {
-    // compromissos com horário são sempre cobrados; tarefas só se reminderEnabled=true
-    if (t.kind !== 'commitment' && !t.reminderEnabled) continue;
     if (t.done || t.cancelled || t.rescheduled) continue;
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
@@ -1720,7 +1729,6 @@ function taskCard(t, dayDocId) {
         <div class="task-footer">
           ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
           ${t.startTime && !t.cancelled ? `
-            <button class="task-notif-btn" data-notif-title="${escape(t.title)}" data-notif-time="${t.startTime}" data-notif-day="${dayDocId}" title="Agendar notificação">🔔</button>
             <a class="task-gcal-btn" href="${makeGCalUrl(t, dayDocId)}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda">📅 Google Agenda</a>
           ` : ''}
         </div>
@@ -1927,7 +1935,7 @@ function openRitualCalendar(app) {
 // Agenda push local silenciosamente (sem toast extra se já foi pedida permissão).
 // ═══════════════════════════════════════════════════════════════
 async function autoScheduleNotif(dayDocId, task) {
-  if (!task.reminderEnabled || !task.startTime) return;
+  if (!task.startTime) return;
   const [y, mo, d] = dayDocId.split('-').map(Number);
   const [h, mi]    = task.startTime.split(':').map(Number);
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
@@ -2381,48 +2389,6 @@ function attachHandlers(app) {
     const btn = e.target.closest('.task-gcal-btn');
     if (!btn) return;
     showToast('No Google Agenda, role até 🔔 Adicionar notificação e configure antes de salvar.', 'info');
-  });
-
-  // 🔔 Agendar notificação local para a tarefa
-  app.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.task-notif-btn');
-    if (!btn) return;
-    const { notifTitle, notifTime, notifDay } = btn.dataset;
-    const [y, mo, d] = notifDay.split('-').map(Number);
-    const [h, mi]    = notifTime.split(':').map(Number);
-    const ts         = new Date(y, mo - 1, d, h, mi).getTime();
-
-    if (ts <= Date.now()) {
-      showToast('Esse horário já passou.', 'info');
-      return;
-    }
-
-    btn.textContent = '⏳';
-    btn.disabled = true;
-    const tag    = notifTag(notifDay, notifTitle);
-    const result = await scheduleNotif({ title: notifTitle, body: 'Compromisso no Falcon', tag, timestamp: ts });
-    btn.disabled = false;
-
-    if (result === 'scheduled') {
-      btn.textContent = '✅';
-      showToast(`🔔 Notificação agendada para as ${notifTime}!`, 'success');
-      // Marca reminderEnabled=true → overdue modal dispara quando o horário chegar
-      const taskId = btn.closest('[data-task-id]')?.dataset.taskId;
-      if (taskId) {
-        const dayEntry = weekData.find(d => d.id === notifDay);
-        const task = dayEntry?.tasks.find(t => t.id === taskId);
-        if (task && !task.reminderEnabled) {
-          task.reminderEnabled = true;
-          updateDayTask(notifDay, taskId, { reminderEnabled: true }).catch(() => {});
-        }
-      }
-    } else if (result === 'denied') {
-      btn.textContent = '🔔';
-      showToast('Permissão negada. Ative notificações nas configurações do celular.', 'error');
-    } else {
-      btn.textContent = '🔔';
-      showToast('Não foi possível agendar. Use o 📅 Google Agenda.', 'info');
-    }
   });
 
   // Inputs (acordei/dormi/hidratação/anotações) — debounce save

@@ -4,7 +4,7 @@
 import { auth, onAuthStateChanged } from './firebase.js';
 import { registerRoute, navigate, forceRender } from './router.js';
 import { initI18n } from './i18n.js';
-import { startNotifChecker, subscribeToPush, startForegroundPushListener } from './notifications.js';
+import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted } from './notifications.js';
 import { renderLogin } from './screens/login.js';
 import { renderSignup } from './screens/signup.js';
 import { renderWelcome } from './screens/welcome.js';
@@ -44,10 +44,17 @@ forceRender();
 initAutoLock();
 initPet();
 startNotifChecker();
+// Sincroniza mute com o SW ao carregar
+navigator.serviceWorker?.ready.then(reg => {
+  reg.active?.postMessage({ type: 'SET_MUTED', muted: getNotifMuted() });
+}).catch(() => {});
 startForegroundPushListener(({ title, body }) => {
-  showToast(`🔔 ${title}${body ? ' — ' + body : ''}`, 'info', 8000);
-  playAlert();
-  if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
+  const muted = getNotifMuted();
+  showToast(`🔔 ${title}${body ? ' — ' + body : ''}`, muted ? 'info' : 'info', 8000);
+  if (!muted) {
+    playAlert();
+    if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
+  }
 });
 
 
