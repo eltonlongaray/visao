@@ -231,10 +231,10 @@ html, body {
 .onboarding-logo {
   width: 88px; height: 88px;
   border-radius: 26px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
+  background: #F59E0B;
   display: grid; place-items: center;
-  font-size: 44px;
   margin: 0 auto 14px;
+  overflow: hidden;
   box-shadow: 0 14px 36px rgba(167,139,250,0.40), inset 0 2px 0 rgba(255,255,255,0.18);
 }
 .onboarding-title {
@@ -3796,10 +3796,10 @@ body.bio-modal-open { overflow: hidden; }
 .ajustes-avatar {
   width: 50px; height: 50px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent), var(--blue, #4f46e5));
+  background: #F59E0B;
   display: grid; place-items: center;
-  font-size: 24px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .ajustes-account-info strong {
   display: block;
