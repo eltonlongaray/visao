@@ -189,9 +189,15 @@ export async function startNotifChecker() {
       const reg = await navigator.serviceWorker.ready;
       for (const n of due) {
         await reg.showNotification(n.title, {
-          body: n.body, icon: '/icons/icon-192.png',
-          badge: '/icons/favicon-32.png', tag: n.tag,
-          vibrate: [200, 100, 200], requireInteraction: true, data: { url: '/' },
+          body:               n.body,
+          icon:               '/icons/icon-192.png',
+          badge:              '/icons/favicon-32.png',
+          tag:                n.tag,
+          vibrate:            [300, 150, 300, 150, 300],
+          requireInteraction: true,
+          renotify:           true,
+          silent:             false,
+          data:               { url: '/' },
         });
       }
     } catch (err) { console.warn('[notif-checker]', err); }

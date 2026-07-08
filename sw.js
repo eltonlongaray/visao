@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v107';
+const CACHE_NAME = 'visao-v108';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -105,9 +105,11 @@ self.addEventListener('message', (event) => {
       setTimeout(async () => {
         await self.registration.showNotification(title, {
           body, icon, badge, tag,
-          vibrate: [200, 100, 200],
+          vibrate:            [300, 150, 300, 150, 300],
           requireInteraction: true,
-          data: { url: '/' },
+          renotify:           true,
+          silent:             false,
+          data:               { url: '/' },
         });
         resolve();
       }, delayMs);
@@ -131,8 +133,10 @@ self.addEventListener('push', (event) => {
       icon:               '/icons/icon-192.png',
       badge:              '/icons/favicon-32.png',
       tag,
-      vibrate:            [200, 100, 200],
+      vibrate:            [300, 150, 300, 150, 300],
       requireInteraction: true,
+      renotify:           true,
+      silent:             false,
       data:               { url: '/' },
     })
   );
