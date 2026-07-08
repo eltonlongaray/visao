@@ -7,24 +7,26 @@
 <meta name="description" content="Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.">
 <title>Falcon — Assistente Pessoal de Planejamento Estratégico</title>
 
-<!-- Force-update: limpa SW e caches antigos automaticamente -->
+<!-- Force-update: limpa caches e atualiza SW sem desregistrar -->
 <script>
   (function() {
-    var V = '85';
+    var V = '86';
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
-      var cleared = false;
       if ('caches' in window) {
         caches.keys().then(function(ks) { ks.forEach(function(k) { caches.delete(k); }); });
-        cleared = true;
       }
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs) {
-          Promise.all(rs.map(function(r) { return r.unregister(); })).then(function() {
+          if (!rs.length) { window.location.reload(true); return; }
+          // Aguarda o novo SW tomar controle antes de recarregar
+          // Isso garante que os imports JS sejam interceptados com no-store
+          navigator.serviceWorker.addEventListener('controllerchange', function() {
             window.location.reload(true);
           });
+          rs.forEach(function(r) { r.update(); });
         });
-      } else if (cleared) {
+      } else {
         window.location.reload(true);
       }
     }
@@ -39,7 +41,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20260707d">
+<link rel="stylesheet" href="css/styles.css?v=20260708a">
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
   (function() {
@@ -60,7 +62,7 @@
       <div>Carregando Falcon...</div>
     </div>
   </div>
-  <script type="module" src="js/main.js?v=20260707d"></script>
+  <script type="module" src="js/main.js?v=20260708a"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>
