@@ -7,10 +7,10 @@
 <meta name="description" content="Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.">
 <title>Falcon — Assistente Pessoal de Planejamento Estratégico</title>
 
-<!-- Force-update: limpa caches e atualiza SW sem desregistrar -->
+<!-- Force-update: unregister → re-register → SW ready → reload -->
 <script>
   (function() {
-    var V = '88';
+    var V = '89';
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
       if ('caches' in window) {
@@ -18,13 +18,15 @@
       }
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs) {
-          if (!rs.length) { window.location.reload(true); return; }
-          // Aguarda o novo SW tomar controle antes de recarregar
-          // Isso garante que os imports JS sejam interceptados com no-store
-          navigator.serviceWorker.addEventListener('controllerchange', function() {
+          Promise.all(rs.map(function(r) { return r.unregister(); })).then(function() {
+            return navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+          }).then(function() {
+            return navigator.serviceWorker.ready;
+          }).then(function() {
+            window.location.reload(true);
+          }).catch(function() {
             window.location.reload(true);
           });
-          rs.forEach(function(r) { r.update(); });
         });
       } else {
         window.location.reload(true);
@@ -41,7 +43,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20260708c">
+<link rel="stylesheet" href="css/styles.css?v=20260708d">
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
   (function() {
@@ -62,7 +64,7 @@
       <div>Carregando Falcon...</div>
     </div>
   </div>
-  <script type="module" src="js/main.js?v=20260708c"></script>
+  <script type="module" src="js/main.js?v=20260708d"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>

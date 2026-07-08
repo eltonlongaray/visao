@@ -255,14 +255,16 @@ async function wire(app) {
         await Promise.all(keys.map(k => caches.delete(k)));
       }
       localStorage.removeItem('_visao_build');
-      // NÃO desregistra o SW — a subscription de push ficaria perdida.
-      // updateViaCache:'none' + skipWaiting() já garantem o SW mais recente no reload.
       if ('serviceWorker' in navigator) {
+        // Unregister → re-register → aguarda SW ativo → reload
+        // Garante que o novo SW intercepta os imports JS com no-store no reload
         const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.update()));
+        await Promise.all(regs.map(r => r.unregister()));
+        await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+        await navigator.serviceWorker.ready;
       }
       sub.textContent = 'Reiniciando...';
-      setTimeout(() => window.location.reload(true), 400);
+      window.location.reload(true);
     } catch (err) {
       console.error('[ajustes] forceUpdate:', err);
       sub.textContent = 'Erro ao atualizar. Tente de novo.';
