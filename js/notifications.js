@@ -32,7 +32,9 @@ export async function requestPermission() {
   if (!notifSupported()) return 'unsupported';
   if (Notification.permission === 'granted') return 'granted';
   if (Notification.permission === 'denied')  return 'denied';
-  return Notification.requestPermission();
+  const result = await Notification.requestPermission();
+  if (result === 'granted') startNotifChecker(); // inicia checker se ainda não estava rodando
+  return result;
 }
 
 // Converte VAPID public key de base64url para Uint8Array
@@ -111,15 +113,23 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
         headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
         body: JSON.stringify({ userId, title, body, tag, timestamp }),
       });
-      // Também salva localmente como fallback se app estiver aberto
-      _saveLocal({ title, body, tag, timestamp });
-      return 'scheduled';
     } catch (err) {
-      console.warn('[notif] worker schedule falhou, usando fallback local:', err.message);
+      console.warn('[notif] worker schedule falhou:', err.message);
     }
   }
 
-  // ── Fallback: notificação só enquanto app estiver aberto ─────
+  // ── SW setTimeout — disparo exato em até 5 min (funciona com app em background) ──
+  const delayMs = timestamp - Date.now();
+  if (delayMs > 0 && delayMs < 5 * 60_000) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.active?.postMessage({
+        type: 'SCHEDULE_NOTIF', title, body, tag, delayMs,
+        icon: '/icons/icon-192.png', badge: '/icons/favicon-32.png',
+      });
+    }).catch(() => {});
+  }
+
+  // ── Fallback setInterval (polling 30s, funciona enquanto app aberto) ──
   _saveLocal({ title, body, tag, timestamp });
   return 'scheduled';
 }
@@ -161,8 +171,12 @@ function _removeLocal(tag) {
   localStorage.setItem(SCHED_KEY, JSON.stringify(list.filter(n => n.tag !== tag)));
 }
 
+let _checkerStarted = false;
+
 export async function startNotifChecker() {
+  if (_checkerStarted) return;
   if (!notifSupported() || Notification.permission !== 'granted') return;
+  _checkerStarted = true;
 
   const check = async () => {
     const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
