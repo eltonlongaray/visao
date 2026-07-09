@@ -1100,6 +1100,7 @@ async function checkOverdueReminders(app) {
   const today = weekData.find(d => d.id === todayStr);
   if (!today) return;
   for (const t of today.tasks) {
+    if (t.kind !== 'commitment') continue; // modal só para compromissos; tasks só recebem notificação
     if (t.done || t.cancelled || t.rescheduled) continue;
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
