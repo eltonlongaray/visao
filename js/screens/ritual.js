@@ -847,7 +847,7 @@ function renderDayNoteButton(d) {
       <button class="day-note-btn registered" data-action="open-note" data-day="${d.id}">
         <span class="dnote-ic">✅</span>
         <span class="dnote-body">
-          <strong>Nota registrada</strong>
+          <strong>${t('ritual.note.registered')}</strong>
           <small>${escape(preview)}${preview.length >= 80 ? '...' : ''}</small>
         </span>
         <span class="dnote-edit">✏️</span>
@@ -2876,21 +2876,21 @@ function openDayNoteModal(dayDocId) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal note-modal">
-      <div class="modal-title">📝 Responda as Perguntas</div>
-      <div class="modal-hint">Fecha o dia com 4 perguntas rápidas.</div>
+      <div class="modal-title">${t('ritual.note.modal.title')}</div>
+      <div class="modal-hint">${t('ritual.note.modal.hint')}</div>
 
       <label class="input-field">
-        <div class="input-field-label">Do que me orgulho hoje e onde falhei?</div>
-        <textarea id="note-pride-fail" rows="4" placeholder="Conquistas e tropeços do dia">${escape(note.prideFail || '')}</textarea>
+        <div class="input-field-label">${t('ritual.note.q1.label')}</div>
+        <textarea id="note-pride-fail" rows="4" placeholder="${t('ritual.note.q1.placeholder')}">${escape(note.prideFail || '')}</textarea>
       </label>
 
       <label class="input-field">
-        <div class="input-field-label">Quais medidas tomarei pra fazer melhor amanhã?</div>
-        <textarea id="note-improve" rows="4" placeholder="Ajustes concretos pra amanhã">${escape(note.improve || '')}</textarea>
+        <div class="input-field-label">${t('ritual.note.q2.label')}</div>
+        <textarea id="note-improve" rows="4" placeholder="${t('ritual.note.q2.placeholder')}">${escape(note.improve || '')}</textarea>
       </label>
 
       <div class="input-field">
-        <div class="input-field-label">Quanto tempo dormi durante o dia? <small style="color:var(--muted);font-weight:500">(cochilos)</small></div>
+        <div class="input-field-label">${t('ritual.note.sleep.day')} <small style="color:var(--muted);font-weight:500">(${t('ritual.note.sleep.nap')})</small></div>
         <div class="num-stepper" id="stp-daysleep" data-val="${daySleepInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
           <div class="step-val">${fmtMin(daySleepInit)}</div>
@@ -2899,7 +2899,7 @@ function openDayNoteModal(dayDocId) {
       </div>
 
       <div class="input-field">
-        <div class="input-field-label">Quanto tempo fiquei acordado(a) na madrugada?</div>
+        <div class="input-field-label">${t('ritual.note.sleep.night')}</div>
         <div class="num-stepper" id="stp-nightawake" data-val="${nightAwakeInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
           <div class="step-val">${fmtMin(nightAwakeInit)}</div>
@@ -2907,14 +2907,14 @@ function openDayNoteModal(dayDocId) {
         </div>
       </div>
 
-      <div class="note-validate-msg" id="note-validate-msg" hidden>Preenche as duas perguntas pra registrar.</div>
+      <div class="note-validate-msg" id="note-validate-msg" hidden>${t('ritual.note.validate')}</div>
       <div class="modal-actions">
-        <button class="btn-secondary" id="note-cancel">Cancelar</button>
-        <button class="btn-primary" id="note-register" disabled>✓ Registrar</button>
+        <button class="btn-secondary" id="note-cancel">${t('ritual.cancel')}</button>
+        <button class="btn-primary" id="note-register" disabled>✓ ${t('ritual.note.register')}</button>
       </div>
       ${isEditing ? `
         <div class="note-delete-wrap">
-          <button type="button" class="note-delete-btn" id="note-delete">🗑️ Excluir nota</button>
+          <button type="button" class="note-delete-btn" id="note-delete">🗑️ ${t('ritual.note.delete')}</button>
         </div>
       ` : ''}
     </div>
@@ -3053,8 +3053,8 @@ function openDayNoteModal(dayDocId) {
       card.innerHTML = `
         <div class="note-success-block">
           <div class="note-success-check">✓</div>
-          <div class="note-success-title">Registrado!</div>
-          <div class="note-success-sub">Bom dia fechado.</div>
+          <div class="note-success-title">${t('ritual.note.success')}</div>
+          <div class="note-success-sub">${t('ritual.note.success.sub')}</div>
         </div>
       `;
       if (navigator.vibrate) navigator.vibrate([20, 60, 40]);
