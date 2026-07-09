@@ -573,7 +573,7 @@ async function scheduleAllTodayNotifs() {
   if (!today) return;
   for (const task of today.tasks) {
     if (task.done || task.cancelled) continue;
-    await autoScheduleNotif(todayStr, task);
+    await autoScheduleNotif(todayStr, task, { silent: true });
   }
 }
 
@@ -1943,16 +1943,17 @@ function openRitualCalendar(app) {
 // Chamado ao salvar tarefa com reminderEnabled=true + horário.
 // Agenda push local silenciosamente (sem toast extra se já foi pedida permissão).
 // ═══════════════════════════════════════════════════════════════
-async function autoScheduleNotif(dayDocId, task) {
+async function autoScheduleNotif(dayDocId, task, { silent = false } = {}) {
   if (!task.startTime) return;
   const [y, mo, d] = dayDocId.split('-').map(Number);
   const [h, mi]    = task.startTime.split(':').map(Number);
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
   if (ts <= Date.now()) return;
   const tag = notifTag(dayDocId, task.title || '');
-  const result = await scheduleNotif({ title: task.title || 'Falcon', body: 'Lembrete do Ritual', tag, timestamp: ts });
-  if (result === 'scheduled') showToast(`🔔 Notificação agendada para ${task.startTime}`, 'success');
-  else if (result === 'denied') showToast('Ative as notificações do Falcon nas configurações do celular.', 'info');
+  const result = await scheduleNotif({ title: task.title || 'Falcon', body: t('notif.body.ritual'), tag, timestamp: ts });
+  if (silent) return;
+  if (result === 'scheduled') showToast(t('notif.scheduled', { time: task.startTime }), 'success');
+  else if (result === 'denied') showToast(t('notif.denied'), 'info');
 }
 
 
