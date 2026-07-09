@@ -42,6 +42,7 @@ export default {
   'home.reminders.week.empty':  'Nada pendente esta semana 🎉',
   'home.reminders.next.label':  '🔜 Próxima semana',
   'home.reminders.next.empty':  'Sem lembretes ainda — aparecerão assim que marcares tarefas com 🔔',
+  'home.reminders.divider':     'próxima semana',
   'home.close':     'Fechar',
   'home.msgs.title': 'Mensagens',
   'home.msgs.sub':   'A pergunta de todas as manhãs',

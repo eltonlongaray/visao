@@ -42,6 +42,7 @@ export default {
   'home.reminders.week.empty':  'Nothing pending this week 🎉',
   'home.reminders.next.label':  '🔜 Next week',
   'home.reminders.next.empty':  'No reminders yet — they will appear once you set tasks with 🔔',
+  'home.reminders.divider':     'next week',
   'home.close':     'Close',
   'home.msgs.title': 'Messages',
   'home.msgs.sub':   'The question of every morning',

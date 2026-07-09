@@ -232,7 +232,7 @@ function openRemindersModal() {
       <div class="reminder-section-label">${t('home.reminders.week.label')} ${weekReminders.length ? `<span class="reminder-count">${weekReminders.length}</span>` : ''}</div>
       <div class="reminder-list">${reminderItemsHtml(weekReminders, t('home.reminders.week.empty'))}</div>
 
-      <div class="reminder-divider"></div>
+      <div class="reminder-divider" data-label="— ${t('home.reminders.divider')} —"></div>
 
       <div class="reminder-section-label">${t('home.reminders.next.label')} ${nextWeekReminders.length ? `<span class="reminder-count">${nextWeekReminders.length}</span>` : ''}</div>
       <div class="reminder-list">${reminderItemsHtml(nextWeekReminders, t('home.reminders.next.empty'))}</div>

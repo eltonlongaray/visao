@@ -2268,7 +2268,7 @@ body.time-picker-open { overflow: hidden; }
   position: relative;
 }
 .reminder-divider::after {
-  content: '— próxima semana —';
+  content: attr(data-label);
   position: absolute;
   top: -8px; left: 50%;
   transform: translateX(-50%);

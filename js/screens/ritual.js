@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
 import {
@@ -15,7 +15,7 @@ import { openTimePicker } from '../time-picker.js';
 import { trapModalBack } from '../modal-back.js';
 import { isActive as tourIsActive } from '../tour.js';
 import { scheduleNotif, notifTag } from '../notifications.js';
-import { t, getLang } from '../i18n.js';
+import { t as tr, getLang } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -187,7 +187,7 @@ function weekOfMonth(date) {
 function pctClass(p) { return p >= 80 ? 'high' : p >= 60 ? 'mid' : 'low'; }
 
 function hydrationMsg(ml, goal) {
-  if (!ml) return t('home.hydration.hint');
+  if (!ml) return tr('home.hydration.hint');
   if (!goal || goal <= 0) goal = 2000;
   const pct = (ml / goal) * 100;
   if (pct >= 200) return `${Math.round(pct)}% — exagerou um pouco hein 😅`;
@@ -212,7 +212,7 @@ function weekRangeLabel() {
   const rep = weekData[3].date; // quinta-feira (meio da semana Seg→Dom)
   const w = weekOfMonth(rep);
   const s = weekData[0].date, e = weekData[6].date;
-  return `${t('ritual.week.label', { n: w })} · ${String(s.getDate()).padStart(2,'0')} ${_moShort(s)} → ${String(e.getDate()).padStart(2,'0')} ${_moShort(e)}`;
+  return `${tr('ritual.week.label', { n: w })} · ${String(s.getDate()).padStart(2,'0')} ${_moShort(s)} → ${String(e.getDate()).padStart(2,'0')} ${_moShort(e)}`;
 }
 
 
@@ -457,7 +457,7 @@ async function _migrateTemplateGroupIds() {
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
 export async function renderRitual(app) {
-  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('ritual.loading')}</div>`;
+  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${tr('ritual.loading')}</div>`;
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
   try {
@@ -548,8 +548,8 @@ function renderUI(app) {
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
         <div class="day-info-center" id="week-pager-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">${t('ritual.pager.arrows')}</div>
-          <div class="meta">${t('ritual.pager.dblclick')}</div>
+          <div class="meta">${tr('ritual.pager.arrows')}</div>
+          <div class="meta">${tr('ritual.pager.dblclick')}</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
@@ -669,7 +669,7 @@ function dayCard(d) {
         <div class="day-card-name">
           <span class="dow">${_wdFull(d.date)}${hasPendingReminder ? '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>' : ''}</span>
           <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${_moShort(d.date)}</span>
-          ${isToday ? `<span class="today-badge">${t('ritual.today')}</span>` : ''}
+          ${isToday ? `<span class="today-badge">${tr('ritual.today')}</span>` : ''}
         </div>
         <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
         <span class="day-card-chevron">▾</span>
@@ -680,7 +680,7 @@ function dayCard(d) {
 }
 
 function statsHtml(total, done, pct) {
-  if (!total) return `<small class="day-empty-tag">${t('ritual.day.empty')}</small>`;
+  if (!total) return `<small class="day-empty-tag">${tr('ritual.day.empty')}</small>`;
   return `<span class="pct ${pctClass(pct)}">${pct}%</span><small>${done}/${total}</small>`;
 }
 
@@ -718,7 +718,7 @@ function syncTaskInDom(t) {
       thumb.classList.toggle('done', !!t.done);
       thumb.classList.toggle('is-cancelled', !!t.cancelled);
       thumb.textContent = checkContent;
-      thumb.title = t.cancelled ? t('ritual.task.cancelled') : (t.done ? t('ritual.task.done') : t('ritual.task.mark'));
+      thumb.title = t.cancelled ? tr('ritual.task.cancelled') : (t.done ? tr('ritual.task.done') : tr('ritual.task.mark'));
     }
   });
 }
@@ -747,7 +747,7 @@ function commitmentsCard() {
     <div class="day-card commitments-card ${isExpanded ? 'open' : ''}" data-day-id="commitments">
       <button class="day-card-header" data-toggle-day="commitments">
         <div class="day-card-name">
-          <span class="dow">${t('ritual.commitments.title')}</span>
+          <span class="dow">${tr('ritual.commitments.title')}</span>
           <span class="dnum"></span>
         </div>
         <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
@@ -762,8 +762,8 @@ function renderCommitmentsContent(items) {
   if (items.length === 0) {
     return `
       <div style="padding:22px 14px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5">
-        ${t('ritual.no.commitments')}<br>
-        <small>${t('ritual.commitments.hint')}</small>
+        ${tr('ritual.no.commitments')}<br>
+        <small>${tr('ritual.commitments.hint')}</small>
       </div>
     `;
   }
@@ -796,14 +796,14 @@ function renderDayContent(d) {
   return `
     <div class="time-pills">
       <label class="time-pill">
-        <span class="time-pill-label">${t('ritual.woke')}</span>
+        <span class="time-pill-label">${tr('ritual.woke')}</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeDisplay}</button>
       </label>
       <button class="pull-prev-day-pretty" data-action="pull-prev-day" data-day="${d.id}" title="Trazer atividades de outro dia">
         <span class="pull-prev-ic">📥</span>
       </button>
       <label class="time-pill">
-        <span class="time-pill-label">${t('ritual.slept')}</span>
+        <span class="time-pill-label">${tr('ritual.slept')}</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepDisplay}</button>
       </label>
     </div>
@@ -812,7 +812,7 @@ function renderDayContent(d) {
 
     <div class="hydration">
       <div class="hydration-top">
-        <div class="hydration-label">${t('ritual.hydration')}</div>
+        <div class="hydration-label">${tr('ritual.hydration')}</div>
         <div class="hydration-goal-label">meta: ${d.meta.hydrationGoal} ml</div>
       </div>
       <div class="hydration-stepper">
@@ -832,7 +832,7 @@ function renderDayContent(d) {
 
     <div class="day-clear-wrap">
       <button type="button" class="day-clear-btn" data-action="clear-day" data-day="${d.id}">
-        ${t('ritual.day.deleteall')}
+        ${tr('ritual.day.deleteall')}
       </button>
     </div>
   `;
@@ -847,7 +847,7 @@ function renderDayNoteButton(d) {
       <button class="day-note-btn registered" data-action="open-note" data-day="${d.id}">
         <span class="dnote-ic">✅</span>
         <span class="dnote-body">
-          <strong>${t('ritual.note.registered')}</strong>
+          <strong>${tr('ritual.note.registered')}</strong>
           <small>${escape(preview)}${preview.length >= 80 ? '...' : ''}</small>
         </span>
         <span class="dnote-edit">✏️</span>
@@ -858,8 +858,8 @@ function renderDayNoteButton(d) {
     <button class="day-note-btn" data-action="open-note" data-day="${d.id}">
       <span class="dnote-ic">📝</span>
       <span class="dnote-body">
-        <strong>${t('ritual.note.title')}</strong>
-        <small>${t('ritual.note.sub')}</small>
+        <strong>${tr('ritual.note.title')}</strong>
+        <small>${tr('ritual.note.sub')}</small>
       </span>
       <span class="dnote-edit">›</span>
     </button>
@@ -874,7 +874,7 @@ function renderShiftsForDay(d) {
 
   if (shifts.length === 0) {
     return `<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px">
-      ${t('ritual.no.shifts')}
+      ${tr('ritual.no.shifts')}
     </div>`;
   }
 
@@ -891,11 +891,11 @@ function renderShiftsForDay(d) {
       <div class="shift-header">
         <div class="shift-icon" style="background:${s.gradient || 'linear-gradient(135deg,#a78bfa,#60a5fa)'}">${s.icon || '🕐'}</div>
         <div class="shift-title">${escape(_shiftDisplayName(s.name))}</div>
-        <div class="shift-count">${byShift[s.id].length} ${t('ritual.tasks')}</div>
+        <div class="shift-count">${byShift[s.id].length} ${tr('ritual.tasks')}</div>
         <button class="shift-add" data-add-to="${s.id}" data-day="${d.id}" title="Adicionar atividade">+</button>
       </div>
       <div class="task-list">
-        ${byShift[s.id].sort(taskSort).map(t => taskCard(t, d.id)).join('') || `<div class="empty-shift">${t('ritual.shift.empty')}</div>`}
+        ${byShift[s.id].sort(taskSort).map(t => taskCard(t, d.id)).join('') || `<div class="empty-shift">${tr('ritual.shift.empty')}</div>`}
       </div>
     </div>
   `).join('');
@@ -1145,22 +1145,22 @@ function openRecurrenceChooser(options = {}) {
     overlay.className = 'modal-overlay';
 
     const renderSpecificLabel = () => {
-      if (chosenDays.length === 0) return t('recur.calendar.empty');
-      if (chosenDays.length === 1) return t('recur.calendar.one', { d: chosenDays[0] });
-      return t('recur.calendar.many', { days: chosenDays.join(', ') });
+      if (chosenDays.length === 0) return tr('recur.calendar.empty');
+      if (chosenDays.length === 1) return tr('recur.calendar.one', { d: chosenDays[0] });
+      return tr('recur.calendar.many', { days: chosenDays.join(', ') });
     };
 
     const renderHTML = () => `
       <div class="modal recur-chooser-modal">
-        <div class="modal-title">${t('recur.modal.title')}</div>
-        <div class="modal-hint">${t('recur.modal.hint')}</div>
+        <div class="modal-title">${tr('recur.modal.title')}</div>
+        <div class="modal-hint">${tr('recur.modal.hint')}</div>
 
         <div class="recur-options">
           <button type="button" class="recur-opt ${selectedKey === 'today' ? 'sel' : ''}" data-recur="today">
             <span class="recur-opt-ic">📌</span>
             <span class="recur-opt-text">
-              <strong>${t('recur.today.label')}</strong>
-              <small>${t('recur.today.sub')}</small>
+              <strong>${tr('recur.today.label')}</strong>
+              <small>${tr('recur.today.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
@@ -1168,15 +1168,15 @@ function openRecurrenceChooser(options = {}) {
             <span class="recur-opt-ic">🔁</span>
             <span class="recur-opt-text">
               <strong>${escape(dowLabel)}</strong>
-              <small>${t('recur.weekly.sub')}</small>
+              <small>${tr('recur.weekly.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
           <button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
-              <strong>${t('recur.daily.label')}</strong>
-              <small>${t('recur.daily.sub')}</small>
+              <strong>${tr('recur.daily.label')}</strong>
+              <small>${tr('recur.daily.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
@@ -1184,8 +1184,8 @@ function openRecurrenceChooser(options = {}) {
             <button type="button" class="recur-opt ${selectedKey === 'monthly' ? 'sel' : ''}" data-recur="monthly">
               <span class="recur-opt-ic">📆</span>
               <span class="recur-opt-text">
-                <strong>${t('recur.monthly.label', { day: currentDate.getDate() })}</strong>
-                <small>${t('recur.monthly.sub')}</small>
+                <strong>${tr('recur.monthly.label', { day: currentDate.getDate() })}</strong>
+                <small>${tr('recur.monthly.sub')}</small>
               </span>
               <span class="recur-opt-check">✓</span>
             </button>
@@ -1193,7 +1193,7 @@ function openRecurrenceChooser(options = {}) {
           <button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
             <span class="recur-opt-ic">🗓️</span>
             <span class="recur-opt-text">
-              <strong>${t('recur.specific.label')}</strong>
+              <strong>${tr('recur.specific.label')}</strong>
               <small>${escape(renderSpecificLabel())}</small>
             </span>
             <span class="recur-opt-check">✓</span>
@@ -1502,16 +1502,16 @@ async function showOverdueReminderModal(app, day, t) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal" style="max-width:400px">
-      <div class="modal-title">${t('ritual.overdue.title')}</div>
+      <div class="modal-title">${tr('ritual.overdue.title')}</div>
       <div class="modal-hint" style="text-align:center; line-height:1.55; padding: 6px 0">
         <strong>${escape(t.title)}</strong><br>
-        ${t('ritual.overdue.body', { date: dataFmt, time: horaFmt })}<br>
-        <small style="color:var(--muted)">${t('ritual.overdue.q')}</small>
+        ${tr('ritual.overdue.body', { date: dataFmt, time: horaFmt })}<br>
+        <small style="color:var(--muted)">${tr('ritual.overdue.q')}</small>
       </div>
       <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px">
-        <button class="btn-primary" data-overdue="done">${t('ritual.overdue.done')}</button>
-        <button class="btn-secondary" data-overdue="reschedule">${t('ritual.overdue.reschedule')}</button>
-        <button class="btn-secondary" data-overdue="cancel">${t('ritual.overdue.cancel')}</button>
+        <button class="btn-primary" data-overdue="done">${tr('ritual.overdue.done')}</button>
+        <button class="btn-secondary" data-overdue="reschedule">${tr('ritual.overdue.reschedule')}</button>
+        <button class="btn-secondary" data-overdue="cancel">${tr('ritual.overdue.cancel')}</button>
       </div>
     </div>
   `;
@@ -1634,25 +1634,25 @@ function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     const subInfo = hasTemplateRecurrence
-      ? t('recur.del.template')
-      : t('recur.del.days', { count: otherCount });
+      ? tr('recur.del.template')
+      : tr('recur.del.days', { count: otherCount });
     modal.innerHTML = `
       <div class="modal" style="max-width:340px">
-        <div class="modal-title" style="text-align:center">${t('recur.del.title')}</div>
+        <div class="modal-title" style="text-align:center">${tr('recur.del.title')}</div>
         <div class="modal-hint" style="text-align:center">
           <strong>"${escape(taskTitle)}"</strong><br>
           ${subInfo}
         </div>
         <button class="del-scope-btn" data-scope="one" type="button">
-          <strong>📌 ${t('recur.del.one')}</strong>
-          <small>${t('recur.del.one.sub')}</small>
+          <strong>📌 ${tr('recur.del.one')}</strong>
+          <small>${tr('recur.del.one.sub')}</small>
         </button>
         <button class="del-scope-btn danger" data-scope="all" type="button">
-          <strong>🗑️ ${t('recur.del.all')}</strong>
-          <small>${t('recur.del.all.sub')}</small>
+          <strong>🗑️ ${tr('recur.del.all')}</strong>
+          <small>${tr('recur.del.all.sub')}</small>
         </button>
         <div class="modal-actions">
-          <button class="btn-secondary" id="del-cancel">${t('ritual.cancel')}</button>
+          <button class="btn-secondary" id="del-cancel">${tr('ritual.cancel')}</button>
         </div>
       </div>
     `;
@@ -1729,8 +1729,8 @@ function taskCard(t, dayDocId) {
 
   return `
     <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''} ${isCommitment ? 'is-commitment' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
-      <button class="task-menu-btn-corner" data-action="menu" title="${t('ritual.task.menu.title')}">⋮</button>
-      <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? t('ritual.task.cancelled') : (t.done ? t('ritual.task.done') : t('ritual.task.mark'))}">${checkContent}</button>
+      <button class="task-menu-btn-corner" data-action="menu" title="${tr('ritual.task.menu.title')}">⋮</button>
+      <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? tr('ritual.task.cancelled') : (t.done ? tr('ritual.task.done') : tr('ritual.task.mark'))}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
           <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${rescheduleBadge}
@@ -1772,12 +1772,12 @@ function openTaskMenu(triggerEl) {
   const menu = document.createElement('div');
   menu.className = 'task-menu-pop';
   menu.innerHTML = isCancelled ? `
-    <button class="task-menu-item" data-menu-action="restore">${t('ritual.task.restore')}</button>
-    <button class="task-menu-item danger" data-menu-action="del">${t('ritual.task.delete')}</button>
+    <button class="task-menu-item" data-menu-action="restore">${tr('ritual.task.restore')}</button>
+    <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   ` : `
-    <button class="task-menu-item" data-menu-action="edit">${t('ritual.task.edit')}</button>
-    <button class="task-menu-item" data-menu-action="dup">${t('ritual.task.dup')}</button>
-    <button class="task-menu-item danger" data-menu-action="del">${t('ritual.task.delete')}</button>
+    <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
+    <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
+    <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   `;
   document.body.appendChild(menu);
 
@@ -1951,10 +1951,10 @@ async function autoScheduleNotif(dayDocId, task, { silent = false } = {}) {
   const ts = new Date(y, mo - 1, d, h, mi).getTime();
   if (ts <= Date.now()) return;
   const tag = notifTag(dayDocId, task.title || '');
-  const result = await scheduleNotif({ title: task.title || 'Falcon', body: t('notif.body.ritual'), tag, timestamp: ts });
+  const result = await scheduleNotif({ title: task.title || 'Falcon', body: tr('notif.body.ritual'), tag, timestamp: ts });
   if (silent) return;
-  if (result === 'scheduled') showToast(t('notif.scheduled', { time: task.startTime }), 'success');
-  else if (result === 'denied') showToast(t('notif.denied'), 'info');
+  if (result === 'scheduled') showToast(tr('notif.scheduled', { time: task.startTime }), 'success');
+  else if (result === 'denied') showToast(tr('notif.denied'), 'info');
 }
 
 
@@ -2252,9 +2252,9 @@ function attachHandlers(app) {
       } else {
         // Não-recorrente: confirma SEM oferecer a opção de excluir recorrências
         const ok = await confirmModal({
-          title: t('ritual.del.title'),
-          message: t('ritual.del.message', { title: t.title }),
-          confirmText: t('ritual.del.confirm'),
+          title: tr('ritual.del.title'),
+          message: tr('ritual.del.message', { title: t.title }),
+          confirmText: tr('ritual.del.confirm'),
           danger: true
         });
         if (!ok) return;
@@ -2465,7 +2465,7 @@ function updateDayCardStats(dayDocId, syncTemplate = false) {
   card.querySelectorAll('[data-shift-id]').forEach(el => {
     const sid = el.dataset.shiftId;
     const count = day.tasks.filter(t => t.shiftId === sid).length;
-    el.querySelector('.shift-count').textContent = `${count} ${t('ritual.tasks')}`;
+    el.querySelector('.shift-count').textContent = `${count} ${tr('ritual.tasks')}`;
   });
 
   // Atualiza o ponto vermelho no header do dia (lembrete pendente)
@@ -2594,7 +2594,7 @@ function _restoreClearBtn(dayDocId) {
   const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
   const wrap = dayCardEl?.querySelector('.day-clear-wrap');
   if (wrap) {
-    wrap.innerHTML = `<button type="button" class="day-clear-btn" data-action="clear-day" data-day="${dayDocId}">${t('ritual.day.deleteall')}</button>`;
+    wrap.innerHTML = `<button type="button" class="day-clear-btn" data-action="clear-day" data-day="${dayDocId}">${tr('ritual.day.deleteall')}</button>`;
   }
 }
 
@@ -2878,21 +2878,21 @@ function openDayNoteModal(dayDocId) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal note-modal">
-      <div class="modal-title">${t('ritual.note.modal.title')}</div>
-      <div class="modal-hint">${t('ritual.note.modal.hint')}</div>
+      <div class="modal-title">${tr('ritual.note.modal.title')}</div>
+      <div class="modal-hint">${tr('ritual.note.modal.hint')}</div>
 
       <label class="input-field">
-        <div class="input-field-label">${t('ritual.note.q1.label')}</div>
-        <textarea id="note-pride-fail" rows="4" placeholder="${t('ritual.note.q1.placeholder')}">${escape(note.prideFail || '')}</textarea>
+        <div class="input-field-label">${tr('ritual.note.q1.label')}</div>
+        <textarea id="note-pride-fail" rows="4" placeholder="${tr('ritual.note.q1.placeholder')}">${escape(note.prideFail || '')}</textarea>
       </label>
 
       <label class="input-field">
-        <div class="input-field-label">${t('ritual.note.q2.label')}</div>
-        <textarea id="note-improve" rows="4" placeholder="${t('ritual.note.q2.placeholder')}">${escape(note.improve || '')}</textarea>
+        <div class="input-field-label">${tr('ritual.note.q2.label')}</div>
+        <textarea id="note-improve" rows="4" placeholder="${tr('ritual.note.q2.placeholder')}">${escape(note.improve || '')}</textarea>
       </label>
 
       <div class="input-field">
-        <div class="input-field-label">${t('ritual.note.sleep.day')} <small style="color:var(--muted);font-weight:500">(${t('ritual.note.sleep.nap')})</small></div>
+        <div class="input-field-label">${tr('ritual.note.sleep.day')} <small style="color:var(--muted);font-weight:500">(${tr('ritual.note.sleep.nap')})</small></div>
         <div class="num-stepper" id="stp-daysleep" data-val="${daySleepInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
           <div class="step-val">${fmtMin(daySleepInit)}</div>
@@ -2901,7 +2901,7 @@ function openDayNoteModal(dayDocId) {
       </div>
 
       <div class="input-field">
-        <div class="input-field-label">${t('ritual.note.sleep.night')}</div>
+        <div class="input-field-label">${tr('ritual.note.sleep.night')}</div>
         <div class="num-stepper" id="stp-nightawake" data-val="${nightAwakeInit}" data-min="0" data-max="360" data-step-size="15">
           <button type="button" class="step-arrow" data-step="-1" aria-label="diminuir">‹</button>
           <div class="step-val">${fmtMin(nightAwakeInit)}</div>
@@ -2909,14 +2909,14 @@ function openDayNoteModal(dayDocId) {
         </div>
       </div>
 
-      <div class="note-validate-msg" id="note-validate-msg" hidden>${t('ritual.note.validate')}</div>
+      <div class="note-validate-msg" id="note-validate-msg" hidden>${tr('ritual.note.validate')}</div>
       <div class="modal-actions">
-        <button class="btn-secondary" id="note-cancel">${t('ritual.cancel')}</button>
-        <button class="btn-primary" id="note-register" disabled>✓ ${t('ritual.note.register')}</button>
+        <button class="btn-secondary" id="note-cancel">${tr('ritual.cancel')}</button>
+        <button class="btn-primary" id="note-register" disabled>✓ ${tr('ritual.note.register')}</button>
       </div>
       ${isEditing ? `
         <div class="note-delete-wrap">
-          <button type="button" class="note-delete-btn" id="note-delete">🗑️ ${t('ritual.note.delete')}</button>
+          <button type="button" class="note-delete-btn" id="note-delete">🗑️ ${tr('ritual.note.delete')}</button>
         </div>
       ` : ''}
     </div>
@@ -2971,10 +2971,10 @@ function openDayNoteModal(dayDocId) {
   if (delBtn) {
     delBtn.onclick = async () => {
       const ok = await confirmModal({
-        title: t('ritual.del.note.title'),
-        message: t('ritual.del.note.message'),
-        confirmText: t('ritual.del.confirm'),
-        cancelText: t('ritual.edit.cancel'),
+        title: tr('ritual.del.note.title'),
+        message: tr('ritual.del.note.message'),
+        confirmText: tr('ritual.del.confirm'),
+        cancelText: tr('ritual.edit.cancel'),
         danger: true
       });
       if (!ok) return;
@@ -2983,7 +2983,7 @@ function openDayNoteModal(dayDocId) {
         await setDayMeta(dayDocId, { dayNote: null });
         prevNoteCache.delete(dayDocId);
         playDelete();
-        showToast(t('ritual.del.note.toast'), 'success');
+        showToast(tr('ritual.del.note.toast'), 'success');
         // Re-render do botão de nota no card
         const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
         if (wrap) wrap.innerHTML = renderDayNoteButton(day);
@@ -3055,8 +3055,8 @@ function openDayNoteModal(dayDocId) {
       card.innerHTML = `
         <div class="note-success-block">
           <div class="note-success-check">✓</div>
-          <div class="note-success-title">${t('ritual.note.success')}</div>
-          <div class="note-success-sub">${t('ritual.note.success.sub')}</div>
+          <div class="note-success-title">${tr('ritual.note.success')}</div>
+          <div class="note-success-sub">${tr('ritual.note.success.sub')}</div>
         </div>
       `;
       if (navigator.vibrate) navigator.vibrate([20, 60, 40]);
@@ -3122,21 +3122,21 @@ function openActivityPicker(app, dayDocId, shiftId) {
         <input type="checkbox" id="m-reminder" />
         <span class="reminder-bell"></span>
         <div class="reminder-text">
-          <span class="reminder-label">${t('ritual.edit.reminder')}</span>
-          <span class="reminder-hint">${t('ritual.edit.reminder.hint')}</span>
+          <span class="reminder-label">${tr('ritual.edit.reminder')}</span>
+          <span class="reminder-hint">${tr('ritual.edit.reminder.hint')}</span>
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.recur')}</div>
+      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
       <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
         <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">${t('recur.btn.title')}</span>
-        <span class="recur-btn-label">${t('recur.only.today')}</span>
+        <span class="recur-btn-text">${tr('recur.btn.title')}</span>
+        <span class="recur-btn-label">${tr('recur.only.today')}</span>
         <span class="recur-btn-edit">›</span>
       </button>
 
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
-        ${t('ritual.no.activities')}
+        ${tr('ritual.no.activities')}
       </div>` : ''}
 
       <div class="modal-actions">
@@ -3171,12 +3171,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
   const recurBtn = modal.querySelector('#m-recur-btn');
   const recurLabel = recurBtn.querySelector('.recur-btn-label');
   const refreshRecurLabel = () => {
-    if (recurState.recur === 'today') recurLabel.textContent = t('recur.only.today');
+    if (recurState.recur === 'today') recurLabel.textContent = tr('recur.only.today');
     else if (recurState.recur === 'weekly') recurLabel.textContent = recurWeeklyLabel(day.date.getDay());
-    else if (recurState.recur === 'daily') recurLabel.textContent = t('recur.daily.label');
+    else if (recurState.recur === 'daily') recurLabel.textContent = tr('recur.daily.label');
     else if (recurState.recur === 'monthly') {
       const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
-      recurLabel.textContent = dom.length === 1 ? t('recur.monthly.day.single', { day: dom[0] }) : t('recur.monthly.day.multi', { days: dom.join(', ') });
+      recurLabel.textContent = dom.length === 1 ? tr('recur.monthly.day.single', { day: dom[0] }) : tr('recur.monthly.day.multi', { days: dom.join(', ') });
     }
   };
   recurBtn.addEventListener('click', async () => {
@@ -3326,9 +3326,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false);
-        const label = days.length === 1 ? t('recur.monthly.day.single', { day: days[0] }) : t('recur.monthly.day.multi', { days: days.join(', ') });
+        const label = days.length === 1 ? tr('recur.monthly.day.single', { day: days[0] }) : tr('recur.monthly.day.multi', { days: days.join(', ') });
         const noun = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
-        showToast(t('recur.toast.repeats', { noun, title, label }), 'success');
+        showToast(tr('recur.toast.repeats', { noun, title, label }), 'success');
         return;
       } else if (recur === 'weekly') {
         // Salva no weekdayTemplate do DOW desta data (pra próximas semanas)
@@ -3351,7 +3351,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           profile.weekdayTemplates[String(dowW)] = tplExisting;
         }
         const noun2 = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
-        showToast(t('recur.toast.repeats', { noun: noun2, title, label: recurWeeklyLabel(dowW) }), 'success');
+        showToast(tr('recur.toast.repeats', { noun: noun2, title, label: recurWeeklyLabel(dowW) }), 'success');
       }
       // recur === 'daily' (já tem template salvo acima) — cai aqui só pra close + render
       close();
@@ -3424,28 +3424,28 @@ function openTaskEditor(app, dayDocId, taskId) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">${isCommitment ? t('ritual.edit.title.commitment') : t('ritual.edit.title.task')}</div>
-      <div class="modal-hint">${t('ritual.edit.hint')}</div>
+      <div class="modal-title">${isCommitment ? tr('ritual.edit.title.commitment') : tr('ritual.edit.title.task')}</div>
+      <div class="modal-hint">${tr('ritual.edit.hint')}</div>
 
-      <div class="input-field-label">${t('ritual.edit.type')}</div>
+      <div class="input-field-label">${tr('ritual.edit.type')}</div>
       <div class="kind-chips" id="kind-chips">
-        <button type="button" class="kind-chip ${kind === 'task' ? 'active' : ''}" data-kind="task">${t('ritual.edit.task.chip')}</button>
-        <button type="button" class="kind-chip ${isCommitment ? 'active' : ''}" data-kind="commitment">${t('ritual.edit.commitment.chip')}</button>
+        <button type="button" class="kind-chip ${kind === 'task' ? 'active' : ''}" data-kind="task">${tr('ritual.edit.task.chip')}</button>
+        <button type="button" class="kind-chip ${isCommitment ? 'active' : ''}" data-kind="commitment">${tr('ritual.edit.commitment.chip')}</button>
       </div>
 
-      <label class="input-field"><div class="input-field-label">${t('ritual.edit.title.field')}</div>
+      <label class="input-field"><div class="input-field-label">${tr('ritual.edit.title.field')}</div>
         <input id="m-title" value="${escape(t.title)}" /></label>
-      <label class="input-field"><div class="input-field-label">${t('ritual.edit.desc')}</div>
-        <input id="m-desc" value="${escape(t.desc || '')}" placeholder="${t('ritual.edit.desc.placeholder')}" /></label>
+      <label class="input-field"><div class="input-field-label">${tr('ritual.edit.desc')}</div>
+        <input id="m-desc" value="${escape(t.desc || '')}" placeholder="${tr('ritual.edit.desc.placeholder')}" /></label>
 
-      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.icon')} <small style="color:var(--muted);font-weight:500">${t('ritual.edit.icon.hint')}</small></div>
+      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.icon')} <small style="color:var(--muted);font-weight:500">${tr('ritual.edit.icon.hint')}</small></div>
       <div class="task-icon-picker" id="m-icon-picker">
-        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="${t('ritual.edit.icon.none')}">∅</button>
+        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="${tr('ritual.edit.icon.none')}">∅</button>
         ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}
       </div>
-      <label class="input-field"><div class="input-field-label">${t('ritual.edit.shift')}</div>
+      <label class="input-field"><div class="input-field-label">${tr('ritual.edit.shift')}</div>
         <select id="m-shift">${shiftOpts}</select></label>
-      <div class="input-field-label">${t('ritual.edit.time')}</div>
+      <div class="input-field-label">${tr('ritual.edit.time')}</div>
       <button type="button" class="tp-trigger" id="m-time-trigger" data-time="${toHHMM(t.startTime) || ''}">
         <span class="tp-trigger-icon">🕐</span>
         <span class="tp-trigger-time">${toHHMM(t.startTime) || '— : —'}</span>
@@ -3456,22 +3456,22 @@ function openTaskEditor(app, dayDocId, taskId) {
         <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
         <span class="reminder-bell"></span>
         <div class="reminder-text">
-          <span class="reminder-label">${t('ritual.edit.reminder')}</span>
-          <span class="reminder-hint">${t('ritual.edit.reminder.hint')}</span>
+          <span class="reminder-label">${tr('ritual.edit.reminder')}</span>
+          <span class="reminder-hint">${tr('ritual.edit.reminder.hint')}</span>
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.recur')}</div>
+      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
       <button type="button" class="recur-btn" id="m-recur-btn">
         <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">${t('recur.btn.title')}</span>
+        <span class="recur-btn-text">${tr('recur.btn.title')}</span>
         <span class="recur-btn-label" id="m-recur-label">—</span>
         <span class="recur-btn-edit">›</span>
       </button>
 
       <div class="modal-actions">
-        <button class="btn-secondary" id="m-cancel">${t('ritual.edit.cancel')}</button>
-        <button class="btn-primary" id="m-save">${t('ritual.edit.save')}</button>
+        <button class="btn-secondary" id="m-cancel">${tr('ritual.edit.cancel')}</button>
+        <button class="btn-primary" id="m-save">${tr('ritual.edit.save')}</button>
       </div>
     </div>
   `;
@@ -3488,12 +3488,12 @@ function openTaskEditor(app, dayDocId, taskId) {
   }
   const recurLabelEl = modal.querySelector('#m-recur-label');
   const refreshRecurLabel = () => {
-    if (recurState.recur === 'today') recurLabelEl.textContent = t('recur.today.label');
+    if (recurState.recur === 'today') recurLabelEl.textContent = tr('recur.today.label');
     else if (recurState.recur === 'weekly') recurLabelEl.textContent = recurWeeklyLabel(day.date.getDay());
-    else if (recurState.recur === 'daily') recurLabelEl.textContent = t('recur.daily.label');
+    else if (recurState.recur === 'daily') recurLabelEl.textContent = tr('recur.daily.label');
     else if (recurState.recur === 'monthly') {
       const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
-      recurLabelEl.textContent = dom.length === 1 ? t('recur.monthly.day.single', { day: dom[0] }) : t('recur.monthly.day.multi', { days: dom.join(', ') });
+      recurLabelEl.textContent = dom.length === 1 ? tr('recur.monthly.day.single', { day: dom[0] }) : tr('recur.monthly.day.multi', { days: dom.join(', ') });
     }
   };
   refreshRecurLabel();
@@ -3683,15 +3683,15 @@ function openTaskEditor(app, dayDocId, taskId) {
         if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
         updateDayCardStats(otherDay.id, true);
       }
-      showToast(t('recur.toast.daily'), 'success');
+      showToast(tr('recur.toast.daily'), 'success');
     } else if (recur === 'weekly') {
-      showToast(t('recur.toast.weekly', { day: recurWeeklyLabel(day.date.getDay()) }), 'success');
+      showToast(tr('recur.toast.weekly', { day: recurWeeklyLabel(day.date.getDay()) }), 'success');
     } else if (recur === 'monthly') {
       const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
-      const label = days.length === 1 ? t('recur.monthly.day.single', { day: days[0] }) : t('recur.monthly.day.multi', { days: days.join(', ') });
-      showToast(t('recur.toast.monthly', { label }), 'success');
+      const label = days.length === 1 ? tr('recur.monthly.day.single', { day: days[0] }) : tr('recur.monthly.day.multi', { days: days.join(', ') });
+      showToast(tr('recur.toast.monthly', { label }), 'success');
     } else if (recur === 'today' && prevRecurType !== 'today') {
-      showToast(t('recur.toast.removed'), 'success');
+      showToast(tr('recur.toast.removed'), 'success');
     }
 
     // Propaga para as próximas 2 semanas usando +7 e +14 dias direto do dayDocId.
@@ -3890,3 +3890,4 @@ function toHHMM(timeStr) {
   const h = Math.floor(t / 60), m = t % 60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 }
+
