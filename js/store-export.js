@@ -3,6 +3,7 @@
 // Cumpre o direito de portabilidade da LGPD (Art. 18, V).
 // ═══════════════════════════════════════════════════════════════
 import { auth, db, doc, getDoc, collection, getDocs } from './firebase.js';
+import { t, getLang } from './i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -94,6 +95,8 @@ export async function openPdfReport() {
 }
 
 function buildReportHtml(data) {
+  const lang = getLang();
+
   const totalDays = data.days.length;
   const totalTasks = data.days.reduce((s, d) => s + d.tasks.length, 0);
   const doneTasks  = data.days.reduce((s, d) => s + d.tasks.filter(t => t.done).length, 0);
@@ -125,16 +128,14 @@ function buildReportHtml(data) {
     return Math.max(0, total);
   }
 
-  // Sono médio diário (dias com pelo menos algum dado de sono)
   const sleepDays = data.days.filter(d => daySleepMin(d) > 0);
   const sleepAvg = sleepDays.length
     ? (sleepDays.reduce((s,d) => s + daySleepMin(d), 0) / sleepDays.length / 60).toFixed(1)
     : '–';
 
   // Agregação por MÊS e por ANO
-  const monthLabels = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const byMonth = {}; // 'YYYY-MM' → { min, days }
-  const byYear  = {}; // 'YYYY'    → { min, days }
+  const byMonth = {};
+  const byYear  = {};
   for (const d of data.days) {
     const min = daySleepMin(d);
     if (min <= 0) continue;
@@ -147,26 +148,27 @@ function buildReportHtml(data) {
   }
   const monthsSorted = Object.entries(byMonth).sort(([a],[b]) => b.localeCompare(a));
   const yearsSorted  = Object.entries(byYear).sort(([a],[b]) => b.localeCompare(a));
+
   function fmtHM(min) {
     const h = Math.floor(min / 60);
     const m = Math.round(min % 60);
     return m === 0 ? `${h}h` : `${h}h ${m}min`;
   }
   function monthName(ym) {
-    const [y, m] = ym.split('-');
-    return `${monthLabels[parseInt(m, 10) - 1]} ${y}`;
+    const [y, mo] = ym.split('-');
+    return new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' })
+      .format(new Date(parseInt(y), parseInt(mo, 10) - 1, 1));
   }
 
   const categoriesById = Object.fromEntries(data.categories.map(c => [c.id, c]));
 
-  // Pontos fortes/fracos GLOBAIS (toda a história do usuário)
   const actAgg = {};
   for (const d of data.days) {
-    for (const t of d.tasks) {
-      if (!t.title || !t.categoryId) continue;
-      const k = `${t.categoryId}|${t.title}`;
-      if (!actAgg[k]) actAgg[k] = { title: t.title, cat: categoriesById[t.categoryId], done: 0, total: 0 };
-      actAgg[k].total++; if (t.done) actAgg[k].done++;
+    for (const tk of d.tasks) {
+      if (!tk.title || !tk.categoryId) continue;
+      const k = `${tk.categoryId}|${tk.title}`;
+      if (!actAgg[k]) actAgg[k] = { title: tk.title, cat: categoriesById[tk.categoryId], done: 0, total: 0 };
+      actAgg[k].total++; if (tk.done) actAgg[k].done++;
     }
   }
   const acts = Object.values(actAgg).filter(a => a.cat && a.total >= 3).map(a => ({...a, pct: a.done/a.total}));
@@ -175,11 +177,14 @@ function buildReportHtml(data) {
 
   const weeksWithNotes = data.weeks.filter(w => (w.note || '').trim()).sort((a,b) => (b.id||'').localeCompare(a.id||''));
 
+  const generatedDate = new Intl.DateTimeFormat(lang, { dateStyle: 'long', timeStyle: 'short' })
+    .format(new Date(data.exportedAt));
+
   return `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${lang}">
 <head>
 <meta charset="UTF-8">
-<title>Relatório Falcon · ${escape(data.user.email || '')}</title>
+<title>${t('pdf.title')} · ${escape(data.user.email || '')}</title>
 <style>
   @page { margin: 16mm; }
   * { box-sizing: border-box; }
@@ -273,37 +278,42 @@ function buildReportHtml(data) {
 </head>
 <body>
 
-<button class="print-btn no-print" onclick="window.print()">🖨️ Salvar como PDF</button>
+<button class="print-btn no-print" onclick="window.print()">${t('pdf.print')}</button>
 
 <div class="cover">
   <div class="logo">🦅</div>
-  <h1>Falcon · Seu Relatório Pessoal</h1>
+  <h1>${t('pdf.cover.title')}</h1>
   <div class="meta">${escape(data.user.email || '')}</div>
-  <div class="meta">Gerado em ${formatBr(data.exportedAt)}</div>
+  <div class="meta">${t('pdf.generated', { date: generatedDate })}</div>
 </div>
 
-<h2>📊 Visão geral</h2>
+<h2>${t('pdf.overview')}</h2>
 <div class="stats">
-  <div class="stat"><div class="v">${totalDays}</div><div class="l">Dias registrados</div></div>
-  <div class="stat"><div class="v">${aderencia}%</div><div class="l">Aderência total</div></div>
-  <div class="stat"><div class="v">${doneTasks}</div><div class="l">Tarefas feitas</div></div>
-  <div class="stat"><div class="v">${sleepAvg}h</div><div class="l">Sono médio</div></div>
+  <div class="stat"><div class="v">${totalDays}</div><div class="l">${t('pdf.stat.days')}</div></div>
+  <div class="stat"><div class="v">${aderencia}%</div><div class="l">${t('pdf.stat.adherence')}</div></div>
+  <div class="stat"><div class="v">${doneTasks}</div><div class="l">${t('pdf.stat.tasks')}</div></div>
+  <div class="stat"><div class="v">${sleepAvg}h</div><div class="l">${t('pdf.stat.sleep')}</div></div>
 </div>
 
-<h2>⭐ Pontos fortes (top 5)</h2>
+<h2>${t('pdf.strengths')}</h2>
 ${top.length
   ? `<ul class="acts">${top.map(a => `<li style="border-left-color:${a.cat.color || '#7c3aed'}"><span class="pct">${Math.round(a.pct*100)}%</span><strong>${escape(a.cat.icon || '')} ${escape(a.cat.name)}</strong>${a.title.toLowerCase() !== (a.cat.name||'').toLowerCase() ? ' · ' + escape(a.title) : ''} <small>(${a.done}/${a.total})</small></li>`).join('')}</ul>`
-  : '<p>Sem dados suficientes ainda.</p>'}
+  : `<p>${t('pdf.strengths.empty')}</p>`}
 
-<h2>⚠️ Pontos fracos (top 5)</h2>
+<h2>${t('pdf.weaknesses')}</h2>
 ${bot.length
   ? `<ul class="acts">${bot.map(a => `<li style="border-left-color:${a.cat.color || '#f59e0b'}"><span class="pct">${Math.round(a.pct*100)}%</span><strong>${escape(a.cat.icon || '')} ${escape(a.cat.name)}</strong>${a.title.toLowerCase() !== (a.cat.name||'').toLowerCase() ? ' · ' + escape(a.title) : ''} <small>(${a.done}/${a.total})</small></li>`).join('')}</ul>`
-  : '<p>Tudo em dia! 🎉</p>'}
+  : `<p>${t('pdf.weaknesses.empty')}</p>`}
 
-<h2>🌙 Sono por MÊS</h2>
+<h2>${t('pdf.sleep.month')}</h2>
 ${monthsSorted.length ? `
   <table class="sleep-tbl">
-    <thead><tr><th>Mês</th><th>Dias</th><th>Total dormido</th><th>Média/dia</th></tr></thead>
+    <thead><tr>
+      <th>${t('pdf.tbl.month')}</th>
+      <th>${t('pdf.tbl.days')}</th>
+      <th>${t('pdf.tbl.total')}</th>
+      <th>${t('pdf.tbl.avg')}</th>
+    </tr></thead>
     <tbody>
       ${monthsSorted.map(([m, v]) => `
         <tr>
@@ -315,12 +325,17 @@ ${monthsSorted.length ? `
       `).join('')}
     </tbody>
   </table>
-` : '<p>Sem registros de sono ainda.</p>'}
+` : `<p>${t('pdf.sleep.empty')}</p>`}
 
-<h2>🌙 Sono por ANO</h2>
+<h2>${t('pdf.sleep.year')}</h2>
 ${yearsSorted.length ? `
   <table class="sleep-tbl">
-    <thead><tr><th>Ano</th><th>Dias</th><th>Total dormido</th><th>Média/dia</th></tr></thead>
+    <thead><tr>
+      <th>${t('pdf.tbl.year')}</th>
+      <th>${t('pdf.tbl.days')}</th>
+      <th>${t('pdf.tbl.total')}</th>
+      <th>${t('pdf.tbl.avg')}</th>
+    </tr></thead>
     <tbody>
       ${yearsSorted.map(([y, v]) => `
         <tr>
@@ -334,19 +349,19 @@ ${yearsSorted.length ? `
   </table>
 ` : ''}
 
-<h2>🏷️ Suas atividades</h2>
+<h2>${t('pdf.activities')}</h2>
 <div class="cat-list">
-  ${data.categories.map(c => `<span class="cat-pill" style="border-color:${c.color || '#999'};color:${c.color || '#333'}">${escape(c.icon || '')} ${escape(c.name)}</span>`).join('') || '<small>Nenhuma cadastrada.</small>'}
+  ${data.categories.map(c => `<span class="cat-pill" style="border-color:${c.color || '#999'};color:${c.color || '#333'}">${escape(c.icon || '')} ${escape(c.name)}</span>`).join('') || `<small>${t('pdf.activities.empty')}</small>`}
 </div>
 
-<h2>📝 Reflexões semanais</h2>
+<h2>${t('pdf.reflections')}</h2>
 ${weeksWithNotes.length
-  ? weeksWithNotes.map(w => `<div class="week"><div class="when">Semana ${escape(w.id || '')}</div><div class="note">${escape(w.note)}</div></div>`).join('')
-  : '<p>Você ainda não escreveu reflexões semanais.</p>'}
+  ? weeksWithNotes.map(w => `<div class="week"><div class="when">${t('pdf.reflections.week', { id: escape(w.id || '') })}</div><div class="note">${escape(w.note)}</div></div>`).join('')
+  : `<p>${t('pdf.reflections.empty')}</p>`}
 
 <footer>
-  Falcon · Assistente Pessoal de Planejamento Estratégico<br>
-  Documento exportado em ${formatBr(data.exportedAt)} · Total de ${data.days.length} dias na base
+  ${t('pdf.footer')}<br>
+  ${t('pdf.generated', { date: generatedDate })} · ${t('pdf.footer.days', { days: data.days.length })}
 </footer>
 
 </body>
@@ -367,11 +382,4 @@ function stamp() {
   const d = new Date();
   const z = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
-}
-
-function formatBr(iso) {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
-  } catch { return iso; }
 }
