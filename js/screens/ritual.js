@@ -718,7 +718,7 @@ function syncTaskInDom(t) {
       thumb.classList.toggle('done', !!t.done);
       thumb.classList.toggle('is-cancelled', !!t.cancelled);
       thumb.textContent = checkContent;
-      thumb.title = t.cancelled ? 'Cancelada' : (t.done ? 'Feito!' : 'Marcar como feito');
+      thumb.title = t.cancelled ? t('ritual.task.cancelled') : (t.done ? t('ritual.task.done') : t('ritual.task.mark'));
     }
   });
 }
@@ -1145,15 +1145,15 @@ function openRecurrenceChooser(options = {}) {
     overlay.className = 'modal-overlay';
 
     const renderSpecificLabel = () => {
-      if (chosenDays.length === 0) return 'Abre calendário pra escolher dia(s) do mês';
-      if (chosenDays.length === 1) return `Selecionado: dia ${chosenDays[0]}`;
-      return `Selecionados: dias ${chosenDays.join(', ')}`;
+      if (chosenDays.length === 0) return t('recur.calendar.empty');
+      if (chosenDays.length === 1) return t('recur.calendar.one', { d: chosenDays[0] });
+      return t('recur.calendar.many', { days: chosenDays.join(', ') });
     };
 
     const renderHTML = () => `
       <div class="modal recur-chooser-modal">
-        <div class="modal-title">Repetir como?</div>
-        <div class="modal-hint">Escolha uma frequência e clique em Confirmar.</div>
+        <div class="modal-title">${t('recur.modal.title')}</div>
+        <div class="modal-hint">${t('recur.modal.hint')}</div>
 
         <div class="recur-options">
           <button type="button" class="recur-opt ${selectedKey === 'today' ? 'sel' : ''}" data-recur="today">
@@ -1502,16 +1502,16 @@ async function showOverdueReminderModal(app, day, t) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal" style="max-width:400px">
-      <div class="modal-title">⏰ Lembrete vencido</div>
+      <div class="modal-title">${t('ritual.overdue.title')}</div>
       <div class="modal-hint" style="text-align:center; line-height:1.55; padding: 6px 0">
         <strong>${escape(t.title)}</strong><br>
-        agendada pra <strong>${dataFmt} às ${horaFmt}</strong> ainda não foi tratada.<br>
-        <small style="color:var(--muted)">O que aconteceu?</small>
+        ${t('ritual.overdue.body', { date: dataFmt, time: horaFmt })}<br>
+        <small style="color:var(--muted)">${t('ritual.overdue.q')}</small>
       </div>
       <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px">
-        <button class="btn-primary" data-overdue="done">✅ Marcar como feito</button>
-        <button class="btn-secondary" data-overdue="reschedule">🕐 Reagendar</button>
-        <button class="btn-secondary" data-overdue="cancel">🚫 Atividade cancelada</button>
+        <button class="btn-primary" data-overdue="done">${t('ritual.overdue.done')}</button>
+        <button class="btn-secondary" data-overdue="reschedule">${t('ritual.overdue.reschedule')}</button>
+        <button class="btn-secondary" data-overdue="cancel">${t('ritual.overdue.cancel')}</button>
       </div>
     </div>
   `;
@@ -1729,8 +1729,8 @@ function taskCard(t, dayDocId) {
 
   return `
     <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''} ${isCommitment ? 'is-commitment' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
-      <button class="task-menu-btn-corner" data-action="menu" title="Editar / Duplicar / Excluir">⋮</button>
-      <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? 'Cancelada' : (t.done ? 'Feito!' : 'Marcar como feito')}">${checkContent}</button>
+      <button class="task-menu-btn-corner" data-action="menu" title="${t('ritual.task.menu.title')}">⋮</button>
+      <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? t('ritual.task.cancelled') : (t.done ? t('ritual.task.done') : t('ritual.task.mark'))}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
           <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${rescheduleBadge}
@@ -1772,12 +1772,12 @@ function openTaskMenu(triggerEl) {
   const menu = document.createElement('div');
   menu.className = 'task-menu-pop';
   menu.innerHTML = isCancelled ? `
-    <button class="task-menu-item" data-menu-action="restore">↩️ Restaurar</button>
-    <button class="task-menu-item danger" data-menu-action="del">🗑️ Excluir</button>
+    <button class="task-menu-item" data-menu-action="restore">${t('ritual.task.restore')}</button>
+    <button class="task-menu-item danger" data-menu-action="del">${t('ritual.task.delete')}</button>
   ` : `
-    <button class="task-menu-item" data-menu-action="edit">✏️ Editar</button>
-    <button class="task-menu-item" data-menu-action="dup">📑 Duplicar</button>
-    <button class="task-menu-item danger" data-menu-action="del">🗑️ Excluir</button>
+    <button class="task-menu-item" data-menu-action="edit">${t('ritual.task.edit')}</button>
+    <button class="task-menu-item" data-menu-action="dup">${t('ritual.task.dup')}</button>
+    <button class="task-menu-item danger" data-menu-action="del">${t('ritual.task.delete')}</button>
   `;
   document.body.appendChild(menu);
 
@@ -2252,9 +2252,9 @@ function attachHandlers(app) {
       } else {
         // Não-recorrente: confirma SEM oferecer a opção de excluir recorrências
         const ok = await confirmModal({
-          title: 'Excluir?',
-          message: `"${t.title}" será removida deste dia.`,
-          confirmText: 'Excluir',
+          title: t('ritual.del.title'),
+          message: t('ritual.del.message', { title: t.title }),
+          confirmText: t('ritual.del.confirm'),
           danger: true
         });
         if (!ok) return;
@@ -2971,10 +2971,10 @@ function openDayNoteModal(dayDocId) {
   if (delBtn) {
     delBtn.onclick = async () => {
       const ok = await confirmModal({
-        title: 'Excluir nota?',
-        message: 'Vai apagar essa nota do dia. Você pode registrar uma nova depois.',
-        confirmText: 'Excluir',
-        cancelText: 'Cancelar',
+        title: t('ritual.del.note.title'),
+        message: t('ritual.del.note.message'),
+        confirmText: t('ritual.del.confirm'),
+        cancelText: t('ritual.edit.cancel'),
         danger: true
       });
       if (!ok) return;
@@ -2983,7 +2983,7 @@ function openDayNoteModal(dayDocId) {
         await setDayMeta(dayDocId, { dayNote: null });
         prevNoteCache.delete(dayDocId);
         playDelete();
-        showToast('Nota excluída', 'success');
+        showToast(t('ritual.del.note.toast'), 'success');
         // Re-render do botão de nota no card
         const wrap = document.querySelector(`.day-note-wrap[data-day="${dayDocId}"]`);
         if (wrap) wrap.innerHTML = renderDayNoteButton(day);
@@ -3122,12 +3122,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
         <input type="checkbox" id="m-reminder" />
         <span class="reminder-bell"></span>
         <div class="reminder-text">
-          <span class="reminder-label">Lembrar com notificação</span>
-          <span class="reminder-hint">notificação real será ativada quando o app virar PWA</span>
+          <span class="reminder-label">${t('ritual.edit.reminder')}</span>
+          <span class="reminder-hint">${t('ritual.edit.reminder.hint')}</span>
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">Repetição</div>
+      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.recur')}</div>
       <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
         <span class="recur-btn-ic">🔁</span>
         <span class="recur-btn-text">${t('recur.btn.title')}</span>
@@ -3424,28 +3424,28 @@ function openTaskEditor(app, dayDocId, taskId) {
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal">
-      <div class="modal-title">Editar ${isCommitment ? 'compromisso' : 'tarefa'}</div>
-      <div class="modal-hint">A edição vale só pra este dia. A atividade original na Home não muda.</div>
+      <div class="modal-title">${isCommitment ? t('ritual.edit.title.commitment') : t('ritual.edit.title.task')}</div>
+      <div class="modal-hint">${t('ritual.edit.hint')}</div>
 
-      <div class="input-field-label">Tipo</div>
+      <div class="input-field-label">${t('ritual.edit.type')}</div>
       <div class="kind-chips" id="kind-chips">
-        <button type="button" class="kind-chip ${kind === 'task' ? 'active' : ''}" data-kind="task">📋 Tarefa</button>
-        <button type="button" class="kind-chip ${isCommitment ? 'active' : ''}" data-kind="commitment">📅 Compromisso</button>
+        <button type="button" class="kind-chip ${kind === 'task' ? 'active' : ''}" data-kind="task">${t('ritual.edit.task.chip')}</button>
+        <button type="button" class="kind-chip ${isCommitment ? 'active' : ''}" data-kind="commitment">${t('ritual.edit.commitment.chip')}</button>
       </div>
 
-      <label class="input-field"><div class="input-field-label">Título</div>
+      <label class="input-field"><div class="input-field-label">${t('ritual.edit.title.field')}</div>
         <input id="m-title" value="${escape(t.title)}" /></label>
-      <label class="input-field"><div class="input-field-label">Descrição (opcional)</div>
-        <input id="m-desc" value="${escape(t.desc || '')}" placeholder="detalhes do dia" /></label>
+      <label class="input-field"><div class="input-field-label">${t('ritual.edit.desc')}</div>
+        <input id="m-desc" value="${escape(t.desc || '')}" placeholder="${t('ritual.edit.desc.placeholder')}" /></label>
 
-      <div class="input-field-label" style="margin-top:8px">Ícone <small style="color:var(--muted);font-weight:500">(vazio usa o da categoria)</small></div>
+      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.icon')} <small style="color:var(--muted);font-weight:500">${t('ritual.edit.icon.hint')}</small></div>
       <div class="task-icon-picker" id="m-icon-picker">
-        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="Sem ícone próprio">∅</button>
+        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="${t('ritual.edit.icon.none')}">∅</button>
         ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}
       </div>
-      <label class="input-field"><div class="input-field-label">Turno</div>
+      <label class="input-field"><div class="input-field-label">${t('ritual.edit.shift')}</div>
         <select id="m-shift">${shiftOpts}</select></label>
-      <div class="input-field-label">Horário de início (opcional)</div>
+      <div class="input-field-label">${t('ritual.edit.time')}</div>
       <button type="button" class="tp-trigger" id="m-time-trigger" data-time="${toHHMM(t.startTime) || ''}">
         <span class="tp-trigger-icon">🕐</span>
         <span class="tp-trigger-time">${toHHMM(t.startTime) || '— : —'}</span>
@@ -3456,12 +3456,12 @@ function openTaskEditor(app, dayDocId, taskId) {
         <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
         <span class="reminder-bell"></span>
         <div class="reminder-text">
-          <span class="reminder-label">Lembrar com notificação</span>
-          <span class="reminder-hint">notificação real será ativada quando o app virar PWA</span>
+          <span class="reminder-label">${t('ritual.edit.reminder')}</span>
+          <span class="reminder-hint">${t('ritual.edit.reminder.hint')}</span>
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">Repetição</div>
+      <div class="input-field-label" style="margin-top:8px">${t('ritual.edit.recur')}</div>
       <button type="button" class="recur-btn" id="m-recur-btn">
         <span class="recur-btn-ic">🔁</span>
         <span class="recur-btn-text">${t('recur.btn.title')}</span>
@@ -3470,8 +3470,8 @@ function openTaskEditor(app, dayDocId, taskId) {
       </button>
 
       <div class="modal-actions">
-        <button class="btn-secondary" id="m-cancel">Cancelar</button>
-        <button class="btn-primary" id="m-save">Salvar</button>
+        <button class="btn-secondary" id="m-cancel">${t('ritual.edit.cancel')}</button>
+        <button class="btn-primary" id="m-save">${t('ritual.edit.save')}</button>
       </div>
     </div>
   `;

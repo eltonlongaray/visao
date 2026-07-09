@@ -21,7 +21,7 @@ import { ONBOARDING_STEPS } from '../tour-config.js';
 import { openTimePicker } from '../time-picker.js';
 import { openMorningMessages, hasUnreadToday } from '../morning-messages.js';
 import { trapModalBack } from '../modal-back.js';
-import { t } from '../i18n.js';
+import { t, getLang } from '../i18n.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -131,8 +131,7 @@ export async function renderHome(app) {
 // Mostra na Home quantas tarefas da semana atual têm lembrete ativado
 // e que ainda não foram feitas. Click → abre modal com a lista.
 // ═══════════════════════════════════════════════════════════════
-const WEEKDAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+// Datas dos lembretes formatadas via Intl (respeitam o idioma selecionado)
 let weekReminders = [];     // semana atual
 let nextWeekReminders = []; // semana que vem
 
@@ -206,7 +205,7 @@ function reminderItemsHtml(list, emptyMsg) {
     return `<div class="reminder-empty">${emptyMsg}</div>`;
   }
   return list.map(r => {
-    const dStr = `${WEEKDAYS_SHORT[r.date.getDay()]}, ${String(r.date.getDate()).padStart(2,'0')} ${MONTHS_SHORT[r.date.getMonth()]}`;
+    const dStr = new Intl.DateTimeFormat(getLang(), { weekday: 'short', day: '2-digit', month: 'short' }).format(r.date);
     const cat = categories.find(c => c.id === r.categoryId);
     // Lista é VIEW-ONLY (sem botão × — pra apagar use o Ritual)
     return `<div class="reminder-item">
