@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v116';
+const CACHE_NAME = 'visao-v117';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;

@@ -488,8 +488,11 @@ async function renderRecords(days) {
     weeks.get(mondayId).days.push({ ...d, date });
   }
 
-  // Ordena semanas mais recente primeiro
-  const sortedWeeks = Array.from(weeks.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  // Filtra semanas futuras (só mostra semana atual pra trás) e ordena mais recente primeiro
+  const currentMondayId = dayId(getMondayOfDate(new Date()));
+  const sortedWeeks = Array.from(weeks.entries())
+    .filter(([mondayId]) => mondayId <= currentMondayId)
+    .sort((a, b) => b[0].localeCompare(a[0]));
 
   // Busca todas as notas em paralelo
   const notes = await Promise.all(sortedWeeks.map(([id]) => getWeekNote(id).catch(() => null)));
