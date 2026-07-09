@@ -1681,7 +1681,7 @@ function recurWeeklyLabel(dow) {
   const date = new Date(2000, 0, 2 + dow); // 2000-01-02 = Domingo (dow=0)
   const dayName = new Intl.DateTimeFormat(getLang(), { weekday: 'long' }).format(date);
   const isMasc = (dow === 0 || dow === 6);
-  return t(isMasc ? 'recur.weekly.m' : 'recur.weekly.f', { day: dayName });
+  return tr(isMasc ? 'recur.weekly.m' : 'recur.weekly.f', { day: dayName });
 }
 
 // Mapeia HH:MM → nome de turno padrão (Manhã 5-12, Tarde 12-19, Noite 19-5)
@@ -1698,7 +1698,7 @@ function shiftNameFromTime(timeStr) {
 // Traduz nomes de turnos padrão para o idioma atual (só exibição, nunca matching)
 function _shiftDisplayName(name) {
   const map = { 'Manhã': 'ritual.shift.morning', 'Tarde': 'ritual.shift.afternoon', 'Noite': 'ritual.shift.evening' };
-  return map[name] ? t(map[name]) : name;
+  return map[name] ? tr(map[name]) : name;
 }
 
 
@@ -3327,7 +3327,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false);
         const label = days.length === 1 ? tr('recur.monthly.day.single', { day: days[0] }) : tr('recur.monthly.day.multi', { days: days.join(', ') });
-        const noun = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
+        const noun = tr(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
         showToast(tr('recur.toast.repeats', { noun, title, label }), 'success');
         return;
       } else if (recur === 'weekly') {
@@ -3350,7 +3350,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
           if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
           profile.weekdayTemplates[String(dowW)] = tplExisting;
         }
-        const noun2 = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
+        const noun2 = tr(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
         showToast(tr('recur.toast.repeats', { noun: noun2, title, label: recurWeeklyLabel(dowW) }), 'success');
       }
       // recur === 'daily' (já tem template salvo acima) — cai aqui só pra close + render
