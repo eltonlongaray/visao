@@ -123,8 +123,8 @@ export async function renderAjustes(app) {
           </button>
           <div class="ajustes-row" id="rowMuteNotif">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Silenciar notificações</div>
-              <div class="ajustes-row-sub">Receba alertas sem som e vibração</div>
+              <div class="ajustes-row-title">${t('ajustes.notif.mute')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.notif.mute.sub')}</div>
             </div>
             <label class="ajustes-toggle">
               <input type="checkbox" id="muteNotifToggle">
@@ -133,8 +133,8 @@ export async function renderAjustes(app) {
           </div>
           <button class="ajustes-row clickable" id="testPushBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Testar notificação</div>
-              <div class="ajustes-row-sub" id="testPushSub">Envia um push de teste agora</div>
+              <div class="ajustes-row-title">${t('ajustes.notif.test')}</div>
+              <div class="ajustes-row-sub" id="testPushSub">${t('ajustes.notif.test.sub')}</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>

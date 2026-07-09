@@ -273,11 +273,13 @@ function sleepInfoHtml() {
     return `<span class="sleep-info-empty">Defina os horários pra ver suas horas de sono. Ideal: entre 6h e 8h.</span>`;
   }
   const hrs = dur / 60;
-  let cls = 'good', emoji = '✅', msg = '';
-  if (hrs < 6)        { cls = 'bad';   emoji = '⚠️'; msg = 'pouco — ideal entre 6h e 8h'; }
-  else if (hrs <= 8)  { cls = 'good';  emoji = '✅'; msg = 'ideal!'; }
-  else                { cls = 'mid';   emoji = '💤'; msg = 'além do ideal (6h-8h)'; }
-  return `<span class="sleep-info-tag ${cls}">${emoji} ${formatDurationVerbose(dur)} de sono — ${msg}</span>`;
+  let cls = 'good', emoji = '✅';
+  if (hrs < 6)        { cls = 'bad';  emoji = '⚠️'; }
+  else if (hrs <= 8)  { cls = 'good'; emoji = '✅'; }
+  else                { cls = 'mid';  emoji = '💤'; }
+  const h = Math.floor(dur / 60);
+  const m = dur % 60;
+  return `<span class="sleep-info-tag ${cls}">${emoji} ${t('home.sleep.summary', { h, m: String(m).padStart(2, '0'), status: t('home.sleep.status.' + cls) })}</span>`;
 }
 
 function attachPrefHandlers() {

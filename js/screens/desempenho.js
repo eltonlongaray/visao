@@ -666,8 +666,8 @@ function renderWeekSleep(days, dayMap) {
   // Card extra das notas (mesmo sem horários registrados)
   const notesCard = (totalDaySleep > 0 || totalNightAwake > 0) ? `
     <div class="sleep-extra">
-      ${totalDaySleep > 0 ? `<div class="sleep-extra-row">😴 <strong>${totalDaySleep}h</strong> de cochilo durante o dia (semana)</div>` : ''}
-      ${totalNightAwake > 0 ? `<div class="sleep-extra-row">🌃 <strong>${totalNightAwake}h</strong> acordado(a) na madrugada (semana)</div>` : ''}
+      ${totalDaySleep > 0 ? `<div class="sleep-extra-row">${t('desempenho.sleep.nap', { h: totalDaySleep })}</div>` : ''}
+      ${totalNightAwake > 0 ? `<div class="sleep-extra-row">${t('desempenho.sleep.woke', { h: totalNightAwake })}</div>` : ''}
     </div>
   ` : '';
 
@@ -702,14 +702,13 @@ function renderWeekSleep(days, dayMap) {
   return `
     <div class="week-sleep">
       <div class="week-sleep-top">
-        <div class="week-sleep-label">🌙 Sono médio</div>
+        <div class="week-sleep-label">🌙 ${t('desempenho.sleep.avg')}</div>
         <div class="week-sleep-value">${formatDurationHM(avg)}</div>
         <div class="sleep-classification ${cls}">${emoji} ${label}</div>
       </div>
       <div class="week-sleep-total">
-        Você dormiu <strong>${formatDurationHM(totalMin)}</strong> ao longo dos
-        ${durations.length} dia${durations.length === 1 ? '' : 's'} registrado${durations.length === 1 ? '' : 's'} —
-        <small>de <strong>${trackedHrs}h</strong> registradas no app (${pctOfWeek}%)</small>
+        ${t('desempenho.sleep.total', { total: formatDurationHM(totalMin), days: durations.length })} —
+        <small>${t('desempenho.sleep.registered', { hours: trackedHrs, pct: pctOfWeek })}</small>
       </div>
       <div class="scale-marks scale-marks-3">
         <span><strong>&lt;6h</strong></span>

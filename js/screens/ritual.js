@@ -187,7 +187,7 @@ function weekOfMonth(date) {
 function pctClass(p) { return p >= 80 ? 'high' : p >= 60 ? 'mid' : 'low'; }
 
 function hydrationMsg(ml, goal) {
-  if (!ml) return 'comece com 1 copo (250ml)';
+  if (!ml) return t('home.hydration.hint');
   if (!goal || goal <= 0) goal = 2000;
   const pct = (ml / goal) * 100;
   if (pct >= 200) return `${Math.round(pct)}% — exagerou um pouco hein 😅`;
@@ -212,7 +212,7 @@ function weekRangeLabel() {
   const rep = weekData[3].date; // quinta-feira (meio da semana Seg→Dom)
   const w = weekOfMonth(rep);
   const s = weekData[0].date, e = weekData[6].date;
-  return `${w}ª semana · ${String(s.getDate()).padStart(2,'0')} ${_moShort(s)} → ${String(e.getDate()).padStart(2,'0')} ${_moShort(e)}`;
+  return `${t('ritual.week.label', { n: w })} · ${String(s.getDate()).padStart(2,'0')} ${_moShort(s)} → ${String(e.getDate()).padStart(2,'0')} ${_moShort(e)}`;
 }
 
 
@@ -548,8 +548,8 @@ function renderUI(app) {
         <button class="swipe-arrow" data-nav="prev-week">‹</button>
         <div class="day-info-center" id="week-pager-center">
           <div class="dt">${weekRangeLabel()}</div>
-          <div class="meta">Use as setas pra trocar de semana</div>
-          <div class="meta">Dê 2 toques para abrir o calendário</div>
+          <div class="meta">${t('ritual.pager.arrows')}</div>
+          <div class="meta">${t('ritual.pager.dblclick')}</div>
         </div>
         <button class="swipe-arrow" data-nav="next-week">›</button>
       </div>
@@ -669,7 +669,7 @@ function dayCard(d) {
         <div class="day-card-name">
           <span class="dow">${_wdFull(d.date)}${hasPendingReminder ? '<span class="day-reminder-dot" title="Tem tarefa com lembrete"></span>' : ''}</span>
           <span class="dnum">${String(d.date.getDate()).padStart(2,'0')} ${_moShort(d.date)}</span>
-          ${isToday ? '<span class="today-badge">HOJE</span>' : ''}
+          ${isToday ? `<span class="today-badge">${t('ritual.today')}</span>` : ''}
         </div>
         <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
         <span class="day-card-chevron">▾</span>
@@ -747,8 +747,8 @@ function commitmentsCard() {
     <div class="day-card commitments-card ${isExpanded ? 'open' : ''}" data-day-id="commitments">
       <button class="day-card-header" data-toggle-day="commitments">
         <div class="day-card-name">
-          <span class="dow">📅 Compromissos</span>
-          <span class="dnum">da semana</span>
+          <span class="dow">${t('ritual.commitments.title')}</span>
+          <span class="dnum"></span>
         </div>
         <div class="day-card-stats">${statsHtml(total, done, pct)}</div>
         <span class="day-card-chevron">▾</span>
@@ -796,14 +796,14 @@ function renderDayContent(d) {
   return `
     <div class="time-pills">
       <label class="time-pill">
-        <span class="time-pill-label">🌅 Acordei</span>
+        <span class="time-pill-label">${t('ritual.woke')}</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${wakeIsEmpty ? 'is-placeholder' : ''}" data-meta="wakeTime" data-day="${d.id}" data-time="${wakeReal || ''}">${wakeDisplay}</button>
       </label>
       <button class="pull-prev-day-pretty" data-action="pull-prev-day" data-day="${d.id}" title="Trazer atividades de outro dia">
         <span class="pull-prev-ic">📥</span>
       </button>
       <label class="time-pill">
-        <span class="time-pill-label">🌙 Dormi</span>
+        <span class="time-pill-label">${t('ritual.slept')}</span>
         <button type="button" class="time-pill-input tp-pill-trigger ${sleepIsEmpty ? 'is-placeholder' : ''}" data-meta="sleepTime" data-day="${d.id}" data-time="${sleepReal || ''}">${sleepDisplay}</button>
       </label>
     </div>
@@ -832,7 +832,7 @@ function renderDayContent(d) {
 
     <div class="day-clear-wrap">
       <button type="button" class="day-clear-btn" data-action="clear-day" data-day="${d.id}">
-        🗑️ Apagar tudo deste dia
+        ${t('ritual.day.deleteall')}
       </button>
     </div>
   `;
@@ -858,8 +858,8 @@ function renderDayNoteButton(d) {
     <button class="day-note-btn" data-action="open-note" data-day="${d.id}">
       <span class="dnote-ic">📝</span>
       <span class="dnote-body">
-        <strong>Registrar nota</strong>
-        <small>Responda 3 perguntas pra fechar o dia</small>
+        <strong>${t('ritual.note.title')}</strong>
+        <small>${t('ritual.note.sub')}</small>
       </span>
       <span class="dnote-edit">›</span>
     </button>
