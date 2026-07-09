@@ -2585,7 +2585,7 @@ function _restoreClearBtn(dayDocId) {
   const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
   const wrap = dayCardEl?.querySelector('.day-clear-wrap');
   if (wrap) {
-    wrap.innerHTML = `<button type="button" class="day-clear-btn" data-action="clear-day" data-day="${dayDocId}">🗑️ Apagar tudo deste dia</button>`;
+    wrap.innerHTML = `<button type="button" class="day-clear-btn" data-action="clear-day" data-day="${dayDocId}">${t('ritual.day.deleteall')}</button>`;
   }
 }
 
