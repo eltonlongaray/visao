@@ -124,6 +124,10 @@ export default {
   'ritual.note.sub':          'Responde 3 preguntas para cerrar el día',
   'ritual.day.deleteall':     '🗑 Borrar todo de este día',
   'ritual.today':             'HOY',
+  'ritual.hydration':         '💧 Hidratación',
+  'ritual.shift.morning':     'Mañana',
+  'ritual.shift.afternoon':   'Tarde',
+  'ritual.shift.evening':     'Noche',
 
   // ── Desempenho ───────────────────────────────────────────────
   'desempenho.title': 'Rendimiento',

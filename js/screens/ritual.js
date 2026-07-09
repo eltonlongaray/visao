@@ -812,7 +812,7 @@ function renderDayContent(d) {
 
     <div class="hydration">
       <div class="hydration-top">
-        <div class="hydration-label">💧 Hidratação</div>
+        <div class="hydration-label">${t('ritual.hydration')}</div>
         <div class="hydration-goal-label">meta: ${d.meta.hydrationGoal} ml</div>
       </div>
       <div class="hydration-stepper">
@@ -890,7 +890,7 @@ function renderShiftsForDay(d) {
     <div class="shift" data-shift-id="${s.id}" data-day-shift="${d.id}">
       <div class="shift-header">
         <div class="shift-icon" style="background:${s.gradient || 'linear-gradient(135deg,#a78bfa,#60a5fa)'}">${s.icon || '🕐'}</div>
-        <div class="shift-title">${escape(s.name)}</div>
+        <div class="shift-title">${escape(_shiftDisplayName(s.name))}</div>
         <div class="shift-count">${byShift[s.id].length} ${t('ritual.tasks')}</div>
         <button class="shift-add" data-add-to="${s.id}" data-day="${d.id}" title="Adicionar atividade">+</button>
       </div>
@@ -1684,6 +1684,7 @@ function recurWeeklyLabel(dow) {
 }
 
 // Mapeia HH:MM → nome de turno padrão (Manhã 5-12, Tarde 12-19, Noite 19-5)
+// Retorna SEMPRE o nome em PT-BR pois é usado para matching contra dados do Firestore
 function shiftNameFromTime(timeStr) {
   if (!timeStr) return null;
   const [hh] = timeStr.split(':').map(Number);
@@ -1691,6 +1692,12 @@ function shiftNameFromTime(timeStr) {
   if (hh >= 5 && hh < 12) return 'Manhã';
   if (hh >= 12 && hh < 19) return 'Tarde';
   return 'Noite';
+}
+
+// Traduz nomes de turnos padrão para o idioma atual (só exibição, nunca matching)
+function _shiftDisplayName(name) {
+  const map = { 'Manhã': 'ritual.shift.morning', 'Tarde': 'ritual.shift.afternoon', 'Noite': 'ritual.shift.evening' };
+  return map[name] ? t(map[name]) : name;
 }
 
 
