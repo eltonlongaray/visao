@@ -1159,8 +1159,8 @@ function openRecurrenceChooser(options = {}) {
           <button type="button" class="recur-opt ${selectedKey === 'today' ? 'sel' : ''}" data-recur="today">
             <span class="recur-opt-ic">📌</span>
             <span class="recur-opt-text">
-              <strong>Somente este dia</strong>
-              <small>Não repete</small>
+              <strong>${t('recur.today.label')}</strong>
+              <small>${t('recur.today.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
@@ -1168,15 +1168,15 @@ function openRecurrenceChooser(options = {}) {
             <span class="recur-opt-ic">🔁</span>
             <span class="recur-opt-text">
               <strong>${escape(dowLabel)}</strong>
-              <small>Repete no mesmo dia da semana</small>
+              <small>${t('recur.weekly.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
           <button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
-              <strong>Todos os dias</strong>
-              <small>Repete todos os dias daqui em diante</small>
+              <strong>${t('recur.daily.label')}</strong>
+              <small>${t('recur.daily.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
@@ -1184,8 +1184,8 @@ function openRecurrenceChooser(options = {}) {
             <button type="button" class="recur-opt ${selectedKey === 'monthly' ? 'sel' : ''}" data-recur="monthly">
               <span class="recur-opt-ic">📆</span>
               <span class="recur-opt-text">
-                <strong>Todo dia ${currentDate.getDate()}</strong>
-                <small>Mensal — todo mês neste dia</small>
+                <strong>${t('recur.monthly.label', { day: currentDate.getDate() })}</strong>
+                <small>${t('recur.monthly.sub')}</small>
               </span>
               <span class="recur-opt-check">✓</span>
             </button>
@@ -1193,7 +1193,7 @@ function openRecurrenceChooser(options = {}) {
           <button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
             <span class="recur-opt-ic">🗓️</span>
             <span class="recur-opt-text">
-              <strong>Escolher dia específico</strong>
+              <strong>${t('recur.specific.label')}</strong>
               <small>${escape(renderSpecificLabel())}</small>
             </span>
             <span class="recur-opt-check">✓</span>
@@ -1634,25 +1634,25 @@ function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     const subInfo = hasTemplateRecurrence
-      ? 'Esta tarefa também se repete em semanas futuras (template).'
-      : `Aparece em mais ${otherCount} dia${otherCount === 1 ? '' : 's'} desta semana.`;
+      ? t('recur.del.template')
+      : t('recur.del.days', { count: otherCount });
     modal.innerHTML = `
       <div class="modal" style="max-width:340px">
-        <div class="modal-title" style="text-align:center">⚠️ Excluir tarefa recorrente?</div>
+        <div class="modal-title" style="text-align:center">${t('recur.del.title')}</div>
         <div class="modal-hint" style="text-align:center">
           <strong>"${escape(taskTitle)}"</strong><br>
           ${subInfo}
         </div>
         <button class="del-scope-btn" data-scope="one" type="button">
-          <strong>📌 Somente este dia</strong>
-          <small>Mantém nos outros dias e nas próximas semanas</small>
+          <strong>📌 ${t('recur.del.one')}</strong>
+          <small>${t('recur.del.one.sub')}</small>
         </button>
         <button class="del-scope-btn danger" data-scope="all" type="button">
-          <strong>🗑️ Toda a recorrência</strong>
-          <small>Remove desta semana e das próximas (limpa o template)</small>
+          <strong>🗑️ ${t('recur.del.all')}</strong>
+          <small>${t('recur.del.all.sub')}</small>
         </button>
         <div class="modal-actions">
-          <button class="btn-secondary" id="del-cancel">Cancelar</button>
+          <button class="btn-secondary" id="del-cancel">${t('ritual.cancel')}</button>
         </div>
       </div>
     `;
@@ -1676,11 +1676,12 @@ function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
   });
 }
 
-// Label da recorrência semanal respeitando gênero (sábado/domingo masculinos)
+// Label da recorrência semanal — nome do dia via Intl (respeita o idioma ativo)
 function recurWeeklyLabel(dow) {
-  const names = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-  const isMasc = (dow === 0 || dow === 6); // Domingo e Sábado
-  return `${isMasc ? 'Todo' : 'Toda'} ${names[dow].toLowerCase()}`;
+  const date = new Date(2000, 0, 2 + dow); // 2000-01-02 = Domingo (dow=0)
+  const dayName = new Intl.DateTimeFormat(getLang(), { weekday: 'long' }).format(date);
+  const isMasc = (dow === 0 || dow === 6);
+  return t(isMasc ? 'recur.weekly.m' : 'recur.weekly.f', { day: dayName });
 }
 
 // Mapeia HH:MM → nome de turno padrão (Manhã 5-12, Tarde 12-19, Noite 19-5)
@@ -3129,8 +3130,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <div class="input-field-label" style="margin-top:8px">Repetição</div>
       <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
         <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">Repetir atividade</span>
-        <span class="recur-btn-label">Somente hoje</span>
+        <span class="recur-btn-text">${t('recur.btn.title')}</span>
+        <span class="recur-btn-label">${t('recur.only.today')}</span>
         <span class="recur-btn-edit">›</span>
       </button>
 
@@ -3170,12 +3171,12 @@ function openActivityPicker(app, dayDocId, shiftId) {
   const recurBtn = modal.querySelector('#m-recur-btn');
   const recurLabel = recurBtn.querySelector('.recur-btn-label');
   const refreshRecurLabel = () => {
-    if (recurState.recur === 'today') recurLabel.textContent = 'Somente hoje';
+    if (recurState.recur === 'today') recurLabel.textContent = t('recur.only.today');
     else if (recurState.recur === 'weekly') recurLabel.textContent = recurWeeklyLabel(day.date.getDay());
-    else if (recurState.recur === 'daily') recurLabel.textContent = 'Todos os dias';
+    else if (recurState.recur === 'daily') recurLabel.textContent = t('recur.daily.label');
     else if (recurState.recur === 'monthly') {
       const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
-      recurLabel.textContent = dom.length === 1 ? `Todo dia ${dom[0]}` : `Dias ${dom.join(', ')}`;
+      recurLabel.textContent = dom.length === 1 ? t('recur.monthly.day.single', { day: dom[0] }) : t('recur.monthly.day.multi', { days: dom.join(', ') });
     }
   };
   recurBtn.addEventListener('click', async () => {
@@ -3325,9 +3326,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
         if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
         updateDayCardStats(dayDocId, false);
-        const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
-        const noun = kind === 'commitment' ? 'Compromisso' : 'Tarefa';
-        showToast(`${noun} "${title}" repete ${label}`, 'success');
+        const label = days.length === 1 ? t('recur.monthly.day.single', { day: days[0] }) : t('recur.monthly.day.multi', { days: days.join(', ') });
+        const noun = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
+        showToast(t('recur.toast.repeats', { noun, title, label }), 'success');
         return;
       } else if (recur === 'weekly') {
         // Salva no weekdayTemplate do DOW desta data (pra próximas semanas)
@@ -3349,8 +3350,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
           if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
           profile.weekdayTemplates[String(dowW)] = tplExisting;
         }
-        const noun2 = kind === 'commitment' ? 'Compromisso' : 'Tarefa';
-        showToast(`${noun2} "${title}" repete ${recurWeeklyLabel(dowW).toLowerCase()}`, 'success');
+        const noun2 = t(kind === 'commitment' ? 'recur.toast.commitment' : 'recur.toast.task');
+        showToast(t('recur.toast.repeats', { noun: noun2, title, label: recurWeeklyLabel(dowW) }), 'success');
       }
       // recur === 'daily' (já tem template salvo acima) — cai aqui só pra close + render
       close();
@@ -3463,7 +3464,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       <div class="input-field-label" style="margin-top:8px">Repetição</div>
       <button type="button" class="recur-btn" id="m-recur-btn">
         <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">Repetir atividade</span>
+        <span class="recur-btn-text">${t('recur.btn.title')}</span>
         <span class="recur-btn-label" id="m-recur-label">—</span>
         <span class="recur-btn-edit">›</span>
       </button>
@@ -3487,12 +3488,12 @@ function openTaskEditor(app, dayDocId, taskId) {
   }
   const recurLabelEl = modal.querySelector('#m-recur-label');
   const refreshRecurLabel = () => {
-    if (recurState.recur === 'today') recurLabelEl.textContent = 'Somente este dia';
+    if (recurState.recur === 'today') recurLabelEl.textContent = t('recur.today.label');
     else if (recurState.recur === 'weekly') recurLabelEl.textContent = recurWeeklyLabel(day.date.getDay());
-    else if (recurState.recur === 'daily') recurLabelEl.textContent = 'Todos os dias';
+    else if (recurState.recur === 'daily') recurLabelEl.textContent = t('recur.daily.label');
     else if (recurState.recur === 'monthly') {
       const dom = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
-      recurLabelEl.textContent = dom.length === 1 ? `Todo dia ${dom[0]}` : `Dias ${dom.join(', ')}`;
+      recurLabelEl.textContent = dom.length === 1 ? t('recur.monthly.day.single', { day: dom[0] }) : t('recur.monthly.day.multi', { days: dom.join(', ') });
     }
   };
   refreshRecurLabel();
@@ -3682,15 +3683,15 @@ function openTaskEditor(app, dayDocId, taskId) {
         if (otherEl) otherEl.querySelector('.day-card-content').innerHTML = renderDayContent(otherDay);
         updateDayCardStats(otherDay.id, true);
       }
-      showToast('Repete todos os dias', 'success');
+      showToast(t('recur.toast.daily'), 'success');
     } else if (recur === 'weekly') {
-      showToast(`Repete ${recurWeeklyLabel(day.date.getDay()).toLowerCase()}`, 'success');
+      showToast(t('recur.toast.weekly', { day: recurWeeklyLabel(day.date.getDay()) }), 'success');
     } else if (recur === 'monthly') {
       const days = monthlyDays.length > 0 ? monthlyDays : [day.date.getDate()];
-      const label = days.length === 1 ? `todo dia ${days[0]}` : `dias ${days.join(', ')}`;
-      showToast(`Repete ${label}`, 'success');
+      const label = days.length === 1 ? t('recur.monthly.day.single', { day: days[0] }) : t('recur.monthly.day.multi', { days: days.join(', ') });
+      showToast(t('recur.toast.monthly', { label }), 'success');
     } else if (recur === 'today' && prevRecurType !== 'today') {
-      showToast('Só este dia — recorrência removida', 'success');
+      showToast(t('recur.toast.removed'), 'success');
     }
 
     // Propaga para as próximas 2 semanas usando +7 e +14 dias direto do dayDocId.
