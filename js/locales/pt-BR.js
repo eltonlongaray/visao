@@ -264,9 +264,95 @@ export default {
   'toast.error.save':   'Erro ao salvar. Tente novamente.',
   'toast.fin.soon':     '💰 Organização Financeira em desenvolvimento — em breve!',
 
-  // ── Pet (principais) ─────────────────────────────────────────
-  'pet.gcal.prompt':    'Quer receber uma notificação? Se abrir vazio (sem evento), volte aqui e toque no botão abaixo novamente.',
-  'pet.gcal.btn':       '📅 Adicionar ao Google Agenda',
-  'pet.registered.task': 'Atividade registrada! ✓',
-  'pet.registered.commitment': 'Compromisso registrado! ✓',
+  // ── Pet ──────────────────────────────────────────────────────
+  'pet.close':              'Fechar',
+  'pet.open':               'Abrir assistente Falcon',
+  'pet.send':               'Enviar',
+  'pet.cancel':             'Cancelar',
+  'pet.confirm':            'Confirmar',
+  'pet.qa.sleep':           'Sono',
+  'pet.qa.streak':          'Sequência',
+  'pet.qa.water':           'Água',
+  'pet.qa.tasks':           'Tarefas',
+  'pet.greeting':           'Oi! Toque em um atalho ou digite um comando. Digite <strong>ajuda</strong> para ver tudo.',
+  'pet.placeholder':        'Digite um comando...',
+  'pet.mic.title':          'Falar',
+  'pet.mic.label':          'Microfone',
+
+  'pet.error.general':      'Ocorreu um erro. Tente novamente.',
+  'pet.error.mic.unsupported': 'Voz não suportada neste navegador.',
+  'pet.error.mic.blocked':  'Microfone bloqueado. Ajustes → Safari → Microfone → Permitir',
+  'pet.error.mic.access':   'Não foi possível acessar o microfone.',
+  'pet.error.register':     'Erro ao registrar. Tente novamente.',
+
+  'pet.ask.name':           'O que você quer registrar?',
+  'pet.ask.time':           'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)',
+  'pet.ask.time.invalid':   'Informe um horário válido (ex: 15:30 ou 15h).',
+  'pet.ask.for':            'para',
+  'pet.ask.type.question':  'Atividade ou compromisso?',
+  'pet.ask.type':           'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).',
+
+  'pet.unknown':            'Não entendi. Digite <strong>ajuda</strong> pra ver o que sei fazer.',
+
+  'pet.streak.perfect':     '✅ Semana perfeita até agora!',
+  'pet.streak.failed':      '⚠️ Essa semana você <strong>falhou {n} dia(s)</strong>.',
+  'pet.streak.none':        'Nenhum dia consecutivo registrado ainda.',
+  'pet.streak.days':        'Você está a <strong>{n} dia(s)</strong> consecutivos em atividade.',
+  'pet.streak.hint':        'Diga <em>início: DD/MM</em> pra definir o começo da contagem.',
+  'pet.streak.reset':       '✅ Sequência zerada. Contagem começa de hoje.',
+  'pet.streak.start.format':'Para definir o início diga: <strong>início: DD/MM</strong> (ex: início: 09/06)',
+  'pet.streak.start.set':   '✅ Início da sequência definido para <strong>{date}</strong>. Dias antes dessa data não contam.',
+
+  'pet.sleep.none':         '😴 Nenhum horário de sono registrado hoje.',
+  'pet.sleep.no.wake':      '😴 Horário de dormir: <strong>{sleep}</strong>. Ainda sem acordar registrado.',
+  'pet.sleep.no.sleep':     '☀️ Acordou às <strong>{wake}</strong>, mas sem horário de dormir de ontem.',
+  'pet.sleep.no.calc':      '😴 Não consegui calcular a duração do sono.',
+  'pet.sleep.result':       '😴 Você dormiu <strong>{h}h{m}</strong> ({sleep} → {wake}). {rating}',
+  'pet.sleep.good':         '✅ Ótimo!',
+  'pet.sleep.ok':           '🟡 Razoável.',
+  'pet.sleep.bad':          '🔴 Pouco sono.',
+
+  'pet.hydration.none':     '💧 Nenhum dado de hoje encontrado ainda.',
+  'pet.hydration.goal':     '🎉 Meta atingida!',
+  'pet.hydration.remaining':'Faltam <strong>{remaining}ml</strong>',
+  'pet.hydration.result':   '💧 <strong>{ml}ml</strong> de {goal}ml ({pct}%)',
+
+  'pet.tasks.none':         '📋 Nenhuma tarefa registrada pra hoje.',
+  'pet.tasks.result':       '📋 <strong>{done}/{total}</strong> tarefa(s) concluída(s)',
+
+  'pet.type.today':         'hoje',
+  'pet.type.tomorrow':      'amanhã',
+  'pet.type.activity':      'atividade',
+  'pet.type.commitment':    'compromisso',
+  'pet.type.activity.btn':  '✅ Atividade (já fiz)',
+  'pet.type.commitment.btn':'📌 Compromisso (vou fazer)',
+
+  'pet.preview.register':   'Registrar {type}',
+  'pet.preview.registering':'Registrando...',
+  'pet.preview.done':       '✓ Registrado',
+
+  'pet.registered.activity':   'Atividade registrada! ✓',
+  'pet.registered.commitment':  'Compromisso registrado! ✓',
+
+  'pet.notif.scheduled':    '🔔 Notificação agendada para as <strong>{time}</strong>. Você será avisado no horário!',
+  'pet.notif.blocked':      'Notificações bloqueadas. Adicione ao Google Agenda para receber aviso:',
+  'pet.notif.gcal.hint':    'Adicione ao Google Agenda para ser lembrado no horário:',
+  'pet.gcal.prompt':        'Quer receber uma notificação? Se abrir vazio (sem evento), volte aqui e toque no botão novamente.',
+  'pet.gcal.btn':           '📅 Adicionar ao Google Agenda',
+
+  'pet.help': `👁 <strong>O que eu entendo:</strong>
+<ul style="margin:6px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>quanto dormi?</em></li>
+  <li><em>minha sequência?</em></li>
+  <li><em>hidratação de hoje?</em></li>
+  <li><em>tarefas de hoje?</em></li>
+  <li><em>adicionar treino</em> · <em>registrar almoço</em></li>
+  <li><em>agendar dentista amanhã às 10h</em></li>
+  <li><em>lembrar sexta de ligar pra mãe</em></li>
+  <li><em>início: 01/06</em> — define início da sequência</li>
+</ul>
+<small style="color:var(--muted)">Use também os atalhos rápidos acima ⬆️</small>`,
+
+  'notif.body.activity':    'Hora de {title}! 🎯',
+  'notif.body.commitment':  'Lembrete: {title} ⏰',
 };

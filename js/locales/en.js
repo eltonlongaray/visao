@@ -264,9 +264,95 @@ export default {
   'toast.error.save':   'Error saving. Please try again.',
   'toast.fin.soon':     '💰 Financial Organization in development — coming soon!',
 
-  // ── Pet (principais) ─────────────────────────────────────────
-  'pet.gcal.prompt':    'Want a reminder? If it opens empty (no event), come back here and tap the button below again.',
-  'pet.gcal.btn':       '📅 Add to Google Calendar',
-  'pet.registered.task': 'Activity registered! ✓',
-  'pet.registered.commitment': 'Commitment registered! ✓',
+  // ── Pet ──────────────────────────────────────────────────────
+  'pet.close':              'Close',
+  'pet.open':               'Open Falcon assistant',
+  'pet.send':               'Send',
+  'pet.cancel':             'Cancel',
+  'pet.confirm':            'Confirm',
+  'pet.qa.sleep':           'Sleep',
+  'pet.qa.streak':          'Streak',
+  'pet.qa.water':           'Water',
+  'pet.qa.tasks':           'Tasks',
+  'pet.greeting':           'Hi! Tap a shortcut or type a command. Type <strong>help</strong> to see everything.',
+  'pet.placeholder':        'Type a command...',
+  'pet.mic.title':          'Speak',
+  'pet.mic.label':          'Microphone',
+
+  'pet.error.general':      'An error occurred. Please try again.',
+  'pet.error.mic.unsupported': 'Voice not supported in this browser.',
+  'pet.error.mic.blocked':  'Microphone blocked. Settings → Browser → Microphone → Allow',
+  'pet.error.mic.access':   'Could not access the microphone.',
+  'pet.error.register':     'Error registering. Please try again.',
+
+  'pet.ask.name':           'What do you want to register?',
+  'pet.ask.time':           'Commitment needs a time. What time? (e.g. 15:30 or 15h)',
+  'pet.ask.time.invalid':   'Enter a valid time (e.g. 15:30 or 15h).',
+  'pet.ask.for':            'for',
+  'pet.ask.type.question':  'Activity or commitment?',
+  'pet.ask.type':           'Reply <strong>activity</strong> (already done) or <strong>commitment</strong> (to do).',
+
+  'pet.unknown':            "I didn't understand. Type <strong>help</strong> to see what I can do.",
+
+  'pet.streak.perfect':     '✅ Perfect week so far!',
+  'pet.streak.failed':      '⚠️ This week you <strong>missed {n} day(s)</strong>.',
+  'pet.streak.none':        'No consecutive days recorded yet.',
+  'pet.streak.days':        "You're on a <strong>{n}-day streak</strong>.",
+  'pet.streak.hint':        'Say <em>start: DD/MM</em> to set the streak start date.',
+  'pet.streak.reset':       '✅ Streak reset. Count starts from today.',
+  'pet.streak.start.format':'To set the start say: <strong>start: DD/MM</strong> (e.g. start: 09/06)',
+  'pet.streak.start.set':   '✅ Streak start set to <strong>{date}</strong>. Days before this date won\'t count.',
+
+  'pet.sleep.none':         '😴 No sleep time recorded today.',
+  'pet.sleep.no.wake':      '😴 Bedtime: <strong>{sleep}</strong>. No wake-up time yet.',
+  'pet.sleep.no.sleep':     '☀️ Woke up at <strong>{wake}</strong>, but no bedtime from yesterday.',
+  'pet.sleep.no.calc':      "😴 Couldn't calculate sleep duration.",
+  'pet.sleep.result':       '😴 You slept <strong>{h}h{m}</strong> ({sleep} → {wake}). {rating}',
+  'pet.sleep.good':         '✅ Great!',
+  'pet.sleep.ok':           '🟡 Decent.',
+  'pet.sleep.bad':          '🔴 Not enough.',
+
+  'pet.hydration.none':     '💧 No data for today yet.',
+  'pet.hydration.goal':     '🎉 Goal reached!',
+  'pet.hydration.remaining':'Still <strong>{remaining}ml</strong> to go',
+  'pet.hydration.result':   '💧 <strong>{ml}ml</strong> of {goal}ml ({pct}%)',
+
+  'pet.tasks.none':         '✅ No tasks recorded for today.',
+  'pet.tasks.result':       '📋 <strong>{done}/{total}</strong> task(s) completed',
+
+  'pet.type.today':         'today',
+  'pet.type.tomorrow':      'tomorrow',
+  'pet.type.activity':      'activity',
+  'pet.type.commitment':    'commitment',
+  'pet.type.activity.btn':  '✅ Activity (already done)',
+  'pet.type.commitment.btn':'📌 Commitment (to do)',
+
+  'pet.preview.register':   'Register {type}',
+  'pet.preview.registering':'Registering...',
+  'pet.preview.done':       '✓ Registered',
+
+  'pet.registered.activity':   'Activity registered! ✓',
+  'pet.registered.commitment':  'Commitment registered! ✓',
+
+  'pet.notif.scheduled':    '🔔 Notification scheduled for <strong>{time}</strong>. You\'ll be reminded!',
+  'pet.notif.blocked':      'Notifications blocked. Add to Google Calendar to get a reminder:',
+  'pet.notif.gcal.hint':    'Add to Google Calendar to be reminded:',
+  'pet.gcal.prompt':        'Want a reminder? If it opens empty (no event), come back here and tap the button again.',
+  'pet.gcal.btn':           '📅 Add to Google Calendar',
+
+  'pet.help': `👁 <strong>What I understand:</strong>
+<ul style="margin:6px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>how much did I sleep?</em></li>
+  <li><em>my streak?</em></li>
+  <li><em>water today?</em></li>
+  <li><em>tasks today?</em></li>
+  <li><em>add workout</em> · <em>register lunch</em></li>
+  <li><em>schedule dentist tomorrow at 10h</em></li>
+  <li><em>remind me Friday to call mom</em></li>
+  <li><em>start: 01/06</em> — set streak start</li>
+</ul>
+<small style="color:var(--muted)">You can also use the shortcuts above ⬆️</small>`,
+
+  'notif.body.activity':    "Time for {title}! 🎯",
+  'notif.body.commitment':  "Reminder: {title} ⏰",
 };

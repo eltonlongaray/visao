@@ -7,6 +7,7 @@ import {
   dayId, sleepDuration, formatTime
 } from './store.js';
 import { scheduleNotif, notifTag, requestPermission } from './notifications.js';
+import { t, getLang } from './i18n.js';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -29,7 +30,6 @@ export function hidePet() {
   if (el) el.classList.add('pet-hidden');
 }
 
-// Abre o pet + painel de chat (chamado pelo botão da home)
 export function openPetChat() {
   showPet();
   setTimeout(openChatPanel, 60);
@@ -65,20 +65,20 @@ function buildPetHTML() {
         <div class="pet-eye-mini"></div>
         <span>Falcon</span>
       </div>
-      <button class="pet-chat-close" id="pet-chat-close" aria-label="Fechar">×</button>
+      <button class="pet-chat-close" id="pet-chat-close" aria-label="${t('pet.close')}">×</button>
     </div>
 
     <!-- Atalhos rápidos -->
     <div class="pet-quick-actions" id="pet-quick-actions">
-      <button class="pet-qa-btn" data-cmd="quanto dormi?">😴 Sono</button>
-      <button class="pet-qa-btn" data-cmd="minha sequência?">🔥 Sequência</button>
-      <button class="pet-qa-btn" data-cmd="hidratação de hoje?">💧 Água</button>
-      <button class="pet-qa-btn" data-cmd="tarefas de hoje?">📋 Tarefas</button>
+      <button class="pet-qa-btn" data-pet-cmd="sleep">🌙 ${t('pet.qa.sleep')}</button>
+      <button class="pet-qa-btn" data-pet-cmd="streak">🔥 ${t('pet.qa.streak')}</button>
+      <button class="pet-qa-btn" data-pet-cmd="water">💧 ${t('pet.qa.water')}</button>
+      <button class="pet-qa-btn" data-pet-cmd="tasks">✅ ${t('pet.qa.tasks')}</button>
     </div>
 
     <div class="pet-chat-messages" id="pet-messages">
       <div class="pet-msg pet-msg-bot">
-        <span>Oi! Toque em um atalho ou digite um comando. Digite <strong>ajuda</strong> para ver tudo.</span>
+        <span>${t('pet.greeting')}</span>
       </div>
     </div>
 
@@ -86,13 +86,13 @@ function buildPetHTML() {
       <textarea
         id="pet-input"
         class="pet-input"
-        placeholder="Digite um comando..."
+        placeholder="${t('pet.placeholder')}"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="sentences"
         rows="1"
       ></textarea>
-      <button class="pet-mic-btn" id="pet-mic-btn" title="Falar" aria-label="Microfone">
+      <button class="pet-mic-btn" id="pet-mic-btn" title="${t('pet.mic.title')}" aria-label="${t('pet.mic.label')}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="2" width="6" height="12" rx="3"/>
           <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
@@ -100,31 +100,27 @@ function buildPetHTML() {
           <line x1="8" y1="23" x2="16" y2="23"/>
         </svg>
       </button>
-      <button class="pet-send-btn" id="pet-send-btn" aria-label="Enviar">➤</button>
+      <button class="pet-send-btn" id="pet-send-btn" aria-label="${t('pet.send')}">➤</button>
     </div>
     <div id="pet-recording-bar" class="pet-recording-bar" style="display:none">
       <canvas id="pet-waveform" class="pet-waveform"></canvas>
-      <button id="pet-rec-cancel" class="pet-rec-cancel" aria-label="Cancelar">×</button>
-      <button id="pet-rec-confirm" class="pet-rec-confirm" aria-label="Confirmar">✓</button>
+      <button id="pet-rec-cancel" class="pet-rec-cancel" aria-label="${t('pet.cancel')}">×</button>
+      <button id="pet-rec-confirm" class="pet-rec-confirm" aria-label="${t('pet.confirm')}">✓</button>
     </div>
   </div>
 
   <!-- Corpo do pet — O OLHO INTEIRO -->
-  <div class="pet-body" id="pet-body" role="button" aria-label="Abrir chat do Falcon" tabindex="0">
+  <div class="pet-body" id="pet-body" role="button" aria-label="${t('pet.open')}" tabindex="0">
     <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-      <!-- Esclera: preenche o círculo inteiro -->
       <circle cx="30" cy="30" r="30" fill="white"/>
-      <!-- Íris + pupila + brilhos movem juntos -->
       <g class="pet-iris-group">
         <circle cx="30" cy="33" r="17" fill="#4f46e5"/>
         <circle cx="30" cy="33" r="10" fill="#080614" class="pet-pupil"/>
         <circle cx="37" cy="26" r="4.5" fill="white" opacity="0.75"/>
         <circle cx="22" cy="29" r="2" fill="white" opacity="0.35"/>
       </g>
-      <!-- Pálpebra superior (fecha de cima) -->
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
-      <!-- Pálpebra inferior (fecha de baixo) -->
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
     <div class="pet-zzz" aria-hidden="true">
@@ -162,14 +158,27 @@ function attachHandlers() {
   document.getElementById('pet-rec-cancel').addEventListener('click', stopMicCancel);
   document.getElementById('pet-rec-confirm').addEventListener('click', stopMicConfirm);
 
-  // Botões de atalho — guard para evitar disparo duplo por toque
+  // Atalhos rápidos via data-pet-cmd (chama função diretamente, sem passar pelo NLP)
   let qaDispatching = false;
   document.getElementById('pet-quick-actions').addEventListener('click', async e => {
     const btn = e.target.closest('.pet-qa-btn');
     if (!btn || qaDispatching) return;
     qaDispatching = true;
-    await dispatchCommand(btn.dataset.cmd);
-    qaDispatching = false;
+    setPetState('thinking');
+    try {
+      const cmd = btn.dataset.petCmd;
+      let reply;
+      if (cmd === 'sleep')  reply = await cmdSono();
+      else if (cmd === 'streak') reply = await cmdSequencia();
+      else if (cmd === 'water')  reply = await cmdHidratacao();
+      else if (cmd === 'tasks')  reply = await cmdTarefas();
+      if (reply) addMessage(reply, 'bot');
+    } catch (err) {
+      addMessage(t('pet.error.general'), 'bot');
+    } finally {
+      setPetState('idle');
+      qaDispatching = false;
+    }
   });
 }
 
@@ -192,9 +201,6 @@ function closeChatPanel() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 6: SEND + ESTADO DE CONVERSA
 // ═══════════════════════════════════════════════════════════════
-// convState guarda o contexto da conversa em andamento
-// { type: 'waiting_name' }  → aguardando nome do que registrar
-// { type: 'waiting_type', name: '...' } → aguardando atividade/compromisso
 let convState = null;
 
 async function handleSend() {
@@ -213,7 +219,7 @@ async function dispatchCommand(text) {
     const reply = await routeCommand(text.trim());
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
-    addMessage('Ocorreu um erro ao buscar seus dados. Tente novamente.', 'bot');
+    addMessage(t('pet.error.general'), 'bot');
     console.error('[pet]', err);
   } finally {
     setPetState('idle');
@@ -224,11 +230,11 @@ async function dispatchCommand(text) {
 // BLOCO 7: ROTEADOR DE COMANDOS
 // ═══════════════════════════════════════════════════════════════
 
-// Verbos que indicam intenção de registrar algo
-const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\b/i;
+// Verbos que indicam intenção de registrar algo (PT + EN)
+const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar|add|schedule|create|register|remind|log)\b/i;
 
 async function routeCommand(text) {
-  const t = text.toLowerCase();
+  const tl = text.toLowerCase();
 
   // ── Continua conversa em andamento ──
   if (convState?.type === 'waiting_name') {
@@ -241,91 +247,82 @@ async function routeCommand(text) {
   if (convState?.type === 'waiting_type') {
     const { name, date, time } = convState;
     const d = date || new Date();
-    if (/^(ativ|já fiz|feito|conclu|sim.*ativ)/i.test(t) || /atividade/i.test(t)) {
+    if (/^(ativ|já fiz|feito|conclu|sim.*ativ|activity|done|already)/i.test(tl) || /atividade|activity/i.test(tl)) {
       convState = null;
       showRegistroPreview(name, true, d, time || '');
       return null;
     }
-    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp)/i.test(t) || /compromisso/i.test(t)) {
+    if (/^(comp|vou|vou fazer|não fiz|pendente|sim.*comp|commitment|will do|todo)/i.test(tl) || /compromisso|commitment/i.test(tl)) {
       if (!time) {
         convState = { type: 'waiting_time', name, date: d };
-        return 'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)';
+        return t('pet.ask.time');
       }
       convState = null;
       showRegistroPreview(name, false, d, time);
       return null;
     }
-    return 'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).';
+    return t('pet.ask.type');
   }
 
   if (convState?.type === 'waiting_time') {
     const { name, date } = convState;
     const time = extractTime(text);
-    if (!time) return 'Informe um horário válido (ex: 15:30 ou 15h).';
+    if (!time) return t('pet.ask.time.invalid');
     convState = null;
     showRegistroPreview(name, false, date, time);
     return null;
   }
 
-  // ── Consultas ──
-  if (/dormi|sono|horas de sono|acordei/i.test(t))                   return cmdSono();
-  if (/sequência|sequencia|streak|seguidos|consecutiv/i.test(t))     return cmdSequencia();
-  if (/hidrat|água|agua|beber|bebi|\bml\b/i.test(t))                 return cmdHidratacao();
-  if (/tarefas?|to.?do|lista de hoje|o que tenho/i.test(t) && !REGISTER_TRIGGERS.test(t)) return cmdTarefas();
-  if (/ajuda|help|comando|o que (você|vc) (faz|sabe)/i.test(t))      return cmdAjuda();
-  if (/^início:\s*\d|zerar\s+sequência|começo\s+da\s+sequência/i.test(t)) return cmdDefinirInicio(text);
+  // ── Consultas (PT + EN) ──
+  if (/dormi|sono|horas de sono|acordei|sleep|how.*sleep|woke.*up/i.test(tl))         return cmdSono();
+  if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
+  if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
+  if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl)) return cmdTarefas();
+  if (/ajuda|help|comando|o que (você|vc) (faz|sabe)|what can you/i.test(tl))          return cmdAjuda();
+  if (/^início:\s*\d|zerar\s+sequência|começo\s+da\s+sequência|^start:\s*\d|reset.*streak/i.test(tl)) return cmdDefinirInicio(text);
 
   // ── Intenção de registrar ──
-  if (REGISTER_TRIGGERS.test(t) || /registrar|adicionar/i.test(t)) {
-    // Detecta data alvo com suporte a DD/MM, nomes de dia e amanhã
-    const targetDate = extractDate(text);
-
-    // Detecta tipo diretamente na frase
-    const tipoExplicito = /\bcompromisso\b/i.test(t) ? 'compromisso'
-                        : /\batividade\b/i.test(t)   ? 'atividade'
+  if (REGISTER_TRIGGERS.test(tl) || /registrar|adicionar/i.test(tl)) {
+    const targetDate    = extractDate(text);
+    const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl) ? 'compromisso'
+                        : /\batividade\b|activity/i.test(tl)     ? 'atividade'
                         : null;
-
-    // Extrai horário e nome da tarefa
     const taskTime = extractTime(text);
     const nameRaw  = extractTaskName(text);
 
     if (!nameRaw) {
       convState = { type: 'waiting_name', date: targetDate, time: taskTime };
-      return 'O que você quer registrar?';
+      return t('pet.ask.name');
     }
-
     if (tipoExplicito === 'compromisso') {
       if (!taskTime) {
         convState = { type: 'waiting_time', name: nameRaw, date: targetDate };
-        return 'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)';
+        return t('pet.ask.time');
       }
       showRegistroPreview(nameRaw, false, targetDate, taskTime);
       return null;
     }
-    if (tipoExplicito === 'atividade')   { showRegistroPreview(nameRaw, true,  targetDate, taskTime); return null; }
-
-    // Tipo não especificado — pergunta
+    if (tipoExplicito === 'atividade') { showRegistroPreview(nameRaw, true, targetDate, taskTime); return null; }
     return askType(nameRaw, targetDate, taskTime);
   }
 
-  return `Não entendi. Digite <strong>ajuda</strong> pra ver o que sei fazer.`;
+  return t('pet.unknown');
 }
 
 // Extrai horário da frase → "HH:MM" ou '' se não encontrar
 function extractTime(text) {
-  const t = text.toLowerCase();
-  let m = t.match(/\b(\d{1,2}):(\d{2})\b/);
+  const tl = text.toLowerCase();
+  let m = tl.match(/\b(\d{1,2}):(\d{2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
-  m = t.match(/\b(\d{1,2})h(\d{2})\b/);
+  m = tl.match(/\b(\d{1,2})h(\d{2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
-  m = t.match(/\b(?:às?|as)\s+(\d{1,2})\s*h(?:oras?)?\b/);
+  m = tl.match(/\b(?:às?|as|at)\s+(\d{1,2})\s*h(?:oras?)?\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
-  m = t.match(/\b(?:às?|as)\s+(\d{1,2})\b/);
+  m = tl.match(/\b(?:às?|as|at)\s+(\d{1,2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
-  m = t.match(/\b(\d{1,2})\s*h(?:oras?)?\b/);
+  m = tl.match(/\b(\d{1,2})\s*h(?:oras?)?\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
-  // "13 e 14" → 13:14 (horas e minutos por extenso)
-  m = t.match(/\b(\d{1,2})\s+e\s+(\d{1,2})\b/);
+  m = tl.match(/\b(\d{1,2})\s+e\s+(\d{1,2})\b/);
   if (m) {
     const h = parseInt(m[1]), min = parseInt(m[2]);
     if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
@@ -334,30 +331,26 @@ function extractTime(text) {
   return '';
 }
 
-// Extrai o nome da tarefa limpando verbos, artigos, tipo, data e horário da frase
+// Extrai o nome da tarefa limpando verbos, artigos, tipo, data e horário
 function extractTaskName(text) {
   const result = text
-    .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar)\s*/i, '')
-    .replace(/^(um|uma|o|a)\s+/i, '')
-    .replace(/\b(pra mim|para mim)\b/gi, '')
-    .replace(/\b(compromisso|atividade)\b\s*/gi, '')
+    .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar|add|schedule|create|register|remind|log)\s*/i, '')
+    .replace(/^(um|uma|o|a|a|an|the)\s+/i, '')
+    .replace(/\b(pra mim|para mim|for me)\b/gi, '')
+    .replace(/\b(compromisso|atividade|commitment|activity|task)\b\s*/gi, '')
     .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
-    .replace(/\b(hoje|agora)\b\s*/gi, '')
-    // Remove nomes/abreviações de dia da semana
+    .replace(/\b(hoje|agora|today|now)\b\s*/gi, '')
+    .replace(/\btomorrow\b\s*/gi, '')
     .replace(/\b(próxim[oa]\s+)?(dom(ingo)?|seg(unda(-feira)?)?|ter(([cç][aã]|ca)(-feira)?)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?)\b\s*/gi, '')
-    // Remove "dia " quando seguido de número (ex: "dia 13/07")
+    .replace(/\b(next\s+)?(mon(day)?|tue(sday)?|wed(nesday)?|thu(rsday)?|fri(day)?|sat(urday)?|sun(day)?)\b\s*/gi, '')
     .replace(/\bdia\s+(?=\d)/gi, '')
-    // Remove data explícita DD/MM com ou sem parênteses
     .replace(/\(?\b\d{1,2}\/\d{1,2}\)?\s*/g, '')
-    .replace(/^(para|pra|de|do|da|no|na)\s+/i, '')
-    // Remove expressões de horário — preposição + número + unidade
-    .replace(/(?:às?|as|das?|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
-    // Remove horários soltos que restaram
+    .replace(/^(para|pra|de|do|da|no|na|for|to|on)\s+/i, '')
+    .replace(/(?:às?|as|das?|at|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
     .replace(/\b\d{1,2}:\d{2}\b/g, '')
     .replace(/\b\d{1,2}h\d{2}\b/gi, '')
     .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
-    // Remove resíduos: "horas", "às", "as", "das" isolados (sem \b — não funciona com acentos)
     .replace(/\bhoras?\b/gi, '')
     .replace(/ às /gi, ' ').replace(/ às$/gi, '').replace(/^às /gi, '')
     .replace(/ as /gi, ' ').replace(/ as$/gi, '').replace(/^as /gi, '')
@@ -368,20 +361,16 @@ function extractTaskName(text) {
   return result ? result.charAt(0).toUpperCase() + result.slice(1) : result;
 }
 
-// Retorna uma data N dias à frente de hoje
 function dateOffset(n) {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return d;
 }
 
-// === BLOCO: EXTRAÇÃO DE DATA ===
-// Reconhece DD/MM, nomes/abreviações de dia da semana, amanhã, depois de amanhã
 function extractDate(text) {
-  const t = text.toLowerCase();
+  const tl = text.toLowerCase();
 
-  // Prioridade 1: data explícita DD/MM (com ou sem parênteses) — ex: 13/07, (13/07)
-  const dmMatch = t.match(/\(?\b(\d{1,2})\/(\d{1,2})\)?/);
+  const dmMatch = tl.match(/\(?\b(\d{1,2})\/(\d{1,2})\)?/);
   if (dmMatch) {
     const day   = parseInt(dmMatch[1], 10);
     const month = parseInt(dmMatch[2], 10) - 1;
@@ -392,26 +381,24 @@ function extractDate(text) {
     return d;
   }
 
-  // Prioridade 2: relativos
-  if (/depois\s+de\s+aman(h[ãa]|ha)/i.test(t)) return dateOffset(2);
-  if (/aman(h[ãa]|ha)/i.test(t))                return dateOffset(1);
-  if (/\bhoje\b/i.test(t))                       return new Date();
+  if (/depois\s+de\s+aman(h[ãa]|ha)|day after tomorrow/i.test(tl)) return dateOffset(2);
+  if (/aman(h[ãa]|ha)|tomorrow/i.test(tl))                          return dateOffset(1);
+  if (/\bhoje\b|\btoday\b/i.test(tl))                               return new Date();
 
-  // Prioridade 3: nome/abreviação do dia da semana → próxima ocorrência
   const WD_MAP = [
-    [/\bdom(ingo)?\b/i,                            0],
-    [/\bseg(unda(-feira)?)?\b/i,                   1],
-    [/\bter([cç][aã](-feira)?|ca(-feira)?)?\b/i,   2],
-    [/\bqua(rta(-feira)?)?\b/i,                    3],
-    [/\bqui(nta(-feira)?)?\b/i,                    4],
-    [/\bsex(ta(-feira)?)?\b/i,                     5],
-    [/\bs[aá]b(ado)?\b/i,                          6],
+    [/\bdom(ingo)?|\bsun(day)?\b/i,                            0],
+    [/\bseg(unda(-feira)?)?\b|\bmon(day)?\b/i,                 1],
+    [/\bter([cç][aã](-feira)?|ca(-feira)?)?\b|\btue(sday)?\b/i,2],
+    [/\bqua(rta(-feira)?)?\b|\bwed(nesday)?\b/i,               3],
+    [/\bqui(nta(-feira)?)?\b|\bthu(rsday)?\b/i,                4],
+    [/\bsex(ta(-feira)?)?\b|\bfri(day)?\b/i,                   5],
+    [/\bs[aá]b(ado)?\b|\bsat(urday)?\b/i,                      6],
   ];
   for (const [re, wd] of WD_MAP) {
-    if (re.test(t)) {
+    if (re.test(tl)) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       let diff = (wd - today.getDay() + 7) % 7;
-      if (diff === 0) diff = 7; // mesmo dia → próxima semana
+      if (diff === 0) diff = 7;
       return dateOffset(diff);
     }
   }
@@ -427,7 +414,6 @@ function isToday(date) {
 // BLOCO 8: HANDLERS DE COMANDOS
 // ═══════════════════════════════════════════════════════════════
 
-// Streak de dias consecutivos — respeita streakOrigin do perfil do usuário
 async function calcStreak() {
   const profile  = await getProfile();
   const originId = profile?.streakOrigin || null;
@@ -447,7 +433,6 @@ async function calcStreak() {
     const id  = dayId(cursor);
     const doc = await getDay(id);
     if (!doc) break;
-    // hasActivity = set pelo addDayTask novo; fallback: doc existe com qualquer dado além de "generated"
     const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime
       || Object.keys(doc).some(k => k !== 'id' && k !== 'generated');
     if (!isActive) break;
@@ -457,34 +442,32 @@ async function calcStreak() {
   return streak;
 }
 
-// Dias falhados na semana atual (segunda→hoje, excluindo dias futuros)
 async function calcWeekFailures() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const daysFromMon = (today.getDay() + 6) % 7; // seg=0 dom=6
+  const daysFromMon = (today.getDay() + 6) % 7;
   const weekStart   = new Date(today);
   weekStart.setDate(today.getDate() - daysFromMon);
 
   let failed = 0;
   const cursor = new Date(weekStart);
   while (cursor <= today) {
-    const doc       = await getDay(dayId(cursor));
-    const isActive  = doc && (doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime);
+    const doc      = await getDay(dayId(cursor));
+    const isActive = doc && (doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime);
     if (!isActive) failed++;
     cursor.setDate(cursor.getDate() + 1);
   }
   return failed;
 }
 
-// Bloco de consistência — reutilizado em Sono e Sequência
 async function consistenciaBlock() {
   const [streak, failed] = await Promise.all([calcStreak(), calcWeekFailures()]);
   const weekPart   = failed === 0
-    ? '✅ Semana perfeita até agora!'
-    : `⚠️ Essa semana você <strong>falhou ${failed} dia${failed > 1 ? 's' : ''}</strong>.`;
+    ? t('pet.streak.perfect')
+    : t('pet.streak.failed', { n: failed });
   const streakPart = streak === 0
-    ? 'Nenhum dia consecutivo registrado ainda.'
-    : `Você está a <strong>${streak} dia${streak > 1 ? 's' : ''}</strong> consecutivos em atividade.`;
+    ? t('pet.streak.none')
+    : t('pet.streak.days', { n: streak });
   return `${weekPart} ${streakPart}`;
 }
 
@@ -503,20 +486,20 @@ async function cmdSono() {
 
   let sleepMsg;
   if (!wake && !sleep) {
-    sleepMsg = '😴 Nenhum horário de sono registrado hoje.';
+    sleepMsg = t('pet.sleep.none');
   } else if (!wake) {
-    sleepMsg = `😴 Horário de dormir: <strong>${sleep}</strong>. Ainda sem acordar registrado.`;
+    sleepMsg = t('pet.sleep.no.wake', { sleep });
   } else if (!sleep) {
-    sleepMsg = `☀️ Acordou às <strong>${wake}</strong>, mas sem horário de dormir de ontem.`;
+    sleepMsg = t('pet.sleep.no.sleep', { wake });
   } else {
     const mins = sleepDuration(sleep, wake);
     if (!mins) {
-      sleepMsg = '😴 Não consegui calcular a duração do sono.';
+      sleepMsg = t('pet.sleep.no.calc');
     } else {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      const av = mins >= 420 ? '✅ Ótimo!' : mins >= 360 ? '🟡 Razoável.' : '🔴 Pouco sono.';
-      sleepMsg = `😴 Você dormiu <strong>${h}h${m > 0 ? m + 'min' : ''}</strong> (${sleep} → ${wake}). ${av}`;
+      const h   = Math.floor(mins / 60);
+      const m   = mins % 60;
+      const rating = mins >= 420 ? t('pet.sleep.good') : mins >= 360 ? t('pet.sleep.ok') : t('pet.sleep.bad');
+      sleepMsg = t('pet.sleep.result', { h, m: m > 0 ? m + 'min' : '', sleep, wake, rating });
     }
   }
 
@@ -526,70 +509,68 @@ async function cmdSono() {
 
 async function cmdSequencia() {
   const consist = await consistenciaBlock();
-  return `🔥 ${consist}<br><small style="color:var(--muted)">Diga <em>início: DD/MM</em> pra definir o começo da contagem.</small>`;
+  return `🔥 ${consist}<br><small style="color:var(--muted)">${t('pet.streak.hint')}</small>`;
 }
 
-// Define a data de início da sequência (ex: "início: 09/06")
 async function cmdDefinirInicio(text) {
   const match = text.match(/(\d{1,2})[\/\-](\d{1,2})/);
-  if (/zerar/i.test(text)) {
+  if (/zerar|reset.*streak/i.test(text)) {
     await setProfile({ streakOrigin: dayId(new Date()) });
-    return '✅ Sequência zerada. Contagem começa de hoje.';
+    return t('pet.streak.reset');
   }
-  if (!match) return 'Para definir o início diga: <strong>início: DD/MM</strong> (ex: início: 09/06)';
+  if (!match) return t('pet.streak.start.format');
   const day   = parseInt(match[1]);
   const month = parseInt(match[2]) - 1;
   const year  = new Date().getFullYear();
   const origin = new Date(year, month, day);
   await setProfile({ streakOrigin: dayId(origin) });
   const label = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
-  return `✅ Início da sequência definido para <strong>${label}</strong>. Dias antes dessa data não contam.`;
+  return t('pet.streak.start.set', { date: label });
 }
 
 async function cmdHidratacao() {
   const day = await getDay(dayId(new Date()));
-  if (!day) return '💧 Nenhum dado de hoje encontrado ainda.';
+  if (!day) return t('pet.hydration.none');
 
-  const ml   = day.hydrationMl   || 0;
-  const goal = day.hydrationGoal || 2000;
-  const pct  = Math.min(100, Math.round((ml / goal) * 100));
+  const ml        = day.hydrationMl   || 0;
+  const goal      = day.hydrationGoal || 2000;
+  const pct       = Math.min(100, Math.round((ml / goal) * 100));
   const remaining = Math.max(0, goal - ml);
 
-  const status  = remaining === 0 ? '🎉 Meta atingida!' : `Faltam <strong>${remaining}ml</strong>`;
+  const status  = remaining === 0 ? t('pet.hydration.goal') : t('pet.hydration.remaining', { remaining });
   const barHtml = `<div style="margin:6px 0;height:8px;border-radius:4px;background:var(--border);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px;transition:width .3s"></div></div>`;
-  return `💧 <strong>${ml}ml</strong> de ${goal}ml (${pct}%)${barHtml}${status}`;
+  return `${t('pet.hydration.result', { ml, goal, pct })}${barHtml}${status}`;
 }
 
 async function cmdTarefas() {
   const tasks = await getDayTasks(dayId(new Date()));
-  if (!tasks.length) return '📋 Nenhuma tarefa registrada pra hoje.';
+  if (!tasks.length) return t('pet.tasks.none');
 
-  const feitas   = tasks.filter(t => t.done);
-  const pendentes = tasks.filter(t => !t.done);
+  const feitas    = tasks.filter(tk => tk.done);
+  const pendentes = tasks.filter(tk => !tk.done);
 
-  let msg = `📋 <strong>${feitas.length}/${tasks.length}</strong> tarefa${tasks.length !== 1 ? 's' : ''} concluída${feitas.length !== 1 ? 's' : ''}`;
-  if (feitas.length)    msg += '<br>' + feitas.map(t => `✅ ${t.title}`).join('<br>');
-  if (pendentes.length) msg += '<br>' + pendentes.map(t => `⬜ ${t.title}`).join('<br>');
+  let msg = `${t('pet.tasks.result', { done: feitas.length, total: tasks.length })}`;
+  if (feitas.length)    msg += '<br>' + feitas.map(tk => `✅ ${tk.title}`).join('<br>');
+  if (pendentes.length) msg += '<br>' + pendentes.map(tk => `⬜ ${tk.title}`).join('<br>');
   return msg;
 }
 
 function askType(name, date = new Date(), time = '') {
   convState = { type: 'waiting_type', name, date, time };
-  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const dd = date.getDate().toString().padStart(2, '0');
-  const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-  const label = isToday(date) ? 'hoje' : `${DIAS[date.getDay()]} (${dd}/${mm})`;
+  const dd    = date.getDate().toString().padStart(2, '0');
+  const mm    = (date.getMonth() + 1).toString().padStart(2, '0');
+  const dow   = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(date);
+  const label = isToday(date) ? t('pet.type.today') : `${dow} (${dd}/${mm})`;
   addChoices(
-    `"<strong>${name}</strong>" para <strong>${label}</strong>${time ? ` às <strong>${time}</strong>` : ''} — atividade ou compromisso?`,
+    `"<strong>${name}</strong>" ${t('pet.ask.for')} <strong>${label}</strong>${time ? ` · <strong>${time}</strong>` : ''} — ${t('pet.ask.type.question')}`,
     [
-      { label: '✅ Atividade (já fiz)', value: 'atividade' },
-      { label: '📌 Compromisso (vou fazer)', value: 'compromisso' }
+      { label: t('pet.type.activity.btn'), value: 'atividade' },
+      { label: t('pet.type.commitment.btn'), value: 'compromisso' }
     ]
   );
   return null;
 }
 
-// Gera URL pré-preenchida do Google Agenda
 function petGCalUrl(name, date, time) {
   const y  = date.getFullYear();
   const mo = date.getMonth() + 1;
@@ -605,21 +586,19 @@ function petGCalUrl(name, date, time) {
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 
-// Mostra card de pré-visualização com botão de confirmar — NÃO escreve no Firebase ainda
 function showRegistroPreview(name, done, date = new Date(), time = '') {
-  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const dd = date.getDate().toString().padStart(2, '0');
-  const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-  const diaSemana = DIAS[date.getDay()];
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  const alvo = new Date(date); alvo.setHours(0,0,0,0);
-  const diff = Math.round((alvo - hoje) / 86400000);
-  const quandoLabel = diff === 0 ? `hoje, ${diaSemana} (${dd}/${mm})`
-                    : diff === 1 ? `amanhã, ${diaSemana} (${dd}/${mm})`
-                    : `${diaSemana} (${dd}/${mm})`;
+  const dd        = date.getDate().toString().padStart(2, '0');
+  const mm        = (date.getMonth() + 1).toString().padStart(2, '0');
+  const dow       = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(date);
+  const hoje      = new Date(); hoje.setHours(0,0,0,0);
+  const alvo      = new Date(date); alvo.setHours(0,0,0,0);
+  const diff      = Math.round((alvo - hoje) / 86400000);
+  const quandoLabel = diff === 0 ? `${t('pet.type.today')}, ${dow} (${dd}/${mm})`
+                    : diff === 1 ? `${t('pet.type.tomorrow')}, ${dow} (${dd}/${mm})`
+                    : `${dow} (${dd}/${mm})`;
 
   const tipoIcon  = done ? '✅' : '📌';
-  const tipoLabel = done ? 'atividade' : 'compromisso';
+  const tipoLabel = done ? t('pet.type.activity') : t('pet.type.commitment');
 
   const box = document.getElementById('pet-messages');
   if (!box) return;
@@ -630,50 +609,45 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
-      <button class="pet-reg-btn">${tipoIcon} Registrar ${tipoLabel}</button>
+      <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
   const btn = div.querySelector('.pet-reg-btn');
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    btn.textContent = 'Registrando...';
+    btn.textContent = t('pet.preview.registering');
     try {
       await executeRegistro(name, done, date, time);
-      btn.textContent = '✓ Registrado';
+      btn.textContent = t('pet.preview.done');
       btn.classList.add('pet-reg-done');
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
-      showCenterToast(done ? 'Atividade registrada! ✓' : 'Compromisso registrado! ✓');
+      showCenterToast(t(done ? 'pet.registered.activity' : 'pet.registered.commitment'));
       if (time) {
         const [h, mi]  = time.split(':').map(Number);
         const ts       = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi).getTime();
         const tag      = notifTag(dayId(date), name);
-        const result   = await scheduleNotif({ title: name, body: done ? 'Atividade no Falcon' : 'Compromisso no Falcon', tag, timestamp: ts });
+        const result   = await scheduleNotif({ title: name, body: done ? t('notif.body.activity', { title: name }) : t('notif.body.commitment', { title: name }), tag, timestamp: ts });
         if (result === 'scheduled') {
-          setTimeout(() => addMessage(
-            `🔔 Notificação agendada para as <strong>${time}</strong>. Você será avisado no horário!`,
-            'bot'
-          ), 350);
+          setTimeout(() => addMessage(t('pet.notif.scheduled', { time }), 'bot'), 350);
         } else {
           const gcalUrl = petGCalUrl(name, date, time);
-          const hint    = result === 'denied'
-            ? 'Notificações bloqueadas. Adicione ao Google Agenda para receber aviso:'
-            : 'Adicione ao Google Agenda para ser lembrado no horário:';
+          const hint = result === 'denied' ? t('pet.notif.blocked') : t('pet.notif.gcal.hint');
           setTimeout(() => addMessage(
-            `${hint}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
+            `${hint}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">${t('pet.gcal.btn')}</a>`,
             'bot'
           ), 350);
         }
       } else if (!done) {
         const gcalUrl = petGCalUrl(name, date, '09:00');
         setTimeout(() => addMessage(
-          `Quer ser lembrado? Adicione ao Google Agenda:<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">📅 Adicionar ao Google Agenda</a>`,
+          `${t('pet.gcal.prompt')}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">${t('pet.gcal.btn')}</a>`,
           'bot'
         ), 350);
       }
     } catch (err) {
       btn.disabled = false;
-      btn.textContent = `${tipoIcon} Registrar ${tipoLabel}`;
-      addMessage('Erro ao registrar. Tente novamente.', 'bot');
+      btn.textContent = `${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}`;
+      addMessage(t('pet.error.register'), 'bot');
       console.error('[pet] registro:', err);
     }
   });
@@ -682,7 +656,6 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   box.scrollTop = box.scrollHeight;
 }
 
-// Escreve no Firebase — chamado SOMENTE pelo botão de confirmação
 async function executeRegistro(name, done, date, time = '') {
   const targetId = dayId(date);
   const [, tasks, shifts] = await Promise.all([
@@ -704,7 +677,7 @@ async function executeRegistro(name, done, date, time = '') {
   });
 }
 
-// Escolhe o turno pelo horário (Manhã 5-12, Tarde 12-19, Noite 19-5)
+// Escolhe o turno pelo horário — compara contra nomes armazenados em PT no Firestore
 function pickShift(shifts, time) {
   if (!shifts.length) return null;
   if (!time) return shifts[0].id;
@@ -713,7 +686,6 @@ function pickShift(shifts, time) {
   return (shifts.find(s => s.name === name) || shifts[0]).id;
 }
 
-// Toast centralizado na tela após registro confirmado
 function showCenterToast(message) {
   const el = document.createElement('div');
   el.className = 'pet-center-toast';
@@ -727,14 +699,7 @@ function showCenterToast(message) {
 }
 
 function cmdAjuda() {
-  return `👁 <strong>O que eu entendo:</strong><br>
-• <em>quanto dormi?</em><br>
-• <em>minha sequência?</em><br>
-• <em>hidratação de hoje?</em><br>
-• <em>tarefas de hoje?</em><br>
-• <em>marca um compromisso amanhã pra pagar a conta</em><br>
-• <em>registrar treino</em> · <em>adicionar reunião</em><br>
-• <em>coloca lembrete de amanhã pra ligar pro médico</em>`;
+  return t('pet.help');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -747,9 +712,9 @@ function addMessage(html, type) {
   div.className = `pet-msg pet-msg-${type}`;
   const span = document.createElement('span');
   if (type === 'bot') {
-    span.innerHTML = html; // só mensagens controladas do bot
+    span.innerHTML = html;
   } else {
-    span.textContent = html; // input do usuário: nunca innerHTML
+    span.textContent = html;
   }
   div.appendChild(span);
   box.appendChild(div);
@@ -798,30 +763,23 @@ let waveAnimId   = null;
 let accumulated  = '';
 let recording    = false;
 let confirming   = false;
-let voiceActive  = false; // true quando speech recognition detecta voz
+let voiceActive  = false;
 let voiceTimer   = null;
 
 async function startMic() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { addMessage('Voz não suportada neste navegador.', 'bot'); return; }
+  if (!SR) { addMessage(t('pet.error.mic.unsupported'), 'bot'); return; }
   if (recording) return;
 
-  // iOS Safari precisa de getUserMedia para liberar permissão ANTES do SpeechRecognition.
-  // Android: getUserMedia conflita com SpeechRecognition — não usar lá.
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (isIOS) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop()); // libera mic imediatamente
-      await new Promise(r => setTimeout(r, 80)); // deixa o mic soltar antes do SR pegar
+      stream.getTracks().forEach(tk => tk.stop());
+      await new Promise(r => setTimeout(r, 80));
     } catch (err) {
       const denied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
-      addMessage(
-        denied
-          ? 'Microfone bloqueado. Ajustes → Safari → Microfone → Permitir'
-          : 'Não foi possível acessar o microfone.',
-        'bot'
-      );
+      addMessage(denied ? t('pet.error.mic.blocked') : t('pet.error.mic.access'), 'bot');
       return;
     }
   }
@@ -829,19 +787,18 @@ async function startMic() {
   accumulated = '';
   recording   = true;
   confirming  = false;
-  let abortCount = 0; // iOS dispara 'aborted' antes do áudio estabilizar
+  let abortCount = 0;
 
   function buildRecognition() {
     const r = new SR();
-    r.lang           = 'pt-BR';
+    r.lang           = getLang();
     r.continuous     = false;
-    r.interimResults = true; // interim para acionar animação do waveform
+    r.interimResults = true;
 
     r.onresult = (e) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
       }
-      // qualquer resultado = voz detectada → acende waveform
       voiceActive = true;
       clearTimeout(voiceTimer);
       voiceTimer = setTimeout(() => { voiceActive = false; }, 250);
@@ -877,13 +834,12 @@ async function startMic() {
 
     r.onerror = (e) => {
       if (e.error === 'no-speech') return;
-      // 'aborted' no iOS é transitório — deixa onend tentar reiniciar (máx 3x)
       if (e.error === 'aborted') {
         abortCount++;
         if (abortCount <= 3) return;
       }
       if (e.error === 'audio-capture' || e.error === 'not-allowed') {
-        addMessage('Microfone inacessível. No iPhone: Ajustes → Safari → Microfone → Permitir', 'bot');
+        addMessage(t('pet.error.mic.blocked'), 'bot');
       }
       recording   = false;
       recognition = null;
@@ -899,7 +855,7 @@ async function startMic() {
   recognition = buildRecognition();
   recognition.start();
   showRecordingUI();
-  drawWaveform(); // waveform simulado — sem getUserMedia, sem conflito de mic
+  drawWaveform();
   setPetState('thinking');
 }
 
@@ -907,9 +863,8 @@ function stopMicConfirm() {
   if (!recording) return;
   confirming = true;
   if (recognition) {
-    recognition.stop(); // onend processa accumulated
+    recognition.stop();
   } else {
-    // recognition já parou (Android) — processa direto
     recording  = false;
     confirming = false;
     const clean = formatTranscript(accumulated.trim());
@@ -958,7 +913,6 @@ function drawWaveform() {
   const W = canvas.width, H = canvas.height;
   const BAR = 3, GAP = 2, N = Math.floor(W / (BAR + GAP));
 
-  // Reage ao voiceActive: alto/rápido quando fala, baixo/calmo no silêncio
   const heights = new Float32Array(N).fill(0.08);
   const targets = new Float32Array(N).fill(0.08);
   let tick = 0;
@@ -967,16 +921,11 @@ function drawWaveform() {
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
     tick++;
-
     const active = voiceActive;
-
-    // Transição fala → silêncio: zera TODOS os targets imediatamente
     if (wasActive && !active) {
       for (let i = 0; i < N; i++) targets[i] = 0.04 + Math.random() * 0.08;
     }
     wasActive = active;
-
-    // Atualiza targets: rápido durante fala, lento no silêncio
     if (tick % (active ? 3 : 12) === 0) {
       const maxH = active ? 0.88 : 0.12;
       const minH = active ? 0.18 : 0.03;
@@ -986,13 +935,10 @@ function drawWaveform() {
         targets[i] = minH + Math.random() * (maxH - minH);
       }
     }
-
     ctx.clearRect(0, 0, W, H);
     const totalW = N * (BAR + GAP) - GAP;
     let x = (W - totalW) / 2;
-    // ao parar de falar, desce rápido (0.3); falando sobe rápido (0.35); idle suave (0.12)
     const speed = active ? 0.35 : (wasActive ? 0.3 : 0.12);
-
     for (let i = 0; i < N; i++) {
       heights[i] += (targets[i] - heights[i]) * speed;
       const bH = Math.max(3, heights[i] * H * 0.9);
