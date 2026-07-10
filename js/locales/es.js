@@ -348,6 +348,12 @@ export default {
   'pet.registered.activity':   '¡Actividad registrada! ✓',
   'pet.registered.commitment':  '¡Compromiso registrado! ✓',
 
+  'pet.edit.notfound':  "No encontré '{name}' en los próximos días.",
+  'pet.edit.ambiguous': 'Encontré {n} coincidencias. ¿Cuál de ellas?',
+  'pet.edit.updating':  'Actualizando...',
+  'pet.edit.done':      '✓ ¡Actualizado!',
+  'pet.edit.err':       'Error al actualizar.',
+
   'pet.notif.scheduled':    '🔔 Notificación programada para las <strong>{time}</strong>. ¡Te avisaré a tiempo!',
   'pet.notif.blocked':      'Notificaciones bloqueadas. Añade a Google Calendar para recibir aviso:',
   'pet.notif.gcal.hint':    'Añade a Google Calendar para recibir un recordatorio:',
@@ -371,7 +377,12 @@ export default {
   <li><em>marcar compromiso dentista mañana a las 10h</em></li>
   <li><em>agendar reunión lunes a las 14h</em></li>
 </ul>
-<small style="color:var(--muted)">Editar · Reagendar → menú ⋮ en Ritual</small>`,
+<strong>Editar · Reagendar</strong>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>editar nombre del dentista para consulta médica</em></li>
+  <li><em>editar horario del dentista para las 15h</em></li>
+  <li><em>reagendar dentista para el viernes a las 15h</em></li>
+</ul>`,
 
   'notif.body.activity':    '¡Hora de {title}! 🎯',
   'notif.body.commitment':  'Recordatorio: {title} ⏰',

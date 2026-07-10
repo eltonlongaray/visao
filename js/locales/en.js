@@ -348,6 +348,12 @@ export default {
   'pet.registered.activity':   'Activity registered! ✓',
   'pet.registered.commitment':  'Commitment registered! ✓',
 
+  'pet.edit.notfound':  "Couldn't find '{name}' in the next few days.",
+  'pet.edit.ambiguous': 'Found {n} matches. Which one?',
+  'pet.edit.updating':  'Updating...',
+  'pet.edit.done':      '✓ Updated!',
+  'pet.edit.err':       'Update failed.',
+
   'pet.notif.scheduled':    '🔔 Notification scheduled for <strong>{time}</strong>. You\'ll be reminded!',
   'pet.notif.blocked':      'Notifications blocked. Add to Google Calendar to get a reminder:',
   'pet.notif.gcal.hint':    'Add to Google Calendar to be reminded:',
@@ -371,7 +377,12 @@ export default {
   <li><em>schedule commitment dentist tomorrow at 10h</em></li>
   <li><em>schedule meeting monday at 2pm</em></li>
 </ul>
-<small style="color:var(--muted)">Edit · Reschedule → ⋮ menu in Ritual</small>`,
+<strong>Edit · Reschedule</strong>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>edit name of dentist to medical consultation</em></li>
+  <li><em>edit time of dentist to 3pm</em></li>
+  <li><em>reschedule dentist to friday at 3pm</em></li>
+</ul>`,
 
   'notif.body.activity':    "Time for {title}! 🎯",
   'notif.body.commitment':  "Reminder: {title} ⏰",

@@ -2,7 +2,7 @@
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
 import {
-  getDay, setDayMeta, getDayTasks, addDayTask, getShifts,
+  getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
   getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './store.js';
@@ -306,6 +306,16 @@ async function routeCommand(text) {
     if (tipoExplicito === 'atividade') { showRegistroPreview(nameRaw, true, targetDate, taskTime); return null; }
     return askType(nameRaw, targetDate, taskTime);
   }
+
+  // ── Editar nome / horário / reagendar ──
+  const mNome = text.match(/^editar?\s+nome\s+(?:d[oa]s?\s+)?(.+?)\s+para\s+(.+)/i);
+  if (mNome) { await cmdEditarNome(mNome[1].trim(), mNome[2].trim()); return null; }
+
+  const mHora = text.match(/^editar?\s+(?:hor[aá]rio|hora|time)\s+(?:d[oa]s?\s+)?(.+?)\s+para\s+(.+)/i);
+  if (mHora) { await cmdEditarHorario(mHora[1].trim(), mHora[2].trim()); return null; }
+
+  const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(.+?)\s+para\s+(.+)/i);
+  if (mResched) { await cmdReatgendar(mResched[1].trim(), mResched[2].trim()); return null; }
 
   return t('pet.unknown');
 }
@@ -686,6 +696,132 @@ function showCenterToast(message) {
 
 function cmdAjuda() {
   return t('pet.help');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.5: EDIÇÃO E REAGENDAMENTO VIA PET
+// ═══════════════════════════════════════════════════════════════
+
+async function searchTasksByName(hint) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const past   = new Date(today); past.setDate(today.getDate() - 3);
+  const future = new Date(today); future.setDate(today.getDate() + 14);
+  const days = await fetchDaysRange(past, future);
+  const q = hint.toLowerCase().trim();
+  const results = [];
+  for (const day of days) {
+    for (const task of (day.tasks || [])) {
+      if (task.done || task.cancelled) continue;
+      if (task.title.toLowerCase().includes(q)) {
+        const [y, m, d] = day.id.split('-').map(Number);
+        results.push({ task, dayDocId: day.id, date: new Date(y, m - 1, d) });
+      }
+    }
+  }
+  return results;
+}
+
+async function cmdEditarNome(nameHint, newName) {
+  const matches = await searchTasksByName(nameHint);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'rename', { newName });
+}
+
+async function cmdEditarHorario(nameHint, afterPara) {
+  const newTime = extractTime(afterPara);
+  if (!newTime) { addMessage(t('pet.ask.time.invalid'), 'bot'); return; }
+  const matches = await searchTasksByName(nameHint);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'time', { newTime });
+}
+
+async function cmdReatgendar(nameHint, afterPara) {
+  const newDate = extractDate(afterPara);
+  const newTime = extractTime(afterPara);
+  const matches = await searchTasksByName(nameHint);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'reschedule', { newDate, newTime });
+}
+
+function showEditCard(matches, action, payload) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+
+  function fmtDate(date) {
+    const dd  = date.getDate().toString().padStart(2, '0');
+    const mm  = (date.getMonth() + 1).toString().padStart(2, '0');
+    const dow = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(date);
+    return `${dow} ${dd}/${mm}`;
+  }
+
+  function applyEdit(match, btn) {
+    btn.disabled = true;
+    btn.textContent = t('pet.edit.updating');
+    const { task, dayDocId } = match;
+    const reschedCount = (task.rescheduleCount || 0) + 1;
+
+    let p;
+    if (action === 'rename') {
+      p = updateDayTask(dayDocId, task.id, { title: payload.newName });
+    } else if (action === 'time') {
+      p = updateDayTask(dayDocId, task.id, { startTime: payload.newTime, rescheduled: true, rescheduleCount: reschedCount });
+    } else {
+      const newDayId = dayId(payload.newDate);
+      const newTime  = payload.newTime || task.startTime || '';
+      if (newDayId === dayDocId) {
+        p = updateDayTask(dayDocId, task.id, { startTime: newTime, rescheduled: true, rescheduleCount: reschedCount });
+      } else {
+        const { id: _drop, ...rest } = task;
+        p = deleteDayTask(dayDocId, task.id).then(() =>
+          addDayTask(newDayId, { ...rest, startTime: newTime, rescheduled: true, rescheduleCount: reschedCount, done: false, cancelled: false, order: 0 })
+        );
+      }
+    }
+
+    p.then(() => {
+      btn.textContent = t('pet.edit.done');
+      btn.classList.add('pet-reg-done');
+      showCenterToast(t('pet.edit.done'));
+      setPetState('excited');
+      setTimeout(() => setPetState('idle'), 1800);
+    }).catch(err => {
+      btn.disabled = false;
+      btn.textContent = '↺ ' + t('pet.edit.err');
+      console.error('[pet] edit:', err);
+    });
+  }
+
+  function makeBtn(match) {
+    const { task, date } = match;
+    const btn = document.createElement('button');
+    btn.className = 'pet-reg-btn';
+    if (action === 'rename') {
+      btn.textContent = `✏️ "${task.title}" → "${payload.newName}"`;
+    } else if (action === 'time') {
+      btn.textContent = `⏰ "${task.title}" · ${fmtDate(date)} → ${payload.newTime}`;
+    } else {
+      btn.textContent = `📅 "${task.title}" → ${fmtDate(payload.newDate)}${payload.newTime ? ' · ' + payload.newTime : ''}`;
+    }
+    btn.addEventListener('click', () => applyEdit(match, btn));
+    return btn;
+  }
+
+  const div  = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  const card = document.createElement('span');
+  card.className = 'pet-preview-card';
+
+  if (matches.length > 1) {
+    const sub = document.createElement('span');
+    sub.className = 'pet-preview-sub';
+    sub.textContent = t('pet.edit.ambiguous', { n: matches.length });
+    card.appendChild(sub);
+  }
+
+  for (const match of matches) card.appendChild(makeBtn(match));
+  div.appendChild(card);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
 }
 
 // ═══════════════════════════════════════════════════════════════
