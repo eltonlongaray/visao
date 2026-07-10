@@ -361,16 +361,15 @@ export default {
   <li><em>water today?</em></li>
   <li><em>tasks today?</em></li>
 </ul>
-<strong>Tasks</strong> <small style="color:var(--muted)">— start with a verb</small>
+<strong>Tasks</strong> <small style="color:var(--muted)">— verbs: schedule · register</small>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>do workout</em> · <em>read 30 minutes</em></li>
-  <li><em>study english</em> · <em>complete report</em></li>
+  <li><em>schedule task do workout</em></li>
+  <li><em>register task read 30 minutes</em></li>
 </ul>
 <strong>Commitments</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>schedule dentist tomorrow at 10h</em></li>
-  <li><em>book meeting monday at 2pm</em></li>
-  <li><em>remind me friday to call mom</em></li>
+  <li><em>schedule commitment dentist tomorrow at 10h</em></li>
+  <li><em>schedule meeting monday at 2pm</em></li>
 </ul>
 <small style="color:var(--muted)">Edit · Reschedule → ⋮ menu in Ritual</small>`,
 

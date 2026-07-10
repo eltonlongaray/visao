@@ -361,16 +361,15 @@ export default {
   <li><em>hidratación de hoy</em></li>
   <li><em>tareas de hoy</em></li>
 </ul>
-<strong>Tareas</strong> <small style="color:var(--muted)">— empieza con verbo</small>
+<strong>Tareas</strong> <small style="color:var(--muted)">— verbos: marcar · agendar · registrar</small>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>hacer ejercicio</em> · <em>leer 30 minutos</em></li>
-  <li><em>estudiar inglés</em> · <em>completar informe</em></li>
+  <li><em>marcar tarea hacer ejercicio</em></li>
+  <li><em>registrar tarea leer 30 minutos</em></li>
 </ul>
 <strong>Compromisos</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>agendar dentista mañana a las 10h</em></li>
-  <li><em>marcar reunión lunes a las 14h</em></li>
-  <li><em>recordar viernes llamar a mamá</em></li>
+  <li><em>marcar compromiso dentista mañana a las 10h</em></li>
+  <li><em>agendar reunión lunes a las 14h</em></li>
 </ul>
 <small style="color:var(--muted)">Editar · Reagendar → menú ⋮ en Ritual</small>`,
 

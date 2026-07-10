@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // VISÃO · Notifications
 // Entrega notificações via Cloudflare Worker (Web Push + VAPID).
-// Fallback: localStorage + setInterval quando app está aberto.
+// Fallback: localStorage + dynamic setTimeout quando app está aberto.
 // ═══════════════════════════════════════════════════════════════
 
 import { auth } from './firebase.js';
@@ -129,7 +129,7 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
     }).catch(() => {});
   }
 
-  // ── Fallback setInterval (polling 30s, funciona enquanto app aberto) ──
+  // ── Fallback: dynamic timer, funciona enquanto app aberto ──
   _saveLocal({ title, body, tag, timestamp });
   return 'scheduled';
 }
@@ -205,7 +205,22 @@ export async function startNotifChecker() {
   };
 
   await check();
-  setInterval(check, 30_000);
+
+  // Timer dinâmico: acorda exatamente no horário do próximo evento
+  let _nextTimer = null;
+  function _scheduleNext() {
+    clearTimeout(_nextTimer);
+    const list = JSON.parse(localStorage.getItem(SCHED_KEY) || '[]');
+    if (!list.length) { _nextTimer = setTimeout(_scheduleNext, 60_000); return; }
+    const nextTs = Math.min(...list.map(n => n.timestamp));
+    const delay  = Math.max(300, nextTs - Date.now() + 100);
+    _nextTimer = setTimeout(async () => { await check(); _scheduleNext(); }, delay);
+  }
+  _scheduleNext();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { check(); _scheduleNext(); }
+  });
 }
 
 

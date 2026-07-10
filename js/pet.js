@@ -232,7 +232,7 @@ async function dispatchCommand(text) {
 // ═══════════════════════════════════════════════════════════════
 
 // Verbos que indicam intenção de registrar algo (PT + EN)
-const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar|add|schedule|create|register|remind|log)\b/i;
+const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|register)\b/i;
 
 async function routeCommand(text) {
   const tl = text.toLowerCase();
@@ -283,10 +283,10 @@ async function routeCommand(text) {
 
 
   // ── Intenção de registrar ──
-  if (REGISTER_TRIGGERS.test(tl) || /registrar|adicionar/i.test(tl)) {
+  if (REGISTER_TRIGGERS.test(tl)) {
     const targetDate    = extractDate(text);
-    const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl) ? 'compromisso'
-                        : /\batividade\b|activity/i.test(tl)     ? 'atividade'
+    const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl)             ? 'compromisso'
+                        : /\batividade\b|\btarefa\b|activity|task/i.test(tl)  ? 'atividade'
                         : null;
     const taskTime = extractTime(text);
     const nameRaw  = extractTaskName(text);
@@ -335,10 +335,10 @@ function extractTime(text) {
 // Extrai o nome da tarefa limpando verbos, artigos, tipo, data e horário
 function extractTaskName(text) {
   const result = text
-    .replace(/^(marca[rh]?|agenda[rh]?|coloca[rh]?|adiciona[rh]?|cria[rh]?|registra[rh]?|bota[rh]?|lembra[rh]?|anota[rh]?|salva[rh]?|faz[er]*|quero|preciso\s+registrar|add|schedule|create|register|remind|log)\s*/i, '')
+    .replace(/^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|register)\s*/i, '')
     .replace(/^(um|uma|o|a|a|an|the)\s+/i, '')
     .replace(/\b(pra mim|para mim|for me)\b/gi, '')
-    .replace(/\b(compromisso|atividade|commitment|activity|task)\b\s*/gi, '')
+    .replace(/\b(tarefa|compromisso|atividade|commitment|activity|task)\b\s*/gi, '')
     .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
     .replace(/\b(hoje|agora|today|now)\b\s*/gi, '')
