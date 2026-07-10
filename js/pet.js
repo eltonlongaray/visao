@@ -384,6 +384,8 @@ function extractTaskName(text) {
     .replace(/\(?\b\d{1,2}\/\d{1,2}\)?\s*/g, '')
     .replace(/^(para|pra|de|do|da|no|na|for|to|on)\s+/i, '')
     .replace(/(?:às?|as|das?|at|para\s+as?|pra\s+as?)\s+\d{1,2}(?:[h:]\d{2}|\s*h(?:oras?)?)?\b/gi, '')
+    .replace(/\b(ao\s+|à\s+)?meio[\s-]?dia(\s+e\s+(meia|\d{1,2}))?\b/gi, '')
+    .replace(/\b(à\s+)?meia[\s-]?noite(\s+e\s+(meia|\d{1,2}))?\b/gi, '')
     .replace(/\b\d{1,2}:\d{2}\b/g, '')
     .replace(/\b\d{1,2}h\d{2}\b/gi, '')
     .replace(/\b\d{1,2}\s*h(?:oras?)?\b/gi, '')
