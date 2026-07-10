@@ -369,8 +369,8 @@ export default {
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
 <em style="color:var(--muted);font-size:0.85em">Tareas</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>marcar tarea hacer ejercicio</em></li>
-  <li><em>registrar tarea leer 30 minutos</em></li>
+  <li><em>marcar tarea hacer ejercicio mañana a las 7h</em></li>
+  <li><em>registrar tarea leer 30 minutos hoy</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Compromisos</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">

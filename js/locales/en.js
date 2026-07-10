@@ -369,12 +369,12 @@ export default {
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbs: schedule · register</small>
 <em style="color:var(--muted);font-size:0.85em">Tasks</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>schedule task do workout</em></li>
-  <li><em>register task read 30 minutes</em></li>
+  <li><em>schedule task do workout tomorrow at 7am</em></li>
+  <li><em>register task read 30 minutes today</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Commitments</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>schedule commitment dentist tomorrow at 10h</em></li>
+  <li><em>schedule commitment dentist tomorrow at 10am</em></li>
   <li><em>schedule meeting monday at 2pm</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Edit · Reschedule</em>
