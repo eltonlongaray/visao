@@ -280,7 +280,7 @@ async function routeCommand(text) {
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
   if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl)) return cmdTarefas();
   if (/ajuda|help|comando|o que (você|vc) (faz|sabe)|what can you/i.test(tl))          return cmdAjuda();
-  if (/^início:\s*\d|zerar\s+sequência|começo\s+da\s+sequência|^start:\s*\d|reset.*streak/i.test(tl)) return cmdDefinirInicio(text);
+
 
   // ── Intenção de registrar ──
   if (REGISTER_TRIGGERS.test(tl) || /registrar|adicionar/i.test(tl)) {
@@ -510,24 +510,9 @@ async function cmdSono() {
 
 async function cmdSequencia() {
   const consist = await consistenciaBlock();
-  return `🔥 ${consist}<br><small style="color:var(--muted)">${t('pet.streak.hint')}</small>`;
+  return `🔥 ${consist}`;
 }
 
-async function cmdDefinirInicio(text) {
-  const match = text.match(/(\d{1,2})[\/\-](\d{1,2})/);
-  if (/zerar|reset.*streak/i.test(text)) {
-    await setProfile({ streakOrigin: dayId(new Date()) });
-    return t('pet.streak.reset');
-  }
-  if (!match) return t('pet.streak.start.format');
-  const day   = parseInt(match[1]);
-  const month = parseInt(match[2]) - 1;
-  const year  = new Date().getFullYear();
-  const origin = new Date(year, month, day);
-  await setProfile({ streakOrigin: dayId(origin) });
-  const label = `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
-  return t('pet.streak.start.set', { date: label });
-}
 
 async function cmdHidratacao() {
   const day = await getDay(dayId(new Date()));

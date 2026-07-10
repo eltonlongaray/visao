@@ -316,10 +316,6 @@ export default {
   'pet.streak.failed':      '⚠️ Esta semana <strong>fallaste {n} día(s)</strong>.',
   'pet.streak.none':        'Aún no hay días consecutivos registrados.',
   'pet.streak.days':        'Llevas <strong>{n} día(s) consecutivos</strong> en actividad.',
-  'pet.streak.hint':        'Di <em>inicio: DD/MM</em> para definir el comienzo del conteo.',
-  'pet.streak.reset':       '✅ Racha reiniciada. El conteo empieza desde hoy.',
-  'pet.streak.start.format':'Para definir el inicio di: <strong>inicio: DD/MM</strong> (ej: inicio: 09/06)',
-  'pet.streak.start.set':   '✅ Inicio de racha definido para <strong>{date}</strong>. Los días anteriores no cuentan.',
 
   'pet.sleep.none':         '😴 No hay horario de sueño registrado hoy.',
   'pet.sleep.no.wake':      '😴 Hora de dormir: <strong>{sleep}</strong>. Aún sin hora de despertar.',
@@ -359,17 +355,24 @@ export default {
   'pet.gcal.btn':           '📅 Añadir a Google Calendar',
 
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>Lo que entiendo:</strong>
-<ul style="margin:6px 0 0 0;padding-left:18px;line-height:1.9">
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>¿cuánto dormí?</em></li>
-  <li><em>¿mi racha?</em></li>
+  <li><em>¿mi constancia?</em></li>
   <li><em>hidratación de hoy</em></li>
   <li><em>tareas de hoy</em></li>
-  <li><em>agregar entrenamiento</em> · <em>registrar almuerzo</em></li>
-  <li><em>agendar dentista mañana a las 10h</em></li>
-  <li><em>recordar viernes llamar a mamá</em></li>
-  <li><em>inicio: 01/06</em> — define inicio de racha</li>
 </ul>
-<small style="color:var(--muted)">Usa también los accesos rápidos de arriba ⬆️</small>`,
+<strong>Tareas</strong> <small style="color:var(--muted)">— empieza con verbo</small>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>hacer ejercicio</em> · <em>leer 30 minutos</em></li>
+  <li><em>estudiar inglés</em> · <em>completar informe</em></li>
+</ul>
+<strong>Compromisos</strong>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>agendar dentista mañana a las 10h</em></li>
+  <li><em>marcar reunión lunes a las 14h</em></li>
+  <li><em>recordar viernes llamar a mamá</em></li>
+</ul>
+<small style="color:var(--muted)">Editar · Reagendar → menú ⋮ en Ritual</small>`,
 
   'notif.body.activity':    '¡Hora de {title}! 🎯',
   'notif.body.commitment':  'Recordatorio: {title} ⏰',

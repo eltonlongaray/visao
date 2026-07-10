@@ -316,10 +316,6 @@ export default {
   'pet.streak.failed':      '⚠️ This week you <strong>missed {n} day(s)</strong>.',
   'pet.streak.none':        'No consecutive days recorded yet.',
   'pet.streak.days':        "You're on a <strong>{n}-day streak</strong>.",
-  'pet.streak.hint':        'Say <em>start: DD/MM</em> to set the streak start date.',
-  'pet.streak.reset':       '✅ Streak reset. Count starts from today.',
-  'pet.streak.start.format':'To set the start say: <strong>start: DD/MM</strong> (e.g. start: 09/06)',
-  'pet.streak.start.set':   '✅ Streak start set to <strong>{date}</strong>. Days before this date won\'t count.',
 
   'pet.sleep.none':         '😴 No sleep time recorded today.',
   'pet.sleep.no.wake':      '😴 Bedtime: <strong>{sleep}</strong>. No wake-up time yet.',
@@ -359,17 +355,24 @@ export default {
   'pet.gcal.btn':           '📅 Add to Google Calendar',
 
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>What I understand:</strong>
-<ul style="margin:6px 0 0 0;padding-left:18px;line-height:1.9">
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>how much did I sleep?</em></li>
-  <li><em>my streak?</em></li>
+  <li><em>my consistency?</em></li>
   <li><em>water today?</em></li>
   <li><em>tasks today?</em></li>
-  <li><em>add workout</em> · <em>register lunch</em></li>
-  <li><em>schedule dentist tomorrow at 10h</em></li>
-  <li><em>remind me Friday to call mom</em></li>
-  <li><em>start: 01/06</em> — set streak start</li>
 </ul>
-<small style="color:var(--muted)">You can also use the shortcuts above ⬆️</small>`,
+<strong>Tasks</strong> <small style="color:var(--muted)">— start with a verb</small>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>do workout</em> · <em>read 30 minutes</em></li>
+  <li><em>study english</em> · <em>complete report</em></li>
+</ul>
+<strong>Commitments</strong>
+<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+  <li><em>schedule dentist tomorrow at 10h</em></li>
+  <li><em>book meeting monday at 2pm</em></li>
+  <li><em>remind me friday to call mom</em></li>
+</ul>
+<small style="color:var(--muted)">Edit · Reschedule → ⋮ menu in Ritual</small>`,
 
   'notif.body.activity':    "Time for {title}! 🎯",
   'notif.body.commitment':  "Reminder: {title} ⏰",
