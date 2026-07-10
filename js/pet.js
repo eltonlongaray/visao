@@ -195,6 +195,7 @@ function openChatPanel() {
 }
 
 function closeChatPanel() {
+  if (recording) stopMicCancel();
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
 }
 
