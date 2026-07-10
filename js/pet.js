@@ -307,15 +307,15 @@ async function routeCommand(text) {
     return askType(nameRaw, targetDate, taskTime);
   }
 
-  // ── Editar nome / horário / reagendar ──
-  const mNome = text.match(/^editar?\s+nome\s+(?:d[oa]s?\s+)?(.+?)\s+para\s+(.+)/i);
-  if (mNome) { await cmdEditarNome(mNome[1].trim(), mNome[2].trim()); return null; }
+  // ── Editar nome / horário / reagendar (tipo obrigatório: compromisso | tarefa) ──
+  const mNome = text.match(/^editar?\s+nome\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
+  if (mNome) { await cmdEditarNome(mNome[2].trim(), mNome[3].trim(), mNome[1].toLowerCase()); return null; }
 
-  const mHora = text.match(/^editar?\s+(?:hor[aá]rio|hora|time)\s+(?:d[oa]s?\s+)?(.+?)\s+para\s+(.+)/i);
-  if (mHora) { await cmdEditarHorario(mHora[1].trim(), mHora[2].trim()); return null; }
+  const mHora = text.match(/^editar?\s+(?:hor[aá]rio|hora|time)\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
+  if (mHora) { await cmdEditarHorario(mHora[2].trim(), mHora[3].trim(), mHora[1].toLowerCase()); return null; }
 
-  const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(.+?)\s+para\s+(.+)/i);
-  if (mResched) { await cmdReatgendar(mResched[1].trim(), mResched[2].trim()); return null; }
+  const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
+  if (mResched) { await cmdReatgendar(mResched[2].trim(), mResched[3].trim(), mResched[1].toLowerCase()); return null; }
 
   return t('pet.unknown');
 }
@@ -702,16 +702,21 @@ function cmdAjuda() {
 // BLOCO 8.5: EDIÇÃO E REAGENDAMENTO VIA PET
 // ═══════════════════════════════════════════════════════════════
 
-async function searchTasksByName(hint) {
+async function searchTasksByName(hint, tipo) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const past   = new Date(today); past.setDate(today.getDate() - 3);
   const future = new Date(today); future.setDate(today.getDate() + 14);
   const days = await fetchDaysRange(past, future);
   const q = hint.toLowerCase().trim();
+  const isComp = tipo && /compromisso|commitment/.test(tipo);
   const results = [];
   for (const day of days) {
     for (const task of (day.tasks || [])) {
       if (task.done || task.cancelled) continue;
+      if (tipo) {
+        if (isComp && task.kind !== 'commitment') continue;
+        if (!isComp && task.kind === 'commitment') continue;
+      }
       if (task.title.toLowerCase().includes(q)) {
         const [y, m, d] = day.id.split('-').map(Number);
         results.push({ task, dayDocId: day.id, date: new Date(y, m - 1, d) });
@@ -721,24 +726,24 @@ async function searchTasksByName(hint) {
   return results;
 }
 
-async function cmdEditarNome(nameHint, newName) {
-  const matches = await searchTasksByName(nameHint);
+async function cmdEditarNome(nameHint, newName, tipo) {
+  const matches = await searchTasksByName(nameHint, tipo);
   if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
   showEditCard(matches, 'rename', { newName });
 }
 
-async function cmdEditarHorario(nameHint, afterPara) {
+async function cmdEditarHorario(nameHint, afterPara, tipo) {
   const newTime = extractTime(afterPara);
   if (!newTime) { addMessage(t('pet.ask.time.invalid'), 'bot'); return; }
-  const matches = await searchTasksByName(nameHint);
+  const matches = await searchTasksByName(nameHint, tipo);
   if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
   showEditCard(matches, 'time', { newTime });
 }
 
-async function cmdReatgendar(nameHint, afterPara) {
+async function cmdReatgendar(nameHint, afterPara, tipo) {
   const newDate = extractDate(afterPara);
   const newTime = extractTime(afterPara);
-  const matches = await searchTasksByName(nameHint);
+  const matches = await searchTasksByName(nameHint, tipo);
   if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
   showEditCard(matches, 'reschedule', { newDate, newTime });
 }

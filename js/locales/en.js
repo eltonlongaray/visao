@@ -379,9 +379,9 @@ export default {
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Edit · Reschedule</em>
 <ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>edit name of dentist to medical consultation</em></li>
-  <li><em>edit time of dentist to 3pm</em></li>
-  <li><em>reschedule dentist to friday at 3pm</em></li>
+  <li><em>edit name of commitment dentist to medical consultation</em></li>
+  <li><em>edit time of task workout to 3pm</em></li>
+  <li><em>reschedule commitment dentist to friday at 3pm</em></li>
 </ul>`,
 
   'notif.body.activity':    "Time for {title}! 🎯",

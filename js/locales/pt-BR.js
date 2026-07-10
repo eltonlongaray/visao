@@ -379,9 +379,9 @@ export default {
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Editar · Reagendar</em>
 <ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>editar nome do dentista para consulta médica</em></li>
-  <li><em>editar horário do dentista para 15h</em></li>
-  <li><em>reagendar dentista para sexta às 15h</em></li>
+  <li><em>editar nome do compromisso dentista para consulta médica</em></li>
+  <li><em>editar horário da tarefa academia para 15h</em></li>
+  <li><em>reagendar compromisso dentista para sexta às 15h</em></li>
 </ul>`,
 
   'notif.body.activity':    'Hora de {title}! 🎯',
