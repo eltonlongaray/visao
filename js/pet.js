@@ -323,7 +323,21 @@ async function routeCommand(text) {
 // Extrai horário da frase → "HH:MM" ou '' se não encontrar
 function extractTime(text) {
   const tl = text.toLowerCase();
-  let m = tl.match(/\b(\d{1,2}):(\d{2})\b/);
+  let m;
+
+  // Palavras especiais: meia noite / meio dia (com minutos opcionais)
+  if (/\bmeia[\s-]?noite\s+e\s+meia\b/.test(tl)) return '00:30';
+  m = tl.match(/\bmeia[\s-]?noite\s+e\s+(\d{1,2})\b/);
+  if (m) return `00:${String(parseInt(m[1])).padStart(2,'0')}`;
+  if (/\bmeia[\s-]?noite\b/.test(tl)) return '00:00';
+
+  if (/\bmeio[\s-]?dia\s+e\s+meia\b/.test(tl)) return '12:30';
+  m = tl.match(/\bmeio[\s-]?dia\s+e\s+(\d{1,2})\b/);
+  if (m) return `12:${String(parseInt(m[1])).padStart(2,'0')}`;
+  if (/\bmeio[\s-]?dia\b/.test(tl)) return '12:00';
+
+  // Formatos numéricos
+  m = tl.match(/\b(\d{1,2}):(\d{2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
   m = tl.match(/\b(\d{1,2})h(\d{2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
