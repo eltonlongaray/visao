@@ -317,6 +317,17 @@ async function routeCommand(text) {
   const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
   if (mResched) { await cmdReatgendar(mResched[2].trim(), mResched[3].trim(), mResched[1].toLowerCase()); return null; }
 
+  // Editar genérico: "editar compromisso X para Y" → detecta horário vs nome automaticamente
+  const mEdit = text.match(/^editar?\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
+  if (mEdit) {
+    const tipo = mEdit[1].toLowerCase(), hint = mEdit[2].trim(), afterPara = mEdit[3].trim();
+    const hasTime = !!extractTime(afterPara);
+    const hasDate = /\b(hoje|aman[hã]|segunda|ter[çc][aã]|quarta|quinta|sexta|s[aá]bado|domingo|mon|tue|wed|thu|fri|sat|sun|tomorrow|today|\d{1,2}\/\d{1,2})\b/i.test(afterPara);
+    if (hasDate && !hasTime) { await cmdReatgendar(hint, afterPara, tipo); return null; }
+    if (hasTime) { await cmdEditarHorario(hint, afterPara, tipo); return null; }
+    await cmdEditarNome(hint, afterPara, tipo); return null;
+  }
+
   return t('pet.unknown');
 }
 
@@ -716,12 +727,21 @@ function cmdAjuda() {
 // BLOCO 8.5: EDIÇÃO E REAGENDAMENTO VIA PET
 // ═══════════════════════════════════════════════════════════════
 
+function cleanSearchHint(hint) {
+  return hint
+    .replace(/\b(de\s+|do\s+|da\s+)?(hoje|aman[hã]|agora|now|today|tomorrow)\b/gi, '')
+    .replace(/\b(próxim[ao]\s+)?(seg(unda(-feira)?)?|ter([çc][aã](-feira)?)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?|dom(ingo)?)\b/gi, '')
+    .replace(/\bàs?\s+\d{1,2}[h:]\d*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function searchTasksByName(hint, tipo) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const past   = new Date(today); past.setDate(today.getDate() - 3);
   const future = new Date(today); future.setDate(today.getDate() + 14);
   const days = await fetchDaysRange(past, future);
-  const q = hint.toLowerCase().trim();
+  const q = cleanSearchHint(hint).toLowerCase();
   const isComp = tipo && /compromisso|commitment/.test(tipo);
   const results = [];
   for (const day of days) {
