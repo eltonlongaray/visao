@@ -358,7 +358,7 @@ export default {
   'pet.gcal.prompt':        'Queres receber uma notificação? Se abrir vazio (sem evento), volta aqui e toca no botão novamente.',
   'pet.gcal.btn':           '📅 Adicionar ao Google Calendar',
 
-  'pet.help': `👁 <strong>O que eu percebo:</strong>
+  'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>O que eu percebo:</strong>
 <ul style="margin:6px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>quanto dormi?</em></li>
   <li><em>a minha sequência?</em></li>
