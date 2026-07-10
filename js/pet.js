@@ -113,12 +113,12 @@ function buildPetHTML() {
   <div class="pet-body" id="pet-body" role="button" aria-label="${t('pet.open')}" tabindex="0">
     <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="30" cy="30" r="30" fill="white"/>
+      <circle cx="30" cy="30" r="30" fill="#0d0d0d"/>
       <g class="pet-iris-group">
-        <circle cx="30" cy="33" r="17" fill="#4f46e5"/>
-        <circle cx="30" cy="33" r="10" fill="#080614" class="pet-pupil"/>
-        <circle cx="37" cy="26" r="4.5" fill="white" opacity="0.75"/>
-        <circle cx="22" cy="29" r="2" fill="white" opacity="0.35"/>
+        <circle cx="30" cy="30" r="27" fill="#d97706"/>
+        <ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d" class="pet-pupil"/>
+        <circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/>
+        <circle cx="22" cy="26" r="2" fill="white" opacity="0.35"/>
       </g>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>

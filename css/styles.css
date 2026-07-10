@@ -4643,6 +4643,8 @@ body.tour-active { overflow: hidden; }
 .pet-chat.pet-chat-open {
   max-height: 380px;
   opacity: 1;
+  border-color: #d97706;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 18px rgba(217,119,6,0.28);
 }
 
 /* Header */
@@ -4666,7 +4668,7 @@ body.tour-active { overflow: hidden; }
 .pet-eye-mini {
   width: 18px;
   height: 18px;
-  background: #7c3aed;
+  background: #0d0d0d;
   border-radius: 50%;
   position: relative;
   overflow: hidden;
@@ -4675,18 +4677,18 @@ body.tour-active { overflow: hidden; }
 .pet-eye-mini::before {
   content: '';
   position: absolute;
-  width: 8px; height: 8px;
-  background: white;
+  width: 13px; height: 13px;
+  background: #d97706;
   border-radius: 50%;
-  top: 3px; left: 5px;
+  top: 2.5px; left: 2.5px;
 }
 .pet-eye-mini::after {
   content: '';
   position: absolute;
-  width: 5px; height: 5px;
-  background: #1e1b4b;
+  width: 4px; height: 7px;
+  background: #0d0d0d;
   border-radius: 50%;
-  top: 4.5px; left: 6.5px;
+  top: 5.5px; left: 7px;
 }
 .pet-chat-close {
   background: none;
