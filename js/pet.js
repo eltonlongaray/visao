@@ -827,40 +827,58 @@ function showEditCard(matches, action, payload) {
       setTimeout(() => setPetState('idle'), 1800);
     }).catch(err => {
       btn.disabled = false;
-      btn.textContent = '↺ ' + t('pet.edit.err');
+      btn.textContent = '✅ Confirmar';
       console.error('[pet] edit:', err);
     });
   }
 
-  function makeBtn(match) {
+  // Cria um card com título descritivo + botão Confirmar separado
+  function makeCard(match) {
     const { task, date } = match;
-    const btn = document.createElement('button');
-    btn.className = 'pet-reg-btn';
+    const card = document.createElement('span');
+    card.className = 'pet-preview-card';
+
+    const title = document.createElement('span');
+    title.className = 'pet-preview-title';
+    const sub   = document.createElement('span');
+    sub.className = 'pet-preview-sub';
+
     if (action === 'rename') {
-      btn.textContent = `✏️ "${task.title}" → "${payload.newName}"`;
+      title.textContent = `✏️ ${task.title}`;
+      sub.textContent   = `→ "${payload.newName}" · ${fmtDate(date)}`;
     } else if (action === 'time') {
-      btn.textContent = `⏰ "${task.title}" · ${fmtDate(date)} → ${payload.newTime}`;
+      title.textContent = `⏰ ${task.title}`;
+      sub.textContent   = `${fmtDate(date)} · ${task.startTime || '—'} → ${payload.newTime}`;
     } else {
-      btn.textContent = `📅 "${task.title}" → ${fmtDate(payload.newDate)}${payload.newTime ? ' · ' + payload.newTime : ''}`;
+      title.textContent = `📅 ${task.title}`;
+      sub.textContent   = `${fmtDate(date)} → ${fmtDate(payload.newDate)}${payload.newTime ? ' · ' + payload.newTime : ''}`;
     }
+
+    const btn = document.createElement('button');
+    btn.className   = 'pet-reg-btn';
+    btn.textContent = '✅ Confirmar';
     btn.addEventListener('click', () => applyEdit(match, btn));
-    return btn;
+
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(btn);
+    return card;
   }
 
-  const div  = document.createElement('div');
+  const div = document.createElement('div');
   div.className = 'pet-msg pet-msg-bot';
-  const card = document.createElement('span');
-  card.className = 'pet-preview-card';
 
   if (matches.length > 1) {
-    const sub = document.createElement('span');
-    sub.className = 'pet-preview-sub';
-    sub.textContent = t('pet.edit.ambiguous', { n: matches.length });
-    card.appendChild(sub);
+    const intro = document.createElement('span');
+    intro.className = 'pet-preview-card';
+    const introSub = document.createElement('span');
+    introSub.className = 'pet-preview-sub';
+    introSub.textContent = t('pet.edit.ambiguous', { n: matches.length });
+    intro.appendChild(introSub);
+    div.appendChild(intro);
   }
 
-  for (const match of matches) card.appendChild(makeBtn(match));
-  div.appendChild(card);
+  for (const match of matches) div.appendChild(makeCard(match));
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
