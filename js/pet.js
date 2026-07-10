@@ -309,18 +309,18 @@ async function routeCommand(text) {
 
   // ── Editar nome / horário / reagendar (tipo obrigatório: compromisso | tarefa) ──
   const mNome = text.match(/^editar?\s+nome\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
-  if (mNome) { await cmdEditarNome(mNome[2].trim(), mNome[3].trim(), mNome[1].toLowerCase()); return null; }
+  if (mNome) { await cmdEditarNome(mNome[2].trim(), mNome[3].trim().replace(/[.,;:!?]+$/, ''), mNome[1].toLowerCase()); return null; }
 
   const mHora = text.match(/^editar?\s+(?:hor[aá]rio|hora|time)\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
-  if (mHora) { await cmdEditarHorario(mHora[2].trim(), mHora[3].trim(), mHora[1].toLowerCase()); return null; }
+  if (mHora) { await cmdEditarHorario(mHora[2].trim(), mHora[3].trim().replace(/[.,;:!?]+$/, ''), mHora[1].toLowerCase()); return null; }
 
   const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
-  if (mResched) { await cmdReatgendar(mResched[2].trim(), mResched[3].trim(), mResched[1].toLowerCase()); return null; }
+  if (mResched) { await cmdReatgendar(mResched[2].trim(), mResched[3].trim().replace(/[.,;:!?]+$/, ''), mResched[1].toLowerCase()); return null; }
 
   // Editar genérico: "editar compromisso X para Y" → detecta horário vs nome automaticamente
   const mEdit = text.match(/^editar?\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
   if (mEdit) {
-    const tipo = mEdit[1].toLowerCase(), hint = mEdit[2].trim(), afterPara = mEdit[3].trim();
+    const tipo = mEdit[1].toLowerCase(), hint = mEdit[2].trim(), afterPara = mEdit[3].trim().replace(/[.,;:!?]+$/, '');
     const hasTime = !!extractTime(afterPara);
     const hasDate = /\b(hoje|aman[hã]|segunda|ter[çc][aã]|quarta|quinta|sexta|s[aá]bado|domingo|mon|tue|wed|thu|fri|sat|sun|tomorrow|today|\d{1,2}\/\d{1,2})\b/i.test(afterPara);
     if (hasDate && !hasTime) { await cmdReatgendar(hint, afterPara, tipo); return null; }
@@ -346,6 +346,29 @@ function extractTime(text) {
   m = tl.match(/\bmeio[\s-]?dia\s+e\s+(\d{1,2})\b/);
   if (m) return `12:${String(parseInt(m[1])).padStart(2,'0')}`;
   if (/\bmeio[\s-]?dia\b/.test(tl)) return '12:00';
+
+  // Horas por extenso PT: "uma e quinze da tarde" → 13:15, "oito da manhã" → 08:00
+  const _ptH = {uma:1,duas:2,'três':3,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12};
+  const _ptM = {quinze:15,vinte:20,meia:30,trinta:30,quarenta:40,cinquenta:50};
+  m = tl.match(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+e\s+(quarenta\s+e\s+cinco|quarenta|cinquenta|trinta|vinte|quinze|meia)\s+da\s+(manh[ãa]|tarde|noite)\b/i);
+  if (m) {
+    let h = _ptH[m[1].toLowerCase()] || 1;
+    const min = /quarenta\s+e\s+cinco/.test(m[2]) ? 45 : (_ptM[m[2].toLowerCase()] || 0);
+    if (/tarde|noite/i.test(m[3]) && h < 12) h += 12;
+    return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+  }
+  m = tl.match(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+da\s+(manh[ãa]|tarde|noite)\b/i);
+  if (m) {
+    let h = _ptH[m[1].toLowerCase()] || 1;
+    if (/tarde|noite/i.test(m[2]) && h < 12) h += 12;
+    return `${String(h).padStart(2,'0')}:00`;
+  }
+  m = tl.match(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+e\s+(quarenta\s+e\s+cinco|quarenta|cinquenta|trinta|vinte|quinze|meia)\b/i);
+  if (m) {
+    const h = _ptH[m[1].toLowerCase()] || 1;
+    const min = /quarenta\s+e\s+cinco/.test(m[2]) ? 45 : (_ptM[m[2].toLowerCase()] || 0);
+    return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+  }
 
   // Formatos numéricos
   m = tl.match(/\b(\d{1,2}):(\d{2})\b/);
@@ -393,6 +416,10 @@ function extractTaskName(text) {
     .replace(/ às /gi, ' ').replace(/ às$/gi, '').replace(/^às /gi, '')
     .replace(/ as /gi, ' ').replace(/ as$/gi, '').replace(/^as /gi, '')
     .replace(/ das /gi, ' ').replace(/ das$/gi, '').replace(/^das /gi, '')
+    .replace(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+e\s+(quarenta\s+e\s+cinco|quarenta|cinquenta|trinta|vinte|quinze|meia)\s+da\s+(manh[ãa]|tarde|noite)\b/gi, '')
+    .replace(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+e\s+(quarenta\s+e\s+cinco|quarenta|cinquenta|trinta|vinte|quinze|meia)\b/gi, '')
+    .replace(/\b(uma|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+da\s+(manh[ãa]|tarde|noite)\b/gi, '')
+    .replace(/\bda\s+(manh[ãa]|tarde|noite)\b/gi, '')
     .replace(/\s+/g, ' ')
     .replace(/[\s.,;:!?]+$/, '')
     .trim();
