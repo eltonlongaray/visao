@@ -362,23 +362,23 @@ export default {
 
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>What I understand:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>how much did I sleep?</em></li>
-  <li><em>my consistency?</em></li>
-  <li><em>water today?</em></li>
-  <li><em>tasks today?</em></li>
+  <li><em>how much did I sleep?</em> · <em>my consistency?</em></li>
+  <li><em>water today?</em> · <em>tasks today?</em></li>
 </ul>
-<strong>Tasks</strong> <small style="color:var(--muted)">— verbs: schedule · register</small>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<strong>Activity Log</strong>
+<small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbs: schedule · register</small>
+<em style="color:var(--muted);font-size:0.85em">Tasks</em>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>schedule task do workout</em></li>
   <li><em>register task read 30 minutes</em></li>
 </ul>
-<strong>Commitments</strong>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<em style="color:var(--muted);font-size:0.85em">Commitments</em>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>schedule commitment dentist tomorrow at 10h</em></li>
   <li><em>schedule meeting monday at 2pm</em></li>
 </ul>
-<strong>Edit · Reschedule</strong>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<em style="color:var(--muted);font-size:0.85em">Edit · Reschedule</em>
+<ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>edit name of dentist to medical consultation</em></li>
   <li><em>edit time of dentist to 3pm</em></li>
   <li><em>reschedule dentist to friday at 3pm</em></li>

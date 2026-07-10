@@ -362,23 +362,23 @@ export default {
 
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>O que eu percebo:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>quanto dormi?</em></li>
-  <li><em>a minha constância?</em></li>
-  <li><em>hidratação de hoje?</em></li>
-  <li><em>tarefas de hoje?</em></li>
+  <li><em>quanto dormi?</em> · <em>a minha constância?</em></li>
+  <li><em>hidratação de hoje?</em> · <em>tarefas de hoje?</em></li>
 </ul>
-<strong>Tarefas</strong> <small style="color:var(--muted)">— verbos: marcar · agendar · registrar</small>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<strong>Registro de Atividades</strong>
+<small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
+<em style="color:var(--muted);font-size:0.85em">Tarefas</em>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>marcar tarefa fazer ginásio</em></li>
   <li><em>registrar tarefa ler 30 minutos</em></li>
 </ul>
-<strong>Compromissos</strong>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<em style="color:var(--muted);font-size:0.85em">Compromissos</em>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>marcar compromisso dentista amanhã às 10h</em></li>
   <li><em>agendar reunião segunda às 14h</em></li>
 </ul>
-<strong>Editar · Reagendar</strong>
-<ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
+<em style="color:var(--muted);font-size:0.85em">Editar · Reagendar</em>
+<ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>editar nome do dentista para consulta médica</em></li>
   <li><em>editar horário do dentista para as 15h</em></li>
   <li><em>reagendar dentista para sexta às 15h</em></li>
