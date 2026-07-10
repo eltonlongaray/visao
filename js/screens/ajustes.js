@@ -278,7 +278,7 @@ async function wire(app) {
   app.querySelector('#forceUpdateBtn')?.addEventListener('click', async () => {
     const btn = app.querySelector('#forceUpdateBtn');
     const sub = btn.querySelector('.ajustes-row-sub');
-    sub.textContent = 'Limpando cache...';
+    sub.textContent = t('ajustes.update.clearing');
     btn.disabled = true;
     try {
       if ('caches' in window) {
@@ -294,11 +294,11 @@ async function wire(app) {
         await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
         await navigator.serviceWorker.ready;
       }
-      sub.textContent = 'Reiniciando...';
+      sub.textContent = t('ajustes.update.restart');
       window.location.reload(true);
     } catch (err) {
       console.error('[ajustes] forceUpdate:', err);
-      sub.textContent = 'Erro ao atualizar. Tente de novo.';
+      sub.textContent = t('ajustes.update.err');
       btn.disabled = false;
     }
   });
@@ -310,17 +310,17 @@ async function wire(app) {
     btn.disabled = true;
 
     if (!notifSupported()) {
-      sub.textContent = '❌ Notificações não suportadas neste browser.';
+      sub.textContent = t('ajustes.push.unsupported');
       btn.disabled = false;
       return;
     }
     if (permissionStatus() !== 'granted') {
-      sub.textContent = '❌ Permissão negada. Ative nas configurações do celular.';
+      sub.textContent = t('ajustes.push.denied');
       btn.disabled = false;
       return;
     }
 
-    sub.textContent = 'Registrando subscription...';
+    sub.textContent = t('ajustes.push.registering');
     await subscribeToPush();
 
     const userId = auth.currentUser?.uid;
@@ -330,7 +330,7 @@ async function wire(app) {
       return;
     }
 
-    sub.textContent = 'Enviando push de teste...';
+    sub.textContent = t('ajustes.push.sending');
     try {
       const res = await fetch(`${WORKER_URL}/test-push`, {
         method: 'POST',
@@ -340,22 +340,22 @@ async function wire(app) {
       const data = await res.json();
 
       if (data.ok) {
-        sub.textContent = `✅ Push enviado (status ${data.status}) — deve chegar em segundos!`;
-        showToast('Push de teste enviado!', 'success');
+        sub.textContent = t('ajustes.push.sent', { status: data.status });
+        showToast(t('ajustes.push.sent.toast'), 'success');
       } else if (data.error === 'no_subscription') {
-        sub.textContent = '⚠️ Subscription não registrada. Aguarde 10s e tente de novo.';
-        showToast('Registrando... tente de novo em 10 segundos.', 'info');
+        sub.textContent = t('ajustes.push.no_sub');
+        showToast(t('ajustes.push.no_sub.toast'), 'info');
       } else if (data.error === 'subscription_stale') {
-        sub.textContent = '⚠️ Subscription expirada, foi limpa. Tente de novo.';
+        sub.textContent = t('ajustes.push.stale');
         await subscribeToPush();
-        showToast('Subscription renovada. Tente de novo.', 'info');
+        showToast(t('ajustes.push.stale.toast'), 'info');
       } else {
-        sub.textContent = `❌ Erro: ${data.error || data.status || 'desconhecido'}`;
-        showToast('Falha no push de teste.', 'error');
+        sub.textContent = t('ajustes.push.err', { msg: data.error || data.status || '?' });
+        showToast(t('ajustes.push.err.toast'), 'error');
       }
     } catch (err) {
-      sub.textContent = `❌ Erro de rede: ${err.message}`;
-      showToast('Sem conexão com o Worker.', 'error');
+      sub.textContent = t('ajustes.push.network', { msg: err.message });
+      showToast(t('ajustes.push.no_conn'), 'error');
     }
 
     btn.disabled = false;

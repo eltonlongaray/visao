@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v124';
+const CACHE_NAME = 'visao-v125';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -132,7 +132,7 @@ self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data?.json() || {}; } catch {}
   const title = data.title || 'Falcon';
-  const body  = data.body  || 'Você tem um lembrete';
+  const body  = data.body  || 'You have a reminder';
   const tag   = data.tag   || 'visao-notif';
   event.waitUntil(
     Promise.all([
