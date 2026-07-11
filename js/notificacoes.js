@@ -207,7 +207,7 @@ export function playFalconCry() {
     for (let i = 0; i < 4; i++) {
       const t      = now + i * 0.13;
       const isLast = i === 3;
-      const dur    = isLast ? 0.54 : 0.11;
+      const dur    = isLast ? 0.54 : 0.07;
 
       // --- Oscilador principal (square: brilhante, cortante) ---
       const osc     = ctx.createOscillator();
@@ -219,44 +219,58 @@ export function playFalconCry() {
       hpf.frequency.value = 1400;
 
       if (isLast) {
-        // "kiiiiiiaaa": sobe → sustenta com vibrato → cauda descendente
+        // "kiiiiaaa": sobe → sustenta com vibrato → cauda descendente com rouquidão
         osc.frequency.setValueAtTime(2500, t);
-        osc.frequency.exponentialRampToValueAtTime(4200, t + 0.016); // ataque "ki"
-        osc.frequency.exponentialRampToValueAtTime(3600, t + 0.07);  // assenta no sustain
-        osc.frequency.exponentialRampToValueAtTime(3200, t + 0.22);  // começa a descer
-        osc.frequency.exponentialRampToValueAtTime(2700, t + 0.40);  // cauda "aaaa" — não cai demais
-        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.54);  // final aberto (não "u")
+        osc.frequency.exponentialRampToValueAtTime(4200, t + 0.016);
+        osc.frequency.exponentialRampToValueAtTime(3600, t + 0.07);
+        osc.frequency.exponentialRampToValueAtTime(3200, t + 0.22);
+        osc.frequency.exponentialRampToValueAtTime(2700, t + 0.40);
+        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.54);
 
-        // Vibrato natural: ave segurando a nota (LFO ~9Hz sobre a frequência)
-        const lfo     = ctx.createOscillator();
+        // Vibrato natural (LFO 9Hz)
+        const lfo = ctx.createOscillator();
         const lfoGain = ctx.createGain();
         lfo.type = 'sine';
         lfo.frequency.value = 9;
         lfoGain.gain.setValueAtTime(0,  t + 0.06);
-        lfoGain.gain.linearRampToValueAtTime(90, t + 0.14); // vibrato entra gradual
+        lfoGain.gain.linearRampToValueAtTime(90, t + 0.14);
         lfoGain.gain.setValueAtTime(90,  t + 0.28);
-        lfoGain.gain.linearRampToValueAtTime(30, t + 0.50); // some na cauda
+        lfoGain.gain.linearRampToValueAtTime(30, t + 0.50);
         lfo.connect(lfoGain);
         lfoGain.connect(osc.frequency);
         lfo.start(t + 0.06);
         lfo.stop(t + 0.54);
 
-        oscGain.gain.setValueAtTime(0,    t);
-        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
-        oscGain.gain.setValueAtTime(0.20, t + 0.07);  // sustain pleno
-        oscGain.gain.setValueAtTime(0.18, t + 0.28);  // mantém na descida
-        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
-      } else {
-        // "ki" curto
-        osc.frequency.setValueAtTime(2400, t);
-        osc.frequency.exponentialRampToValueAtTime(4100, t + 0.018);
-        osc.frequency.exponentialRampToValueAtTime(2800, t + 0.062);
-        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.1);
+        // Segundo oscilador levemente desafinado — cria a rouquidão/aspereza no sustain
+        const osc2     = ctx.createOscillator();
+        const osc2Gain = ctx.createGain();
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(2500 * 1.51, t);       // desafinado ~1.5 oitava
+        osc2.frequency.exponentialRampToValueAtTime(3600 * 1.51, t + 0.07);
+        osc2.frequency.exponentialRampToValueAtTime(2700 * 1.51, t + 0.40);
+        osc2Gain.gain.setValueAtTime(0,    t);
+        osc2Gain.gain.linearRampToValueAtTime(0.07, t + 0.06); // entra suave
+        osc2Gain.gain.setValueAtTime(0.09, t + 0.20);
+        osc2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
+        osc2.connect(hpf);
+        osc2.start(t);
+        osc2.stop(t + 0.55);
 
         oscGain.gain.setValueAtTime(0,    t);
-        oscGain.gain.linearRampToValueAtTime(0.20, t + 0.005);
-        oscGain.gain.setValueAtTime(0.18, t + 0.055);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
+        oscGain.gain.setValueAtTime(0.20, t + 0.07);
+        oscGain.gain.setValueAtTime(0.18, t + 0.28);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
+      } else {
+        // "ki" curto: sobe e corta no pico — sem descida, sem "ia"
+        osc.frequency.setValueAtTime(2500, t);
+        osc.frequency.exponentialRampToValueAtTime(4300, t + 0.020); // sobe rápido
+        osc.frequency.setValueAtTime(4200, t + 0.035);               // segura no topo
+
+        oscGain.gain.setValueAtTime(0,    t);
+        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
+        oscGain.gain.setValueAtTime(0.20, t + 0.030);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.068); // corta seco
       }
 
       osc.connect(hpf);
@@ -272,17 +286,17 @@ export function playFalconCry() {
 
       noiseSrc.buffer = noiseBuf;
       noiseBpf.type   = 'bandpass';
-      noiseBpf.Q.value = 1.2;
+      noiseBpf.Q.value = isLast ? 0.9 : 1.2; // mais largo no último = mais rouco
 
       if (isLast) {
         noiseBpf.frequency.setValueAtTime(3800, t);
         noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.016);
         noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.07);
         noiseBpf.frequency.exponentialRampToValueAtTime(3200, t + 0.30);
-        noiseBpf.frequency.exponentialRampToValueAtTime(2800, t + 0.54); // mantém brilho na cauda
+        noiseBpf.frequency.exponentialRampToValueAtTime(2800, t + 0.54);
 
         noiseGain.gain.setValueAtTime(0,    t);
-        noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.005);
+        noiseGain.gain.linearRampToValueAtTime(0.20, t + 0.005); // mais ruído = mais rouco
         noiseGain.gain.setValueAtTime(0.11, t + 0.07);
         noiseGain.gain.setValueAtTime(0.09, t + 0.30);
         noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
