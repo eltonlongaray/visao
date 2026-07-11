@@ -194,8 +194,7 @@ export function playFalconCry() {
   if (!_audioCtx || _audioCtx.state !== 'running') return; // sem gesto = sem som (policy)
   try {
     const ctx = _audioCtx;
-    // +0.1s de margem para montar todos os nós antes do primeiro disparo
-    const now = ctx.currentTime + 0.1;
+    const now = ctx.currentTime + 0.01;
 
     // Ruído branco — textura áspera/respirada, essencial para soar como ave real
     const noiseLen = Math.ceil(ctx.sampleRate * 0.9);

@@ -325,9 +325,6 @@ async function wire(app) {
       return;
     }
 
-    sub.textContent = t('ajustes.push.registering');
-    await subscribeToPush();
-
     const userId = auth.currentUser?.uid;
     if (!userId) {
       sub.textContent = '❌ Usuário não autenticado.';
@@ -348,8 +345,17 @@ async function wire(app) {
         sub.textContent = t('ajustes.push.sent', { status: data.status });
         showToast(t('ajustes.push.sent.toast'), 'success');
       } else if (data.error === 'no_subscription') {
-        sub.textContent = t('ajustes.push.no_sub');
-        showToast(t('ajustes.push.no_sub.toast'), 'info');
+        // Subscription não registrada — faz o registro agora e tenta de novo
+        sub.textContent = 'Registrando... tentando novamente';
+        await subscribeToPush();
+        const res2 = await fetch(`${WORKER_URL}/test-push`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+          body: JSON.stringify({ userId }),
+        });
+        const data2 = await res2.json();
+        sub.textContent = data2.ok ? t('ajustes.push.sent', { status: data2.status }) : t('ajustes.push.no_sub');
+        showToast(data2.ok ? t('ajustes.push.sent.toast') : t('ajustes.push.no_sub.toast'), data2.ok ? 'success' : 'info');
       } else if (data.error === 'subscription_stale') {
         sub.textContent = t('ajustes.push.stale');
         await subscribeToPush();
