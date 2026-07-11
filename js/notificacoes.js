@@ -168,13 +168,33 @@ export async function cancelNotif(tag) {
 // BLOCO 3.5: FALCON CRY — som sintetizado via Web Audio API
 // Toca quando a notificação dispara com o app aberto (foreground).
 // Background/fechado usa som padrão do sistema (limitação da plataforma).
+//
+// AudioContext no mobile exige gesto do usuário para desbloquear.
+// Solução: contexto compartilhado desbloqueado no primeiro toque (unlockAudio).
+// playFalconCry só roda se o contexto já foi desbloqueado.
 // ═══════════════════════════════════════════════════════════════
+let _audioCtx = null;
+
+// Chame no primeiro clique/toque do usuário — desbloqueia o áudio no mobile
+export function unlockAudio() {
+  if (_audioCtx) { if (_audioCtx.state === 'suspended') _audioCtx.resume(); return; }
+  try {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Buffer silencioso: destrava a política de autoplay do browser
+    const buf = _audioCtx.createBuffer(1, 1, _audioCtx.sampleRate);
+    const src = _audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+  } catch (_) {}
+}
+
 export function playFalconCry() {
   if (getNotifMuted()) return;
+  if (!_audioCtx || _audioCtx.state !== 'running') return; // sem gesto = sem som (policy)
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // +0.1s de margem: AudioContext novo leva alguns ms pra inicializar;
-    // sem offset os primeiros gritos ficam no "passado" e são pulados
+    const ctx = _audioCtx;
+    // +0.1s de margem para montar todos os nós antes do primeiro disparo
     const now = ctx.currentTime + 0.1;
 
     // Ruído branco — textura áspera/respirada, essencial para soar como ave real
@@ -285,7 +305,7 @@ export function playFalconCry() {
       noiseSrc.stop(t + dur + 0.01);
     }
 
-    setTimeout(() => ctx.close(), 2500);
+    // não fecha — contexto compartilhado precisa ficar aberto para próxima notificação
   } catch (_) {}
 }
 

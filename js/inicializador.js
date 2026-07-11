@@ -9,7 +9,7 @@
 import { auth, onAuthStateChanged } from './autenticacao.js';
 import { registerRoute, navigate, forceRender } from './roteador.js';
 import { initI18n } from './idioma.js';
-import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted } from './notificacoes.js';
+import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio } from './notificacoes.js';
 import { renderLogin } from './screens/tela-login.js';
 import { renderSignup } from './screens/tela-cadastro.js';
 import { renderWelcome } from './screens/tela-boas-vindas.js';
@@ -49,6 +49,12 @@ forceRender();
 initAutoLock();
 initPet();
 startNotifChecker();
+// Desbloqueia AudioContext no primeiro toque — política de autoplay do mobile
+// Sem isso o playFalconCry fica bloqueado quando disparado por timer/push
+document.addEventListener('click', function _unlock() {
+  unlockAudio();
+  document.removeEventListener('click', _unlock);
+}, { once: true, passive: true });
 // Sincroniza mute com o SW ao carregar
 navigator.serviceWorker?.ready.then(reg => {
   reg.active?.postMessage({ type: 'SET_MUTED', muted: getNotifMuted() });
