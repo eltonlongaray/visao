@@ -173,7 +173,9 @@ export function playFalconCry() {
   if (getNotifMuted()) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const now = ctx.currentTime;
+    // +0.1s de margem: AudioContext novo leva alguns ms pra inicializar;
+    // sem offset os primeiros gritos ficam no "passado" e são pulados
+    const now = ctx.currentTime + 0.1;
 
     // Ruído branco — textura áspera/respirada, essencial para soar como ave real
     const noiseLen = Math.ceil(ctx.sampleRate * 0.9);
