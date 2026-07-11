@@ -203,8 +203,8 @@ export function playFalconCry() {
         osc.frequency.exponentialRampToValueAtTime(4200, t + 0.016); // ataque "ki"
         osc.frequency.exponentialRampToValueAtTime(3600, t + 0.07);  // assenta no sustain
         osc.frequency.exponentialRampToValueAtTime(3200, t + 0.22);  // começa a descer
-        osc.frequency.exponentialRampToValueAtTime(2200, t + 0.40);  // cauda "aaaa"
-        osc.frequency.exponentialRampToValueAtTime(1500, t + 0.54);  // final rasteiro
+        osc.frequency.exponentialRampToValueAtTime(2700, t + 0.40);  // cauda "aaaa" — não cai demais
+        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.54);  // final aberto (não "u")
 
         // Vibrato natural: ave segurando a nota (LFO ~9Hz sobre a frequência)
         const lfo     = ctx.createOscillator();
@@ -257,8 +257,8 @@ export function playFalconCry() {
         noiseBpf.frequency.setValueAtTime(3800, t);
         noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.016);
         noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.07);
-        noiseBpf.frequency.exponentialRampToValueAtTime(3000, t + 0.30);
-        noiseBpf.frequency.exponentialRampToValueAtTime(2000, t + 0.54);
+        noiseBpf.frequency.exponentialRampToValueAtTime(3200, t + 0.30);
+        noiseBpf.frequency.exponentialRampToValueAtTime(2800, t + 0.54); // mantém brilho na cauda
 
         noiseGain.gain.setValueAtTime(0,    t);
         noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.005);
