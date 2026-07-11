@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v138';
+const CACHE_NAME = 'visao-v139';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -19,6 +19,7 @@ const CORE_ASSETS = [
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
+  './icons/falcon-badge.png',
 ];
 
 
@@ -139,7 +140,7 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(title, {
         body,
         icon:               '/icons/icon-192.png',
-        badge:              '/icons/favicon-32.png',
+        badge:              '/icons/falcon-badge.png',
         tag,
         vibrate:            _muted ? [] : [300, 150, 300, 150, 300],
         requireInteraction: true,
