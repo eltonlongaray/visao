@@ -175,35 +175,70 @@ export function playFalconCry() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
 
-    // Falcão peregrino: 3 gritos rápidos "kree-kree-kree"
-    for (let i = 0; i < 3; i++) {
-      const t = now + i * 0.19;
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const flt  = ctx.createBiquadFilter();
+    // Ruído branco — dá a textura áspera/respirada do grito real
+    // Oscilador puro nunca soa como ave; o ruído filtrado é o segredo
+    const noiseLen = Math.ceil(ctx.sampleRate * 0.65);
+    const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const nd = noiseBuf.getChannelData(0);
+    for (let j = 0; j < noiseLen; j++) nd[j] = Math.random() * 2 - 1;
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(1500, t);
-      osc.frequency.exponentialRampToValueAtTime(2700, t + 0.045);
-      osc.frequency.exponentialRampToValueAtTime(1800, t + 0.13);
+    // 4 gritos "kree" em sequência rápida (falcão peregrino: 120-140 ms entre calls)
+    for (let i = 0; i < 4; i++) {
+      const t = now + i * 0.13;
 
-      flt.type = 'bandpass';
-      flt.frequency.value = 2100;
-      flt.Q.value = 1.8;
+      // --- Camada 1: oscilador square (harmônicos brilhantes, cortantes) ---
+      const osc     = ctx.createOscillator();
+      const hpf     = ctx.createBiquadFilter();
+      const oscGain = ctx.createGain();
 
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.28, t + 0.012);
-      gain.gain.setValueAtTime(0.28, t + 0.085);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      osc.type = 'square';
+      // Sweep rápido para cima → desce: "kree" característico do peregrino
+      // Peregrino: zona 2400–4200 Hz (sawtooth em 1500 Hz → região de pato)
+      osc.frequency.setValueAtTime(2400, t);
+      osc.frequency.exponentialRampToValueAtTime(4100, t + 0.018);
+      osc.frequency.exponentialRampToValueAtTime(2800, t + 0.062);
+      osc.frequency.exponentialRampToValueAtTime(2300, t + 0.1);
 
-      osc.connect(flt);
-      flt.connect(gain);
-      gain.connect(ctx.destination);
+      hpf.type = 'highpass';
+      hpf.frequency.value = 1400; // corta o grave que criava o "quack"
+
+      oscGain.gain.setValueAtTime(0, t);
+      oscGain.gain.linearRampToValueAtTime(0.20, t + 0.005); // ataque rápido = "crack"
+      oscGain.gain.setValueAtTime(0.18, t + 0.055);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+
+      osc.connect(hpf);
+      hpf.connect(oscGain);
+      oscGain.connect(ctx.destination);
       osc.start(t);
-      osc.stop(t + 0.17);
+      osc.stop(t + 0.11);
+
+      // --- Camada 2: ruído filtrado (textura áspera — o que soa como ave) ---
+      const noiseSrc  = ctx.createBufferSource();
+      const noiseBpf  = ctx.createBiquadFilter();
+      const noiseGain = ctx.createGain();
+
+      noiseSrc.buffer = noiseBuf;
+
+      noiseBpf.type = 'bandpass';
+      noiseBpf.frequency.setValueAtTime(3600, t);
+      noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.018);
+      noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.062);
+      noiseBpf.Q.value = 1.2; // largo = mais natural, menos sintético
+
+      noiseGain.gain.setValueAtTime(0, t);
+      noiseGain.gain.linearRampToValueAtTime(0.13, t + 0.005);
+      noiseGain.gain.setValueAtTime(0.11, t + 0.055);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+
+      noiseSrc.connect(noiseBpf);
+      noiseBpf.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noiseSrc.start(t);
+      noiseSrc.stop(t + 0.11);
     }
 
-    setTimeout(() => ctx.close(), 1500);
+    setTimeout(() => ctx.close(), 2000);
   } catch (_) {}
 }
 
