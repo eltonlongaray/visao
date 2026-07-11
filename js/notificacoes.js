@@ -175,70 +175,115 @@ export function playFalconCry() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const now = ctx.currentTime;
 
-    // Ruído branco — dá a textura áspera/respirada do grito real
-    // Oscilador puro nunca soa como ave; o ruído filtrado é o segredo
-    const noiseLen = Math.ceil(ctx.sampleRate * 0.65);
+    // Ruído branco — textura áspera/respirada, essencial para soar como ave real
+    const noiseLen = Math.ceil(ctx.sampleRate * 0.9);
     const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0);
     for (let j = 0; j < noiseLen; j++) nd[j] = Math.random() * 2 - 1;
 
-    // 4 gritos "kree" em sequência rápida (falcão peregrino: 120-140 ms entre calls)
+    // Padrão: "ki ki ki kiiiiiiaaa"
+    // 3 gritos curtos + 1 grito longo arrastado com vibrato e cauda descendente
     for (let i = 0; i < 4; i++) {
-      const t = now + i * 0.13;
+      const t      = now + i * 0.13;
+      const isLast = i === 3;
+      const dur    = isLast ? 0.54 : 0.11;
 
-      // --- Camada 1: oscilador square (harmônicos brilhantes, cortantes) ---
+      // --- Oscilador principal (square: brilhante, cortante) ---
       const osc     = ctx.createOscillator();
       const hpf     = ctx.createBiquadFilter();
       const oscGain = ctx.createGain();
 
       osc.type = 'square';
-      // Sweep rápido para cima → desce: "kree" característico do peregrino
-      // Peregrino: zona 2400–4200 Hz (sawtooth em 1500 Hz → região de pato)
-      osc.frequency.setValueAtTime(2400, t);
-      osc.frequency.exponentialRampToValueAtTime(4100, t + 0.018);
-      osc.frequency.exponentialRampToValueAtTime(2800, t + 0.062);
-      osc.frequency.exponentialRampToValueAtTime(2300, t + 0.1);
-
       hpf.type = 'highpass';
-      hpf.frequency.value = 1400; // corta o grave que criava o "quack"
+      hpf.frequency.value = 1400;
 
-      oscGain.gain.setValueAtTime(0, t);
-      oscGain.gain.linearRampToValueAtTime(0.20, t + 0.005); // ataque rápido = "crack"
-      oscGain.gain.setValueAtTime(0.18, t + 0.055);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+      if (isLast) {
+        // "kiiiiiiaaa": sobe → sustenta com vibrato → cauda descendente
+        osc.frequency.setValueAtTime(2500, t);
+        osc.frequency.exponentialRampToValueAtTime(4200, t + 0.016); // ataque "ki"
+        osc.frequency.exponentialRampToValueAtTime(3600, t + 0.07);  // assenta no sustain
+        osc.frequency.exponentialRampToValueAtTime(3200, t + 0.22);  // começa a descer
+        osc.frequency.exponentialRampToValueAtTime(2200, t + 0.40);  // cauda "aaaa"
+        osc.frequency.exponentialRampToValueAtTime(1500, t + 0.54);  // final rasteiro
+
+        // Vibrato natural: ave segurando a nota (LFO ~9Hz sobre a frequência)
+        const lfo     = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        lfo.type = 'sine';
+        lfo.frequency.value = 9;
+        lfoGain.gain.setValueAtTime(0,  t + 0.06);
+        lfoGain.gain.linearRampToValueAtTime(90, t + 0.14); // vibrato entra gradual
+        lfoGain.gain.setValueAtTime(90,  t + 0.28);
+        lfoGain.gain.linearRampToValueAtTime(30, t + 0.50); // some na cauda
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start(t + 0.06);
+        lfo.stop(t + 0.54);
+
+        oscGain.gain.setValueAtTime(0,    t);
+        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
+        oscGain.gain.setValueAtTime(0.20, t + 0.07);  // sustain pleno
+        oscGain.gain.setValueAtTime(0.18, t + 0.28);  // mantém na descida
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
+      } else {
+        // "ki" curto
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(4100, t + 0.018);
+        osc.frequency.exponentialRampToValueAtTime(2800, t + 0.062);
+        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.1);
+
+        oscGain.gain.setValueAtTime(0,    t);
+        oscGain.gain.linearRampToValueAtTime(0.20, t + 0.005);
+        oscGain.gain.setValueAtTime(0.18, t + 0.055);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+      }
 
       osc.connect(hpf);
       hpf.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.start(t);
-      osc.stop(t + 0.11);
+      osc.stop(t + dur + 0.01);
 
-      // --- Camada 2: ruído filtrado (textura áspera — o que soa como ave) ---
+      // --- Ruído filtrado (textura áspera de ave) ---
       const noiseSrc  = ctx.createBufferSource();
       const noiseBpf  = ctx.createBiquadFilter();
       const noiseGain = ctx.createGain();
 
       noiseSrc.buffer = noiseBuf;
+      noiseBpf.type   = 'bandpass';
+      noiseBpf.Q.value = 1.2;
 
-      noiseBpf.type = 'bandpass';
-      noiseBpf.frequency.setValueAtTime(3600, t);
-      noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.018);
-      noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.062);
-      noiseBpf.Q.value = 1.2; // largo = mais natural, menos sintético
+      if (isLast) {
+        noiseBpf.frequency.setValueAtTime(3800, t);
+        noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.016);
+        noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.07);
+        noiseBpf.frequency.exponentialRampToValueAtTime(3000, t + 0.30);
+        noiseBpf.frequency.exponentialRampToValueAtTime(2000, t + 0.54);
 
-      noiseGain.gain.setValueAtTime(0, t);
-      noiseGain.gain.linearRampToValueAtTime(0.13, t + 0.005);
-      noiseGain.gain.setValueAtTime(0.11, t + 0.055);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+        noiseGain.gain.setValueAtTime(0,    t);
+        noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.005);
+        noiseGain.gain.setValueAtTime(0.11, t + 0.07);
+        noiseGain.gain.setValueAtTime(0.09, t + 0.30);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
+      } else {
+        noiseBpf.frequency.setValueAtTime(3600, t);
+        noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.018);
+        noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.062);
+
+        noiseGain.gain.setValueAtTime(0,    t);
+        noiseGain.gain.linearRampToValueAtTime(0.13, t + 0.005);
+        noiseGain.gain.setValueAtTime(0.11, t + 0.055);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
+      }
 
       noiseSrc.connect(noiseBpf);
       noiseBpf.connect(noiseGain);
       noiseGain.connect(ctx.destination);
       noiseSrc.start(t);
-      noiseSrc.stop(t + 0.11);
+      noiseSrc.stop(t + dur + 0.01);
     }
 
-    setTimeout(() => ctx.close(), 2000);
+    setTimeout(() => ctx.close(), 2500);
   } catch (_) {}
 }
 
