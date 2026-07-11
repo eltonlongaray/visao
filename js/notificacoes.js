@@ -202,12 +202,11 @@ export function playFalconCry() {
     const nd = noiseBuf.getChannelData(0);
     for (let j = 0; j < noiseLen; j++) nd[j] = Math.random() * 2 - 1;
 
-    // Padrão: "ki ki ki kiiiiiiaaa"
-    // 3 gritos curtos + 1 grito longo arrastado com vibrato e cauda descendente
-    for (let i = 0; i < 4; i++) {
-      const t      = now + i * 0.13;
-      const isLast = i === 3;
-      const dur    = isLast ? 0.54 : 0.07;
+    // Padrão: "kiiiiaaa kiiiiaaa" — 2 gritos longos
+    for (let i = 0; i < 2; i++) {
+      const t      = now + i * 0.70; // espaço suficiente para o primeiro terminar
+      const isLast = true;
+      const dur    = 0.54;
 
       // --- Oscilador principal (square: brilhante, cortante) ---
       const osc     = ctx.createOscillator();
