@@ -155,6 +155,50 @@ export async function cancelNotif(tag) {
 
 
 // ═══════════════════════════════════════════════════════════════
+// BLOCO 3.5: FALCON CRY — som sintetizado via Web Audio API
+// Toca quando a notificação dispara com o app aberto (foreground).
+// Background/fechado usa som padrão do sistema (limitação da plataforma).
+// ═══════════════════════════════════════════════════════════════
+export function playFalconCry() {
+  if (getNotifMuted()) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+
+    // Falcão peregrino: 3 gritos rápidos "kree-kree-kree"
+    for (let i = 0; i < 3; i++) {
+      const t = now + i * 0.19;
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const flt  = ctx.createBiquadFilter();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1500, t);
+      osc.frequency.exponentialRampToValueAtTime(2700, t + 0.045);
+      osc.frequency.exponentialRampToValueAtTime(1800, t + 0.13);
+
+      flt.type = 'bandpass';
+      flt.frequency.value = 2100;
+      flt.Q.value = 1.8;
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.28, t + 0.012);
+      gain.gain.setValueAtTime(0.28, t + 0.085);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+
+      osc.connect(flt);
+      flt.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.17);
+    }
+
+    setTimeout(() => ctx.close(), 1500);
+  } catch (_) {}
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 4: FALLBACK LOCAL (app aberto)
 // ═══════════════════════════════════════════════════════════════
 const SCHED_KEY = 'visao_notif_schedule';
@@ -185,6 +229,7 @@ export async function startNotifChecker() {
     const due = list.filter(n => n.timestamp <= now);
     if (!due.length) return;
     localStorage.setItem(SCHED_KEY, JSON.stringify(list.filter(n => n.timestamp > now)));
+    playFalconCry();
     try {
       const reg = await navigator.serviceWorker.ready;
       for (const n of due) {
@@ -249,7 +294,7 @@ export function setNotifMuted(muted) {
 export function startForegroundPushListener(onPush) {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'PUSH_FOREGROUND') onPush(e.data);
+    if (e.data?.type === 'PUSH_FOREGROUND') { playFalconCry(); onPush(e.data); }
   });
 }
 
