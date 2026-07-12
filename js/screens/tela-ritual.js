@@ -3229,6 +3229,9 @@ function openActivityPicker(app, dayDocId, shiftId) {
   });
 
   modal.querySelector('#m-save').onclick = async () => {
+    const saveBtn = modal.querySelector('#m-save');
+    if (saveBtn?.disabled) return;
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
     const categoryId = modal.querySelector('#m-cat').value || null;
     const cat = categoryId ? categories.find(c => c.id === categoryId) : null;
     const kind = modal.querySelector('.kind-chip.active')?.dataset.kind || 'task';
@@ -3395,6 +3398,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
     } catch (err) {
       console.error('[add-task] erro:', err);
       showToast('Erro ao salvar.', 'error');
+      const saveBtn = modal.querySelector('#m-save');
+      if (saveBtn?.isConnected) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
     }
   };
 }
@@ -3563,6 +3568,9 @@ function openTaskEditor(app, dayDocId, taskId) {
   });
 
   modal.querySelector('#m-save').onclick = async () => {
+    const saveBtn = modal.querySelector('#m-save');
+    if (saveBtn?.disabled) return;
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
     const newTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
     const newKind = modal.querySelector('.kind-chip.active')?.dataset.kind || 'task';
     let newShiftId = modal.querySelector('#m-shift').value || null;
@@ -3570,6 +3578,7 @@ function openTaskEditor(app, dayDocId, taskId) {
     // Compromisso exige horário
     if (newKind === 'commitment' && !newTime) {
       showToast('Compromisso precisa de horário', 'info');
+      if (saveBtn?.isConnected) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
       return;
     }
 
