@@ -62,9 +62,6 @@ navigator.serviceWorker?.ready.then(reg => {
 startForegroundPushListener(({ title, body }) => {
   const muted = getNotifMuted();
   showToast(`🔔 ${title}${body ? ' — ' + body : ''}`, muted ? 'info' : 'info', 8000);
-  if (!muted) {
-    if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
-  }
 });
 
 

@@ -209,6 +209,7 @@ export function unlockAudio() {
 export async function playFalconCry() {
   if (getNotifMuted()) return;
   if (!_audioCtx || _audioCtx.state !== 'running') return;
+  if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
   // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
   if (!_cryBuffer) {
     await _loadCryBuffer();
