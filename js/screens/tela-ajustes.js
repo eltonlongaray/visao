@@ -339,18 +339,20 @@ async function wire(app) {
       return;
     }
 
-    sub.textContent = t('ajustes.push.sending');
+    sub.textContent = '📤 Enviando... MINIMIZE o app AGORA — vai tocar em ~6s';
     try {
       const res = await fetch(`${WORKER_URL}/test-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, delaySec: 6 }),
       });
       const data = await res.json();
 
       if (data.ok) {
-        sub.textContent = t('ajustes.push.sent', { status: data.status });
-        showToast(t('ajustes.push.sent.toast'), 'success');
+        sub.textContent = data.delayed
+          ? '⏱️ Vai tocar em ~6s — minimize o app pra testar em segundo plano'
+          : t('ajustes.push.sent', { status: data.status });
+        showToast('📤 Push a caminho — minimize o app!', 'success');
       } else if (data.error === 'no_subscription') {
         // Subscription não registrada — faz o registro agora e tenta de novo
         sub.textContent = 'Registrando... tentando novamente';
@@ -358,11 +360,13 @@ async function wire(app) {
         const res2 = await fetch(`${WORKER_URL}/test-push`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, delaySec: 6 }),
         });
         const data2 = await res2.json();
-        sub.textContent = data2.ok ? t('ajustes.push.sent', { status: data2.status }) : t('ajustes.push.no_sub');
-        showToast(data2.ok ? t('ajustes.push.sent.toast') : t('ajustes.push.no_sub.toast'), data2.ok ? 'success' : 'info');
+        sub.textContent = data2.ok
+          ? '⏱️ Registrado! Vai tocar em ~6s — minimize o app'
+          : t('ajustes.push.no_sub');
+        showToast(data2.ok ? '📤 Push a caminho — minimize o app!' : t('ajustes.push.no_sub.toast'), data2.ok ? 'success' : 'info');
       } else if (data.error === 'subscription_stale') {
         sub.textContent = t('ajustes.push.stale');
         await subscribeToPush();
