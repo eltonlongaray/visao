@@ -134,7 +134,7 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
     navigator.serviceWorker.ready.then(reg => {
       reg.active?.postMessage({
         type: 'SCHEDULE_NOTIF', title, body, tag, delayMs,
-        icon: '/icons/icon-192.png', badge: '/icons/falcon-badge.png',
+        icon: './icons/icon-192.png', badge: './icons/falcon-badge.png',
       });
     }).catch(() => {});
   }

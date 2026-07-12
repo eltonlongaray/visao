@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v169';
+const CACHE_NAME = 'visao-v170';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -140,13 +140,14 @@ self.addEventListener('push', (event) => {
     Promise.all([
       self.registration.showNotification(title, {
         body,
-        icon:    './icons/icon-192.png',
-        badge:   './icons/falcon-badge.png',
+        icon:               './icons/icon-192.png',
+        badge:              './icons/falcon-badge.png',
         tag,
-        vibrate: _muted ? [] : [300],
-        renotify: true,
-        silent:  _muted,
-        data:    { url: '/' },
+        vibrate:            _muted ? [] : [300, 150, 300, 150, 300],
+        requireInteraction: true,
+        renotify:           true,
+        silent:             _muted,
+        data:               { url: '/' },
       }),
       // Notifica o app aberto (foreground) para mostrar banner + som internamente
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
