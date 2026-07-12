@@ -165,19 +165,35 @@ export async function cancelNotif(tag) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3.5: FALCON CRY — som sintetizado via Web Audio API
+// BLOCO 3.5: FALCON CRY — Red-tailed Hawk real via Web Audio API
 // Toca quando a notificação dispara com o app aberto (foreground).
 // Background/fechado usa som padrão do sistema (limitação da plataforma).
 //
-// AudioContext no mobile exige gesto do usuário para desbloquear.
-// Solução: contexto compartilhado desbloqueado no primeiro toque (unlockAudio).
-// playFalconCry só roda se o contexto já foi desbloqueado.
+// Fluxo: unlockAudio() no primeiro toque → pré-carrega o WAV →
+//        playFalconCry() toca o buffer decodificado instantaneamente.
 // ═══════════════════════════════════════════════════════════════
-let _audioCtx = null;
+let _audioCtx    = null;
+let _cryBuffer   = null; // buffer decodificado do WAV real
+let _cryLoading  = false;
+
+async function _loadCryBuffer() {
+  if (_cryBuffer || _cryLoading || !_audioCtx) return;
+  _cryLoading = true;
+  try {
+    const res = await fetch('/sounds/falcon-cry.wav');
+    const ab  = await res.arrayBuffer();
+    _cryBuffer = await _audioCtx.decodeAudioData(ab);
+  } catch (_) {}
+  _cryLoading = false;
+}
 
 // Chame no primeiro clique/toque do usuário — desbloqueia o áudio no mobile
 export function unlockAudio() {
-  if (_audioCtx) { if (_audioCtx.state === 'suspended') _audioCtx.resume(); return; }
+  if (_audioCtx) {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    _loadCryBuffer();
+    return;
+  }
   try {
     _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     // Buffer silencioso: destrava a política de autoplay do browser
@@ -186,12 +202,30 @@ export function unlockAudio() {
     src.buffer = buf;
     src.connect(_audioCtx.destination);
     src.start(0);
+    _loadCryBuffer(); // pré-carrega o WAV logo após desbloquear
   } catch (_) {}
 }
 
 export function playFalconCry() {
   if (getNotifMuted()) return;
-  if (!_audioCtx || _audioCtx.state !== 'running') return; // sem gesto = sem som (policy)
+  if (!_audioCtx || _audioCtx.state !== 'running') return;
+  if (!_cryBuffer) { _loadCryBuffer(); return; } // buffer ainda não carregou
+  try {
+    const ctx = _audioCtx;
+    const src = ctx.createBufferSource();
+    src.buffer = _cryBuffer;
+    const gain = ctx.createGain();
+    gain.gain.value = 1.0;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(ctx.currentTime + 0.01);
+    return; // usa o som real — ignora síntese abaixo
+  } catch (_) {}
+}
+
+// Síntese fallback (mantida caso o WAV não carregue — não deve ser chamada normalmente)
+function _playFalconCrySynth() {
+  if (!_audioCtx || _audioCtx.state !== 'running') return;
   try {
     const ctx = _audioCtx;
     const t   = ctx.currentTime + 0.01;

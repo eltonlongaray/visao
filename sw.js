@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v155';
+const CACHE_NAME = 'visao-v156';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -20,6 +20,7 @@ const CORE_ASSETS = [
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
   './icons/falcon-badge.png',
+  './sounds/falcon-cry.wav',
 ];
 
 
