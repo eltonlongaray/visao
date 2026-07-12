@@ -195,127 +195,95 @@ export function playFalconCry() {
   try {
     const ctx = _audioCtx;
     const now = ctx.currentTime + 0.01;
+    const DUR = 1.30;
+    const t   = now;
 
-    // Ruído branco — textura áspera/respirada, essencial para soar como ave real
-    const noiseLen = Math.ceil(ctx.sampleRate * 0.9);
+    // Ruído branco — textura áspera de ave real
+    const noiseLen = Math.ceil(ctx.sampleRate * 2.0);
     const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
     const nd = noiseBuf.getChannelData(0);
     for (let j = 0; j < noiseLen; j++) nd[j] = Math.random() * 2 - 1;
 
-    // Padrão: "kiiiiaaa kiiiiaaa" — 2 gritos longos
-    for (let i = 0; i < 2; i++) {
-      const t      = now + i * 0.70; // espaço suficiente para o primeiro terminar
-      const isLast = true;
-      const dur    = 0.54;
+    // HPF para remover graves artificiais
+    const hpf1 = ctx.createBiquadFilter();
+    const hpf2 = ctx.createBiquadFilter();
+    hpf1.type = hpf2.type = 'highpass';
+    hpf1.frequency.value = hpf2.frequency.value = 1000;
 
-      // --- Oscilador principal (square: brilhante, cortante) ---
-      const osc     = ctx.createOscillator();
-      const hpf     = ctx.createBiquadFilter();
-      const oscGain = ctx.createGain();
+    // Osc principal (square — brilhante e cortante como falcão peregrino)
+    const osc  = ctx.createOscillator();
+    const gOsc = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(2000, t);
+    osc.frequency.exponentialRampToValueAtTime(4600, t + 0.022); // pico "ki!"
+    osc.frequency.exponentialRampToValueAtTime(4000, t + 0.09);  // assenta
+    osc.frequency.exponentialRampToValueAtTime(3500, t + 0.45);  // sustain lento
+    osc.frequency.exponentialRampToValueAtTime(2900, t + 0.88);  // começa cauda
+    osc.frequency.exponentialRampToValueAtTime(2300, t + 1.28);  // "aaaa" final
+    // Vibrato 8Hz — entra suave, cresce no sustain, recua na cauda
+    const lfo  = ctx.createOscillator();
+    const gLFO = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 8;
+    gLFO.gain.setValueAtTime(0,   t + 0.08);
+    gLFO.gain.linearRampToValueAtTime(130, t + 0.20);
+    gLFO.gain.setValueAtTime(130, t + 0.75);
+    gLFO.gain.linearRampToValueAtTime(55,  t + 1.22);
+    lfo.connect(gLFO);
+    gLFO.connect(osc.frequency);
+    lfo.start(t + 0.08);
+    lfo.stop(t + DUR + 0.05);
+    gOsc.gain.setValueAtTime(0,    t);
+    gOsc.gain.linearRampToValueAtTime(0.32, t + 0.006);
+    gOsc.gain.setValueAtTime(0.28, t + 0.09);
+    gOsc.gain.setValueAtTime(0.24, t + 0.60);
+    gOsc.gain.exponentialRampToValueAtTime(0.001, t + DUR);
+    osc.connect(hpf1);
+    hpf1.connect(gOsc);
+    gOsc.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + DUR + 0.06);
 
-      osc.type = 'square';
-      hpf.type = 'highpass';
-      hpf.frequency.value = 1400;
+    // Osc2 sawtooth desafinado (×1.51) — rouquidão/aspereza
+    const osc2  = ctx.createOscillator();
+    const gOsc2 = ctx.createGain();
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(2000 * 1.51, t);
+    osc2.frequency.exponentialRampToValueAtTime(4000 * 1.51, t + 0.09);
+    osc2.frequency.exponentialRampToValueAtTime(2900 * 1.51, t + 0.88);
+    osc2.frequency.exponentialRampToValueAtTime(2300 * 1.51, t + 1.28);
+    gOsc2.gain.setValueAtTime(0,    t);
+    gOsc2.gain.linearRampToValueAtTime(0.09, t + 0.08);
+    gOsc2.gain.setValueAtTime(0.11, t + 0.45);
+    gOsc2.gain.exponentialRampToValueAtTime(0.001, t + DUR);
+    osc2.connect(hpf2);
+    hpf2.connect(gOsc2);
+    gOsc2.connect(ctx.destination);
+    osc2.start(t);
+    osc2.stop(t + DUR + 0.06);
 
-      if (isLast) {
-        // "kiiiiaaa": sobe → sustenta com vibrato → cauda descendente com rouquidão
-        osc.frequency.setValueAtTime(2500, t);
-        osc.frequency.exponentialRampToValueAtTime(4200, t + 0.016);
-        osc.frequency.exponentialRampToValueAtTime(3600, t + 0.07);
-        osc.frequency.exponentialRampToValueAtTime(3200, t + 0.22);
-        osc.frequency.exponentialRampToValueAtTime(2700, t + 0.40);
-        osc.frequency.exponentialRampToValueAtTime(2300, t + 0.54);
-
-        // Vibrato natural (LFO 9Hz)
-        const lfo = ctx.createOscillator();
-        const lfoGain = ctx.createGain();
-        lfo.type = 'sine';
-        lfo.frequency.value = 9;
-        lfoGain.gain.setValueAtTime(0,  t + 0.06);
-        lfoGain.gain.linearRampToValueAtTime(90, t + 0.14);
-        lfoGain.gain.setValueAtTime(90,  t + 0.28);
-        lfoGain.gain.linearRampToValueAtTime(30, t + 0.50);
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-        lfo.start(t + 0.06);
-        lfo.stop(t + 0.54);
-
-        // Segundo oscilador levemente desafinado — cria a rouquidão/aspereza no sustain
-        const osc2     = ctx.createOscillator();
-        const osc2Gain = ctx.createGain();
-        osc2.type = 'sawtooth';
-        osc2.frequency.setValueAtTime(2500 * 1.51, t);       // desafinado ~1.5 oitava
-        osc2.frequency.exponentialRampToValueAtTime(3600 * 1.51, t + 0.07);
-        osc2.frequency.exponentialRampToValueAtTime(2700 * 1.51, t + 0.40);
-        osc2Gain.gain.setValueAtTime(0,    t);
-        osc2Gain.gain.linearRampToValueAtTime(0.07, t + 0.06); // entra suave
-        osc2Gain.gain.setValueAtTime(0.09, t + 0.20);
-        osc2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
-        osc2.connect(hpf);
-        osc2.start(t);
-        osc2.stop(t + 0.55);
-
-        oscGain.gain.setValueAtTime(0,    t);
-        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
-        oscGain.gain.setValueAtTime(0.20, t + 0.07);
-        oscGain.gain.setValueAtTime(0.18, t + 0.28);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
-      } else {
-        // "ki" curto: sobe e corta no pico — sem descida, sem "ia"
-        osc.frequency.setValueAtTime(2500, t);
-        osc.frequency.exponentialRampToValueAtTime(4300, t + 0.020); // sobe rápido
-        osc.frequency.setValueAtTime(4200, t + 0.035);               // segura no topo
-
-        oscGain.gain.setValueAtTime(0,    t);
-        oscGain.gain.linearRampToValueAtTime(0.22, t + 0.005);
-        oscGain.gain.setValueAtTime(0.20, t + 0.030);
-        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.068); // corta seco
-      }
-
-      osc.connect(hpf);
-      hpf.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + dur + 0.01);
-
-      // --- Ruído filtrado (textura áspera de ave) ---
-      const noiseSrc  = ctx.createBufferSource();
-      const noiseBpf  = ctx.createBiquadFilter();
-      const noiseGain = ctx.createGain();
-
-      noiseSrc.buffer = noiseBuf;
-      noiseBpf.type   = 'bandpass';
-      noiseBpf.Q.value = isLast ? 0.9 : 1.2; // mais largo no último = mais rouco
-
-      if (isLast) {
-        noiseBpf.frequency.setValueAtTime(3800, t);
-        noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.016);
-        noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.07);
-        noiseBpf.frequency.exponentialRampToValueAtTime(3200, t + 0.30);
-        noiseBpf.frequency.exponentialRampToValueAtTime(2800, t + 0.54);
-
-        noiseGain.gain.setValueAtTime(0,    t);
-        noiseGain.gain.linearRampToValueAtTime(0.20, t + 0.005); // mais ruído = mais rouco
-        noiseGain.gain.setValueAtTime(0.11, t + 0.07);
-        noiseGain.gain.setValueAtTime(0.09, t + 0.30);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.54);
-      } else {
-        noiseBpf.frequency.setValueAtTime(3600, t);
-        noiseBpf.frequency.exponentialRampToValueAtTime(5200, t + 0.018);
-        noiseBpf.frequency.exponentialRampToValueAtTime(4000, t + 0.062);
-
-        noiseGain.gain.setValueAtTime(0,    t);
-        noiseGain.gain.linearRampToValueAtTime(0.13, t + 0.005);
-        noiseGain.gain.setValueAtTime(0.11, t + 0.055);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.105);
-      }
-
-      noiseSrc.connect(noiseBpf);
-      noiseBpf.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      noiseSrc.start(t);
-      noiseSrc.stop(t + dur + 0.01);
-    }
+    // Ruído filtrado (textura áspera de ave)
+    const nSrc   = ctx.createBufferSource();
+    const nBPF   = ctx.createBiquadFilter();
+    const gNoise = ctx.createGain();
+    nSrc.buffer = noiseBuf;
+    nBPF.type   = 'bandpass';
+    nBPF.Q.value = 0.8;
+    nBPF.frequency.setValueAtTime(4200, t);
+    nBPF.frequency.exponentialRampToValueAtTime(5600, t + 0.022);
+    nBPF.frequency.exponentialRampToValueAtTime(4300, t + 0.09);
+    nBPF.frequency.exponentialRampToValueAtTime(3400, t + 0.88);
+    nBPF.frequency.exponentialRampToValueAtTime(2700, t + 1.28);
+    gNoise.gain.setValueAtTime(0,    t);
+    gNoise.gain.linearRampToValueAtTime(0.22, t + 0.006);
+    gNoise.gain.setValueAtTime(0.18, t + 0.09);
+    gNoise.gain.setValueAtTime(0.15, t + 0.60);
+    gNoise.gain.exponentialRampToValueAtTime(0.001, t + DUR);
+    nSrc.connect(nBPF);
+    nBPF.connect(gNoise);
+    gNoise.connect(ctx.destination);
+    nSrc.start(t);
+    nSrc.stop(t + DUR + 0.06);
 
     // não fecha — contexto compartilhado precisa ficar aberto para próxima notificação
   } catch (_) {}
@@ -415,8 +383,10 @@ export function setNotifMuted(muted) {
 // Quando o SW recebe push e o app está aberto, o SW manda postMessage.
 // Aqui registramos o listener e chamamos o callback com { title, body, tag }.
 // ═══════════════════════════════════════════════════════════════
+let _pushListenerStarted = false;
 export function startForegroundPushListener(onPush) {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator) || _pushListenerStarted) return;
+  _pushListenerStarted = true;
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data?.type === 'PUSH_FOREGROUND') { playFalconCry(); onPush(e.data); }
   });
