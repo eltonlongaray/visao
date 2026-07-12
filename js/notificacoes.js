@@ -180,10 +180,10 @@ async function _loadCryBuffer() {
   if (_cryBuffer || _cryLoading || !_audioCtx) return;
   _cryLoading = true;
   try {
-    const res = await fetch('/sounds/falcon-cry.wav');
+    const res = await fetch('./sounds/falcon-cry.wav');
     const ab  = await res.arrayBuffer();
     _cryBuffer = await _audioCtx.decodeAudioData(ab);
-  } catch (_) {}
+  } catch (e) { console.warn('[falcon] WAV load failed:', e); }
   _cryLoading = false;
 }
 
@@ -206,10 +206,14 @@ export function unlockAudio() {
   } catch (_) {}
 }
 
-export function playFalconCry() {
+export async function playFalconCry() {
   if (getNotifMuted()) return;
   if (!_audioCtx || _audioCtx.state !== 'running') return;
-  if (!_cryBuffer) { _loadCryBuffer(); return; } // buffer ainda não carregou
+  // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
+  if (!_cryBuffer) {
+    await _loadCryBuffer();
+    if (!_cryBuffer) return;
+  }
   try {
     const ctx = _audioCtx;
     const src = ctx.createBufferSource();
@@ -219,7 +223,6 @@ export function playFalconCry() {
     src.connect(gain);
     gain.connect(ctx.destination);
     src.start(ctx.currentTime + 0.01);
-    return; // usa o som real — ignora síntese abaixo
   } catch (_) {}
 }
 
