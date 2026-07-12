@@ -339,18 +339,18 @@ async function wire(app) {
       return;
     }
 
-    sub.textContent = '📤 Enviando... MINIMIZE o app AGORA — vai tocar em ~6s';
+    sub.textContent = '📤 Enviando... MINIMIZE o app AGORA — vai tocar em ~2s';
     try {
       const res = await fetch(`${WORKER_URL}/test-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
-        body: JSON.stringify({ userId, delaySec: 6 }),
+        body: JSON.stringify({ userId, delaySec: 2 }),
       });
       const data = await res.json();
 
       if (data.ok) {
         sub.textContent = data.delayed
-          ? '⏱️ Vai tocar em ~6s — minimize o app pra testar em segundo plano'
+          ? '⏱️ Vai tocar em ~2s — minimize o app pra testar em segundo plano'
           : t('ajustes.push.sent', { status: data.status });
         showToast('📤 Push a caminho — minimize o app!', 'success');
       } else if (data.error === 'no_subscription') {
@@ -360,11 +360,11 @@ async function wire(app) {
         const res2 = await fetch(`${WORKER_URL}/test-push`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
-          body: JSON.stringify({ userId, delaySec: 6 }),
+          body: JSON.stringify({ userId, delaySec: 2 }),
         });
         const data2 = await res2.json();
         sub.textContent = data2.ok
-          ? '⏱️ Registrado! Vai tocar em ~6s — minimize o app'
+          ? '⏱️ Registrado! Vai tocar em ~2s — minimize o app'
           : t('ajustes.push.no_sub');
         showToast(data2.ok ? '📤 Push a caminho — minimize o app!' : t('ajustes.push.no_sub.toast'), data2.ok ? 'success' : 'info');
       } else if (data.error === 'subscription_stale') {
