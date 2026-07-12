@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v163';
+const CACHE_NAME = 'visao-v164';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -114,7 +114,7 @@ self.addEventListener('message', (event) => {
       setTimeout(async () => {
         await self.registration.showNotification(title, {
           body, icon, badge, tag,
-          vibrate:            _muted ? [] : [400, 100, 400, 100, 600],
+          vibrate:            _muted ? [] : [500, 100, 500, 100, 500, 100, 500, 100, 1000],
           requireInteraction: true,
           renotify:           true,
           silent:             _muted,
@@ -143,7 +143,7 @@ self.addEventListener('push', (event) => {
         icon:               '/icons/icon-192.png',
         badge:              '/icons/falcon-badge.png',
         tag,
-        vibrate:            _muted ? [] : [400, 100, 400, 100, 600],
+        vibrate:            _muted ? [] : [500, 100, 500, 100, 500, 100, 500, 100, 1000],
         requireInteraction: true,
         renotify:           true,
         silent:             _muted,

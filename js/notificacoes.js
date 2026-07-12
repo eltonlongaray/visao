@@ -208,7 +208,7 @@ export function unlockAudio() {
 
 export async function playFalconCry() {
   if (getNotifMuted()) return;
-  if ('vibrate' in navigator) navigator.vibrate([400, 100, 400, 100, 600]);
+  if ('vibrate' in navigator) navigator.vibrate([500, 100, 500, 100, 500, 100, 500, 100, 1000]);
   if (!_audioCtx || _audioCtx.state !== 'running') return;
   // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
   if (!_cryBuffer) {
@@ -412,7 +412,7 @@ export async function startNotifChecker() {
           icon:               '/icons/icon-192.png',
           badge:              '/icons/favicon-32.png',
           tag:                n.tag,
-          vibrate:            muted ? [] : [400, 100, 400, 100, 600],
+          vibrate:            muted ? [] : [500, 100, 500, 100, 500, 100, 500, 100, 1000],
           requireInteraction: true,
           renotify:           true,
           silent:             muted,
@@ -470,7 +470,10 @@ export function startForegroundPushListener(onPush) {
   _pushListenerStarted = true;
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data?.type === 'PUSH_FOREGROUND') {
-      if (!getNotifMuted() && 'vibrate' in navigator) navigator.vibrate([400, 100, 400, 100, 600]);
+      if (!getNotifMuted() && 'vibrate' in navigator) {
+        const ok = navigator.vibrate([500, 100, 500, 100, 500, 100, 500, 100, 1000]);
+        console.log('[falcon] vibrate result:', ok, 'muted:', getNotifMuted());
+      }
       playFalconCry();
       onPush(e.data);
     }
