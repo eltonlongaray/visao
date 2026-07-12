@@ -219,7 +219,7 @@ export async function playFalconCry() {
     const src = ctx.createBufferSource();
     src.buffer = _cryBuffer;
     const gain = ctx.createGain();
-    gain.gain.value = 1.0;
+    gain.gain.value = 3.5;
     src.connect(gain);
     gain.connect(ctx.destination);
     src.start(ctx.currentTime + 0.01);
