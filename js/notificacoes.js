@@ -208,8 +208,8 @@ export function unlockAudio() {
 
 export async function playFalconCry() {
   if (getNotifMuted()) return;
+  if ('vibrate' in navigator) navigator.vibrate([400, 100, 400, 100, 600]);
   if (!_audioCtx || _audioCtx.state !== 'running') return;
-  if ('vibrate' in navigator) navigator.vibrate([300, 150, 300, 150, 300]);
   // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
   if (!_cryBuffer) {
     await _loadCryBuffer();
@@ -412,7 +412,7 @@ export async function startNotifChecker() {
           icon:               '/icons/icon-192.png',
           badge:              '/icons/favicon-32.png',
           tag:                n.tag,
-          vibrate:            muted ? [] : [300, 150, 300, 150, 300],
+          vibrate:            muted ? [] : [400, 100, 400, 100, 600],
           requireInteraction: true,
           renotify:           true,
           silent:             muted,
@@ -469,7 +469,11 @@ export function startForegroundPushListener(onPush) {
   if (!('serviceWorker' in navigator) || _pushListenerStarted) return;
   _pushListenerStarted = true;
   navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data?.type === 'PUSH_FOREGROUND') { playFalconCry(); onPush(e.data); }
+    if (e.data?.type === 'PUSH_FOREGROUND') {
+      if (!getNotifMuted() && 'vibrate' in navigator) navigator.vibrate([400, 100, 400, 100, 600]);
+      playFalconCry();
+      onPush(e.data);
+    }
   });
 }
 
