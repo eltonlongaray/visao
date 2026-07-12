@@ -412,6 +412,7 @@ export async function startNotifChecker() {
           icon:    './icons/icon-192.png',
           badge:   './icons/falcon-badge.png',
           tag:     n.tag,
+          vibrate: muted ? [] : [300],
           renotify: true,
           silent:  muted,
           data:    { url: '/' },

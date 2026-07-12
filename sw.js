@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v167';
+const CACHE_NAME = 'visao-v168';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -143,6 +143,7 @@ self.addEventListener('push', (event) => {
         icon:    './icons/icon-192.png',
         badge:   './icons/falcon-badge.png',
         tag,
+        vibrate: _muted ? [] : [300],
         renotify: true,
         silent:  _muted,
         data:    { url: '/' },
