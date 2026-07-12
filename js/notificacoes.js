@@ -194,96 +194,139 @@ export function playFalconCry() {
   if (!_audioCtx || _audioCtx.state !== 'running') return; // sem gesto = sem som (policy)
   try {
     const ctx = _audioCtx;
-    const now = ctx.currentTime + 0.01;
-    const DUR = 1.30;
-    const t   = now;
+    const t   = ctx.currentTime + 0.01;
+    const DUR = 1.65; // grito longo e imponente
 
-    // Ruído branco — textura áspera de ave real
-    const noiseLen = Math.ceil(ctx.sampleRate * 2.0);
-    const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
-    const nd = noiseBuf.getChannelData(0);
-    for (let j = 0; j < noiseLen; j++) nd[j] = Math.random() * 2 - 1;
+    // ── Reverb sintético (0.6s — simula espaço aberto, sem arquivo externo) ──
+    // IR gerado por ruído branco com decaimento exponencial
+    const irLen = Math.ceil(ctx.sampleRate * 0.60);
+    const irBuf = ctx.createBuffer(2, irLen, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = irBuf.getChannelData(ch);
+      for (let i = 0; i < irLen; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.0);
+      }
+    }
+    const convolver = ctx.createConvolver();
+    convolver.buffer = irBuf;
+    const gWet = ctx.createGain();
+    gWet.gain.value = 0.22; // mix reverb: 22% wet
+    convolver.connect(gWet);
+    gWet.connect(ctx.destination);
 
-    // HPF para remover graves artificiais
-    const hpf1 = ctx.createBiquadFilter();
-    const hpf2 = ctx.createBiquadFilter();
-    hpf1.type = hpf2.type = 'highpass';
-    hpf1.frequency.value = hpf2.frequency.value = 1000;
+    // ── WaveShaper — saturação tanh (grit orgânico, sem clipping digital) ──
+    const shaper = ctx.createWaveShaper();
+    const cLen   = 512;
+    const sCurve = new Float32Array(cLen);
+    for (let i = 0; i < cLen; i++) {
+      const x = (i / (cLen - 1)) * 2 - 1;
+      sCurve[i] = Math.tanh(x * 2.4); // k=2.4: saturação moderada/agressiva
+    }
+    shaper.curve = sCurve;
+    shaper.oversample = '4x'; // anti-aliasing na saturação
 
-    // Osc principal (square — brilhante e cortante como falcão peregrino)
-    const osc  = ctx.createOscillator();
-    const gOsc = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(2000, t);
-    osc.frequency.exponentialRampToValueAtTime(4600, t + 0.022); // pico "ki!"
-    osc.frequency.exponentialRampToValueAtTime(4000, t + 0.09);  // assenta
-    osc.frequency.exponentialRampToValueAtTime(3500, t + 0.45);  // sustain lento
-    osc.frequency.exponentialRampToValueAtTime(2900, t + 0.88);  // começa cauda
-    osc.frequency.exponentialRampToValueAtTime(2300, t + 1.28);  // "aaaa" final
-    // Vibrato 8Hz — entra suave, cresce no sustain, recua na cauda
-    const lfo  = ctx.createOscillator();
-    const gLFO = ctx.createGain();
-    lfo.type = 'sine';
-    lfo.frequency.value = 8;
-    gLFO.gain.setValueAtTime(0,   t + 0.08);
-    gLFO.gain.linearRampToValueAtTime(130, t + 0.20);
-    gLFO.gain.setValueAtTime(130, t + 0.75);
-    gLFO.gain.linearRampToValueAtTime(55,  t + 1.22);
-    lfo.connect(gLFO);
-    gLFO.connect(osc.frequency);
-    lfo.start(t + 0.08);
-    lfo.stop(t + DUR + 0.05);
-    gOsc.gain.setValueAtTime(0,    t);
-    gOsc.gain.linearRampToValueAtTime(0.32, t + 0.006);
-    gOsc.gain.setValueAtTime(0.28, t + 0.09);
-    gOsc.gain.setValueAtTime(0.24, t + 0.60);
-    gOsc.gain.exponentialRampToValueAtTime(0.001, t + DUR);
-    osc.connect(hpf1);
-    hpf1.connect(gOsc);
-    gOsc.connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + DUR + 0.06);
+    // ── HPF baixo — mantém corpo da ave grande (corta abaixo de 550 Hz) ──
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = 550;
 
-    // Osc2 sawtooth desafinado (×1.51) — rouquidão/aspereza
-    const osc2  = ctx.createOscillator();
-    const gOsc2 = ctx.createGain();
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(2000 * 1.51, t);
-    osc2.frequency.exponentialRampToValueAtTime(4000 * 1.51, t + 0.09);
-    osc2.frequency.exponentialRampToValueAtTime(2900 * 1.51, t + 0.88);
-    osc2.frequency.exponentialRampToValueAtTime(2300 * 1.51, t + 1.28);
-    gOsc2.gain.setValueAtTime(0,    t);
-    gOsc2.gain.linearRampToValueAtTime(0.09, t + 0.08);
-    gOsc2.gain.setValueAtTime(0.11, t + 0.45);
-    gOsc2.gain.exponentialRampToValueAtTime(0.001, t + DUR);
-    osc2.connect(hpf2);
-    hpf2.connect(gOsc2);
-    gOsc2.connect(ctx.destination);
-    osc2.start(t);
-    osc2.stop(t + DUR + 0.06);
+    // Sinal seco direto
+    const gDry = ctx.createGain();
+    gDry.gain.value = 0.88;
 
-    // Ruído filtrado (textura áspera de ave)
+    // Chain: [osciladores] → [tremolo] → [shaper] → [hpf] → [gDry] → destination
+    //                                              → [hpf] → [convolver] → [gWet] → destination
+
+    // ── Tremolo 22 Hz — cria textura "krrr" interna (modulação de amplitude) ──
+    const tBase = ctx.createGain();
+    tBase.gain.value = 0.70; // DC offset
+
+    const tLFO = ctx.createOscillator();
+    const tMod = ctx.createGain();
+    tLFO.type = 'sine';
+    tLFO.frequency.value = 22; // 22 ciclos/s = aspereza realista de rapinante
+    tMod.gain.value = 0.30;   // profundidade: oscila entre 40% e 100%
+    tLFO.connect(tMod);
+    tMod.connect(tBase.gain);
+    tLFO.start(t);
+    tLFO.stop(t + DUR + 0.1);
+
+    tBase.connect(shaper);
+    shaper.connect(hpf);
+    hpf.connect(gDry);
+    gDry.connect(ctx.destination);
+    hpf.connect(convolver);
+
+    // ── 3 Osciladores sawtooth desafinados ──
+    // Sawtooth: todos os harmônicos → som raspado e agressivo (≠ square, que é oco)
+    // Detuning cria batimentos naturais — sem isso soa sintético
+    // Sweep: ataque rápido (65ms), desce lentamente como rapinante real (Red-tailed Hawk model)
+    // Frequência MÁXIMA = 3000 Hz (não 4600 — acima de 3.5k soa piado fino)
+    const oscDefs = [
+      { detune:  0,  vol: 0.26 }, // fundamental
+      { detune: -9,  vol: 0.19 }, // -9 cents: corpo/calor
+      { detune: +7,  vol: 0.15 }, // +7 cents: brilho/presença
+    ];
+
+    for (const { detune, vol } of oscDefs) {
+      const osc  = ctx.createOscillator();
+      const gOsc = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.detune.value = detune;
+
+      // Sweep de frequência: modelo Red-tailed Hawk (Hollywood raptor sound)
+      //   1200 Hz → 3000 Hz em 65ms (ataque marcante)
+      //   3000 → 2200 Hz (assenta no grito)
+      //   2200 → 1400 Hz (descida orgânica — o "corpo" do grito)
+      //   1400 → 900 Hz (cauda grave — peso e dominância)
+      //   900 → 1050 Hz (upturn final — grito selvagem não cai em linha reta)
+      osc.frequency.setValueAtTime(1200, t);
+      osc.frequency.exponentialRampToValueAtTime(3000, t + 0.065);
+      osc.frequency.exponentialRampToValueAtTime(2200, t + 0.22);
+      osc.frequency.exponentialRampToValueAtTime(1400, t + 0.75);
+      osc.frequency.exponentialRampToValueAtTime(900,  t + 1.35);
+      osc.frequency.exponentialRampToValueAtTime(1050, t + 1.62);
+
+      // Envelope: ataque 60ms → sustain → fade natural (sem corte seco)
+      gOsc.gain.setValueAtTime(0,            t);
+      gOsc.gain.linearRampToValueAtTime(vol,       t + 0.060);
+      gOsc.gain.setValueAtTime(vol * 0.86,   t + 0.22);
+      gOsc.gain.setValueAtTime(vol * 0.72,   t + 0.90);
+      gOsc.gain.exponentialRampToValueAtTime(0.001, t + DUR);
+
+      osc.connect(gOsc);
+      gOsc.connect(tBase); // → tremolo → shaper → hpf → saída
+      osc.start(t);
+      osc.stop(t + DUR + 0.08);
+    }
+
+    // ── Ruído bandpass (breathiness — textura aérea e raspada) ──
+    // Segue a frequência dos osciladores para soar coeso
+    const nLen = Math.ceil(ctx.sampleRate * 2.0);
+    const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+    const nd   = nBuf.getChannelData(0);
+    for (let j = 0; j < nLen; j++) nd[j] = Math.random() * 2 - 1;
+
     const nSrc   = ctx.createBufferSource();
     const nBPF   = ctx.createBiquadFilter();
     const gNoise = ctx.createGain();
-    nSrc.buffer = noiseBuf;
-    nBPF.type   = 'bandpass';
-    nBPF.Q.value = 0.8;
-    nBPF.frequency.setValueAtTime(4200, t);
-    nBPF.frequency.exponentialRampToValueAtTime(5600, t + 0.022);
-    nBPF.frequency.exponentialRampToValueAtTime(4300, t + 0.09);
-    nBPF.frequency.exponentialRampToValueAtTime(3400, t + 0.88);
-    nBPF.frequency.exponentialRampToValueAtTime(2700, t + 1.28);
-    gNoise.gain.setValueAtTime(0,    t);
-    gNoise.gain.linearRampToValueAtTime(0.22, t + 0.006);
-    gNoise.gain.setValueAtTime(0.18, t + 0.09);
-    gNoise.gain.setValueAtTime(0.15, t + 0.60);
+    nSrc.buffer  = nBuf;
+    nBPF.type    = 'bandpass';
+    nBPF.Q.value = 0.55; // Q baixo = faixa larga = mais aéreo e natural
+    nBPF.frequency.setValueAtTime(2400, t);
+    nBPF.frequency.exponentialRampToValueAtTime(3000, t + 0.065);
+    nBPF.frequency.exponentialRampToValueAtTime(1800, t + 0.75);
+    nBPF.frequency.exponentialRampToValueAtTime(1100, t + 1.55);
+    gNoise.gain.setValueAtTime(0,     t);
+    gNoise.gain.linearRampToValueAtTime(0.24, t + 0.060);
+    gNoise.gain.setValueAtTime(0.20,  t + 0.22);
+    gNoise.gain.setValueAtTime(0.16,  t + 0.90);
     gNoise.gain.exponentialRampToValueAtTime(0.001, t + DUR);
     nSrc.connect(nBPF);
     nBPF.connect(gNoise);
-    gNoise.connect(ctx.destination);
+    gNoise.connect(ctx.destination); // ruído vai direto — já é aéreo
     nSrc.start(t);
-    nSrc.stop(t + DUR + 0.06);
+    nSrc.stop(t + DUR + 0.08);
 
     // não fecha — contexto compartilhado precisa ficar aberto para próxima notificação
   } catch (_) {}
