@@ -206,10 +206,30 @@ export function unlockAudio() {
   } catch (_) {}
 }
 
+// Toca ding fantasma em volume sub-audível para acionar haptic do Samsung
+function _playHapticTrigger(ctx) {
+  try {
+    const notes = [523, 659, 784];
+    notes.forEach((freq, i) => {
+      const t = ctx.currentTime + i * 0.18;
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.04, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    });
+  } catch (_) {}
+}
+
 export async function playFalconCry() {
   if (getNotifMuted()) return;
   if ('vibrate' in navigator) navigator.vibrate([500, 100, 500, 100, 500, 100, 500, 100, 1000]);
   if (!_audioCtx || _audioCtx.state !== 'running') return;
+  _playHapticTrigger(_audioCtx);
   // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
   if (!_cryBuffer) {
     await _loadCryBuffer();
