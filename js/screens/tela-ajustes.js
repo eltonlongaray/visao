@@ -152,8 +152,8 @@ export async function renderAjustes(app) {
           </button>
           <button class="ajustes-row clickable" id="notifGuideBtn">
             <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Ativar pop-up e vibração</div>
-              <div class="ajustes-row-sub">Como fazer os lembretes aparecerem no topo e vibrarem</div>
+              <div class="ajustes-row-title">Notificações não estão chegando?</div>
+              <div class="ajustes-row-sub">Toque para ver como ativar som, vibração e pop-up</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
