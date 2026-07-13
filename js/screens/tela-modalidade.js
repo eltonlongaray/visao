@@ -7,7 +7,8 @@
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
-import { auth, db, doc, getDoc } from '../autenticacao.js';
+import { auth } from '../autenticacao.js';
+import { getProfile } from '../banco-dados.js';
 import { navigate } from '../roteador.js';
 import { showToast } from '../aviso-tela.js';
 import { maybeOpenBioPrompt } from '../modal-biometria.js';
@@ -120,8 +121,8 @@ function attachHandlers(app) {
         return;
       }
 
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const hasTemplate = userDoc.exists() && userDoc.data()?.template;
+      const profile = await getProfile();
+      const hasTemplate = !!profile?.template;
       navigate(hasTemplate ? '/home' : '/welcome');
     } catch (err) {
       console.error('[Visão] modalidade pessoal erro:', err);

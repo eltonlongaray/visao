@@ -8,7 +8,10 @@
 // BLOCO 3 — RELATÓRIO PDF (via print do navegador)
 // BLOCO 4 — HELPERS
 // ─────────────────────────────────────────────────────────────
-import { auth, db, doc, getDoc, collection, getDocs } from './autenticacao.js';
+import { auth } from './autenticacao.js';
+import { getProfile, getShifts, getCategories, fetchDaysRange } from './banco-dados.js';
+import { listAllConsents } from './lgpd-consentimentos.js';
+import { supabase } from './config-supabase.js';
 import { t, getLang } from './idioma.js';
 
 
@@ -19,18 +22,17 @@ export async function gatherAllData() {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
 
-  const base = ['users', user.uid];
-
-  const profileSnap = await getDoc(doc(db, ...base));
-  const profile = profileSnap.exists() ? profileSnap.data() : {};
-
-  const [shifts, categories, weeks, consents, days] = await Promise.all([
-    fetchCol([...base, 'shifts']),
-    fetchCol([...base, 'categories']),
-    fetchCol([...base, 'weeks']),
-    fetchCol([...base, 'consents']),
-    fetchDaysWithTasks(base)
+  const [profile, shifts, categories, consents, weeks, rawDays] = await Promise.all([
+    getProfile(),
+    getShifts(),
+    getCategories(),
+    listAllConsents(),
+    _fetchWeeks(),
+    fetchDaysRange(new Date('2000-01-01'), new Date('2100-01-01')),
   ]);
+
+  // fetchDaysRange devolve {id, ...meta, tasks} → reshape pra {id, meta, tasks} (formato do relatório)
+  const days = rawDays.map(({ id, tasks, ...meta }) => ({ id, meta, tasks }));
 
   return {
     exportedAt: new Date().toISOString(),
@@ -40,7 +42,7 @@ export async function gatherAllData() {
       email: user.email,
       displayName: user.displayName || null
     },
-    profile,
+    profile: profile || {},
     shifts,
     categories,
     days,
@@ -49,21 +51,9 @@ export async function gatherAllData() {
   };
 }
 
-async function fetchCol(pathArr) {
-  const snap = await getDocs(collection(db, ...pathArr));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
-
-async function fetchDaysWithTasks(base) {
-  const daysSnap = await getDocs(collection(db, ...base, 'days'));
-  const out = [];
-  for (const d of daysSnap.docs) {
-    const meta = d.data();
-    const tasks = await fetchCol([...base, 'days', d.id, 'tasks']);
-    out.push({ id: d.id, meta, tasks });
-  }
-  out.sort((a, b) => a.id.localeCompare(b.id));
-  return out;
+async function _fetchWeeks() {
+  const { data } = await supabase.from('week_notes').select('*');
+  return (data || []).map(w => ({ id: w.monday, ...(w.data || {}) }));
 }
 
 

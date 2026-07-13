@@ -67,8 +67,9 @@ startForegroundPushListener(({ title, body }) => {
 // Clique na notificação (app aberto): SW manda abrir o Ritual no dia do compromisso
 navigator.serviceWorker?.addEventListener('message', (e) => {
   if (e.data?.type !== 'OPEN_RITUAL_DAY') return;
-  const day = e.data.day;
-  const target = day ? `/ritual?day=${day}` : '/ritual';
+  const { day, tag } = e.data;
+  const qs = day ? `?day=${day}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}` : '';
+  const target = `/ritual${qs}`;
   if (location.hash === '#' + target) forceRender();
   else navigate(target);
 });

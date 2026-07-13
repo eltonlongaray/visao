@@ -1,115 +1,73 @@
-﻿// ═══════════════════════════════════════════════════════════════
-// VISÃO · Exclusão definitiva de conta (LGPD Art. 18, VI)
-// Apaga TODOS os dados do Firestore + auth user.
-// Firestore não tem delete recursivo — precisamos iterar.
+// ═══════════════════════════════════════════════════════════════
+// FALCON · Exclusão de conta (LGPD Art. 18, VI)
+// Apaga TODOS os dados do usuário no Postgres (via RLS). O registro de
+// auth em si (só email) precisa de um Edge Function admin pra sumir — TODO.
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// BLOCO 1 — PUBLIC API
-// BLOCO 2 — WIPE FIRESTORE — itera e deleta tudo
-// BLOCO 3 — EXCLUIR MÊS (apenas admin) — pra resetar dados de teste
-// BLOCO 4 — EXCLUIR SEMANA (apenas admin)
+// BLOCO 1 — PUBLIC API (excluir conta)
+// BLOCO 2 — EXCLUIR MÊS (admin)
+// BLOCO 3 — EXCLUIR SEMANA (admin)
 // ─────────────────────────────────────────────────────────────
-import {
-  auth, db, doc, deleteDoc, collection, getDocs
-} from './autenticacao.js';
+import { auth } from './autenticacao.js';
+import { supabase } from './config-supabase.js';
 import * as biometric from './biometria.js';
+
+// Ordem: filhos antes de pais (por via das dúvidas; RLS + on delete cascade cobrem também)
+const USER_TABLES = ['tasks', 'days', 'week_notes', 'consents', 'activities', 'categories', 'shifts', 'profiles'];
 
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: PUBLIC API
 // ═══════════════════════════════════════════════════════════════
-// Retorna { firestore: true, auth: 'ok' | 'requires-recent-login' | 'error' }
+// Retorna { firestore: true, auth: 'signed-out' } (mantém a chave 'firestore'
+// só pra não quebrar quem consome; hoje é Postgres).
 export async function deleteMyAccount() {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
-
   const uid = user.uid;
 
-  // 1) Limpa local primeiro pra não deixar bio órfã
+  // 1) Limpa a bio local pra não deixar órfã
   biometric.disable();
 
-  // 2) Apaga todas as subcoleções do user no Firestore
-  await wipeUserFirestore(uid);
-
-  // 3) Tenta apagar o auth user
-  try {
-    await user.delete();
-    return { firestore: true, auth: 'ok' };
-  } catch (err) {
-    if (err?.code === 'auth/requires-recent-login') {
-      return { firestore: true, auth: 'requires-recent-login' };
-    }
-    console.error('[delete] auth.delete falhou:', err);
-    return { firestore: true, auth: 'error' };
+  // 2) Apaga todos os dados do usuário (RLS já escopa; filtro explícito por segurança)
+  for (const table of USER_TABLES) {
+    const { error } = await supabase.from(table).delete().eq('user_id', uid);
+    if (error) console.warn('[delete]', table, error.message);
   }
+
+  // 3) Desloga. O registro de auth (só email) é removido por Edge Function admin depois.
+  await supabase.auth.signOut();
+  return { firestore: true, auth: 'signed-out' };
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: WIPE FIRESTORE — itera e deleta tudo
+// BLOCO 2: EXCLUIR MÊS (admin) — reset de dados de teste. monthKey 'YYYY-MM'
 // ═══════════════════════════════════════════════════════════════
-async function wipeUserFirestore(uid) {
-  const base = ['users', uid];
-
-  // Subcoleções "flat" (delete docs direto)
-  const flatCols = ['shifts', 'categories', 'weeks', 'consents', 'activities'];
-  for (const c of flatCols) {
-    await deleteCollection([...base, c]);
-  }
-
-  // days/{id}/tasks/* → primeiro deleta tasks, depois o day
-  const daysSnap = await getDocs(collection(db, ...base, 'days'));
-  for (const d of daysSnap.docs) {
-    await deleteCollection([...base, 'days', d.id, 'tasks']);
-    await deleteDoc(doc(db, ...base, 'days', d.id));
-  }
-
-  // Por fim o doc do user
-  try { await deleteDoc(doc(db, ...base)); } catch {}
-}
-
-async function deleteCollection(pathArr) {
-  const snap = await getDocs(collection(db, ...pathArr));
-  await Promise.all(snap.docs.map(d => deleteDoc(d.ref).catch(() => {})));
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 3: EXCLUIR MÊS (apenas admin) — pra resetar dados de teste
-// ═══════════════════════════════════════════════════════════════
-// monthKey: 'YYYY-MM' (ex: '2026-06')
 export async function deleteMonth(monthKey) {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error('Formato inválido');
+  const uid = user.uid;
+  const like = `${monthKey}-%`;
 
-  const base = ['users', user.uid];
-  const daysSnap = await getDocs(collection(db, ...base, 'days'));
-  const toDelete = daysSnap.docs.filter(d => d.id.startsWith(monthKey + '-'));
-
-  let count = 0;
-  for (const d of toDelete) {
-    await deleteCollection([...base, 'days', d.id, 'tasks']);
-    await deleteDoc(doc(db, ...base, 'days', d.id));
-    count++;
-  }
-  return count;
+  const { data: dayRows } = await supabase.from('days').select('day').eq('user_id', uid).like('day', like);
+  await supabase.from('tasks').delete().eq('user_id', uid).like('day', like);
+  await supabase.from('days').delete().eq('user_id', uid).like('day', like);
+  return dayRows ? dayRows.length : 0;
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: EXCLUIR SEMANA (apenas admin)
+// BLOCO 3: EXCLUIR SEMANA (admin). mondayId 'YYYY-MM-DD' (segunda-feira)
 // ═══════════════════════════════════════════════════════════════
-// mondayId: 'YYYY-MM-DD' (segunda-feira da semana)
 export async function deleteWeek(mondayId) {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(mondayId)) throw new Error('Formato inválido');
-
-  const base = ['users', user.uid];
+  const uid = user.uid;
   const monday = new Date(mondayId + 'T00:00:00');
 
-  // Constrói os 7 ids da semana (Seg → Dom)
   const dayIds = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
@@ -120,19 +78,8 @@ export async function deleteWeek(mondayId) {
     dayIds.push(`${y}-${m}-${dd}`);
   }
 
-  let count = 0;
-  for (const dId of dayIds) {
-    try {
-      await deleteCollection([...base, 'days', dId, 'tasks']);
-      await deleteDoc(doc(db, ...base, 'days', dId));
-      count++;
-    } catch (err) {
-      // Ignora se o dia nem existia
-    }
-  }
-
-  // Remove também a nota semanal (reflexão)
-  try { await deleteDoc(doc(db, ...base, 'weeks', mondayId)); } catch {}
-
-  return count;
+  await supabase.from('tasks').delete().eq('user_id', uid).in('day', dayIds);
+  await supabase.from('days').delete().eq('user_id', uid).in('day', dayIds);
+  await supabase.from('week_notes').delete().eq('user_id', uid).eq('monday', mondayId);
+  return dayIds.length;
 }
