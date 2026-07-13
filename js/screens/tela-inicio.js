@@ -135,7 +135,10 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
 
+  // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
+  // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
   if (!tour.isCompleted()) {
+    tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
   }
 }
