@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v186';
+const CACHE_NAME = 'visao-v187';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -169,18 +169,20 @@ function _dayFromTag(tag) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const day  = _dayFromTag(event.notification.tag);
-  const hash = day ? `#/ritual?day=${day}` : '#/ritual';
+  const tag  = event.notification.tag || '';
+  const day  = _dayFromTag(tag);
+  const qs   = day ? `?day=${day}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}` : '';
+  const hash = `#/ritual${qs}`;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          // App já aberto: manda navegar pro dia do compromisso e foca
-          client.postMessage({ type: 'OPEN_RITUAL_DAY', day });
+          // App já aberto: manda navegar pro dia/tarefa do compromisso e foca
+          client.postMessage({ type: 'OPEN_RITUAL_DAY', day, tag });
           return client.focus();
         }
       }
-      // App fechado: abre direto no Ritual daquele dia
+      // App fechado: abre direto no Ritual naquele dia
       return clients.openWindow('./' + hash);
     })
   );

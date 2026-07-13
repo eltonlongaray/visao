@@ -638,20 +638,6 @@ function askType(name, date = new Date(), time = '') {
   return null;
 }
 
-function petGCalUrl(name, date, time) {
-  const y  = date.getFullYear();
-  const mo = date.getMonth() + 1;
-  const d  = date.getDate();
-  const [h, mi] = time.split(':').map(Number);
-  const pad     = n => String(n).padStart(2, '0');
-  const ds      = `${y}${pad(mo)}${pad(d)}`;
-  const params  = new URLSearchParams({
-    action: 'TEMPLATE', text: name,
-    dates: `${ds}T${pad(h)}${pad(mi)}00/${ds}T${pad(Math.min(h+1,23))}${pad(mi)}00`,
-    details: '⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\nRegistrado no Falcon.',
-  });
-  return `https://calendar.google.com/calendar/render?${params}`;
-}
 
 function showRegistroPreview(name, done, date = new Date(), time = '') {
   const dd        = date.getDate().toString().padStart(2, '0');
@@ -696,20 +682,9 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
         const result   = await scheduleNotif({ title: name, body: done ? t('notif.body.activity', { title: name }) : t('notif.body.commitment', { title: name }), tag, timestamp: ts });
         if (result === 'scheduled') {
           setTimeout(() => addMessage(t('pet.notif.scheduled', { time }), 'bot'), 350);
-        } else {
-          const gcalUrl = petGCalUrl(name, date, time);
-          const hint = result === 'denied' ? t('pet.notif.blocked') : t('pet.notif.gcal.hint');
-          setTimeout(() => addMessage(
-            `${hint}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">${t('pet.gcal.btn')}</a>`,
-            'bot'
-          ), 350);
+        } else if (result === 'denied') {
+          setTimeout(() => addMessage(t('pet.notif.blocked'), 'bot'), 350);
         }
-      } else if (!done) {
-        const gcalUrl = petGCalUrl(name, date, '09:00');
-        setTimeout(() => addMessage(
-          `${t('pet.gcal.prompt')}<br><a class="pet-gcal-link" href="${gcalUrl}" target="_blank" rel="noopener">${t('pet.gcal.btn')}</a>`,
-          'bot'
-        ), 350);
       }
     } catch (err) {
       btn.disabled = false;

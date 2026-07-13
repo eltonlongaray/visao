@@ -143,13 +143,6 @@ export async function renderAjustes(app) {
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
-          <button class="ajustes-row clickable" id="testVibrateBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Testar vibração</div>
-              <div class="ajustes-row-sub" id="testVibrateSub">Toca aqui para vibrar agora</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
           <button class="ajustes-row clickable" id="notifGuideBtn">
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">Notificações não estão chegando?</div>
@@ -388,18 +381,6 @@ async function wire(app) {
     }
 
     btn.disabled = false;
-  });
-
-  // ── Testar vibração ──
-  app.querySelector('#testVibrateBtn')?.addEventListener('click', () => {
-    const sub = app.querySelector('#testVibrateSub');
-    if (!('vibrate' in navigator)) {
-      sub.textContent = '❌ navigator.vibrate não suportado neste browser';
-      return;
-    }
-    const ok = navigator.vibrate([500, 100, 500, 100, 500, 100, 500, 100, 1000]);
-    sub.textContent = ok ? '✅ Vibração ativada (ok=true)' : '❌ Vibração bloqueada (ok=false)';
-    console.log('[falcon] vibrate test result:', ok);
   });
 
   // ── Guia de pop-up + vibração (reabre o passo a passo) ──

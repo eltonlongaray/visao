@@ -481,8 +481,10 @@ export async function renderRitual(app) {
   app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${tr('ritual.loading')}</div>`;
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
-  // Alvo vindo de clique em notificação: #/ritual?day=YYYY-MM-DD
-  const _tgtDay = new URLSearchParams((location.hash.split('?')[1] || '')).get('day');
+  // Alvo vindo de clique em notificação: #/ritual?day=YYYY-MM-DD&tag=...
+  const _q = new URLSearchParams((location.hash.split('?')[1] || ''));
+  const _tgtDay = _q.get('day');
+  const _tgtTag = _q.get('tag');
   const _hasTarget = _tgtDay && /^\d{4}-\d{2}-\d{2}$/.test(_tgtDay);
   if (_hasTarget) weekStart = getWeekStart(new Date(_tgtDay + 'T00:00:00'));
   try {
@@ -501,12 +503,25 @@ export async function renderRitual(app) {
   await _migrateTemplateGroupIds();
   await loadWeek();
   renderUI(app);
-  // Veio de clique em notificação → rola até o dia do compromisso
+  // Veio de clique em notificação → rola e pisca a tarefa específica (ou o dia)
   if (_hasTarget) {
     setTimeout(() => {
-      const el = document.querySelector(`.day-card[data-day-id="${_tgtDay}"]`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 250);
+      let taskEl = null;
+      if (_tgtTag) {
+        const day  = weekData.find(d => d.id === _tgtDay);
+        const task = day?.tasks.find(t => notifTag(_tgtDay, t.title || '') === _tgtTag);
+        if (task) taskEl = document.querySelector(`.task[data-task-id="${task.id}"]`);
+      }
+      if (taskEl) {
+        taskEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        taskEl.style.transition = 'box-shadow .3s ease';
+        const on  = () => { taskEl.style.boxShadow = '0 0 0 3px rgba(124,58,237,.9)'; };
+        const off = () => { taskEl.style.boxShadow = ''; };
+        on(); setTimeout(off, 420); setTimeout(on, 820); setTimeout(off, 1500);
+      } else {
+        document.querySelector(`.day-card[data-day-id="${_tgtDay}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 300);
   }
   // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
   // só dispara se as mensagens da manhã NÃO foram abertas hoje
@@ -1771,9 +1786,6 @@ function taskCard(t, dayDocId) {
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         <div class="task-footer">
           ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
-          ${t.startTime && !t.cancelled ? `
-            <a class="task-gcal-btn" href="${makeGCalUrl(t, dayDocId)}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda">📅 Google Agenda</a>
-          ` : ''}
         </div>
       </div>
     </div>
@@ -2426,13 +2438,6 @@ function attachHandlers(app) {
       }, 250);
       return;
     }
-  });
-
-  // Google Agenda — mostra dica de lembrete antes de abrir
-  app.addEventListener('click', (e) => {
-    const btn = e.target.closest('.task-gcal-btn');
-    if (!btn) return;
-    showToast('No Google Agenda, role até 🔔 Adicionar notificação e configure antes de salvar.', 'info');
   });
 
   // Inputs (acordei/dormi/hidratação/anotações) — debounce save
@@ -3883,23 +3888,6 @@ function launchCelebration() {
   });
 
   setTimeout(() => overlay.remove(), 5500);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 12: GOOGLE AGENDA — link pré-preenchido sem OAuth
-// ═══════════════════════════════════════════════════════════════
-function makeGCalUrl(t, dayDocId) {
-  const [y, mo, d] = dayDocId.split('-').map(Number);
-  const [h, mi]    = (t.startTime || '00:00').split(':').map(Number);
-  const pad        = n => String(n).padStart(2, '0');
-  const dateStr    = `${y}${pad(mo)}${pad(d)}`;
-  const startFmt   = `${dateStr}T${pad(h)}${pad(mi)}00`;
-  const endH       = Math.min(h + 1, 23);
-  const endFmt     = `${dateStr}T${pad(endH)}${pad(mi)}00`;
-  const base    = t.kind === 'commitment' ? 'Compromisso registrado no Falcon' : 'Atividade registrada no Falcon';
-  const detail  = `⏰ Role até 🔔 Adicionar notificação e configure antes de salvar.\n\n${t.desc || base}`;
-  const params  = new URLSearchParams({ action: 'TEMPLATE', text: t.title, dates: `${startFmt}/${endFmt}`, details: detail });
-  return `https://calendar.google.com/calendar/render?${params}`;
 }
 
 
