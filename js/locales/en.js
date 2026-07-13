@@ -121,9 +121,7 @@ export default {
   // ── Ritual ───────────────────────────────────────────────────
   'ritual.title':         "Today's Ritual",
   'ritual.loading':       'Loading ritual...',
-  'ritual.empty':         'No activities for today.',
-  'ritual.gcal':          '📅 Google Calendar',
-  'ritual.done':          'Done',
+  'ritual.empty':         'No activities for today.',  'ritual.done':          'Done',
   'ritual.cancel':        'Cancel',
   'ritual.day.empty':     'empty',
   'ritual.tasks':         'tasks',
@@ -356,10 +354,6 @@ export default {
 
   'pet.notif.scheduled':    '🔔 Notification scheduled for <strong>{time}</strong>. You\'ll be reminded!',
   'pet.notif.blocked':      'Notifications blocked. Add to Google Calendar to get a reminder:',
-  'pet.notif.gcal.hint':    'Add to Google Calendar to be reminded:',
-  'pet.gcal.prompt':        'Want a reminder? If it opens empty (no event), come back here and tap the button again.',
-  'pet.gcal.btn':           '📅 Add to Google Calendar',
-
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>What I understand:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>how much did I sleep?</em> · <em>my consistency?</em></li>

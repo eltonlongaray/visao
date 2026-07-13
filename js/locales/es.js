@@ -121,9 +121,7 @@ export default {
   // ── Ritual ───────────────────────────────────────────────────
   'ritual.title':         'Ritual del día',
   'ritual.loading':       'Cargando ritual...',
-  'ritual.empty':         'No hay actividades para hoy.',
-  'ritual.gcal':          '📅 Google Calendar',
-  'ritual.done':          'Completada',
+  'ritual.empty':         'No hay actividades para hoy.',  'ritual.done':          'Completada',
   'ritual.cancel':        'Cancelar',
   'ritual.day.empty':     'vacío',
   'ritual.tasks':         'tareas',
@@ -356,10 +354,6 @@ export default {
 
   'pet.notif.scheduled':    '🔔 Notificación programada para las <strong>{time}</strong>. ¡Te avisaré a tiempo!',
   'pet.notif.blocked':      'Notificaciones bloqueadas. Añade a Google Calendar para recibir aviso:',
-  'pet.notif.gcal.hint':    'Añade a Google Calendar para recibir un recordatorio:',
-  'pet.gcal.prompt':        '¿Quieres recibir una notificación? Si se abre vacío (sin evento), vuelve aquí y toca el botón de nuevo.',
-  'pet.gcal.btn':           '📅 Añadir a Google Calendar',
-
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>Lo que entiendo:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
   <li><em>¿cuánto dormí?</em> · <em>¿mi constancia?</em></li>
