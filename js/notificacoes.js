@@ -496,36 +496,74 @@ export function notifTag(dayDocId, title) {
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 8: GUIA DE POP-UP + VIBRAÇÃO
-// Web/PWA não consegue abrir as configs de notificação do SO por código.
-// Então mostramos o passo a passo. Auto: 1x após conceder permissão.
-// Manual: botão em Ajustes chama com force=true.
+// BLOCO 8: GUIA DE NOTIFICAÇÃO (platform-aware: iOS x Android)
+// Web/PWA não consegue abrir as configs do SO por código → mostramos passo a passo.
+// Auto: 1x após conceder permissão (Android/iOS instalado).
+// iOS no Safari (não instalado): maybeIosInstallHint() avisa que precisa instalar.
+// Manual: botão em Ajustes chama showNotifPopupGuide(true).
 // ═══════════════════════════════════════════════════════════════
 const NOTIF_GUIDE_KEY = 'visao_notif_guide_shown';
+const IOS_INSTALL_KEY = 'visao_ios_install_hint';
+
+function _isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1); // iPad iPadOS
+}
+function _isStandalone() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+function _guideContent() {
+  const ios = _isIOS();
+  const standalone = _isStandalone();
+
+  if (ios && !standalone) {
+    return {
+      icon: '📲',
+      title: 'Instale o Falcon pra receber lembretes',
+      steps: `
+        <li>Toque no botão <strong>Compartilhar</strong> (o quadrado com seta ↑) na barra do Safari</li>
+        <li>Escolha <strong>“Adicionar à Tela de Início”</strong></li>
+        <li>Abra o Falcon pelo ícone novo na tela inicial</li>
+        <li>Permita as notificações quando o app pedir</li>`,
+      footer: 'No iPhone as notificações só funcionam com o app na Tela de Início — o Safari sozinho não recebe. Precisa de iOS 16.4 ou mais novo.',
+    };
+  }
+  if (ios) {
+    return {
+      icon: '🔔',
+      title: 'Notificações ativadas!',
+      steps: `
+        <li>Os lembretes já aparecem como <strong>banner</strong> e tocam som automaticamente</li>
+        <li>Pra ajustar estilo/som: <strong>Ajustes do iPhone → Notificações → Falcon</strong></li>`,
+      footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.',
+    };
+  }
+  return {
+    icon: '🔔',
+    title: 'Ativar pop-up e vibração',
+    steps: `
+      <li>Configurações do Android → <strong>Apps → Falcon</strong></li>
+      <li>Toque em <strong>Notificações</strong></li>
+      <li>Abra a categoria <strong>Geral</strong></li>
+      <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>`,
+    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → engrenagem ⚙️ → Geral.',
+  };
+}
 
 export function showNotifPopupGuide(force = false) {
   if (!force && localStorage.getItem(NOTIF_GUIDE_KEY) === '1') return;
   localStorage.setItem(NOTIF_GUIDE_KEY, '1');
 
+  const c = _guideContent();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px">
-      <div style="font-size:38px;text-align:center;margin-bottom:4px">🔔</div>
-      <div class="modal-title" style="text-align:center">Ativar pop-up e vibração</div>
-      <div class="modal-hint" style="margin-bottom:14px">
-        Notificação permitida! Pra ver os lembretes como <strong>banner no topo</strong>
-        e <strong>vibrando</strong>, ative isso <strong>uma vez</strong> nas configurações do celular:
-      </div>
-      <ol style="margin:0 0 14px 20px;padding:0;line-height:1.8;font-size:14px">
-        <li>Configurações do Android → <strong>Apps → Falcon</strong></li>
-        <li>Toque em <strong>Notificações</strong></li>
-        <li>Abra a categoria <strong>Geral</strong></li>
-        <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>
-      </ol>
-      <div class="modal-hint" style="font-size:12px;margin-bottom:16px">
-        ⚡ Atalho: segure o dedo numa notificação do Falcon → engrenagem ⚙️ → Geral.
-      </div>
+      <div style="font-size:38px;text-align:center;margin-bottom:4px">${c.icon}</div>
+      <div class="modal-title" style="text-align:center">${c.title}</div>
+      <ol style="margin:14px 0 14px 20px;padding:0;line-height:1.8;font-size:14px">${c.steps}</ol>
+      <div class="modal-hint" style="font-size:12px;margin-bottom:16px">${c.footer}</div>
       <div class="modal-actions">
         <button class="btn-primary" id="notif-guide-ok" style="width:100%">Entendi</button>
       </div>
@@ -533,4 +571,14 @@ export function showNotifPopupGuide(force = false) {
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#notif-guide-ok').onclick = () => overlay.remove();
+}
+
+// iOS no Safari (não instalado): push é impossível até adicionar à tela inicial.
+// Avisa 1x (chamado da Home, quando o usuário já está logado e engajado).
+export function maybeIosInstallHint() {
+  if (!_isIOS() || _isStandalone()) return;
+  if (localStorage.getItem(IOS_INSTALL_KEY) === '1') return;
+  localStorage.setItem(IOS_INSTALL_KEY, '1');
+  localStorage.removeItem(NOTIF_GUIDE_KEY); // garante que o guia (branch iOS-safari) apareça
+  showNotifPopupGuide(true);
 }
