@@ -114,6 +114,10 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
 
   const userId = getUserId();
 
+  // Prefixo ✅ no título — consistente com o teste. Evita duplicar se já vier com check.
+  title = (title || 'Falcon');
+  if (!title.startsWith('✅')) title = '✅ ' + title;
+
   // ── Via Worker (notificação mesmo com app fechado) ───────────
   if (userId && !WORKER_URL.includes('REPLACE')) {
     try {
