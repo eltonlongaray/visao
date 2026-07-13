@@ -293,7 +293,9 @@ async function routeCommand(text) {
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
   if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl)) return cmdTarefas();
-  if (/\binstalar\b|\binstalo\b|adicionar (à |a )?tela|tela in[ií]cio|como instalar|(notifica\S*|lembrete|aviso)\s+(n[ãa]o|nao)\s+(chega|aparece|funciona|vem|toca|soa|vibra)|(n[ãa]o|nao)\s+(recebo|chega|aparece|vem|toca|soa|vibra)\s+(notifica|lembrete|aviso)|ativar\s+(notifica|pop.?up|vibra)|habilitar\s+notifica|pop.?up/i.test(tl)) return cmdNotificacoesAjuda();
+  if (/^\s*(notifica\S*|notifica[çc][õo]es|notification|notif|push|pop.?up|vibra\S*)[\s!?.…]*$/i.test(tl) ||
+      /\binstalar\b|\binstalo\b|instala[çc][aã]o|adicionar (à |a |ao )?(tela|in[ií]cio)|tela inicial|como (instalar|instalo)|(notifica\S*|aviso)\s+(n[ãa]o|nao)\s+(chega|aparece|funciona|vem|toca|soa|vibra)|(n[ãa]o|nao)\s+(recebo|chega|aparece|vem|toca|soa|vibra)\s+(notifica|aviso|lembrete)|ativar\s+(notifica\S*|pop.?up|vibra)|habilitar\s+notifica|pop.?up/i.test(tl))
+    return cmdNotificacoesAjuda();
   if (/ajuda|help|comando|o que (você|vc) (faz|sabe)|what can you/i.test(tl))          return cmdAjuda();
 
 
