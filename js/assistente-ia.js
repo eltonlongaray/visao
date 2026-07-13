@@ -20,7 +20,7 @@ import {
   getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
-import { scheduleNotif, notifTag, requestPermission } from './notificacoes.js';
+import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 
 // ═══════════════════════════════════════════════════════════════
@@ -767,36 +767,80 @@ function cmdAjuda() {
   return t('pet.help');
 }
 
-// FAQ: como instalar o app + ativar notificações (platform-aware).
-// iOS/Android, instalado ou não — mostra o caminho certo pra cada caso.
+// FAQ: instalar o app + ativar notificações. Pergunta o aparelho (Android/iPhone)
+// com botões e explica conforme a escolha. Retorna null (monta a própria mensagem).
 function cmdNotificacoesAjuda() {
-  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
-    (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+  const box = document.getElementById('pet-messages');
+  if (!box) return '📱 Abra o assistente aqui embaixo pra eu te ajudar com as notificações.';
 
-  if (ios && !standalone) {
-    return '📲 No iPhone os lembretes só chegam com o Falcon <strong>instalado</strong>:<br><br>' +
-      '1. Toque em <strong>Compartilhar</strong> (o quadrado com seta ↑) na barra do Safari<br>' +
-      '2. Escolha <strong>“Adicionar à Tela de Início”</strong><br>' +
-      '3. Abra o Falcon pelo ícone novo e permita as notificações<br><br>' +
-      '<small>Precisa de iOS 16.4+. O Safari sozinho não recebe push.</small>';
+  addMessage('📱 Qual aparelho você usa? Te explico certinho como garantir os lembretes (som, vibração e banner):', 'bot');
+
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `
+    <span class="pet-preview-card">
+      <button class="pet-reg-btn" data-dev="android">🤖 Android</button>
+      <button class="pet-reg-btn" data-dev="ios">🍎 iPhone (iOS)</button>
+    </span>`;
+  div.querySelector('[data-dev="android"]').addEventListener('click', showAndroidNotifHelp);
+  div.querySelector('[data-dev="ios"]').addEventListener('click', showIosNotifHelp);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return null;
+}
+
+function _petIsStandalone() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+function showAndroidNotifHelp() {
+  const box = document.getElementById('pet-messages');
+  if (!_petIsStandalone()) {
+    // Passo 1: instalar (com botão próprio se o Chrome permitir + caminhos manuais)
+    addMessage('🤖 <strong>Android · passo 1: instalar o app</strong><br><br>' +
+      'Por enquanto o Falcon é um web app (logo vira aplicativo). Pra instalar:<br>' +
+      '• Menu do Chrome (<strong>⋮</strong> em cima) → <strong>“Instalar app”</strong> ou <strong>“Adicionar à tela inicial”</strong><br>' +
+      '• Às vezes tem um ícone de <strong>instalar (⊕ / ↓)</strong> na barra de endereço<br>' +
+      '• Ou o menu mostra <strong>“Adicionar ao Início”</strong>', 'bot');
+
+    if (canInstallApp() && box) {
+      const div = document.createElement('div');
+      div.className = 'pet-msg pet-msg-bot';
+      div.innerHTML = `<span class="pet-preview-card"><button class="pet-reg-btn" id="pet-install-btn">📲 Instalar Falcon agora</button></span>`;
+      const b = div.querySelector('#pet-install-btn');
+      b.addEventListener('click', async () => {
+        b.disabled = true; b.textContent = 'Abrindo…';
+        const o = await promptInstallApp();
+        b.textContent = o === 'accepted' ? '✅ Instalando!' : '📲 Instalar Falcon agora';
+        if (o !== 'accepted') b.disabled = false;
+      });
+      box.appendChild(div); box.scrollTop = box.scrollHeight;
+    } else {
+      addMessage('Não achou nenhuma dessas opções? Pode ser que o app já esteja instalado, ou o Chrome precise de alguns segundos — feche e abra o site de novo.', 'bot');
+    }
+    setTimeout(() => addMessage('Depois de instalar e abrir pelo ícone novo, crie um lembrete e permita as notificações. Aí me pergunta “notificação” de novo que te mostro o passo 2 (pop-up e vibração). 😉', 'bot'), 450);
+    return;
   }
-  if (ios) {
-    return '🔔 No iPhone os lembretes já aparecem como banner. Pra ajustar som/estilo: <strong>Ajustes do iPhone → Notificações → Falcon</strong>.';
-  }
-  if (!standalone) {
-    return '📲 Pra os lembretes chegarem certinho, <strong>instale o Falcon</strong> (por enquanto é um web app — logo vira aplicativo de verdade):<br><br>' +
-      '1. Toque no menu do Chrome (<strong>⋮</strong> no canto)<br>' +
-      '2. Escolha <strong>“Instalar app”</strong> (ou “Adicionar à tela inicial”)<br>' +
-      '3. Abra pelo ícone novo e crie um lembrete<br><br>' +
-      'Depois, ative pop-up e vibração em <strong>Ajustes → “Ativar pop-up e vibração”</strong>.';
-  }
-  return '🔔 Pra os lembretes aparecerem no topo e vibrarem:<br><br>' +
+  // Instalado: pop-up + vibração
+  addMessage('🤖 <strong>Android · ativar pop-up e vibração</strong><br><br>' +
     '1. Configurações do Android → <strong>Apps → Falcon → Notificações</strong><br>' +
     '2. Abra a categoria <strong>Geral</strong><br>' +
     '3. Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong><br><br>' +
-    'Atalho: segure o dedo numa notificação → toque na engrenagem ⚙️ ou em <strong>“Configurações”</strong> → Geral.<br>' +
-    '<small>Esse guia também está em Ajustes → “Ativar pop-up e vibração”.</small>';
+    'Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em <strong>“Configurações”</strong> → Geral.', 'bot');
+}
+
+function showIosNotifHelp() {
+  if (!_petIsStandalone()) {
+    addMessage('🍎 <strong>iPhone · instale o Falcon primeiro</strong><br><br>' +
+      'No iPhone os lembretes só chegam com o app na Tela de Início (o Safari sozinho não recebe):<br><br>' +
+      '1. Toque em <strong>Compartilhar</strong> (o quadrado com seta ↑) na barra do Safari<br>' +
+      '2. Escolha <strong>“Adicionar à Tela de Início”</strong><br>' +
+      '3. Abra o Falcon pelo ícone novo e permita as notificações<br><br>' +
+      '<small>Precisa de iOS 16.4 ou mais novo.</small>', 'bot');
+    return;
+  }
+  addMessage('🍎 <strong>iPhone · tudo certo!</strong><br><br>' +
+    'Os lembretes já aparecem como banner e tocam som. Pra ajustar som/estilo: <strong>Ajustes do iPhone → Notificações → Falcon</strong>. A vibração segue os ajustes de toque do próprio iPhone.', 'bot');
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -513,6 +513,24 @@ function _isStandalone() {
   return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
+// ── PWA install prompt (beforeinstallprompt) — botão "Instalar" próprio ──
+// Muitos usuários não acham a opção de instalar no menu do Chrome (muda por versão),
+// então capturamos o evento e oferecemos um botão direto no app / no pet.
+let _installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();       // segura o mini-infobar; disparamos no nosso próprio botão
+  _installPrompt = e;
+});
+export function canInstallApp() { return !!_installPrompt && !_isStandalone(); }
+export async function promptInstallApp() {
+  if (!_installPrompt) return 'unavailable';
+  _installPrompt.prompt();
+  let outcome = 'dismissed';
+  try { outcome = (await _installPrompt.userChoice).outcome; } catch {}
+  _installPrompt = null;
+  return outcome; // 'accepted' | 'dismissed' | 'unavailable'
+}
+
 function _guideContent() {
   const ios = _isIOS();
   const standalone = _isStandalone();
@@ -536,20 +554,22 @@ function _guideContent() {
       steps: `
         <li>Os lembretes já aparecem como <strong>banner</strong> e tocam som automaticamente</li>
         <li>Pra ajustar estilo/som: <strong>Ajustes do iPhone → Notificações → Falcon</strong></li>`,
-      footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.',
+      footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.<br><br>Ainda sem som/vibração/banner? Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
     };
   }
   if (!standalone) {
     // Android (ou desktop) rodando no navegador, sem instalar.
+    // Vários caminhos porque a opção muda de lugar/nome por versão do Chrome.
     return {
       icon: '📲',
       title: 'Instale o Falcon pra receber lembretes',
       steps: `
-        <li>Toque no menu do Chrome (<strong>⋮</strong> no canto superior)</li>
-        <li>Escolha <strong>“Instalar app”</strong> (ou “Adicionar à tela inicial”)</li>
-        <li>Abra o Falcon pelo ícone novo na tela inicial</li>
-        <li>Crie um lembrete e permita as notificações</li>`,
-      footer: 'Por enquanto o Falcon é um web app — logo vira aplicativo de verdade. Instalado, os lembretes chegam bem mais confiáveis.',
+        <li>Menu do Chrome (<strong>⋮</strong> em cima) → <strong>“Instalar app”</strong> ou <strong>“Adicionar à tela inicial”</strong></li>
+        <li>Em alguns celulares aparece um ícone de <strong>instalar (⊕ / ↓)</strong> na barra de endereço — toque nele</li>
+        <li>Ou o menu mostra <strong>“Adicionar ao Início”</strong></li>
+        <li>Abra o Falcon pelo ícone novo e permita as notificações</li>`,
+      footer: 'Por enquanto o Falcon é um web app — logo vira aplicativo. Se não achar a opção no menu, use o botão abaixo 👇',
+      installBtn: true,
     };
   }
   return {
@@ -560,7 +580,7 @@ function _guideContent() {
       <li>Toque em <strong>Notificações</strong></li>
       <li>Abra a categoria <strong>Geral</strong></li>
       <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>`,
-    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em “Configurações” → Geral.',
+    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em “Configurações” → Geral.<br><br>Ainda sem som/vibração/banner? Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
   };
 }
 
@@ -569,6 +589,7 @@ export function showNotifPopupGuide(force = false) {
   localStorage.setItem(NOTIF_GUIDE_KEY, '1');
 
   const c = _guideContent();
+  const showInstall = c.installBtn && canInstallApp();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
@@ -577,13 +598,24 @@ export function showNotifPopupGuide(force = false) {
       <div class="modal-title" style="text-align:center">${c.title}</div>
       <ol style="margin:14px 0 14px 20px;padding:0;line-height:1.8;font-size:14px">${c.steps}</ol>
       <div class="modal-hint" style="font-size:12px;margin-bottom:16px">${c.footer}</div>
-      <div class="modal-actions">
-        <button class="btn-primary" id="notif-guide-ok" style="width:100%">Entendi</button>
+      <div class="modal-actions" style="flex-direction:column;gap:8px">
+        ${showInstall ? '<button class="btn-primary" id="notif-guide-install" style="width:100%">📲 Instalar Falcon agora</button>' : ''}
+        <button class="${showInstall ? 'btn-secondary' : 'btn-primary'}" id="notif-guide-ok" style="width:100%">Entendi</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#notif-guide-ok').onclick = () => overlay.remove();
+  const installBtn = overlay.querySelector('#notif-guide-install');
+  if (installBtn) {
+    installBtn.onclick = async () => {
+      installBtn.disabled = true;
+      installBtn.textContent = 'Abrindo instalação…';
+      const outcome = await promptInstallApp();
+      if (outcome === 'accepted') overlay.remove();
+      else { installBtn.disabled = false; installBtn.textContent = '📲 Instalar Falcon agora'; }
+    };
+  }
 }
 
 // Não instalado (iOS no Safari OU Android no navegador): mostra o guia de instalação 1x.
