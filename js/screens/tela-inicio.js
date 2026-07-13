@@ -34,7 +34,7 @@ import { openTimePicker } from '../seletor-horario.js';
 import { openMorningMessages, hasUnreadToday } from '../mensagens-manha.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { t, getLang } from '../idioma.js';
-import { maybeIosInstallHint } from '../notificacoes.js';
+import { maybeInstallHint } from '../notificacoes.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -142,9 +142,9 @@ export async function renderHome(app) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
   } else {
-    // iOS no Safari (não instalado): avisa 1x que precisa instalar pra receber push.
+    // Não instalado (iOS Safari ou Android no navegador): avisa 1x como instalar.
     // Só depois do tour pra não empilhar dois modais.
-    setTimeout(() => maybeIosInstallHint(), 1200);
+    setTimeout(() => maybeInstallHint(), 1200);
   }
 }
 

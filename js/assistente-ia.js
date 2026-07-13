@@ -293,6 +293,7 @@ async function routeCommand(text) {
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
   if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl)) return cmdTarefas();
+  if (/\binstalar\b|\binstalo\b|adicionar (à |a )?tela|tela in[ií]cio|como instalar|(notifica\S*|lembrete|aviso)\s+(n[ãa]o|nao)\s+(chega|aparece|funciona|vem|toca|soa|vibra)|(n[ãa]o|nao)\s+(recebo|chega|aparece|vem|toca|soa|vibra)\s+(notifica|lembrete|aviso)|ativar\s+(notifica|pop.?up|vibra)|habilitar\s+notifica|pop.?up/i.test(tl)) return cmdNotificacoesAjuda();
   if (/ajuda|help|comando|o que (você|vc) (faz|sabe)|what can you/i.test(tl))          return cmdAjuda();
 
 
@@ -764,6 +765,38 @@ function showCenterToast(message) {
 
 function cmdAjuda() {
   return t('pet.help');
+}
+
+// FAQ: como instalar o app + ativar notificações (platform-aware).
+// iOS/Android, instalado ou não — mostra o caminho certo pra cada caso.
+function cmdNotificacoesAjuda() {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+
+  if (ios && !standalone) {
+    return '📲 No iPhone os lembretes só chegam com o Falcon <strong>instalado</strong>:<br><br>' +
+      '1. Toque em <strong>Compartilhar</strong> (o quadrado com seta ↑) na barra do Safari<br>' +
+      '2. Escolha <strong>“Adicionar à Tela de Início”</strong><br>' +
+      '3. Abra o Falcon pelo ícone novo e permita as notificações<br><br>' +
+      '<small>Precisa de iOS 16.4+. O Safari sozinho não recebe push.</small>';
+  }
+  if (ios) {
+    return '🔔 No iPhone os lembretes já aparecem como banner. Pra ajustar som/estilo: <strong>Ajustes do iPhone → Notificações → Falcon</strong>.';
+  }
+  if (!standalone) {
+    return '📲 Pra os lembretes chegarem certinho, <strong>instale o Falcon</strong> (por enquanto é um web app — logo vira aplicativo de verdade):<br><br>' +
+      '1. Toque no menu do Chrome (<strong>⋮</strong> no canto)<br>' +
+      '2. Escolha <strong>“Instalar app”</strong> (ou “Adicionar à tela inicial”)<br>' +
+      '3. Abra pelo ícone novo e crie um lembrete<br><br>' +
+      'Depois, ative pop-up e vibração em <strong>Ajustes → “Ativar pop-up e vibração”</strong>.';
+  }
+  return '🔔 Pra os lembretes aparecerem no topo e vibrarem:<br><br>' +
+    '1. Configurações do Android → <strong>Apps → Falcon → Notificações</strong><br>' +
+    '2. Abra a categoria <strong>Geral</strong><br>' +
+    '3. Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong><br><br>' +
+    'Atalho: segure o dedo numa notificação → toque na engrenagem ⚙️ ou em <strong>“Configurações”</strong> → Geral.<br>' +
+    '<small>Esse guia também está em Ajustes → “Ativar pop-up e vibração”.</small>';
 }
 
 // ═══════════════════════════════════════════════════════════════

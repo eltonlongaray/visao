@@ -499,7 +499,7 @@ export function notifTag(dayDocId, title) {
 // BLOCO 8: GUIA DE NOTIFICAÇÃO (platform-aware: iOS x Android)
 // Web/PWA não consegue abrir as configs do SO por código → mostramos passo a passo.
 // Auto: 1x após conceder permissão (Android/iOS instalado).
-// iOS no Safari (não instalado): maybeIosInstallHint() avisa que precisa instalar.
+// Não instalado (iOS Safari ou Android no navegador): maybeInstallHint() avisa como instalar.
 // Manual: botão em Ajustes chama showNotifPopupGuide(true).
 // ═══════════════════════════════════════════════════════════════
 const NOTIF_GUIDE_KEY = 'visao_notif_guide_shown';
@@ -539,6 +539,19 @@ function _guideContent() {
       footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.',
     };
   }
+  if (!standalone) {
+    // Android (ou desktop) rodando no navegador, sem instalar.
+    return {
+      icon: '📲',
+      title: 'Instale o Falcon pra receber lembretes',
+      steps: `
+        <li>Toque no menu do Chrome (<strong>⋮</strong> no canto superior)</li>
+        <li>Escolha <strong>“Instalar app”</strong> (ou “Adicionar à tela inicial”)</li>
+        <li>Abra o Falcon pelo ícone novo na tela inicial</li>
+        <li>Crie um lembrete e permita as notificações</li>`,
+      footer: 'Por enquanto o Falcon é um web app — logo vira aplicativo de verdade. Instalado, os lembretes chegam bem mais confiáveis.',
+    };
+  }
   return {
     icon: '🔔',
     title: 'Ativar pop-up e vibração',
@@ -547,7 +560,7 @@ function _guideContent() {
       <li>Toque em <strong>Notificações</strong></li>
       <li>Abra a categoria <strong>Geral</strong></li>
       <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>`,
-    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → engrenagem ⚙️ → Geral.',
+    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em “Configurações” → Geral.',
   };
 }
 
@@ -573,12 +586,13 @@ export function showNotifPopupGuide(force = false) {
   overlay.querySelector('#notif-guide-ok').onclick = () => overlay.remove();
 }
 
-// iOS no Safari (não instalado): push é impossível até adicionar à tela inicial.
-// Avisa 1x (chamado da Home, quando o usuário já está logado e engajado).
-export function maybeIosInstallHint() {
-  if (!_isIOS() || _isStandalone()) return;
+// Não instalado (iOS no Safari OU Android no navegador): mostra o guia de instalação 1x.
+// iOS: push é impossível sem instalar. Android: funciona no navegador, mas instalado é
+// bem mais confiável (e logo vira app). Chamado da Home, com usuário já logado e engajado.
+export function maybeInstallHint() {
+  if (_isStandalone()) return; // já instalado
   if (localStorage.getItem(IOS_INSTALL_KEY) === '1') return;
   localStorage.setItem(IOS_INSTALL_KEY, '1');
-  localStorage.removeItem(NOTIF_GUIDE_KEY); // garante que o guia (branch iOS-safari) apareça
+  localStorage.removeItem(NOTIF_GUIDE_KEY); // garante que o guia (branch de instalação) apareça
   showNotifPopupGuide(true);
 }
