@@ -554,7 +554,7 @@ function _guideContent() {
       steps: `
         <li>Os lembretes já aparecem como <strong>banner</strong> e tocam som automaticamente</li>
         <li>Pra ajustar estilo/som: <strong>Ajustes do iPhone → Notificações → Falcon</strong></li>`,
-      footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.<br><br>Ainda sem som/vibração/banner? Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
+      footer: 'A vibração segue os ajustes de toque/haptics do próprio iPhone.<br><br>Caso a notificação esteja sem som, vibração e sem banner no topo da tela.. Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
     };
   }
   if (!standalone) {
@@ -580,7 +580,7 @@ function _guideContent() {
       <li>Toque em <strong>Notificações</strong></li>
       <li>Abra a categoria <strong>Geral</strong></li>
       <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>`,
-    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em “Configurações” → Geral.<br><br>Ainda sem som/vibração/banner? Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
+    footer: '⚡ Atalho: segure o dedo numa notificação do Falcon → toque na engrenagem ⚙️ ou em “Configurações” → Geral.<br><br>Caso a notificação esteja sem som, vibração e sem banner no topo da tela.. Toque no 👁️ do falcão aqui embaixo e pergunte <strong>“notificação”</strong>.',
   };
 }
 
