@@ -43,7 +43,10 @@ export async function requestPermission() {
   if (Notification.permission === 'granted') return 'granted';
   if (Notification.permission === 'denied')  return 'denied';
   const result = await Notification.requestPermission();
-  if (result === 'granted') startNotifChecker(); // inicia checker se ainda não estava rodando
+  if (result === 'granted') {
+    startNotifChecker(); // inicia checker se ainda não estava rodando
+    showNotifPopupGuide(); // guia 1x: como ativar pop-up + vibração no SO (web não abre as configs sozinho)
+  }
   return result;
 }
 
@@ -489,4 +492,45 @@ export function startForegroundPushListener(onPush) {
 // ═══════════════════════════════════════════════════════════════
 export function notifTag(dayDocId, title) {
   return `visao-${dayDocId}-${title.slice(0, 30).replace(/\s+/g, '-')}`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8: GUIA DE POP-UP + VIBRAÇÃO
+// Web/PWA não consegue abrir as configs de notificação do SO por código.
+// Então mostramos o passo a passo. Auto: 1x após conceder permissão.
+// Manual: botão em Ajustes chama com force=true.
+// ═══════════════════════════════════════════════════════════════
+const NOTIF_GUIDE_KEY = 'visao_notif_guide_shown';
+
+export function showNotifPopupGuide(force = false) {
+  if (!force && localStorage.getItem(NOTIF_GUIDE_KEY) === '1') return;
+  localStorage.setItem(NOTIF_GUIDE_KEY, '1');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px">
+      <div style="font-size:38px;text-align:center;margin-bottom:4px">🔔</div>
+      <div class="modal-title" style="text-align:center">Ativar pop-up e vibração</div>
+      <div class="modal-hint" style="margin-bottom:14px">
+        Notificação permitida! Pra ver os lembretes como <strong>banner no topo</strong>
+        e <strong>vibrando</strong>, ative isso <strong>uma vez</strong> nas configurações do celular:
+      </div>
+      <ol style="margin:0 0 14px 20px;padding:0;line-height:1.8;font-size:14px">
+        <li>Configurações do Android → <strong>Apps → Falcon</strong></li>
+        <li>Toque em <strong>Notificações</strong></li>
+        <li>Abra a categoria <strong>Geral</strong></li>
+        <li>Ative <strong>Mostrar como pop-up</strong> e <strong>Vibrar</strong></li>
+      </ol>
+      <div class="modal-hint" style="font-size:12px;margin-bottom:16px">
+        ⚡ Atalho: segure o dedo numa notificação do Falcon → engrenagem ⚙️ → Geral.
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="notif-guide-ok" style="width:100%">Entendi</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#notif-guide-ok').onclick = () => overlay.remove();
 }

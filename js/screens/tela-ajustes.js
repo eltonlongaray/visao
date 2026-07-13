@@ -18,7 +18,7 @@ import * as tour from '../tour-guiado.js';
 import { isAdmin } from '../permissao-admin.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { t } from '../idioma.js';
-import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNotifMuted } from '../notificacoes.js';
+import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNotifMuted, showNotifPopupGuide } from '../notificacoes.js';
 
 const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
@@ -147,6 +147,13 @@ export async function renderAjustes(app) {
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">Testar vibração</div>
               <div class="ajustes-row-sub" id="testVibrateSub">Toca aqui para vibrar agora</div>
+            </div>
+            <span class="ajustes-row-arrow">›</span>
+          </button>
+          <button class="ajustes-row clickable" id="notifGuideBtn">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">Ativar pop-up e vibração</div>
+              <div class="ajustes-row-sub">Como fazer os lembretes aparecerem no topo e vibrarem</div>
             </div>
             <span class="ajustes-row-arrow">›</span>
           </button>
@@ -394,6 +401,9 @@ async function wire(app) {
     sub.textContent = ok ? '✅ Vibração ativada (ok=true)' : '❌ Vibração bloqueada (ok=false)';
     console.log('[falcon] vibrate test result:', ok);
   });
+
+  // ── Guia de pop-up + vibração (reabre o passo a passo) ──
+  app.querySelector('#notifGuideBtn')?.addEventListener('click', () => showNotifPopupGuide(true));
 
   // ── Sair ──
   app.querySelector('#signOutBtn')?.addEventListener('click', async () => {
