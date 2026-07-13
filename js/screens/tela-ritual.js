@@ -481,6 +481,10 @@ export async function renderRitual(app) {
   app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${tr('ritual.loading')}</div>`;
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
+  // Alvo vindo de clique em notificação: #/ritual?day=YYYY-MM-DD
+  const _tgtDay = new URLSearchParams((location.hash.split('?')[1] || '')).get('day');
+  const _hasTarget = _tgtDay && /^\d{4}-\d{2}-\d{2}$/.test(_tgtDay);
+  if (_hasTarget) weekStart = getWeekStart(new Date(_tgtDay + 'T00:00:00'));
   try {
     [shifts, categories, activities, profile] = await Promise.all([
       getShifts(), getCategories(), getActivities(), getProfile()
@@ -490,12 +494,20 @@ export async function renderRitual(app) {
     app.innerHTML = `<div style="padding:40px;text-align:center"><p style="color:var(--red)">${err.message}</p></div>`;
     return;
   }
-  if (expanded.size === 0) expanded.add(dayId(new Date()));
+  if (_hasTarget) { expanded.clear(); expanded.add(_tgtDay); }
+  else if (expanded.size === 0) expanded.add(dayId(new Date()));
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
   await loadWeek();
   renderUI(app);
+  // Veio de clique em notificação → rola até o dia do compromisso
+  if (_hasTarget) {
+    setTimeout(() => {
+      const el = document.querySelector(`.day-card[data-day-id="${_tgtDay}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 250);
+  }
   // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
   // só dispara se as mensagens da manhã NÃO foram abertas hoje
   maybeShowSovereigntyPrompt();

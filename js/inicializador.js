@@ -64,6 +64,15 @@ startForegroundPushListener(({ title, body }) => {
   showToast(`🔔 ${title}${body ? ' — ' + body : ''}`, muted ? 'info' : 'info', 8000);
 });
 
+// Clique na notificação (app aberto): SW manda abrir o Ritual no dia do compromisso
+navigator.serviceWorker?.addEventListener('message', (e) => {
+  if (e.data?.type !== 'OPEN_RITUAL_DAY') return;
+  const day = e.data.day;
+  const target = day ? `/ritual?day=${day}` : '/ritual';
+  if (location.hash === '#' + target) forceRender();
+  else navigate(target);
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: AUTH STATE
@@ -114,8 +123,9 @@ onAuthStateChanged(auth, async (user) => {
   // ── Expõe auth globalmente para notifications.js acessar userId ──
   globalThis._visaoAuth = { auth };
 
-  // ── Aceite OK: vai pra modalidade ──
-  navigate('/modalidade');
+  // ── Aceite OK: vai pra modalidade (ou pro deep-link de notificação, se houver) ──
+  const deepLink = location.hash.startsWith('#/ritual') ? location.hash.slice(1) : null;
+  navigate(deepLink || '/modalidade');
   showPet();
   subscribeToPush(); // registra push subscription no Worker (se configurado)
 

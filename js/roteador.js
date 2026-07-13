@@ -27,7 +27,7 @@ export function forceRender() {
 }
 
 async function render() {
-  const path = (location.hash || '#/login').slice(1);
+  const path = (location.hash || '#/login').slice(1).split('?')[0];
   const renderFn = routes[path] || routes['/login'];
   const app = document.getElementById('app');
   if (currentCleanup) { try { currentCleanup(); } catch {} currentCleanup = null; }
