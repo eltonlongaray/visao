@@ -54,9 +54,9 @@ function profileRow(uid, d) {
     default_sleep_time:  d?.defaultSleepTime ?? null,
     template:            d?.template ?? null,
     streak_origin:       d?.streakOrigin ?? null,
-    weekday_templates:   d?.weekdayTemplates ?? {},
-    monthly_commitments: d?.monthlyCommitments ?? [],
-    extra,
+    weekday_templates:   stripTimestamps(d?.weekdayTemplates ?? {}),
+    monthly_commitments: stripTimestamps(d?.monthlyCommitments ?? []),
+    extra:               stripTimestamps(extra),
     ...(d?.createdAt ? { created_at: toISO(d.createdAt) } : {}),
   };
 }
@@ -67,7 +67,7 @@ function categoryRow(uid, id, d) {
   if (Object.keys(rest).length) row.extra = rest;
   return row;
 }
-function activityRow(uid, id, d) { return { id, user_id: uid, data: d ?? {} , ...(d?.createdAt ? { created_at: toISO(d.createdAt) } : {}) }; }
+function activityRow(uid, id, d) { return { id, user_id: uid, data: stripTimestamps(d ?? {}), ...(d?.createdAt ? { created_at: toISO(d.createdAt) } : {}) }; }
 function dayRow(uid, dayId, meta) { return { user_id: uid, day: dayId, meta: stripTimestamps(meta || {}) }; }
 function taskRow(uid, id, dayId, t) {
   const known = new Set(['activityId','title','desc','kind','startTime','shiftId','categoryId','icon','reminderEnabled','done','order','recurrenceGroupId','recurrenceType','cancelled','rescheduled','rescheduleCount']);
