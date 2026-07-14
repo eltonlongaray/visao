@@ -8,7 +8,8 @@
 // BLOCO 2 — API GENÉRICA
 // BLOCO 3 — ATALHOS POR TIPO
 // ─────────────────────────────────────────────────────────────
-import { auth, db, doc, getDoc, setDoc, collection, getDocs } from './autenticacao.js';
+import { auth } from './autenticacao.js';
+import { supabase } from './config-supabase.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -24,28 +25,30 @@ export const PESSOAL_VERSION  = 1;  // Consentimento de dados de saúde (Pessoal
 export async function hasConsent(key) {
   const user = auth.currentUser;
   if (!user) return false;
-  const ref = doc(db, 'users', user.uid, 'consents', key);
-  const snap = await getDoc(ref);
-  return snap.exists();
+  const { data, error } = await supabase.from('consents').select('key').eq('key', key).maybeSingle();
+  if (error) return false;
+  return !!data;
 }
 
 export async function recordConsent(key, version) {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
-  const ref = doc(db, 'users', user.uid, 'consents', key);
-  await setDoc(ref, {
-    acceptedAt: new Date().toISOString(),
+  const { error } = await supabase.from('consents').upsert({
+    user_id:     user.uid,
+    key,
+    accepted_at: new Date().toISOString(),
     version,
-    userAgent: (navigator.userAgent || '').substring(0, 200)
-  });
+    user_agent:  (navigator.userAgent || '').substring(0, 200),
+  }, { onConflict: 'user_id,key' });
+  if (error) throw new Error(error.message);
 }
 
 export async function listAllConsents() {
   const user = auth.currentUser;
   if (!user) return [];
-  const col = collection(db, 'users', user.uid, 'consents');
-  const snap = await getDocs(col);
-  return snap.docs.map(d => ({ key: d.id, ...d.data() }));
+  const { data, error } = await supabase.from('consents').select('*');
+  if (error) return [];
+  return (data || []).map(d => ({ key: d.key, acceptedAt: d.accepted_at, version: d.version, userAgent: d.user_agent }));
 }
 
 
