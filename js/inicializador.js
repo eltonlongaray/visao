@@ -6,7 +6,8 @@
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
-import { auth, onAuthStateChanged } from './autenticacao.js';
+import { auth, onAuthStateChanged, onPasswordRecovery } from './autenticacao.js';
+import { showSetPasswordModal } from './recuperar-senha.js';
 import { registerRoute, navigate, forceRender } from './roteador.js';
 import { initI18n } from './idioma.js';
 import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio } from './notificacoes.js';
@@ -47,6 +48,8 @@ registerRoute('/ajustes', renderAjustes);
 await initI18n();
 forceRender();
 initAutoLock();
+// Chegou pelo link de "redefinir senha" → abre o modal pra definir a nova
+onPasswordRecovery(() => showSetPasswordModal());
 initPet();
 startNotifChecker();
 // Desbloqueia AudioContext no primeiro toque — política de autoplay do mobile

@@ -33,11 +33,32 @@ supabase.auth.getSession().then(({ data }) => {
   _loaded = true;
   _emit();
 });
-supabase.auth.onAuthStateChange((_event, session) => {
+let _recovery = false;                 // veio de um link de "redefinir senha"
+const _recoveryListeners = new Set();
+
+supabase.auth.onAuthStateChange((event, session) => {
   _currentUser = _mapUser(session?.user || null);
   _loaded = true;
+  if (event === 'PASSWORD_RECOVERY') {
+    _recovery = true;
+    for (const cb of _recoveryListeners) { try { cb(); } catch (e) { console.error('[auth]', e); } }
+  }
   _emit();
 });
+
+// Dispara quando o usuário chega pelo link de redefinir senha (precisa definir a nova).
+export function onPasswordRecovery(cb) {
+  _recoveryListeners.add(cb);
+  if (_recovery) Promise.resolve().then(cb);
+  return () => _recoveryListeners.delete(cb);
+}
+
+// Define a senha nova (usado na tela de recuperação e em "trocar senha").
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw _err(error);
+  _recovery = false;
+}
 
 // ── onAuthStateChanged(auth, cb) — dispara com o estado atual + a cada mudança ──
 export function onAuthStateChanged(_auth, cb) {
