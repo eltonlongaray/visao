@@ -1,0 +1,16 @@
+{
+  "name": "falcon-migration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Migração de dados e usuários do Firebase (Firestore + Auth) para o Supabase (Postgres). Uso único, não vai pro app.",
+  "scripts": {
+    "dry-run": "node migrate.mjs --dry-run",
+    "migrate": "node migrate.mjs",
+    "migrate:reset-pw": "node migrate.mjs --reset-passwords"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "@supabase/supabase-js": "^2.45.4"
+  }
+}
