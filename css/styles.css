@@ -5054,6 +5054,12 @@ body.tour-active { overflow: hidden; }
 
 /* ─── Ajustes: seções retráteis (accordion) ─── */
 /* o header usa .ajustes-row.clickable → parece card/botão de verdade */
+.ajustes-admin-section .ajustes-row {
+  border-color: rgba(124,58,237,0.45);
+  background: rgba(124,58,237,0.05);
+}
+.ajustes-admin-section .ajustes-section-title { color: var(--accent, #7c3aed); }
+
 .ajustes-acc { margin-bottom: 8px; }
 .ajustes-acc-head {
   margin-bottom: 0;

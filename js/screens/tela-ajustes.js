@@ -18,6 +18,7 @@ import { getProfile, setProfile } from '../banco-dados.js';
 import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone } from '../contato-perfil.js';
+import { isAdminPreview, setAdminPreview } from '../avisos.js';
 import { playDelete } from '../sons.js';
 import * as tour from '../tour-guiado.js';
 import { bottomNav } from '../components/menu-inferior.js';
@@ -60,6 +61,22 @@ export async function renderAjustes(app) {
   const user = auth.currentUser;
   const email = user?.email || '—';
 
+  // Perfil (pra saber se é admin — habilita a seção "Ver como usuário")
+  let isAdmin = false;
+  try { isAdmin = !!(await getProfile())?.isAdmin; } catch { /* segue */ }
+
+  const adminSection = isAdmin ? `
+        <section class="ajustes-section ajustes-admin-section">
+          <div class="ajustes-section-title">🛡️ Admin</div>
+          <div class="ajustes-row" id="rowAdminPreview">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">👁 Ver como usuário</div>
+              <div class="ajustes-row-sub">Enxergue os Avisos como um usuário comum (sem compositor nem edição).</div>
+            </div>
+            <label class="ajustes-toggle"><input type="checkbox" id="adminPreviewToggle"><span class="ajustes-toggle-slider"></span></label>
+          </div>
+        </section>` : '';
+
   app.innerHTML = `
     <div class="ajustes-screen">
       <div class="ajustes-content">
@@ -75,6 +92,8 @@ export async function renderAjustes(app) {
             <small>${t('ajustes.plan')}</small>
           </div>
         </div>
+
+        ${adminSection}
 
         <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
         <section class="ajustes-section">
@@ -186,6 +205,18 @@ async function wire(app) {
     el.addEventListener('click', () => navigate(el.dataset.route))
   );
   app.querySelector('#trocarModalidadeBtn')?.addEventListener('click', () => navigate('/modalidade'));
+
+  // ── Admin: "Ver como usuário" ──
+  const admPrev = app.querySelector('#adminPreviewToggle');
+  if (admPrev) {
+    admPrev.checked = isAdminPreview();
+    admPrev.addEventListener('change', () => {
+      setAdminPreview(admPrev.checked);
+      showToast(admPrev.checked
+        ? '👁 Vendo como usuário — abra os Avisos pra conferir'
+        : '🛡️ De volta à visão de admin', 'info');
+    });
+  }
 
   // ── Meu perfil ──
   (async () => {

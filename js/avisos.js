@@ -11,6 +11,15 @@ import { t, getLang } from './idioma.js';
 import { trapModalBack } from './modal-voltar.js';
 
 const READ_KEY = 'visao_avisos_lidos';   // array de ids já vistos neste dispositivo
+const PREVIEW_KEY = 'visao_admin_preview'; // admin vendo como usuário comum
+
+// ── "Ver como usuário" (só admin) ────────────────────────────
+// Quando ligado, o admin enxerga o modal de Avisos igual a um usuário comum.
+export function isAdminPreview() { return localStorage.getItem(PREVIEW_KEY) === '1'; }
+export function setAdminPreview(on) {
+  if (on) localStorage.setItem(PREVIEW_KEY, '1');
+  else localStorage.removeItem(PREVIEW_KEY);
+}
 
 // ── Estado de leitura (localStorage) ─────────────────────────
 function _readIds() {
@@ -124,8 +133,9 @@ export async function openAvisosModal() {
   const close = trapModalBack(() => overlay.remove());
   overlay.querySelector('#av-close').onclick = close;
 
+  // Em modo "ver como usuário", o admin é tratado como usuário comum aqui.
   let isAdmin = false;
-  try { isAdmin = !!(await getProfile())?.isAdmin; } catch { /* segue */ }
+  try { isAdmin = !!(await getProfile())?.isAdmin && !isAdminPreview(); } catch { /* segue */ }
 
   const listEl = overlay.querySelector('#aviso-list');
 
