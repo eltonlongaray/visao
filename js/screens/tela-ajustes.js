@@ -1,9 +1,10 @@
-﻿// ═══════════════════════════════════════════════════════════════
-// VISÃO · Tela de Ajustes
-// Concentra: biometria · export JSON · relatório PDF · termos · sair · excluir conta
+// ═══════════════════════════════════════════════════════════════
+// FALCON · Tela de Ajustes (seções retráteis / accordion)
+// Perfil · Feedback · Segurança · Notificações · App · Dados · Tutorial ·
+// Modalidade · Legal · Conta
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// BLOCO 1 — RENDER
+// BLOCO 1 — RENDER (accordion)
 // BLOCO 2 — WIRES
 // BLOCO 3 — HELPERS
 // ─────────────────────────────────────────────────────────────
@@ -13,15 +14,39 @@ import { showToast, confirmModal } from '../aviso-tela.js';
 import * as biometric from '../biometria.js';
 import { downloadJson, openPdfReport } from '../exportar-dados.js';
 import { deleteMyAccount } from '../excluir-conta.js';
+import { getProfile, setProfile } from '../banco-dados.js';
+import { submitFeedback } from '../feedback.js';
+import { recordConsent } from '../lgpd-consentimentos.js';
+import { markPerfilDone } from '../contato-perfil.js';
 import { playDelete } from '../sons.js';
 import * as tour from '../tour-guiado.js';
-import { isAdmin } from '../permissao-admin.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { t } from '../idioma.js';
 import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNotifMuted, showNotifPopupGuide } from '../notificacoes.js';
 
 const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
+
+// Monta uma seção retrátil: cabeçalho clicável + corpo escondido
+function acc(titleHtml, bodyHtml, { open = false } = {}) {
+  return `
+    <section class="ajustes-section ajustes-acc ${open ? 'open' : ''}">
+      <button type="button" class="ajustes-acc-head">
+        <span class="ajustes-section-title ajustes-acc-tt" style="margin:0">${titleHtml}</span>
+        <span class="ajustes-acc-chev">▾</span>
+      </button>
+      <div class="ajustes-acc-body" ${open ? '' : 'hidden'}>${bodyHtml}</div>
+    </section>`;
+}
+
+const row = (id, title, sub, { danger = false } = {}) => `
+  <button class="ajustes-row clickable ${danger ? 'danger' : ''}" id="${id}">
+    <div class="ajustes-row-main">
+      <div class="ajustes-row-title">${title}</div>
+      ${sub ? `<div class="ajustes-row-sub"${sub.id ? ` id="${sub.id}"` : ''}>${sub.text ?? sub}</div>` : ''}
+    </div>
+    <span class="ajustes-row-arrow">›</span>
+  </button>`;
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -47,128 +72,88 @@ export async function renderAjustes(app) {
           </div>
         </div>
 
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.security')}</div>
+        ${acc('👤 Meu perfil', `
+          <div class="perfil-hint ajustes-row-sub" style="padding:10px 12px 4px">
+            Opcional. Usamos só para <strong>suporte e acompanhamento</strong>, <strong>comemorar seu aniversário</strong> e a comunidade <strong>Falcon Hunters</strong>. Nunca compartilhamos com terceiros.
+          </div>
+          <label class="input-field"><div class="input-field-label">Nome completo</div>
+            <input id="perfNome" placeholder="Seu nome completo" autocomplete="name" /></label>
+          <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a)</div>
+            <input id="perfApelido" placeholder="Ex: Elton" autocomplete="nickname" /></label>
+          <label class="input-field"><div class="input-field-label">Data de nascimento</div>
+            <input id="perfNasc" type="date" /></label>
+          <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
+            <input id="perfWpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
+          <div style="display:flex;flex-direction:column;gap:8px;padding:6px 12px 4px">
+            <button class="btn-primary" id="perfSave">Salvar</button>
+            <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
+          </div>
+        `)}
+
+        ${acc('💬 Sugerir melhoria', `
+          <div class="ajustes-row-sub" style="padding:10px 12px 6px">
+            Tem uma ideia pra deixar o Falcon melhor? Escreva aqui — sua opinião é o que nos guia. 🦅
+          </div>
+          <div style="padding:0 12px 8px">
+            <textarea id="fbMsg" rows="4" placeholder="Sua sugestão de melhoria..." style="width:100%;box-sizing:border-box;border-radius:12px;border:1px solid var(--border,#3a3a4a);background:var(--input-bg,rgba(255,255,255,.04));color:inherit;padding:10px 12px;font:inherit;resize:vertical"></textarea>
+            <button class="btn-primary" id="fbSend" style="width:100%;margin-top:8px">Enviar sugestão</button>
+          </div>
+        `)}
+
+        ${acc(t('ajustes.security'), `
           <div class="ajustes-row" id="rowBio">
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
               <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
             </div>
-            <label class="ajustes-toggle">
-              <input type="checkbox" id="bioToggle">
-              <span class="ajustes-toggle-slider"></span>
-            </label>
+            <label class="ajustes-toggle"><input type="checkbox" id="bioToggle"><span class="ajustes-toggle-slider"></span></label>
           </div>
-        </section>
+        `)}
 
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.data')}</div>
-          <button class="ajustes-row clickable" id="exportJsonBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.json.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.json.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-          <button class="ajustes-row clickable" id="exportPdfBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.pdf.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.pdf.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-        </section>
-
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.tutorial')}</div>
-          <button class="ajustes-row clickable" id="restartTourBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.tutorial.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.tutorial.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-        </section>
-
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.legal')}</div>
-          <button class="ajustes-row clickable" data-route="/termos">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.terms.title')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-          <button class="ajustes-row clickable" data-route="/privacidade">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.privacy.title')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-        </section>
-
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.modal.section')}</div>
-          <button class="ajustes-row clickable" id="trocarModalidadeBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.modal.change')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.modal.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-        </section>
-
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.app')}</div>
-          <button class="ajustes-row clickable" id="forceUpdateBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.update.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.update.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
+        ${acc('🔔 Notificações', `
           <div class="ajustes-row" id="rowMuteNotif">
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">${t('ajustes.notif.mute')}</div>
               <div class="ajustes-row-sub">${t('ajustes.notif.mute.sub')}</div>
             </div>
-            <label class="ajustes-toggle">
-              <input type="checkbox" id="muteNotifToggle">
-              <span class="ajustes-toggle-slider"></span>
-            </label>
+            <label class="ajustes-toggle"><input type="checkbox" id="muteNotifToggle"><span class="ajustes-toggle-slider"></span></label>
           </div>
-          <button class="ajustes-row clickable" id="testPushBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.notif.test')}</div>
-              <div class="ajustes-row-sub" id="testPushSub">${t('ajustes.notif.test.sub')}</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-          <button class="ajustes-row clickable" id="notifGuideBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">Notificações não estão chegando?</div>
-              <div class="ajustes-row-sub">Toque para ver como ativar som, vibração e pop-up</div>
-            </div>
-            <span class="ajustes-row-arrow">›</span>
-          </button>
-        </section>
+          ${row('testPushBtn', t('ajustes.notif.test'), { id: 'testPushSub', text: t('ajustes.notif.test.sub') })}
+          ${row('notifGuideBtn', 'Notificações não estão chegando?', 'Toque para ver como ativar som, vibração e pop-up')}
+        `)}
 
-        <section class="ajustes-section">
-          <div class="ajustes-section-title">${t('ajustes.account')}</div>
-          <button class="ajustes-row clickable" id="signOutBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.signout')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.signout.sub')}</div>
-            </div>
+        ${acc(t('ajustes.app'), `
+          ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
+        `)}
+
+        ${acc(t('ajustes.data'), `
+          ${row('exportJsonBtn', t('ajustes.json.title'), t('ajustes.json.sub'))}
+          ${row('exportPdfBtn', t('ajustes.pdf.title'), t('ajustes.pdf.sub'))}
+        `)}
+
+        ${acc(t('ajustes.tutorial'), `
+          ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
+        `)}
+
+        ${acc(t('ajustes.modal.section'), `
+          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
+        `)}
+
+        ${acc(t('ajustes.legal'), `
+          <button class="ajustes-row clickable" data-route="/termos">
+            <div class="ajustes-row-main"><div class="ajustes-row-title">${t('ajustes.terms.title')}</div></div>
             <span class="ajustes-row-arrow">›</span>
           </button>
-          <button class="ajustes-row clickable danger" id="deleteAccountBtn">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.delete.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.delete.sub')}</div>
-            </div>
+          <button class="ajustes-row clickable" data-route="/privacidade">
+            <div class="ajustes-row-main"><div class="ajustes-row-title">${t('ajustes.privacy.title')}</div></div>
             <span class="ajustes-row-arrow">›</span>
           </button>
-        </section>
+        `)}
+
+        ${acc(t('ajustes.account'), `
+          ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
+          ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
+        `)}
 
         <div class="ajustes-version">
           Falcon · v1.0.0 · MVP<br>
@@ -187,26 +172,96 @@ export async function renderAjustes(app) {
 // BLOCO 2: WIRES
 // ═══════════════════════════════════════════════════════════════
 async function wire(app) {
+  // ── Accordion: abre/fecha cada seção ──
+  app.querySelectorAll('.ajustes-acc-head').forEach(head => {
+    head.addEventListener('click', () => {
+      const sec = head.closest('.ajustes-acc');
+      const body = sec.querySelector('.ajustes-acc-body');
+      const open = !sec.classList.contains('open');
+      sec.classList.toggle('open', open);
+      body.hidden = !open;
+    });
+  });
+
   app.querySelectorAll('[data-route]').forEach(el =>
     el.addEventListener('click', () => navigate(el.dataset.route))
   );
-
   app.querySelector('#trocarModalidadeBtn')?.addEventListener('click', () => navigate('/modalidade'));
+
+  // ── Meu perfil: carrega, salva, remove ──
+  (async () => {
+    try {
+      const p = await getProfile();
+      if (p) {
+        app.querySelector('#perfNome').value    = p.fullName || '';
+        app.querySelector('#perfApelido').value = p.preferredName || '';
+        app.querySelector('#perfNasc').value    = p.birthDate || '';
+        app.querySelector('#perfWpp').value     = p.phone || '';
+      }
+    } catch (e) { console.warn('[ajustes] load perfil:', e); }
+  })();
+
+  app.querySelector('#perfSave')?.addEventListener('click', async () => {
+    const btn = app.querySelector('#perfSave');
+    const full  = app.querySelector('#perfNome').value.trim();
+    const nick  = app.querySelector('#perfApelido').value.trim();
+    const birth = app.querySelector('#perfNasc').value;
+    const phone = app.querySelector('#perfWpp').value.trim();
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+      await setProfile({
+        fullName: full || null, preferredName: nick || null,
+        birthDate: birth || null, phone: phone || null,
+      });
+      if (full || nick || birth || phone) await recordConsent('perfil_contato_v1', 1);
+      markPerfilDone();
+      showToast('✅ Perfil salvo!', 'success');
+    } catch (e) {
+      showToast('Erro ao salvar: ' + e.message, 'error');
+    } finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+  });
+
+  app.querySelector('#perfRemove')?.addEventListener('click', async () => {
+    const ok = await confirmModal({
+      title: 'Remover seus dados de contato?',
+      message: 'Nome, data de nascimento e WhatsApp serão apagados. Você pode preencher de novo quando quiser.',
+      confirmText: 'Remover', cancelText: 'Cancelar', danger: true,
+    });
+    if (!ok) return;
+    try {
+      await setProfile({ fullName: null, preferredName: null, birthDate: null, phone: null });
+      ['#perfNome', '#perfApelido', '#perfNasc', '#perfWpp'].forEach(s => { app.querySelector(s).value = ''; });
+      markPerfilDone();
+      showToast('Dados removidos.', 'info');
+    } catch (e) { showToast('Erro ao remover: ' + e.message, 'error'); }
+  });
+
+  // ── Sugerir melhoria ──
+  app.querySelector('#fbSend')?.addEventListener('click', async () => {
+    const ta = app.querySelector('#fbMsg');
+    const btn = app.querySelector('#fbSend');
+    const msg = ta.value.trim();
+    if (!msg) { showToast('Escreva sua sugestão antes de enviar.', 'info'); return; }
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    try {
+      await submitFeedback(msg);
+      ta.value = '';
+      showToast('🦅 Recebido! Obrigado pela sugestão.', 'success', 5000);
+    } catch (e) {
+      showToast('Erro ao enviar: ' + e.message, 'error');
+    } finally { btn.disabled = false; btn.textContent = 'Enviar sugestão'; }
+  });
 
   // ── Bio toggle ──
   const bioToggle = app.querySelector('#bioToggle');
   const bioAvailable = await biometric.isAvailable();
   bioToggle.checked = biometric.isEnabled();
   bioToggle.disabled = !bioAvailable;
-
   if (!bioAvailable) {
-    app.querySelector('#rowBio .ajustes-row-sub').textContent =
-      'Seu celular não tem desbloqueio configurado.';
+    app.querySelector('#rowBio .ajustes-row-sub').textContent = 'Seu celular não tem desbloqueio configurado.';
   }
-
   bioToggle.addEventListener('change', async () => {
     if (bioToggle.checked) {
-      // Ativar
       bioToggle.disabled = true;
       try {
         const user = auth.currentUser;
@@ -215,15 +270,9 @@ async function wire(app) {
       } catch (err) {
         console.warn('[ajustes] bio enable falhou:', err);
         bioToggle.checked = false;
-        const msg = err?.name === 'NotAllowedError'
-          ? 'Cancelado.'
-          : 'Não foi possível ativar.';
-        showToast(msg, 'error');
-      } finally {
-        bioToggle.disabled = false;
-      }
+        showToast(err?.name === 'NotAllowedError' ? 'Cancelado.' : 'Não foi possível ativar.', 'error');
+      } finally { bioToggle.disabled = false; }
     } else {
-      // Desativar
       biometric.disable();
       showToast('Bloqueio biométrico desativado.', 'info');
     }
@@ -241,47 +290,31 @@ async function wire(app) {
 
   // ── Export JSON ──
   app.querySelector('#exportJsonBtn')?.addEventListener('click', async () => {
-    const btn = app.querySelector('#exportJsonBtn');
-    const sub = btn.querySelector('.ajustes-row-sub');
+    const sub = app.querySelector('#exportJsonBtn .ajustes-row-sub');
     const original = sub.textContent;
     sub.textContent = 'Coletando seus dados...';
-    try {
-      await downloadJson();
-      sub.textContent = 'Download iniciado!';
-      setTimeout(() => sub.textContent = original, 2200);
-    } catch (err) {
-      console.error('[ajustes] export json:', err);
-      showToast('Erro ao exportar. Tente novamente.', 'error');
-      sub.textContent = original;
-    }
+    try { await downloadJson(); sub.textContent = 'Download iniciado!'; setTimeout(() => sub.textContent = original, 2200); }
+    catch (err) { console.error('[ajustes] export json:', err); showToast('Erro ao exportar. Tente novamente.', 'error'); sub.textContent = original; }
   });
 
   // ── Relatório PDF ──
   app.querySelector('#exportPdfBtn')?.addEventListener('click', async () => {
-    const btn = app.querySelector('#exportPdfBtn');
-    const sub = btn.querySelector('.ajustes-row-sub');
+    const sub = app.querySelector('#exportPdfBtn .ajustes-row-sub');
     const original = sub.textContent;
     sub.textContent = 'Montando relatório...';
-    try {
-      await openPdfReport();
-      sub.textContent = 'Abriu numa nova aba!';
-      setTimeout(() => sub.textContent = original, 2400);
-    } catch (err) {
+    try { await openPdfReport(); sub.textContent = 'Abriu numa nova aba!'; setTimeout(() => sub.textContent = original, 2400); }
+    catch (err) {
       console.error('[ajustes] export pdf:', err);
-      const msg = (err?.message || '').includes('popup')
-        ? 'Permita pop-ups pro app gerar o PDF.'
-        : 'Erro ao gerar relatório.';
-      showToast(msg, 'error');
+      showToast((err?.message || '').includes('popup') ? 'Permita pop-ups pro app gerar o PDF.' : 'Erro ao gerar relatório.', 'error');
       sub.textContent = original;
     }
   });
 
-  // ── Reiniciar tour de boas-vindas ──
+  // ── Reiniciar tour ──
   app.querySelector('#restartTourBtn')?.addEventListener('click', async () => {
     tour.reset();
     showToast('Iniciando tutorial...', 'success');
     navigate('/home');
-    // Aguarda Home renderizar antes de iniciar o tour
     const { ONBOARDING_STEPS } = await import('../config-tour.js');
     setTimeout(() => tour.start(ONBOARDING_STEPS), 700);
   });
@@ -293,14 +326,9 @@ async function wire(app) {
     sub.textContent = t('ajustes.update.clearing');
     btn.disabled = true;
     try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
+      if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
       localStorage.removeItem('_visao_build');
       if ('serviceWorker' in navigator) {
-        // Unregister → re-register → aguarda SW ativo → reload
-        // Garante que o novo SW intercepta os imports JS com no-store no reload
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
         await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
@@ -308,11 +336,7 @@ async function wire(app) {
       }
       sub.textContent = t('ajustes.update.restart');
       window.location.reload(true);
-    } catch (err) {
-      console.error('[ajustes] forceUpdate:', err);
-      sub.textContent = t('ajustes.update.err');
-      btn.disabled = false;
-    }
+    } catch (err) { console.error('[ajustes] forceUpdate:', err); sub.textContent = t('ajustes.update.err'); btn.disabled = false; }
   });
 
   // ── Testar push ──
@@ -320,133 +344,75 @@ async function wire(app) {
     const btn = app.querySelector('#testPushBtn');
     const sub = app.querySelector('#testPushSub');
     btn.disabled = true;
-
-    if (!notifSupported()) {
-      sub.textContent = t('ajustes.push.unsupported');
-      btn.disabled = false;
-      return;
-    }
-    if (permissionStatus() !== 'granted') {
-      sub.textContent = t('ajustes.push.denied');
-      btn.disabled = false;
-      return;
-    }
-
+    if (!notifSupported())              { sub.textContent = t('ajustes.push.unsupported'); btn.disabled = false; return; }
+    if (permissionStatus() !== 'granted') { sub.textContent = t('ajustes.push.denied'); btn.disabled = false; return; }
     const userId = auth.currentUser?.uid;
-    if (!userId) {
-      sub.textContent = '❌ Usuário não autenticado.';
-      btn.disabled = false;
-      return;
-    }
+    if (!userId) { sub.textContent = '❌ Usuário não autenticado.'; btn.disabled = false; return; }
 
     sub.textContent = '📤 Enviando... MINIMIZE o app AGORA — vai tocar em ~2s';
     try {
       const res = await fetch(`${WORKER_URL}/test-push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
         body: JSON.stringify({ userId, delaySec: 2 }),
       });
       const data = await res.json();
-
       if (data.ok) {
-        sub.textContent = data.delayed
-          ? '⏱️ Vai tocar em ~2s — minimize o app pra testar em segundo plano'
-          : t('ajustes.push.sent', { status: data.status });
+        sub.textContent = data.delayed ? '⏱️ Vai tocar em ~2s — minimize o app pra testar em segundo plano' : t('ajustes.push.sent', { status: data.status });
         showToast('📤 Push a caminho — minimize o app!', 'success');
       } else if (data.error === 'no_subscription') {
-        // Subscription não registrada — faz o registro agora e tenta de novo
         sub.textContent = 'Registrando... tentando novamente';
         await subscribeToPush();
         const res2 = await fetch(`${WORKER_URL}/test-push`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
           body: JSON.stringify({ userId, delaySec: 2 }),
         });
         const data2 = await res2.json();
-        sub.textContent = data2.ok
-          ? '⏱️ Registrado! Vai tocar em ~2s — minimize o app'
-          : t('ajustes.push.no_sub');
+        sub.textContent = data2.ok ? '⏱️ Registrado! Vai tocar em ~2s — minimize o app' : t('ajustes.push.no_sub');
         showToast(data2.ok ? '📤 Push a caminho — minimize o app!' : t('ajustes.push.no_sub.toast'), data2.ok ? 'success' : 'info');
       } else if (data.error === 'subscription_stale') {
-        sub.textContent = t('ajustes.push.stale');
-        await subscribeToPush();
-        showToast(t('ajustes.push.stale.toast'), 'info');
+        sub.textContent = t('ajustes.push.stale'); await subscribeToPush(); showToast(t('ajustes.push.stale.toast'), 'info');
       } else {
-        sub.textContent = t('ajustes.push.err', { msg: data.error || data.status || '?' });
-        showToast(t('ajustes.push.err.toast'), 'error');
+        sub.textContent = t('ajustes.push.err', { msg: data.error || data.status || '?' }); showToast(t('ajustes.push.err.toast'), 'error');
       }
-    } catch (err) {
-      sub.textContent = t('ajustes.push.network', { msg: err.message });
-      showToast(t('ajustes.push.no_conn'), 'error');
-    }
-
+    } catch (err) { sub.textContent = t('ajustes.push.network', { msg: err.message }); showToast(t('ajustes.push.no_conn'), 'error'); }
     btn.disabled = false;
   });
 
-  // ── Guia de pop-up + vibração (reabre o passo a passo) ──
+  // ── Guia de pop-up + vibração ──
   app.querySelector('#notifGuideBtn')?.addEventListener('click', () => showNotifPopupGuide(true));
 
   // ── Sair ──
   app.querySelector('#signOutBtn')?.addEventListener('click', async () => {
-    const ok = await confirmModal({
-      title: 'Sair da conta?',
-      message: 'Você precisará fazer login de novo. Seus dados continuam salvos.',
-      confirmText: 'Sair',
-      cancelText: 'Cancelar'
-    });
+    const ok = await confirmModal({ title: 'Sair da conta?', message: 'Você precisará fazer login de novo. Seus dados continuam salvos.', confirmText: 'Sair', cancelText: 'Cancelar' });
     if (!ok) return;
-    try {
-      await signOut(auth);
-      navigate('/login');
-    } catch (err) {
-      console.error('[ajustes] signOut:', err);
-      showToast('Erro ao sair.', 'error');
-    }
+    try { await signOut(auth); navigate('/login'); }
+    catch (err) { console.error('[ajustes] signOut:', err); showToast('Erro ao sair.', 'error'); }
   });
 
   // ── Excluir conta ──
   app.querySelector('#deleteAccountBtn')?.addEventListener('click', async () => {
-    const ok1 = await confirmModal({
-      title: '⚠️ Excluir conta?',
-      message: 'TODOS os seus dados (atividades, ritual, reflexões, sono, hidratação) serão APAGADOS PARA SEMPRE. Esta ação não pode ser desfeita.',
-      confirmText: 'Continuar',
-      cancelText: 'Cancelar',
-      danger: true
-    });
+    const ok1 = await confirmModal({ title: '⚠️ Excluir conta?', message: 'TODOS os seus dados (atividades, ritual, reflexões, sono, hidratação) serão APAGADOS PARA SEMPRE. Esta ação não pode ser desfeita.', confirmText: 'Continuar', cancelText: 'Cancelar', danger: true });
     if (!ok1) return;
-
-    const ok2 = await confirmModal({
-      title: 'Tem certeza absoluta?',
-      message: 'Última chance. Após confirmar, sua conta e seus dados serão eliminados imediatamente.',
-      confirmText: 'Sim, excluir tudo',
-      cancelText: 'Voltar',
-      danger: true
-    });
+    const ok2 = await confirmModal({ title: 'Tem certeza absoluta?', message: 'Última chance. Após confirmar, sua conta e seus dados serão eliminados imediatamente.', confirmText: 'Sim, excluir tudo', cancelText: 'Voltar', danger: true });
     if (!ok2) return;
 
     playDelete();
     const btn = app.querySelector('#deleteAccountBtn');
-    btn.disabled = true;
-    btn.style.opacity = '0.6';
-
+    btn.disabled = true; btn.style.opacity = '0.6';
     try {
       const result = await deleteMyAccount();
-
       if (result.auth === 'requires-recent-login') {
         showToast('Por segurança, faça login de novo pra concluir.', 'info');
         try { await signOut(auth); } catch {}
-        navigate('/login');
-        return;
+        navigate('/login'); return;
       }
-
       showToast('Conta excluída com sucesso. Até logo!', 'success');
       try { await signOut(auth); } catch {}
       navigate('/login');
     } catch (err) {
       console.error('[ajustes] delete account:', err);
       showToast('Erro ao excluir. Tente novamente em alguns minutos.', 'error');
-      btn.disabled = false;
-      btn.style.opacity = '1';
+      btn.disabled = false; btn.style.opacity = '1';
     }
   });
 }

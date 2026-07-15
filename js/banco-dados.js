@@ -41,6 +41,10 @@ function _profileFromRow(r) {
     streakOrigin:       r.streak_origin,
     weekdayTemplates:   r.weekday_templates || {},
     monthlyCommitments: r.monthly_commitments || [],
+    fullName:           r.full_name,
+    preferredName:      r.preferred_name,
+    birthDate:          r.birth_date,
+    phone:              r.phone,
     createdAt:          r.created_at,
     ...(r.extra || {}),
   };
@@ -51,6 +55,7 @@ function _profileToRow(d) {
     defaultWakeTime: 'default_wake_time', defaultSleepTime: 'default_sleep_time',
     template: 'template', streakOrigin: 'streak_origin',
     weekdayTemplates: 'weekday_templates', monthlyCommitments: 'monthly_commitments',
+    fullName: 'full_name', preferredName: 'preferred_name', birthDate: 'birth_date', phone: 'phone',
     createdAt: 'created_at',
   };
   for (const [k, v] of Object.entries(d)) {

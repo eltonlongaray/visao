@@ -9,7 +9,7 @@
 // Arquivo único: Exporta textos completos dos Termos de Uso e Política de Privacidade
 // ─────────────────────────────────────────────────────────────
 
-export const VIGENCIA = '5 de junho de 2026';
+export const VIGENCIA = '14 de julho de 2026';
 export const CONTATO_DPO = 'elton.longaray483@gmail.com';
 export const RESPONSAVEL = 'Élton de Oliveira Longaray';
 
@@ -137,11 +137,28 @@ export const PRIVACIDADE_HTML = `
     <li>Identificador da credencial biométrica (não a digital em si — apenas um ID)</li>
   </ul>
 
+  <p><strong>2.4 Dados de contato e perfil (opcionais):</strong></p>
+  <ul>
+    <li>Nome completo e como você prefere ser chamado(a)</li>
+    <li>Data de nascimento</li>
+    <li>WhatsApp</li>
+  </ul>
+  <p>
+    Esses dados são <strong>totalmente opcionais</strong> — o app funciona sem eles.
+    Você pode preencher, editar ou remover a qualquer momento em <strong>Ajustes → Meu perfil</strong>.
+  </p>
+
+  <p><strong>2.5 Sugestões de melhoria:</strong> quando você envia uma sugestão pelo app, guardamos o texto enviado para aprimorar o Falcon.</p>
+
   <h2>3. Para que usamos seus dados</h2>
   <ul>
     <li>Permitir o login e a autenticação</li>
     <li>Exibir suas atividades, ritual e gráficos de desempenho</li>
     <li>Gerar insights personalizados (pontos fortes/fracos da semana)</li>
+    <li>Entrar em contato para <strong>suporte e acompanhamento</strong>, quando você informa o WhatsApp</li>
+    <li><strong>Parabenizá-lo(a) no seu aniversário</strong>, quando você informa a data de nascimento</li>
+    <li>Convidar e manter você informado(a) sobre a <strong>comunidade Falcon Hunters</strong></li>
+    <li>Aprimorar o app a partir das <strong>sugestões de melhoria</strong> que você envia</li>
     <li>Cumprir obrigações legais quando houver</li>
   </ul>
   <p><strong>Não usamos seus dados pra publicidade, perfilamento comercial ou venda a terceiros.</strong></p>
@@ -154,21 +171,23 @@ export const PRIVACIDADE_HTML = `
 
   <h2>5. Onde os dados ficam armazenados</h2>
   <p>
-    Seus dados ficam no <strong>Firebase / Google Cloud Platform</strong>,
-    em datacenters localizados principalmente nos Estados Unidos.
-    Toda transmissão é criptografada em HTTPS (TLS 1.3). O armazenamento em
-    repouso também é criptografado pelo Google Cloud.
+    Seus dados ficam no <strong>Supabase</strong> (banco de dados PostgreSQL),
+    em datacenter localizado em <strong>São Paulo, Brasil</strong>.
+    Toda transmissão é criptografada em HTTPS (TLS). O acesso é protegido por
+    <strong>Row Level Security (RLS)</strong> — cada usuário só acessa os próprios dados.
   </p>
   <p>
-    A transferência internacional de dados é amparada pelas garantias do
-    Art. 33 da LGPD (cláusulas contratuais padrão do Google).
+    As notificações são entregues pela <strong>Cloudflare</strong>, que processa
+    apenas o necessário para enviar o lembrete (título, horário e um identificador),
+    sem acesso ao conteúdo da sua rotina.
   </p>
 
   <h2>6. Quem tem acesso</h2>
   <ul>
     <li><strong>Você</strong> — acesso completo aos seus próprios dados pelo app.</li>
     <li><strong>${RESPONSAVEL}</strong> — como administrador do projeto, tenho acesso técnico ao banco de dados pra manutenção. Não acessamos seus dados rotineiramente.</li>
-    <li><strong>Google Cloud</strong> — como operador, processa os dados conforme nossas instruções.</li>
+    <li><strong>Supabase</strong> — como operador, hospeda o banco de dados conforme nossas instruções.</li>
+    <li><strong>Cloudflare</strong> — como operador, processa apenas o envio das notificações.</li>
     <li><strong>Autoridades</strong> — apenas mediante ordem judicial válida.</li>
   </ul>
   <p>Não compartilhamos seus dados com nenhum outro terceiro.</p>

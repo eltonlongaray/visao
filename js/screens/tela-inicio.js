@@ -35,6 +35,7 @@ import { openMorningMessages, hasUnreadToday } from '../mensagens-manha.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
+import { maybeInvitePerfil } from '../contato-perfil.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -145,6 +146,8 @@ export async function renderHome(app) {
     // Não instalado (iOS Safari ou Android no navegador): avisa 1x como instalar.
     // Só depois do tour pra não empilhar dois modais.
     setTimeout(() => maybeInstallHint(), 1200);
+    // Convite de perfil/contato (cadência 7 dias). A trava interna evita empilhar.
+    setTimeout(() => maybeInvitePerfil(), 2200);
   }
 }
 
