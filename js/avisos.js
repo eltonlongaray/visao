@@ -41,7 +41,8 @@ export async function fetchAvisos() {
     .from('avisos')
     .select('*')
     .eq('published', true)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(10);   // mostra só os 10 mais recentes
   if (error) throw new Error(error.message || 'Erro ao carregar avisos');
   return data || [];
 }
@@ -158,36 +159,9 @@ export async function openAvisosModal() {
       return;
     }
 
-    // Estado de leitura ANTES de marcar. O último aviso (mais recente) fica
-    // sempre no topo; os já lidos e mais antigos vão para o arquivo "lidos".
-    const readSet = _readIds();
-    const latestId = list[0].id;                          // lista vem desc (novo→velho)
-    const inMain = a => !readSet.has(a.id) || a.id === latestId;
-    const mainList = list.filter(inMain);
-    const archived = list.filter(a => !inMain(a));
-
-    const mainHtml = mainList.map(a => _avisoItemHtml(a, isAdmin)).join('');
-    const archHtml = archived.length ? `
-      <button class="aviso-archive-toggle" id="aviso-arch-toggle" type="button">
-        <span>📁 ${t('home.avisos.read')}</span>
-        <span class="aviso-arch-count">${archived.length}</span>
-        <span class="aviso-arch-chev">▾</span>
-      </button>
-      <div class="aviso-archive" id="aviso-archive" hidden>
-        ${archived.map(a => _avisoItemHtml(a, isAdmin)).join('')}
-      </div>` : '';
-    listEl.innerHTML = mainHtml + archHtml;
-
-    // Toggle do arquivo de lidos
-    const tg = listEl.querySelector('#aviso-arch-toggle');
-    if (tg) {
-      tg.onclick = () => {
-        const arch = listEl.querySelector('#aviso-archive');
-        const opening = arch.hasAttribute('hidden');
-        if (opening) arch.removeAttribute('hidden'); else arch.setAttribute('hidden', '');
-        tg.classList.toggle('open', opening);
-      };
-    }
+    // Lista única, mais recente no topo, rolável (últimos 10). Mais limpo que
+    // separar lidos/não-lidos — a bolinha da Home já sinaliza o que é novo.
+    listEl.innerHTML = list.map(a => _avisoItemHtml(a, isAdmin)).join('');
 
     // Marca todos como lidos e some com a bolinha da Home
     _markRead(list.map(a => a.id));
