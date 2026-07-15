@@ -4978,7 +4978,11 @@ body.tour-active { overflow: hidden; }
 /* ─── Ajustes: seções retráteis (accordion) ─── */
 /* o header usa .ajustes-row.clickable → parece card/botão de verdade */
 .ajustes-acc { margin-bottom: 8px; }
-.ajustes-acc-head { margin-bottom: 0; }
+.ajustes-acc-head {
+  margin-bottom: 0;
+  border: 1.5px solid rgba(148,163,184,0.4);
+}
+.ajustes-acc.open .ajustes-acc-head { border-color: var(--accent); }
 .ajustes-acc-chev { font-size: 18px; transition: transform 0.2s ease; }
 .ajustes-acc.open .ajustes-acc-chev { transform: rotate(180deg); }
 .ajustes-acc.open .ajustes-acc-hint { display: none; }
