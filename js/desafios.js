@@ -24,6 +24,8 @@ function _markSeen(ids) {
   ids.forEach(id => cur.add(id));
   localStorage.setItem(SEEN_KEY, JSON.stringify([...cur]));
 }
+// Zera o "visto" — usado no preview "ver como usuário" pra reviver a bolinha.
+export function resetDesafiosSeen() { localStorage.removeItem(SEEN_KEY); }
 
 // ── Dados ────────────────────────────────────────────────────
 export async function fetchDesafios() {

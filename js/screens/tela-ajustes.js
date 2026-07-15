@@ -19,6 +19,7 @@ import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone } from '../contato-perfil.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
+import { resetDesafiosSeen } from '../desafios.js';
 import { playDelete } from '../sons.js';
 import * as tour from '../tour-guiado.js';
 import { bottomNav } from '../components/menu-inferior.js';
@@ -212,7 +213,7 @@ async function wire(app) {
     admPrev.checked = isAdminPreview();
     admPrev.addEventListener('change', () => {
       setAdminPreview(admPrev.checked);
-      if (admPrev.checked) resetAvisosRead();   // revive a bolinha p/ ver o fluxo de um usuário novo
+      if (admPrev.checked) { resetAvisosRead(); resetDesafiosSeen(); }   // revive as bolinhas p/ ver o fluxo de um usuário novo
       showToast(admPrev.checked
         ? '👁 Vendo como usuário — volte à Home: a bolinha vai estar nos Avisos'
         : '🛡️ De volta à visão de admin', 'info');
