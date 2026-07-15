@@ -48,6 +48,7 @@ export default {
   'home.avisos.empty':       'Sin avisos por ahora 🦅',
   'home.avisos.modal.title': '📢 Avisos',
   'home.avisos.modal.hint':  'Comunicados y novedades del equipo Falcon.',
+  'home.avisos.read':        'Avisos leídos',
   'home.close':     'Cerrar',
   'home.msgs.title': 'Mensajes',
   'home.msgs.sub':   'La pregunta de cada mañana',

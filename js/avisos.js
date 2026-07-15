@@ -137,17 +137,50 @@ export async function openAvisosModal() {
       listEl.innerHTML = `<div class="reminder-empty">${_esc(e.message)}</div>`;
       return;
     }
+
+    const dot = document.getElementById('avisos-dot');
     if (list.length === 0) {
       listEl.innerHTML = `<div class="reminder-empty">${t('home.avisos.empty')}</div>`;
-    } else {
-      listEl.innerHTML = list.map(a => _avisoItemHtml(a, isAdmin)).join('');
+      if (dot) dot.style.display = 'none';
+      return;
     }
+
+    // Estado de leitura ANTES de marcar. O último aviso (mais recente) fica
+    // sempre no topo; os já lidos e mais antigos vão para o arquivo "lidos".
+    const readSet = _readIds();
+    const latestId = list[0].id;                          // lista vem desc (novo→velho)
+    const inMain = a => !readSet.has(a.id) || a.id === latestId;
+    const mainList = list.filter(inMain);
+    const archived = list.filter(a => !inMain(a));
+
+    const mainHtml = mainList.map(a => _avisoItemHtml(a, isAdmin)).join('');
+    const archHtml = archived.length ? `
+      <button class="aviso-archive-toggle" id="aviso-arch-toggle" type="button">
+        <span>📁 ${t('home.avisos.read')}</span>
+        <span class="aviso-arch-count">${archived.length}</span>
+        <span class="aviso-arch-chev">▾</span>
+      </button>
+      <div class="aviso-archive" id="aviso-archive" hidden>
+        ${archived.map(a => _avisoItemHtml(a, isAdmin)).join('')}
+      </div>` : '';
+    listEl.innerHTML = mainHtml + archHtml;
+
+    // Toggle do arquivo de lidos
+    const tg = listEl.querySelector('#aviso-arch-toggle');
+    if (tg) {
+      tg.onclick = () => {
+        const arch = listEl.querySelector('#aviso-archive');
+        const opening = arch.hasAttribute('hidden');
+        if (opening) arch.removeAttribute('hidden'); else arch.setAttribute('hidden', '');
+        tg.classList.toggle('open', opening);
+      };
+    }
+
     // Marca todos como lidos e some com a bolinha da Home
     _markRead(list.map(a => a.id));
-    const dot = document.getElementById('avisos-dot');
     if (dot) dot.style.display = 'none';
 
-    // Handlers de admin: apagar + editar inline
+    // Handlers de admin: apagar + editar inline (em toda a lista, inclusive arquivo)
     if (isAdmin) {
       listEl.querySelectorAll('.aviso-del').forEach(btn => {
         btn.onclick = async () => {

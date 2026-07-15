@@ -48,6 +48,7 @@ export default {
   'home.avisos.empty':       'No announcements yet 🦅',
   'home.avisos.modal.title': '📢 Announcements',
   'home.avisos.modal.hint':  'News and updates from the Falcon team.',
+  'home.avisos.read':        'Read announcements',
   'home.close':     'Close',
   'home.msgs.title': 'Messages',
   'home.msgs.sub':   'The question of every morning',

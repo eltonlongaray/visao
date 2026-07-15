@@ -2062,6 +2062,37 @@ body.time-picker-open { overflow: hidden; }
 .aviso-input:focus { outline: none; border-color: var(--accent); }
 .aviso-textarea { resize: vertical; min-height: 72px; }
 
+/* Arquivo de "Avisos lidos" (recolhível) */
+.aviso-archive-toggle {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding: 12px 2px 4px;
+  color: var(--muted);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.aviso-archive-toggle:hover { color: var(--text); }
+.aviso-arch-count {
+  background: rgba(148,163,184,0.22);
+  color: var(--text);
+  font-size: 11px; font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.aviso-arch-chev { margin-left: auto; transition: transform 0.2s ease; }
+.aviso-archive-toggle.open .aviso-arch-chev { transform: rotate(180deg); }
+.aviso-archive {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 10px;
+}
+.aviso-archive[hidden] { display: none; }
+/* Avisos no arquivo ficam com cara "apagada" e borda cinza (não roxa) */
+.aviso-archive .aviso-item { border-left-color: rgba(148,163,184,0.4); opacity: 0.82; }
+
 /* ─── Modal de Mensagens ─── */
 .morning-msgs-modal {
   max-width: 440px !important;
