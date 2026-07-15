@@ -38,6 +38,7 @@ import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { loadDesafiosDot } from '../desafios.js';
+import { openDesafiosVitrine } from '../desafios-vitrine.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -391,7 +392,7 @@ function attachHandlers() {
   document.getElementById('add-cat').addEventListener('click', () => openCategoryEditor(null));
   document.getElementById('reminders-card').addEventListener('click', openRemindersModal);
   document.getElementById('avisos-card').addEventListener('click', openAvisosModal);
-  document.getElementById('desafios-card').addEventListener('click', () => navigate('/desafios'));
+  document.getElementById('desafios-card').addEventListener('click', openDesafiosVitrine);
 
   // Card de mensagens — abre o modal e marca como lido (some a bolinha do dia)
   document.getElementById('morning-msgs-card').addEventListener('click', () => {

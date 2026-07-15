@@ -2132,6 +2132,12 @@ body.time-picker-open { overflow: hidden; }
 .ds-molde:hover { border-color: var(--accent); background: rgba(167,139,250,0.06); }
 .ds-molde-emoji { font-size: 20px; flex-shrink: 0; }
 .ds-molde-nome { font-weight: 600; }
+
+/* Modal-vitrine da Home */
+.vitrine-list { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+.vitrine-item { background: var(--card); border: 1px solid var(--border); border-left: 3px solid #f59e0b; border-radius: 0 12px 12px 0; padding: 14px; }
+.vitrine-title { font-size: 15px; font-weight: 800; color: var(--text); line-height: 1.25; }
+.vitrine-desc { font-size: 13px; color: var(--text); opacity: 0.9; line-height: 1.5; margin: 8px 0 12px; }
 .ds-card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: 16px; padding: 16px; margin-bottom: 14px;
