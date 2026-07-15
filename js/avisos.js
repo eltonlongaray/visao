@@ -31,6 +31,9 @@ function _markRead(ids) {
   ids.forEach(id => cur.add(id));
   localStorage.setItem(READ_KEY, JSON.stringify([...cur]));
 }
+// Zera o "lido" deste dispositivo — usado no preview "ver como usuário"
+// pra reviver a bolinha e enxergar o fluxo de um usuário novo.
+export function resetAvisosRead() { localStorage.removeItem(READ_KEY); }
 
 // ── Dados ────────────────────────────────────────────────────
 export async function fetchAvisos() {
