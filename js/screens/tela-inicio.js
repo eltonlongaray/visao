@@ -36,6 +36,7 @@ import { trapModalBack } from '../modal-voltar.js';
 import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
+import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -98,6 +99,16 @@ export async function renderHome(app) {
         </div>
       </div>
 
+      <!-- AVISOS (comunicados do time) -->
+      <button class="reminders-card avisos-card" id="avisos-card" type="button">
+        <div class="reminders-icon">📢</div>
+        <div class="reminders-text">
+          <div class="reminders-title">${t('home.avisos.title')}</div>
+          <div class="reminders-sub">${t('home.avisos.sub')}</div>
+        </div>
+        <div class="msgs-dot" id="avisos-dot" style="display:none"></div>
+      </button>
+
       <!-- LEMBRETES DA SEMANA -->
       <button class="reminders-card" id="reminders-card" type="button">
         <div class="reminders-icon">🔔</div>
@@ -136,6 +147,7 @@ export async function renderHome(app) {
   attachHandlers();
   attachPrefHandlers();
   loadAndRenderReminders();
+  loadAvisosDot();
 
   // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
@@ -366,6 +378,7 @@ function attachHandlers() {
   // ─── Específicos (botões recriados a cada render) ─────────
   document.getElementById('add-cat').addEventListener('click', () => openCategoryEditor(null));
   document.getElementById('reminders-card').addEventListener('click', openRemindersModal);
+  document.getElementById('avisos-card').addEventListener('click', openAvisosModal);
 
   // Card de mensagens — abre o modal e marca como lido (some a bolinha do dia)
   document.getElementById('morning-msgs-card').addEventListener('click', () => {

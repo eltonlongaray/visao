@@ -45,6 +45,7 @@ function _profileFromRow(r) {
     preferredName:      r.preferred_name,
     birthDate:          r.birth_date,
     phone:              r.phone,
+    isAdmin:            !!r.is_admin,   // só leitura — nunca gravado pelo cliente
     createdAt:          r.created_at,
     ...(r.extra || {}),
   };
@@ -59,6 +60,7 @@ function _profileToRow(d) {
     createdAt: 'created_at',
   };
   for (const [k, v] of Object.entries(d)) {
+    if (k === 'isAdmin') continue;   // read-only: privilégio nunca sai do cliente
     if (k in map) row[map[k]] = v; else extra[k] = v;
   }
   if (Object.keys(extra).length) row.extra = extra;
