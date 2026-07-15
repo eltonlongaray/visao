@@ -111,14 +111,9 @@ function _show(stage, force = false) {
       <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
         <input id="pf-wpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
 
-      <label class="reminder-toggle" style="margin-top:6px">
-        <input type="checkbox" id="pf-consent" />
-        <span class="reminder-bell"></span>
-        <div class="reminder-text">
-          <span class="reminder-label">Autorizo o uso dos meus dados para as finalidades acima.</span>
-          <span class="reminder-hint">Nada é compartilhado com terceiros. Edite ou remova quando quiser em Ajustes.</span>
-        </div>
-      </label>
+      <div class="modal-hint" style="font-size:12px;margin:8px 2px 2px">
+        Ao tocar em <strong>Salvar</strong>, você autoriza o uso desses dados para as finalidades acima. Nada é compartilhado com terceiros — edite ou remova quando quiser em Ajustes.
+      </div>
 
       <div class="modal-hint" id="pf-err" style="color:var(--red);min-height:16px;font-size:12px"></div>
       <div class="modal-actions" style="flex-direction:column;gap:8px">
@@ -136,11 +131,9 @@ function _show(stage, force = false) {
     const nick  = overlay.querySelector('#pf-apelido').value.trim();
     const birth = overlay.querySelector('#pf-nasc').value;      // YYYY-MM-DD ou ''
     const phone = overlay.querySelector('#pf-wpp').value.trim();
-    const consent = overlay.querySelector('#pf-consent').checked;
     const err = overlay.querySelector('#pf-err');
 
     if (!full && !nick && !birth && !phone) { err.textContent = 'Preencha ao menos um campo, ou toque em "' + c.cancel + '".'; return; }
-    if (!consent) { err.textContent = 'Marque a autorização para salvar.'; return; }
 
     const btn = overlay.querySelector('#pf-save');
     btn.disabled = true; btn.textContent = 'Salvando...';

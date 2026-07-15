@@ -84,6 +84,7 @@ export async function renderAjustes(app) {
             <input id="perfNasc" type="date" /></label>
           <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
             <input id="perfWpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
+          <div class="ajustes-row-sub" style="padding:2px 12px 0;font-size:12px">Ao salvar, você autoriza o uso desses dados para as finalidades acima.</div>
           <div style="display:flex;flex-direction:column;gap:8px;padding:6px 12px 4px">
             <button class="btn-primary" id="perfSave">Salvar</button>
             <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
