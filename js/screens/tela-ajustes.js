@@ -103,7 +103,7 @@ export async function renderAjustes(app) {
           <div class="ajustes-row-sub" style="padding:8px 12px 2px;font-size:12px;line-height:1.5">
             <strong>Esses dados são importantes para:</strong><br>
             • Suporte, acompanhamento personalizado e atualizações referente a comunidade Falcon Hunters.<br><br>
-            Ao salvar você autoriza o uso desses dados para as finalidades acima com a garantia de segurança exigida pela LGPD.
+            Ao salvar, você autoriza o uso desses dados para as finalidades acima com a garantia de segurança exigida pela LGPD, e remova seus dados quando quiser.
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;padding:6px 12px 4px">
             <button class="btn-primary" id="perfSave">Salvar</button>
