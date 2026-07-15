@@ -39,6 +39,11 @@ async function createAviso({ title, body }) {
   if (error) throw new Error(error.message || 'Não foi possível publicar');
 }
 
+async function updateAviso(id, { title, body }) {
+  const { error } = await supabase.from('avisos').update({ title, body }).eq('id', id);
+  if (error) throw new Error(error.message || 'Não foi possível editar');
+}
+
 async function deleteAviso(id) {
   const { error } = await supabase.from('avisos').delete().eq('id', id);
   if (error) throw new Error(error.message || 'Não foi possível apagar');
@@ -73,13 +78,29 @@ function _fmtDate(iso) {
 function _avisoItemHtml(a, isAdmin) {
   // Quebras de linha do texto viram <br> (conteúdo é escapado antes)
   const bodyHtml = _esc(a.body).replace(/\n/g, '<br>');
-  return `<div class="aviso-item">
+  return `<div class="aviso-item" data-id="${_esc(a.id)}">
     <div class="aviso-item-head">
       <div class="aviso-item-title">${_esc(a.title)}</div>
-      ${isAdmin ? `<button class="aviso-del" data-id="${_esc(a.id)}" title="Apagar aviso" aria-label="Apagar">🗑</button>` : ''}
+      ${isAdmin ? `<div class="aviso-actions">
+        <button class="aviso-edit" data-id="${_esc(a.id)}" title="Editar aviso" aria-label="Editar">✏️</button>
+        <button class="aviso-del" data-id="${_esc(a.id)}" title="Apagar aviso" aria-label="Apagar">🗑</button>
+      </div>` : ''}
     </div>
     <div class="aviso-item-date">${_fmtDate(a.created_at)}</div>
     <div class="aviso-item-body">${bodyHtml}</div>
+  </div>`;
+}
+
+// Formulário de edição inline (substitui o conteúdo do .aviso-item)
+function _editFormHtml(a) {
+  return `<div class="aviso-composer" style="margin:0;border-style:solid">
+    <div class="aviso-composer-label">✏️ Editar aviso</div>
+    <input class="aviso-input aviso-edit-title" maxlength="120" value="${_esc(a.title)}" />
+    <textarea class="aviso-input aviso-textarea aviso-edit-body" rows="4">${_esc(a.body)}</textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn-primary aviso-edit-save" style="flex:1">Salvar</button>
+      <button class="btn-secondary aviso-edit-cancel" style="flex:1">Cancelar</button>
+    </div>
   </div>`;
 }
 
@@ -126,13 +147,37 @@ export async function openAvisosModal() {
     const dot = document.getElementById('avisos-dot');
     if (dot) dot.style.display = 'none';
 
-    // Handlers de apagar (admin)
+    // Handlers de admin: apagar + editar inline
     if (isAdmin) {
       listEl.querySelectorAll('.aviso-del').forEach(btn => {
         btn.onclick = async () => {
           btn.disabled = true;
           try { await deleteAviso(btn.dataset.id); await refresh(); }
           catch (e) { showToast(e.message || 'Erro ao apagar', 'error'); btn.disabled = false; }
+        };
+      });
+      listEl.querySelectorAll('.aviso-edit').forEach(btn => {
+        btn.onclick = () => {
+          const a = list.find(x => x.id === btn.dataset.id);
+          if (!a) return;
+          const item = listEl.querySelector(`.aviso-item[data-id="${CSS.escape(a.id)}"]`);
+          item.innerHTML = _editFormHtml(a);
+          item.querySelector('.aviso-edit-cancel').onclick = () => refresh();
+          const save = item.querySelector('.aviso-edit-save');
+          save.onclick = async () => {
+            const title = item.querySelector('.aviso-edit-title').value.trim();
+            const body  = item.querySelector('.aviso-edit-body').value.trim();
+            if (!title || !body) { showToast('Preencha título e mensagem', 'error'); return; }
+            save.disabled = true; save.textContent = 'Salvando…';
+            try {
+              await updateAviso(a.id, { title, body });
+              showToast('✅ Aviso atualizado', 'success');
+              await refresh();
+            } catch (e) {
+              showToast(e.message || 'Erro ao editar', 'error');
+              save.disabled = false; save.textContent = 'Salvar';
+            }
+          };
         };
       });
     }

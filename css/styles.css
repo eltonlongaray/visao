@@ -2032,12 +2032,13 @@ body.time-picker-open { overflow: hidden; }
 .aviso-item-title { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.25; }
 .aviso-item-date { font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
 .aviso-item-body { font-size: 14px; color: var(--text); line-height: 1.55; opacity: 0.92; }
-.aviso-del {
+.aviso-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.aviso-edit, .aviso-del {
   background: none; border: none; cursor: pointer;
   font-size: 15px; line-height: 1; padding: 2px 4px;
-  opacity: 0.6; flex-shrink: 0;
+  opacity: 0.6;
 }
-.aviso-del:hover { opacity: 1; }
+.aviso-edit:hover, .aviso-del:hover { opacity: 1; }
 
 /* Compositor (só admin) */
 .aviso-composer {
