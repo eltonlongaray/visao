@@ -16,6 +16,9 @@ export function bottomNav(active) {
       <a href="#/desempenho" class="nav-btn ${active === 'desempenho' ? 'active' : ''}">
         <span class="nav-ic">📊</span>${t('nav.desempenho')}
       </a>
+      <a href="#/desafios" class="nav-btn ${active === 'desafios' ? 'active' : ''}">
+        <span class="nav-ic">🏆</span>${t('nav.desafios')}
+      </a>
       <a href="#/ajustes" class="nav-btn ${active === 'ajustes' ? 'active' : ''}">
         <span class="nav-ic">⚙️</span>${t('nav.ajustes')}
       </a>

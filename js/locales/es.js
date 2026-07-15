@@ -20,7 +20,10 @@ export default {
   'nav.home':       'Inicio',
   'nav.ritual':     'Ritual',
   'nav.desempenho': 'Rendimiento',
+  'nav.desafios':   'Retos',
   'nav.ajustes':    'Ajustes',
+  'desafios.sub':   'Encara un reto con la comunidad 🦅',
+  'desafios.empty': 'Ningún reto activo por ahora. ¡Pronto habrá novedades! 🦅',
 
   // ── Home ─────────────────────────────────────────────────────
   'home.title':     'Tu biblioteca',

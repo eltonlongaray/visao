@@ -45,9 +45,43 @@ async function fetchInteresses() {
   return data || [];
 }
 
-async function createDesafio({ titulo, descricao, dias }) {
-  const { error } = await supabase.from('desafios').insert({ titulo, descricao, dias_total: dias || null });
+async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes }) {
+  const { error } = await supabase.from('desafios').insert({
+    titulo, descricao,
+    dias_total: dias || null,
+    meta_diaria: meta || null,
+    unidade: unidade || null,
+    prova_opcoes: (opcoes && opcoes.length) ? opcoes : null,
+  });
   if (error) throw new Error(error.message || 'Não foi possível publicar');
+}
+
+// "250, 500" → [250,500] ; vazio → []
+function _parseOpcoes(str) {
+  return String(str || '').split(/[,\s]+/).map(s => parseInt(s, 10)).filter(n => Number.isFinite(n) && n > 0);
+}
+
+// ── Dados da aba (participação + check-ins) ──────────────────
+export async function fetchParticipantes() {
+  const { data } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
+  return data || [];
+}
+export async function fetchCheckins() {
+  const { data } = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
+  return data || [];
+}
+export async function joinDesafio(desafioId, nome) {
+  const { error } = await supabase.from('desafio_participantes').insert({ desafio_id: desafioId, nome: nome || null });
+  if (error) throw new Error(error.message || 'Erro ao entrar');
+}
+export async function leaveDesafio(desafioId) {
+  const uid = auth.currentUser?.uid;
+  const { error } = await supabase.from('desafio_participantes').delete().eq('desafio_id', desafioId).eq('user_id', uid);
+  if (error) throw new Error(error.message || 'Erro ao sair');
+}
+export async function addCheckin(desafioId, quantidade) {
+  const { error } = await supabase.from('desafio_checkins').insert({ desafio_id: desafioId, quantidade: quantidade || 1 });
+  if (error) throw new Error(error.message || 'Erro ao registrar');
 }
 async function updateDesafio(id, { titulo, descricao, dias }) {
   const { error } = await supabase.from('desafios').update({ titulo, descricao, dias_total: dias || null }).eq('id', id);
@@ -229,22 +263,33 @@ export async function openDesafiosModal() {
         <div class="desafio-composer-label">🏆 Lançar um desafio</div>
         <input id="ds-titulo" class="aviso-input" placeholder="Título (ex: Beber 2L de água por 21 dias)" maxlength="120" />
         <input id="ds-dias" class="aviso-input" type="number" min="1" placeholder="Duração em dias (ex: 21)" />
+        <div style="display:flex;gap:8px">
+          <input id="ds-meta" class="aviso-input" type="number" min="1" placeholder="Meta/dia (ex: 2000)" style="flex:1" />
+          <input id="ds-unidade" class="aviso-input" placeholder="Unidade (ml, exercício…)" style="flex:1" />
+        </div>
+        <input id="ds-opcoes" class="aviso-input" placeholder="Incrementos por prova, ex: 250, 500 (vazio = digitar)" />
         <textarea id="ds-desc" class="aviso-input aviso-textarea" placeholder="Descreva o desafio e as regras…" rows="4"></textarea>
         <button class="btn-primary" id="ds-send">Publicar desafio</button>
       </div>`;
     const tituloEl = slot.querySelector('#ds-titulo');
     const diasEl   = slot.querySelector('#ds-dias');
+    const metaEl   = slot.querySelector('#ds-meta');
+    const unidEl   = slot.querySelector('#ds-unidade');
+    const opcEl    = slot.querySelector('#ds-opcoes');
     const descEl   = slot.querySelector('#ds-desc');
     const sendBtn  = slot.querySelector('#ds-send');
     sendBtn.onclick = async () => {
       const titulo = tituloEl.value.trim();
       const descricao = descEl.value.trim();
       const dias = parseInt(diasEl.value, 10) || null;
+      const meta = parseInt(metaEl.value, 10) || null;
+      const unidade = unidEl.value.trim();
+      const opcoes = _parseOpcoes(opcEl.value);
       if (!titulo || !descricao) { showToast('Preencha título e descrição', 'error'); return; }
       sendBtn.disabled = true; sendBtn.textContent = 'Publicando…';
       try {
-        await createDesafio({ titulo, descricao, dias });
-        tituloEl.value = ''; diasEl.value = ''; descEl.value = '';
+        await createDesafio({ titulo, descricao, dias, meta, unidade, opcoes });
+        tituloEl.value = ''; diasEl.value = ''; metaEl.value = ''; unidEl.value = ''; opcEl.value = ''; descEl.value = '';
         showToast('🏆 Desafio publicado!', 'success');
         await refresh();
       } catch (e) {
