@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// FALCON · Tela de Ajustes (seções retráteis / accordion)
-// Perfil · Feedback · Segurança · Notificações · App · Dados · Tutorial ·
-// Modalidade · Legal · Conta
+// FALCON · Tela de Ajustes
+// Topo: ações rápidas (opção única, botões fixos).
+// Abaixo: grupos retráteis (accordion) com "Toque para abrir".
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// BLOCO 1 — RENDER (accordion)
+// BLOCO 1 — RENDER
 // BLOCO 2 — WIRES
 // BLOCO 3 — HELPERS
 // ─────────────────────────────────────────────────────────────
@@ -27,18 +27,7 @@ import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNo
 const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
 const WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
 
-// Monta uma seção retrátil: cabeçalho clicável + corpo escondido
-function acc(titleHtml, bodyHtml, { open = false } = {}) {
-  return `
-    <section class="ajustes-section ajustes-acc ${open ? 'open' : ''}">
-      <button type="button" class="ajustes-acc-head">
-        <span class="ajustes-section-title ajustes-acc-tt" style="margin:0">${titleHtml}</span>
-        <span class="ajustes-acc-chev">▾</span>
-      </button>
-      <div class="ajustes-acc-body" ${open ? '' : 'hidden'}>${bodyHtml}</div>
-    </section>`;
-}
-
+// Row de ação direta (botão clicável)
 const row = (id, title, sub, { danger = false } = {}) => `
   <button class="ajustes-row clickable ${danger ? 'danger' : ''}" id="${id}">
     <div class="ajustes-row-main">
@@ -47,6 +36,21 @@ const row = (id, title, sub, { danger = false } = {}) => `
     </div>
     <span class="ajustes-row-arrow">›</span>
   </button>`;
+
+// Seção retrátil: o cabeçalho tem cara de card clicável + "Toque para abrir"
+function acc(titleHtml, bodyHtml) {
+  return `
+    <section class="ajustes-acc">
+      <button type="button" class="ajustes-row clickable ajustes-acc-head">
+        <div class="ajustes-row-main">
+          <div class="ajustes-row-title">${titleHtml}</div>
+          <div class="ajustes-row-sub ajustes-acc-hint">Toque para abrir</div>
+        </div>
+        <span class="ajustes-row-arrow ajustes-acc-chev">▾</span>
+      </button>
+      <div class="ajustes-acc-body" hidden>${bodyHtml}</div>
+    </section>`;
+}
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -72,6 +76,21 @@ export async function renderAjustes(app) {
           </div>
         </div>
 
+        <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
+        <section class="ajustes-section">
+          ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
+          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
+          <div class="ajustes-row" id="rowBio">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
+            </div>
+            <label class="ajustes-toggle"><input type="checkbox" id="bioToggle"><span class="ajustes-toggle-slider"></span></label>
+          </div>
+          ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
+        </section>
+
+        <!-- Grupos retráteis -->
         ${acc('👤 Meu perfil', `
           <div class="perfil-hint ajustes-row-sub" style="padding:10px 12px 4px">
             Opcional. Usamos só para <strong>suporte e acompanhamento</strong>, <strong>comemorar seu aniversário</strong> e a comunidade <strong>Falcon Hunters</strong>. Nunca compartilhamos com terceiros.
@@ -101,16 +120,6 @@ export async function renderAjustes(app) {
           </div>
         `)}
 
-        ${acc(t('ajustes.security'), `
-          <div class="ajustes-row" id="rowBio">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
-            </div>
-            <label class="ajustes-toggle"><input type="checkbox" id="bioToggle"><span class="ajustes-toggle-slider"></span></label>
-          </div>
-        `)}
-
         ${acc('🔔 Notificações', `
           <div class="ajustes-row" id="rowMuteNotif">
             <div class="ajustes-row-main">
@@ -123,21 +132,9 @@ export async function renderAjustes(app) {
           ${row('notifGuideBtn', 'Notificações não estão chegando?', 'Toque para ver como ativar som, vibração e pop-up')}
         `)}
 
-        ${acc(t('ajustes.app'), `
-          ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
-        `)}
-
         ${acc(t('ajustes.data'), `
           ${row('exportJsonBtn', t('ajustes.json.title'), t('ajustes.json.sub'))}
           ${row('exportPdfBtn', t('ajustes.pdf.title'), t('ajustes.pdf.sub'))}
-        `)}
-
-        ${acc(t('ajustes.tutorial'), `
-          ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
-        `)}
-
-        ${acc(t('ajustes.modal.section'), `
-          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
         `)}
 
         ${acc(t('ajustes.legal'), `
@@ -173,7 +170,7 @@ export async function renderAjustes(app) {
 // BLOCO 2: WIRES
 // ═══════════════════════════════════════════════════════════════
 async function wire(app) {
-  // ── Accordion: abre/fecha cada seção ──
+  // ── Accordion: abre/fecha ──
   app.querySelectorAll('.ajustes-acc-head').forEach(head => {
     head.addEventListener('click', () => {
       const sec = head.closest('.ajustes-acc');
@@ -189,7 +186,7 @@ async function wire(app) {
   );
   app.querySelector('#trocarModalidadeBtn')?.addEventListener('click', () => navigate('/modalidade'));
 
-  // ── Meu perfil: carrega, salva, remove ──
+  // ── Meu perfil ──
   (async () => {
     try {
       const p = await getProfile();
@@ -210,24 +207,16 @@ async function wire(app) {
     const phone = app.querySelector('#perfWpp').value.trim();
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
-      await setProfile({
-        fullName: full || null, preferredName: nick || null,
-        birthDate: birth || null, phone: phone || null,
-      });
+      await setProfile({ fullName: full || null, preferredName: nick || null, birthDate: birth || null, phone: phone || null });
       if (full || nick || birth || phone) await recordConsent('perfil_contato_v1', 1);
       markPerfilDone();
       showToast('✅ Perfil salvo!', 'success');
-    } catch (e) {
-      showToast('Erro ao salvar: ' + e.message, 'error');
-    } finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+    } catch (e) { showToast('Erro ao salvar: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Salvar'; }
   });
 
   app.querySelector('#perfRemove')?.addEventListener('click', async () => {
-    const ok = await confirmModal({
-      title: 'Remover seus dados de contato?',
-      message: 'Nome, data de nascimento e WhatsApp serão apagados. Você pode preencher de novo quando quiser.',
-      confirmText: 'Remover', cancelText: 'Cancelar', danger: true,
-    });
+    const ok = await confirmModal({ title: 'Remover seus dados de contato?', message: 'Nome, data de nascimento e WhatsApp serão apagados. Você pode preencher de novo quando quiser.', confirmText: 'Remover', cancelText: 'Cancelar', danger: true });
     if (!ok) return;
     try {
       await setProfile({ fullName: null, preferredName: null, birthDate: null, phone: null });
@@ -244,13 +233,9 @@ async function wire(app) {
     const msg = ta.value.trim();
     if (!msg) { showToast('Escreva sua sugestão antes de enviar.', 'info'); return; }
     btn.disabled = true; btn.textContent = 'Enviando...';
-    try {
-      await submitFeedback(msg);
-      ta.value = '';
-      showToast('🦅 Recebido! Obrigado pela sugestão.', 'success', 5000);
-    } catch (e) {
-      showToast('Erro ao enviar: ' + e.message, 'error');
-    } finally { btn.disabled = false; btn.textContent = 'Enviar sugestão'; }
+    try { await submitFeedback(msg); ta.value = ''; showToast('🦅 Recebido! Obrigado pela sugestão.', 'success', 5000); }
+    catch (e) { showToast('Erro ao enviar: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Enviar sugestão'; }
   });
 
   // ── Bio toggle ──
