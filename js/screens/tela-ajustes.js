@@ -92,10 +92,7 @@ export async function renderAjustes(app) {
 
         <!-- Grupos retráteis -->
         ${acc('👤 Meu perfil', `
-          <div class="perfil-hint ajustes-row-sub" style="padding:10px 12px 4px">
-            Opcional. Usamos só para <strong>suporte e acompanhamento</strong>, <strong>comemorar seu aniversário</strong> e a comunidade <strong>Falcon Hunters</strong>. Nunca compartilhamos com terceiros.
-          </div>
-          <label class="input-field"><div class="input-field-label">Nome completo</div>
+          <label class="input-field" style="margin-top:6px"><div class="input-field-label">Nome completo</div>
             <input id="perfNome" placeholder="Seu nome completo" autocomplete="name" /></label>
           <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a)</div>
             <input id="perfApelido" placeholder="Ex: Elton" autocomplete="nickname" /></label>
@@ -103,7 +100,11 @@ export async function renderAjustes(app) {
             <input id="perfNasc" type="date" /></label>
           <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
             <input id="perfWpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
-          <div class="ajustes-row-sub" style="padding:2px 12px 0;font-size:12px">Ao salvar, você autoriza o uso desses dados para as finalidades acima.</div>
+          <div class="ajustes-row-sub" style="padding:8px 12px 2px;font-size:12px;line-height:1.5">
+            <strong>Esses dados são importantes para:</strong><br>
+            • Suporte, acompanhamento personalizado e atualizações referente a comunidade Falcon Hunters.<br><br>
+            Ao salvar você autoriza o uso desses dados para as finalidades acima com a garantia de segurança exigida pela LGPD.
+          </div>
           <div style="display:flex;flex-direction:column;gap:8px;padding:6px 12px 4px">
             <button class="btn-primary" id="perfSave">Salvar</button>
             <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
