@@ -62,17 +62,15 @@ function _content(stage) {
     cancel: 'Prefiro não informar' };
   return {
     icon: '🦅', title: 'Que bom ter você no Falcon',
-    intro: `Aqui você é livre — não precisa deixar nenhum dado se não quiser. Mas se o fizer,
-      garantimos que será muito mais divertido, e guardamos esse sigilo conosco com muito
-      respeito e carinho.
-      <div class="perfil-benefits">
+    intro: `<div class="perfil-benefits">
         <strong>Com esses dados, podemos:</strong>
         <ul>
           <li>Te dar <strong>suporte e acompanhamento</strong> de perto</li>
           <li><strong>Comemorar seu aniversário</strong> com você — você é especial para nós.</li>
           <li>Te <strong>manter informado</strong> sobre a nossa comunidade <strong>Falcon Hunters</strong></li>
         </ul>
-      </div>`,
+      </div>
+      <p style="margin:14px 0 0">Aqui você é livre — não precisa deixar nenhum dado se não quiser. Mas se o fizer, garantimos que será muito mais divertido, e guardamos esse sigilo conosco com muito respeito e carinho.</p>`,
     cancel: 'Agora não' };
 }
 
@@ -88,7 +86,7 @@ function _show(stage, force = false) {
       <div class="modal" style="max-width:400px;text-align:center">
         <div style="font-size:40px;margin-bottom:6px">${c.icon}</div>
         <div class="modal-title">${c.title}</div>
-        <div class="modal-hint" style="margin:12px 0 18px">${c.body}</div>
+        <div class="modal-hint" style="margin:12px 0 18px;font-size:15px;line-height:1.65">${c.body}</div>
         <div class="modal-actions"><button class="btn-primary" id="pf-ok" style="width:100%">Entendi</button></div>
       </div>`;
     document.body.appendChild(overlay);
@@ -100,7 +98,7 @@ function _show(stage, force = false) {
     <div class="modal" style="max-width:420px">
       <div style="font-size:38px;text-align:center;margin-bottom:2px">${c.icon}</div>
       <div class="modal-title" style="text-align:center">${c.title}</div>
-      <div class="modal-hint" style="margin-bottom:14px">${c.intro}</div>
+      <div class="modal-hint" style="margin-bottom:14px;font-size:15px;line-height:1.65">${c.intro}</div>
 
       <label class="input-field"><div class="input-field-label">Nome completo</div>
         <input id="pf-nome" placeholder="Seu nome completo" autocomplete="name" /></label>
