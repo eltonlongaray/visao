@@ -156,11 +156,6 @@ export async function renderAjustes(app) {
           </button>
         `)}
 
-        ${acc(t('ajustes.account'), `
-          ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
-          ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
-        `)}
-
         <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
         <section class="ajustes-section">
           ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
@@ -174,6 +169,12 @@ export async function renderAjustes(app) {
           </div>
           ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
         </section>
+
+        <!-- Conta (retrátil, no fim de tudo) -->
+        ${acc(t('ajustes.account'), `
+          ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
+          ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
+        `)}
 
         <div class="ajustes-version">
           Falcon · v1.0.0 · MVP<br>
