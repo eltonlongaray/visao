@@ -96,21 +96,7 @@ export async function renderAjustes(app) {
 
         ${adminSection}
 
-        <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
-        <section class="ajustes-section">
-          ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
-          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
-          <div class="ajustes-row" id="rowBio">
-            <div class="ajustes-row-main">
-              <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
-              <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
-            </div>
-            <label class="ajustes-toggle"><input type="checkbox" id="bioToggle"><span class="ajustes-toggle-slider"></span></label>
-          </div>
-          ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
-        </section>
-
-        <!-- Grupos retráteis -->
+        <!-- Grupos retráteis (topo) -->
         ${acc('👤 Meu perfil', `
           <label class="input-field" style="margin-top:6px"><div class="input-field-label">Nome completo</div>
             <input id="perfNome" placeholder="Seu nome completo" autocomplete="name" /></label>
@@ -173,6 +159,20 @@ export async function renderAjustes(app) {
           ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
           ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
         `)}
+
+        <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
+        <section class="ajustes-section">
+          ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
+          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
+          <div class="ajustes-row" id="rowBio">
+            <div class="ajustes-row-main">
+              <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
+              <div class="ajustes-row-sub">${t('ajustes.bio.sub')}</div>
+            </div>
+            <label class="ajustes-toggle"><input type="checkbox" id="bioToggle"><span class="ajustes-toggle-slider"></span></label>
+          </div>
+          ${row('forceUpdateBtn', t('ajustes.update.title'), t('ajustes.update.sub'))}
+        </section>
 
         <div class="ajustes-version">
           Falcon · v1.0.0 · MVP<br>
