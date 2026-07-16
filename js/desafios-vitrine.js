@@ -49,6 +49,10 @@ export async function openDesafiosVitrine() {
     return;
   }
 
+  // A vitrine mostra só os OFICIAIS — o que está em jogo pra comunidade.
+  // Individual e "com amigos" são privados e vivem na aba.
+  desafios = desafios.filter(d => d.modalidade === 'oficial');
+
   markDesafiosSeen(desafios.map(d => d.id));
   const dot = document.getElementById('desafios-dot');
   if (dot) dot.style.display = 'none';
@@ -70,9 +74,11 @@ export async function openDesafiosVitrine() {
         <span class="ds-badge gray">🙋 ${dParts.length}</span>
       </div>
       <div class="vitrine-desc">${_esc(d.descricao).replace(/\n/g, '<br>')}</div>
+      ${d.prenda ? `<div class="vitrine-prenda">🎭 <strong>Quem não concluir paga:</strong> ${_esc(d.prenda)}</div>` : ''}
       <button class="ds-join ${joined ? 'joined' : ''}" data-go="${d.id}" data-joined="${joined ? '1' : ''}">
         ${joined ? 'Ir pro desafio →' : '🙋 Participar'}
       </button>
+      ${!joined && d.prenda ? `<div class="vitrine-aceite">Ao participar, você aceita a prenda combinada.</div>` : ''}
     </div>`;
   }).join('');
 

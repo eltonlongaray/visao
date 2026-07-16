@@ -23,6 +23,34 @@ export const MOLDES = [
 
 export const MOLDE_BY_ID = Object.fromEntries(MOLDES.map(m => [m.id, m]));
 
+// ── Modalidades ──────────────────────────────────────────────
+// oficial só aparece pra admin. A prenda é combinada ANTES de abrir.
+export const MODALIDADES = [
+  { id: 'individual', emoji: '🧍', nome: 'Sozinho',      desc: 'Só você. Ninguém mais vê.' },
+  { id: 'amigos',     emoji: '👥', nome: 'Com amigos',   desc: 'Você convida por código. Só os convidados veem.' },
+  { id: 'oficial',    emoji: '🏆', nome: 'Oficial',      desc: 'Aberto a toda a comunidade Falcon.', adminOnly: true },
+];
+
+// ── Prendas sugeridas (quem não conclui paga) ────────────────
+// Regra de ouro: leve e do bem, nunca degradante. O criador pode escrever a sua.
+export const PRENDAS = [
+  'Cantar o refrão de uma música no grupo 🎤',
+  'Pagar o café do grupo ☕',
+  'Contar a pior piada que sabe 😂',
+  '20 flexões em vídeo 💪',
+  'Elogiar publicamente cada membro do grupo 💛',
+  'Postar uma foto ridícula de criança 👶',
+  'Mandar um áudio cantando o hino do Falcon 🦅',
+];
+
+// Código de convite curto e legível (sem 0/O/1/I pra não confundir)
+export function gerarCodigo() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
+  return s;
+}
+
 // Emoji do desafio a partir do tipo salvo (fallback 🏆)
 export function emojiDoTipo(tipo) {
   return MOLDE_BY_ID[tipo]?.emoji || '🏆';

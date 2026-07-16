@@ -33,32 +33,54 @@ export async function fetchDesafios() {
     .select('*')
     .neq('status', 'rascunho')
     .order('created_at', { ascending: false })
-    .limit(10);
+    .limit(30);   // o RLS já filtra: oficiais + os meus + os que eu participo
   if (error) throw new Error(error.message || 'Erro ao carregar desafios');
   return data || [];
 }
-export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo }) {
-  const { error } = await supabase.from('desafios').insert({
+export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
+                                      modalidade, codigo, prenda, dataInicio, dataFim }) {
+  const { data, error } = await supabase.from('desafios').insert({
     titulo, descricao,
     dias_total: dias || null,
     meta_diaria: meta || null,
     unidade: unidade || null,
     prova_opcoes: (opcoes && opcoes.length) ? opcoes : null,
     tipo: tipo || null,
-  });
+    modalidade: modalidade || 'oficial',
+    codigo: codigo || null,
+    prenda: prenda || null,
+    data_inicio: dataInicio || null,
+    data_fim: dataFim || null,
+  }).select('id').single();
   if (error) throw new Error(error.message || 'Não foi possível publicar');
+  return data?.id;
 }
-export async function updateDesafio(id, { titulo, descricao, dias, meta, unidade, opcoes, tipo }) {
+export async function updateDesafio(id, { titulo, descricao, dias, meta, unidade, opcoes, tipo,
+                                          prenda, dataInicio, dataFim }) {
   const patch = {
     titulo, descricao,
     dias_total: dias || null,
     meta_diaria: meta || null,
     unidade: unidade || null,
     prova_opcoes: (opcoes && opcoes.length) ? opcoes : null,
+    prenda: prenda || null,
+    data_inicio: dataInicio || null,
+    data_fim: dataFim || null,
   };
   if (tipo !== undefined) patch.tipo = tipo || null;
   const { error } = await supabase.from('desafios').update(patch).eq('id', id);
   if (error) throw new Error(error.message || 'Não foi possível editar');
+}
+
+// Entra num desafio de amigos pelo código (RPC SECURITY DEFINER no banco —
+// o convidado não consegue "ver" o desafio antes de entrar).
+export async function entrarPorCodigo(codigo, nome) {
+  const { data, error } = await supabase.rpc('entrar_por_codigo', {
+    p_codigo: String(codigo || '').trim().toUpperCase(),
+    p_nome: nome || null,
+  });
+  if (error) throw new Error(error.message?.includes('Código inválido') ? 'Código inválido 🤔' : (error.message || 'Erro ao entrar'));
+  return data;
 }
 export async function deleteDesafio(id) {
   const { error } = await supabase.from('desafios').delete().eq('id', id);
@@ -95,7 +117,8 @@ export async function loadDesafiosDot() {
   try {
     const list = await fetchDesafios();
     const seen = _seen();
-    const novos = list.filter(d => !seen.has(d.id)).length;
+    // A bolinha é sobre a vitrine — só desafios oficiais (os públicos)
+    const novos = list.filter(d => d.modalidade === 'oficial' && !seen.has(d.id)).length;
     dot.style.display = novos > 0 ? '' : 'none';
   } catch {
     dot.style.display = 'none';
