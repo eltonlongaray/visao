@@ -2,7 +2,7 @@
 // FALCON · Desafios — modal-vitrine da Home ("o que tá em jogo")
 // Mostra os desafios em oferta. Participar → entra e vai pra aba (a arena).
 // ═══════════════════════════════════════════════════════════════
-import { fetchDesafios, fetchParticipantes, joinDesafio, markDesafiosSeen } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchPlacar, joinDesafio, markDesafiosSeen } from './desafios.js';
 import { emojiDoTipo } from './desafios-moldes.js';
 import { getProfile } from './banco-dados.js';
 import { auth } from './autenticacao.js';
@@ -41,9 +41,9 @@ export async function openDesafiosVitrine() {
   const meuNome = _nome(profile, auth.currentUser?.email);
 
   const listEl = overlay.querySelector('#vitrine-list');
-  let desafios = [], parts = [];
+  let desafios = [], parts = [], placar = {};
   try {
-    [desafios, parts] = await Promise.all([fetchDesafios(), fetchParticipantes()]);
+    [desafios, parts, placar] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchPlacar()]);
   } catch (e) {
     listEl.innerHTML = `<div class="reminder-empty">${_esc(e.message)}</div>`;
     return;
@@ -63,16 +63,18 @@ export async function openDesafiosVitrine() {
   }
 
   listEl.innerHTML = desafios.map(d => {
-    const dParts = parts.filter(p => p.desafio_id === d.id);
-    const joined = dParts.some(p => p.user_id === myUid);
+    // Só o agregado do grupo — quem está dentro é segredo de quem está dentro
+    const pl = placar[d.id] || { total: 0, emDia: 0, pct: 0 };
+    const joined = parts.some(p => p.desafio_id === d.id && p.user_id === myUid);
     const meta = d.meta_diaria, unidade = d.unidade || '';
     return `<div class="vitrine-item">
       <div class="vitrine-title">${emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</div>
       <div class="ds-badges">
         ${d.dias_total ? `<span class="ds-badge amber">${d.dias_total} dias</span>` : ''}
         ${meta ? `<span class="ds-badge teal">meta ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
-        <span class="ds-badge gray">🙋 ${dParts.length}</span>
+        <span class="ds-badge gray">🙋 ${pl.total} participando</span>
       </div>
+      ${pl.total ? `<div class="vitrine-placar">🔥 <strong>${pl.pct}% do grupo</strong> está em dia hoje</div>` : ''}
       <div class="vitrine-desc">${_esc(d.descricao).replace(/\n/g, '<br>')}</div>
       ${d.prenda ? `<div class="vitrine-prenda">🎭 <strong>Quem não concluir paga:</strong> ${_esc(d.prenda)}</div>` : ''}
       <button class="ds-join ${joined ? 'joined' : ''}" data-go="${d.id}" data-joined="${joined ? '1' : ''}">

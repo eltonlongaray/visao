@@ -26,9 +26,12 @@ export const MOLDE_BY_ID = Object.fromEntries(MOLDES.map(m => [m.id, m]));
 // ── Modalidades ──────────────────────────────────────────────
 // oficial só aparece pra admin. A prenda é combinada ANTES de abrir.
 export const MODALIDADES = [
-  { id: 'individual', emoji: '🧍', nome: 'Sozinho',      desc: 'Só você. Ninguém mais vê.' },
-  { id: 'amigos',     emoji: '👥', nome: 'Com amigos',   desc: 'Você convida por código. Só os convidados veem.' },
-  { id: 'oficial',    emoji: '🏆', nome: 'Oficial',      desc: 'Aberto a toda a comunidade Falcon.', adminOnly: true },
+  { id: 'individual', emoji: '🧍', nome: 'Sozinho',
+    desc: 'Só você. Ninguém mais pode ver o que acontece dentro.' },
+  { id: 'amigos',     emoji: '👥', nome: 'Com amigos',
+    desc: 'Você convida por código. Só os convidados entram, e mais ninguém pode ver o que acontece dentro.' },
+  { id: 'oficial',    emoji: '🏆', nome: 'Oficial', adminOnly: true,
+    desc: 'Aberto a todos que quiserem participar, mas só os participantes veem o que acontece dentro.' },
 ];
 
 // ── Prendas sugeridas (quem não conclui paga) ────────────────

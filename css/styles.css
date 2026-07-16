@@ -2162,6 +2162,11 @@ body.time-picker-open { overflow: hidden; }
 }
 .ds-prenda-aviso { font-size: 11px; color: var(--muted); line-height: 1.45; margin: -2px 2px 8px; }
 .vitrine-aceite { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+.vitrine-placar {
+  font-size: 12px; color: var(--text);
+  background: rgba(52,211,153,0.12); border-radius: 10px;
+  padding: 7px 10px; margin: 8px 0 0;
+}
 .ds-codigo-box {
   font-size: 12px; color: var(--text);
   background: rgba(245,158,11,0.10); border-radius: 10px;

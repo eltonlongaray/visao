@@ -88,6 +88,21 @@ export async function deleteDesafio(id) {
 }
 
 // ── Participação + check-ins (aba) ───────────────────────────
+// Placar público dos desafios OFICIAIS: agregado, SEM nomes.
+// É o que quem está de fora pode ver — "18 participando · 82% em dia".
+// Quem está dentro (ranking com nomes) é segredo de quem entrou.
+export async function fetchPlacar() {
+  const { data, error } = await supabase.rpc('placar_oficiais');
+  if (error) return {};
+  const map = {};
+  (data || []).forEach(r => {
+    const total = Number(r.participantes) || 0;
+    const emDia = Number(r.em_dia) || 0;
+    map[r.desafio_id] = { total, emDia, pct: total ? Math.round((emDia / total) * 100) : 0 };
+  });
+  return map;
+}
+
 export async function fetchParticipantes() {
   const { data } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
   return data || [];

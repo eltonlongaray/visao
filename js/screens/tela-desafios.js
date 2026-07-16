@@ -3,7 +3,7 @@
 // Admin cria por MOLDE (formato pré-pronto). Vídeo de prova: próximo incremento.
 // ═══════════════════════════════════════════════════════════════
 import {
-  fetchDesafios, fetchParticipantes, fetchCheckins,
+  fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, addCheckin, entrarPorCodigo,
   createDesafio, updateDesafio, deleteDesafio,
   parseOpcoes, markDesafiosSeen,
@@ -57,18 +57,20 @@ export async function renderDesafios(app) {
   const isAdmin = !!profile?.isAdmin && !isAdminPreview();
 
   async function refresh() {
-    let desafios = [], parts = [], checks = [];
+    let desafios = [], parts = [], checks = [], placar = {};
     try {
-      [desafios, parts, checks] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins()]);
+      [desafios, parts, checks, placar] = await Promise.all([
+        fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(),
+      ]);
     } catch (e) {
       app.innerHTML = `<div class="screen-pad"><div class="ds-empty">${_esc(e.message)}</div></div>${bottomNav('desafios')}`;
       return;
     }
     markDesafiosSeen(desafios.map(d => d.id));
-    draw(desafios, parts, checks);
+    draw(desafios, parts, checks, placar);
   }
 
-  function draw(desafios, parts, checks) {
+  function draw(desafios, parts, checks, placar) {
     const today = _today();
     const topo = `
       <div class="ds-topo">
@@ -94,10 +96,14 @@ export async function renderDesafios(app) {
               <button class="ds-del" data-del="${d.id}" title="Apagar" aria-label="Apagar">🗑</button>
             </div>` : '';
 
+          // Oficial: quem não entrou não lê os participantes (RLS) → usa o agregado
+          const totalParts = d.modalidade === 'oficial'
+            ? (placar[d.id]?.total ?? dParts.length)
+            : dParts.length;
           const badges = `
             ${d.dias_total ? `<span class="ds-badge amber">${d.dias_total} dias</span>` : ''}
             ${meta ? `<span class="ds-badge teal">meta ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
-            ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${dParts.length}</span>` : ''}`;
+            ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}`;
 
           // Código de convite — só o dono de um desafio de amigos vê (pra compartilhar)
           const codigoHtml = (d.modalidade === 'amigos' && d.codigo && souDono)
