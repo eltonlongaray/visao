@@ -1802,6 +1802,25 @@ const TASK_ICONS = [
 ];
 
 // Menu popover ao clicar no emoji da tarefa
+// ── Área de transferência de tarefa (copiar de um dia, colar em outro) ──
+// Guarda em localStorage: sobrevive a trocar de semana/tela.
+const CLIP_KEY = 'visao_task_copiada';
+function _getClip() {
+  try { return JSON.parse(localStorage.getItem(CLIP_KEY) || 'null'); } catch { return null; }
+}
+function _setClip(t) {
+  localStorage.setItem(CLIP_KEY, JSON.stringify({
+    activityId: t.activityId || null,
+    title: t.title,
+    desc: t.desc || '',
+    startTime: t.startTime || '',
+    categoryId: t.categoryId || null,
+    icon: t.icon || '',
+    kind: t.kind || 'task',
+    reminderEnabled: t.reminderEnabled || false,
+  }));
+}
+
 function openTaskMenu(triggerEl) {
   // Fecha qualquer menu anterior
   document.querySelectorAll('.task-menu-pop').forEach(m => m.remove());
@@ -1822,6 +1841,8 @@ function openTaskMenu(triggerEl) {
   ` : `
     <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
     <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
+    <button class="task-menu-item" data-menu-action="copy">📋 Copiar</button>
+    ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📌 Colar abaixo</button>` : ''}
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   `;
   document.body.appendChild(menu);
@@ -2232,6 +2253,65 @@ function attachHandlers(app) {
       });
 
       showToast('Tarefa duplicada', 'success');
+      return;
+    }
+
+    // Copiar tarefa (guarda pra colar em qualquer dia)
+    const copyBtn = e.target.closest('[data-action="copy"]');
+    if (copyBtn) {
+      const taskEl = copyBtn.closest('[data-task-id]');
+      const day = weekData.find(d => d.id === taskEl.dataset.day);
+      const t = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+      if (!t) return;
+      _setClip(t);
+      showToast(`📋 "${t.title}" copiada — cole em qualquer dia pelo ⋮`, 'success');
+      return;
+    }
+
+    // Colar abaixo desta tarefa (mesmo turno da tarefa de referência)
+    const pasteBtn = e.target.closest('[data-action="paste"]');
+    if (pasteBtn) {
+      const clip = _getClip();
+      if (!clip) return;
+      const taskEl = pasteBtn.closest('[data-task-id]');
+      const dayDocId = taskEl.dataset.day;
+      const day = weekData.find(d => d.id === dayDocId);
+      const ref = day?.tasks.find(x => x.id === taskEl.dataset.taskId);
+      if (!ref) return;
+
+      // Mesma mecânica do duplicar: empurra os posteriores e entra logo abaixo
+      const sameShift = day.tasks.filter(x => x.shiftId === ref.shiftId).sort(taskSort);
+      const currentIdx = sameShift.findIndex(x => x.id === ref.id);
+      const insertOrder = currentIdx + 1;
+      const updates = [];
+      for (let i = currentIdx + 1; i < sameShift.length; i++) {
+        const task = sameShift[i];
+        const newOrder = i + 1;
+        if (task.order !== newOrder) {
+          task.order = newOrder;
+          updates.push(updateDayTask(dayDocId, task.id, { order: newOrder }));
+        }
+      }
+      await Promise.all(updates);
+
+      const newTask = { ...clip, shiftId: ref.shiftId, done: false, order: insertOrder };
+      const tid = await addDayTask(dayDocId, newTask);
+      day.tasks.push({ id: tid, ...newTask });
+      _clearUndoForDay(dayDocId);
+      playDone();
+
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+      if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId);
+      requestAnimationFrame(() => {
+        const newEl = dayCardEl?.querySelector(`[data-task-id="${tid}"]`);
+        if (newEl) {
+          newEl.classList.add('task-flash');
+          newEl.addEventListener('animationend', () => newEl.classList.remove('task-flash'), { once: true });
+        }
+      });
+
+      showToast('📌 Tarefa colada', 'success');
       return;
     }
 
@@ -3134,6 +3214,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <div class="modal-title">Adicionar</div>
       <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(_wdFull(day.date))} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(_moShort(day.date))}.</div>
 
+      ${_getClip() ? `<button type="button" class="btn-secondary" id="m-paste" style="width:100%;margin-bottom:12px">📌 Colar "${escape(_getClip().title)}"</button>` : ''}
+
       <div class="input-field-label">Tipo</div>
       <div class="kind-chips" id="kind-chips">
         <button type="button" class="kind-chip active" data-kind="task">📋 Tarefa</button>
@@ -3184,6 +3266,28 @@ function openActivityPicker(app, dayDocId, shiftId) {
     </div>
   `;
   document.body.appendChild(modal);
+
+  // Colar a tarefa copiada direto neste turno (funciona até num dia vazio)
+  modal.querySelector('#m-paste')?.addEventListener('click', async () => {
+    const clip = _getClip();
+    if (!clip) return;
+    const order = day.tasks.filter(x => x.shiftId === shiftId).length;
+    const newTask = { ...clip, shiftId, done: false, order };
+    try {
+      const tid = await addDayTask(dayDocId, newTask);
+      day.tasks.push({ id: tid, ...newTask });
+      modal.remove();
+      playDone();
+      const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+      if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
+      updateDayCardStats(dayDocId);
+      showToast('📌 Tarefa colada', 'success');
+    } catch (err) {
+      console.error('[paste] erro:', err);
+      showToast('Erro ao colar. Tente de novo.', 'error');
+    }
+  });
+
   // Não auto-foca o título quando o tour está rodando (evita abrir teclado mobile)
   if (!tourIsActive()) {
     setTimeout(() => modal.querySelector('#m-title').focus(), 50);
