@@ -47,9 +47,11 @@ function acc(titleHtml, bodyHtml, { open = false } = {}) {
       <button type="button" class="ajustes-row clickable ajustes-acc-head">
         <div class="ajustes-row-main">
           <div class="ajustes-row-title">${titleHtml}</div>
-          <div class="ajustes-row-sub ajustes-acc-hint">Toque para abrir</div>
         </div>
-        <span class="ajustes-row-arrow ajustes-acc-chev">▾</span>
+        <span class="ajustes-acc-cta">
+          <span class="ajustes-acc-hint">Toque para abrir</span>
+          <span class="ajustes-row-arrow ajustes-acc-chev">▾</span>
+        </span>
       </button>
       <div class="ajustes-acc-body"${open ? '' : ' hidden'}>${bodyHtml}</div>
     </section>`;

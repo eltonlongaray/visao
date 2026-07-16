@@ -5164,6 +5164,8 @@ body.tour-active { overflow: hidden; }
   border: 1.5px solid rgba(148,163,184,0.4);
 }
 .ajustes-acc.open .ajustes-acc-head { border-color: var(--accent); }
+.ajustes-acc-cta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ajustes-acc-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .ajustes-acc-chev { font-size: 18px; transition: transform 0.2s ease; }
 .ajustes-acc.open .ajustes-acc-chev { transform: rotate(180deg); }
 .ajustes-acc.open .ajustes-acc-hint { display: none; }
