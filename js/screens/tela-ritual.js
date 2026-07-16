@@ -1842,7 +1842,7 @@ function openTaskMenu(triggerEl) {
     <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
     <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
     <button class="task-menu-item" data-menu-action="copy">📋 Copiar</button>
-    ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📌 Colar abaixo</button>` : ''}
+    ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📑 Colar abaixo</button>` : ''}
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   `;
   document.body.appendChild(menu);
@@ -2311,7 +2311,7 @@ function attachHandlers(app) {
         }
       });
 
-      showToast('📌 Tarefa colada', 'success');
+      showToast('📑 Tarefa colada', 'success');
       return;
     }
 
@@ -3214,7 +3214,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <div class="modal-title">Adicionar</div>
       <div class="modal-hint">No turno <strong>${escape(shift?.name || '')}</strong> de ${escape(_wdFull(day.date))} ${escape(String(day.date.getDate()).padStart(2,'0'))} ${escape(_moShort(day.date))}.</div>
 
-      ${_getClip() ? `<button type="button" class="btn-secondary" id="m-paste" style="width:100%;margin-bottom:12px">📌 Colar "${escape(_getClip().title)}"</button>` : ''}
+      ${_getClip() ? `<button type="button" class="btn-secondary" id="m-paste" style="width:100%;margin-bottom:12px">📑 Colar "${escape(_getClip().title)}"</button>` : ''}
 
       <div class="input-field-label">Tipo</div>
       <div class="kind-chips" id="kind-chips">
@@ -3281,7 +3281,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       const dayCardEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
       if (dayCardEl) dayCardEl.querySelector('.day-card-content').innerHTML = renderDayContent(day);
       updateDayCardStats(dayDocId);
-      showToast('📌 Tarefa colada', 'success');
+      showToast('📑 Tarefa colada', 'success');
     } catch (err) {
       console.error('[paste] erro:', err);
       showToast('Erro ao colar. Tente de novo.', 'error');

@@ -403,7 +403,7 @@ export default {
   'ritual.task.restore':  '↩️ Restore',
   'ritual.task.delete':   '🗑️ Delete',
   'ritual.task.edit':     '✏️ Edit',
-  'ritual.task.dup':      '📑 Duplicate',
+  'ritual.task.dup':      '📌📌 Duplicate',
   'ritual.overdue.title': '⏰ Overdue reminder',
   'ritual.overdue.body':  'scheduled for <strong>{date} at {time}</strong> hasn\'t been handled.',
   'ritual.overdue.q':     'What happened?',
