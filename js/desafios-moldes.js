@@ -17,8 +17,8 @@ export const MOLDES = [
     desc: 'Corra 5 km por dia. Comprove com o print do app + um vídeo curto.' },
   { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'video',
     desc: 'Leia 20 páginas por dia.' },
-  { id: 'resumo',        emoji: '🎧', nome: 'Resumo áudio/vídeo', titulo: 'Resumo do dia',       unidade: 'resumo',     meta: 1,  dias: 21, opcoes: [1],        prova: 'video',
-    desc: 'Grave um vídeo curto resumindo o que aprendeu hoje.' },
+  { id: 'autoconhecimento', emoji: '🧠', nome: 'Autoconhecimento', titulo: 'Uma reflexão por dia', unidade: 'reflexão',  meta: 1,  dias: 21, opcoes: [1],        prova: 'honra',
+    desc: 'Reserve um momento por dia pra se olhar por dentro: como foi seu dia, o que você sentiu e o que aprendeu. (Prova por honra — isso é seu.)' },
 ];
 
 export const MOLDE_BY_ID = Object.fromEntries(MOLDES.map(m => [m.id, m]));
