@@ -39,10 +39,11 @@ const row = (id, title, sub, { danger = false } = {}) => `
     <span class="ajustes-row-arrow">›</span>
   </button>`;
 
-// Seção retrátil: o cabeçalho tem cara de card clicável + "Toque para abrir"
-function acc(titleHtml, bodyHtml) {
+// Seção retrátil: o cabeçalho tem cara de card clicável + "Toque para abrir".
+// { open: true } já nasce aberta (ex: Meu perfil).
+function acc(titleHtml, bodyHtml, { open = false } = {}) {
   return `
-    <section class="ajustes-acc">
+    <section class="ajustes-acc${open ? ' open' : ''}">
       <button type="button" class="ajustes-row clickable ajustes-acc-head">
         <div class="ajustes-row-main">
           <div class="ajustes-row-title">${titleHtml}</div>
@@ -50,7 +51,7 @@ function acc(titleHtml, bodyHtml) {
         </div>
         <span class="ajustes-row-arrow ajustes-acc-chev">▾</span>
       </button>
-      <div class="ajustes-acc-body" hidden>${bodyHtml}</div>
+      <div class="ajustes-acc-body"${open ? '' : ' hidden'}>${bodyHtml}</div>
     </section>`;
 }
 
@@ -115,7 +116,7 @@ export async function renderAjustes(app) {
             <button class="btn-primary" id="perfSave">Salvar</button>
             <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
           </div>
-        `)}
+        `, { open: true })}
 
         ${acc('💬 Sugerir melhoria', `
           <div class="ajustes-row-sub" style="padding:10px 12px 6px">
