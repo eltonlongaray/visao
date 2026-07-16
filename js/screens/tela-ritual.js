@@ -1840,9 +1840,9 @@ function openTaskMenu(triggerEl) {
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   ` : `
     <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
-    <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
     <button class="task-menu-item" data-menu-action="copy">📋 Copiar</button>
     ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📑 Colar abaixo</button>` : ''}
+    <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   `;
   document.body.appendChild(menu);
