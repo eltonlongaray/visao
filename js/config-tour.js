@@ -2,7 +2,7 @@
 // VISÃO · Tour de Boas-vindas — COMPLETO (16 passos) + AUTOMATIZADO
 // Ordem por tela (Home → Ritual → Desempenho → Desafios → Ajustes).
 // O tour assume o controle do app, abre o que precisa e mostra.
-// O usuário só clica "Próximo →".
+// O usuário só clica "Vamos →".
 //
 // noCollapse: true em TODOS os steps → barra sempre visível (com X pra sair).
 // ═══════════════════════════════════════════════════════════════
@@ -21,7 +21,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     route: '/home',
     title: 'Bem-vindo ao Falcon ✨',
-    message: 'Vou te mostrar o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
+    message: 'Vou te mostrar o essencial. Eu mesmo abro as telas — você só clica "Vamos →".',
     primaryBtn: 'Vamos →'
   },
 
@@ -34,7 +34,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Tema dia/noite',
     message: 'Aqui você alterna entre claro e escuro. Sua escolha fica salva.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 3. HOME: horários de acordar/dormir ──
@@ -46,7 +46,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '🌅 Acordar · 🌙 Dormir',
     message: 'Marque os horários que pretende acordar e dormir. Isso vira a base — o Ritual te ajuda a registrar o real todo dia.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 4. HOME: biblioteca de atividades ──
@@ -58,7 +58,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Sua biblioteca',
     message: 'Cadastre suas atividades aqui (Treino, Estudo, Hidratação...). Elas viram opções no Ritual pra você não digitar tudo de novo.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 5. HOME: Avisos ──
@@ -70,7 +70,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '📢 Avisos',
     message: 'Aqui chegam os comunicados e novidades do Falcon. Quando tiver algo novo, aparece uma bolinha vermelha.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 6. HOME: Desafios (a vitrine) ──
@@ -82,7 +82,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '🏆 Desafios',
     message: 'Na Home você vê o que está "em jogo": os desafios abertos pra você entrar. O desafio em si acontece na aba Desafios — já te mostro.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 7. RITUAL: estrutura geral + marcar feito ──
@@ -103,7 +103,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: 'O Ritual é o coração do app',
     message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Suas atividades ficam por turno (manhã, tarde, noite), e você <strong>toca pra marcar feito 👍</strong> — esse é o gesto de todo dia.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 8. RITUAL: 2 toques no mês = calendário ──
@@ -115,7 +115,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Calendário rápido',
     message: 'Dê <strong>2 toques aqui no topo</strong> (onde mostra a semana e o mês) pra abrir um calendário. Toque em qualquer dia pra criar uma atividade nele — útil pra agendar coisas pra daqui a meses.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 9. RITUAL: tarefa vs compromisso ──
@@ -139,7 +139,7 @@ export const ONBOARDING_STEPS = [
     holePad: 10,
     title: 'Tarefa ou Compromisso?',
     message: 'Tudo aqui é "atividade". Você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário marcado — reuniões, contas, consultas).',
-    primaryBtn: 'Próximo →',
+    primaryBtn: 'Vamos →',
     onLeave: async () => {
       document.querySelector('#m-cancel')?.click();
       await wait(200);
@@ -162,7 +162,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: '📅 Compromissos da semana',
     message: 'Abaixo de domingo, esse card junta TODOS os compromissos da semana ordenados por hora. Ótimo pra ver o que tem marcado sem abrir dia por dia.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 11. DESEMPENHO ──
@@ -174,7 +174,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Desempenho',
     message: 'Aqui você vê seu progresso: % concluído do mês, evolução dos 12 meses, qualidade do sono e reflexão semanal. É a recompensa de manter o ritual.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 12. DESAFIOS: a aba ──
@@ -187,7 +187,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',
     message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... É muito mais fácil manter o hábito junto com alguém.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 13. DESAFIOS: modalidades + prenda ──
@@ -200,7 +200,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: 'Crie ou entre num desafio',
     message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não conclui paga uma prenda 🎭 — combinada antes, pra motivar a galera.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 14. AJUSTES: Meu perfil ──
@@ -213,7 +213,7 @@ export const ONBOARDING_STEPS = [
     holePad: 10,
     title: '👤 Seu perfil',
     message: 'Se quiser, preencha seu nome, aniversário e WhatsApp. Usamos só pra dar suporte, comemorar seu dia e te chamar pra comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 15. AJUSTES: rever tutorial ──
@@ -225,7 +225,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Tutorial sempre disponível',
     message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório PDF.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Vamos →'
   },
 
   // ── 16. Final ──
