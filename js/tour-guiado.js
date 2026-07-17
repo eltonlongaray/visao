@@ -171,15 +171,15 @@ async function showStep() {
 
   positionHole(target, step);
   renderBar(step);
-  positionBar(target, step);
 
-  // Scroll suave pro target ficar visível (acima da barra)
+  // Rola PRIMEIRO, posiciona a barra DEPOIS — evita o flash de a barra
+  // pular pro topo e voltar pro rodapé quando o alvo está mais abaixo.
   if (target) {
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     await wait(320);
     positionHole(target, step);
-    positionBar(target, step);
   }
+  positionBar(target, step);
 }
 
 // Decide se a barra fica embaixo (padrão) ou no topo (se o alvo está perto do rodapé)
