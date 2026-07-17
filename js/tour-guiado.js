@@ -19,6 +19,7 @@ let steps = [];
 let i = 0;
 let dom = { backdrop: null, bar: null, hole: null };
 let targetClickCleanup = null;  // remove listener de click no alvo entre steps
+let transitioning = false;      // trava reposicionamento por scroll durante a troca de step
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -130,11 +131,12 @@ async function showStep() {
 
   // Esconde o recorte durante a transição — senão o spotlight do passo
   // anterior fica visível no lugar errado enquanto navega/prepara/rola.
+  // Trava o reposicionamento por scroll durante a transição — senão o listener
+  // de scroll recoloca o recorte no alvo (ainda sem layout) e ele pisca no topo.
+  transitioning = true;
   if (dom.hole) dom.hole.style.display = 'none';
-  // Já monta a MENSAGEM deste passo, mas mantém a barra INVISÍVEL até ela estar
-  // posicionada — senão ela pula de lugar (rodapé↔topo) durante a transição.
+  // Já monta a MENSAGEM deste passo (a barra fica sempre no rodapé, não pula).
   renderBar(step);
-  if (dom.bar) dom.bar.style.visibility = 'hidden';
 
   // Navega se preciso
   if (step.route && location.hash !== `#${step.route}`) {
@@ -176,16 +178,15 @@ async function showStep() {
     };
   }
 
-  // Rola PRIMEIRO, posiciona recorte + barra DEPOIS — sem flash.
-  // scrollBlock por passo: 'start' mostra o topo do alvo (ex: dia do Ritual).
-  if (target) {
+  // Rola PRIMEIRO, posiciona recorte + barra DEPOIS. noScroll: passo cuida da
+  // rolagem no prepare (ex: forçar topo). scrollBlock: 'start' mostra o topo do alvo.
+  if (target && !step.noScroll) {
     target.scrollIntoView({ behavior: 'smooth', block: step.scrollBlock || 'center' });
     await wait(320);
   }
   positionHole(target, step);
   positionBar(target, step);
-  // Já está no lugar certo — revela a barra sem o pulo.
-  if (dom.bar) dom.bar.style.visibility = '';
+  transitioning = false;
 }
 
 // Decide se a barra fica embaixo (padrão) ou no topo (se o alvo está perto do rodapé)
@@ -313,7 +314,7 @@ function waitForEl(selector, timeoutMs = 3000) {
 // ═══════════════════════════════════════════════════════════════
 let repoTimer = null;
 function repositionCurrent() {
-  if (!active) return;
+  if (!active || transitioning) return;
   // FIX: quando colapsado, NÃO reposiciona o spotlight (senão ele volta a aparecer)
   if (dom.bar?.classList.contains('collapsed')) return;
   const step = steps[i];

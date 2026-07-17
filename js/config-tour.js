@@ -98,9 +98,13 @@ export const ONBOARDING_STEPS = [
         todayCard.querySelector('.day-card-header')?.click();
       }
       await wait(400);
+      // Topo do dia com uma folga acima pra não cortar
+      todayCard?.scrollIntoView({ block: 'start' });
+      window.scrollBy({ top: -70 });
+      await wait(250);
     },
     target: '.day-card.today, .day-card.open',
-    scrollBlock: 'start',
+    noScroll: true,
     holePad: 8,
     title: 'O Ritual é o coração do app',
     message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Suas atividades ficam por turno (manhã, tarde, noite), e você <strong>toca pra marcar feito 👍</strong> — esse é o gesto de todo dia.',
@@ -130,14 +134,21 @@ export const ONBOARDING_STEPS = [
       const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
       if (todayCard && !todayCard.classList.contains('open')) {
         todayCard.querySelector('.day-card-header')?.click();
-        await wait(300);
+        await wait(350);
       }
+      // Marca o + do primeiro turno com id temporário → o tour destaca o
+      // elemento certo (senão pega um oculto com rect 0,0 no canto).
+      document.getElementById('tour-shift-add')?.removeAttribute('id');
+      const add = todayCard?.querySelector('.shift-add');
+      if (add) { add.id = 'tour-shift-add'; add.scrollIntoView({ block: 'center' }); await wait(250); }
     },
-    target: '.day-card.open .shift-add, .day-card.today .shift-add, .shift-add',
+    target: '#tour-shift-add',
+    noScroll: true,
     holePad: 12,
     title: 'Adicione ao seu dia',
     message: 'Toque no <strong>+</strong> de um turno (manhã, tarde, noite) pra adicionar uma atividade naquele dia. Te mostro o que aparece.',
-    primaryBtn: 'Próximo →'
+    primaryBtn: 'Próximo →',
+    onLeave: async () => { document.getElementById('tour-shift-add')?.removeAttribute('id'); }
   },
 
   // ── RITUAL: tarefa vs compromisso (abre e explica dentro) ──
@@ -155,7 +166,7 @@ export const ONBOARDING_STEPS = [
       }
       const firstAdd = todayCard?.querySelector('.shift-add');
       if (firstAdd) firstAdd.click();
-      await wait(500);
+      await wait(350);
       document.activeElement?.blur?.();
     },
     target: '#kind-chips, .kind-chips',
@@ -207,7 +218,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     prepare: async () => { await wait(500); window.scrollTo({ top: 0 }); await wait(150); },
     target: '.screen-title',
-    scrollBlock: 'start',
+    noScroll: true,
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',
     message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... É muito mais fácil manter o hábito junto com alguém.',
