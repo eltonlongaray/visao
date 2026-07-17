@@ -1,10 +1,10 @@
-﻿// ═══════════════════════════════════════════════════════════════
-// VISÃO · Tour de Boas-vindas — ENXUTO + AUTOMATIZADO
+// ═══════════════════════════════════════════════════════════════
+// VISÃO · Tour de Boas-vindas — ENXUTO (7 passos) + AUTOMATIZADO
+// Foco: o LOOP do hábito (biblioteca → Ritual → progresso) + Desafios.
 // O tour assume o controle do app, abre o que precisa e mostra.
-// O usuário só clica "Próximo →".
+// O usuário só clica "Próximo →". O resto se descobre usando.
 //
-// noCollapse: true em TODOS os steps → barra fica sempre visível
-// (com X pra sair acessível) e o tour NÃO depende de clicks no app.
+// noCollapse: true em TODOS os steps → barra sempre visível (com X pra sair).
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // Arquivo único: Define os steps do tour de boas-vindas (ONBOARDING_STEPS exportado)
@@ -21,47 +21,23 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     route: '/home',
     title: 'Bem-vindo ao Falcon ✨',
-    message: 'Em 30 segundos te mostro o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
+    message: 'Em menos de 1 minuto te mostro o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
     primaryBtn: 'Vamos →'
   },
 
-  // ── 2. HOME: tema dia/noite (PRIMEIRO conforme pedido) ──
-  {
-    id: 'home-tema',
-    route: '/home',
-    target: '#theme-toggle',
-    holePad: 8,
-    noCollapse: true,
-    title: 'Tema dia/noite',
-    message: 'Aqui você alterna entre claro e escuro. Sua escolha fica salva.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 3. HOME: horários de acordar/dormir ──
-  {
-    id: 'home-sono',
-    route: '/home',
-    target: '.sleep-prefs',
-    holePad: 10,
-    noCollapse: true,
-    title: '🌅 Acordar · 🌙 Dormir',
-    message: 'Marque os horários que pretende acordar e dormir. Isso vira a base — o Ritual te ajuda a registrar o real todo dia.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 4. HOME: biblioteca de atividades ──
+  // ── 2. HOME: biblioteca de atividades ──
   {
     id: 'home-atividades',
     route: '/home',
     target: '#cats-list, #add-cat',
     holePad: 10,
     noCollapse: true,
-    title: 'Sua biblioteca',
-    message: 'Cadastre suas atividades aqui (Treino, Estudo, Hidratação...). Elas viram opções no Ritual pra você não digitar tudo de novo.',
+    title: 'Comece pela sua biblioteca',
+    message: 'Cadastre aqui as coisas que você faz na rotina (Treino, Estudo, Hidratação...). Elas viram opções no Ritual — você não digita tudo de novo todo dia.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 5. RITUAL: estrutura geral + abre dia ──
+  // ── 3. RITUAL: o coração + como marcar feito ──
   {
     id: 'ritual-week',
     route: '/ritual',
@@ -78,23 +54,11 @@ export const ONBOARDING_STEPS = [
     target: '.day-card.today, .day-card.open',
     holePad: 8,
     title: 'O Ritual é o coração do app',
-    message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Aqui ficam suas atividades por turno (manhã, tarde, noite), hidratação e a nota de fechamento.',
+    message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Suas atividades ficam por turno (manhã, tarde, noite), e você <strong>toca pra marcar feito 👍</strong> — esse é o gesto de todo dia.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 6. RITUAL: 2 toques no mês = calendário ──
-  {
-    id: 'ritual-calendar',
-    route: '/ritual',
-    target: '#week-pager-center, .week-pager',
-    holePad: 10,
-    noCollapse: true,
-    title: 'Calendário rápido',
-    message: 'Dê <strong>2 toques aqui no topo</strong> (onde mostra a semana e o mês) pra abrir um calendário. Toque em qualquer dia pra criar uma atividade nele — útil pra agendar coisas pra daqui a meses.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 7. RITUAL: abre o modal e explica tarefa vs compromisso ──
+  // ── 4. RITUAL: tarefa vs compromisso ──
   {
     id: 'ritual-add-kind',
     route: '/ritual',
@@ -109,13 +73,12 @@ export const ONBOARDING_STEPS = [
       const firstAdd = todayCard?.querySelector('.shift-add');
       if (firstAdd) firstAdd.click();
       await wait(450);
-      // Tira o foco do campo de título (evita teclado abrir no celular)
       document.activeElement?.blur?.();
     },
     target: '#kind-chips, .kind-chips',
     holePad: 10,
     title: 'Tarefa ou Compromisso?',
-    message: 'Tudo aqui é "atividade". Você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário marcado — reuniões, contas, consultas).',
+    message: 'Ao adicionar, você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário — reuniões, contas, consultas).',
     primaryBtn: 'Próximo →',
     onLeave: async () => {
       document.querySelector('#m-cancel')?.click();
@@ -123,68 +86,38 @@ export const ONBOARDING_STEPS = [
     }
   },
 
-  // ── 8. RITUAL: aba Compromissos ──
-  {
-    id: 'ritual-commitments',
-    route: '/ritual',
-    noCollapse: true,
-    prepare: async () => {
-      const card = document.querySelector('.day-card.commitments-card');
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        await wait(400);
-      }
-    },
-    target: '.day-card.commitments-card',
-    holePad: 8,
-    title: '📅 Compromissos da semana',
-    message: 'Abaixo de domingo, esse card junta TODOS os compromissos da semana ordenados por hora. Ótimo pra ver o que tem marcado sem abrir dia por dia.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 9. DESEMPENHO ──
+  // ── 5. DESEMPENHO ──
   {
     id: 'go-desempenho',
     route: '/desempenho',
     target: '#kpis, .kpis, .month-bar-chart',
     holePad: 8,
     noCollapse: true,
-    title: 'Desempenho',
-    message: 'Aqui você vê seu progresso: % concluído do mês, evolução dos 12 meses, qualidade do sono e reflexão semanal.',
+    title: 'Seu progresso',
+    message: 'Aqui você vê o quanto concluiu no mês, a evolução ao longo do ano, a qualidade do sono e sua reflexão semanal. É a recompensa de manter o ritual.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 10. AJUSTES: gerar relatório PDF ──
+  // ── 6. DESAFIOS ──
   {
-    id: 'ajustes-pdf',
-    route: '/ajustes',
-    target: '#exportPdfBtn',
-    holePad: 8,
+    id: 'go-desafios',
+    route: '/desafios',
     noCollapse: true,
-    title: 'Gerar relatório PDF',
-    message: 'Em <strong>Ajustes</strong>, toque em "Gerar relatório (PDF)" pra criar um resumo bonito da sua rotina. Ótimo pra acompanhar evolução ou compartilhar com alguém.',
+    prepare: async () => { await wait(500); },
+    target: '.ds-topo, .screen-title',
+    holePad: 8,
+    title: '🏆 Desafios — hábito em comunidade',
+    message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... Tem ranking, e quem não conclui paga uma prenda 🎭. É muito mais fácil manter o hábito junto com alguém.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 11. AJUSTES: rever tutorial ──
-  {
-    id: 'ajustes-tour',
-    route: '/ajustes',
-    target: '#restartTourBtn',
-    holePad: 8,
-    noCollapse: true,
-    title: 'Tutorial sempre disponível',
-    message: 'Pode rever esse tutorial quando quiser aqui mesmo em Ajustes.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 12. Final ──
+  // ── 7. Final ──
   {
     id: 'end',
     noSpotlight: true,
     noCollapse: true,
     title: 'Pronto! ✨',
-    message: 'Tem detalhes legais pra você descobrir sozinho. Bom ritual 🙏',
+    message: 'Tem mais pra descobrir usando: tema claro/escuro, 📢 Avisos, copiar/colar tarefas e o relatório PDF. Pode rever este tutorial quando quiser em <strong>Ajustes</strong>. Bom ritual 🙏',
     primaryBtn: 'Concluir'
   }
 ];
