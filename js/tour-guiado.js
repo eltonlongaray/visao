@@ -131,9 +131,10 @@ async function showStep() {
   // Esconde o recorte durante a transição — senão o spotlight do passo
   // anterior fica visível no lugar errado enquanto navega/prepara/rola.
   if (dom.hole) dom.hole.style.display = 'none';
-  // Já mostra a MENSAGEM deste passo antes de preparar a tela — senão o texto
-  // do passo anterior fica visível enquanto o modal/rota novo aparece (confusão).
+  // Já monta a MENSAGEM deste passo, mas mantém a barra INVISÍVEL até ela estar
+  // posicionada — senão ela pula de lugar (rodapé↔topo) durante a transição.
   renderBar(step);
+  if (dom.bar) dom.bar.style.visibility = 'hidden';
 
   // Navega se preciso
   if (step.route && location.hash !== `#${step.route}`) {
@@ -183,6 +184,8 @@ async function showStep() {
   }
   positionHole(target, step);
   positionBar(target, step);
+  // Já está no lugar certo — revela a barra sem o pulo.
+  if (dom.bar) dom.bar.style.visibility = '';
 }
 
 // Decide se a barra fica embaixo (padrão) ou no topo (se o alvo está perto do rodapé)
