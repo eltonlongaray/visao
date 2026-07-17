@@ -49,37 +49,16 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 4. HOME: biblioteca — o botão + ──
+  // ── 4. HOME: biblioteca de atividades ──
   {
     id: 'home-atividades',
     route: '/home',
-    target: '#add-cat',
-    holePad: 14,
+    target: '#cats-list, #add-cat',
+    holePad: 10,
     noCollapse: true,
     title: 'Sua biblioteca',
-    message: 'Aqui ficam suas atividades (Treino, Estudo, Hidratação...). Toque no <strong>+</strong> pra criar uma — te mostro como.',
+    message: 'Aqui ficam suas atividades (Treino, Estudo, Hidratação...). Cadastre no <strong>+</strong> e elas viram opções no Ritual — você não digita tudo de novo.',
     primaryBtn: 'Próximo →'
-  },
-
-  // ── 5. HOME: biblioteca — dentro do editor ──
-  {
-    id: 'home-atividade-editor',
-    route: '/home',
-    noCollapse: true,
-    prepare: async () => {
-      document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
-      document.getElementById('add-cat')?.click();
-      await wait(450);
-    },
-    target: '.icon-picker',
-    holePad: 8,
-    title: 'Monte a atividade',
-    message: 'Dê um <strong>nome</strong>, escolha um <strong>ícone</strong> e uma <strong>cor</strong>. Pronto — ela já vira opção pra você usar no Ritual.',
-    primaryBtn: 'Próximo →',
-    onLeave: async () => {
-      document.querySelector('#m-cancel')?.click();
-      await wait(200);
-    }
   },
 
   // ── 5. HOME: Avisos ──
@@ -140,7 +119,28 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 9. RITUAL: tarefa vs compromisso ──
+  // ── RITUAL: o botão + do turno ──
+  {
+    id: 'ritual-add-btn',
+    route: '/ritual',
+    noCollapse: true,
+    prepare: async () => {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+      const today = new Date().toISOString().slice(0, 10);
+      const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
+      if (todayCard && !todayCard.classList.contains('open')) {
+        todayCard.querySelector('.day-card-header')?.click();
+        await wait(300);
+      }
+    },
+    target: '.day-card.open .shift-add, .day-card.today .shift-add, .shift-add',
+    holePad: 12,
+    title: 'Adicione ao seu dia',
+    message: 'Toque no <strong>+</strong> de um turno (manhã, tarde, noite) pra adicionar uma atividade naquele dia. Te mostro o que aparece.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── RITUAL: tarefa vs compromisso (abre e explica dentro) ──
   {
     id: 'ritual-add-kind',
     route: '/ritual',
@@ -205,7 +205,7 @@ export const ONBOARDING_STEPS = [
     id: 'go-desafios',
     route: '/desafios',
     noCollapse: true,
-    prepare: async () => { await wait(500); },
+    prepare: async () => { await wait(500); window.scrollTo({ top: 0 }); await wait(150); },
     target: '.screen-title',
     scrollBlock: 'start',
     holePad: 8,
