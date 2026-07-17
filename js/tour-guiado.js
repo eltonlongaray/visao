@@ -131,6 +131,9 @@ async function showStep() {
   // Esconde o recorte durante a transição — senão o spotlight do passo
   // anterior fica visível no lugar errado enquanto navega/prepara/rola.
   if (dom.hole) dom.hole.style.display = 'none';
+  // Já mostra a MENSAGEM deste passo antes de preparar a tela — senão o texto
+  // do passo anterior fica visível enquanto o modal/rota novo aparece (confusão).
+  renderBar(step);
 
   // Navega se preciso
   if (step.route && location.hash !== `#${step.route}`) {
@@ -154,7 +157,6 @@ async function showStep() {
   // Garante estado expandido por default
   dom.bar?.classList.remove('collapsed');
   if (dom.backdrop) { dom.backdrop.style.display = ''; dom.backdrop.style.opacity = ''; }
-  if (dom.hole) dom.hole.style.display = '';
 
   // Anexa listener ANTES dos awaits pra capturar clicks rápidos
   if (target && !step.noCollapse) {
@@ -172,8 +174,6 @@ async function showStep() {
       document.removeEventListener('click', handler, true);
     };
   }
-
-  renderBar(step);
 
   // Rola PRIMEIRO, posiciona recorte + barra DEPOIS — sem flash.
   // scrollBlock por passo: 'start' mostra o topo do alvo (ex: dia do Ritual).

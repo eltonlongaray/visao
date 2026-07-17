@@ -49,16 +49,37 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 4. HOME: biblioteca de atividades ──
+  // ── 4. HOME: biblioteca — o botão + ──
   {
     id: 'home-atividades',
     route: '/home',
-    target: '#cats-list, #add-cat',
-    holePad: 10,
+    target: '#add-cat',
+    holePad: 14,
     noCollapse: true,
     title: 'Sua biblioteca',
-    message: 'Cadastre suas atividades aqui (Treino, Estudo, Hidratação...). Elas viram opções no Ritual pra você não digitar tudo de novo.',
+    message: 'Aqui ficam suas atividades (Treino, Estudo, Hidratação...). Toque no <strong>+</strong> pra criar uma — te mostro como.',
     primaryBtn: 'Próximo →'
+  },
+
+  // ── 5. HOME: biblioteca — dentro do editor ──
+  {
+    id: 'home-atividade-editor',
+    route: '/home',
+    noCollapse: true,
+    prepare: async () => {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+      document.getElementById('add-cat')?.click();
+      await wait(450);
+    },
+    target: '.icon-picker',
+    holePad: 8,
+    title: 'Monte a atividade',
+    message: 'Dê um <strong>nome</strong>, escolha um <strong>ícone</strong> e uma <strong>cor</strong>. Pronto — ela já vira opção pra você usar no Ritual.',
+    primaryBtn: 'Próximo →',
+    onLeave: async () => {
+      document.querySelector('#m-cancel')?.click();
+      await wait(200);
+    }
   },
 
   // ── 5. HOME: Avisos ──
@@ -125,6 +146,7 @@ export const ONBOARDING_STEPS = [
     route: '/ritual',
     noCollapse: true,
     prepare: async () => {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
       const today = new Date().toISOString().slice(0, 10);
       const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
       if (todayCard && !todayCard.classList.contains('open')) {
@@ -133,7 +155,7 @@ export const ONBOARDING_STEPS = [
       }
       const firstAdd = todayCard?.querySelector('.shift-add');
       if (firstAdd) firstAdd.click();
-      await wait(450);
+      await wait(500);
       document.activeElement?.blur?.();
     },
     target: '#kind-chips, .kind-chips',
@@ -184,7 +206,7 @@ export const ONBOARDING_STEPS = [
     route: '/desafios',
     noCollapse: true,
     prepare: async () => { await wait(500); },
-    target: '.ds-topo, .screen-title',
+    target: '.screen-title',
     scrollBlock: 'start',
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',

@@ -492,16 +492,18 @@ function openCategoryEditor(id) {
   `;
   document.body.appendChild(modal);
   // Auto-scroll suave: pisca uma rolada pro fim pra mostrar onde tá o botão Criar,
-  // depois volta pro topo pra usuário começar a preencher
-  setTimeout(() => {
-    const inner = modal.querySelector('.modal');
-    if (!inner) return;
-    inner.scrollTop = inner.scrollHeight;
+  // depois volta pro topo. Desativado durante o tour (não brigar com a navegação guiada).
+  if (!tour.isActive()) {
     setTimeout(() => {
-      inner.scrollTo({ top: 0, behavior: 'smooth' });
-      modal.querySelector('#m-name')?.focus();
-    }, 900);
-  }, 80);
+      const inner = modal.querySelector('.modal');
+      if (!inner) return;
+      inner.scrollTop = inner.scrollHeight;
+      setTimeout(() => {
+        inner.scrollTo({ top: 0, behavior: 'smooth' });
+        modal.querySelector('#m-name')?.focus();
+      }, 900);
+    }, 80);
+  }
 
   let pickedIcon = c.icon, pickedColor = c.color;
   modal.querySelectorAll('[data-icon]').forEach(b => b.onclick = () => {
