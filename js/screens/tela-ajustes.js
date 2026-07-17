@@ -41,9 +41,9 @@ const row = (id, title, sub, { danger = false } = {}) => `
 
 // Seção retrátil: o cabeçalho tem cara de card clicável + "Toque para abrir".
 // { open: true } já nasce aberta (ex: Meu perfil).
-function acc(titleHtml, bodyHtml, { open = false } = {}) {
+function acc(titleHtml, bodyHtml, { open = false, id = '' } = {}) {
   return `
-    <section class="ajustes-acc${open ? ' open' : ''}">
+    <section class="ajustes-acc${open ? ' open' : ''}"${id ? ` id="${id}"` : ''}>
       <button type="button" class="ajustes-row clickable ajustes-acc-head">
         <div class="ajustes-row-main">
           <div class="ajustes-row-title">${titleHtml}</div>
@@ -118,7 +118,7 @@ export async function renderAjustes(app) {
             <button class="btn-primary" id="perfSave">Salvar</button>
             <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
           </div>
-        `, { open: true })}
+        `, { open: true, id: 'accPerfil' })}
 
         ${acc('💬 Sugerir melhoria', `
           <div class="ajustes-row-sub" style="padding:10px 12px 6px">

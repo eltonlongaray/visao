@@ -21,7 +21,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     route: '/home',
     title: 'Bem-vindo ao Falcon ✨',
-    message: 'Vou te mostrar o essencial. Eu mesmo abro as telas — você só clica "Vamos →".',
+    message: 'Vou te mostrar o essencial. Eu mesmo abro as telas — você só vai avançando.',
     primaryBtn: 'Vamos →'
   },
 
@@ -34,7 +34,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Tema dia/noite',
     message: 'Aqui você alterna entre claro e escuro. Sua escolha fica salva.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 3. HOME: horários de acordar/dormir ──
@@ -46,7 +46,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '🌅 Acordar · 🌙 Dormir',
     message: 'Marque os horários que pretende acordar e dormir. Isso vira a base — o Ritual te ajuda a registrar o real todo dia.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 4. HOME: biblioteca de atividades ──
@@ -58,7 +58,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Sua biblioteca',
     message: 'Cadastre suas atividades aqui (Treino, Estudo, Hidratação...). Elas viram opções no Ritual pra você não digitar tudo de novo.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 5. HOME: Avisos ──
@@ -70,7 +70,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '📢 Avisos',
     message: 'Aqui chegam os comunicados e novidades do Falcon. Quando tiver algo novo, aparece uma bolinha vermelha.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 6. HOME: Desafios (a vitrine) ──
@@ -82,7 +82,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '🏆 Desafios',
     message: 'Na Home você vê o que está "em jogo": os desafios abertos pra você entrar. O desafio em si acontece na aba Desafios — já te mostro.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 7. RITUAL: estrutura geral + marcar feito ──
@@ -98,12 +98,15 @@ export const ONBOARDING_STEPS = [
         todayCard.querySelector('.day-card-header')?.click();
       }
       await wait(400);
+      // Mostra o TOPO do dia (não o final) ao destacar
+      todayCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      await wait(350);
     },
     target: '.day-card.today, .day-card.open',
     holePad: 8,
     title: 'O Ritual é o coração do app',
     message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Suas atividades ficam por turno (manhã, tarde, noite), e você <strong>toca pra marcar feito 👍</strong> — esse é o gesto de todo dia.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 8. RITUAL: 2 toques no mês = calendário ──
@@ -115,7 +118,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Calendário rápido',
     message: 'Dê <strong>2 toques aqui no topo</strong> (onde mostra a semana e o mês) pra abrir um calendário. Toque em qualquer dia pra criar uma atividade nele — útil pra agendar coisas pra daqui a meses.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 9. RITUAL: tarefa vs compromisso ──
@@ -139,7 +142,7 @@ export const ONBOARDING_STEPS = [
     holePad: 10,
     title: 'Tarefa ou Compromisso?',
     message: 'Tudo aqui é "atividade". Você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário marcado — reuniões, contas, consultas).',
-    primaryBtn: 'Vamos →',
+    primaryBtn: 'Próximo →',
     onLeave: async () => {
       document.querySelector('#m-cancel')?.click();
       await wait(200);
@@ -162,7 +165,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: '📅 Compromissos da semana',
     message: 'Abaixo de domingo, esse card junta TODOS os compromissos da semana ordenados por hora. Ótimo pra ver o que tem marcado sem abrir dia por dia.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 11. DESEMPENHO ──
@@ -174,7 +177,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: 'Desempenho',
     message: 'Aqui você vê seu progresso: % concluído do mês, evolução dos 12 meses, qualidade do sono e reflexão semanal. É a recompensa de manter o ritual.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 12. DESAFIOS: a aba ──
@@ -187,7 +190,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',
     message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... É muito mais fácil manter o hábito junto com alguém.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 13. DESAFIOS: modalidades + prenda ──
@@ -200,7 +203,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: 'Crie ou entre num desafio',
     message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não conclui paga uma prenda 🎭 — combinada antes, pra motivar a galera.',
-    primaryBtn: 'Vamos →'
+    primaryBtn: 'Próximo →'
   },
 
   // ── 14. AJUSTES: Meu perfil ──
@@ -209,11 +212,11 @@ export const ONBOARDING_STEPS = [
     route: '/ajustes',
     noCollapse: true,
     prepare: async () => { await wait(300); },
-    target: '#perfNome',
-    holePad: 10,
+    target: '#accPerfil',
+    holePad: 8,
     title: '👤 Seu perfil',
-    message: 'Se quiser, preencha seu nome, aniversário e WhatsApp. Usamos só pra dar suporte, comemorar seu dia e te chamar pra comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
-    primaryBtn: 'Vamos →'
+    message: 'Se quiser, preencha seu nome, aniversário e WhatsApp. Usamos só pra dar suporte, comemorar seu dia e te manter informado sobre sua comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
+    primaryBtn: 'Próximo →'
   },
 
   // ── 15. AJUSTES: rever tutorial ──
@@ -224,8 +227,8 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     noCollapse: true,
     title: 'Tutorial sempre disponível',
-    message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório PDF.',
-    primaryBtn: 'Vamos →'
+    message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório PDF de performance.',
+    primaryBtn: 'Próximo →'
   },
 
   // ── 16. Final ──
