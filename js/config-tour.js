@@ -98,11 +98,9 @@ export const ONBOARDING_STEPS = [
         todayCard.querySelector('.day-card-header')?.click();
       }
       await wait(400);
-      // Mostra o TOPO do dia (não o final) ao destacar
-      todayCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      await wait(350);
     },
     target: '.day-card.today, .day-card.open',
+    scrollBlock: 'start',
     holePad: 8,
     title: 'O Ritual é o coração do app',
     message: 'Cada card é um dia (Seg → Dom). Abri o de hoje. Suas atividades ficam por turno (manhã, tarde, noite), e você <strong>toca pra marcar feito 👍</strong> — esse é o gesto de todo dia.',
@@ -187,6 +185,7 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     prepare: async () => { await wait(500); },
     target: '.ds-topo, .screen-title',
+    scrollBlock: 'start',
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',
     message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... É muito mais fácil manter o hábito junto com alguém.',
@@ -227,7 +226,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     noCollapse: true,
     title: 'Tutorial sempre disponível',
-    message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório PDF de performance.',
+    message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório de performance em PDF.',
     primaryBtn: 'Próximo →'
   },
 

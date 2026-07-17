@@ -128,6 +128,10 @@ async function showStep() {
   const step = steps[i];
   if (!step) return end(true);
 
+  // Esconde o recorte durante a transição — senão o spotlight do passo
+  // anterior fica visível no lugar errado enquanto navega/prepara/rola.
+  if (dom.hole) dom.hole.style.display = 'none';
+
   // Navega se preciso
   if (step.route && location.hash !== `#${step.route}`) {
     const { navigate } = await import('./roteador.js');
@@ -169,16 +173,15 @@ async function showStep() {
     };
   }
 
-  positionHole(target, step);
   renderBar(step);
 
-  // Rola PRIMEIRO, posiciona a barra DEPOIS — evita o flash de a barra
-  // pular pro topo e voltar pro rodapé quando o alvo está mais abaixo.
+  // Rola PRIMEIRO, posiciona recorte + barra DEPOIS — sem flash.
+  // scrollBlock por passo: 'start' mostra o topo do alvo (ex: dia do Ritual).
   if (target) {
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: 'smooth', block: step.scrollBlock || 'center' });
     await wait(320);
-    positionHole(target, step);
   }
+  positionHole(target, step);
   positionBar(target, step);
 }
 
