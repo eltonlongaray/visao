@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Tour de Boas-vindas — ENXUTO (7 passos) + AUTOMATIZADO
-// Foco: o LOOP do hábito (biblioteca → Ritual → progresso) + Desafios.
+// VISÃO · Tour de Boas-vindas — COMPLETO (16 passos) + AUTOMATIZADO
+// Ordem por tela (Home → Ritual → Desempenho → Desafios → Ajustes).
 // O tour assume o controle do app, abre o que precisa e mostra.
-// O usuário só clica "Próximo →". O resto se descobre usando.
+// O usuário só clica "Próximo →".
 //
 // noCollapse: true em TODOS os steps → barra sempre visível (com X pra sair).
 // ═══════════════════════════════════════════════════════════════
@@ -21,23 +21,71 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     route: '/home',
     title: 'Bem-vindo ao Falcon ✨',
-    message: 'Em menos de 1 minuto te mostro o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
+    message: 'Vou te mostrar o essencial. Eu mesmo abro as telas — você só clica "Próximo →".',
     primaryBtn: 'Vamos →'
   },
 
-  // ── 2. HOME: biblioteca de atividades ──
+  // ── 2. HOME: tema dia/noite ──
+  {
+    id: 'home-tema',
+    route: '/home',
+    target: '#theme-toggle',
+    holePad: 8,
+    noCollapse: true,
+    title: 'Tema dia/noite',
+    message: 'Aqui você alterna entre claro e escuro. Sua escolha fica salva.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 3. HOME: horários de acordar/dormir ──
+  {
+    id: 'home-sono',
+    route: '/home',
+    target: '.sleep-prefs',
+    holePad: 10,
+    noCollapse: true,
+    title: '🌅 Acordar · 🌙 Dormir',
+    message: 'Marque os horários que pretende acordar e dormir. Isso vira a base — o Ritual te ajuda a registrar o real todo dia.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 4. HOME: biblioteca de atividades ──
   {
     id: 'home-atividades',
     route: '/home',
     target: '#cats-list, #add-cat',
     holePad: 10,
     noCollapse: true,
-    title: 'Comece pela sua biblioteca',
-    message: 'Cadastre aqui as coisas que você faz na rotina (Treino, Estudo, Hidratação...). Elas viram opções no Ritual — você não digita tudo de novo todo dia.',
+    title: 'Sua biblioteca',
+    message: 'Cadastre suas atividades aqui (Treino, Estudo, Hidratação...). Elas viram opções no Ritual pra você não digitar tudo de novo.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 3. RITUAL: o coração + como marcar feito ──
+  // ── 5. HOME: Avisos ──
+  {
+    id: 'home-avisos',
+    route: '/home',
+    target: '#avisos-card',
+    holePad: 8,
+    noCollapse: true,
+    title: '📢 Avisos',
+    message: 'Aqui chegam os comunicados e novidades do Falcon. Quando tiver algo novo, aparece uma bolinha vermelha.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 6. HOME: Desafios (a vitrine) ──
+  {
+    id: 'home-desafios',
+    route: '/home',
+    target: '#desafios-card',
+    holePad: 8,
+    noCollapse: true,
+    title: '🏆 Desafios',
+    message: 'Na Home você vê o que está "em jogo": os desafios abertos pra você entrar. O desafio em si acontece na aba Desafios — já te mostro.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 7. RITUAL: estrutura geral + marcar feito ──
   {
     id: 'ritual-week',
     route: '/ritual',
@@ -58,7 +106,19 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 4. RITUAL: tarefa vs compromisso ──
+  // ── 8. RITUAL: 2 toques no mês = calendário ──
+  {
+    id: 'ritual-calendar',
+    route: '/ritual',
+    target: '#week-pager-center, .week-pager',
+    holePad: 10,
+    noCollapse: true,
+    title: 'Calendário rápido',
+    message: 'Dê <strong>2 toques aqui no topo</strong> (onde mostra a semana e o mês) pra abrir um calendário. Toque em qualquer dia pra criar uma atividade nele — útil pra agendar coisas pra daqui a meses.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 9. RITUAL: tarefa vs compromisso ──
   {
     id: 'ritual-add-kind',
     route: '/ritual',
@@ -78,7 +138,7 @@ export const ONBOARDING_STEPS = [
     target: '#kind-chips, .kind-chips',
     holePad: 10,
     title: 'Tarefa ou Compromisso?',
-    message: 'Ao adicionar, você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário — reuniões, contas, consultas).',
+    message: 'Tudo aqui é "atividade". Você escolhe entre <strong>📋 Tarefa</strong> (dia a dia, sem hora fixa) ou <strong>📅 Compromisso</strong> (com horário marcado — reuniões, contas, consultas).',
     primaryBtn: 'Próximo →',
     onLeave: async () => {
       document.querySelector('#m-cancel')?.click();
@@ -86,19 +146,38 @@ export const ONBOARDING_STEPS = [
     }
   },
 
-  // ── 5. DESEMPENHO ──
+  // ── 10. RITUAL: aba Compromissos ──
+  {
+    id: 'ritual-commitments',
+    route: '/ritual',
+    noCollapse: true,
+    prepare: async () => {
+      const card = document.querySelector('.day-card.commitments-card');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await wait(400);
+      }
+    },
+    target: '.day-card.commitments-card',
+    holePad: 8,
+    title: '📅 Compromissos da semana',
+    message: 'Abaixo de domingo, esse card junta TODOS os compromissos da semana ordenados por hora. Ótimo pra ver o que tem marcado sem abrir dia por dia.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 11. DESEMPENHO ──
   {
     id: 'go-desempenho',
     route: '/desempenho',
     target: '#kpis, .kpis, .month-bar-chart',
     holePad: 8,
     noCollapse: true,
-    title: 'Seu progresso',
-    message: 'Aqui você vê o quanto concluiu no mês, a evolução ao longo do ano, a qualidade do sono e sua reflexão semanal. É a recompensa de manter o ritual.',
+    title: 'Desempenho',
+    message: 'Aqui você vê seu progresso: % concluído do mês, evolução dos 12 meses, qualidade do sono e reflexão semanal. É a recompensa de manter o ritual.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 6. DESAFIOS ──
+  // ── 12. DESAFIOS: a aba ──
   {
     id: 'go-desafios',
     route: '/desafios',
@@ -107,17 +186,55 @@ export const ONBOARDING_STEPS = [
     target: '.ds-topo, .screen-title',
     holePad: 8,
     title: '🏆 Desafios — hábito em comunidade',
-    message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... Tem ranking, e quem não conclui paga uma prenda 🎭. É muito mais fácil manter o hábito junto com alguém.',
+    message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... É muito mais fácil manter o hábito junto com alguém.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 7. Final ──
+  // ── 13. DESAFIOS: modalidades + prenda ──
+  {
+    id: 'desafios-prenda',
+    route: '/desafios',
+    noCollapse: true,
+    prepare: async () => { await wait(300); },
+    target: '.ds-topo',
+    holePad: 8,
+    title: 'Crie ou entre num desafio',
+    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não conclui paga uma prenda 🎭 — combinada antes, pra motivar a galera.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 14. AJUSTES: Meu perfil ──
+  {
+    id: 'ajustes-perfil',
+    route: '/ajustes',
+    noCollapse: true,
+    prepare: async () => { await wait(300); },
+    target: '#perfNome',
+    holePad: 10,
+    title: '👤 Seu perfil',
+    message: 'Se quiser, preencha seu nome, aniversário e WhatsApp. Usamos só pra dar suporte, comemorar seu dia e te chamar pra comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 15. AJUSTES: rever tutorial ──
+  {
+    id: 'ajustes-tour',
+    route: '/ajustes',
+    target: '#restartTourBtn',
+    holePad: 8,
+    noCollapse: true,
+    title: 'Tutorial sempre disponível',
+    message: 'Pode rever este tutorial quando quiser, aqui mesmo em Ajustes. E é aqui também que você sugere melhorias, ativa o bloqueio biométrico e gera seu relatório PDF.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 16. Final ──
   {
     id: 'end',
     noSpotlight: true,
     noCollapse: true,
     title: 'Pronto! ✨',
-    message: 'Tem mais pra descobrir usando: tema claro/escuro, 📢 Avisos, copiar/colar tarefas e o relatório PDF. Pode rever este tutorial quando quiser em <strong>Ajustes</strong>. Bom ritual 🙏',
+    message: 'Agora é com você. Bom ritual 🙏🦅',
     primaryBtn: 'Concluir'
   }
 ];
