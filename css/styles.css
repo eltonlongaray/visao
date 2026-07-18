@@ -2622,32 +2622,37 @@ body.time-picker-open { overflow: hidden; }
 
 /* === BOTTOM NAV === */
 /* === CINTURÃO DE CAMPEÃO (bottom nav) ===
-   Tira de couro com costura dourada; a aba ativa fica no centro e vira
-   a placa do cinturão. Rola na horizontal com o centro imantado. */
+   Tira de couro com costura dourada. A LENTE do centro é fixa e sobressai
+   da tarja: as abas passam por baixo dela e vão sendo magnificadas. */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 90;
   max-width: 480px; margin: 0 auto;
-  /* couro */
+  overflow: visible;              /* deixa a lente ultrapassar a tarja */
+  background: none; border: none;
+}
+
+/* a tira de couro — essa sim recorta */
+.belt-strap {
+  position: relative; overflow: hidden;
   background:
     linear-gradient(180deg, rgba(246,226,122,0.55) 0 1px, transparent 1px),
     linear-gradient(0deg,  rgba(246,226,122,0.30) 0 1px, transparent 1px),
-    linear-gradient(180deg, #33241688 0%, #1d140c 45%, #120c07 100%),
+    linear-gradient(180deg, #332416 0%, #1d140c 45%, #120c07 100%),
     var(--card);
   border-top: 1px solid rgba(214,175,55,0.45);
   box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 2px 6px rgba(0,0,0,0.45);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  overflow: hidden;
 }
 /* costura interna do couro */
-.bottom-nav::before,
-.bottom-nav::after {
-  content: ''; position: absolute; left: 0; right: 0; height: 1px;
+.belt-strap::before,
+.belt-strap::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 1px; z-index: 2;
   background: repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px);
   pointer-events: none;
 }
-.bottom-nav::before { top: 5px; }
-.bottom-nav::after  { bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
+.belt-strap::before { top: 5px; }
+.belt-strap::after  { bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
 
 .belt-track {
   display: flex; align-items: center;
@@ -2655,52 +2660,50 @@ body.time-picker-open { overflow: hidden; }
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
-  padding: 11px 0 13px;
+  padding: 11px calc(50% - 46px) 13px;   /* metade da fita menos metade do item */
 }
 .belt-track::-webkit-scrollbar { display: none; }
-/* espaçadores: deixam o 1º e o último item alcançarem o centro */
-.belt-pad { flex: 0 0 calc(50% - 46px); }
 
 .belt-item {
-  position: relative;
-  flex: 0 0 92px;
+  flex: 0 0 92px;                 /* precisa bater com ITEM_W no JS */
   scroll-snap-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   text-decoration: none;
   font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
-  color: rgba(214,175,55,0.55);
-  opacity: 0.6;
-  transform: scale(0.84);
-  transition: transform 0.24s cubic-bezier(0.34,1.3,0.64,1), color 0.24s, opacity 0.24s;
+  color: #e8cd6a;
+  opacity: 0.5;
+  transform: scale(0.82);
+  /* sem transition: a escala vem contínua do scroll, animar causaria atraso */
 }
-.belt-item .belt-ic { font-size: 20px; line-height: 1; filter: grayscale(0.45) brightness(0.85); transition: filter 0.24s; }
-.belt-ic, .belt-lbl { position: relative; z-index: 1; }
+.belt-item .belt-ic { font-size: 20px; line-height: 1; }
+.belt-lbl { white-space: nowrap; }
 
-/* a placa dourada — só aparece no item central */
-.belt-item::before {
-  content: ''; position: absolute; inset: -7px -6px -6px;
-  border-radius: 14px; z-index: 0;
-  background: radial-gradient(ellipse at 50% 26%, #fdf3bd 0%, #e8cd6a 34%, #cfa62a 64%, #97741f 100%);
-  border: 1.5px solid #f7e79a;
+/* A LENTE — parada no centro, ultrapassando a tarja por cima */
+.belt-lens {
+  position: absolute; z-index: 3; pointer-events: none;
+  left: 50%; transform: translateX(-50%);
+  top: -11px; bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  width: 98px; border-radius: 16px;
+  border: 2px solid #f0d873;
+  background: linear-gradient(180deg,
+    rgba(253,243,189,0.22) 0%,
+    rgba(232,205,106,0.10) 55%,
+    rgba(151,116,31,0.20) 100%);
   box-shadow:
-    0 0 16px rgba(214,175,55,0.50),
-    inset 0 1px 2px rgba(255,255,255,0.55),
-    inset 0 -3px 5px rgba(0,0,0,0.28);
-  opacity: 0; transform: scale(0.72);
-  transition: opacity 0.24s, transform 0.24s cubic-bezier(0.34,1.3,0.64,1);
+    0 0 18px rgba(214,175,55,0.55),
+    0 -4px 14px rgba(214,175,55,0.30),
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    inset 0 -2px 6px rgba(0,0,0,0.25);
 }
-.belt-item.is-center {
-  opacity: 1;
-  transform: scale(1.14);
-  color: #3a2a07;
-  text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+/* rebites laterais da placa */
+.belt-lens::before, .belt-lens::after {
+  content: ''; position: absolute; top: 50%; width: 5px; height: 5px;
+  margin-top: -2.5px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fdf3bd, #c9a227 70%, #7d5f18);
+  box-shadow: 0 0 4px rgba(214,175,55,0.8);
 }
-.belt-item.is-center::before { opacity: 1; transform: scale(1); }
-.belt-item.is-center .belt-ic { filter: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .belt-item, .belt-item::before { transition: none; }
-}
+.belt-lens::before { left: 4px; }
+.belt-lens::after  { right: 4px; }
 
 /* === MODAL === */
 .modal-overlay {

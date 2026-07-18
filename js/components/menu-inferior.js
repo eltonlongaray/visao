@@ -1,14 +1,17 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// BLOCO 1 — IMPORTS + ABAS
-// BLOCO 2 — RENDER — cinturão de campeão
-// BLOCO 3 — ROLAGEM — centro imantado, som de tambor, navegação
-// BLOCO 4 — AUTO-WIRE — liga sozinho a cada render de tela
+// BLOCO 1 — IMPORTS + ABAS + CONSTANTES
+// BLOCO 2 — RENDER — cinturão de campeão com lente fixa
+// BLOCO 3 — LENTE — magnificação contínua por proximidade do centro
+// BLOCO 4 — ROLAGEM INFINITA — teleporte por ciclos, som, navegação
+// BLOCO 5 — AUTO-WIRE — liga sozinho a cada render de tela
 // ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 1: IMPORTS + ABAS
+// BLOCO 1: IMPORTS + ABAS + CONSTANTES
 // ═══════════════════════════════════════════════════════════════
-// Bottom nav em formato de cinturão de campeão: rola na horizontal e a
-// aba ativa fica no centro, virando a placa dourada.
+// Bottom nav em formato de cinturão de campeão. A lente dourada do centro
+// é FIXA — as abas é que passam por baixo dela e vão sendo magnificadas.
+// A fita repete as abas em ciclos e teleporta perto das bordas, então a
+// rolagem nunca esbarra num limite (mesma técnica do seletor-horario.js).
 import { t } from '../idioma.js';
 import { playClick } from '../sons.js';
 
@@ -20,90 +23,138 @@ const TABS = [
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
+const ITEM_W  = 92;                  // precisa bater com o CSS (.belt-item flex-basis)
+const CICLO   = TABS.length;         // abas por volta
+const REPEATS = 31;                  // voltas renderizadas
+const CENTRO  = 15;                  // volta central (meio das 31)
+const ESPERAS = [0, 16, 32, 64, 120, 240, 400];   // escada de retentativas (ms)
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: RENDER
 // ═══════════════════════════════════════════════════════════════
 export function bottomNav(active) {
   ensureWiring();
-  const itens = TABS.map(tab => `
-      <a href="${tab.route}" class="belt-item${tab.id === active ? ' is-center' : ''}" data-tab="${tab.id}">
-        <span class="belt-ic">${tab.ic}</span><span class="belt-lbl">${tab.lbl()}</span>
-      </a>`).join('');
+  const idxAtivo = Math.max(0, TABS.findIndex(x => x.id === active));
+
+  let itens = '';
+  for (let volta = 0; volta < REPEATS; volta++) {
+    for (const tab of TABS) {
+      itens += `<a href="${tab.route}" class="belt-item" data-tab="${tab.id}">` +
+               `<span class="belt-ic">${tab.ic}</span>` +
+               `<span class="belt-lbl">${tab.lbl()}</span></a>`;
+    }
+  }
 
   return `
-    <nav class="bottom-nav belt" data-active="${active}">
-      <div class="belt-track">
-        <span class="belt-pad" aria-hidden="true"></span>${itens}
-        <span class="belt-pad" aria-hidden="true"></span>
+    <nav class="bottom-nav belt" data-active="${active}" data-idx="${idxAtivo}">
+      <div class="belt-strap">
+        <div class="belt-track">${itens}</div>
       </div>
+      <div class="belt-lens" aria-hidden="true"></div>
     </nav>
   `;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: ROLAGEM
+// BLOCO 3: LENTE
 // ═══════════════════════════════════════════════════════════════
-const ESPERAS = [0, 16, 32, 64, 120, 240, 400];   // escada de retentativas (ms)
+// A escala varia de forma contínua com a distância até o centro — é isso
+// que dá a sensação de lente de aumento em vez de "item selecionado".
+// Só mexe na janela ao redor do centro: são centenas de itens no DOM.
+function fazerLente(track, items) {
+  let janela = [];
+  return () => {
+    const pos = track.scrollLeft / ITEM_W;          // índice fracionário sob a lente
+    const c   = Math.round(pos);
+    const nova = [];
+    for (let i = Math.max(0, c - 3); i <= Math.min(items.length - 1, c + 3); i++) nova.push(i);
 
+    for (const i of janela) {
+      if (nova.indexOf(i) === -1) { items[i].style.transform = ''; items[i].style.opacity = ''; items[i].style.filter = ''; }
+    }
+    for (const i of nova) {
+      const d = Math.abs(i - pos);
+      const k = Math.max(0, 1 - d / 1.6);           // 1 sob a lente, 0 fora dela
+      items[i].style.transform = `scale(${(0.82 + 0.36 * k).toFixed(3)})`;
+      items[i].style.opacity   = (0.5 + 0.5 * k).toFixed(3);
+      items[i].style.filter    = `grayscale(${((1 - k) * 0.5).toFixed(2)}) brightness(${(0.82 + 0.18 * k).toFixed(2)})`;
+    }
+    janela = nova;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: ROLAGEM INFINITA
+// ═══════════════════════════════════════════════════════════════
 function wireBelt(track) {
   track.dataset.ready = '1';
+  const nav   = track.closest('.bottom-nav');
   const items = [...track.querySelectorAll('.belt-item')];
   if (!items.length) return;
 
-  // `travado` cobre o posicionamento inicial: centralizar a aba ativa não
-  // pode disparar som nem navegação.
-  let travado = true;
-  let atual = Math.max(0, items.findIndex(i => i.classList.contains('is-center')));
+  const idxAtivo = parseInt(nav?.dataset.idx || '0', 10) || 0;
+  const cicloPx  = CICLO * ITEM_W;
+  const MIN_SEG  = 3 * cicloPx;                    // janela segura antes do teleporte
+  const MAX_SEG  = (REPEATS - 3) * cicloPx;
 
-  const centroDe = (i) => items[i].offsetLeft + items[i].offsetWidth / 2 - track.clientWidth / 2;
+  // Com padding lateral de (metade da fita − metade do item), centralizar o
+  // item i vira exatamente scrollLeft = i * ITEM_W.
+  const posDe = (i) => i * ITEM_W;
 
-  const maisProximo = () => {
-    const centro = track.scrollLeft + track.clientWidth / 2;
-    let melhor = 0, dist = Infinity;
-    items.forEach((it, i) => {
-      const d = Math.abs(it.offsetLeft + it.offsetWidth / 2 - centro);
-      if (d < dist) { dist = d; melhor = i; }
-    });
-    return melhor;
+  let travado    = true;      // posicionamento inicial não soa nem navega
+  let teleportando = false;
+  let atual      = CENTRO * CICLO + idxAtivo;
+
+  const pintarLente = fazerLente(track, items);
+
+  const talvezTeleportar = () => {
+    if (teleportando) return;
+    const sl = track.scrollLeft;
+    if (sl >= MIN_SEG && sl < MAX_SEG) return;
+    teleportando = true;
+    const dentroDoCiclo = ((sl % cicloPx) + cicloPx) % cicloPx;
+    const novo = CENTRO * cicloPx + dentroDoCiclo;
+    track.scrollLeft = novo;
+    atual = Math.round(novo / ITEM_W);              // salto invisível não é clique
+    setTimeout(() => { teleportando = false; }, 0);
   };
-
-  const pintar = (i) => items.forEach((it, n) => it.classList.toggle('is-center', n === i));
 
   // Posiciona no ativo antes de soltar os listeners. Precisa insistir porque
   // no primeiro instante o track ainda não tem largura e o scroll vira no-op
-  // silencioso — o cinturão nascia com a aba errada no centro.
-  // Escada de timers (e não requestAnimationFrame): rAF é suspenso quando a
-  // aba não está pintando, e aí o cinturão nunca centralizava nem destravava.
+  // silencioso. Escada de timers e não requestAnimationFrame: rAF é suspenso
+  // quando a aba não está pintando, e aí o cinturão nunca destravava.
   const tentar = (i) => {
     if (track.clientWidth > 0) {
-      const alvo = Math.max(0, centroDe(atual));
+      const alvo = posDe(atual);
       track.scrollLeft = alvo;
-      if (Math.abs(track.scrollLeft - alvo) < 2) { travado = false; return; }
+      if (Math.abs(track.scrollLeft - alvo) < 2) { pintarLente(); travado = false; return; }
     }
     if (i < ESPERAS.length) setTimeout(() => tentar(i + 1), ESPERAS[i]);
-    else travado = false;    // desiste da centralização, mas o menu funciona
+    else { pintarLente(); travado = false; }
   };
   tentar(0);
 
   let parada;
   track.addEventListener('scroll', () => {
-    const i = maisProximo();
+    if (teleportando) return;
+    pintarLente();
+    const i = Math.round(track.scrollLeft / ITEM_W);
     if (i !== atual) {
       atual = i;
-      pintar(i);
-      if (!travado) playClick();      // um clique por trava do tambor
+      if (!travado) playClick();                    // um clique por trava do tambor
     }
     clearTimeout(parada);
     parada = setTimeout(() => {
+      talvezTeleportar();
       if (travado) return;
-      const destino = items[atual].getAttribute('href');
+      const destino = TABS[((atual % CICLO) + CICLO) % CICLO].route;
       if (destino && location.hash !== destino) location.hash = destino;
     }, 220);
   }, { passive: true });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 4: AUTO-WIRE
+// BLOCO 5: AUTO-WIRE
 // ═══════════════════════════════════════════════════════════════
 // As telas montam o nav via string HTML, então não há hook de "montou".
 // Um observer único liga qualquer cinturão novo que apareça no DOM —
