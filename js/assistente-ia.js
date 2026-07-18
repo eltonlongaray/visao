@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 11, OLHO_Y = 8;   // amplitude do olhar (unidades do SVG)
+const OLHO_X = 11, OLHO_Y = 10;  // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -144,10 +144,10 @@ export function petGuideTo(rect) {
     y = limiteInferior(TAM);
   } else if (rect.right + GAP + TAM <= vw - 8) {
     x = rect.right + GAP;                                 // cabe à direita
-    y = rect.top - TAM * 0.6;                             // um pouco ACIMA do alvo
+    y = rect.bottom - TAM * 0.35;                         // um pouco ABAIXO do alvo
   } else if (rect.left - GAP - TAM >= 8) {
     x = rect.left - GAP - TAM;                            // cabe à esquerda
-    y = rect.top - TAM * 0.6;                             // (assim ele olha pra baixo nele)
+    y = rect.bottom - TAM * 0.35;                         // (assim ele olha pra CIMA nele)
   } else {
     // Alvo largo (ocupa a tela toda): vai ACIMA; se não couber, ABAIXO
     x = rect.left + rect.width / 2 - TAM / 2;
@@ -212,13 +212,18 @@ function pararAlternanciaOlhar() {
   _gazeTimer = null;
 }
 
+// Cada eixo tem escala PRÓPRIA (não normaliza pelo vetor inteiro): com o alvo
+// ao lado, o dx dominava e o olhar vertical virava quase zero. Satura na
+// distância de referência — expressivo, como mascote de desenho.
+const REF_X = 100, REF_Y = 60;
 function aplicarOlhar() {
   const el = document.getElementById('visao-pet');
   if (!el) return;
   if (_olhandoUsuario || !_alvoPos || !_petPos) { moverPupila(el, 0, 0); return; }
-  const dx = _alvoPos.x - _petPos.x, dy = _alvoPos.y - _petPos.y;
-  const d = Math.hypot(dx, dy) || 1;
-  moverPupila(el, dx / d * OLHO_X, dy / d * OLHO_Y);
+  const lim = (v, ref) => Math.max(-1, Math.min(1, v / ref));
+  moverPupila(el,
+    lim(_alvoPos.x - _petPos.x, REF_X) * OLHO_X,
+    lim(_alvoPos.y - _petPos.y, REF_Y) * OLHO_Y);
 }
 
 // Move a íris (com a pupila junto) sobre a esclera branca — como olho de verdade.
