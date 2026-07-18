@@ -118,7 +118,7 @@ export function petGuideEnd() {
     el.style.removeProperty('left');
     el.style.removeProperty('top');
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
-    el.querySelector('.pet-pupil')?.removeAttribute('transform');
+    el.querySelector('.pet-pupil-group')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
     el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
     el.dataset.state = 'idle';
@@ -230,18 +230,16 @@ function pararAlternanciaOlhar() {
   _gazeTimer = null;
 }
 
-// Cada eixo tem escala PRÓPRIA (não normaliza pelo vetor inteiro): com o alvo
-// ao lado, o dx dominava e o olhar vertical virava quase zero. Satura na
-// distância de referência — expressivo, como mascote de desenho.
-const REF_X = 100, REF_Y = 60;
+// Usa só a DIREÇÃO do alvo, não a distância. Assim o olhar tem sempre a mesma
+// intensidade: mesma direção = mesmo olhar em qualquer passo. E o resultado cai
+// sempre sobre uma elipse fixa, então na diagonal os eixos não somam e estouram.
 function aplicarOlhar() {
   const el = document.getElementById('visao-pet');
   if (!el) return;
   if (_olhandoUsuario || !_alvoPos || !_petPos) { moverPupila(el, 0, 0); return; }
-  const lim = (v, ref) => Math.max(-1, Math.min(1, v / ref));
-  moverPupila(el,
-    lim(_alvoPos.x - _petPos.x, REF_X) * OLHO_X,
-    lim(_alvoPos.y - _petPos.y, REF_Y) * OLHO_Y);
+  const dx = _alvoPos.x - _petPos.x, dy = _alvoPos.y - _petPos.y;
+  const d = Math.hypot(dx, dy) || 1;
+  moverPupila(el, dx / d * OLHO_X, dy / d * OLHO_Y);
 }
 
 // Move a íris (com a pupila junto) sobre a esclera branca — como olho de verdade.
@@ -252,15 +250,17 @@ function moverPupila(el, ex, ey) {
   // A ÍRIS desliza pouco (é o que faz a borda afinar de um lado e viajar do
   // outro). A PUPILA desliza bem mais, DENTRO da íris, chegando perto da borda.
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
-  el.querySelector('.pet-pupil')?.setAttribute('transform',
+  el.querySelector('.pet-pupil-group')?.setAttribute('transform',
     `translate(${(ex * PUPILA_MULT).toFixed(1)} ${(ey * PUPILA_MULT).toFixed(1)})`);
   ey = ey * (1 + PUPILA_MULT);   // pálpebras seguem o deslocamento TOTAL da pupila
   // As pálpebras SEGUEM a pupila 1:1, então ela sempre ENCOSTA na de cima
   // (olhando pra cima) ou na de baixo (olhando pra baixo).
   // Geometria: pupila ry=11 em cy=30; pálpebra de cima tem borda em `ry`,
   // a de baixo em `60-ry`. Cobrindo 3 unidades da pupila → ry = 22 ± ey.
-  el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, LID_RY + ey).toFixed(1));
-  el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, LID_RY - ey).toFixed(1));
+  // Só a pálpebra do lado pra onde ele olha se mexe (encolhendo pra liberar a
+  // pupila). A oposta fica parada — senão ela avança e encosta na pupila.
+  el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, LID_RY + Math.min(0, ey)).toFixed(1));
+  el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, LID_RY - Math.max(0, ey)).toFixed(1));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -333,9 +333,12 @@ function buildPetHTML() {
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
           <circle cx="30" cy="30" r="27" fill="#eab308" stroke="#0d0d0d" stroke-width="6"/>
-          <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
-          <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
-          <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
+          <!-- Reflexos andam JUNTO com a pupila (senão ela desliza por baixo deles) -->
+          <g class="pet-pupil-group">
+            <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
+            <circle cx="34" cy="24" r="3.6" fill="white" opacity="0.85"/>
+            <circle cx="26" cy="35" r="1.6" fill="white" opacity="0.35"/>
+          </g>
         </g>
       </g>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
