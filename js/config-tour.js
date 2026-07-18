@@ -49,19 +49,7 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 4. HOME: biblioteca de atividades ──
-  {
-    id: 'home-atividades',
-    route: '/home',
-    target: '#cats-list, #add-cat',
-    holePad: 10,
-    noCollapse: true,
-    title: 'Sua biblioteca',
-    message: 'Aqui ficam suas atividades (Treino, Estudo, Hidratação...). Cadastre no <strong>+</strong> e elas viram opções no Ritual — você não digita tudo de novo.',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 5. HOME: Avisos ──
+  // ── 4. HOME: Avisos ──
   {
     id: 'home-avisos',
     route: '/home',
@@ -82,6 +70,30 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '🏆 Desafios',
     message: 'Na Home você vê o que está "em jogo": os desafios abertos pra você entrar. O desafio em si acontece na aba Desafios — já te mostro.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 6. HOME: Lembretes da semana ──
+  {
+    id: 'home-lembretes',
+    route: '/home',
+    target: '#reminders-card',
+    holePad: 8,
+    noCollapse: true,
+    title: '🔔 Lembretes da semana',
+    message: 'Toda atividade que você marcar com 🔔 no Ritual aparece aqui, reunida por semana. Um toque e você vê tudo que está pendente — sem abrir dia por dia.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 7. HOME: biblioteca de atividades ──
+  {
+    id: 'home-atividades',
+    route: '/home',
+    target: '#cats-list, #add-cat',
+    holePad: 10,
+    noCollapse: true,
+    title: 'Sua biblioteca',
+    message: 'Aqui ficam suas atividades (Treino, Estudo, Hidratação...). Cadastre no <strong>+</strong> e elas viram opções no Ritual — você não digita tudo de novo.',
     primaryBtn: 'Próximo →'
   },
 
