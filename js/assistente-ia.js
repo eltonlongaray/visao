@@ -81,7 +81,7 @@ export function petGuideStart() {
   el.classList.add('pet-vanish');
   setTimeout(() => {
     el.classList.add('pet-guiding');
-    el.dataset.state = 'excited';
+    el.dataset.state = 'idle';   // idle = ele continua piscando (blink só roda em idle)
     el.classList.remove('pet-vanish');
   }, 220);
 }
@@ -94,6 +94,8 @@ export function petGuideEnd() {
     el.classList.remove('pet-guiding');
     el.style.removeProperty('--pet-x');
     el.style.removeProperty('--pet-y');
+    const iris = el.querySelector('.pet-iris-group');
+    if (iris) iris.removeAttribute('transform');   // olhar volta ao centro
     el.dataset.state = 'idle';
     el.classList.remove('pet-vanish');
   }, 220);
@@ -120,6 +122,26 @@ export function petGuideTo(rect) {
   y = Math.max(12, Math.min(y, vh - TOUR_BAR - PET_SIZE));
   el.style.setProperty('--pet-x', `${Math.round(x)}px`);
   el.style.setProperty('--pet-y', `${Math.round(y)}px`);
+
+  // O olhar aponta pro que está sendo mostrado
+  lookAt(el, x + PET_SIZE / 2, y + PET_SIZE / 2,
+         rect ? rect.left + rect.width / 2 : vw / 2,
+         rect ? rect.top + rect.height / 2 : vh / 2);
+}
+
+// Desloca a íris na direção do alvo (unidades do SVG, viewBox 60x60).
+// Vertical é menor que horizontal pra pupila não sumir sob a pálpebra.
+// Usa o ATRIBUTO transform do SVG (nativo e universal) — CSS transform com
+// var() não é confiável em SVG. Movimento instantâneo = sacada, como olho real.
+function lookAt(el, petCx, petCy, alvoX, alvoY) {
+  const iris = el.querySelector('.pet-iris-group');
+  if (!iris) return;
+  const dx = alvoX - petCx, dy = alvoY - petCy;
+  const dist = Math.hypot(dx, dy) || 1;
+  const MAX_X = 10, MAX_Y = 5;
+  const ex = (dx / dist * MAX_X).toFixed(1);
+  const ey = (dy / dist * MAX_Y).toFixed(1);
+  iris.setAttribute('transform', `translate(${ex} ${ey})`);
 }
 
 // ═══════════════════════════════════════════════════════════════

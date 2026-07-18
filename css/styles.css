@@ -4766,6 +4766,13 @@ body.tour-active { overflow: hidden; }
 /* Em modo guia ele só mostra o olho — nada de chat/badge atrapalhando */
 #visao-pet.pet-guiding .pet-chat,
 #visao-pet.pet-guiding #pet-badge { display: none !important; }
+/* Flutua devagar (o petBounce do "excited" era rápido demais) */
+#visao-pet.pet-guiding .pet-body { animation: petGuideFloat 3s ease-in-out infinite; }
+@keyframes petGuideFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+/* O olhar acompanha o destaque — o JS move via atributo transform do SVG */
 /* Some antes de trocar de âncora (canto ↔ tela) */
 #visao-pet.pet-vanish { opacity: 0; transform: scale(0.7); }
 
