@@ -186,7 +186,7 @@ async function showStep() {
   // rolagem no prepare (ex: forçar topo). scrollBlock: 'start' mostra o topo do alvo.
   if (target && !step.noScroll) {
     target.scrollIntoView({ behavior: 'smooth', block: step.scrollBlock || 'center' });
-    await wait(320);
+    await esperarScrollParar(target);
   }
   positionHole(target, step);
   positionBar(target, step);
@@ -194,8 +194,24 @@ async function showStep() {
   transitioning = false;
 }
 
+// Espera a rolagem PARAR de verdade (em vez de um tempo fixo) — assim o
+// recorte e a barra são posicionados na posição final, sem deslizar depois.
+async function esperarScrollParar(el, maxMs = 1000) {
+  const t0 = Date.now();
+  let anterior = null, estavel = 0;
+  while (Date.now() - t0 < maxMs) {
+    const y = el.getBoundingClientRect().top;
+    if (anterior !== null && Math.abs(y - anterior) < 0.5) {
+      if (++estavel >= 3) return;
+    } else estavel = 0;
+    anterior = y;
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
+
 // Leva o Falcon pra perto do que está sendo destacado
 function movePetTo(target, step) {
+  if (step.petHome) return;   // passo do próprio pet: ele já se posicionou sozinho
   const rect = (target && !step.noSpotlight) ? target.getBoundingClientRect() : null;
   import('./assistente-ia.js').then(m => m.petGuideTo?.(rect)).catch(() => {});
 }

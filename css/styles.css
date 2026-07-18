@@ -4767,7 +4767,7 @@ body.tour-active { overflow: hidden; }
 #visao-pet.pet-guiding .pet-chat,
 #visao-pet.pet-guiding #pet-badge { display: none !important; }
 /* Flutua devagar (o petBounce do "excited" era rápido demais) */
-#visao-pet.pet-guiding .pet-body { animation: petGuideFloat 3s ease-in-out infinite; }
+#visao-pet.pet-guiding .pet-body { animation: petGuideFloat 1.8s ease-in-out infinite; }
 @keyframes petGuideFloat {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-5px); }

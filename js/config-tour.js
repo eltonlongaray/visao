@@ -277,7 +277,26 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 18. Final ──
+  // ── 18. O pet volta pro canto dele e se apresenta ──
+  {
+    id: 'pet-home',
+    route: '/ajustes',
+    noCollapse: true,
+    prepare: async () => {
+      const m = await import('./assistente-ia.js');
+      m.petGuideHome?.();      // volta pro cantinho e encara o usuário
+      await wait(700);
+    },
+    target: '.pet-body',
+    noScroll: true,
+    petHome: true,      // não reposicionar o pet: o alvo é ele mesmo
+    holePad: 12,
+    title: 'E esse aqui é o meu canto 🦅',
+    message: 'Fico sempre por aqui. É só <strong>tocar em mim</strong> pra saber como está seu progresso, criar uma atividade rapidinho ou tirar uma dúvida. Estou a um toque de distância.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 19. Final ──
   {
     id: 'end',
     noSpotlight: true,

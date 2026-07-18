@@ -71,6 +71,12 @@ export function setBadge(count) {
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
 const TOUR_BAR = 170;   // área da barra do tour no rodapé (não invadir)
+const OLHO_X = 11, OLHO_Y = 6;   // amplitude da pupila (unidades do SVG)
+
+let _gazeTimer = null;
+let _petPos = null;          // centro do pet na tela
+let _alvoPos = null;         // centro do que está sendo destacado
+let _olhandoUsuario = false;
 
 export function petGuideStart() {
   const el = document.getElementById('visao-pet');
@@ -89,59 +95,102 @@ export function petGuideStart() {
 export function petGuideEnd() {
   const el = document.getElementById('visao-pet');
   if (!el) return;
+  pararAlternanciaOlhar();
   el.classList.add('pet-vanish');
   setTimeout(() => {
     el.classList.remove('pet-guiding');
     el.style.removeProperty('--pet-x');
     el.style.removeProperty('--pet-y');
-    const iris = el.querySelector('.pet-iris-group');
-    if (iris) iris.removeAttribute('transform');   // olhar volta ao centro
+    el.querySelector('.pet-pupil')?.removeAttribute('transform');
+    el.querySelector('.pet-lid-top')?.removeAttribute('transform');
+    el.querySelector('.pet-lid-bot')?.removeAttribute('transform');
     el.dataset.state = 'idle';
     el.classList.remove('pet-vanish');
   }, 220);
 }
 
-// Leva o pet pra perto do elemento destacado, sem cobrir o texto nem a barra
+// Coloca o pet AO LADO do destaque (direita → esquerda → acima → abaixo).
+// Nunca por cima das palavras, nunca invadindo a barra do tour.
 export function petGuideTo(rect) {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
   const vw = window.innerWidth, vh = window.innerHeight;
+  const maxY = vh - TOUR_BAR - PET_SIZE;
+  const GAP = 12;
   let x, y;
 
   if (!rect || (!rect.width && !rect.height)) {
-    x = vw / 2 - PET_SIZE / 2;          // sem alvo: fica no centro, mais acima
-    y = vh * 0.28;
+    // Sem alvo (boas-vindas / final): perto da mensagem, logo acima da barra
+    x = vw / 2 - PET_SIZE / 2;
+    y = maxY;
+  } else if (rect.right + GAP + PET_SIZE <= vw - 8) {
+    x = rect.right + GAP;                                 // cabe à direita
+    y = rect.top + rect.height / 2 - PET_SIZE / 2;
+  } else if (rect.left - GAP - PET_SIZE >= 8) {
+    x = rect.left - GAP - PET_SIZE;                       // cabe à esquerda
+    y = rect.top + rect.height / 2 - PET_SIZE / 2;
   } else {
-    x = rect.right + 14;                            // de preferência à direita
-    if (x + PET_SIZE > vw - 8) x = rect.left - PET_SIZE - 14;   // senão à esquerda
-    if (x < 8) x = rect.left + rect.width / 2 - PET_SIZE / 2;   // senão centraliza
-    y = rect.top + Math.min(rect.height / 2, 44) - PET_SIZE / 2;
+    // Alvo largo (ocupa a tela toda): vai ACIMA; se não couber, ABAIXO
+    x = rect.left + rect.width / 2 - PET_SIZE / 2;
+    const acima = rect.top - GAP - PET_SIZE;
+    y = acima >= 12 ? acima : rect.bottom + GAP;
   }
 
   x = Math.max(8, Math.min(x, vw - PET_SIZE - 8));
-  y = Math.max(12, Math.min(y, vh - TOUR_BAR - PET_SIZE));
+  y = Math.max(12, Math.min(y, maxY));
   el.style.setProperty('--pet-x', `${Math.round(x)}px`);
   el.style.setProperty('--pet-y', `${Math.round(y)}px`);
 
-  // O olhar aponta pro que está sendo mostrado
-  lookAt(el, x + PET_SIZE / 2, y + PET_SIZE / 2,
-         rect ? rect.left + rect.width / 2 : vw / 2,
-         rect ? rect.top + rect.height / 2 : vh / 2);
+  _petPos  = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
+  _alvoPos = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
+  _olhandoUsuario = false;
+  aplicarOlhar();
+  iniciarAlternanciaOlhar();
 }
 
-// Desloca a íris na direção do alvo (unidades do SVG, viewBox 60x60).
-// Vertical é menor que horizontal pra pupila não sumir sob a pálpebra.
-// Usa o ATRIBUTO transform do SVG (nativo e universal) — CSS transform com
-// var() não é confiável em SVG. Movimento instantâneo = sacada, como olho real.
-function lookAt(el, petCx, petCy, alvoX, alvoY) {
-  const iris = el.querySelector('.pet-iris-group');
-  if (!iris) return;
-  const dx = alvoX - petCx, dy = alvoY - petCy;
-  const dist = Math.hypot(dx, dy) || 1;
-  const MAX_X = 10, MAX_Y = 5;
-  const ex = (dx / dist * MAX_X).toFixed(1);
-  const ey = (dy / dist * MAX_Y).toFixed(1);
-  iris.setAttribute('transform', `translate(${ex} ${ey})`);
+// Último passo do tour: o pet volta pro cantinho dele e olha pro usuário
+export function petGuideHome() {
+  const el = document.getElementById('visao-pet');
+  if (!el || !el.classList.contains('pet-guiding')) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const x = vw - PET_SIZE - 14, y = vh - TOUR_BAR - PET_SIZE;
+  el.style.setProperty('--pet-x', `${Math.round(x)}px`);
+  el.style.setProperty('--pet-y', `${Math.round(y)}px`);
+  _petPos = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
+  _alvoPos = null;
+  _olhandoUsuario = true;      // encara o usuário
+  aplicarOlhar();
+  pararAlternanciaOlhar();
+}
+
+// ── Olhar: alterna entre o destaque e o usuário (parece que conversa) ──
+function iniciarAlternanciaOlhar() {
+  pararAlternanciaOlhar();
+  _gazeTimer = setInterval(() => {
+    _olhandoUsuario = !_olhandoUsuario;
+    aplicarOlhar();
+  }, 2300);
+}
+function pararAlternanciaOlhar() {
+  if (_gazeTimer) clearInterval(_gazeTimer);
+  _gazeTimer = null;
+}
+
+function aplicarOlhar() {
+  const el = document.getElementById('visao-pet');
+  if (!el) return;
+  if (_olhandoUsuario || !_alvoPos || !_petPos) { moverPupila(el, 0, 0); return; }
+  const dx = _alvoPos.x - _petPos.x, dy = _alvoPos.y - _petPos.y;
+  const d = Math.hypot(dx, dy) || 1;
+  moverPupila(el, dx / d * OLHO_X, dy / d * OLHO_Y);
+}
+
+// Move SÓ a pupila (a íris fica parada). Olhando pra cima/baixo, a pálpebra
+// daquele lado recua pra não cortar o olhar. Usa atributo transform do SVG.
+function moverPupila(el, ex, ey) {
+  el.querySelector('.pet-pupil')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
+  el.querySelector('.pet-lid-top')?.setAttribute('transform', `translate(0 ${(Math.min(0, ey) * 1.6).toFixed(1)})`);
+  el.querySelector('.pet-lid-bot')?.setAttribute('transform', `translate(0 ${(Math.max(0, ey) * 1.6).toFixed(1)})`);
 }
 
 // ═══════════════════════════════════════════════════════════════
