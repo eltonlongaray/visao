@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 4, OLHO_Y = 3.4; // deslocamento da ÍRIS (unidades do SVG)
+const OLHO_X = 4, OLHO_Y = 3.3; // deslocamento da ÍRIS (unidades do SVG)
 const PUPILA_MULT = 3.5;        // a pupila anda 3.5x isso, dentro da íris
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
@@ -251,6 +251,7 @@ function aplicarOlhar() {
 const LID_RY = 22;    // altura normal da pálpebra
 const LID_ABRE = 1.3; // quanto a pálpebra do lado do olhar recua (abre)
 const LID_SEGUE = 0.5;// quanto a de cima desce junto quando ele olha pra baixo
+const FOLGA_LID = 18; // limite pra pupila (ry 11) nunca encostar na pálpebra
 function moverPupila(el, ex, ey) {
   // A ÍRIS desliza pouco (é o que faz a borda afinar de um lado e viajar do
   // outro). A PUPILA desliza bem mais, DENTRO da íris, chegando perto da borda.
@@ -272,6 +273,13 @@ function moverPupila(el, ex, ey) {
   } else {                                       // olhando pra BAIXO
     ryCima  = LID_RY + LID_SEGUE * ey;           // desce junto, de leve
     ryBaixo = LID_RY - LID_ABRE * ey;            // recua bastante
+  }
+  // SÓ com o olhar direcionado (no tutorial): abre o quanto for preciso pra a
+  // pupila não encostar. Parado/olhando pra frente ela volta ao normal — e aí
+  // fica levemente coberta pelas pálpebras, que é o visual de sempre.
+  if (Math.abs(ex) > 0.5 || Math.abs(ey) > 0.5) {
+    ryCima  = Math.min(ryCima,  FOLGA_LID + ey);
+    ryBaixo = Math.min(ryBaixo, FOLGA_LID - ey);
   }
   el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, ryCima).toFixed(1));
   el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, ryBaixo).toFixed(1));
@@ -349,7 +357,7 @@ function buildPetHTML() {
           <circle cx="30" cy="30" r="27" fill="#eab308" stroke="#0d0d0d" stroke-width="8"/>
           <!-- Reflexos andam JUNTO com a pupila (senão ela desliza por baixo deles) -->
           <g class="pet-pupil-group">
-            <ellipse cx="30" cy="30" rx="7" ry="7" fill="#0d0d0d" class="pet-pupil"/>
+            <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
             <circle cx="34" cy="24" r="3.6" fill="white" opacity="0.85"/>
             <circle cx="26" cy="35" r="1.6" fill="white" opacity="0.35"/>
           </g>
