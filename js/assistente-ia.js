@@ -130,29 +130,45 @@ export function petGuideTo(rect) {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
   el.classList.remove('pet-at-home');   // saiu do cantinho, volta ao z-index normal
-  const vw = window.innerWidth;
+  const vw = window.innerWidth, vh = window.innerHeight;
   const TAM = tamanhoPet(el);
   // Ele fica ACIMA da barra em z-index, então pode ir junto da marcação mesmo
   // que ela esteja lá embaixo — o limite agora é só a tela.
-  const maxY = window.innerHeight - TAM - 12;
+  const maxY = vh - TAM - 12;
   const GAP = 12;
-  let x, y;
+  let x, y, mira = null;
 
   if (!rect || (!rect.width && !rect.height)) {
     // Sem alvo (boas-vindas / final): perto da mensagem, logo acima da barra
     x = vw / 2 - TAM / 2;
     y = limiteInferior(TAM);
   } else {
-    // SEMPRE numa lateral + deslocado na vertical → olhar sempre na DIAGONAL.
-    const centroAlvoX = rect.left + rect.width / 2;
-    const centroAlvoY = rect.top + rect.height / 2;
+    // Usa só a parte VISÍVEL do alvo — cards altos (Ritual) passam da tela e o
+    // centro real deles cai fora da vista, jogando o pet pro lugar errado.
+    const vis = {
+      top:    Math.max(rect.top, 0),
+      bottom: Math.min(rect.bottom, vh),
+      left:   Math.max(rect.left, 0),
+      right:  Math.min(rect.right, vw),
+    };
+    const centroX = (vis.left + vis.right) / 2;
+    const centroY = (vis.top + vis.bottom) / 2;
+    const alvoAlto = (vis.bottom - vis.top) > vh * 0.45;
+
     if (rect.right + GAP + TAM <= vw - 8)      x = rect.right + GAP;       // cabe à direita
     else if (rect.left - GAP - TAM >= 8)       x = rect.left - GAP - TAM;  // cabe à esquerda
-    else x = centroAlvoX <= vw / 2 ? vw - TAM - 8 : 8;  // alvo largo: encosta na borda oposta
-    // Alvo em cima → pet embaixo (olha pra cima). Alvo embaixo → pet em cima.
-    const alvoEmCima = centroAlvoY < window.innerHeight / 2;
-    const desloc = Math.min(rect.height / 2 + TAM * 0.5, 95);
-    y = (alvoEmCima ? centroAlvoY + desloc : centroAlvoY - desloc) - TAM / 2;
+    else if (alvoAlto)                          x = 8;                      // alvo alto: canto esquerdo
+    else x = centroX <= vw / 2 ? vw - TAM - 8 : 8;    // largo: encosta na borda oposta
+
+    // Alvo alto → fica junto do TOPO dele (é onde a informação começa).
+    // Senão: alvo em cima → pet embaixo (olha ↑); alvo embaixo → pet em cima (olha ↓).
+    if (alvoAlto) {
+      y = vis.top + 8;
+    } else {
+      const desloc = Math.min((vis.bottom - vis.top) / 2 + TAM * 0.5, 95);
+      y = (centroY < vh / 2 ? centroY + desloc : centroY - desloc) - TAM / 2;
+    }
+    mira = { x: centroX, y: alvoAlto ? Math.min(centroY, vis.top + vh * 0.3) : centroY };
   }
 
   x = Math.max(8, Math.min(x, vw - TAM - 8));
@@ -161,7 +177,7 @@ export function petGuideTo(rect) {
   el.style.top  = `${Math.round(y)}px`;
 
   _petPos  = { x: x + TAM / 2, y: y + TAM / 2 };
-  _alvoPos = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
+  _alvoPos = mira;
   _olhandoUsuario = false;
   aplicarOlhar();
   iniciarAlternanciaOlhar();
@@ -311,7 +327,7 @@ function buildPetHTML() {
            branco só aparece do lado oposto quando ela desliza. -->
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="28" fill="#eab308" stroke="#0d0d0d" stroke-width="9"/>
+          <circle cx="30" cy="30" r="32" fill="#eab308"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
