@@ -1,4 +1,4 @@
-﻿// ─── ÍNDICE ──────────────────────────────────────────────────
+// ─── ÍNDICE ──────────────────────────────────────────────────
 // BLOCO 1 — IMPORTS
 // BLOCO 2 — HELPERS DE DATA (Intl — funciona em qualquer idioma)
 // BLOCO 3 — ESTADO DO MÓDULO
@@ -21,6 +21,7 @@ import {
   sleepDuration, formatTime,
   getWeekNote, setWeekNote, dayId, getProfile
 } from '../banco-dados.js';
+import { calcularConstancia, isActiveDay } from '../metricas-constancia.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { isAdmin } from '../permissao-admin.js';
 import { deleteWeek } from '../excluir-conta.js';
@@ -259,7 +260,7 @@ async function refreshMonthData() {
   fetchDaysRange(recordsStart, recordsEnd).then(async allHistoryDays => {
     if (!userProfile) userProfile = await getProfile().catch(() => null);
     renderRecords(allHistoryDays);
-    const streakData = calculateStreaks(allHistoryDays, userProfile?.streakOrigin || null);
+    const streakData = calcularConstancia(allHistoryDays, userProfile?.streakOrigin || null);
     renderStreakCard(streakData);
     renderConstanciaDetails(allHistoryDays, userProfile?.streakOrigin || null, streakData);
   }).catch(err => console.error('[Visão] erro ao buscar histórico:', err));
@@ -776,70 +777,6 @@ function recordRow(t) {
 // Sequência atual, recorde e taxa — usa hasActivity + dados reais.
 // Docs sem atividade (auto-gerados) não contam como dia ativo.
 // ═══════════════════════════════════════════════════════════════
-function isActiveDay(d) {
-  return !!(
-    d.hasActivity ||
-    (d.hydrationMl || 0) > 0 ||
-    d.sleepTime ||
-    d.wakeTime ||
-    (Array.isArray(d.tasks) && d.tasks.length > 0)
-  );
-}
-
-function calculateStreaks(allDays, streakOriginId) {
-  if (!allDays.length) return { current: 0, longest: 0, rate: 0, totalRegistered: 0, totalDays: 0 };
-
-  // Só conta dias com atividade real
-  const activeDays = allDays.filter(isActiveDay);
-  const activeSet = new Set(activeDays.map(d => d.id));
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Origem: streakOriginId do perfil (ex: "2026-06-09") ou primeiro dia ativo
-  let firstDate;
-  if (streakOriginId) {
-    const [fy, fm, fd] = streakOriginId.split('-').map(Number);
-    firstDate = new Date(fy, fm - 1, fd);
-    firstDate.setHours(0, 0, 0, 0);
-  } else if (activeDays.length) {
-    const sortedIds = [...activeSet].sort();
-    const [fy, fm, fd] = sortedIds[0].split('-').map(Number);
-    firstDate = new Date(fy, fm - 1, fd);
-    firstDate.setHours(0, 0, 0, 0);
-  } else {
-    return { current: 0, longest: 0, rate: 0, totalRegistered: 0, totalDays: 0 };
-  }
-
-  const totalDays = Math.floor((today - firstDate) / 86400000) + 1;
-  const totalRegistered = activeDays.filter(d => d.id >= dayId(firstDate)).length;
-  const rate = totalDays > 0 ? Math.round((totalRegistered / totalDays) * 100) : 0;
-
-  // Sequência atual: retrocede a partir de hoje
-  let current = 0;
-  const cursor = new Date(today);
-  while (cursor >= firstDate) {
-    if (!activeSet.has(dayId(cursor))) break;
-    current++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  // Recorde: percorre todos os dias do histórico
-  let longest = 0, streak = 0;
-  const scan = new Date(firstDate);
-  while (scan <= today) {
-    if (activeSet.has(dayId(scan))) {
-      streak++;
-      if (streak > longest) longest = streak;
-    } else {
-      streak = 0;
-    }
-    scan.setDate(scan.getDate() + 1);
-  }
-
-  return { current, longest, rate, totalRegistered, totalDays, firstDate };
-}
-
 function renderStreakCard({ current, longest, rate, totalRegistered, totalDays }) {
   const curEl = document.getElementById('streak-current');
   const curSub = document.getElementById('streak-current-sub');

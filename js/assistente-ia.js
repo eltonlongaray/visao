@@ -20,6 +20,7 @@ import {
   getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
+import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 
@@ -760,31 +761,16 @@ function isToday(date) {
 // ═══════════════════════════════════════════════════════════════
 
 async function calcStreak() {
-  const profile  = await getProfile();
-  const originId = profile?.streakOrigin || null;
-  const origin   = originId ? (() => {
-    const [y, m, d] = originId.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    dt.setHours(0, 0, 0, 0);
-    return dt;
-  })() : null;
-
-  let streak = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < 365; i++) {
-    if (origin && cursor < origin) break;
-    const id  = dayId(cursor);
-    const doc = await getDay(id);
-    if (!doc) break;
-    const isActive = doc.hasActivity || (doc.hydrationMl || 0) > 0 || !!doc.sleepTime
-      || Object.keys(doc).some(k => k !== 'id' && k !== 'generated');
-    if (!isActive) break;
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+  // Usa a MESMA fonte do Desempenho. A versão antiga chamava getDay() dia a dia,
+  // que lê só a tabela `days` e não enxerga tarefas — dias em que o usuário só
+  // fez tarefas quebravam a sequência aqui e não lá (27 dias vs 40 na tela).
+  const desde = new Date();
+  desde.setDate(desde.getDate() - 400);
+  const [dias, profile] = await Promise.all([
+    fetchDaysRange(desde, new Date()),
+    getProfile().catch(() => null),
+  ]);
+  return calcularConstancia(dias, profile?.streakOrigin || null).current;
 }
 
 async function calcWeekFailures() {
