@@ -275,7 +275,7 @@ function buildPetHTML() {
            branco só aparece do lado oposto quando ela desliza. -->
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="26" fill="#eab308" stroke="#0d0d0d" stroke-width="2.6"/>
+          <circle cx="30" cy="30" r="28" fill="#eab308" stroke="#0d0d0d" stroke-width="5"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
