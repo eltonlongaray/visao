@@ -286,7 +286,7 @@ export default {
   'pdf.reflections':        '📝 Reflexões semanais',
   'pdf.reflections.week':   'Semana {id}',
   'pdf.reflections.empty':  'Ainda não escreveste reflexões semanais.',
-  'pdf.footer':             'Falcon · Assistente Pessoal de Planeamento Estratégico',
+  'pdf.footer':             'Falcon · Mentor Pessoal de Planeamento Estratégico',
   'pdf.footer.days':        '{days} dias na base',
 
   // ── Toast / erros comuns ──────────────────────────────────────

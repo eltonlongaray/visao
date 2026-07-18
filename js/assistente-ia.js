@@ -39,8 +39,9 @@ export function showPet() {
 }
 
 export function hidePet() {
-  closeChatPanel();
   const el = document.getElementById('visao-pet');
+  if (el?.classList.contains('pet-guiding')) return;  // durante o tour ele fica
+  closeChatPanel();
   if (el) el.classList.add('pet-hidden');
 }
 
@@ -62,6 +63,63 @@ export function setBadge(count) {
   if (!badge) return;
   badge.textContent = count > 9 ? '9+' : String(count);
   badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 3.5: MODO GUIA — durante o tutorial o pet sai do canto e
+// passeia pela tela, parando ao lado do que está sendo destacado.
+// ═══════════════════════════════════════════════════════════════
+const PET_SIZE = 58;    // corpo do pet (aprox)
+const TOUR_BAR = 170;   // área da barra do tour no rodapé (não invadir)
+
+export function petGuideStart() {
+  const el = document.getElementById('visao-pet');
+  if (!el) return;
+  closeChatPanel();
+  el.classList.remove('pet-hidden');
+  // Some de onde está e reaparece já solto, em modo guia
+  el.classList.add('pet-vanish');
+  setTimeout(() => {
+    el.classList.add('pet-guiding');
+    el.dataset.state = 'excited';
+    el.classList.remove('pet-vanish');
+  }, 220);
+}
+
+export function petGuideEnd() {
+  const el = document.getElementById('visao-pet');
+  if (!el) return;
+  el.classList.add('pet-vanish');
+  setTimeout(() => {
+    el.classList.remove('pet-guiding');
+    el.style.removeProperty('--pet-x');
+    el.style.removeProperty('--pet-y');
+    el.dataset.state = 'idle';
+    el.classList.remove('pet-vanish');
+  }, 220);
+}
+
+// Leva o pet pra perto do elemento destacado, sem cobrir o texto nem a barra
+export function petGuideTo(rect) {
+  const el = document.getElementById('visao-pet');
+  if (!el || !el.classList.contains('pet-guiding')) return;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x, y;
+
+  if (!rect || (!rect.width && !rect.height)) {
+    x = vw / 2 - PET_SIZE / 2;          // sem alvo: fica no centro, mais acima
+    y = vh * 0.28;
+  } else {
+    x = rect.right + 14;                            // de preferência à direita
+    if (x + PET_SIZE > vw - 8) x = rect.left - PET_SIZE - 14;   // senão à esquerda
+    if (x < 8) x = rect.left + rect.width / 2 - PET_SIZE / 2;   // senão centraliza
+    y = rect.top + Math.min(rect.height / 2, 44) - PET_SIZE / 2;
+  }
+
+  x = Math.max(8, Math.min(x, vw - PET_SIZE - 8));
+  y = Math.max(12, Math.min(y, vh - TOUR_BAR - PET_SIZE));
+  el.style.setProperty('--pet-x', `${Math.round(x)}px`);
+  el.style.setProperty('--pet-y', `${Math.round(y)}px`);
 }
 
 // ═══════════════════════════════════════════════════════════════

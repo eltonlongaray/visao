@@ -4752,6 +4752,23 @@ body.tour-active { overflow: hidden; }
 }
 #visao-pet.pet-hidden { opacity: 0; pointer-events: none !important; transform: scale(0.8); }
 
+/* ─── Modo guia: durante o tutorial o pet solta do canto e passeia ─── */
+#visao-pet.pet-guiding {
+  bottom: auto; right: auto;
+  left: var(--pet-x, 50%);
+  top:  var(--pet-y, 28%);
+  z-index: 10002;
+  pointer-events: none !important;
+  transition: left 0.55s cubic-bezier(0.34, 1.15, 0.4, 1),
+              top  0.55s cubic-bezier(0.34, 1.15, 0.4, 1),
+              opacity 0.22s, transform 0.22s;
+}
+/* Em modo guia ele só mostra o olho — nada de chat/badge atrapalhando */
+#visao-pet.pet-guiding .pet-chat,
+#visao-pet.pet-guiding #pet-badge { display: none !important; }
+/* Some antes de trocar de âncora (canto ↔ tela) */
+#visao-pet.pet-vanish { opacity: 0; transform: scale(0.7); }
+
 /* Corpo do pet */
 .pet-body {
   width: 44px;

@@ -36,6 +36,8 @@ export async function start(stepsArr) {
   steps = stepsArr;
   i = 0;
   buildDom();
+  // O Falcon sai do canto e passa a passear pela tela, guiando o tour
+  import('./assistente-ia.js').then(m => m.petGuideStart?.()).catch(() => {});
   await showStep();
 }
 
@@ -50,6 +52,8 @@ export async function end(completed = false) {
   }
   if (completed) markDone();
   cleanupDom();
+  // Falcon volta pro cantinho dele
+  import('./assistente-ia.js').then(m => m.petGuideEnd?.()).catch(() => {});
 }
 
 export async function next() {
@@ -186,7 +190,14 @@ async function showStep() {
   }
   positionHole(target, step);
   positionBar(target, step);
+  movePetTo(target, step);
   transitioning = false;
+}
+
+// Leva o Falcon pra perto do que está sendo destacado
+function movePetTo(target, step) {
+  const rect = (target && !step.noSpotlight) ? target.getBoundingClientRect() : null;
+  import('./assistente-ia.js').then(m => m.petGuideTo?.(rect)).catch(() => {});
 }
 
 // Decide se a barra fica embaixo (padrão) ou no topo (se o alvo está perto do rodapé)
@@ -322,6 +333,7 @@ function repositionCurrent() {
   const target = step.target ? document.querySelector(step.target) : null;
   positionHole(target, step);
   positionBar(target, step);
+  movePetTo(target, step);
 }
 window.addEventListener('resize', () => {
   clearTimeout(repoTimer);

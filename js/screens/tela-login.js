@@ -12,7 +12,7 @@ export function renderLogin(app) {
     <div class="login-screen">
       <div class="login-logo"><img src="icons/icon-192.png?v=95" alt="Falcon" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
       <div class="login-title">Falcon</div>
-      <div class="login-sub">Assistente pessoal de planejamento estratégico</div>
+      <div class="login-sub">Mentor pessoal de planejamento estratégico</div>
 
       <form class="login-form" id="login-form">
         <label class="input-field">

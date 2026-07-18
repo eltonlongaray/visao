@@ -1,7 +1,7 @@
 {
-  "name": "Falcon — Assistente Pessoal",
+  "name": "Falcon — Mentor Pessoal",
   "short_name": "Falcon",
-  "description": "Assistente Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.",
+  "description": "Mentor Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
