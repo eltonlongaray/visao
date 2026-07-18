@@ -254,6 +254,13 @@ function moverPupila(el, ex, ey) {
   // a de baixo em `60-ry`. Cobrindo 3 unidades da pupila → ry = 22 ± ey.
   el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, LID_RY + ey).toFixed(1));
   el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, LID_RY - ey).toFixed(1));
+  // Gira o meio-plano pro aro fixo cobrir o lado pra onde a pupila está indo
+  const meia = el.querySelector('.pet-ring-half');
+  if (meia) {
+    const parado = Math.abs(ex) < 0.5 && Math.abs(ey) < 0.5;
+    const ang = parado ? 0 : Math.atan2(ey, ex) * 180 / Math.PI;
+    meia.setAttribute('transform', `rotate(${ang.toFixed(1)} 30 30)`);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -321,6 +328,11 @@ function buildPetHTML() {
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <clipPath id="petEyeClip"><circle cx="30" cy="30" r="30"/></clipPath>
+        <!-- Meio-plano que gira pra apontar na direção do olhar: recorta o aro
+             fixo pra ele existir SÓ do lado pra onde a pupila está indo. -->
+        <clipPath id="petRingClip">
+          <rect class="pet-ring-half" x="30" y="-40" width="80" height="140"/>
+        </clipPath>
       </defs>
       <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
       <!-- Recortado na borda do olho: a íris preenche olhando pra frente e o
@@ -333,6 +345,10 @@ function buildPetHTML() {
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
         </g>
       </g>
+      <!-- Aro PARADO, só na metade pra onde ele olha (do outro lado quem faz a
+           borda é a própria íris, que desliza). -->
+      <circle cx="30" cy="30" r="27" fill="none" stroke="#0d0d0d" stroke-width="9"
+              clip-path="url(#petRingClip)"/>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
