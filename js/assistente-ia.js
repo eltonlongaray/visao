@@ -144,10 +144,10 @@ export function petGuideTo(rect) {
     y = limiteInferior(TAM);
   } else if (rect.right + GAP + TAM <= vw - 8) {
     x = rect.right + GAP;                                 // cabe à direita
-    y = rect.top + rect.height / 2 - TAM / 2;
+    y = rect.top - TAM * 0.6;                             // um pouco ACIMA do alvo
   } else if (rect.left - GAP - TAM >= 8) {
     x = rect.left - GAP - TAM;                            // cabe à esquerda
-    y = rect.top + rect.height / 2 - TAM / 2;
+    y = rect.top - TAM * 0.6;                             // (assim ele olha pra baixo nele)
   } else {
     // Alvo largo (ocupa a tela toda): vai ACIMA; se não couber, ABAIXO
     x = rect.left + rect.width / 2 - TAM / 2;
