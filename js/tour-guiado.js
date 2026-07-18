@@ -146,7 +146,9 @@ async function showStep() {
   if (step.route && location.hash !== `#${step.route}`) {
     const { navigate } = await import('./roteador.js');
     navigate(step.route);
-    await wait(450);
+    // Curto de propósito: quem espera a tela ficar pronta é o prepare (que
+    // aguarda o elemento aparecer) e o waitForEl do alvo.
+    await wait(200);
   }
 
   // Executa açao automatizada ANTES de mostrar o step

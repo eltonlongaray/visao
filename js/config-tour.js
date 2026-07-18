@@ -14,6 +14,27 @@
 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
+// Espera o elemento existir (em vez de chutar um tempo fixo). Telas pesadas
+// como o Ritual buscam dados na rede — esperar cego trava ou chega cedo demais.
+async function esperarEl(sel, ms = 4000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const el = document.querySelector(sel);
+    if (el) return el;
+    await new Promise(r => requestAnimationFrame(r));
+  }
+  return null;
+}
+// Espera a condição virar verdadeira (ex: o card do dia terminar de abrir)
+async function esperarAte(cond, ms = 1200) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (cond()) return true;
+    await new Promise(r => requestAnimationFrame(r));
+  }
+  return false;
+}
+
 export const ONBOARDING_STEPS = [
 
   // ── 1. Boas-vindas ──
@@ -105,17 +126,18 @@ export const ONBOARDING_STEPS = [
     route: '/ritual',
     noCollapse: true,
     prepare: async () => {
-      await wait(400);
+      // O Ritual busca a semana na rede: espera o card existir, não um tempo fixo
       const today = new Date().toISOString().slice(0, 10);
-      const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
-      if (todayCard && !todayCard.classList.contains('open')) {
+      const todayCard = await esperarEl(`.day-card[data-day-id="${today}"]`);
+      if (!todayCard) return;
+      if (!todayCard.classList.contains('open')) {
         todayCard.querySelector('.day-card-header')?.click();
+        await esperarAte(() => todayCard.classList.contains('open'));
       }
-      await wait(400);
       // Topo do dia com uma folga acima pra não cortar
-      todayCard?.scrollIntoView({ block: 'start' });
+      todayCard.scrollIntoView({ block: 'start' });
       window.scrollBy({ top: -70 });
-      await wait(250);
+      await wait(150);
     },
     target: '.day-card.today, .day-card.open',
     noScroll: true,
@@ -145,16 +167,17 @@ export const ONBOARDING_STEPS = [
     prepare: async () => {
       document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
       const today = new Date().toISOString().slice(0, 10);
-      const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
-      if (todayCard && !todayCard.classList.contains('open')) {
+      const todayCard = await esperarEl(`.day-card[data-day-id="${today}"]`);
+      if (!todayCard) return;
+      if (!todayCard.classList.contains('open')) {
         todayCard.querySelector('.day-card-header')?.click();
-        await wait(350);
+        await esperarAte(() => todayCard.classList.contains('open'));
       }
       // Marca o + do primeiro turno com id temporário → o tour destaca o
       // elemento certo (senão pega um oculto com rect 0,0 no canto).
       document.getElementById('tour-shift-add')?.removeAttribute('id');
-      const add = todayCard?.querySelector('.shift-add');
-      if (add) { add.id = 'tour-shift-add'; add.scrollIntoView({ block: 'center' }); await wait(250); }
+      const add = todayCard.querySelector('.shift-add');
+      if (add) { add.id = 'tour-shift-add'; add.scrollIntoView({ block: 'center' }); await wait(150); }
     },
     target: '#tour-shift-add',
     noScroll: true,
@@ -173,14 +196,14 @@ export const ONBOARDING_STEPS = [
     prepare: async () => {
       document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
       const today = new Date().toISOString().slice(0, 10);
-      const todayCard = document.querySelector(`.day-card[data-day-id="${today}"]`);
-      if (todayCard && !todayCard.classList.contains('open')) {
+      const todayCard = await esperarEl(`.day-card[data-day-id="${today}"]`);
+      if (!todayCard) return;
+      if (!todayCard.classList.contains('open')) {
         todayCard.querySelector('.day-card-header')?.click();
-        await wait(300);
+        await esperarAte(() => todayCard.classList.contains('open'));
       }
-      const firstAdd = todayCard?.querySelector('.shift-add');
-      if (firstAdd) firstAdd.click();
-      await wait(350);
+      todayCard.querySelector('.shift-add')?.click();
+      await esperarEl('#kind-chips, .kind-chips', 1500);   // espera o modal abrir
       document.activeElement?.blur?.();
     },
     target: '#kind-chips, .kind-chips',
