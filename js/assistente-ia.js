@@ -327,15 +327,12 @@ function buildPetHTML() {
            branco só aparece do lado oposto quando ela desliza. -->
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="32" fill="#eab308"/>
+          <circle cx="30" cy="30" r="28" fill="#eab308" stroke="#0d0d0d" stroke-width="9"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
         </g>
       </g>
-      <!-- Aro FIXO na borda do olho: não acompanha a íris, então o lado pra
-           onde a pupila vai continua com borda preta parada. -->
-      <circle cx="30" cy="30" r="27" fill="none" stroke="#0d0d0d" stroke-width="6"/>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
