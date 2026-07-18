@@ -117,3 +117,47 @@ export function playDelete() {
   osc.stop(t + 0.58);
   lfo.stop(t + 0.58);
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: TRAVA (rolagem — tambor de revólver .38 girando)
+// ═══════════════════════════════════════════════════════════════
+// Duas camadas: o estalo metálico da trava (ruído em bandpass alto,
+// decaimento quase instantâneo) + o corpo mecânico do tambor batendo
+// no detente (queda grave e seca). A leve variação aleatória de tom
+// evita o efeito "metralhadora" quando os cliques vêm em sequência.
+export function playClick() {
+  if (muted) return;
+  const c = getCtx(); if (!c) return;
+  const t = c.currentTime;
+
+  // 1) Estalo metálico da trava
+  const dur = 0.05;
+  const buf = c.createBuffer(1, Math.max(1, Math.ceil(c.sampleRate * dur)), c.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 7);
+  }
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 2500 + Math.random() * 600;   // varia o timbre a cada clique
+  bp.Q.value = 7;
+  const ng = c.createGain();
+  ng.gain.value = 0.20;
+  src.connect(bp).connect(ng).connect(c.destination);
+  src.start(t);
+
+  // 2) Corpo do tambor caindo no detente
+  const osc = c.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200 + Math.random() * 25, t);
+  osc.frequency.exponentialRampToValueAtTime(75, t + 0.04);
+  const og = c.createGain();
+  og.gain.setValueAtTime(0.16, t);
+  og.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+  osc.connect(og).connect(c.destination);
+  osc.start(t);
+  osc.stop(t + 0.06);
+}

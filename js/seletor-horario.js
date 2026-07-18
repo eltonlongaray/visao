@@ -15,6 +15,7 @@
 // BLOCO 3 — HELPERS BÁSICOS
 // ─────────────────────────────────────────────────────────────
 import { trapModalBack } from './modal-voltar.js';
+import { playClick } from './sons.js';
 
 const ITEM_H = 44;        // altura de cada item da roleta
 // Muitos ciclos = scroll maior antes de precisar teleportar.
@@ -199,6 +200,10 @@ function highlightSelected(wheel) {
   const idx = Math.round(wheel.scrollTop / ITEM_H);
   const items = wheel.querySelectorAll('.tp-item');
   items.forEach((it, i) => it.classList.toggle('selected', i === idx));
+  // Tambor de revólver: um clique por item que passa pela trava.
+  // _lastIdx indefinido = posicionamento inicial, esse não soa.
+  if (wheel._lastIdx !== undefined && wheel._lastIdx !== idx) playClick();
+  wheel._lastIdx = idx;
 }
 
 function attachInfiniteScroll(wheel) {
@@ -220,6 +225,7 @@ function attachInfiniteScroll(wheel) {
     const offsetInCycle = ((st % cycleH) + cycleH) % cycleH;
     const newScrollTop = CENTER_REPEAT * cycleH + offsetInCycle;
     wheel.scrollTop = newScrollTop;
+    wheel._lastIdx = Math.round(newScrollTop / ITEM_H);  // salto invisível não é clique
     requestAnimationFrame(() => { teleporting = false; });
   };
 
