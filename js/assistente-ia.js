@@ -119,6 +119,7 @@ export function petGuideEnd() {
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
     el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
+    el.querySelector('.pet-ring-half')?.setAttribute('transform', 'translate(999 0)');
     el.dataset.state = 'idle';
     el.classList.remove('pet-vanish');
   }, 220);
@@ -334,7 +335,7 @@ function buildPetHTML() {
         <!-- Meio-plano que gira pra apontar na direção do olhar: recorta o aro
              fixo pra ele existir SÓ do lado pra onde a pupila está indo. -->
         <clipPath id="petRingClip">
-          <rect class="pet-ring-half" x="30" y="-40" width="80" height="140"/>
+          <rect class="pet-ring-half" x="30" y="-40" width="80" height="140" transform="translate(999 0)"/>
         </clipPath>
       </defs>
       <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
