@@ -74,10 +74,14 @@ const OLHO_X = 11, OLHO_Y = 6;   // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
-function limiteInferior() {
+function limiteInferior(tam) {
   const barra = document.querySelector('.tour2-bar');
-  const topoBarra = barra ? barra.getBoundingClientRect().top : window.innerHeight - 170;
-  return topoBarra - PET_SIZE - 10;
+  const topoBarra = barra ? barra.getBoundingClientRect().top : window.innerHeight - 200;
+  return topoBarra - (tam || PET_SIZE) - 16;
+}
+// Tamanho real do corpo do pet (o CSS pode variar)
+function tamanhoPet(el) {
+  return el?.querySelector('.pet-body')?.getBoundingClientRect().width || PET_SIZE;
 }
 
 let _gazeTimer = null;
@@ -95,9 +99,9 @@ export function petGuideStart() {
   setTimeout(() => {
     el.classList.add('pet-guiding');
     // Posição inicial (senão nasce sem left/top e vai parar no canto errado)
-    const tam = el.querySelector('.pet-body')?.getBoundingClientRect().width || PET_SIZE;
+    const tam = tamanhoPet(el);
     el.style.left = `${Math.round(window.innerWidth / 2 - tam / 2)}px`;
-    el.style.top  = `${Math.round(limiteInferior())}px`;
+    el.style.top  = `${Math.round(limiteInferior(tam))}px`;
     el.dataset.state = 'idle';   // idle = ele continua piscando (blink só roda em idle)
     el.classList.remove('pet-vanish');
   }, 220);
@@ -127,33 +131,34 @@ export function petGuideTo(rect) {
   if (!el || !el.classList.contains('pet-guiding')) return;
   el.classList.remove('pet-at-home');   // saiu do cantinho, volta ao z-index normal
   const vw = window.innerWidth;
-  const maxY = limiteInferior();
+  const TAM = tamanhoPet(el);
+  const maxY = limiteInferior(TAM);
   const GAP = 12;
   let x, y;
 
   if (!rect || (!rect.width && !rect.height)) {
     // Sem alvo (boas-vindas / final): perto da mensagem, logo acima da barra
-    x = vw / 2 - PET_SIZE / 2;
+    x = vw / 2 - TAM / 2;
     y = maxY;
-  } else if (rect.right + GAP + PET_SIZE <= vw - 8) {
+  } else if (rect.right + GAP + TAM <= vw - 8) {
     x = rect.right + GAP;                                 // cabe à direita
-    y = rect.top + rect.height / 2 - PET_SIZE / 2;
-  } else if (rect.left - GAP - PET_SIZE >= 8) {
-    x = rect.left - GAP - PET_SIZE;                       // cabe à esquerda
-    y = rect.top + rect.height / 2 - PET_SIZE / 2;
+    y = rect.top + rect.height / 2 - TAM / 2;
+  } else if (rect.left - GAP - TAM >= 8) {
+    x = rect.left - GAP - TAM;                            // cabe à esquerda
+    y = rect.top + rect.height / 2 - TAM / 2;
   } else {
     // Alvo largo (ocupa a tela toda): vai ACIMA; se não couber, ABAIXO
-    x = rect.left + rect.width / 2 - PET_SIZE / 2;
-    const acima = rect.top - GAP - PET_SIZE;
+    x = rect.left + rect.width / 2 - TAM / 2;
+    const acima = rect.top - GAP - TAM;
     y = acima >= 12 ? acima : rect.bottom + GAP;
   }
 
-  x = Math.max(8, Math.min(x, vw - PET_SIZE - 8));
+  x = Math.max(8, Math.min(x, vw - TAM - 8));
   y = Math.max(12, Math.min(y, maxY));
   el.style.left = `${Math.round(x)}px`;
   el.style.top  = `${Math.round(y)}px`;
 
-  _petPos  = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
+  _petPos  = { x: x + TAM / 2, y: y + TAM / 2 };
   _alvoPos = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
   _olhandoUsuario = false;
   aplicarOlhar();
@@ -208,9 +213,10 @@ function aplicarOlhar() {
 const LID_RY = 22;   // altura normal da pálpebra
 function moverPupila(el, ex, ey) {
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
-  const paraCima  = Math.max(0, -ey);   // 0..OLHO_Y
-  const paraBaixo = Math.max(0,  ey);
-  el.querySelector('.pet-lid-top')?.setAttribute('ry', (LID_RY - paraCima  * 1.8).toFixed(1));
+  // Pálpebra de CIMA acompanha o olhar: cresce olhando pra baixo, encolhe pra cima.
+  // Pálpebra de BAIXO só encolhe quando ele olha pra baixo; olhando pra cima não se move.
+  const paraBaixo = Math.max(0, ey);
+  el.querySelector('.pet-lid-top')?.setAttribute('ry', (LID_RY + ey * 1.8).toFixed(1));
   el.querySelector('.pet-lid-bot')?.setAttribute('ry', (LID_RY - paraBaixo * 1.8).toFixed(1));
 }
 
@@ -285,7 +291,7 @@ function buildPetHTML() {
            branco só aparece do lado oposto quando ela desliza. -->
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="28" fill="#eab308" stroke="#0d0d0d" stroke-width="5"/>
+          <circle cx="30" cy="30" r="28" fill="#eab308" stroke="#0d0d0d" stroke-width="9"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
@@ -1431,8 +1437,16 @@ function scheduleBlink() {
   setTimeout(() => {
     const pet = document.getElementById('visao-pet');
     if (pet?.dataset.state === 'idle') {
+      // Olhando pra cima a pálpebra fica encolhida — se piscar assim, a íris
+      // escapa por cima dela. Durante a piscada ela volta ao tamanho cheio.
+      const cima = pet.querySelector('.pet-lid-top');
+      const ryAntes = cima?.getAttribute('ry');
+      if (cima) cima.setAttribute('ry', 26);
       pet.classList.add('pet-blinking');
-      setTimeout(() => pet.classList.remove('pet-blinking'), 180);
+      setTimeout(() => {
+        pet.classList.remove('pet-blinking');
+        if (cima && ryAntes) cima.setAttribute('ry', ryAntes);
+      }, 180);
     }
     scheduleBlink();
   }, delay);
