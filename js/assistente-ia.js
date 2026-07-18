@@ -432,6 +432,7 @@ function toggleChat() {
 
 function openChatPanel() {
   document.getElementById('pet-chat').classList.add('pet-chat-open');
+  document.getElementById('visao-pet')?.classList.add('pet-chat-fullscreen');
   setBadge(0);
   setPetState('idle');
   setTimeout(() => document.getElementById('pet-input')?.focus(), 220);
@@ -440,6 +441,7 @@ function openChatPanel() {
 function closeChatPanel() {
   if (recording) stopMicCancel();
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
+  document.getElementById('visao-pet')?.classList.remove('pet-chat-fullscreen');
 }
 
 // ═══════════════════════════════════════════════════════════════
