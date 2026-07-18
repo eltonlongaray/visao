@@ -4891,35 +4891,25 @@ body.tour-active { overflow: hidden; }
   transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
   opacity: 0;
 }
-/* Aberto = TELA CHEIA. Ocupa a coluna do app inteira, do topo ao rodapé. */
+/* Aberto = GRANDE, mas ancorado: sobra o olho embaixo e a moldura em volta.
+   O 176px reserva o rodapé do pet (78 base + 58 do olho + 10 de gap + respiro). */
 .pet-chat.pet-chat-open {
-  position: fixed;
-  top: 0; bottom: 0; left: 0; right: 0;
-  width: 100%;
-  max-width: 480px;      /* acompanha a coluna do app no desktop */
-  margin: 0 auto;
-  height: auto;
-  max-height: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  z-index: 9600;
+  width: calc(100vw - 28px);
+  max-width: 420px;
+  /* height fixa (e não só max-height) pra não encolher quando há pouca conversa */
+  height: calc(100vh - 176px);
+  height: calc(100dvh - 176px);
+  max-height: calc(100vh - 176px);
+  max-height: calc(100dvh - 176px);
   opacity: 1;
-  background: var(--bg);
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-color: #eab308;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 18px rgba(217,119,6,0.28);
 }
 
-/* Com o chat aberto o olho flutuante some — o mini olho do header assume.
-   O transform:none garante que o fixed acima ancore na viewport, não no pet. */
-#visao-pet.pet-chat-fullscreen { transform: none !important; }
-#visao-pet.pet-chat-fullscreen .pet-body { display: none; }
-
-/* Respiro de tela cheia: texto maior, balões mais largos, header com presença */
+/* Respiro do painel grande: texto maior, balões mais largos, header com presença */
 .pet-chat-open .pet-chat-header { padding: 14px 16px 12px; }
 .pet-chat-open .pet-chat-title { font-size: 15px; }
 .pet-chat-open .pet-eye-mini { width: 22px; height: 22px; }
-.pet-chat-open .pet-chat-close { font-size: 26px; padding: 0 6px; }
 .pet-chat-open .pet-chat-messages {
   padding: 16px;
   gap: 12px;
@@ -4927,7 +4917,7 @@ body.tour-active { overflow: hidden; }
 }
 .pet-chat-open .pet-msg { max-width: 82%; }
 .pet-chat-open .pet-msg span { font-size: 14.5px; line-height: 1.55; padding: 10px 14px; border-radius: 14px; }
-.pet-chat-open .pet-chat-input-row { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.pet-chat-open .pet-chat-input-row { padding: 12px 14px; }
 
 /* Header */
 .pet-chat-header {
@@ -4973,16 +4963,19 @@ body.tour-active { overflow: hidden; }
   top: 5.5px; left: 7px;
 }
 .pet-chat-close {
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--muted);
   cursor: pointer;
-  padding: 0 2px;
+  padding: 6px 14px;
   line-height: 1;
-  transition: color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.pet-chat-close:hover { color: var(--text); }
+.pet-chat-close:hover { color: var(--text); border-color: var(--muted); }
+.pet-chat-close:active { background: var(--card); }
 
 /* Mensagens */
 .pet-chat-messages {
