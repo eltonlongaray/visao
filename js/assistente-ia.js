@@ -94,6 +94,10 @@ export function petGuideStart() {
   el.classList.add('pet-vanish');
   setTimeout(() => {
     el.classList.add('pet-guiding');
+    // Posição inicial (senão nasce sem left/top e vai parar no canto errado)
+    const tam = el.querySelector('.pet-body')?.getBoundingClientRect().width || PET_SIZE;
+    el.style.left = `${Math.round(window.innerWidth / 2 - tam / 2)}px`;
+    el.style.top  = `${Math.round(limiteInferior())}px`;
     el.dataset.state = 'idle';   // idle = ele continua piscando (blink só roda em idle)
     el.classList.remove('pet-vanish');
   }, 220);
@@ -105,9 +109,9 @@ export function petGuideEnd() {
   pararAlternanciaOlhar();
   el.classList.add('pet-vanish');
   setTimeout(() => {
-    el.classList.remove('pet-guiding');
-    el.style.removeProperty('--pet-x');
-    el.style.removeProperty('--pet-y');
+    el.classList.remove('pet-guiding', 'pet-at-home');
+    el.style.removeProperty('left');
+    el.style.removeProperty('top');
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
     el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
@@ -121,6 +125,7 @@ export function petGuideEnd() {
 export function petGuideTo(rect) {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
+  el.classList.remove('pet-at-home');   // saiu do cantinho, volta ao z-index normal
   const vw = window.innerWidth;
   const maxY = limiteInferior();
   const GAP = 12;
@@ -145,8 +150,8 @@ export function petGuideTo(rect) {
 
   x = Math.max(8, Math.min(x, vw - PET_SIZE - 8));
   y = Math.max(12, Math.min(y, maxY));
-  el.style.setProperty('--pet-x', `${Math.round(x)}px`);
-  el.style.setProperty('--pet-y', `${Math.round(y)}px`);
+  el.style.left = `${Math.round(x)}px`;
+  el.style.top  = `${Math.round(y)}px`;
 
   _petPos  = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
   _alvoPos = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
@@ -155,15 +160,20 @@ export function petGuideTo(rect) {
   iniciarAlternanciaOlhar();
 }
 
-// Último passo do tour: o pet volta pro cantinho dele e olha pro usuário
+// Último passo do tour: o pet volta pro LUGAR REAL dele (o mesmo do CSS:
+// bottom 78px / right 14px) e encara o usuário. Ganha z-index maior porque
+// ali a barra do tour passa por cima — senão ele sumiria atrás do balão.
 export function petGuideHome() {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
-  const vw = window.innerWidth;
-  const x = vw - PET_SIZE - 14, y = limiteInferior();
-  el.style.setProperty('--pet-x', `${Math.round(x)}px`);
-  el.style.setProperty('--pet-y', `${Math.round(y)}px`);
-  _petPos = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
+  const corpo = el.querySelector('.pet-body');
+  const tam = corpo?.getBoundingClientRect().width || PET_SIZE;
+  const x = window.innerWidth  - tam - 14;   // right: 14px
+  const y = window.innerHeight - tam - 78;   // bottom: 78px
+  el.classList.add('pet-at-home');
+  el.style.left = `${Math.round(x)}px`;
+  el.style.top  = `${Math.round(y)}px`;
+  _petPos = { x: x + tam / 2, y: y + tam / 2 };
   _alvoPos = null;
   _olhandoUsuario = true;      // encara o usuário
   aplicarOlhar();

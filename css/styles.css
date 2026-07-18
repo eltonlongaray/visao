@@ -4753,10 +4753,9 @@ body.tour-active { overflow: hidden; }
 #visao-pet.pet-hidden { opacity: 0; pointer-events: none !important; transform: scale(0.8); }
 
 /* ─── Modo guia: durante o tutorial o pet solta do canto e passeia ─── */
+/* left/top vêm inline do JS — var() dentro de left/top não é confiável */
 #visao-pet.pet-guiding {
   bottom: auto; right: auto;
-  left: var(--pet-x, 50%);
-  top:  var(--pet-y, 28%);
   z-index: 10002;
   pointer-events: none !important;
   transition: left 0.55s cubic-bezier(0.34, 1.15, 0.4, 1),
@@ -4772,6 +4771,8 @@ body.tour-active { overflow: hidden; }
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-5px); }
 }
+/* No cantinho dele a barra do tour passa por cima — sobe pra ficar visível */
+#visao-pet.pet-guiding.pet-at-home { z-index: 10004; }
 /* O olhar acompanha o destaque — o JS move via atributo transform do SVG */
 /* Some antes de trocar de âncora (canto ↔ tela) */
 #visao-pet.pet-vanish { opacity: 0; transform: scale(0.7); }
