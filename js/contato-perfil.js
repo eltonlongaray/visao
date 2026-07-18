@@ -62,15 +62,7 @@ function _content(stage) {
     cancel: 'Prefiro não informar' };
   return {
     icon: '🦅', title: 'Que bom ter você no Falcon',
-    intro: `<div class="perfil-benefits">
-        <strong>Com esses dados, podemos:</strong>
-        <ul>
-          <li>Te dar <strong>suporte e acompanhamento</strong> de perto</li>
-          <li><strong>Comemorar seu aniversário</strong> com você — você é especial para nós.</li>
-          <li>Te <strong>manter informado</strong> sobre a nossa comunidade <strong>Falcon Hunters</strong></li>
-        </ul>
-      </div>
-      <p style="margin:14px 0 0">Aqui você é livre — não precisa deixar nenhum dado se não quiser. Mas se o fizer, garantimos que será muito mais divertido, e guardamos esse sigilo conosco com muito respeito e carinho.</p>`,
+    intro: `Preencha seus dados de forma 100% segura, aqui seus dados estão protegidos dentro da lei geral de proteção de dados (LGPD). Eles são necessários para que você tenha a melhor experiência dentro do app.`,
     cancel: 'Agora não' };
 }
 
