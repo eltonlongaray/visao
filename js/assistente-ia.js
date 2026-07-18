@@ -347,7 +347,7 @@ function buildPetHTML() {
       </g>
       <!-- Aro PARADO, só na metade pra onde ele olha (do outro lado quem faz a
            borda é a própria íris, que desliza). -->
-      <circle cx="30" cy="30" r="27" fill="none" stroke="#0d0d0d" stroke-width="9"
+      <circle cx="30" cy="30" r="25.5" fill="none" stroke="#0d0d0d" stroke-width="9"
               clip-path="url(#petRingClip)"/>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
