@@ -70,8 +70,15 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const TOUR_BAR = 170;   // área da barra do tour no rodapé (não invadir)
-const OLHO_X = 11, OLHO_Y = 6;   // amplitude da pupila (unidades do SVG)
+const OLHO_X = 9, OLHO_Y = 5;    // amplitude do olhar (unidades do SVG)
+
+// Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
+// e chutar um valor fixo fazia o pet sumir atrás do balão).
+function limiteInferior() {
+  const barra = document.querySelector('.tour2-bar');
+  const topoBarra = barra ? barra.getBoundingClientRect().top : window.innerHeight - 170;
+  return topoBarra - PET_SIZE - 10;
+}
 
 let _gazeTimer = null;
 let _petPos = null;          // centro do pet na tela
@@ -101,9 +108,9 @@ export function petGuideEnd() {
     el.classList.remove('pet-guiding');
     el.style.removeProperty('--pet-x');
     el.style.removeProperty('--pet-y');
-    el.querySelector('.pet-pupil')?.removeAttribute('transform');
-    el.querySelector('.pet-lid-top')?.removeAttribute('transform');
-    el.querySelector('.pet-lid-bot')?.removeAttribute('transform');
+    el.querySelector('.pet-iris-group')?.removeAttribute('transform');
+    el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
+    el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
     el.dataset.state = 'idle';
     el.classList.remove('pet-vanish');
   }, 220);
@@ -114,8 +121,8 @@ export function petGuideEnd() {
 export function petGuideTo(rect) {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const maxY = vh - TOUR_BAR - PET_SIZE;
+  const vw = window.innerWidth;
+  const maxY = limiteInferior();
   const GAP = 12;
   let x, y;
 
@@ -152,8 +159,8 @@ export function petGuideTo(rect) {
 export function petGuideHome() {
   const el = document.getElementById('visao-pet');
   if (!el || !el.classList.contains('pet-guiding')) return;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const x = vw - PET_SIZE - 14, y = vh - TOUR_BAR - PET_SIZE;
+  const vw = window.innerWidth;
+  const x = vw - PET_SIZE - 14, y = limiteInferior();
   el.style.setProperty('--pet-x', `${Math.round(x)}px`);
   el.style.setProperty('--pet-y', `${Math.round(y)}px`);
   _petPos = { x: x + PET_SIZE / 2, y: y + PET_SIZE / 2 };
@@ -185,12 +192,16 @@ function aplicarOlhar() {
   moverPupila(el, dx / d * OLHO_X, dy / d * OLHO_Y);
 }
 
-// Move SÓ a pupila (a íris fica parada). Olhando pra cima/baixo, a pálpebra
-// daquele lado recua pra não cortar o olhar. Usa atributo transform do SVG.
+// Move a íris (com a pupila junto) sobre a esclera branca — como olho de verdade.
+// Olhando pra cima/baixo, a pálpebra daquele lado DIMINUI pra não cortar o olhar.
+// Usa atributo do SVG (nativo e universal).
+const LID_RY = 22;   // altura normal da pálpebra
 function moverPupila(el, ex, ey) {
-  el.querySelector('.pet-pupil')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
-  el.querySelector('.pet-lid-top')?.setAttribute('transform', `translate(0 ${(Math.min(0, ey) * 1.6).toFixed(1)})`);
-  el.querySelector('.pet-lid-bot')?.setAttribute('transform', `translate(0 ${(Math.max(0, ey) * 1.6).toFixed(1)})`);
+  el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
+  const paraCima  = Math.max(0, -ey);   // 0..OLHO_Y
+  const paraBaixo = Math.max(0,  ey);
+  el.querySelector('.pet-lid-top')?.setAttribute('ry', (LID_RY - paraCima  * 1.8).toFixed(1));
+  el.querySelector('.pet-lid-bot')?.setAttribute('ry', (LID_RY - paraBaixo * 1.8).toFixed(1));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -256,12 +267,12 @@ function buildPetHTML() {
   <div class="pet-body" id="pet-body" role="button" aria-label="${t('pet.open')}" tabindex="0">
     <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="30" cy="30" r="30" fill="#0d0d0d"/>
+      <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
       <g class="pet-iris-group">
-        <circle cx="30" cy="30" r="27" fill="#eab308"/>
-        <ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d" class="pet-pupil"/>
-        <circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/>
-        <circle cx="22" cy="26" r="2" fill="white" opacity="0.35"/>
+        <circle cx="30" cy="30" r="17" fill="#eab308" stroke="#0d0d0d" stroke-width="2.6"/>
+        <ellipse cx="30" cy="30" rx="6" ry="9" fill="#0d0d0d" class="pet-pupil"/>
+        <circle cx="35" cy="24" r="3.4" fill="white" opacity="0.85"/>
+        <circle cx="25" cy="27" r="1.6" fill="white" opacity="0.45"/>
       </g>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
