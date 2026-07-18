@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 11, OLHO_Y = 10;  // amplitude do olhar (unidades do SVG)
+const OLHO_X = 11, OLHO_Y = 14;  // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -142,17 +142,17 @@ export function petGuideTo(rect) {
     // Sem alvo (boas-vindas / final): perto da mensagem, logo acima da barra
     x = vw / 2 - TAM / 2;
     y = limiteInferior(TAM);
-  } else if (rect.right + GAP + TAM <= vw - 8) {
-    x = rect.right + GAP;                                 // cabe à direita
-    y = rect.bottom - TAM * 0.35;                         // um pouco ABAIXO do alvo
-  } else if (rect.left - GAP - TAM >= 8) {
-    x = rect.left - GAP - TAM;                            // cabe à esquerda
-    y = rect.bottom - TAM * 0.35;                         // (assim ele olha pra CIMA nele)
   } else {
-    // Alvo largo (ocupa a tela toda): vai ACIMA; se não couber, ABAIXO
-    x = rect.left + rect.width / 2 - TAM / 2;
-    const acima = rect.top - GAP - TAM;
-    y = acima >= 12 ? acima : rect.bottom + GAP;
+    // SEMPRE numa lateral + deslocado na vertical → olhar sempre na DIAGONAL.
+    const centroAlvoX = rect.left + rect.width / 2;
+    const centroAlvoY = rect.top + rect.height / 2;
+    if (rect.right + GAP + TAM <= vw - 8)      x = rect.right + GAP;       // cabe à direita
+    else if (rect.left - GAP - TAM >= 8)       x = rect.left - GAP - TAM;  // cabe à esquerda
+    else x = centroAlvoX <= vw / 2 ? vw - TAM - 8 : 8;  // alvo largo: encosta na borda oposta
+    // Alvo em cima → pet embaixo (olha pra cima). Alvo embaixo → pet em cima.
+    const alvoEmCima = centroAlvoY < window.innerHeight / 2;
+    const desloc = Math.min(rect.height / 2 + TAM * 0.5, 95);
+    y = (alvoEmCima ? centroAlvoY + desloc : centroAlvoY - desloc) - TAM / 2;
   }
 
   x = Math.max(8, Math.min(x, vw - TAM - 8));
@@ -232,15 +232,12 @@ function aplicarOlhar() {
 const LID_RY = 22;   // altura normal da pálpebra
 function moverPupila(el, ex, ey) {
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
-  // Olhando pra CIMA: a pálpebra de cima SOME e a de baixo cresce.
-  // Olhando pra BAIXO: a de cima cresce e a de baixo encolhe.
-  const paraCima  = Math.max(0, -ey);
-  const paraBaixo = Math.max(0,  ey);
-  const RESTO = 4;   // sobra um fiozinho de pálpebra olhando pra cima
-  const ryCima  = Math.max(0, LID_RY - paraCima * ((LID_RY - RESTO) / OLHO_Y) + paraBaixo * 1.8);
-  const ryBaixo = Math.max(0, LID_RY + paraCima * 1.5 - paraBaixo * 1.8);
-  el.querySelector('.pet-lid-top')?.setAttribute('ry', ryCima.toFixed(1));
-  el.querySelector('.pet-lid-bot')?.setAttribute('ry', ryBaixo.toFixed(1));
+  // As pálpebras SEGUEM a pupila 1:1, então ela sempre ENCOSTA na de cima
+  // (olhando pra cima) ou na de baixo (olhando pra baixo).
+  // Geometria: pupila ry=11 em cy=30; pálpebra de cima tem borda em `ry`,
+  // a de baixo em `60-ry`. Cobrindo 3 unidades da pupila → ry = 22 ± ey.
+  el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, LID_RY + ey).toFixed(1));
+  el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, LID_RY - ey).toFixed(1));
 }
 
 // ═══════════════════════════════════════════════════════════════
