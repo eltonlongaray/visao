@@ -258,8 +258,11 @@ function moverPupila(el, ex, ey) {
   const meia = el.querySelector('.pet-ring-half');
   if (meia) {
     const parado = Math.abs(ex) < 0.5 && Math.abs(ey) < 0.5;
-    const ang = parado ? 0 : Math.atan2(ey, ex) * 180 / Math.PI;
-    meia.setAttribute('transform', `rotate(${ang.toFixed(1)} 30 30)`);
+    // Olhando de frente a íris já faz a borda em toda a volta — o aro fixo
+    // sobreporia de um lado só e espremeria a íris. Some com ele.
+    meia.setAttribute('transform', parado
+      ? 'translate(999 0)'
+      : `rotate(${(Math.atan2(ey, ex) * 180 / Math.PI).toFixed(1)} 30 30)`);
   }
 }
 
