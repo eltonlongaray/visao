@@ -70,7 +70,8 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 7, OLHO_Y = 7;  // amplitude do olhar (unidades do SVG)
+const OLHO_X = 4, OLHO_Y = 4;   // deslocamento da ÍRIS (unidades do SVG)
+const PUPILA_MULT = 3.5;        // a pupila anda 3.5x isso, dentro da íris
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -117,6 +118,7 @@ export function petGuideEnd() {
     el.style.removeProperty('left');
     el.style.removeProperty('top');
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
+    el.querySelector('.pet-pupil')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
     el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
     el.dataset.state = 'idle';
@@ -247,7 +249,12 @@ function aplicarOlhar() {
 // Usa atributo do SVG (nativo e universal).
 const LID_RY = 22;   // altura normal da pálpebra
 function moverPupila(el, ex, ey) {
+  // A ÍRIS desliza pouco (é o que faz a borda afinar de um lado e viajar do
+  // outro). A PUPILA desliza bem mais, DENTRO da íris, chegando perto da borda.
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
+  el.querySelector('.pet-pupil')?.setAttribute('transform',
+    `translate(${(ex * PUPILA_MULT).toFixed(1)} ${(ey * PUPILA_MULT).toFixed(1)})`);
+  ey = ey * (1 + PUPILA_MULT);   // pálpebras seguem o deslocamento TOTAL da pupila
   // As pálpebras SEGUEM a pupila 1:1, então ela sempre ENCOSTA na de cima
   // (olhando pra cima) ou na de baixo (olhando pra baixo).
   // Geometria: pupila ry=11 em cy=30; pálpebra de cima tem borda em `ry`,
@@ -325,7 +332,7 @@ function buildPetHTML() {
       <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="25.5" fill="#eab308" stroke="#0d0d0d" stroke-width="9"/>
+          <circle cx="30" cy="30" r="27" fill="#eab308" stroke="#0d0d0d" stroke-width="6"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
