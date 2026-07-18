@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 11, OLHO_Y = 6;   // amplitude do olhar (unidades do SVG)
+const OLHO_X = 11, OLHO_Y = 8;   // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -132,14 +132,16 @@ export function petGuideTo(rect) {
   el.classList.remove('pet-at-home');   // saiu do cantinho, volta ao z-index normal
   const vw = window.innerWidth;
   const TAM = tamanhoPet(el);
-  const maxY = limiteInferior(TAM);
+  // Ele fica ACIMA da barra em z-index, então pode ir junto da marcação mesmo
+  // que ela esteja lá embaixo — o limite agora é só a tela.
+  const maxY = window.innerHeight - TAM - 12;
   const GAP = 12;
   let x, y;
 
   if (!rect || (!rect.width && !rect.height)) {
     // Sem alvo (boas-vindas / final): perto da mensagem, logo acima da barra
     x = vw / 2 - TAM / 2;
-    y = maxY;
+    y = limiteInferior(TAM);
   } else if (rect.right + GAP + TAM <= vw - 8) {
     x = rect.right + GAP;                                 // cabe à direita
     y = rect.top + rect.height / 2 - TAM / 2;
@@ -191,7 +193,19 @@ function iniciarAlternanciaOlhar() {
   _gazeTimer = setInterval(() => {
     _olhandoUsuario = !_olhandoUsuario;
     aplicarOlhar();
+    // Ao voltar o olhar pra você, ele pisca — natural e garante a piscada
+    // (o sorteio do blink quase nunca caía na janela certa)
+    if (_olhandoUsuario) setTimeout(piscar, 420);
   }, 2300);
+}
+
+// Piscada: só faz sentido de frente (de lado/cima a pálpebra está redimensionada)
+function piscar() {
+  const pet = document.getElementById('visao-pet');
+  if (!pet || pet.dataset.state !== 'idle') return;
+  if (pet.classList.contains('pet-guiding') && !_olhandoUsuario) return;
+  pet.classList.add('pet-blinking');
+  setTimeout(() => pet.classList.remove('pet-blinking'), 180);
 }
 function pararAlternanciaOlhar() {
   if (_gazeTimer) clearInterval(_gazeTimer);
@@ -217,7 +231,8 @@ function moverPupila(el, ex, ey) {
   // Olhando pra BAIXO: a de cima cresce e a de baixo encolhe.
   const paraCima  = Math.max(0, -ey);
   const paraBaixo = Math.max(0,  ey);
-  const ryCima  = Math.max(0, LID_RY - paraCima * (LID_RY / OLHO_Y) + paraBaixo * 1.8);
+  const RESTO = 4;   // sobra um fiozinho de pálpebra olhando pra cima
+  const ryCima  = Math.max(0, LID_RY - paraCima * ((LID_RY - RESTO) / OLHO_Y) + paraBaixo * 1.8);
   const ryBaixo = Math.max(0, LID_RY + paraCima * 1.5 - paraBaixo * 1.8);
   el.querySelector('.pet-lid-top')?.setAttribute('ry', ryCima.toFixed(1));
   el.querySelector('.pet-lid-bot')?.setAttribute('ry', ryBaixo.toFixed(1));
@@ -1438,14 +1453,7 @@ function formatTranscript(raw) {
 function scheduleBlink() {
   const delay = 3000 + Math.random() * 2000;
   setTimeout(() => {
-    const pet = document.getElementById('visao-pet');
-    const guiando = pet?.classList.contains('pet-guiding');
-    // Durante o tour ele só pisca quando está olhando PRA FRENTE — de lado ou
-    // pra cima a pálpebra está redimensionada e a piscada ficaria quebrada.
-    if (pet?.dataset.state === 'idle' && (!guiando || _olhandoUsuario)) {
-      pet.classList.add('pet-blinking');
-      setTimeout(() => pet.classList.remove('pet-blinking'), 180);
-    }
+    piscar();
     scheduleBlink();
   }, delay);
 }
