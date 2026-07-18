@@ -430,16 +430,50 @@ function toggleChat() {
   chat.classList.contains('pet-chat-open') ? closeChatPanel() : openChatPanel();
 }
 
+// ═══════════════════════════════════════════════════════════════
+// TECLADO ABERTO — mantém o topo do painel e o campo de digitar visíveis.
+// Sem isso o painel continua com a altura da tela inteira enquanto o teclado
+// cobre metade dela, e o topo da janela sai fora do campo de visão.
+// ═══════════════════════════════════════════════════════════════
+function ajustarChatAoTeclado() {
+  const pet  = document.getElementById('visao-pet');
+  const chat = document.getElementById('pet-chat');
+  if (!pet || !chat) return;
+
+  const aberto  = chat.classList.contains('pet-chat-open');
+  const vv      = window.visualViewport;
+  const visivel = vv ? vv.height : window.innerHeight;
+  const teclado = Math.max(0, Math.round(window.innerHeight - visivel));
+
+  // Fechado ou sem teclado: devolve o controle pro CSS.
+  if (!aberto || teclado < 80) {
+    pet.style.bottom = '';
+    chat.style.height = '';
+    return;
+  }
+  // Sobe o pet pra cima do teclado e encolhe o painel pro que sobrou da tela.
+  // 100 = olho (58) + gap (10) + base (8) + folga de topo (24).
+  pet.style.bottom  = (teclado + 8) + 'px';
+  chat.style.height = Math.max(200, Math.round(visivel - 100)) + 'px';
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', ajustarChatAoTeclado);
+  window.visualViewport.addEventListener('scroll', ajustarChatAoTeclado);
+}
+
 function openChatPanel() {
   document.getElementById('pet-chat').classList.add('pet-chat-open');
   setBadge(0);
   setPetState('idle');
-  setTimeout(() => document.getElementById('pet-input')?.focus(), 220);
+  // Sem focus() automático: abrir o chat não deve abrir o teclado junto.
+  // O usuário toca no campo quando quiser escrever.
 }
 
 function closeChatPanel() {
   if (recording) stopMicCancel();
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
+  ajustarChatAoTeclado();   // devolve o pet pro canto e limpa a altura inline
 }
 
 // ═══════════════════════════════════════════════════════════════
