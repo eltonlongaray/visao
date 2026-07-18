@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 14, OLHO_Y = 13;  // amplitude do olhar (unidades do SVG)
+const OLHO_X = 7, OLHO_Y = 7;  // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -119,7 +119,6 @@ export function petGuideEnd() {
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
     el.querySelector('.pet-lid-bot')?.setAttribute('ry', LID_RY);
-    el.querySelector('.pet-rim-inner')?.removeAttribute('transform');
     el.dataset.state = 'idle';
     el.classList.remove('pet-vanish');
   }, 220);
@@ -247,7 +246,6 @@ function aplicarOlhar() {
 // Olhando pra cima/baixo, a pálpebra daquele lado DIMINUI pra não cortar o olhar.
 // Usa atributo do SVG (nativo e universal).
 const LID_RY = 22;   // altura normal da pálpebra
-const RIM_F = 0.2;   // o quanto o miolo da borda desliza junto com o olhar
 function moverPupila(el, ex, ey) {
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
   // As pálpebras SEGUEM a pupila 1:1, então ela sempre ENCOSTA na de cima
@@ -256,10 +254,6 @@ function moverPupila(el, ex, ey) {
   // a de baixo em `60-ry`. Cobrindo 3 unidades da pupila → ry = 22 ± ey.
   el.querySelector('.pet-lid-top')?.setAttribute('ry', Math.max(0, LID_RY + ey).toFixed(1));
   el.querySelector('.pet-lid-bot')?.setAttribute('ry', Math.max(0, LID_RY - ey).toFixed(1));
-  // O miolo da borda desliza um pouco na direção do olhar → aquele lado AFINA
-  // (o círculo externo fica preso na borda do olho, então ela nunca sai do lugar).
-  el.querySelector('.pet-rim-inner')?.setAttribute('transform',
-    `translate(${(ex * RIM_F).toFixed(1)} ${(ey * RIM_F).toFixed(1)})`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -327,24 +321,16 @@ function buildPetHTML() {
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <clipPath id="petEyeClip"><circle cx="30" cy="30" r="30"/></clipPath>
-        <!-- Borda = anel entre o círculo externo (PRESO na borda do olho) e o
-             interno, que desliza um pouco na direção do olhar. Por isso ela
-             afina do lado pra onde ele olha e a íris passa por trás. -->
-        <mask id="petRimMask">
-          <circle cx="30" cy="30" r="30" fill="#fff"/>
-          <circle class="pet-rim-inner" cx="30" cy="30" r="23.5" fill="#000"/>
-        </mask>
       </defs>
       <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="30" fill="#eab308"/>
+          <circle cx="30" cy="30" r="25.5" fill="#eab308" stroke="#0d0d0d" stroke-width="9"/>
           <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
           <circle cx="37" cy="22" r="4.2" fill="white" opacity="0.8"/>
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
         </g>
       </g>
-      <circle cx="30" cy="30" r="30" fill="#0d0d0d" mask="url(#petRimMask)"/>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
