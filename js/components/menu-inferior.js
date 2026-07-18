@@ -25,9 +25,11 @@ const TABS = [
 
 const ITEM_W  = 92;                  // precisa bater com o CSS (.belt-item flex-basis)
 const CICLO   = TABS.length;         // abas por volta
-const REPEATS = 31;                  // voltas renderizadas
-const CENTRO  = 15;                  // volta central (meio das 31)
-const ESPERAS = [0, 16, 32, 64, 120, 240, 400];   // escada de retentativas (ms)
+const REPEATS = 21;                  // voltas renderizadas (cada render do app cria essas ancoras)
+const CENTRO  = 10;                  // volta central (meio das 21)
+// Degraus iniciais em 0ms de proposito: alguns webviews clampam qualquer
+// setTimeout nao-zero para ~1s, e a escada virava 1s de aba sumida.
+const ESPERAS = [0, 0, 0, 32, 120, 400];
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: RENDER
@@ -50,6 +52,7 @@ export function bottomNav(active) {
       <div class="belt-strap">
         <div class="belt-track">${itens}</div>
       </div>
+      <div class="belt-bump" aria-hidden="true"></div>
       <div class="belt-lens" aria-hidden="true"></div>
     </nav>
   `;
@@ -123,14 +126,25 @@ function wireBelt(track) {
   // no primeiro instante o track ainda não tem largura e o scroll vira no-op
   // silencioso. Escada de timers e não requestAnimationFrame: rAF é suspenso
   // quando a aba não está pintando, e aí o cinturão nunca destravava.
+  const revelar = () => { pintarLente(); track.dataset.pos = '1'; travado = false; };
+
   const tentar = (i) => {
-    if (track.clientWidth > 0) {
+    // A condição é "a fita já é rolável", não "o scroll bateu". Conferir por
+    // leitura no mesmo tick é furado: scrollLeft costuma devolver o valor
+    // ANTIGO até o layout seguinte, então a checagem nunca passava e a escada
+    // ia até o fim — ~1s de aba sumida a cada troca de tela.
+    if (track.clientWidth > 0 && track.scrollWidth > track.clientWidth) {
       const alvo = posDe(atual);
       track.scrollLeft = alvo;
-      if (Math.abs(track.scrollLeft - alvo) < 2) { pintarLente(); travado = false; return; }
+      revelar();
+      // Rede de segurança: confere no tick seguinte e corrige se não pegou.
+      setTimeout(() => {
+        if (Math.abs(track.scrollLeft - alvo) > 2) { track.scrollLeft = alvo; pintarLente(); }
+      }, 0);
+      return;
     }
     if (i < ESPERAS.length) setTimeout(() => tentar(i + 1), ESPERAS[i]);
-    else { pintarLente(); travado = false; }
+    else revelar();   // desiste da centralização, mas nunca deixa a fita sumida
   };
   tentar(0);
 
@@ -160,12 +174,30 @@ function wireBelt(track) {
 // Um observer único liga qualquer cinturão novo que apareça no DOM —
 // evita ter que alterar as 5+ telas que chamam bottomNav().
 let observando = false;
+
+function varrer() {
+  document.querySelectorAll('.belt-track:not([data-ready])').forEach(wireBelt);
+}
+// Sem guard de "ja agendado": ele podia engolir a varredura de um render que
+// chegasse junto de outro, e o cinturao ficava sem ligar. O custo e um
+// querySelectorAll por render — barato perto de perder a navegacao.
+function agendarVarredura() { setTimeout(varrer, 0); }
+
 function ensureWiring() {
-  if (observando || typeof document === 'undefined') return;
+  if (typeof document === 'undefined') return;
+
+  // Caminho rápido: a tela insere o HTML de forma SÍNCRONA logo depois de
+  // chamar bottomNav(), então um macrotask já acha o elemento no DOM.
+  // É por aqui que o cinturão liga, em ~10ms.
+  agendarVarredura();
+  setTimeout(varrer, 0);    // 2ª passada, caso a inserção tenha sido adiada
+
+  // MutationObserver como rede de segurança — ele é rápido (~1ms), o que
+  // custava caro era a escada de retentativas, não ele.
+  if (observando) return;
   observando = true;
-  const varrer = () => document.querySelectorAll('.belt-track:not([data-ready])').forEach(wireBelt);
   const iniciar = () => {
-    new MutationObserver(varrer).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(agendarVarredura).observe(document.body, { childList: true, subtree: true });
     varrer();
   };
   if (document.body) iniciar();

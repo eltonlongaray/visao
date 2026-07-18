@@ -2661,7 +2661,11 @@ body.time-picker-open { overflow: hidden; }
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
   padding: 11px calc(50% - 46px) 13px;   /* metade da fita menos metade do item */
+  /* Só aparece depois de centralizada na aba ativa. Sem isso ela pinta em
+     scrollLeft 0 — com a aba ERRADA sob a lente — e pula: era a piscada. */
+  visibility: hidden;
 }
+.belt-track[data-pos="1"] { visibility: visible; }
 .belt-track::-webkit-scrollbar { display: none; }
 
 .belt-item {
@@ -2677,6 +2681,30 @@ body.time-picker-open { overflow: hidden; }
 }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }
 .belt-lbl { white-space: nowrap; }
+
+/* A CORCOVA — o couro sobe acompanhando o contorno da placa, por fora dela.
+   Fica atrás da lente (z2 < z3) e só ocupa a faixa ACIMA da tarja, senão
+   taparia a aba que está passando por baixo. */
+.belt-bump {
+  position: absolute; z-index: 2; pointer-events: none;
+  left: 50%; transform: translateX(-50%);
+  top: -18px; height: 26px;
+  width: 122px;                  /* > 98px da lente = couro sobrando dos dois lados */
+  border-radius: 24px 24px 0 0;
+  background:
+    linear-gradient(180deg, rgba(246,226,122,0.42) 0 1px, transparent 1px),
+    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 60%, #1d140c 100%);
+  border: 1px solid rgba(214,175,55,0.45);
+  border-bottom: none;
+  box-shadow: 0 -5px 14px rgba(0,0,0,0.38), inset 0 1px 0 rgba(246,226,122,0.22);
+}
+/* costura da corcova, acompanhando a curva */
+.belt-bump::before {
+  content: ''; position: absolute; inset: 4px 5px auto;
+  height: 22px; border-radius: 20px 20px 0 0;
+  border: 1px dashed rgba(246,226,122,0.30);
+  border-bottom: none;
+}
 
 /* A LENTE — parada no centro, ultrapassando a tarja por cima */
 .belt-lens {
