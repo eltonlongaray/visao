@@ -213,11 +213,14 @@ function aplicarOlhar() {
 const LID_RY = 22;   // altura normal da pálpebra
 function moverPupila(el, ex, ey) {
   el.querySelector('.pet-iris-group')?.setAttribute('transform', `translate(${ex.toFixed(1)} ${ey.toFixed(1)})`);
-  // Pálpebra de CIMA acompanha o olhar: cresce olhando pra baixo, encolhe pra cima.
-  // Pálpebra de BAIXO só encolhe quando ele olha pra baixo; olhando pra cima não se move.
-  const paraBaixo = Math.max(0, ey);
-  el.querySelector('.pet-lid-top')?.setAttribute('ry', (LID_RY + ey * 1.8).toFixed(1));
-  el.querySelector('.pet-lid-bot')?.setAttribute('ry', (LID_RY - paraBaixo * 1.8).toFixed(1));
+  // Olhando pra CIMA: a pálpebra de cima SOME e a de baixo cresce.
+  // Olhando pra BAIXO: a de cima cresce e a de baixo encolhe.
+  const paraCima  = Math.max(0, -ey);
+  const paraBaixo = Math.max(0,  ey);
+  const ryCima  = Math.max(0, LID_RY - paraCima * (LID_RY / OLHO_Y) + paraBaixo * 1.8);
+  const ryBaixo = Math.max(0, LID_RY + paraCima * 1.5 - paraBaixo * 1.8);
+  el.querySelector('.pet-lid-top')?.setAttribute('ry', ryCima.toFixed(1));
+  el.querySelector('.pet-lid-bot')?.setAttribute('ry', ryBaixo.toFixed(1));
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1436,17 +1439,12 @@ function scheduleBlink() {
   const delay = 3000 + Math.random() * 2000;
   setTimeout(() => {
     const pet = document.getElementById('visao-pet');
-    if (pet?.dataset.state === 'idle') {
-      // Olhando pra cima a pálpebra fica encolhida — se piscar assim, a íris
-      // escapa por cima dela. Durante a piscada ela volta ao tamanho cheio.
-      const cima = pet.querySelector('.pet-lid-top');
-      const ryAntes = cima?.getAttribute('ry');
-      if (cima) cima.setAttribute('ry', 26);
+    const guiando = pet?.classList.contains('pet-guiding');
+    // Durante o tour ele só pisca quando está olhando PRA FRENTE — de lado ou
+    // pra cima a pálpebra está redimensionada e a piscada ficaria quebrada.
+    if (pet?.dataset.state === 'idle' && (!guiando || _olhandoUsuario)) {
       pet.classList.add('pet-blinking');
-      setTimeout(() => {
-        pet.classList.remove('pet-blinking');
-        if (cima && ryAntes) cima.setAttribute('ry', ryAntes);
-      }, 180);
+      setTimeout(() => pet.classList.remove('pet-blinking'), 180);
     }
     scheduleBlink();
   }, delay);

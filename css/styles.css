@@ -4753,10 +4753,12 @@ body.tour-active { overflow: hidden; }
 #visao-pet.pet-hidden { opacity: 0; pointer-events: none !important; transform: scale(0.8); }
 
 /* ─── Modo guia: durante o tutorial o pet solta do canto e passeia ─── */
-/* left/top vêm inline do JS — var() dentro de left/top não é confiável */
+/* left/top vêm inline do JS — var() dentro de left/top não é confiável.
+   z-index ACIMA da barra (10002): com mensagem longa o balão fica alto e não
+   sobra espaço acima dele — melhor o pet por cima do que invisível. */
 #visao-pet.pet-guiding {
   bottom: auto; right: auto;
-  z-index: 10002;
+  z-index: 10004;
   pointer-events: none !important;
   transition: left 0.55s cubic-bezier(0.34, 1.15, 0.4, 1),
               top  0.55s cubic-bezier(0.34, 1.15, 0.4, 1),
