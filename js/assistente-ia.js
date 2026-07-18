@@ -70,7 +70,7 @@ export function setBadge(count) {
 // passeia pela tela, parando ao lado do que está sendo destacado.
 // ═══════════════════════════════════════════════════════════════
 const PET_SIZE = 58;    // corpo do pet (aprox)
-const OLHO_X = 11, OLHO_Y = 14;  // amplitude do olhar (unidades do SVG)
+const OLHO_X = 14, OLHO_Y = 14;  // amplitude do olhar (unidades do SVG)
 
 // Limite inferior: mede a barra do tour DE VERDADE (a mensagem varia de altura,
 // e chutar um valor fixo fazia o pet sumir atrás do balão).
@@ -317,6 +317,9 @@ function buildPetHTML() {
           <circle cx="23" cy="26" r="1.9" fill="white" opacity="0.4"/>
         </g>
       </g>
+      <!-- Aro FIXO na borda do olho: não acompanha a íris, então o lado pra
+           onde a pupila vai continua com borda preta parada. -->
+      <circle cx="30" cy="30" r="27" fill="none" stroke="#0d0d0d" stroke-width="6"/>
       <ellipse cx="30" cy="0" rx="32" ry="22" fill="#7c3aed" class="pet-lid-top"/>
       <ellipse cx="30" cy="60" rx="32" ry="22" fill="#7c3aed" class="pet-lid-bot"/>
     </svg>
