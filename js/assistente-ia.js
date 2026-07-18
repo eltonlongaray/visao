@@ -165,7 +165,10 @@ export function petGuideTo(rect) {
     // Alvo alto → fica junto do TOPO dele (é onde a informação começa).
     // Senão: alvo em cima → pet embaixo (olha ↑); alvo embaixo → pet em cima (olha ↓).
     if (alvoAlto) {
-      y = vis.top + 8;
+      // Alvo alto (card do dia): sobe pro topo, na mesma altura do × de fechar,
+      // pra não tapar o nome do dia.
+      const bx = document.querySelector('.tour2-floating-x')?.getBoundingClientRect();
+      y = bx ? bx.top + (bx.height - TAM) / 2 : 14;
     } else {
       const desloc = Math.min((vis.bottom - vis.top) / 2 + TAM * 0.5, 95);
       y = (centroY < vh / 2 ? centroY + desloc : centroY - desloc) - TAM / 2;
@@ -332,7 +335,7 @@ function buildPetHTML() {
       <circle cx="30" cy="30" r="30" fill="#f4f1ea"/>
       <g clip-path="url(#petEyeClip)">
         <g class="pet-iris-group">
-          <circle cx="30" cy="30" r="27" fill="#eab308" stroke="#0d0d0d" stroke-width="6"/>
+          <circle cx="30" cy="30" r="27" fill="#eab308" stroke="#0d0d0d" stroke-width="8"/>
           <!-- Reflexos andam JUNTO com a pupila (senão ela desliza por baixo deles) -->
           <g class="pet-pupil-group">
             <ellipse cx="30" cy="30" rx="7" ry="11" fill="#0d0d0d" class="pet-pupil"/>
