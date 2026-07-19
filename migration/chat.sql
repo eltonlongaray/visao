@@ -85,8 +85,9 @@ grant execute on function public.limpar_chat_expirado() to authenticated;
 -- aniversário. É SECURITY DEFINER porque o RLS de profiles (corretamente)
 -- não deixa um usuário ler a linha de outro.
 --
--- Sem nome salvo, o apelido vira "Falcão a1b2" com 4 dígitos do id: não
--- expõe nada e ainda assim dá pra distinguir duas pessoas na lista.
+-- CADEIA DE NOME, na ordem: o que a pessoa salvou no app → o nome que veio
+-- do login do Google (metadados do provedor) → o começo do e-mail. O apelido
+-- genérico só sobra pra quem não tem nenhum dos três.
 create or replace function public.membros_comunidade()
 returns table (user_id uuid, nome text)
 language sql
@@ -97,6 +98,9 @@ as $$
          coalesce(
            nullif(btrim(p.preferred_name), ''),
            nullif(btrim(p.full_name), ''),
+           nullif(btrim(u.raw_user_meta_data->>'full_name'), ''),
+           nullif(btrim(u.raw_user_meta_data->>'name'), ''),
+           nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
            'Falcão ' || left(u.id::text, 4)
          ) as nome
   from auth.users u
@@ -133,11 +137,15 @@ as $$
          coalesce(
            nullif(btrim(p.preferred_name), ''),
            nullif(btrim(p.full_name), ''),
+           nullif(btrim(au.raw_user_meta_data->>'full_name'), ''),
+           nullif(btrim(au.raw_user_meta_data->>'name'), ''),
+           nullif(split_part(coalesce(au.email, ''), '@', 1), ''),
            'Falcão ' || left(u.outro::text, 4)
          ),
          u.texto, u.created_at, u.minha
   from ultima u
-  left join public.profiles p on p.user_id = u.outro
+  left join public.profiles p  on p.user_id = u.outro
+  left join auth.users     au on au.id      = u.outro
   order by u.created_at desc;
 $$;
 grant execute on function public.minhas_conversas() to authenticated;

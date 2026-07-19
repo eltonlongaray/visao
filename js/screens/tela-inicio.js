@@ -35,7 +35,7 @@ import { openMorningMessages, hasUnreadToday } from '../mensagens-manha.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
-import { maybeInvitePerfil } from '../contato-perfil.js';
+import { maybeInvitePerfil, exigirNome } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { loadDesafiosDot } from '../desafios.js';
 import { openDesafiosVitrine } from '../desafios-vitrine.js';
@@ -172,7 +172,9 @@ export async function renderHome(app) {
     // Só depois do tour pra não empilhar dois modais.
     setTimeout(() => maybeInstallHint(), 1200);
     // Convite de perfil/contato (cadência 7 dias). A trava interna evita empilhar.
-    setTimeout(() => maybeInvitePerfil(), 2200);
+    // Nome primeiro: sem ele a pessoa vira um código na lista do chat.
+    // O convite de perfil (opcional) só vem depois, pra não empilhar modal.
+    setTimeout(async () => { await exigirNome(); maybeInvitePerfil(); }, 2200);
   }
 }
 

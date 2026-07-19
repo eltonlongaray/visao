@@ -144,3 +144,73 @@ function _show(stage, force = false) {
     }
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// NOME OBRIGATÓRIO
+// ═══════════════════════════════════════════════════════════════
+// Com o chat da comunidade, ficar sem nome deixou de ser detalhe: a pessoa
+// aparece como um código na lista e ninguém sabe com quem está falando.
+// Este modal NÃO fecha sem preencher — é o único do app assim, e é de
+// propósito.
+//
+// Aproveita o nome que veio do login do Google como sugestão, então na
+// maioria das vezes é só confirmar.
+export async function exigirNome() {
+  if (_open) return;
+  try {
+    const p = await getProfile();
+    const jaTem = (p?.preferredName || p?.fullName || '').trim();
+    if (jaTem) return;
+  } catch { return; }   // sem conseguir ler o perfil, não atrapalha o uso
+
+  let sugestao = '';
+  try {
+    const { supabase } = await import('./config-supabase.js');
+    const { data } = await supabase.auth.getUser();
+    const meta = data?.user?.user_metadata || {};
+    sugestao = (meta.full_name || meta.name || '').trim()
+      || (data?.user?.email || '').split('@')[0];
+  } catch { /* segue sem sugestão */ }
+
+  _open = true;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px">
+      <div style="font-size:38px;text-align:center;margin-bottom:2px">🦅</div>
+      <div class="modal-title" style="text-align:center">Como quer ser chamado?</div>
+      <div class="modal-hint" style="margin-bottom:14px;font-size:14px;line-height:1.6">
+        É o nome que a comunidade vai ver quando você falar nas
+        <strong>Conversas</strong>. Dá pra mudar depois em Ajustes.
+      </div>
+      <label class="input-field"><div class="input-field-label">Seu nome</div>
+        <input id="nm-campo" placeholder="Ex: Elton" autocomplete="nickname"
+               maxlength="40" value="${String(sugestao).replace(/"/g, '&quot;')}" /></label>
+      <div class="modal-hint" id="nm-err" style="color:var(--red);min-height:16px;font-size:12px"></div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="nm-ok" style="width:100%">Confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const campo = overlay.querySelector('#nm-campo');
+  const err   = overlay.querySelector('#nm-err');
+  const btn   = overlay.querySelector('#nm-ok');
+  setTimeout(() => campo.focus(), 120);
+
+  const salvar = async () => {
+    const nome = campo.value.trim();
+    if (nome.length < 2) { err.textContent = 'Escreva pelo menos 2 letras.'; return; }
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      await setProfile({ preferredName: nome });
+      overlay.remove(); _open = false;
+      showToast(`🦅 Bem-vindo, ${nome}!`, 'success');
+    } catch (e) {
+      err.textContent = e.message || 'Não deu pra salvar. Tente de novo.';
+      btn.disabled = false; btn.textContent = 'Confirmar';
+    }
+  };
+  btn.onclick = salvar;
+  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') salvar(); });
+}
