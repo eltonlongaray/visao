@@ -129,7 +129,13 @@ function corDe(id) {
 // ═══════════════════════════════════════════════════════════════
 async function desenharListaPrivada(corpo) {
   // As duas listas juntas: com quem já falei e todo mundo que está no app.
-  const [convs, membros] = await Promise.all([fetchConversas(), fetchMembros()]);
+  let convs = [], membros = [];
+  try {
+    [convs, membros] = await Promise.all([fetchConversas(), fetchMembros()]);
+  } catch (e) {
+    corpo.innerHTML = erro(e);
+    return;
+  }
 
   const jaFalei = new Set(convs.map(c => c.outro_id));
   const outros = membros.filter(m => !jaFalei.has(m.user_id));

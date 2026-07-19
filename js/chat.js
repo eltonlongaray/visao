@@ -103,9 +103,9 @@ export async function fetchConversas() {
 // Só id e nome de exibição — a função no banco não devolve e-mail nem telefone.
 export async function fetchMembros() {
   const { data, error } = await supabase.rpc('membros_comunidade');
-  // Lista vazia por falha e lista vazia por não ter ninguém são coisas
-  // diferentes. Sem este aviso, um erro de RPC vira "a comunidade está vazia".
-  if (error) { console.warn('[Falcon] membros_comunidade:', error.message); return []; }
+  // Propaga em vez de devolver lista vazia: "a chamada falhou" e "não há mais
+  // ninguém" apareciam iguais na tela, e isso escondia o motivo real.
+  if (error) throw new Error(error.message || 'Erro ao listar membros');
   return data || [];
 }
 
