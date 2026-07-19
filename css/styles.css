@@ -2694,6 +2694,21 @@ body.time-picker-open { overflow: hidden; }
   background: radial-gradient(ellipse 70% 42% at 42% 12%,
     rgba(225,240,255,0.16) 0%, rgba(210,232,255,0.06) 45%, transparent 76%);
 }
+/* risco de luz alongado descendo pela lateral esquerda — mesmo reflexo que
+   dá o aspecto de vidro na pupila do Falcon: forte em cima, some embaixo */
+.belt-screen::after {
+  content: ''; position: absolute;
+  left: 7.5%; top: 13%;
+  width: 8%; height: 64%;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    rgba(238,248,255,0.34) 0%,
+    rgba(220,238,255,0.16) 42%,
+    rgba(210,232,255,0.05) 72%,
+    transparent 100%);
+  filter: blur(0.6px);
+}
+
 .belt-screen.s-esq { left: 20.67%; top: 46.43%; width: 17.0%; height: 47.0%; }
 .belt-screen.s-cen { left: 49.67%; top: 49.11%; width: 32.0%; height: 82.0%; border-radius: 12px; }
 .belt-screen.s-dir { left: 78.00%; top: 45.98%; width: 17.2%; height: 48.0%; }
