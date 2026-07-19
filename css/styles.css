@@ -2733,6 +2733,20 @@ body.time-picker-open { overflow: hidden; }
   border: 1px solid rgba(246,226,122,0.45);
 }
 
+/* === ESQUELETO DE CARREGAMENTO ===
+   Bloco cinza pulsando com a FORMA do conteúdo que vem depois. Melhor que
+   um texto "carregando..." solto: a tela já nasce com estrutura em vez de
+   parecer que apagou. */
+@keyframes skShimmer { 0% { background-position: -300px 0; } 100% { background-position: 300px 0; } }
+.sk {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 600px 100%;
+  animation: skShimmer 1.2s linear infinite;
+  border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+
 /* === MODAL === */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);

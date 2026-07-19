@@ -247,28 +247,46 @@ function _normalizeMeta(meta) {
 }
 
 async function _fetchWeekDays(startDate) {
-  return Promise.all(
-    Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      const id = dayId(d);
-      return (async () => {
-        const [meta, tasks] = await Promise.all([getDay(id), getDayTasks(id)]);
-        return { date: d, id, meta: _normalizeMeta(meta), tasks };
-      })();
-    })
-  );
+  const end = new Date(startDate);
+  end.setDate(startDate.getDate() + 6);
+
+  // 2 consultas pro intervalo inteiro (days + tasks), em vez de 14:
+  // a versão antiga fazia getDay + getDayTasks para CADA um dos 7 dias.
+  const linhas = await fetchDaysRange(startDate, end);
+  const porId = new Map(linhas.map(r => [r.id, r]));
+
+  // fetchDaysRange só devolve dias que existem no banco — os que faltam
+  // precisam entrar vazios, senão a semana vem com buracos.
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const id = dayId(d);
+    const row = porId.get(id);
+    // o id fica DENTRO do meta de propósito: era assim que getDay devolvia,
+    // e manter a forma idêntica evita quebrar quem leia day.meta
+    const { tasks = [], ...meta } = row || {};
+    return { date: d, id, meta: _normalizeMeta(meta), tasks };
+  });
 }
 
-async function loadWeek() {
-  weekData = await _fetchWeekDays(weekStart);
-  // Garante tarefas recorrentes na semana atual
+async function loadWeek(promessaSemana) {
+  weekData = await (promessaSemana || _fetchWeekDays(weekStart));
+  // Garante tarefas recorrentes na semana atual — essa precisa ficar aqui,
+  // é o que o usuário vai ver agora.
   await autoGenerateMissingTasks(weekData);
-  // Garante tarefas recorrentes na PRÓXIMA semana (geração preventiva)
-  const nextStart = new Date(weekStart);
-  nextStart.setDate(weekStart.getDate() + 7);
-  const nextWeekDays = await _fetchWeekDays(nextStart);
-  await autoGenerateMissingTasks(nextWeekDays);
+
+  // A próxima semana é geração PREVENTIVA: ninguém está olhando pra ela.
+  // Segurava a pintura da tela por mais uma busca inteira + escritas.
+  // Agora roda em segundo plano, depois que o Ritual já está no ar.
+  setTimeout(async () => {
+    try {
+      const nextStart = new Date(weekStart);
+      nextStart.setDate(weekStart.getDate() + 7);
+      await autoGenerateMissingTasks(await _fetchWeekDays(nextStart));
+    } catch (e) {
+      console.warn('[Falcon] pré-geração da próxima semana falhou:', e);
+    }
+  }, 0);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -477,8 +495,21 @@ async function _migrateTemplateGroupIds() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
+// Esqueleto com a forma real da tela: título do ano, card da semana e as
+// linhas dos dias, sumindo de opacidade pra baixo.
+function _esqueletoRitual() {
+  const dias = Array.from({ length: 6 }, (_, i) =>
+    `<div class="sk" style="height:58px;margin-bottom:10px;border-radius:14px;opacity:${(1 - i * 0.13).toFixed(2)}"></div>`
+  ).join('');
+  return `<div style="padding:16px 16px 120px">
+    <div class="sk" style="height:26px;width:78px;margin:10px auto 18px"></div>
+    <div class="sk" style="height:88px;margin-bottom:18px;border-radius:16px"></div>
+    ${dias}
+  </div>`;
+}
+
 export async function renderRitual(app) {
-  app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${tr('ritual.loading')}</div>`;
+  app.innerHTML = _esqueletoRitual();
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
   // Alvo vindo de clique em notificação: #/ritual?day=YYYY-MM-DD&tag=...
@@ -487,6 +518,12 @@ export async function renderRitual(app) {
   const _tgtTag = _q.get('tag');
   const _hasTarget = _tgtDay && /^\d{4}-\d{2}-\d{2}$/.test(_tgtDay);
   if (_hasTarget) weekStart = getWeekStart(new Date(_tgtDay + 'T00:00:00'));
+
+  // Dispara a busca da semana JUNTO com os cadastros — ela só depende de
+  // weekStart, não deles. Antes eram duas idas ao servidor em fila.
+  const pSemana = _fetchWeekDays(weekStart);
+  pSemana.catch(() => {});   // o erro real aparece no await lá embaixo
+
   try {
     [shifts, categories, activities, profile] = await Promise.all([
       getShifts(), getCategories(), getActivities(), getProfile()
@@ -501,7 +538,7 @@ export async function renderRitual(app) {
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
-  await loadWeek();
+  await loadWeek(pSemana);
   renderUI(app);
   // Veio de clique em notificação → rola e pisca a tarefa específica (ou o dia)
   if (_hasTarget) {
