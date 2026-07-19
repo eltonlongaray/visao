@@ -76,23 +76,33 @@ $$;
 grant execute on function public.limpar_chat_expirado() to authenticated;
 
 -- ─── BLOCO 4: LISTA DE MEMBROS ─────────────────────────────────
--- Para escolher com quem conversar. Devolve SOMENTE id e nome de exibição —
--- nunca e-mail, telefone ou aniversário. É SECURITY DEFINER porque o RLS de
--- profiles (corretamente) não deixa um usuário ler a linha de outro.
+-- TODOS os usuários da plataforma, não só quem preencheu o perfil.
+-- Parte de auth.users e faz LEFT JOIN em profiles: quem nunca salvou nome
+-- simplesmente não tem linha em profiles e sumiria da lista se a consulta
+-- saísse de lá.
+--
+-- Devolve SOMENTE id e nome de exibição — nunca e-mail, telefone ou
+-- aniversário. É SECURITY DEFINER porque o RLS de profiles (corretamente)
+-- não deixa um usuário ler a linha de outro.
+--
+-- Sem nome salvo, o apelido vira "Falcão a1b2" com 4 dígitos do id: não
+-- expõe nada e ainda assim dá pra distinguir duas pessoas na lista.
 create or replace function public.membros_comunidade()
 returns table (user_id uuid, nome text)
 language sql
 security definer
 set search_path = public
 as $$
-  select p.user_id,
+  select u.id,
          coalesce(
            nullif(btrim(p.preferred_name), ''),
            nullif(btrim(p.full_name), ''),
-           'Falcão'
+           'Falcão ' || left(u.id::text, 4)
          ) as nome
-  from public.profiles p
-  where p.user_id <> auth.uid()
+  from auth.users u
+  left join public.profiles p on p.user_id = u.id
+  where u.id <> auth.uid()
+    and u.deleted_at is null
   order by 2;
 $$;
 grant execute on function public.membros_comunidade() to authenticated;
@@ -123,7 +133,7 @@ as $$
          coalesce(
            nullif(btrim(p.preferred_name), ''),
            nullif(btrim(p.full_name), ''),
-           'Falcão'
+           'Falcão ' || left(u.outro::text, 4)
          ),
          u.texto, u.created_at, u.minha
   from ultima u

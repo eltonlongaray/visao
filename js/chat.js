@@ -93,7 +93,7 @@ export async function enviarPrivado(outroId, texto, nome) {
 // Lista de quem já trocou mensagem comigo, com a última de cada conversa.
 export async function fetchConversas() {
   const { data, error } = await supabase.rpc('minhas_conversas');
-  if (error) return [];
+  if (error) { console.warn('[Falcon] minhas_conversas:', error.message); return []; }
   return data || [];
 }
 
@@ -103,7 +103,9 @@ export async function fetchConversas() {
 // Só id e nome de exibição — a função no banco não devolve e-mail nem telefone.
 export async function fetchMembros() {
   const { data, error } = await supabase.rpc('membros_comunidade');
-  if (error) return [];
+  // Lista vazia por falha e lista vazia por não ter ninguém são coisas
+  // diferentes. Sem este aviso, um erro de RPC vira "a comunidade está vazia".
+  if (error) { console.warn('[Falcon] membros_comunidade:', error.message); return []; }
   return data || [];
 }
 
