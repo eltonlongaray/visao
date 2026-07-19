@@ -1,57 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
   <!-- Ladrilho de hieróglifos e runas para o fundo da conversa.
        Desenhado em traço, não em texto: hieróglifo egípcio Unicode depende de
        fonte instalada e no Android costuma virar quadradinho.
 
-       GRADE de 3 colunas (x=25/75/125) por 4 linhas (y=19/56/94/131). Cada
-       glifo é desenhado CENTRADO na própria origem, então as colunas descem
-       em linha reta. Antes cada um tinha origem diferente e o ladrilho ficava
-       com aspecto desalinhado.
+       GRADE RETA de 6 colunas (x=25..275, passo 50) por 8 linhas (y=19..281,
+       passo ~37,5). Cada glifo é desenhado CENTRADO na própria origem, então
+       as colunas descem em linha reta.
 
-       O olho de Hórus NÃO está aqui: ele é a imagem original do Elton,
-       entrando como camada separada de background no CSS.
+       O QUE VARIA é qual glifo cai em cada casa: a sequência é deslocada a
+       cada linha, senão a mesma figura desceria sempre na mesma coluna.
+
+       O olho de Hórus NÃO está aqui — ele é a imagem original do Elton e
+       entra como camada separada no CSS, em 4 posições de LINHAS e COLUNAS
+       diferentes, pra nunca formar faixa horizontal.
 
        ESTE ARQUIVO É A FONTE: o CSS não o carrega, ele vai EMBUTIDO como data
        URI em styles.css (imagem separada não chegava no aparelho por causa do
        cache-first do service worker). Mudou aqui, gerar o data URI de novo. -->
   <g fill="none" stroke="#ffffff" stroke-opacity="0.085" stroke-width="1.6"
      stroke-linecap="round" stroke-linejoin="round">
-
-    <g transform="translate(25,19)">
-      <ellipse cx="0" cy="-9" rx="5" ry="6"/>
-      <path d="M0 -3 V13 M-7 3 H7"/>
-    </g>
-    <g transform="translate(75,19)">
-      <path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/>
-    </g>
-    <g transform="translate(25,56)">
-      <path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/>
-    </g>
-    <g transform="translate(75,56)">
-      <path d="M0 -10 V10 M0 -7 L9 -12 M0 1 L9 -4"/>
-    </g>
-    <g transform="translate(125,56)">
-      <path d="M0 10 V-8 M0 -8 L-7 0 M0 -8 L7 0"/>
-    </g>
-
-    <g transform="translate(25,94)">
-      <path d="M0 -10 V10 M0 -6 L8 -2 L0 2 Z"/>
-    </g>
-    <g transform="translate(75,94)">
-      <path d="M0 -10 V10 M-7 -2 H7 M-7 2 H7 M-7 6 H7"/>
-    </g>
-    <g transform="translate(125,94)">
-      <path d="M-7 10 V-6 L0 -10 L7 -6 V10"/>
-    </g>
-
-    <g transform="translate(25,131)">
-      <path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/>
-    </g>
-    <g transform="translate(75,131)">
-      <path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/>
-    </g>
-    <g transform="translate(125,131)">
-      <path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/>
-    </g>
+    <g transform="translate(25,19)"><ellipse cx="0" cy="-9" rx="5" ry="6"/> <path d="M0 -3 V13 M-7 3 H7"/></g>
+    <g transform="translate(75,19)"><path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/></g>
+    <g transform="translate(175,19)"><path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/></g>
+    <g transform="translate(225,19)"><path d="M0 -10 V10 M0 -7 L9 -12 M0 1 L9 -4"/></g>
+    <g transform="translate(275,19)"><path d="M0 10 V-8 M0 -8 L-7 0 M0 -8 L7 0"/></g>
+    <g transform="translate(25,56)"><path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/></g>
+    <g transform="translate(75,56)"><path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/></g>
+    <g transform="translate(125,56)"><path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/></g>
+    <g transform="translate(175,56)"><ellipse cx="0" cy="-9" rx="5" ry="6"/> <path d="M0 -3 V13 M-7 3 H7"/></g>
+    <g transform="translate(225,56)"><path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/></g>
+    <g transform="translate(275,56)"><path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/></g>
+    <g transform="translate(25,94)"><path d="M0 -10 V10 M-7 -2 H7 M-7 2 H7 M-7 6 H7"/></g>
+    <g transform="translate(75,94)"><path d="M-7 10 V-6 L0 -10 L7 -6 V10"/></g>
+    <g transform="translate(125,94)"><path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/></g>
+    <g transform="translate(175,94)"><path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/></g>
+    <g transform="translate(225,94)"><path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/></g>
+    <g transform="translate(25,131)"><path d="M0 -10 V10 M0 -7 L9 -12 M0 1 L9 -4"/></g>
+    <g transform="translate(75,131)"><path d="M0 10 V-8 M0 -8 L-7 0 M0 -8 L7 0"/></g>
+    <g transform="translate(125,131)"><path d="M0 -10 V10 M0 -6 L8 -2 L0 2 Z"/></g>
+    <g transform="translate(175,131)"><path d="M0 -10 V10 M-7 -2 H7 M-7 2 H7 M-7 6 H7"/></g>
+    <g transform="translate(225,131)"><path d="M-7 10 V-6 L0 -10 L7 -6 V10"/></g>
+    <g transform="translate(275,131)"><path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/></g>
+    <g transform="translate(75,169)"><path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/></g>
+    <g transform="translate(125,169)"><path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/></g>
+    <g transform="translate(175,169)"><path d="M0 -10 V10 M0 -7 L9 -12 M0 1 L9 -4"/></g>
+    <g transform="translate(225,169)"><path d="M0 10 V-8 M0 -8 L-7 0 M0 -8 L7 0"/></g>
+    <g transform="translate(275,169)"><path d="M0 -10 V10 M0 -6 L8 -2 L0 2 Z"/></g>
+    <g transform="translate(25,206)"><path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/></g>
+    <g transform="translate(75,206)"><path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/></g>
+    <g transform="translate(125,206)"><ellipse cx="0" cy="-9" rx="5" ry="6"/> <path d="M0 -3 V13 M-7 3 H7"/></g>
+    <g transform="translate(175,206)"><path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/></g>
+    <g transform="translate(225,206)"><path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/></g>
+    <g transform="translate(275,206)"><path d="M0 -10 V10 M0 -7 L9 -12 M0 1 L9 -4"/></g>
+    <g transform="translate(25,244)"><path d="M-7 10 V-6 L0 -10 L7 -6 V10"/></g>
+    <g transform="translate(75,244)"><path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/></g>
+    <g transform="translate(125,244)"><path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/></g>
+    <g transform="translate(225,244)"><path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/></g>
+    <g transform="translate(275,244)"><ellipse cx="0" cy="-9" rx="5" ry="6"/> <path d="M0 -3 V13 M-7 3 H7"/></g>
+    <g transform="translate(25,281)"><path d="M0 10 V-8 M0 -8 L-7 0 M0 -8 L7 0"/></g>
+    <g transform="translate(75,281)"><path d="M0 -10 V10 M0 -6 L8 -2 L0 2 Z"/></g>
+    <g transform="translate(125,281)"><path d="M0 -10 V10 M-7 -2 H7 M-7 2 H7 M-7 6 H7"/></g>
+    <g transform="translate(175,281)"><path d="M-7 10 V-6 L0 -10 L7 -6 V10"/></g>
+    <g transform="translate(225,281)"><path d="M0 -10 L6 -4 L0 2 L-6 -4 Z M-4 0 L-8 8 M4 0 L8 8"/></g>
+    <g transform="translate(275,281)"><path d="M-6 -7 L6 7 M-6 7 L6 -7 M-6 -7 V7 M6 -7 V7"/></g>
   </g>
 </svg>
