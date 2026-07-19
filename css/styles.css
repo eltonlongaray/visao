@@ -2622,45 +2622,53 @@ body.time-picker-open { overflow: hidden; }
 
 /* === BOTTOM NAV === */
 /* === CINTURÃO DE CAMPEÃO (bottom nav) ===
-   Tira de couro com costura dourada. A LENTE do centro é fixa e sobressai
-   da tarja: as abas passam por baixo dela e vão sendo magnificadas. */
+   Referência: cinturão de campeão — placa central alta, sobressaindo do couro,
+   ladeada por medalhões. A placa é FIXA no centro e as abas passam por baixo.
+
+   ZONA LIVRE (topo): o track é um container de scroll horizontal, e por regra
+   do CSS isso força recorte vertical — o item ampliado batia no teto e ficava
+   cortado (parecia que nem crescia). O padding-top abre espaço DENTRO do
+   scroll pra ele crescer, já que a área de padding não é recortada. */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 90;
   max-width: 480px; margin: 0 auto;
-  overflow: visible;              /* deixa a lente ultrapassar a tarja */
+  overflow: visible;
   background: none; border: none;
+  /* Só a coluna da placa e a tarja capturam toque; o resto da zona livre é
+     vazado pra não roubar cliques do conteúdo que passa por trás. */
+  clip-path: polygon(
+    calc(50% - 80px) 0, calc(50% + 80px) 0,
+    calc(50% + 80px) 34px, 100% 34px,
+    100% 100%, 0 100%,
+    0 34px, calc(50% - 80px) 34px
+  );
 }
 
-/* a tira de couro — essa sim recorta */
 .belt-strap {
-  position: relative; overflow: hidden;
+  position: relative;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+/* o couro — ocupa só a parte de baixo, deixando a zona livre no topo */
+.belt-strap::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 34px; bottom: 0; z-index: 0;
   background:
-    linear-gradient(180deg, rgba(246,226,122,0.55) 0 1px, transparent 1px),
-    linear-gradient(0deg,  rgba(246,226,122,0.30) 0 1px, transparent 1px),
+    repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px) left top 5px / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px) left bottom 5px / 100% 1px no-repeat,
     linear-gradient(180deg, #332416 0%, #1d140c 45%, #120c07 100%),
     var(--card);
   border-top: 1px solid rgba(214,175,55,0.45);
   box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 2px 6px rgba(0,0,0,0.45);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-/* costura interna do couro */
-.belt-strap::before,
-.belt-strap::after {
-  content: ''; position: absolute; left: 0; right: 0; height: 1px; z-index: 2;
-  background: repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px);
-  pointer-events: none;
-}
-.belt-strap::before { top: 5px; }
-.belt-strap::after  { bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
 
 .belt-track {
-  display: flex; align-items: center;
+  position: relative; z-index: 1;
+  display: flex; align-items: flex-end;       /* abas assentam sobre o couro */
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
-  padding: 11px calc(50% - 46px) 13px;   /* metade da fita menos metade do item */
+  padding: 34px calc(50% - 46px) 13px;        /* 34px = zona livre pra ampliar */
   /* Só aparece depois de centralizada na aba ativa. Sem isso ela pinta em
      scrollLeft 0 — com a aba ERRADA sob a lente — e pula: era a piscada. */
   visibility: hidden;
@@ -2676,62 +2684,54 @@ body.time-picker-open { overflow: hidden; }
   font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
   color: #e8cd6a;
   opacity: 0.5;
-  transform: scale(0.82);
+  transform: scale(0.78);
+  transform-origin: bottom center;   /* cresce PRA CIMA, para dentro da placa */
   /* sem transition: a escala vem contínua do scroll, animar causaria atraso */
 }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }
 .belt-lbl { white-space: nowrap; }
 
-/* A CORCOVA — o couro sobe acompanhando o contorno da placa, por fora dela.
-   Fica atrás da lente (z2 < z3) e só ocupa a faixa ACIMA da tarja, senão
-   taparia a aba que está passando por baixo. */
+/* medalhões laterais — parte do couro, como no cinturão de referência */
 .belt-bump {
   position: absolute; z-index: 2; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: -18px; height: 26px;
-  width: 122px;                  /* > 98px da lente = couro sobrando dos dois lados */
-  border-radius: 24px 24px 0 0;
-  background:
-    linear-gradient(180deg, rgba(246,226,122,0.42) 0 1px, transparent 1px),
-    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 60%, #1d140c 100%);
-  border: 1px solid rgba(214,175,55,0.45);
-  border-bottom: none;
-  box-shadow: 0 -5px 14px rgba(0,0,0,0.38), inset 0 1px 0 rgba(246,226,122,0.22);
+  top: 38px; height: 28px; width: 218px;
 }
-/* costura da corcova, acompanhando a curva */
-.belt-bump::before {
-  content: ''; position: absolute; inset: 4px 5px auto;
-  height: 22px; border-radius: 20px 20px 0 0;
-  border: 1px dashed rgba(246,226,122,0.30);
-  border-bottom: none;
+.belt-bump::before, .belt-bump::after {
+  content: ''; position: absolute; top: 50%; width: 26px; height: 26px;
+  margin-top: -13px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #fdf3bd 0%, #e8cd6a 38%, #c9a227 70%, #8a6d1f 100%);
+  border: 1px solid rgba(246,226,122,0.75);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 -2px 3px rgba(0,0,0,0.28);
 }
+.belt-bump::before { left: 0; }
+.belt-bump::after  { right: 0; }
 
-/* A LENTE — parada no centro, ultrapassando a tarja por cima */
+/* A PLACA — parada no centro, alta, ultrapassando o couro */
 .belt-lens {
   position: absolute; z-index: 3; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: -11px; bottom: calc(4px + env(safe-area-inset-bottom, 0px));
-  width: 98px; border-radius: 16px;
+  top: 2px; bottom: calc(7px + env(safe-area-inset-bottom, 0px));
+  width: 112px;
+  /* contorno da referência: topo largo e arredondado afunilando pra base */
+  border-radius: 30px 30px 16px 16px;
   border: 2px solid #f0d873;
   background: linear-gradient(180deg,
-    rgba(253,243,189,0.22) 0%,
-    rgba(232,205,106,0.10) 55%,
-    rgba(151,116,31,0.20) 100%);
+    rgba(253,243,189,0.20) 0%,
+    rgba(232,205,106,0.08) 45%,
+    rgba(151,116,31,0.22) 100%);
   box-shadow:
-    0 0 18px rgba(214,175,55,0.55),
-    0 -4px 14px rgba(214,175,55,0.30),
+    0 0 20px rgba(214,175,55,0.55),
+    0 -4px 16px rgba(214,175,55,0.30),
     inset 0 1px 0 rgba(255,255,255,0.55),
-    inset 0 -2px 6px rgba(0,0,0,0.25);
+    inset 0 -3px 7px rgba(0,0,0,0.28);
 }
-/* rebites laterais da placa */
-.belt-lens::before, .belt-lens::after {
-  content: ''; position: absolute; top: 50%; width: 5px; height: 5px;
-  margin-top: -2.5px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fdf3bd, #c9a227 70%, #7d5f18);
-  box-shadow: 0 0 4px rgba(214,175,55,0.8);
+/* moldura interna, como o friso da placa de campeão */
+.belt-lens::before {
+  content: ''; position: absolute; inset: 4px;
+  border-radius: 26px 26px 12px 12px;
+  border: 1px solid rgba(246,226,122,0.45);
 }
-.belt-lens::before { left: 4px; }
-.belt-lens::after  { right: 4px; }
 
 /* === MODAL === */
 .modal-overlay {

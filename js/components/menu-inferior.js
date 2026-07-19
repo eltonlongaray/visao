@@ -78,7 +78,7 @@ function fazerLente(track, items) {
     for (const i of nova) {
       const d = Math.abs(i - pos);
       const k = Math.max(0, 1 - d / 1.6);           // 1 sob a lente, 0 fora dela
-      items[i].style.transform = `scale(${(0.82 + 0.36 * k).toFixed(3)})`;
+      items[i].style.transform = `scale(${(0.78 + 0.54 * k).toFixed(3)})`;   // contraste forte: 0.78 -> 1.32
       items[i].style.opacity   = (0.5 + 0.5 * k).toFixed(3);
       items[i].style.filter    = `grayscale(${((1 - k) * 0.5).toFixed(2)}) brightness(${(0.82 + 0.18 * k).toFixed(2)})`;
     }
