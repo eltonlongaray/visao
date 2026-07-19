@@ -2673,9 +2673,10 @@ body.time-picker-open { overflow: hidden; }
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
-  /* padding-bottom 0 + align-items center = miolo do trecho visível do couro
-     (34 -> 84), então as abas ficam com a MESMA folga em cima e embaixo. */
-  padding: 34px calc(50% - 44px) 0;
+  /* NÃO zerar o padding de baixo: a altura da nav sai do conteúdo, e sem ele
+     o cinto inteiro encolhe de 84 pra 71px. A centralização das abas é feita
+     por translateY no JS, não mexendo na caixa. */
+  padding: 34px calc(50% - 44px) 13px;
   /* Nas pontas a aba era fatiada pela borda da tela. Com a máscara ela
      dissolve no couro — o corte seco vira transição. */
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);

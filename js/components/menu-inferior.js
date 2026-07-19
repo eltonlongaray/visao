@@ -76,7 +76,10 @@ function fazerLente(track, items) {
     for (let i = Math.max(0, c - 3); i <= Math.min(items.length - 1, c + 3); i++) nova.push(i);
 
     for (const i of janela) {
-      if (nova.indexOf(i) === -1) { items[i].style.transform = ''; items[i].style.opacity = ''; items[i].style.filter = ''; }
+      if (nova.indexOf(i) === -1) {
+        items[i].style.transform = ''; items[i].style.opacity = ''; items[i].style.filter = '';
+        items[i].querySelector('.belt-lbl').style.opacity = '';
+      }
     }
     for (const i of nova) {
       const d = Math.abs(i - pos);
@@ -84,10 +87,15 @@ function fazerLente(track, items) {
       // ainda vinha ampliada (0.945) e encostava na costura do couro. Agora
       // ela repousa no tamanho pequeno e só cresce ao entrar sob a placa.
       const k = Math.max(0, 1 - d);
-      // Sobe a aba conforme ela entra na placa: o meio do couro (59) e o meio
-      // da placa (43,5) nao coincidem, entao ela desliza os 15,5px entre os dois.
-      const dy = (-15.5 * k).toFixed(1);
+      // A caixa do trilho tem centro em 52,5, mas o meio do couro visivel e 59
+      // e o meio da placa e 43,5. A aba desce 6,5px quando esta no couro e
+      // sobe pros 43,5 conforme entra na placa.
+      const dy = (6.5 - 15.5 * k).toFixed(1);
       items[i].style.transform = `translateY(${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
+      // O rotulo some nas abas distantes: so o icone sobra, e ai nada e
+      // fatiado pela borda da tela mesmo com o vao maior.
+      items[i].querySelector('.belt-lbl').style.opacity =
+        Math.min(1, Math.max(0, (1.6 - d) / 0.6)).toFixed(2);
       items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
       items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
     }
