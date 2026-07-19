@@ -54,8 +54,6 @@ export function bottomNav(active) {
       <div class="belt-strap">
         <div class="belt-track">${itens}</div>
       </div>
-      <span class="belt-fillet f-esq" aria-hidden="true"></span>
-      <span class="belt-fillet f-dir" aria-hidden="true"></span>
       <div class="belt-bump" aria-hidden="true"></div>
       <div class="belt-lens" aria-hidden="true"></div>
     </nav>
