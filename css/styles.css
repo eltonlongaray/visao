@@ -2649,16 +2649,16 @@ body.time-picker-open { overflow: hidden; }
   position: relative;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-/* o couro — ocupa só a parte de baixo, deixando a zona livre no topo */
+/* o couro — parte plana. O gradiente é ancorado na altura total da nav
+   (84px) e deslocado -34px, pra emendar SEM COSTURA com a corcova, que usa
+   o mesmo gradiente ancorado em 0. */
 .belt-strap::before {
   content: ''; position: absolute; left: 0; right: 0; top: 34px; bottom: 0; z-index: 0;
   background:
-    repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px) left top 5px / 100% 1px no-repeat,
-    repeating-linear-gradient(90deg, rgba(246,226,122,0.38) 0 6px, transparent 6px 12px) left bottom 5px / 100% 1px no-repeat,
-    linear-gradient(180deg, #332416 0%, #1d140c 45%, #120c07 100%),
-    var(--card);
-  border-top: 1px solid rgba(214,175,55,0.45);
-  box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 2px 6px rgba(0,0,0,0.45);
+    repeating-linear-gradient(90deg, rgba(246,226,122,0.30) 0 6px, transparent 6px 12px) left 0 bottom 5px / 100% 1px no-repeat,
+    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -34px / 100% 84px no-repeat;
+  border-top: 1px solid rgba(214,175,55,0.55);
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 -2px 6px rgba(0,0,0,0.35);
 }
 
 .belt-track {
@@ -2692,29 +2692,27 @@ body.time-picker-open { overflow: hidden; }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }
 .belt-lbl { white-space: nowrap; }
 
-/* O COURO EM VOLTA — sobe seguindo o MESMO contorno da placa, por fora dela.
-   Mesma família de raios, alguns px maior nos quatro lados: o resultado é a
-   tarja abraçando a placa em vez de passar reto atrás. Fica em z2, abaixo da
-   placa (z3) e das abas (z4). */
+/* A BORDA DO COURO SUBINDO — não é uma forma carimbada em cima da tarja:
+   ela tem exatamente a altura da faixa livre (0→34px), então suas laterais
+   MORREM na linha do couro e a silhueta vira uma só, contínua:
+   reta → sobe → contorna a placa → desce → reta.
+   Antes ela descia por dentro do couro e cortava a tarja ao meio. */
 .belt-bump {
   position: absolute; z-index: 2; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: 0; bottom: 0;
+  top: 0; height: 35px;                 /* 1px de sobreposição mata a emenda */
   width: 140px;
-  border-radius: 42px 42px 22px 22px;
-  background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%);
-  border: 1px solid rgba(214,175,55,0.50);
+  border-radius: 42px 42px 0 0;
+  border: 1px solid rgba(214,175,55,0.55);
   border-bottom: none;
-  box-shadow:
-    0 -6px 18px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(246,226,122,0.22),
-    inset 0 -8px 14px rgba(0,0,0,0.30);
+  background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
+  box-shadow: 0 -6px 18px rgba(0,0,0,0.42), inset 0 1px 0 rgba(246,226,122,0.20);
 }
-/* costura do couro acompanhando a curva */
+/* costura acompanhando a curva da subida */
 .belt-bump::before {
-  content: ''; position: absolute; inset: 5px 5px auto;
-  height: 40px; border-radius: 37px 37px 0 0;
-  border: 1px dashed rgba(246,226,122,0.28);
+  content: ''; position: absolute; left: 5px; right: 5px; top: 5px; bottom: 0;
+  border-radius: 37px 37px 0 0;
+  border: 1px dashed rgba(246,226,122,0.26);
   border-bottom: none;
 }
 
