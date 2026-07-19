@@ -1,21 +1,17 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // BLOCO 1 — IMPORTS + ABAS + CONSTANTES
-// BLOCO 2 — RENDER — cinturão de 3 janelas
-// BLOCO 3 — MOLDURA — SVG do couro com as janelas vazadas
-// BLOCO 4 — LENTE — escala contínua por proximidade do centro
-// BLOCO 5 — ROLAGEM INFINITA — teleporte por ciclos, som, navegação
-// BLOCO 6 — AUTO-WIRE — liga sozinho a cada render de tela
+// BLOCO 2 — RENDER — cinturão de campeão com lente fixa
+// BLOCO 3 — LENTE — magnificação contínua por proximidade do centro
+// BLOCO 4 — ROLAGEM INFINITA — teleporte por ciclos, som, navegação
+// BLOCO 5 — AUTO-WIRE — liga sozinho a cada render de tela
 // ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS + ABAS + CONSTANTES
 // ═══════════════════════════════════════════════════════════════
-// Cinturão de campeão com TRÊS JANELAS vazadas no couro: a do meio (grande)
-// mostra a aba atual, as laterais mostram a anterior e a próxima. As abas
-// rolam POR TRÁS do couro e só aparecem quando entram numa janela.
-//
-// A moldura é SVG gerado em runtime, não a imagem original: as janelas
-// precisam ser furos de verdade (fill-rule evenodd) pra aba aparecer
-// através delas, e a largura tem que acompanhar a tela do aparelho.
+// Bottom nav em formato de cinturão de campeão. A lente dourada do centro
+// é FIXA — as abas é que passam por baixo dela e vão sendo magnificadas.
+// A fita repete as abas em ciclos e teleporta perto das bordas, então a
+// rolagem nunca esbarra num limite (mesma técnica do seletor-horario.js).
 import { t } from '../idioma.js';
 import { playClick } from '../sons.js';
 
@@ -27,19 +23,13 @@ const TABS = [
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
-const ALTURA  = 96;                  // altura da nav (precisa bater com o CSS)
-const CICLO   = TABS.length;
-const REPEATS = 21;
-const CENTRO  = 10;
+const ITEM_W  = 92;                  // precisa bater com o CSS (.belt-item flex-basis)
+const CICLO   = TABS.length;         // abas por volta
+const REPEATS = 21;                  // voltas renderizadas (cada render do app cria essas ancoras)
+const CENTRO  = 10;                  // volta central (meio das 21)
+// Degraus iniciais em 0ms de proposito: alguns webviews clampam qualquer
+// setTimeout nao-zero para ~1s, e a escada virava 1s de aba sumida.
 const ESPERAS = [0, 0, 0, 32, 120, 400];
-
-// Distância entre janelas = largura de um item. Proporcional à tela pra as
-// três janelas caberem em qualquer aparelho.
-function larguraItem(larguraNav) {
-  return Math.max(96, Math.min(150, Math.round(larguraNav * 0.305)));
-}
-
-let _seqGrad = 0;   // ids de gradiente únicos por moldura
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: RENDER
@@ -62,168 +52,110 @@ export function bottomNav(active) {
       <div class="belt-strap">
         <div class="belt-track">${itens}</div>
       </div>
-      <div class="belt-frame" aria-hidden="true"></div>
+      <div class="belt-bump" aria-hidden="true"></div>
+      <div class="belt-lens" aria-hidden="true"></div>
     </nav>
   `;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: MOLDURA
+// BLOCO 3: LENTE
 // ═══════════════════════════════════════════════════════════════
-// Um path só, com fill-rule evenodd: o contorno externo é o couro e as três
-// janelas são subpaths que viram FUROS. O mesmo path é contornado em dourado,
-// então a borda sai de graça na silhueta E em volta de cada janela.
-function svgMoldura(W, H, iw) {
-  const cx = W / 2;
-  const id = `beltCouro${++_seqGrad}`;
-
-  // Janela central — octógono: topo reto, cantos chanfrados, base em ponta.
-  const cw = iw * 0.86, ch2 = cw / 2, k = 13;
-  const cTop = 14, cBot = 94;
-  const central = [
-    `M ${cx - ch2 + k} ${cTop}`,
-    `L ${cx + ch2 - k} ${cTop}`,
-    `L ${cx + ch2} ${cTop + k}`,
-    `L ${cx + ch2} ${cBot - k * 1.7}`,
-    `L ${cx} ${cBot}`,
-    `L ${cx - ch2} ${cBot - k * 1.7}`,
-    `L ${cx - ch2} ${cTop + k}`,
-    'Z',
-  ].join(' ');
-
-  // Janelas laterais — trapézios levemente inclinados, lado de fora mais baixo.
-  const sw = iw * 0.60, sh2 = sw / 2, sTop = 32, sBot = 76, incl = 5;
-  const lateral = (sx, espelha) => {
-    const dOut = espelha ? 0 : incl, dIn = espelha ? incl : 0;
-    return [
-      `M ${sx - sh2} ${sTop + dOut}`,
-      `L ${sx + sh2} ${sTop + dIn}`,
-      `L ${sx + sh2} ${sBot - dIn}`,
-      `L ${sx - sh2} ${sBot - dOut}`,
-      'Z',
-    ].join(' ');
-  };
-
-  // Silhueta do couro: fina nas pontas, subindo em dois degraus até o centro.
-  const p = (f) => cx + iw * f;
-  const externo = [
-    `M 0 40`,
-    `L ${p(-1.72)} 40`, `Q ${p(-1.56)} 40 ${p(-1.48)} 26`,
-    `L ${p(-0.74)} 26`, `Q ${p(-0.66)} 26 ${p(-0.60)} 6`,
-    `L ${p(0.60)} 6`,   `Q ${p(0.66)} 6 ${p(0.74)} 26`,
-    `L ${p(1.48)} 26`,  `Q ${p(1.56)} 26 ${p(1.72)} 40`,
-    `L ${W} 40`, `L ${W} ${H}`, `L 0 ${H}`, 'Z',
-  ].join(' ');
-
-  const d = `${externo} ${lateral(cx - iw, false)} ${central} ${lateral(cx + iw, true)}`;
-
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#3d2b1a"/>
-      <stop offset="52%" stop-color="#2a1d11"/>
-      <stop offset="100%" stop-color="#150e08"/>
-    </linearGradient>
-  </defs>
-  <path d="${d}" fill="url(#${id})" fill-rule="evenodd"
-        stroke="rgba(226,190,90,0.65)" stroke-width="1.6" stroke-linejoin="round"/>
-</svg>`;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 4: LENTE
-// ═══════════════════════════════════════════════════════════════
-// A aba no centro fica grande (cabe na janela central) e as vizinhas menores
-// (cabem nas laterais). A variação é contínua pra aba crescer enquanto entra.
-function fazerLente(track, items, iw) {
+// A escala varia de forma contínua com a distância até o centro — é isso
+// que dá a sensação de lente de aumento em vez de "item selecionado".
+// Só mexe na janela ao redor do centro: são centenas de itens no DOM.
+function fazerLente(track, items) {
   let janela = [];
   return () => {
-    const pos = track.scrollLeft / iw;
+    const pos = track.scrollLeft / ITEM_W;          // índice fracionário sob a lente
     const c   = Math.round(pos);
     const nova = [];
-    for (let i = Math.max(0, c - 2); i <= Math.min(items.length - 1, c + 2); i++) nova.push(i);
+    for (let i = Math.max(0, c - 3); i <= Math.min(items.length - 1, c + 3); i++) nova.push(i);
 
     for (const i of janela) {
-      if (nova.indexOf(i) === -1) { items[i].style.transform = ''; items[i].style.opacity = ''; }
+      if (nova.indexOf(i) === -1) { items[i].style.transform = ''; items[i].style.opacity = ''; items[i].style.filter = ''; }
     }
     for (const i of nova) {
       const d = Math.abs(i - pos);
-      const k = Math.max(0, 1 - d);                 // 1 na janela central, 0 na lateral
-      items[i].style.transform = `scale(${(0.68 + 0.47 * k).toFixed(3)})`;
-      items[i].style.opacity   = (0.62 + 0.38 * k).toFixed(3);
+      const k = Math.max(0, 1 - d / 1.6);           // 1 sob a lente, 0 fora dela
+      items[i].style.transform = `scale(${(0.78 + 0.54 * k).toFixed(3)})`;   // contraste forte: 0.78 -> 1.32
+      items[i].style.opacity   = (0.5 + 0.5 * k).toFixed(3);
+      items[i].style.filter    = `grayscale(${((1 - k) * 0.5).toFixed(2)}) brightness(${(0.82 + 0.18 * k).toFixed(2)})`;
     }
     janela = nova;
   };
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 5: ROLAGEM INFINITA
+// BLOCO 4: ROLAGEM INFINITA
 // ═══════════════════════════════════════════════════════════════
 function wireBelt(track) {
   track.dataset.ready = '1';
   const nav   = track.closest('.bottom-nav');
   const items = [...track.querySelectorAll('.belt-item')];
-  if (!items.length || !nav) return;
+  if (!items.length) return;
 
-  const idxAtivo = parseInt(nav.dataset.idx || '0', 10) || 0;
-  let travado = true, teleportando = false;
-  let atual = CENTRO * CICLO + idxAtivo;
-  let iw = 0, pintarLente = () => {};
+  const idxAtivo = parseInt(nav?.dataset.idx || '0', 10) || 0;
+  const cicloPx  = CICLO * ITEM_W;
+  const MIN_SEG  = 3 * cicloPx;                    // janela segura antes do teleporte
+  const MAX_SEG  = (REPEATS - 3) * cicloPx;
 
-  // A moldura só pode ser desenhada quando a largura real é conhecida, e a
-  // largura do item vem dela — as janelas têm que cair exatamente onde as
-  // abas param.
-  const montar = () => {
-    const W = Math.round(nav.getBoundingClientRect().width);
-    if (!W) return false;
-    iw = larguraItem(W);
-    track.style.setProperty('--belt-item-w', iw + 'px');
-    const frame = nav.querySelector('.belt-frame');
-    if (frame) frame.innerHTML = svgMoldura(W, ALTURA, iw);
-    pintarLente = fazerLente(track, items, iw);
-    return true;
-  };
+  // Com padding lateral de (metade da fita − metade do item), centralizar o
+  // item i vira exatamente scrollLeft = i * ITEM_W.
+  const posDe = (i) => i * ITEM_W;
+
+  let travado    = true;      // posicionamento inicial não soa nem navega
+  let teleportando = false;
+  let atual      = CENTRO * CICLO + idxAtivo;
+
+  const pintarLente = fazerLente(track, items);
 
   const talvezTeleportar = () => {
-    if (teleportando || !iw) return;
-    const cicloPx = CICLO * iw;
+    if (teleportando) return;
     const sl = track.scrollLeft;
-    if (sl >= 3 * cicloPx && sl < (REPEATS - 3) * cicloPx) return;
+    if (sl >= MIN_SEG && sl < MAX_SEG) return;
     teleportando = true;
-    const dentro = ((sl % cicloPx) + cicloPx) % cicloPx;
-    const novo = CENTRO * cicloPx + dentro;
+    const dentroDoCiclo = ((sl % cicloPx) + cicloPx) % cicloPx;
+    const novo = CENTRO * cicloPx + dentroDoCiclo;
     track.scrollLeft = novo;
-    atual = Math.round(novo / iw);
+    atual = Math.round(novo / ITEM_W);              // salto invisível não é clique
     setTimeout(() => { teleportando = false; }, 0);
   };
 
+  // Posiciona no ativo antes de soltar os listeners. Precisa insistir porque
+  // no primeiro instante o track ainda não tem largura e o scroll vira no-op
+  // silencioso. Escada de timers e não requestAnimationFrame: rAF é suspenso
+  // quando a aba não está pintando, e aí o cinturão nunca destravava.
   const revelar = () => { pintarLente(); track.dataset.pos = '1'; travado = false; };
 
   const tentar = (i) => {
-    // Condição é "a fita já é rolável", não "o scroll bateu": reler scrollLeft
-    // no mesmo tick devolve o valor ANTIGO, e a checagem nunca passava.
-    if (track.clientWidth > 0 && montar() && track.scrollWidth > track.clientWidth) {
-      const alvo = atual * iw;
+    // A condição é "a fita já é rolável", não "o scroll bateu". Conferir por
+    // leitura no mesmo tick é furado: scrollLeft costuma devolver o valor
+    // ANTIGO até o layout seguinte, então a checagem nunca passava e a escada
+    // ia até o fim — ~1s de aba sumida a cada troca de tela.
+    if (track.clientWidth > 0 && track.scrollWidth > track.clientWidth) {
+      const alvo = posDe(atual);
       track.scrollLeft = alvo;
       revelar();
+      // Rede de segurança: confere no tick seguinte e corrige se não pegou.
       setTimeout(() => {
         if (Math.abs(track.scrollLeft - alvo) > 2) { track.scrollLeft = alvo; pintarLente(); }
       }, 0);
       return;
     }
     if (i < ESPERAS.length) setTimeout(() => tentar(i + 1), ESPERAS[i]);
-    else { montar(); revelar(); }
+    else revelar();   // desiste da centralização, mas nunca deixa a fita sumida
   };
   tentar(0);
 
   let parada;
   track.addEventListener('scroll', () => {
-    if (teleportando || !iw) return;
+    if (teleportando) return;
     pintarLente();
-    const i = Math.round(track.scrollLeft / iw);
+    const i = Math.round(track.scrollLeft / ITEM_W);
     if (i !== atual) {
       atual = i;
-      if (!travado) playClick();
+      if (!travado) playClick();                    // um clique por trava do tambor
     }
     clearTimeout(parada);
     parada = setTimeout(() => {
@@ -233,20 +165,10 @@ function wireBelt(track) {
       if (destino && location.hash !== destino) location.hash = destino;
     }, 220);
   }, { passive: true });
-
-  // Girar o aparelho muda a largura — moldura e janelas têm que refazer.
-  let redim;
-  window.addEventListener('resize', () => {
-    clearTimeout(redim);
-    redim = setTimeout(() => {
-      if (!document.contains(track)) return;
-      if (montar()) { track.scrollLeft = atual * iw; pintarLente(); }
-    }, 150);
-  });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 6: AUTO-WIRE
+// BLOCO 5: AUTO-WIRE
 // ═══════════════════════════════════════════════════════════════
 // As telas montam o nav via string HTML, então não há hook de "montou".
 // Um observer único liga qualquer cinturão novo que apareça no DOM —
@@ -257,7 +179,8 @@ function varrer() {
   document.querySelectorAll('.belt-track:not([data-ready])').forEach(wireBelt);
 }
 // Sem guard de "ja agendado": ele podia engolir a varredura de um render que
-// chegasse junto de outro, e o cinturao ficava sem ligar.
+// chegasse junto de outro, e o cinturao ficava sem ligar. O custo e um
+// querySelectorAll por render — barato perto de perder a navegacao.
 function agendarVarredura() { setTimeout(varrer, 0); }
 
 function ensureWiring() {
@@ -265,10 +188,12 @@ function ensureWiring() {
 
   // Caminho rápido: a tela insere o HTML de forma SÍNCRONA logo depois de
   // chamar bottomNav(), então um macrotask já acha o elemento no DOM.
+  // É por aqui que o cinturão liga, em ~10ms.
   agendarVarredura();
-  setTimeout(varrer, 0);
+  setTimeout(varrer, 0);    // 2ª passada, caso a inserção tenha sido adiada
 
-  // MutationObserver como rede de segurança — ele é rápido (~1ms).
+  // MutationObserver como rede de segurança — ele é rápido (~1ms), o que
+  // custava caro era a escada de retentativas, não ele.
   if (observando) return;
   observando = true;
   const iniciar = () => {
