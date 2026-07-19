@@ -38,7 +38,7 @@ export async function meuNomeDeChat() {
 export async function fetchMural() {
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, autor_nome, texto, created_at, expira_em')
+    .select('id, autor_id, autor_nome, texto, created_at, expira_em, editada_em')
     .eq('escopo', 'comunidade')
     .order('created_at', { ascending: false })
     .limit(LIMITE);
@@ -68,7 +68,7 @@ export async function fetchConversa(outroId) {
   // filtro explícito evita puxar o mural junto.
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, para_id, autor_nome, texto, created_at')
+    .select('id, autor_id, para_id, autor_nome, texto, created_at, editada_em')
     .eq('escopo', 'privado')
     .or(`and(autor_id.eq.${meu},para_id.eq.${outroId}),and(autor_id.eq.${outroId},para_id.eq.${meu})`)
     .order('created_at', { ascending: false })
@@ -107,6 +107,17 @@ export async function fetchMembros() {
   // ninguém" apareciam iguais na tela, e isso escondia o motivo real.
   if (error) throw new Error(error.message || 'Erro ao listar membros');
   return data || [];
+}
+
+// Só o texto muda. Um gatilho no banco rejeita qualquer outra alteração —
+// sem ele, editar seria uma porta pra esticar a validade da mensagem ou
+// mover uma conversa privada pro mural.
+export async function editarMensagem(id, texto) {
+  const t = (texto || '').trim();
+  if (!t) return;
+  const { error } = await supabase.from('chat_mensagens')
+    .update({ texto: t.slice(0, 2000) }).eq('id', id);
+  _falha(error);
 }
 
 export async function apagarMensagem(id) {

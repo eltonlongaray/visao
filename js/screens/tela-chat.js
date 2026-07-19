@@ -16,7 +16,7 @@
 // Sem anexos: não há upload de arquivo nem de imagem nesta versão.
 import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
-  fetchMembros, apagarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
+  fetchMembros, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -26,6 +26,7 @@ let aba = 'mural';        // 'mural' | 'privado'
 let conversaCom = null;   // { id, nome } quando aberta
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
+let editando = null;      // id da mensagem em edição
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -124,8 +125,7 @@ function linhaDiscord(m, anterior, minha) {
   const cabecalho = agrupa ? '' : `
       <div class="dc-head">
         <span class="dc-nome" style="color:${corDe(m.autor_id)}">${esc(nome)}</span>
-        <span class="dc-hora">${hora(m.created_at)} · some em ${tempoRestante(m.created_at)}</span>
-        ${minha ? `<button class="chat-apagar" data-apagar="${m.id}">apagar</button>` : ''}
+        <span class="dc-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · some em ${tempoRestante(m.created_at)}</span>
       </div>`;
 
   return `
@@ -134,6 +134,7 @@ function linhaDiscord(m, anterior, minha) {
         ${agrupa ? '' : inicial(nome)}
       </div>
       <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
+      ${minha ? menuDaMensagem(m.id) : ''}
     </div>`;
 }
 
@@ -228,6 +229,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <form class="chat-envio" id="chat-envio">
       <input id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000" autocomplete="off" />
+      <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>`;
 
@@ -258,10 +260,29 @@ function balao(m, minha, mostrarAutor) {
       <div class="wa-bolha">
         ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
         <span class="wa-txt">${esc(m.texto)}</span>
-        <span class="wa-hora">${hora(m.created_at)} · ${tempoRestante(m.created_at)}
-          ${minha ? `<button class="chat-apagar" data-apagar="${m.id}">apagar</button>` : ''}</span>
+        <span class="wa-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
+      </div>
+      ${minha ? menuDaMensagem(m.id) : ''}
+    </div>`;
+}
+
+// Três pontos no canto da própria mensagem. O botão antigo só aparecia no
+// hover — que não existe em celular, então apagar era inacessível no aparelho.
+function menuDaMensagem(id) {
+  return `
+    <div class="msg-menu">
+      <button class="msg-menu-btn" data-menu="${id}" aria-label="Opções da mensagem">⋯</button>
+      <div class="msg-pop" data-pop="${id}" hidden>
+        <button class="msg-pop-item" data-editar="${id}">✏️ Editar</button>
+        <button class="msg-pop-item" data-apagar="${id}">🗑 Excluir</button>
       </div>
     </div>`;
+}
+
+function fecharMenus(exceto) {
+  document.querySelectorAll('.msg-pop:not([hidden])').forEach(p => {
+    if (p.dataset.pop !== exceto) p.hidden = true;
+  });
 }
 
 function ligarEventos(app) {
@@ -281,6 +302,37 @@ function ligarEventos(app) {
     if (conv) {
       conversaCom = { id: conv.dataset.abrir, nome: conv.dataset.nome };
       return recarregar();
+    }
+
+    const menu = t.closest('[data-menu]');
+    if (menu) {
+      const pop = app.querySelector(`[data-pop="${menu.dataset.menu}"]`);
+      const abrir = pop?.hidden;
+      fecharMenus();
+      if (pop && abrir) pop.hidden = false;
+      return;
+    }
+    // Toque fora fecha o menu aberto.
+    if (!t.closest('.msg-pop')) fecharMenus();
+
+    const ed = t.closest('[data-editar]');
+    if (ed) {
+      fecharMenus();
+      const bolha = app.querySelector(`[data-id="${ed.dataset.editar}"] .dc-txt, [data-id="${ed.dataset.editar}"] .wa-txt`);
+      const campo = app.querySelector('#chat-texto');
+      if (bolha && campo) {
+        editando = ed.dataset.editar;
+        campo.value = bolha.textContent;
+        campo.focus();
+        app.querySelector('#chat-envio')?.classList.add('editando');
+      }
+      return;
+    }
+    if (t.closest('#chat-cancelar-edicao')) {
+      editando = null;
+      const c2 = app.querySelector('#chat-texto'); if (c2) c2.value = '';
+      app.querySelector('#chat-envio')?.classList.remove('editando');
+      return;
     }
 
     const apagar = t.closest('[data-apagar]');
@@ -303,7 +355,11 @@ function ligarEventos(app) {
     if (!texto) return;
     campo.value = '';
     try {
-      if (aba === 'mural') await enviarNoMural(texto, meuNome);
+      if (editando) {
+        await editarMensagem(editando, texto);
+        editando = null;
+        app.querySelector('#chat-envio')?.classList.remove('editando');
+      } else if (aba === 'mural') await enviarNoMural(texto, meuNome);
       else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome);
       await recarregar();
     } catch (e) {

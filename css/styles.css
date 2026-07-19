@@ -2821,6 +2821,39 @@ body.time-picker-open { overflow: hidden; }
 .chat-cheia .chat-lista { flex: 1; max-height: none; min-height: 0; }
 .chat-cheia .chat-envio { flex-shrink: 0; padding-bottom: 10px; }
 
+/* --- menu de opções da mensagem (⋯) ---
+   Substitui o "apagar" que só aparecia no hover: em celular não há hover,
+   então a opção era inalcançável no aparelho. */
+.msg-menu { position: relative; flex-shrink: 0; }
+.msg-menu-btn {
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--muted); font-size: 17px; line-height: 1;
+  /* 40x36 de área de toque: com padding pequeno dava 27x21 e o dedo errava.
+     O ⋯ continua do mesmo tamanho — quem cresce é a região clicável. */
+  min-width: 40px; min-height: 36px;
+  display: grid; place-items: center;
+  padding: 0; border-radius: 10px;
+}
+.msg-menu-btn:active { background: rgba(255,255,255,0.08); }
+.msg-pop {
+  position: absolute; right: 0; top: 100%; z-index: 20;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px; min-width: 132px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.msg-pop-item {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--text); font-size: 13.5px; padding: 11px 12px; border-radius: 7px;
+}
+.msg-pop-item:active { background: rgba(255,255,255,0.08); }
+/* nas minhas mensagens o menu fica à esquerda da bolha, senão sai da tela */
+.wa-msg.minha { position: relative; }
+.wa-msg.minha .msg-menu { align-self: flex-start; margin-right: 2px; order: -1; }
+.wa-msg.minha .msg-pop { right: auto; left: 0; }
+.dc-msg { position: relative; }
+.dc-msg .msg-menu { margin-left: auto; }
+
 /* --- conversa privada no estilo WhatsApp --- */
 /* LADRILHO DE GLIFOS — definido UMA vez e reusado na conversa e no
    painel do pet. Duplicar os data URIs custaria ~24KB a mais no CSS.
@@ -2885,14 +2918,11 @@ body.time-picker-open { overflow: hidden; }
   font-size: 10px; color: var(--muted);
   margin-top: 2px; display: flex; align-items: center; gap: 7px;
 }
-.wa-msg .chat-apagar { opacity: 0; transition: opacity 0.15s; }
-.wa-msg:hover .chat-apagar { opacity: 1; }
+.wa-msg 
+.wa-msg:hover 
 
 .chat-meta { font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; }
-.chat-apagar {
-  background: none; border: none; color: var(--muted);
-  font-size: 10px; cursor: pointer; padding: 0; text-decoration: underline; font-family: inherit;
-}
+
 .chat-envio { display: flex; gap: 8px; margin-top: 10px; }
 .chat-envio input {
   flex: 1; background: var(--card); border: 1px solid var(--border);
@@ -2905,6 +2935,16 @@ body.time-picker-open { overflow: hidden; }
   background: var(--accent); border: none; color: #fff;
   font-size: 17px; cursor: pointer;
 }
+/* o ✕ só existe enquanto edita: fora disso não faz sentido ocupar espaço */
+.chat-cancelar-ed { display: none; }
+.chat-envio.editando .chat-cancelar-ed {
+  display: grid; place-items: center;
+  flex: 0 0 44px; height: 44px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--muted); font-size: 15px; cursor: pointer; font-family: inherit;
+}
+.chat-envio.editando input { border-color: var(--accent); }
+
 .chat-nova {
   width: 100%; padding: 12px; margin-bottom: 12px;
   background: var(--card); border: 1px dashed var(--border); border-radius: 14px;
@@ -2944,7 +2984,7 @@ body.time-picker-open { overflow: hidden; }
 /* --- mural no estilo Discord: sem balão, texto corrido --- */
 .dc-msg { display: flex; gap: 11px; padding: 3px 4px; border-radius: 8px; }
 .dc-msg:hover { background: rgba(255,255,255,0.03); }
-.dc-msg:hover .chat-apagar { opacity: 1; }
+.dc-msg:hover 
 .dc-cont { margin-top: -4px; }
 .dc-av {
   flex: 0 0 36px; height: 36px; border-radius: 50%;
@@ -2960,7 +3000,7 @@ body.time-picker-open { overflow: hidden; }
   font-size: 14px; line-height: 1.5; color: var(--text);
   white-space: pre-wrap; word-break: break-word;
 }
-.dc-msg .chat-apagar { opacity: 0; transition: opacity 0.15s; }
+.dc-msg 
 
 .chat-sec {
   font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;

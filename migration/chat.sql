@@ -159,3 +159,45 @@ grant execute on function public.minhas_conversas() to authenticated;
 -- por alguns minutos depois de criar a tabela, porque o cache de schema
 -- ainda é o antigo. Esta linha força a releitura na hora.
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════
+-- EDIÇÃO DE MENSAGEM
+-- ═══════════════════════════════════════════════════════════════
+alter table public.chat_mensagens add column if not exists editada_em timestamptz;
+
+drop policy if exists chat_editar on public.chat_mensagens;
+create policy chat_editar on public.chat_mensagens
+  for update to authenticated
+  using  (autor_id = auth.uid() and expira_em > now())
+  with check (autor_id = auth.uid());
+
+-- O RLS controla QUAIS LINHAS podem ser editadas, não QUAIS COLUNAS. Sem este
+-- gatilho, quem edita a própria mensagem poderia junto:
+--   • esticar expira_em e deixá-la para sempre,
+--   • trocar escopo e jogar uma conversa privada no mural,
+--   • mudar para_id e redirecionar a mensagem.
+-- Aqui só o texto passa; o resto é rejeitado.
+create or replace function public.chat_so_edita_texto()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.escopo     is distinct from old.escopo
+  or new.autor_id   is distinct from old.autor_id
+  or new.para_id    is distinct from old.para_id
+  or new.created_at is distinct from old.created_at
+  or new.expira_em  is distinct from old.expira_em then
+    raise exception 'Só o texto da mensagem pode ser editado';
+  end if;
+  new.editada_em := now();
+  return new;
+end $$;
+
+drop trigger if exists chat_edita_texto on public.chat_mensagens;
+create trigger chat_edita_texto
+  before update on public.chat_mensagens
+  for each row execute function public.chat_so_edita_texto();
+
+notify pgrst, 'reload schema';
