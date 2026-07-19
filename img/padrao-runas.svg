@@ -8,6 +8,9 @@
        em linha reta. Antes cada um tinha origem diferente e o ladrilho ficava
        com aspecto desalinhado.
 
+       O olho de Hórus NÃO está aqui: ele é a imagem original do Elton,
+       entrando como camada separada de background no CSS.
+
        ESTE ARQUIVO É A FONTE: o CSS não o carrega, ele vai EMBUTIDO como data
        URI em styles.css (imagem separada não chegava no aparelho por causa do
        cache-first do service worker). Mudou aqui, gerar o data URI de novo. -->
@@ -21,13 +24,6 @@
     <g transform="translate(75,19)">
       <path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/>
     </g>
-    <g transform="translate(125,19)">
-      <path d="M-14 -5 Q-6 -13 4 -11 Q11 -9 14 -4 Q6 2 -4 1 Q-11 0 -14 -5 Z"/>
-      <circle cx="0" cy="-5" r="3"/>
-      <path d="M-2 1 L-5 11"/>
-      <path d="M8 1 Q13 8 7 11 Q2 13 3 8"/>
-    </g>
-
     <g transform="translate(25,56)">
       <path d="M-11 9 L0 -9 L11 9 Z M-7 9 H7"/>
     </g>
