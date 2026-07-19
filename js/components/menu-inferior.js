@@ -21,7 +21,11 @@ const TABS = [
   { id: 'home',       route: '#/home',       ic: '🏠', lbl: () => t('nav.home') },
   { id: 'ritual',     route: '#/ritual',     ic: '🔮', lbl: () => t('nav.ritual') },
   { id: 'desempenho', route: '#/desempenho', ic: '📊', lbl: () => t('nav.desempenho') },
-  { id: 'chat',       route: '#/chat',       ic: '💬', lbl: () => t('nav.chat') },
+  // Ícone em imagem, não emoji: é a marca da comunidade. O tamanho é fixado
+  // no CSS pra a altura da aba bater com as outras — se ela crescer, essa aba
+  // fica desalinhada das demais no cinturão.
+  { id: 'chat',       route: '#/chat',
+    ic: '<img src="img/falcao.png" alt="" class="belt-ic-img">', lbl: () => t('nav.chat') },
   { id: 'desafios',   route: '#/desafios',   ic: '🏆', lbl: () => t('nav.desafios') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];

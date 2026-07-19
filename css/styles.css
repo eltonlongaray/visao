@@ -2713,6 +2713,15 @@ body.time-picker-open { overflow: hidden; }
   /* sem transition: a escala vem contínua do scroll, animar causaria atraso */
 }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }
+/* Ícone em imagem (comunidade). 20px NÃO é estético: é a altura da linha do
+   span do ícone. Com 21px a imagem transbordava 1px e só a aba do chat ficava
+   mais alta que as outras no cinturão.
+   O brilho leve destaca o azul-marinho do falcão, que sozinho tem pouco
+   contraste contra o couro escuro. */
+.belt-ic-img {
+  height: 20px; width: auto; display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)) brightness(1.12);
+}
 .belt-lbl { white-space: nowrap; }
 
 /* A BORDA DO COURO SUBINDO — não é uma forma carimbada em cima da tarja:
