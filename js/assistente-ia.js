@@ -517,6 +517,9 @@ function ligarArrastePet() {
   const comecar = (ev) => {
     if (document.getElementById('pet-chat')?.classList.contains('pet-chat-open')) return;
     x0 = px(ev); ativo = true; _petMoveu = false;
+    // Captura o ponteiro: garante que os movimentos sigam chegando mesmo se
+    // o dedo sair de cima do olho durante o arraste.
+    try { corpo.setPointerCapture(ev.pointerId); } catch {}
   };
 
   const mover = (ev) => {
@@ -536,7 +539,8 @@ function ligarArrastePet() {
     aplicarPosicaoPet(lado);
   };
 
-  const soltar = () => {
+  const soltar = (ev) => {
+    try { if (ev?.pointerId != null) corpo.releasePointerCapture(ev.pointerId); } catch {}
     if (ativo && _petMoveu) {
       el.classList.remove('pet-arrastando');
       localStorage.setItem(POS_PET, JSON.stringify({ lado }));
@@ -545,9 +549,12 @@ function ligarArrastePet() {
   };
 
   corpo.addEventListener('pointerdown', comecar);
+  corpo.addEventListener('pointermove', mover, { passive: false });
+  corpo.addEventListener('pointerup', soltar);
+  corpo.addEventListener('pointercancel', soltar);
+  // Rede: se a captura falhar em algum navegador, a janela ainda responde.
   window.addEventListener('pointermove', mover, { passive: false });
   window.addEventListener('pointerup', soltar);
-  window.addEventListener('pointercancel', soltar);
   window.addEventListener('resize', () => aplicarPosicaoPet());
 }
 

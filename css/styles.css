@@ -5160,6 +5160,10 @@ body.tour-active { overflow: hidden; }
 
 /* Corpo do pet */
 .pet-body {
+  /* touch-action: none — sem isto o navegador trata o arraste como rolagem
+     da tela, dispara pointercancel e o gesto morre antes de virar arraste.
+     É o que impedia mudar o pet de lado no celular. */
+  touch-action: none;
   width: 44px;
   height: 44px;
   background: #7c3aed;
