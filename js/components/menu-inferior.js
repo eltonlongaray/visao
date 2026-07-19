@@ -87,10 +87,10 @@ function fazerLente(track, items) {
       // ainda vinha ampliada (0.945) e encostava na costura do couro. Agora
       // ela repousa no tamanho pequeno e só cresce ao entrar sob a placa.
       const k = Math.max(0, 1 - d);
-      // A caixa do trilho tem centro em 52,5, mas o meio do couro visivel e 59
-      // e o meio da placa e 43,5. A aba desce 6,5px quando esta no couro e
-      // sobe pros 43,5 conforme entra na placa.
-      const dy = (6.5 - 15.5 * k).toFixed(1);
+      // A caixa do trilho tem centro em 52,5. O meio do couro visivel (linha
+      // em 30 ate a base 84) e 57, e o meio da placa e 43,5. A aba desce
+      // 4,5px quando esta no couro e sobe pros 43,5 ao entrar na placa.
+      const dy = (4.5 - 13.5 * k).toFixed(1);
       // As abas distantes sao PUXADAS 28px pra dentro. Diminuir o vao de
       // verdade nao dava: ele precisa ser grande pro "Desempenho" da vizinha
       // nao encostar na placa. Como o transform nao mexe no layout, a rolagem

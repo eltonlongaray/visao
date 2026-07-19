@@ -2641,9 +2641,9 @@ body.time-picker-open { overflow: hidden; }
      recorte começasse em 0, ele seria cortado numa reta bem visível. */
   clip-path: polygon(
     calc(50% - 84px) -24px, calc(50% + 84px) -24px,
-    calc(50% + 84px) 34px, 100% 34px,
+    calc(50% + 84px) 30px, 100% 30px,
     100% 100%, 0 100%,
-    0 34px, calc(50% - 84px) 34px
+    0 30px, calc(50% - 84px) 30px
   );
 }
 
@@ -2655,9 +2655,9 @@ body.time-picker-open { overflow: hidden; }
    (84px) e deslocado -34px, pra emendar SEM COSTURA com a corcova, que usa
    o mesmo gradiente ancorado em 0. */
 .belt-strap::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 34px; bottom: 0; z-index: 0;
+  content: ''; position: absolute; left: 0; right: 0; top: 30px; bottom: 0; z-index: 0;
   background:
-    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -34px / 100% 84px no-repeat;
+    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -30px / 100% 84px no-repeat;
   border-top: 1px solid rgba(214,175,55,0.55);
   /* sem sombra externa pra cima: o clip-path da nav recortava ela num
      retângulo de 160px e o resultado era um bloco quadrado de sombra em
@@ -2677,6 +2677,15 @@ body.time-picker-open { overflow: hidden; }
      o cinto inteiro encolhe de 84 pra 71px. A centralização das abas é feita
      por translateY no JS, não mexendo na caixa. */
   padding: 34px calc(50% - 44px) 13px;
+  /* PORTAL: as abas não podem passar por cima do couro. O recorte libera
+     tudo abaixo da linha do cinto (30px) e, só na coluna da placa, sobe até
+     9px — a abertura. Assim a aba viaja rente ao couro e "entra" na fivela
+     em vez de atravessar por cima dela. */
+  clip-path: polygon(
+    0 30px, calc(50% - 56px) 30px, calc(50% - 56px) 9px,
+    calc(50% + 56px) 9px, calc(50% + 56px) 30px, 100% 30px,
+    100% 100%, 0 100%
+  );
   /* Nas pontas a aba era fatiada pela borda da tela. Com a máscara ela
      dissolve no couro — o corte seco vira transição. */
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
@@ -2717,7 +2726,7 @@ body.time-picker-open { overflow: hidden; }
      que faltava — o raio, que precisa ser o da placa + 7. Com raio menor que
      isso a curva de fora deixa de ser paralela e os cantos abrem.
      Placa passou pra 15 nos quatro cantos, então aqui vira 22. */
-  top: 2px; height: 33px;
+  top: 2px; height: 29px;
   width: 126px;
   border-radius: 22px 22px 0 0;
   border: 1px solid rgba(214,175,55,0.55);
