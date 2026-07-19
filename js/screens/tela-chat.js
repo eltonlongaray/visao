@@ -253,7 +253,36 @@ async function desenharConversa(corpo) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 6: HELPERS
 // ═══════════════════════════════════════════════════════════════
+// Rascunho por modo (mural / cada conversa). Existe pra sobreviver a uma
+// remontagem completa — trocar de aba e voltar não deve comer o que a pessoa
+// já tinha escrito.
+const rascunhos = new Map();
+function modoAtual() { return `${aba}:${conversaCom?.id || ''}`; }
+function guardarRascunho() {
+  const campo = document.getElementById('chat-texto');
+  if (!campo) return;
+  if (campo.value) rascunhos.set(modoAtual(), campo.value);
+  else rascunhos.delete(modoAtual());
+}
+
 function pintar(corpo, lista, placeholder, cabecalho = '') {
+  const modo = modoAtual();
+
+  // ── Atualização em pé: só a LISTA é reescrita ──
+  // Reescrever o corpo inteiro a cada ciclo de 12s arrancava o campo de
+  // escrita do DOM. Com ele ia o foco: o teclado fechava sozinho e o texto
+  // em andamento sumia no meio da frase. O formulário agora sobrevive ao
+  // recarregamento; só o conteúdo da lista é trocado.
+  const listaEl = corpo.querySelector('#chat-lista');
+  if (corpo.dataset.modo === modo && listaEl && corpo.querySelector('#chat-texto')) {
+    // Só puxa pro fim se a pessoa JÁ estava no fim. Quem subiu pra ler o
+    // histórico era jogado de volta pra baixo a cada atualização.
+    const noFim = listaEl.scrollHeight - listaEl.scrollTop - listaEl.clientHeight < 60;
+    listaEl.innerHTML = lista;
+    if (noFim) listaEl.scrollTop = listaEl.scrollHeight;
+    return;
+  }
+
   // Com cabeçalho = conversa aberta, e aí ela toma a TELA INTEIRA como no
   // WhatsApp: título e abas do app somem, cabeçalho no topo, mensagens
   // ocupando o meio e o campo colado no rodapé. Presa embaixo das abas ela
@@ -269,6 +298,13 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
     </form>`;
 
   corpo.innerHTML = cabecalho ? `<div class="chat-cheia">${corpoHtml}</div>` : corpoHtml;
+  corpo.dataset.modo = modo;
+
+  // Devolve o que estava escrito antes da remontagem.
+  const campo = corpo.querySelector('#chat-texto');
+  const guardado = rascunhos.get(modo);
+  if (campo && guardado) { campo.value = guardado; ajustarAltura(campo); }
+
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
@@ -320,7 +356,17 @@ function fecharMenus(exceto) {
   });
 }
 
+// Os ouvintes são DELEGADOS no #app, que é permanente entre telas — o
+// roteador troca o innerHTML, não o elemento. Sem esta trava, cada entrada no
+// chat empilhava mais um jogo de ouvintes e a terceira visita enviava a mesma
+// mensagem três vezes. Delegado e sem estado, registrar uma vez basta.
 function ligarEventos(app) {
+  // A marca vai no ELEMENTO, não numa variável do módulo: se um dia o #app
+  // passar a ser recriado em vez de ter o innerHTML trocado, a trava se
+  // desfaz junto e os ouvintes são registrados de novo, como devem.
+  if (app.dataset.chatLigado) return;
+  app.dataset.chatLigado = '1';
+
   app.addEventListener('click', async (ev) => {
     const t = ev.target;
 
@@ -389,7 +435,9 @@ function ligarEventos(app) {
   // A caixa cresce com o texto. Sem isso a quebra de linha existiria mas a
   // pessoa escreveria às cegas numa fresta de uma linha.
   app.addEventListener('input', (ev) => {
-    if (ev.target.id === 'chat-texto') ajustarAltura(ev.target);
+    if (ev.target.id !== 'chat-texto') return;
+    ajustarAltura(ev.target);
+    guardarRascunho();
   });
 
   // Enter = quebra de linha (comportamento nativo da textarea, não mexemos).
@@ -411,6 +459,7 @@ function ligarEventos(app) {
     if (!texto) return;
     campo.value = '';
     ajustarAltura(campo);
+    rascunhos.delete(modoAtual());
     try {
       if (editando) {
         await editarMensagem(editando, texto);
@@ -419,9 +468,14 @@ function ligarEventos(app) {
       } else if (aba === 'mural') await enviarNoMural(texto, meuNome);
       else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome);
       await recarregar();
+      // A lista só se auto-rola quando já estava no fim. Depois de enviar, a
+      // própria mensagem tem que aparecer mesmo pra quem tinha subido a tela.
+      const l = document.getElementById('chat-lista');
+      if (l) l.scrollTop = l.scrollHeight;
     } catch (e) {
       campo.value = texto;   // devolve o que a pessoa escreveu
       ajustarAltura(campo);
+      guardarRascunho();
       showToast(e.message || 'Não deu pra enviar', 'error');
     }
   });
@@ -430,10 +484,15 @@ function ligarEventos(app) {
 // Altura da caixa de escrita = altura do conteúdo, limitada pelo max-height
 // do CSS (132px ~ 5 linhas). O zerar antes é obrigatório: sem ele o
 // scrollHeight nunca diminui e a caixa só cresce.
+const ALTURA_MAX = 132;   // ~5 linhas; igual ao max-height do CSS
 function ajustarAltura(el) {
   if (!el) return;
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 132) + 'px';
+  const cheio = el.scrollHeight;
+  el.style.height = Math.min(cheio, ALTURA_MAX) + 'px';
+  // A barra só entra depois que a caixa parou de crescer. Antes disso não há
+  // o que rolar, e ela só aparecia atravessada na borda arredondada.
+  el.classList.toggle('rolando', cheio > ALTURA_MAX);
 }
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
