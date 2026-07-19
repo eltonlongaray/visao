@@ -71,6 +71,52 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// BOTÃO VOLTAR DO APARELHO
+// ═══════════════════════════════════════════════════════════════
+// A conversa aberta é um ESTADO dentro da tela de chat, não uma rota. Sem
+// isto, o voltar do celular saía da tela inteira em vez de devolver para a
+// lista — que é o que qualquer app de mensagem faz.
+//
+// Empurra-se uma entrada no histórico sem mexer na URL: o roteador só reage
+// a hashchange, então ele não re-renderiza nada e a volta fica por nossa
+// conta. A seta da tela chama history.back() em vez de fechar direto, pra
+// não existirem dois caminhos de saída que podem sair de sincronia.
+let entradaNoHistorico = false;   // empurrei uma entrada e ela ainda vale?
+let entradaOrfa = false;          // saí da tela deixando uma pra trás
+
+function abrirConversa(id, nome) {
+  conversaCom = { id, nome };
+  history.pushState({ falconConversa: 1 }, '');
+  entradaNoHistorico = true;
+  return recarregar();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    // Fora da tela de chat o voltar não é nosso.
+    if (!document.getElementById('chat-corpo')) { entradaOrfa = entradaNoHistorico; return; }
+
+    // Com mensagem selecionada, o voltar desfaz a seleção e a conversa fica —
+    // igual ao WhatsApp. Reponho a entrada pro próximo voltar fechar a conversa.
+    if (selecionada) {
+      limparSelecao();
+      if (conversaCom) history.pushState({ falconConversa: 1 }, '');
+      return;
+    }
+    if (conversaCom) {
+      conversaCom = null;
+      entradaNoHistorico = false;
+      recarregar();
+      return;
+    }
+    // Sobrou uma entrada de quando saí da tela com conversa aberta: ela não
+    // representa nada na interface, então passo o voltar adiante em vez de
+    // engolir o toque.
+    if (entradaOrfa) { entradaOrfa = false; history.back(); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 2: ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 export async function renderChat(app) {
@@ -86,8 +132,20 @@ export async function renderChat(app) {
   // Atualiza enquanto a tela estiver aberta. Ao sair, o cleanup do roteador
   // derruba o timer — sem isso ele seguiria batendo no banco pra sempre.
   clearInterval(recarga);
-  recarga = setInterval(() => { if (document.getElementById('chat-corpo')) recarregar(); }, 12000);
-  return () => { clearInterval(recarga); recarga = null; conversaCom = null; };
+  // A atualização pausa enquanto há mensagem selecionada: reescrever a lista
+  // apagaria o destaque e a barra ficaria apontando pra um elemento que não
+  // existe mais.
+  recarga = setInterval(() => {
+    if (selecionada) return;
+    if (document.getElementById('chat-corpo')) recarregar();
+  }, 12000);
+  return () => {
+    clearInterval(recarga); recarga = null;
+    conversaCom = null;
+    limparSelecao();
+    entradaOrfa = entradaNoHistorico;
+    entradaNoHistorico = false;
+  };
 }
 
 function desenharCasca(app) {
@@ -104,6 +162,15 @@ function desenharCasca(app) {
       </div>
 
       <div id="chat-corpo"></div>
+    </div>
+    <div class="chat-selbar" id="chat-selbar" hidden>
+      <button class="selbar-x" id="sel-cancelar" aria-label="Cancelar seleção">✕</button>
+      <span class="selbar-tit">1 mensagem</span>
+      <div class="selbar-acoes">
+        <button data-sel-copiar aria-label="Copiar" title="Copiar">⧉</button>
+        <button data-sel-editar aria-label="Editar" title="Editar">✎</button>
+        <button data-sel-apagar aria-label="Excluir" title="Excluir">🗑</button>
+      </div>
     </div>
     ${bottomNav('chat')}
   `;
@@ -153,10 +220,10 @@ function linhaDiscord(m, anterior, minha) {
       </div>`;
 
   return `
-    <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}">
+    <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}"
+      data-editavel="${minha ? 1 : 0}" data-apagavel="${minha || souAdmin ? 1 : 0}">
       ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
       <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
-      ${minha || souAdmin ? menuDaMensagem(m.id, minha) : ''}
     </div>`;
 }
 
@@ -245,7 +312,7 @@ async function desenharConversa(corpo) {
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
   pintar(corpo, lista, `Mensagem para ${conversaCom.nome}…`, `
-    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">‹</button>
+    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">←</button>
     ${avatar(conversaCom.id, conversaCom.nome, 'chat-conv-av')}
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
 }
@@ -327,33 +394,54 @@ function balao(m, minha, mostrarAutor) {
   // Estilo WhatsApp: a hora vai DENTRO da bolha, no canto de baixo. Fora dela
   // cada mensagem ganhava uma linha extra e a conversa ficava esparramada.
   return `
-    <div class="wa-msg ${minha ? 'minha' : ''}" data-id="${m.id}">
+    <div class="wa-msg ${minha ? 'minha' : ''}" data-id="${m.id}"
+      data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       <div class="wa-bolha">
         ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
         <span class="wa-txt">${esc(m.texto)}</span>
         <span class="wa-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
       </div>
-      ${minha ? menuDaMensagem(m.id) : ''}
     </div>`;
 }
 
-// Três pontos no canto da própria mensagem. O botão antigo só aparecia no
-// hover — que não existe em celular, então apagar era inacessível no aparelho.
-function menuDaMensagem(id, podeEditar) {
-  return `
-    <div class="msg-menu">
-      <button class="msg-menu-btn" data-menu="${id}" aria-label="Opções da mensagem">⋯</button>
-      <div class="msg-pop" data-pop="${id}" hidden>
-        ${podeEditar ? `<button class="msg-pop-item" data-editar="${id}">✏️ Editar</button>` : ''}
-        <button class="msg-pop-item" data-apagar="${id}">🗑 Excluir</button>
-      </div>
-    </div>`;
+// ═══════════════════════════════════════════════════════════════
+// SELEÇÃO DE MENSAGEM — segurar abre a barra de ações no topo
+// ═══════════════════════════════════════════════════════════════
+// Era um ⋯ pendurado na lateral de cada mensagem: ocupava espaço em TODAS
+// as linhas por causa de uma ação que quase nunca é usada, e desalinhava as
+// bolhas. No padrão do WhatsApp a mensagem não carrega botão nenhum — segura
+// em cima dela e as ações aparecem numa barra no topo da tela.
+let selecionada = null;   // { id, editavel, apagavel, texto }
+let engolirClique = false;   // ver o handler de clique: o clique do próprio gesto
+
+function selecionarMensagem(el) {
+  document.querySelectorAll('.msg-sel').forEach(e => e.classList.remove('msg-sel'));
+  el.classList.add('msg-sel');
+  selecionada = {
+    id: el.dataset.id,
+    editavel: el.dataset.editavel === '1',
+    apagavel: el.dataset.apagavel === '1',
+    texto: el.querySelector('.dc-txt, .wa-txt')?.textContent || '',
+  };
+  pintarBarraSelecao();
+  engolirClique = true;
+  // Confirmação tátil: sem ela não fica claro que o "segurar" pegou.
+  try { navigator.vibrate?.(12); } catch {}
 }
 
-function fecharMenus(exceto) {
-  document.querySelectorAll('.msg-pop:not([hidden])').forEach(p => {
-    if (p.dataset.pop !== exceto) p.hidden = true;
-  });
+function limparSelecao() {
+  selecionada = null;
+  document.querySelectorAll('.msg-sel').forEach(e => e.classList.remove('msg-sel'));
+  pintarBarraSelecao();
+}
+
+function pintarBarraSelecao() {
+  const barra = document.getElementById('chat-selbar');
+  if (!barra) return;
+  barra.hidden = !selecionada;
+  if (!selecionada) return;
+  barra.querySelector('[data-sel-editar]').hidden = !selecionada.editavel;
+  barra.querySelector('[data-sel-apagar]').hidden = !selecionada.apagavel;
 }
 
 // Os ouvintes são DELEGADOS no #app, que é permanente entre telas — o
@@ -377,36 +465,49 @@ function ligarEventos(app) {
       app.querySelectorAll('[data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === aba));
       return recarregar();
     }
-    if (t.closest('#chat-voltar')) { conversaCom = null; return recarregar(); }
+    // Volta pelo history, não direto: assim a seta da tela e o botão físico
+    // do aparelho passam pelo MESMO caminho e não saem de sincronia.
+    if (t.closest('#chat-voltar')) { history.back(); return; }
 
     const conv = t.closest('[data-abrir]');
-    if (conv) {
-      conversaCom = { id: conv.dataset.abrir, nome: conv.dataset.nome };
-      return recarregar();
-    }
+    if (conv) return abrirConversa(conv.dataset.abrir, conv.dataset.nome);
 
-    const menu = t.closest('[data-menu]');
-    if (menu) {
-      const pop = app.querySelector(`[data-pop="${menu.dataset.menu}"]`);
-      const abrir = pop?.hidden;
-      fecharMenus();
-      if (pop && abrir) pop.hidden = false;
+    if (selecionada && !t.closest('.chat-selbar')) {
+      // Em modo de seleção, tocar em OUTRA mensagem troca a seleção em vez
+      // de sair dele — é o que o WhatsApp faz.
+      const outra = t.closest('.dc-msg, .wa-msg');
+      if (outra?.dataset.id && outra.dataset.id !== selecionada.id) {
+        selecionarMensagem(outra);
+        return;
+      }
+      // Soltar o dedo depois de segurar dispara um clique logo atrás da
+      // seleção. Sem engolir esse primeiro clique, a barra abria e fechava
+      // no mesmo gesto.
+      if (engolirClique) { engolirClique = false; return; }
+      limparSelecao();
       return;
     }
-    // Toque fora fecha o menu aberto.
-    if (!t.closest('.msg-pop')) fecharMenus();
 
-    const ed = t.closest('[data-editar]');
-    if (ed) {
-      fecharMenus();
-      const bolha = app.querySelector(`[data-id="${ed.dataset.editar}"] .dc-txt, [data-id="${ed.dataset.editar}"] .wa-txt`);
+    if (t.closest('#sel-cancelar')) { limparSelecao(); return; }
+
+    if (t.closest('[data-sel-copiar]') && selecionada) {
+      const texto = selecionada.texto;
+      limparSelecao();
+      try { await navigator.clipboard.writeText(texto); showToast('Copiado.', 'info'); }
+      catch { showToast('Seu navegador não deixou copiar.', 'error'); }
+      return;
+    }
+
+    if (t.closest('[data-sel-editar]') && selecionada?.editavel) {
       const campo = app.querySelector('#chat-texto');
-      if (bolha && campo) {
-        editando = ed.dataset.editar;
-        campo.value = bolha.textContent;
+      if (campo) {
+        editando = selecionada.id;
+        campo.value = selecionada.texto;
+        ajustarAltura(campo);
         campo.focus();
         app.querySelector('#chat-envio')?.classList.add('editando');
       }
+      limparSelecao();
       return;
     }
     if (t.closest('#chat-cancelar-edicao')) {
@@ -416,9 +517,12 @@ function ligarEventos(app) {
       return;
     }
 
-    const apagar = t.closest('[data-apagar]');
-    if (apagar) {
-      const alheia = !apagar.closest('.dc-msg, .wa-msg')?.querySelector('[data-editar]');
+    if (t.closest('[data-sel-apagar]') && selecionada?.apagavel) {
+      // Alheia = eu posso apagar mas não editar, e isso só acontece via
+      // privilégio de administrador.
+      const alheia = !selecionada.editavel;
+      const id = selecionada.id;
+      limparSelecao();
       const ok = await confirmModal({
         title: alheia ? 'Apagar mensagem de outra pessoa?' : 'Apagar mensagem?',
         message: alheia
@@ -427,9 +531,37 @@ function ligarEventos(app) {
         confirmText: 'Apagar', cancelText: 'Manter', danger: true,
       });
       if (!ok) return;
-      try { await apagarMensagem(apagar.dataset.apagar); await recarregar(); }
+      try { await apagarMensagem(id); await recarregar(); }
       catch (e) { showToast(e.message, 'error'); }
     }
+  });
+
+  // ── Segurar em cima da mensagem seleciona (padrão WhatsApp) ──
+  // 450ms: abaixo disso um toque comum às vezes conta como "segurar".
+  let pressTimer = null, pressDe = null;
+  const soltarPress = () => { clearTimeout(pressTimer); pressTimer = null; pressDe = null; };
+
+  app.addEventListener('pointerdown', (ev) => {
+    const msg = ev.target.closest('.dc-msg, .wa-msg');
+    if (!msg || !msg.dataset.id) return;
+    pressDe = { x: ev.clientX, y: ev.clientY };
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => { pressTimer = null; selecionarMensagem(msg); }, 450);
+  });
+  app.addEventListener('pointerup', soltarPress);
+  app.addEventListener('pointercancel', soltarPress);
+  // Rolar a lista não pode virar seleção: qualquer arraste cancela.
+  app.addEventListener('pointermove', (ev) => {
+    if (!pressTimer || !pressDe) return;
+    if (Math.abs(ev.clientX - pressDe.x) > 10 || Math.abs(ev.clientY - pressDe.y) > 10) soltarPress();
+  });
+  // No aparelho, segurar dispara o menu nativo de seleção de texto por cima
+  // do nosso. No computador, é o clique direito que abre a mesma barra.
+  app.addEventListener('contextmenu', (ev) => {
+    const msg = ev.target.closest('.dc-msg, .wa-msg');
+    if (!msg || !msg.dataset.id) return;
+    ev.preventDefault();
+    selecionarMensagem(msg);
   });
 
   // A caixa cresce com o texto. Sem isso a quebra de linha existiria mas a
