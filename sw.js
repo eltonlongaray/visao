@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v323';
+const CACHE_NAME = 'visao-v324';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -91,7 +91,12 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
         }
         return res;
-      }).catch(() => caches.match('./index.html'));
+      }).catch(() =>
+        // NÃO cair pro index.html aqui: devolver HTML no lugar de uma imagem
+        // faz o navegador tratá-la como quebrada, e o fundo da conversa
+        // simplesmente sumia. Sem rede e sem cache, melhor falhar limpo.
+        caches.match(event.request).then((c) => c || Response.error())
+      );
     })
   );
 });
