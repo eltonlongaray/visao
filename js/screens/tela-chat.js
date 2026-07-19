@@ -36,14 +36,19 @@ let editando = null;      // id da mensagem em edição
 // e o topo da conversa sai da tela. Mesmo problema que o painel do pet tinha.
 // Aqui a base da conversa passa a acompanhar a altura real do teclado.
 function ajustarConversaAoTeclado() {
-  const cheia = document.querySelector('.chat-cheia');
-  if (!cheia) return;
   const vv = window.visualViewport;
   const visivel = vv ? vv.height : window.innerHeight;
   const teclado = Math.max(0, Math.round(window.innerHeight - visivel));
-  // Sem teclado devolve o controle pro CSS (base no cinturão).
-  cheia.style.bottom = teclado < 80 ? '' : (teclado + 8) + 'px';
-  const lista = cheia.querySelector('#chat-lista');
+
+  // Conversa privada: é fixa, então a base sobe junto com o teclado.
+  const cheia = document.querySelector('.chat-cheia');
+  if (cheia) cheia.style.bottom = teclado < 80 ? '' : (teclado + 8) + 'px';
+
+  // Mural: está no fluxo da tela, então quem encolhe é a altura dela.
+  const tela = document.querySelector('.chat-tela');
+  if (tela) tela.style.height = teclado < 80 ? '' : `calc(100vh - ${teclado + 8}px)`;
+
+  const lista = document.getElementById('chat-lista');
   if (lista) lista.scrollTop = lista.scrollHeight;
 }
 if (typeof window !== 'undefined' && window.visualViewport) {

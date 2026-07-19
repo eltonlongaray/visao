@@ -2795,7 +2795,21 @@ body.time-picker-open { overflow: hidden; }
 }
 
 /* === CHAT === */
-.chat-tela { display: flex; flex-direction: column; }
+/* A tela do chat ocupa até o cinturão e distribui em coluna: título e abas
+   fixos no topo, lista crescendo no meio e o campo de escrever COLADO
+   embaixo. Sem isso o campo vinha logo após as mensagens e ficava solto no
+   meio da tela quando havia pouca conversa. */
+.chat-tela {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 84px);
+  padding-bottom: 8px;
+}
+.chat-tela .screen-title, .chat-tela .tab-switch { flex-shrink: 0; }
+#chat-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#chat-corpo > .chat-lista { flex: 1; min-height: 0; max-height: none; }
+#chat-corpo > .chat-envio { flex-shrink: 0; }
+/* a lista de conversas do privado rola sozinha, sem empurrar nada */
+#chat-corpo > .chat-convs, #chat-corpo > .chat-busca { flex-shrink: 0; }
 .chat-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .chat-titulo-conv { font-size: 14px; font-weight: 700; color: var(--text); }
 .chat-voltar {
