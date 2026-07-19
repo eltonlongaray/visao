@@ -22,6 +22,7 @@ import {
   getWeekNote, setWeekNote, dayId, getProfile
 } from '../banco-dados.js';
 import { calcularConstancia, isActiveDay } from '../metricas-constancia.js';
+import { renderDesafiosDoDesempenho } from '../desempenho-desafios.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { isAdmin } from '../permissao-admin.js';
 import { deleteWeek } from '../excluir-conta.js';
@@ -108,6 +109,8 @@ async function renderUI(app) {
         </div>
         <div id="con-details"></div>
       </div>
+
+      <div id="desafios-desempenho"></div>
 
       <div class="tab-switch" id="period-tabs">
         <button class="tab-btn ${period==='semana'?'active':''}" data-period="semana">${t('desempenho.period.week')}</button>
@@ -264,6 +267,10 @@ async function refreshMonthData() {
     renderStreakCard(streakData);
     renderConstanciaDetails(allHistoryDays, userProfile?.streakOrigin || null, streakData);
   }).catch(err => console.error('[Visão] erro ao buscar histórico:', err));
+
+  // Desafios entram por último e sem await: é informação extra, não pode
+  // atrasar o que o usuário veio ver.
+  renderDesafiosDoDesempenho(document.getElementById('desafios-desempenho'));
 }
 
 // ═══════════════════════════════════════════════════════════════
