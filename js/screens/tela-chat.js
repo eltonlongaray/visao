@@ -28,6 +28,29 @@ let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
 
 // ═══════════════════════════════════════════════════════════════
+// TECLADO ABERTO
+// ═══════════════════════════════════════════════════════════════
+// A conversa é `position: fixed` de 0 até o cinturão. Quando o teclado sobe,
+// a viewport de layout NÃO encolhe: o campo de escrever fica atrás do teclado
+// e o topo da conversa sai da tela. Mesmo problema que o painel do pet tinha.
+// Aqui a base da conversa passa a acompanhar a altura real do teclado.
+function ajustarConversaAoTeclado() {
+  const cheia = document.querySelector('.chat-cheia');
+  if (!cheia) return;
+  const vv = window.visualViewport;
+  const visivel = vv ? vv.height : window.innerHeight;
+  const teclado = Math.max(0, Math.round(window.innerHeight - visivel));
+  // Sem teclado devolve o controle pro CSS (base no cinturão).
+  cheia.style.bottom = teclado < 80 ? '' : (teclado + 8) + 'px';
+  const lista = cheia.querySelector('#chat-lista');
+  if (lista) lista.scrollTop = lista.scrollHeight;
+}
+if (typeof window !== 'undefined' && window.visualViewport) {
+  window.visualViewport.addEventListener('resize', ajustarConversaAoTeclado);
+  window.visualViewport.addEventListener('scroll', ajustarConversaAoTeclado);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 2: ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 export async function renderChat(app) {
@@ -211,6 +234,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
   corpo.innerHTML = cabecalho ? `<div class="chat-cheia">${corpoHtml}</div>` : corpoHtml;
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
+  if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
 }
 
 // "Hoje" / "Ontem" / a data, quando a conversa vira o dia — sem isso uma
