@@ -2734,7 +2734,9 @@ body.time-picker-open { overflow: hidden; }
   width: 112px;
   border-radius: 26px 26px 15px 15px;
   border: 2px solid #e8cd6a;
-  background: linear-gradient(180deg, #2b1f12 0%, #1a1209 55%, #120c07 100%);
+  /* fundo preto: mantém o degradê sutil pro friso e o brilho do topo ainda
+     terem em que se apoiar — preto chapado mataria o reflexo. */
+  background: linear-gradient(180deg, #151515 0%, #070707 55%, #000000 100%);
   box-shadow:
     0 0 16px rgba(214,175,55,0.42),
     0 2px 6px rgba(0,0,0,0.55),
