@@ -2937,13 +2937,19 @@ body.time-picker-open { overflow: hidden; }
 
 .chat-meta { font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; }
 
-.chat-envio { display: flex; gap: 8px; margin-top: 10px; }
-.chat-envio input {
+/* align-items:flex-end mantém o ➤ colado no fundo enquanto a caixa cresce */
+.chat-envio { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+/* textarea, e não input: no input o Enter submete o form e o usuário não
+   consegue quebrar linha. Aqui o Enter é quebra de linha nativa e o envio
+   sai só pelo ➤ (ou Ctrl/⌘+Enter). A altura é calculada no JS. */
+.chat-envio textarea {
   flex: 1; background: var(--card); border: 1px solid var(--border);
-  border-radius: 999px; padding: 11px 16px; color: var(--text);
-  font-size: 14px; font-family: inherit;
+  border-radius: 22px; padding: 11px 16px; color: var(--text);
+  font-size: 14px; font-family: inherit; line-height: 1.4;
+  resize: none; overflow-y: auto; min-height: 44px; max-height: 132px;
+  box-sizing: border-box; display: block; min-width: 0;
 }
-.chat-envio input:focus { outline: none; border-color: var(--accent); }
+.chat-envio textarea:focus { outline: none; border-color: var(--accent); }
 .chat-enviar {
   flex: 0 0 44px; height: 44px; border-radius: 50%;
   background: var(--accent); border: none; color: #fff;
@@ -2957,7 +2963,7 @@ body.time-picker-open { overflow: hidden; }
   background: var(--card); border: 1px solid var(--border);
   color: var(--muted); font-size: 15px; cursor: pointer; font-family: inherit;
 }
-.chat-envio.editando input { border-color: var(--accent); }
+.chat-envio.editando textarea { border-color: var(--accent); }
 
 .chat-nova {
   width: 100%; padding: 12px; margin-bottom: 12px;
@@ -3006,6 +3012,19 @@ body.time-picker-open { overflow: hidden; }
   font-size: 15px; font-weight: 700;
 }
 .dc-cont .dc-av { height: 0; }
+
+/* Avatar com foto. object-fit:cover porque a foto do Google nem sempre é
+   quadrada — sem isso ela entra esticada. O aro discreto separa a foto do
+   fundo quando ela é clara. As agrupadas continuam sem rosto: a img só é
+   renderizada na primeira mensagem do bloco. */
+.dc-av.tem-foto,
+.chat-conv-av.tem-foto {
+  object-fit: cover;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  display: block;
+  width: 36px;
+}
 .dc-body { flex: 1; min-width: 0; }
 .dc-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
 .dc-nome { font-size: 13.5px; font-weight: 700; }
@@ -5720,3 +5739,23 @@ body.tour-active { overflow: hidden; }
 }
 .ajustes-acc-body[hidden] { display: none; }
 .ajustes-acc-body .input-field { margin-top: 10px; }
+
+/* === Foto de perfil (Ajustes > Meu perfil) === */
+.perf-foto-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 12px 4px;
+}
+.perf-foto-wrap {
+  flex: 0 0 68px; width: 68px; height: 68px; border-radius: 50%;
+  display: grid; place-items: center; overflow: hidden;
+  background: var(--card-2); border: 1px solid var(--border);
+}
+.perf-foto { width: 100%; height: 100%; object-fit: cover; display: block; }
+.perf-foto-vazia { font-size: 28px; opacity: 0.55; }
+.perf-foto-acoes { flex: 1; min-width: 0; }
+.perf-foto-tit { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.perf-foto-sub { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+.perf-foto-btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.perf-foto-btns .btn-secondary {
+  padding: 7px 13px; font-size: 12.5px; width: auto; flex: 0 0 auto;
+}

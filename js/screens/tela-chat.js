@@ -16,7 +16,7 @@
 // Sem anexos: não há upload de arquivo nem de imagem nesta versão.
 import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
-  fetchMembros, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
+  fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -31,6 +31,7 @@ let editando = null;      // id da mensagem em edição
 // Mesma fonte que o RLS usa (profiles.is_admin), não a lista de e-mails do
 // app: se as duas divergissem, o botão apareceria e a exclusão falharia.
 let souAdmin = false;
+let perfis = new Map();   // id -> { nome, foto }, alimentado por fetchPerfis()
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -42,15 +43,24 @@ let souAdmin = false;
 function ajustarConversaAoTeclado() {
   const vv = window.visualViewport;
   const visivel = vv ? vv.height : window.innerHeight;
-  const teclado = Math.max(0, Math.round(window.innerHeight - visivel));
+  // Quanto do rodapé do layout viewport o teclado encobre. Medir por
+  // (innerHeight - vv.height) dava 0 nos engines que ENCOLHEM o layout
+  // viewport — e aí nada era ajustado, enquanto o CSS seguia calculando com
+  // 100vh, que não encolhe. Descontar o offsetTop cobre os dois casos.
+  const teclado = vv
+    ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+    : 0;
 
   // Conversa privada: é fixa, então a base sobe junto com o teclado.
   const cheia = document.querySelector('.chat-cheia');
   if (cheia) cheia.style.bottom = teclado < 80 ? '' : (teclado + 8) + 'px';
 
   // Mural: está no fluxo da tela, então quem encolhe é a altura dela.
+  // Escrita em px a partir do que está VISÍVEL, e não em calc(100vh - …):
+  // 100vh é a viewport grande e não acompanha nem o teclado nem a barra do
+  // navegador, então o mural transbordava por baixo. 84 = cinturão + respiro.
   const tela = document.querySelector('.chat-tela');
-  if (tela) tela.style.height = teclado < 80 ? '' : `calc(100vh - ${teclado + 8}px)`;
+  if (tela) tela.style.height = Math.max(240, Math.round(visivel - 84)) + 'px';
 
   const lista = document.getElementById('chat-lista');
   if (lista) lista.scrollTop = lista.scrollHeight;
@@ -70,6 +80,7 @@ export async function renderChat(app) {
   faxinaChat();   // sem await: é limpeza de fundo
 
   desenharCasca(app);
+  ajustarConversaAoTeclado();   // dimensiona pela tela visível já na entrada
   await recarregar();
 
   // Atualiza enquanto a tela estiver aberta. Ao sair, o cleanup do roteador
@@ -102,6 +113,9 @@ function desenharCasca(app) {
 async function recarregar() {
   const corpo = document.getElementById('chat-corpo');
   if (!corpo) return;
+  // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
+  // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
+  perfis = await fetchPerfis();
   if (aba === 'mural') return desenharMural(corpo);
   if (conversaCom) return desenharConversa(corpo);
   return desenharListaPrivada(corpo);
@@ -140,9 +154,7 @@ function linhaDiscord(m, anterior, minha) {
 
   return `
     <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}">
-      <div class="dc-av" ${agrupa ? '' : `style="background:${corDe(m.autor_id)}22;color:${corDe(m.autor_id)}"`}>
-        ${agrupa ? '' : inicial(nome)}
-      </div>
+      ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
       <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
       ${minha || souAdmin ? menuDaMensagem(m.id, minha) : ''}
     </div>`;
@@ -156,6 +168,18 @@ function corDe(id) {
   const s = String(id || '');
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return PALETA[h % PALETA.length];
+}
+
+// Foto se houver, inicial colorida se não. Nunca as duas: quando a imagem
+// falha (link do Google que caducou, rede fora) o onerror devolve a inicial —
+// senão sobraria um quadrado quebrado no lugar do rosto.
+function avatar(id, nome, classe) {
+  const foto = perfis.get(id)?.foto;
+  const cor = corDe(id);
+  if (!foto) return `<span class="${classe}" style="background:${cor}22;color:${cor}">${inicial(nome)}</span>`;
+  const alt = `<span class=&quot;${classe}&quot; style=&quot;background:${cor}22;color:${cor}&quot;>${inicial(nome)}</span>`;
+  return `<img class="${classe} tem-foto" src="${esc(foto)}" alt="" loading="lazy"
+    onerror="this.outerHTML='${alt.replace(/'/g, "&#39;")}'" />`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -176,7 +200,7 @@ async function desenharListaPrivada(corpo) {
 
   const linhasConv = convs.map(c => `
       <button class="chat-conv" data-abrir="${c.outro_id}" data-nome="${esc(c.nome)}">
-        <span class="chat-conv-av" style="background:${corDe(c.outro_id)}22;color:${corDe(c.outro_id)}">${inicial(c.nome)}</span>
+        ${avatar(c.outro_id, c.nome, 'chat-conv-av')}
         <span class="chat-conv-txt">
           <span class="chat-conv-nome">${esc(c.nome)}</span>
           <span class="chat-conv-ult">${c.minha ? 'Você: ' : ''}${esc(corta(c.ultima, 44))}</span>
@@ -186,7 +210,7 @@ async function desenharListaPrivada(corpo) {
 
   const linhasMembros = outros.map(m => `
       <button class="chat-conv" data-abrir="${m.user_id}" data-nome="${esc(m.nome)}">
-        <span class="chat-conv-av" style="background:${corDe(m.user_id)}22;color:${corDe(m.user_id)}">${inicial(m.nome)}</span>
+        ${avatar(m.user_id, m.nome, 'chat-conv-av')}
         <span class="chat-conv-txt"><span class="chat-conv-nome">${esc(m.nome)}</span></span>
         <span class="chat-conv-quando">conversar</span>
       </button>`).join('');
@@ -222,7 +246,7 @@ async function desenharConversa(corpo) {
 
   pintar(corpo, lista, `Mensagem para ${conversaCom.nome}…`, `
     <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">‹</button>
-    <span class="chat-conv-av" style="background:${corDe(conversaCom.id)}22;color:${corDe(conversaCom.id)}">${inicial(conversaCom.nome)}</span>
+    ${avatar(conversaCom.id, conversaCom.nome, 'chat-conv-av')}
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
 }
 
@@ -238,7 +262,8 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <form class="chat-envio" id="chat-envio">
-      <input id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000" autocomplete="off" />
+      <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
+        rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>`;
@@ -361,13 +386,31 @@ function ligarEventos(app) {
     }
   });
 
+  // A caixa cresce com o texto. Sem isso a quebra de linha existiria mas a
+  // pessoa escreveria às cegas numa fresta de uma linha.
+  app.addEventListener('input', (ev) => {
+    if (ev.target.id === 'chat-texto') ajustarAltura(ev.target);
+  });
+
+  // Enter = quebra de linha (comportamento nativo da textarea, não mexemos).
+  // Ctrl/⌘+Enter continua enviando, pra quem escreve no teclado físico.
+  app.addEventListener('keydown', (ev) => {
+    if (ev.target.id !== 'chat-texto') return;
+    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault();
+      app.querySelector('#chat-envio')?.requestSubmit();
+    }
+  });
+
   app.addEventListener('submit', async (ev) => {
     if (!ev.target.closest('#chat-envio')) return;
     ev.preventDefault();
     const campo = app.querySelector('#chat-texto');
+    // trim só nas pontas: quebras de linha NO MEIO do texto são conteúdo
     const texto = campo.value.trim();
     if (!texto) return;
     campo.value = '';
+    ajustarAltura(campo);
     try {
       if (editando) {
         await editarMensagem(editando, texto);
@@ -378,9 +421,19 @@ function ligarEventos(app) {
       await recarregar();
     } catch (e) {
       campo.value = texto;   // devolve o que a pessoa escreveu
+      ajustarAltura(campo);
       showToast(e.message || 'Não deu pra enviar', 'error');
     }
   });
+}
+
+// Altura da caixa de escrita = altura do conteúdo, limitada pelo max-height
+// do CSS (132px ~ 5 linhas). O zerar antes é obrigatório: sem ele o
+// scrollHeight nunca diminui e a caixa só cresce.
+function ajustarAltura(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 132) + 'px';
 }
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>

@@ -446,21 +446,43 @@ function ajustarChatAoTeclado() {
   const chat = document.getElementById('pet-chat');
   if (!pet || !chat) return;
 
-  const aberto  = chat.classList.contains('pet-chat-open');
-  const vv      = window.visualViewport;
-  const visivel = vv ? vv.height : window.innerHeight;
-  const teclado = Math.max(0, Math.round(window.innerHeight - visivel));
-
-  // Fechado ou sem teclado: devolve o controle pro CSS.
-  if (!aberto || teclado < 80) {
+  // Fechado: devolve o controle pro CSS.
+  if (!chat.classList.contains('pet-chat-open')) {
     pet.style.bottom = '';
     chat.style.height = '';
+    chat.style.maxHeight = '';
     return;
   }
-  // Sobe o pet pra cima do teclado e encolhe o painel pro que sobrou da tela.
-  // 100 = olho (58) + gap (10) + base (8) + folga de topo (24).
-  pet.style.bottom  = (teclado + 8) + 'px';
-  chat.style.height = Math.max(200, Math.round(visivel - 100)) + 'px';
+
+  const vv      = window.visualViewport;
+  const visivel = vv ? vv.height : window.innerHeight;
+
+  // Quanto do RODAPÉ do layout viewport está encoberto pelo teclado. Existem
+  // dois comportamentos de engine e o painel precisa funcionar nos dois:
+  //   a) layout viewport NÃO encolhe -> encoberto = altura do teclado, e o pet
+  //      (position:fixed) precisa subir pra não ficar atrás dele.
+  //   b) layout viewport ENCOLHE     -> encoberto ~ 0, o pet já está no lugar
+  //      certo sozinho, MAS o CSS continua calculando com 100vh, que não
+  //      encolhe — era daí que vinha o painel vazando pra fora do topo.
+  // Medir só (innerHeight - vv.height) dava 0 no caso (b) e a função desistia.
+  const encoberto = vv
+    ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+    : 0;
+
+  // Distância do pet até o fundo do que está VISÍVEL (não até o fundo do layout).
+  const levantado = encoberto > 40;
+  pet.style.bottom = levantado ? (encoberto + 8) + 'px' : '';
+  const basePet = levantado ? 8 : PET_BOTTOM;
+
+  // 78 = corpo do pet (44) + gap (10) + respiro no topo (24).
+  // A altura é escrita SEMPRE que o painel está aberto, e não só quando há
+  // teclado: é a única medida que acompanha a tela visível de verdade.
+  const altura = Math.max(180, Math.round(visivel - basePet - 78));
+  chat.style.height    = altura + 'px';
+  chat.style.maxHeight = altura + 'px';
+
+  const msgs = document.getElementById('pet-messages');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
 if (window.visualViewport) {
@@ -500,6 +522,9 @@ function aplicarPosicaoPet(lado) {
   // O painel do pet nasce ACIMA dele. Sem publicar essa altura, o CSS calcula
   // o painel como se o pet ainda estivesse em 78px e o topo do chat sai da tela.
   document.documentElement.style.setProperty('--pet-bottom', PET_BOTTOM + 'px');
+  // Esta função roda no resize da janela — que é exatamente o que dispara ao
+  // abrir o teclado. Sem re-aplicar, o bottom acima desfaz o levantamento.
+  ajustarChatAoTeclado();
 }
 
 let _petMoveu = false;   // impede que o arraste abra o chat ao soltar
@@ -560,6 +585,7 @@ function ligarArrastePet() {
 
 function openChatPanel() {
   document.getElementById('pet-chat').classList.add('pet-chat-open');
+  ajustarChatAoTeclado();   // dimensiona pela tela visível já na abertura
   setBadge(0);
   setPetState('idle');
   // Sem focus() automático: abrir o chat não deve abrir o teclado junto.

@@ -45,6 +45,7 @@ function _profileFromRow(r) {
     preferredName:      r.preferred_name,
     birthDate:          r.birth_date,
     phone:              r.phone,
+    fotoUrl:            r.foto_url,
     isAdmin:            !!r.is_admin,   // só leitura — nunca gravado pelo cliente
     createdAt:          r.created_at,
     ...(r.extra || {}),
@@ -57,6 +58,7 @@ function _profileToRow(d) {
     template: 'template', streakOrigin: 'streak_origin',
     weekdayTemplates: 'weekday_templates', monthlyCommitments: 'monthly_commitments',
     fullName: 'full_name', preferredName: 'preferred_name', birthDate: 'birth_date', phone: 'phone',
+    fotoUrl: 'foto_url',
     createdAt: 'created_at',
   };
   for (const [k, v] of Object.entries(d)) {

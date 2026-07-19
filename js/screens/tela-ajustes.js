@@ -18,6 +18,7 @@ import { getProfile, setProfile } from '../banco-dados.js';
 import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone } from '../contato-perfil.js';
+import { trocarMinhaFoto, removerMinhaFoto } from '../chat.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
 import { resetDesafiosSeen } from '../desafios.js';
 import { playDelete } from '../sons.js';
@@ -101,6 +102,21 @@ export async function renderAjustes(app) {
 
         <!-- Grupos retráteis (topo) -->
         ${acc('👤 Meu perfil', `
+          <div class="perf-foto-row">
+            <span class="perf-foto-wrap">
+              <img id="perfFoto" class="perf-foto" alt="" hidden />
+              <span id="perfFotoVazia" class="perf-foto-vazia">🦅</span>
+            </span>
+            <div class="perf-foto-acoes">
+              <div class="perf-foto-tit">Sua foto</div>
+              <div class="perf-foto-sub">É ela que aparece nas conversas da comunidade.</div>
+              <div class="perf-foto-btns">
+                <button class="btn-secondary" id="perfFotoTrocar" type="button">Escolher foto</button>
+                <button class="btn-secondary" id="perfFotoRemover" type="button" hidden>Remover</button>
+              </div>
+            </div>
+            <input type="file" id="perfFotoArq" accept="image/*" hidden />
+          </div>
           <label class="input-field" style="margin-top:6px"><div class="input-field-label">Nome completo</div>
             <input id="perfNome" placeholder="Seu nome completo" autocomplete="name" /></label>
           <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a)</div>
@@ -225,6 +241,10 @@ async function wire(app) {
   }
 
   // ── Meu perfil ──
+  // true = a pessoa subiu uma foto; false = está valendo a do Google (ou
+  // nenhuma). Só no primeiro caso faz sentido oferecer "Remover".
+  let fotoPropria = false;
+
   (async () => {
     try {
       const p = await getProfile();
@@ -234,8 +254,79 @@ async function wire(app) {
         app.querySelector('#perfNasc').value    = p.birthDate || '';
         app.querySelector('#perfWpp').value     = p.phone || '';
       }
+      fotoPropria = !!p?.fotoUrl;
+      mostrarFoto(p?.fotoUrl || auth.currentUser?.photoURL || null);
     } catch (e) { console.warn('[ajustes] load perfil:', e); }
   })();
+
+  // ── Foto de perfil ──
+  // A imagem é reduzida AQUI, antes de subir: a câmera do celular entrega
+  // arquivos de vários MB e um avatar de 36px na tela não precisa de nada
+  // além de 256. Isso também mantém o upload dentro do limite do bucket.
+  const FOTO_LADO = 256;
+
+  function mostrarFoto(url) {
+    const img = app.querySelector('#perfFoto');
+    const vazia = app.querySelector('#perfFotoVazia');
+    const rem = app.querySelector('#perfFotoRemover');
+    if (!img) return;
+    if (url) { img.src = url; img.hidden = false; if (vazia) vazia.hidden = true; }
+    else { img.removeAttribute('src'); img.hidden = true; if (vazia) vazia.hidden = false; }
+    // "Remover" só faz sentido sobre uma foto ESCOLHIDA por ela. Sobre a do
+    // Google não haveria o que remover — aquela vem do login.
+    if (rem) rem.hidden = !fotoPropria;
+  }
+
+  // Corta no quadrado central e reduz. Recortar antes de encolher evita o
+  // rosto achatado quando a foto é bem retangular.
+  function reduzir(arquivo) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(arquivo);
+      const im = new Image();
+      im.onload = () => {
+        URL.revokeObjectURL(url);
+        const lado = Math.min(im.width, im.height);
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = FOTO_LADO;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(im, (im.width - lado) / 2, (im.height - lado) / 2, lado, lado,
+                      0, 0, FOTO_LADO, FOTO_LADO);
+        cv.toBlob(b => b ? resolve(b) : reject(new Error('Não deu pra processar a imagem')),
+                  'image/jpeg', 0.85);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Arquivo de imagem inválido')); };
+      im.src = url;
+    });
+  }
+
+  app.querySelector('#perfFotoTrocar')?.addEventListener('click', () => {
+    app.querySelector('#perfFotoArq')?.click();
+  });
+
+  app.querySelector('#perfFotoArq')?.addEventListener('change', async (ev) => {
+    const arquivo = ev.target.files?.[0];
+    ev.target.value = '';   // permite reescolher o MESMO arquivo depois
+    if (!arquivo) return;
+    const btn = app.querySelector('#perfFotoTrocar');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    try {
+      const url = await trocarMinhaFoto(await reduzir(arquivo));
+      fotoPropria = true;
+      mostrarFoto(url);
+      showToast('✅ Foto atualizada!', 'success');
+    } catch (e) { showToast('Erro ao enviar: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Escolher foto'; }
+  });
+
+  app.querySelector('#perfFotoRemover')?.addEventListener('click', async () => {
+    try {
+      await removerMinhaFoto();
+      fotoPropria = false;
+      // Sem foto própria, volta a valer a do Google (se a pessoa entrou por lá).
+      mostrarFoto(auth.currentUser?.photoURL || null);
+      showToast('Foto removida.', 'info');
+    } catch (e) { showToast('Erro ao remover: ' + e.message, 'error'); }
+  });
 
   app.querySelector('#perfSave')?.addEventListener('click', async () => {
     const btn = app.querySelector('#perfSave');

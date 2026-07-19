@@ -2,7 +2,7 @@
 // BLOCO 1 — IMPORTS
 // BLOCO 2 — MURAL DA COMUNIDADE
 // BLOCO 3 — CONVERSAS PRIVADAS
-// BLOCO 4 — MEMBROS + FAXINA
+// BLOCO 4 — MEMBROS + FOTOS + FAXINA
 // ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS
@@ -15,7 +15,7 @@
 // que a política permite. Ver migration/chat.sql.
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
-import { getProfile } from './banco-dados.js';
+import { getProfile, setProfile } from './banco-dados.js';
 
 const LIMITE = 200;
 
@@ -107,6 +107,59 @@ export async function fetchMembros() {
   // ninguém" apareciam iguais na tela, e isso escondia o motivo real.
   if (error) throw new Error(error.message || 'Erro ao listar membros');
   return data || [];
+}
+
+// ─── FOTOS ─────────────────────────────────────────────────────
+// Mapa id -> { nome, foto } de todo mundo, inclusive de quem está chamando:
+// o mural mostra as minhas mensagens junto das outras e elas também precisam
+// de rosto. A mensagem guarda o NOME de quando foi escrita, mas a foto é
+// sempre a atual — trocou nos Ajustes, muda no histórico inteiro.
+let _perfis = null;
+let _perfisEm = 0;
+const PERFIS_TTL = 5 * 60 * 1000;
+
+export async function fetchPerfis({ forcar = false } = {}) {
+  if (!forcar && _perfis && Date.now() - _perfisEm < PERFIS_TTL) return _perfis;
+  const { data, error } = await supabase.rpc('perfis_do_chat');
+  if (error) {
+    // Sem foto o chat continua funcionando com as iniciais coloridas.
+    console.warn('[Falcon] perfis_do_chat:', error.message);
+    return _perfis || new Map();
+  }
+  _perfis = new Map((data || []).map(p => [p.user_id, { nome: p.nome, foto: p.foto || null }]));
+  _perfisEm = Date.now();
+  return _perfis;
+}
+
+export function limparCachePerfis() { _perfis = null; _perfisEm = 0; }
+
+// Sobe a foto escolhida e aponta o perfil pra ela. O caminho é sempre
+// '{uid}/foto.jpg' — a política do bucket exige que a primeira pasta seja o
+// próprio id, então ninguém sobrescreve a foto de outro.
+export async function trocarMinhaFoto(blob) {
+  const id = auth.currentUser?.uid;
+  if (!id) throw new Error('Sessão expirada');
+  const caminho = `${id}/foto.jpg`;
+  const { error } = await supabase.storage
+    .from('avatares')
+    .upload(caminho, blob, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message || 'Não deu pra enviar a foto');
+
+  const { data } = supabase.storage.from('avatares').getPublicUrl(caminho);
+  // ?t= derruba o cache do CDN: o caminho é o mesmo a cada troca e sem isso
+  // a foto antiga continuaria aparecendo.
+  const url = `${data.publicUrl}?t=${Date.now()}`;
+  await setProfile({ fotoUrl: url });
+  limparCachePerfis();
+  return url;
+}
+
+// Volta pra foto do Google (ou pras iniciais, se a pessoa não entrou por lá).
+export async function removerMinhaFoto() {
+  const id = auth.currentUser?.uid;
+  if (id) await supabase.storage.from('avatares').remove([`${id}/foto.jpg`]);
+  await setProfile({ fotoUrl: null });
+  limparCachePerfis();
 }
 
 // Só o texto muda. Um gatilho no banco rejeita qualquer outra alteração —
