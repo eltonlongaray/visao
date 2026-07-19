@@ -478,29 +478,28 @@ if (window.visualViewport) {
 //
 // O X é imantado numa das laterais — solto no meio da tela ele taparia
 // conteúdo e ficaria no caminho de qualquer toque.
-const POS_PET = 'visao_pet_pos';       // { lado: 'esq'|'dir', bottom: number }
-const PET_BOTTOM_PADRAO = 150;
+const POS_PET = 'visao_pet_pos';       // { lado: 'esq'|'dir' }
+const PET_BOTTOM = 150;                // fixo: 78 punha o olho sobre o botão
+                                       // de enviar do chat (28px medidos)
 const PET_MARGEM = 14;
 
 function _posSalva() {
   try { return JSON.parse(localStorage.getItem(POS_PET) || 'null'); } catch { return null; }
 }
 
-function aplicarPosicaoPet() {
+function aplicarPosicaoPet(lado) {
   const el = document.getElementById('visao-pet');
   if (!el) return;
-  const p = _posSalva();
-  const alt = el.offsetHeight || 44;
-  const bottom = Math.min(
-    window.innerHeight - alt - 8,
-    Math.max(96, Math.round(p?.bottom ?? PET_BOTTOM_PADRAO))
-  );
-  el.style.bottom = bottom + 'px';
-  if (p?.lado === 'esq') {
+  const l = lado || (_posSalva()?.lado === 'esq' ? 'esq' : 'dir');
+  el.style.bottom = PET_BOTTOM + 'px';
+  if (l === 'esq') {
     el.style.left = PET_MARGEM + 'px'; el.style.right = 'auto'; el.style.alignItems = 'flex-start';
   } else {
     el.style.right = PET_MARGEM + 'px'; el.style.left = 'auto'; el.style.alignItems = 'flex-end';
   }
+  // O painel do pet nasce ACIMA dele. Sem publicar essa altura, o CSS calcula
+  // o painel como se o pet ainda estivesse em 78px e o topo do chat sai da tela.
+  document.documentElement.style.setProperty('--pet-bottom', PET_BOTTOM + 'px');
 }
 
 let _petMoveu = false;   // impede que o arraste abra o chat ao soltar
@@ -510,53 +509,45 @@ function ligarArrastePet() {
   const corpo = document.getElementById('pet-body');
   if (!el || !corpo) return;
 
-  let timer = null, arrastando = false, lado = _posSalva()?.lado === 'esq' ? 'esq' : 'dir';
+  const LIMIAR = 10;   // px de movimento que separam "toquei" de "arrastei"
+  let x0 = 0, ativo = false, lado = _posSalva()?.lado === 'esq' ? 'esq' : 'dir';
 
-  const ponto = (ev) => ({
-    x: ev.clientX ?? ev.touches?.[0]?.clientX ?? 0,
-    y: ev.clientY ?? ev.touches?.[0]?.clientY ?? 0,
-  });
+  const px = (ev) => ev.clientX ?? ev.touches?.[0]?.clientX ?? 0;
 
   const comecar = (ev) => {
     if (document.getElementById('pet-chat')?.classList.contains('pet-chat-open')) return;
-    _petMoveu = false;
-    clearTimeout(timer);
-    // Segurar por 420ms libera o arraste. Toque curto continua abrindo o chat.
-    timer = setTimeout(() => {
-      arrastando = true;
-      el.classList.add('pet-arrastando');
-      if (navigator.vibrate) { try { navigator.vibrate(18); } catch {} }
-    }, 420);
+    x0 = px(ev); ativo = true; _petMoveu = false;
   };
 
   const mover = (ev) => {
-    if (!arrastando) return;
+    if (!ativo) return;
+    const dx = px(ev) - x0;
+    // Só vira arraste depois do limiar: sem isso qualquer tremida no toque
+    // impediria de abrir o chat.
+    if (!_petMoveu && Math.abs(dx) < LIMIAR) return;
+    if (!_petMoveu) {
+      _petMoveu = true;
+      el.classList.add('pet-arrastando');
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
+    }
     ev.preventDefault();
-    _petMoveu = true;
-    const { x, y } = ponto(ev);
-    const alt = el.offsetHeight || 44;
-    const b = Math.min(window.innerHeight - alt - 8, Math.max(96, window.innerHeight - y - alt / 2));
-    el.style.bottom = Math.round(b) + 'px';
-    lado = x < window.innerWidth / 2 ? 'esq' : 'dir';
-    if (lado === 'esq') { el.style.left = PET_MARGEM + 'px'; el.style.right = 'auto'; el.style.alignItems = 'flex-start'; }
-    else { el.style.right = PET_MARGEM + 'px'; el.style.left = 'auto'; el.style.alignItems = 'flex-end'; }
+    // Só a horizontal: a altura é fixa, o pet só troca de lado.
+    lado = px(ev) < window.innerWidth / 2 ? 'esq' : 'dir';
+    aplicarPosicaoPet(lado);
   };
 
   const soltar = () => {
-    clearTimeout(timer);
-    if (arrastando) {
+    if (ativo && _petMoveu) {
       el.classList.remove('pet-arrastando');
-      const bottom = parseInt(el.style.bottom, 10) || PET_BOTTOM_PADRAO;
-      localStorage.setItem(POS_PET, JSON.stringify({ lado, bottom }));
+      localStorage.setItem(POS_PET, JSON.stringify({ lado }));
     }
-    arrastando = false;
+    ativo = false;
   };
 
   corpo.addEventListener('pointerdown', comecar);
   window.addEventListener('pointermove', mover, { passive: false });
   window.addEventListener('pointerup', soltar);
   window.addEventListener('pointercancel', soltar);
-  // Girar a tela pode deixar o pet fora da área visível.
   window.addEventListener('resize', () => aplicarPosicaoPet());
 }
 

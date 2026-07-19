@@ -14,10 +14,14 @@
        entra como camada separada no CSS, em 4 posições de LINHAS e COLUNAS
        diferentes, pra nunca formar faixa horizontal.
 
+       A opacidade fica no GRUPO, não em stroke-opacity: por traço ela
+       acumula onde duas linhas se cruzam (0,28 vira 0,48) e o encontro
+       aparecia marcado — bem visível no ankh, onde a haste toca o círculo.
+
        ESTE ARQUIVO É A FONTE: o CSS não o carrega, ele vai EMBUTIDO como data
        URI em styles.css (imagem separada não chegava no aparelho por causa do
        cache-first do service worker). Mudou aqui, gerar o data URI de novo. -->
-  <g fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="1.6"
+  <g fill="none" stroke="#ffffff" opacity="0.28" stroke-width="1.6"
      stroke-linecap="round" stroke-linejoin="round">
     <g transform="translate(25,19)"><ellipse cx="0" cy="-9" rx="5" ry="6"/> <path d="M0 -3 V13 M-7 3 H7"/></g>
     <g transform="translate(75,19)"><path d="M0 -10 V10 M0 -4 L-7 -12 M0 -4 L7 -12"/></g>
