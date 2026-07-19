@@ -2637,11 +2637,13 @@ body.time-picker-open { overflow: hidden; }
   background: none; border: none;
   /* Só a coluna da placa e a tarja capturam toque; o resto da zona livre é
      vazado pra não roubar cliques do conteúdo que passa por trás. */
+  /* A coluna sobe até -24px: o brilho da placa passa do topo da nav e, se o
+     recorte começasse em 0, ele seria cortado numa reta bem visível. */
   clip-path: polygon(
-    calc(50% - 80px) 0, calc(50% + 80px) 0,
-    calc(50% + 80px) 34px, 100% 34px,
+    calc(50% - 84px) -24px, calc(50% + 84px) -24px,
+    calc(50% + 84px) 34px, 100% 34px,
     100% 100%, 0 100%,
-    0 34px, calc(50% - 80px) 34px
+    0 34px, calc(50% - 84px) 34px
   );
 }
 
@@ -2657,7 +2659,10 @@ body.time-picker-open { overflow: hidden; }
   background:
     linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -34px / 100% 84px no-repeat;
   border-top: 1px solid rgba(214,175,55,0.55);
-  box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 -2px 6px rgba(0,0,0,0.35);
+  /* sem sombra externa pra cima: o clip-path da nav recortava ela num
+     retângulo de 160px e o resultado era um bloco quadrado de sombra em
+     volta da corcova. Só a interna, que segue a peça. */
+  box-shadow: inset 0 -2px 6px rgba(0,0,0,0.35);
 }
 
 .belt-track {
