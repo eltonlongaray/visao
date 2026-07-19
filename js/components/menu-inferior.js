@@ -59,9 +59,26 @@ export function bottomNav(active) {
   }
 
   cinturao.dataset.active = active;
+  atualizarRotulos();
   controle?.irPara(idxAtivo);      // rola até a aba nova, animado
   mostrarConformeRota();
   return '';
+}
+
+// O dicionário de idioma carrega de forma ASSÍNCRONA e, até chegar, t()
+// devolve a própria chave ("nav.home"). Enquanto o cinturão era refeito a
+// cada tela isso se resolvia sozinho; sendo criado uma vez só, ele ficava
+// preso no texto errado. Aqui os nomes são reaplicados a cada render de tela,
+// então assim que a tradução chega o cinturão se corrige.
+function atualizarRotulos() {
+  if (!cinturao) return;
+  const nomes = {};
+  for (const tab of TABS) nomes[tab.id] = tab.lbl();
+  for (const el of cinturao.querySelectorAll('.belt-item')) {
+    const novo = nomes[el.dataset.tab];
+    const lb = el.querySelector('.belt-lbl');
+    if (novo && lb.textContent !== novo) lb.textContent = novo;
+  }
 }
 
 // Como o cinturão agora é permanente, ele ficaria visível em telas que NÃO o
@@ -121,9 +138,9 @@ function fazerLente(track, items) {
       // ela repousa no tamanho pequeno e só cresce ao entrar sob a placa.
       const k = Math.max(0, 1 - d);
       // A caixa do trilho tem centro em 52,5. O meio do couro visivel (linha
-      // em 30 ate a base 84) e 57, e o meio da placa e 43,5. A aba desce
-      // 4,5px quando esta no couro e sobe pros 43,5 ao entrar na placa.
-      const dy = (4.5 - 13.5 * k).toFixed(1);
+      // em 26 ate a base 84) e 55, e o meio da placa e 43,5. A aba desce
+      // 2,5px quando esta no couro e sobe pros 43,5 ao entrar na placa.
+      const dy = (2.5 - 11.5 * k).toFixed(1);
       // As abas distantes sao PUXADAS 28px pra dentro. Diminuir o vao de
       // verdade nao dava: ele precisa ser grande pro "Desempenho" da vizinha
       // nao encostar na placa. Como o transform nao mexe no layout, a rolagem
