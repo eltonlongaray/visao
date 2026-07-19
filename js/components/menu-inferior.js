@@ -23,7 +23,9 @@ const TABS = [
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
-const ITEM_W  = 92;                  // precisa bater com o CSS (.belt-item flex-basis)
+const ITEM_W  = 76;                  // precisa bater com o CSS (.belt-item flex-basis)
+// 76 e o maior vao em que as 5 abas cabem INTEIRAS numa tela de 375px:
+// com 92 as das pontas passavam da margem e a tela cortava.
 const CICLO   = TABS.length;         // abas por volta
 const REPEATS = 21;                  // voltas renderizadas (cada render do app cria essas ancoras)
 const CENTRO  = 10;                  // volta central (meio das 21)
@@ -81,9 +83,9 @@ function fazerLente(track, items) {
       // ainda vinha ampliada (0.945) e encostava na costura do couro. Agora
       // ela repousa no tamanho pequeno e só cresce ao entrar sob a placa.
       const k = Math.max(0, 1 - d);
-      items[i].style.transform = `scale(${(0.72 + 0.60 * k).toFixed(3)})`;   // 0.72 -> 1.32: lateral menor pra folgar das costuras
-      items[i].style.opacity   = (0.5 + 0.5 * k).toFixed(3);
-      items[i].style.filter    = `grayscale(${((1 - k) * 0.5).toFixed(2)}) brightness(${(0.82 + 0.18 * k).toFixed(2)})`;
+      items[i].style.transform = `scale(${(0.78 + 0.54 * k).toFixed(3)})`;   // 0.78 -> 1.32
+      items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
+      items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
     }
     janela = nova;
   };
