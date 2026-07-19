@@ -2662,7 +2662,8 @@ body.time-picker-open { overflow: hidden; }
 }
 
 .belt-track {
-  position: relative; z-index: 1;
+  /* z4: a placa virou opaca, então as abas têm que passar POR CIMA dela */
+  position: relative; z-index: 4;
   display: flex; align-items: flex-end;       /* abas assentam sobre o couro */
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory;
@@ -2691,46 +2692,59 @@ body.time-picker-open { overflow: hidden; }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }
 .belt-lbl { white-space: nowrap; }
 
-/* medalhões laterais — parte do couro, como no cinturão de referência */
+/* O COURO EM VOLTA — sobe seguindo o MESMO contorno da placa, por fora dela.
+   Mesma família de raios, alguns px maior nos quatro lados: o resultado é a
+   tarja abraçando a placa em vez de passar reto atrás. Fica em z2, abaixo da
+   placa (z3) e das abas (z4). */
 .belt-bump {
   position: absolute; z-index: 2; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: 38px; height: 28px; width: 218px;
+  top: 0; bottom: 0;
+  width: 140px;
+  border-radius: 42px 42px 22px 22px;
+  background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%);
+  border: 1px solid rgba(214,175,55,0.50);
+  border-bottom: none;
+  box-shadow:
+    0 -6px 18px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(246,226,122,0.22),
+    inset 0 -8px 14px rgba(0,0,0,0.30);
 }
-.belt-bump::before, .belt-bump::after {
-  content: ''; position: absolute; top: 50%; width: 26px; height: 26px;
-  margin-top: -13px; border-radius: 50%;
-  background: radial-gradient(circle at 38% 30%, #fdf3bd 0%, #e8cd6a 38%, #c9a227 70%, #8a6d1f 100%);
-  border: 1px solid rgba(246,226,122,0.75);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 -2px 3px rgba(0,0,0,0.28);
+/* costura do couro acompanhando a curva */
+.belt-bump::before {
+  content: ''; position: absolute; inset: 5px 5px auto;
+  height: 40px; border-radius: 37px 37px 0 0;
+  border: 1px dashed rgba(246,226,122,0.28);
+  border-bottom: none;
 }
-.belt-bump::before { left: 0; }
-.belt-bump::after  { right: 0; }
 
-/* A PLACA — parada no centro, alta, ultrapassando o couro */
+/* A PLACA — parada no centro, SÓLIDA (nunca transparente), no tom do cinturão */
 .belt-lens {
   position: absolute; z-index: 3; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: 2px; bottom: calc(7px + env(safe-area-inset-bottom, 0px));
+  top: 9px; bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   width: 112px;
-  /* contorno da referência: topo largo e arredondado afunilando pra base */
-  border-radius: 30px 30px 16px 16px;
-  border: 2px solid #f0d873;
-  background: linear-gradient(180deg,
-    rgba(253,243,189,0.20) 0%,
-    rgba(232,205,106,0.08) 45%,
-    rgba(151,116,31,0.22) 100%);
+  border-radius: 32px 32px 15px 15px;
+  border: 2px solid #e8cd6a;
+  background: linear-gradient(180deg, #2b1f12 0%, #1a1209 55%, #120c07 100%);
   box-shadow:
-    0 0 20px rgba(214,175,55,0.55),
-    0 -4px 16px rgba(214,175,55,0.30),
-    inset 0 1px 0 rgba(255,255,255,0.55),
-    inset 0 -3px 7px rgba(0,0,0,0.28);
+    0 0 16px rgba(214,175,55,0.42),
+    0 2px 6px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(253,243,189,0.35),
+    inset 0 -4px 10px rgba(0,0,0,0.45);
 }
-/* moldura interna, como o friso da placa de campeão */
+/* friso interno dourado — o detalhe que dá cara de placa de campeão */
 .belt-lens::before {
   content: ''; position: absolute; inset: 4px;
-  border-radius: 26px 26px 12px 12px;
-  border: 1px solid rgba(246,226,122,0.45);
+  border-radius: 28px 28px 11px 11px;
+  border: 1px solid rgba(232,205,106,0.42);
+  box-shadow: inset 0 1px 0 rgba(253,243,189,0.18);
+}
+/* brilho de luz batendo no topo da placa */
+.belt-lens::after {
+  content: ''; position: absolute; left: 12px; right: 12px; top: 3px; height: 22px;
+  border-radius: 26px 26px 50% 50%;
+  background: linear-gradient(180deg, rgba(253,243,189,0.20), transparent);
 }
 
 /* === ESQUELETO DE CARREGAMENTO ===
