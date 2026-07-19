@@ -144,3 +144,10 @@ grant execute on function public.minhas_conversas() to authenticated;
 
 -- ─── OPCIONAL: faxina automática (só se pg_cron estiver habilitado) ───
 -- select cron.schedule('faxina-chat', '0 4 * * *', 'select public.limpar_chat_expirado()');
+
+-- ─── AVISA O POSTGREST ─────────────────────────────────────────
+-- Sem isto a API pode seguir respondendo
+--   "Could not find the table 'public.chat_mensagens' in the schema cache"
+-- por alguns minutos depois de criar a tabela, porque o cache de schema
+-- ainda é o antigo. Esta linha força a releitura na hora.
+notify pgrst, 'reload schema';
