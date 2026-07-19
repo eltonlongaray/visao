@@ -2621,131 +2621,64 @@ body.time-picker-open { overflow: hidden; }
 .shift-group-content .activity-card:last-child { margin-bottom: 0; }
 
 /* === BOTTOM NAV === */
-/* === CINTURÃO DE CAMPEÃO (bottom nav) ===
-   Referência: cinturão de campeão — placa central alta, sobressaindo do couro,
-   ladeada por medalhões. A placa é FIXA no centro e as abas passam por baixo.
-
-   ZONA LIVRE (topo): o track é um container de scroll horizontal, e por regra
-   do CSS isso força recorte vertical — o item ampliado batia no teto e ficava
-   cortado (parecia que nem crescia). O padding-top abre espaço DENTRO do
-   scroll pra ele crescer, já que a área de padding não é recortada. */
+/* === CINTURÃO DE CAMPEÃO — 3 JANELAS (bottom nav) ===
+   O couro é uma moldura SVG com três furos. As abas rolam POR TRÁS dela e
+   só aparecem ao entrar numa janela: a central (grande) é a aba atual, as
+   laterais são a anterior e a próxima. */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 90;
   max-width: 480px; margin: 0 auto;
-  overflow: visible;
+  height: 96px;
   background: none; border: none;
-  /* Só a coluna da placa e a tarja capturam toque; o resto da zona livre é
-     vazado pra não roubar cliques do conteúdo que passa por trás. */
-  clip-path: polygon(
-    calc(50% - 80px) 0, calc(50% + 80px) 0,
-    calc(50% + 80px) 34px, 100% 34px,
-    100% 100%, 0 100%,
-    0 34px, calc(50% - 80px) 34px
-  );
+  /* Só o corpo do cinturão captura toque; as pontas finas deixam passar
+     o conteúdo que está atrás. */
+  clip-path: polygon(0 40px, 100% 40px, 100% 100%, 0 100%,
+                     0 40px, calc(50% - 84px) 40px, calc(50% - 84px) 0,
+                     calc(50% + 84px) 0, calc(50% + 84px) 40px, 0 40px);
 }
 
 .belt-strap {
-  position: relative;
+  position: absolute; inset: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-/* o couro — parte plana. O gradiente é ancorado na altura total da nav
-   (84px) e deslocado -34px, pra emendar SEM COSTURA com a corcova, que usa
-   o mesmo gradiente ancorado em 0. */
-.belt-strap::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 34px; bottom: 0; z-index: 0;
-  background:
-    repeating-linear-gradient(90deg, rgba(246,226,122,0.30) 0 6px, transparent 6px 12px) left 0 bottom 5px / 100% 1px no-repeat,
-    linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -34px / 100% 84px no-repeat;
-  border-top: 1px solid rgba(214,175,55,0.55);
-  box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 -2px 6px rgba(0,0,0,0.35);
 }
 
 .belt-track {
-  /* z4: a placa virou opaca, então as abas têm que passar POR CIMA dela */
-  position: relative; z-index: 4;
-  display: flex; align-items: flex-end;       /* abas assentam sobre o couro */
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; align-items: center;
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
-  padding: 34px calc(50% - 46px) 13px;        /* 34px = zona livre pra ampliar */
-  /* Só aparece depois de centralizada na aba ativa. Sem isso ela pinta em
-     scrollLeft 0 — com a aba ERRADA sob a lente — e pula: era a piscada. */
+  padding: 0 calc(50% - var(--belt-item-w, 114px) / 2);
+  /* Só aparece depois de centralizada na aba ativa — sem isso ela pinta em
+     scrollLeft 0, com a aba ERRADA na janela, e pula. */
   visibility: hidden;
 }
 .belt-track[data-pos="1"] { visibility: visible; }
 .belt-track::-webkit-scrollbar { display: none; }
 
 .belt-item {
-  flex: 0 0 92px;                 /* precisa bater com ITEM_W no JS */
+  flex: 0 0 var(--belt-item-w, 114px);
   scroll-snap-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
   text-decoration: none;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
-  color: #e8cd6a;
-  opacity: 0.5;
-  transform: scale(0.78);
-  transform-origin: bottom center;   /* cresce PRA CIMA, para dentro da placa */
-  /* sem transition: a escala vem contínua do scroll, animar causaria atraso */
+  font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+  color: #f0d873;
+  opacity: 0.62;
+  transform: scale(0.68);
+  /* sem transition: a escala vem contínua do scroll */
 }
-.belt-item .belt-ic { font-size: 20px; line-height: 1; }
+.belt-item .belt-ic { font-size: 22px; line-height: 1; }
 .belt-lbl { white-space: nowrap; }
 
-/* A BORDA DO COURO SUBINDO — não é uma forma carimbada em cima da tarja:
-   ela tem exatamente a altura da faixa livre (0→34px), então suas laterais
-   MORREM na linha do couro e a silhueta vira uma só, contínua:
-   reta → sobe → contorna a placa → desce → reta.
-   Antes ela descia por dentro do couro e cortava a tarja ao meio. */
-.belt-bump {
-  position: absolute; z-index: 2; pointer-events: none;
-  left: 50%; transform: translateX(-50%);
-  /* rente à placa: 8px de folga lateral e 6px acima dela (era 14 e 9).
-     A BASE continua em 35px — é ela que emenda com a linha do couro. */
-  top: 3px; height: 32px;
-  width: 128px;
-  border-radius: 36px 36px 0 0;
-  border: 1px solid rgba(214,175,55,0.55);
-  border-bottom: none;
-  background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
-  box-shadow: 0 -6px 18px rgba(0,0,0,0.42), inset 0 1px 0 rgba(246,226,122,0.20);
+/* A MOLDURA — por cima das abas, com as janelas vazadas */
+.belt-frame {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 -5px 14px rgba(0,0,0,0.45));
 }
-/* costura acompanhando a curva da subida */
-.belt-bump::before {
-  content: ''; position: absolute; left: 4px; right: 4px; top: 4px; bottom: 0;
-  border-radius: 32px 32px 0 0;
-  border: 1px dashed rgba(246,226,122,0.26);
-  border-bottom: none;
-}
-
-/* A PLACA — parada no centro, SÓLIDA (nunca transparente), no tom do cinturão */
-.belt-lens {
-  position: absolute; z-index: 3; pointer-events: none;
-  left: 50%; transform: translateX(-50%);
-  top: 9px; bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-  width: 112px;
-  border-radius: 32px 32px 15px 15px;
-  border: 2px solid #e8cd6a;
-  background: linear-gradient(180deg, #2b1f12 0%, #1a1209 55%, #120c07 100%);
-  box-shadow:
-    0 0 16px rgba(214,175,55,0.42),
-    0 2px 6px rgba(0,0,0,0.55),
-    inset 0 1px 0 rgba(253,243,189,0.35),
-    inset 0 -4px 10px rgba(0,0,0,0.45);
-}
-/* friso interno dourado — o detalhe que dá cara de placa de campeão */
-.belt-lens::before {
-  content: ''; position: absolute; inset: 4px;
-  border-radius: 28px 28px 11px 11px;
-  border: 1px solid rgba(232,205,106,0.42);
-  box-shadow: inset 0 1px 0 rgba(253,243,189,0.18);
-}
-/* brilho de luz batendo no topo da placa */
-.belt-lens::after {
-  content: ''; position: absolute; left: 12px; right: 12px; top: 3px; height: 22px;
-  border-radius: 26px 26px 50% 50%;
-  background: linear-gradient(180deg, rgba(253,243,189,0.20), transparent);
-}
+.belt-frame svg { display: block; }
 
 /* === ESQUELETO DE CARREGAMENTO ===
    Bloco cinza pulsando com a FORMA do conteúdo que vem depois. Melhor que
