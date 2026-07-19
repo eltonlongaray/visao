@@ -176,6 +176,13 @@ function wireBelt(track) {
   const posDe = (i) => i * ITEM_W;
 
   let travado    = true;      // posicionamento inicial não soa nem navega
+  // O tambor só pode soar quando o usuário rola. As rolagens que o próprio
+  // app dispara — abrir o app, trocar de rota, sincronizar a aba ativa —
+  // usam o mesmo listener, e sem isso o som saía sozinho ao abrir na Home.
+  // Marca de tempo em vez de flag booleana: se por algum motivo a rolagem
+  // não acontecer, ele destrava sozinho em vez de ficar mudo pra sempre.
+  let mudoAte = 0;
+  const calar = () => { mudoAte = Date.now() + 700; };   // animação 420 + settle 220
   let teleportando = false;
   let atual      = CENTRO * CICLO + idxAtivo;
 
@@ -206,6 +213,7 @@ function wireBelt(track) {
     // ia até o fim — ~1s de aba sumida a cada troca de tela.
     if (track.clientWidth > 0 && track.scrollWidth > track.clientWidth) {
       const alvo = posDe(atual);
+      calar();
       track.scrollLeft = alvo;
       revelar();
       // Rede de segurança: confere no tick seguinte e corrige se não pegou.
@@ -244,6 +252,7 @@ function wireBelt(track) {
   // posição atual pra fita girar o mínimo possível.
   const irPara = (idxTab) => {
     const voltaMaisPerto = Math.round((track.scrollLeft / ITEM_W - idxTab) / CICLO) * CICLO + idxTab;
+    calar();                       // foi o app que mandou rolar, não o usuário
     rolarAte(posDe(voltaMaisPerto));
   };
 
@@ -265,7 +274,7 @@ function wireBelt(track) {
     const i = Math.round(track.scrollLeft / ITEM_W);
     if (i !== atual) {
       atual = i;
-      if (!travado) playClick();                    // um clique por trava do tambor
+      if (!travado && Date.now() >= mudoAte) playClick();   // um clique por trava
     }
     clearTimeout(parada);
     parada = setTimeout(() => {
