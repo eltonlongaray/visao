@@ -2,7 +2,7 @@
 // BLOCO 1 — IMPORTS + ESTADO
 // BLOCO 2 — ENTRY POINT
 // BLOCO 3 — MURAL DA COMUNIDADE
-// BLOCO 4 — PRIVADO: lista de conversas e escolha de membro
+// BLOCO 4 — PRIVADO: conversas + todo mundo que está no app
 // BLOCO 5 — PRIVADO: a conversa em si
 // BLOCO 6 — HELPERS
 // ─────────────────────────────────────────────────────────────
@@ -83,66 +83,87 @@ async function desenharMural(corpo) {
 
   const meu = auth.currentUser?.uid;
   const lista = msgs.length
-    ? msgs.map(m => balao(m, m.autor_id === meu, true)).join('')
+    ? msgs.map((m, i) => linhaDiscord(m, msgs[i - 1], m.autor_id === meu)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
 
   pintar(corpo, lista, 'Falar com a comunidade…');
 }
 
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 4: PRIVADO — lista de conversas e escolha de membro
-// ═══════════════════════════════════════════════════════════════
-async function desenharListaPrivada(corpo) {
-  const convs = await fetchConversas();
-  const linhas = convs.length
-    ? convs.map(c => `
-        <button class="chat-conv" data-abrir="${c.outro_id}" data-nome="${esc(c.nome)}">
-          <span class="chat-conv-av">${inicial(c.nome)}</span>
-          <span class="chat-conv-txt">
-            <span class="chat-conv-nome">${esc(c.nome)}</span>
-            <span class="chat-conv-ult">${c.minha ? 'Você: ' : ''}${esc(corta(c.ultima, 48))}</span>
-          </span>
-          <span class="chat-conv-quando">${tempoRestante(c.quando)}</span>
-        </button>`).join('')
-    : `<div class="chat-vazio">Nenhuma conversa ainda.<br>Toque em <strong>Nova conversa</strong> pra começar.</div>`;
+// Linha no estilo Discord: avatar + nome + texto corrido, sem balão.
+// Mensagens seguidas da MESMA pessoa em até 5 min são agrupadas — sem isso
+// um desabafo de três frases vira três blocos com o nome repetido.
+function linhaDiscord(m, anterior, minha) {
+  const agrupa = anterior
+    && anterior.autor_id === m.autor_id
+    && (new Date(m.created_at) - new Date(anterior.created_at)) < 5 * 60 * 1000;
 
-  corpo.innerHTML = `
-    <button class="chat-nova" id="chat-nova">＋ Nova conversa</button>
-    <div class="chat-convs">${linhas}</div>`;
+  const nome = m.autor_nome || 'Falcão';
+  const cabecalho = agrupa ? '' : `
+      <div class="dc-head">
+        <span class="dc-nome" style="color:${corDe(m.autor_id)}">${esc(nome)}</span>
+        <span class="dc-hora">${hora(m.created_at)} · some em ${tempoRestante(m.created_at)}</span>
+        ${minha ? `<button class="chat-apagar" data-apagar="${m.id}">apagar</button>` : ''}
+      </div>`;
+
+  return `
+    <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}">
+      <div class="dc-av" ${agrupa ? '' : `style="background:${corDe(m.autor_id)}22;color:${corDe(m.autor_id)}"`}>
+        ${agrupa ? '' : inicial(nome)}
+      </div>
+      <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
+    </div>`;
 }
 
-async function abrirEscolhaDeMembro() {
-  const membros = await fetchMembros();
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal" style="max-width:420px">
-      <div class="modal-title">Conversar com quem?</div>
-      <input class="chat-busca" id="chat-busca" placeholder="Buscar pelo nome…" autocomplete="off" />
-      <div class="chat-membros" id="chat-membros">
-        ${membros.length
-          ? membros.map(m => `<button class="chat-membro" data-id="${m.user_id}" data-nome="${esc(m.nome)}">
-               <span class="chat-conv-av">${inicial(m.nome)}</span>${esc(m.nome)}</button>`).join('')
-          : '<div class="chat-vazio">Ninguém mais por aqui ainda.</div>'}
-      </div>
-      <div class="modal-actions"><button class="btn-secondary" id="chat-cancelar" style="width:100%">Fechar</button></div>
-    </div>`;
-  document.body.appendChild(overlay);
+// Cor estável por pessoa, derivada do id — cada um sempre com a mesma cor,
+// como no Discord. Tons fixos pra garantir contraste no fundo escuro.
+const PALETA = ['#7ea6ff', '#5fd3a5', '#f4a261', '#e879a6', '#c4a2f5', '#6fd0e0', '#f2c94c', '#ff9b85'];
+function corDe(id) {
+  let h = 0;
+  const s = String(id || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return PALETA[h % PALETA.length];
+}
 
-  const fechar = () => overlay.remove();
-  overlay.querySelector('#chat-cancelar').onclick = fechar;
-  overlay.querySelector('#chat-busca').addEventListener('input', (ev) => {
-    const q = ev.target.value.trim().toLowerCase();
-    overlay.querySelectorAll('.chat-membro').forEach(b => {
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: PRIVADO — conversas + todo mundo que está no app
+// ═══════════════════════════════════════════════════════════════
+async function desenharListaPrivada(corpo) {
+  // As duas listas juntas: com quem já falei e todo mundo que está no app.
+  const [convs, membros] = await Promise.all([fetchConversas(), fetchMembros()]);
+
+  const jaFalei = new Set(convs.map(c => c.outro_id));
+  const outros = membros.filter(m => !jaFalei.has(m.user_id));
+
+  const linhasConv = convs.map(c => `
+      <button class="chat-conv" data-abrir="${c.outro_id}" data-nome="${esc(c.nome)}">
+        <span class="chat-conv-av" style="background:${corDe(c.outro_id)}22;color:${corDe(c.outro_id)}">${inicial(c.nome)}</span>
+        <span class="chat-conv-txt">
+          <span class="chat-conv-nome">${esc(c.nome)}</span>
+          <span class="chat-conv-ult">${c.minha ? 'Você: ' : ''}${esc(corta(c.ultima, 44))}</span>
+        </span>
+        <span class="chat-conv-quando">${tempoRestante(c.quando)}</span>
+      </button>`).join('');
+
+  const linhasMembros = outros.map(m => `
+      <button class="chat-conv" data-abrir="${m.user_id}" data-nome="${esc(m.nome)}">
+        <span class="chat-conv-av" style="background:${corDe(m.user_id)}22;color:${corDe(m.user_id)}">${inicial(m.nome)}</span>
+        <span class="chat-conv-txt"><span class="chat-conv-nome">${esc(m.nome)}</span></span>
+        <span class="chat-conv-quando">conversar</span>
+      </button>`).join('');
+
+  corpo.innerHTML = `
+    <input class="chat-busca" id="chat-filtro" placeholder="Buscar pessoa…" autocomplete="off" />
+    ${convs.length ? `<div class="chat-sec">Suas conversas</div><div class="chat-convs">${linhasConv}</div>` : ''}
+    ${outros.length
+      ? `<div class="chat-sec">Todos no app</div><div class="chat-convs">${linhasMembros}</div>`
+      : (convs.length ? '' : `<div class="chat-vazio">Ninguém mais por aqui ainda.<br>Assim que a comunidade crescer, os nomes aparecem nesta lista.</div>`)}`;
+
+  const filtro = corpo.querySelector('#chat-filtro');
+  filtro?.addEventListener('input', () => {
+    const q = filtro.value.trim().toLowerCase();
+    corpo.querySelectorAll('.chat-conv').forEach(b => {
       b.style.display = b.dataset.nome.toLowerCase().includes(q) ? '' : 'none';
     });
-  });
-  overlay.querySelectorAll('.chat-membro').forEach(b => {
-    b.onclick = () => {
-      conversaCom = { id: b.dataset.id, nome: b.dataset.nome };
-      fechar();
-      recarregar();
-    };
   });
 }
 
@@ -200,7 +221,6 @@ function ligarEventos(app) {
       app.querySelectorAll('[data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === aba));
       return recarregar();
     }
-    if (t.closest('#chat-nova')) return abrirEscolhaDeMembro();
     if (t.closest('#chat-voltar')) { conversaCom = null; return recarregar(); }
 
     const conv = t.closest('[data-abrir]');

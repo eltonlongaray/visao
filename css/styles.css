@@ -2859,6 +2859,32 @@ body.time-picker-open { overflow: hidden; }
 }
 .chat-vazio { font-size: 13px; color: var(--muted); line-height: 1.6; text-align: center; padding: 26px 12px; }
 
+/* --- mural no estilo Discord: sem balão, texto corrido --- */
+.dc-msg { display: flex; gap: 11px; padding: 3px 4px; border-radius: 8px; }
+.dc-msg:hover { background: rgba(255,255,255,0.03); }
+.dc-msg:hover .chat-apagar { opacity: 1; }
+.dc-cont { margin-top: -4px; }
+.dc-av {
+  flex: 0 0 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 15px; font-weight: 700;
+}
+.dc-cont .dc-av { height: 0; }
+.dc-body { flex: 1; min-width: 0; }
+.dc-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
+.dc-nome { font-size: 13.5px; font-weight: 700; }
+.dc-hora { font-size: 10px; color: var(--muted); }
+.dc-txt {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  white-space: pre-wrap; word-break: break-word;
+}
+.dc-msg .chat-apagar { opacity: 0; transition: opacity 0.15s; }
+
+.chat-sec {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--muted); margin: 14px 2px 7px;
+}
+
 /* === DESAFIOS NO DESEMPENHO === */
 .dd-card {
   background: var(--card); border: 1px solid var(--border);
