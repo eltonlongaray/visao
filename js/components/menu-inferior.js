@@ -20,6 +20,9 @@ const TABS = [
   { id: 'desempenho', route: '#/desempenho', ic: '📊', lbl: () => t('nav.desempenho') },
   { id: 'desafios',   route: '#/desafios',   ic: '🏆', lbl: () => t('nav.desafios') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
+  // 6ª aba: com 5 visíveis por vez, ela nasce fora da tela e entra conforme
+  // o usuário gira o cinturão — foi assim que combinamos.
+  { id: 'chat',       route: '#/chat',       ic: '💬', lbl: () => t('nav.chat') },
 ];
 
 const ITEM_W  = 88;                  // precisa bater com o CSS (.belt-item flex-basis)

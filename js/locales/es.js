@@ -21,6 +21,7 @@ export default {
   'nav.ritual':     'Ritual',
   'nav.desempenho': 'Rendimiento',
   'nav.desafios':   'Retos',
+  'nav.chat':      'Charla',
   'nav.ajustes':    'Ajustes',
   'desafios.sub':   'Encara un reto con la comunidad 🦅',
   'desafios.empty': 'Ningún reto activo por ahora. ¡Pronto habrá novedades! 🦅',
