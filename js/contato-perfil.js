@@ -7,6 +7,7 @@
 import { getProfile, setProfile } from './banco-dados.js';
 import { recordConsent } from './lgpd-consentimentos.js';
 import { showToast } from './aviso-tela.js';
+import { isAdminPreview } from './avisos.js';
 
 const KEY = 'visao_perfil_convite';           // { stage: 0|1|2, done: bool, shownAt: ts }
 const WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -29,6 +30,12 @@ export async function maybeInvitePerfil() {
 
   let perfil = null;
   try { perfil = await getProfile(); } catch { return; }
+
+  // Com "Ver como usuário" ligado, o convite aparece mesmo com o perfil já
+  // preenchido: é o único jeito de conferir o comportamento dele sem ter que
+  // apagar os próprios dados.
+  if (isAdminPreview()) { _show(1, true, perfil); return; }
+
   const temNome = !!String(perfil?.preferredName || perfil?.fullName || '').trim();
 
   // SEM NOME: obrigatório e fora da cadência — reaparece toda vez até

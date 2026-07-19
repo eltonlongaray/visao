@@ -183,11 +183,12 @@ async function desenharConversa(corpo) {
 
   const meu = auth.currentUser?.uid;
   const lista = msgs.length
-    ? msgs.map(m => balao(m, m.autor_id === meu, false)).join('')
+    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
   pintar(corpo, lista, `Mensagem para ${conversaCom.nome}…`, `
-    <button class="chat-voltar" id="chat-voltar">‹ Conversas</button>
+    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">‹</button>
+    <span class="chat-conv-av" style="background:${corDe(conversaCom.id)}22;color:${corDe(conversaCom.id)}">${inicial(conversaCom.nome)}</span>
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
 }
 
@@ -197,13 +198,26 @@ async function desenharConversa(corpo) {
 function pintar(corpo, lista, placeholder, cabecalho = '') {
   corpo.innerHTML = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
-    <div class="chat-lista" id="chat-lista">${lista}</div>
+    <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <form class="chat-envio" id="chat-envio">
       <input id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000" autocomplete="off" />
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>`;
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
+}
+
+// "Hoje" / "Ontem" / a data, quando a conversa vira o dia — sem isso uma
+// troca de mensagens de semanas parece ter acontecido toda de uma vez.
+function separadorDeDia(m, anterior) {
+  const dia = new Date(m.created_at).toDateString();
+  if (anterior && new Date(anterior.created_at).toDateString() === dia) return '';
+  const hoje = new Date().toDateString();
+  const ontem = new Date(Date.now() - 86400000).toDateString();
+  const rotulo = dia === hoje ? 'Hoje'
+    : dia === ontem ? 'Ontem'
+    : new Date(m.created_at).toLocaleDateString([], { day: '2-digit', month: 'short' });
+  return `<div class="wa-dia"><span>${rotulo}</span></div>`;
 }
 
 function balao(m, minha, mostrarAutor) {
