@@ -179,7 +179,7 @@ export async function renderAjustes(app) {
         `)}
 
         <div class="ajustes-version">
-          Falcon · v1.0.0 · MVP<br>
+          Falcon · v1.0.0 · build ${window.__BUILD || '?'}<br>
           Desenvolvido por Élton Longaray
         </div>
       </div>
