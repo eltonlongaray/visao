@@ -2700,9 +2700,11 @@ body.time-picker-open { overflow: hidden; }
 .belt-bump {
   position: absolute; z-index: 2; pointer-events: none;
   left: 50%; transform: translateX(-50%);
-  top: 0; height: 35px;                 /* 1px de sobreposição mata a emenda */
-  width: 140px;
-  border-radius: 42px 42px 0 0;
+  /* rente à placa: 8px de folga lateral e 6px acima dela (era 14 e 9).
+     A BASE continua em 35px — é ela que emenda com a linha do couro. */
+  top: 3px; height: 32px;
+  width: 128px;
+  border-radius: 36px 36px 0 0;
   border: 1px solid rgba(214,175,55,0.55);
   border-bottom: none;
   background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
@@ -2710,8 +2712,8 @@ body.time-picker-open { overflow: hidden; }
 }
 /* costura acompanhando a curva da subida */
 .belt-bump::before {
-  content: ''; position: absolute; left: 5px; right: 5px; top: 5px; bottom: 0;
-  border-radius: 37px 37px 0 0;
+  content: ''; position: absolute; left: 4px; right: 4px; top: 4px; bottom: 0;
+  border-radius: 32px 32px 0 0;
   border: 1px dashed rgba(246,226,122,0.26);
   border-bottom: none;
 }
