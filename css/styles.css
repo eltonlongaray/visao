@@ -2722,7 +2722,9 @@ body.time-picker-open { overflow: hidden; }
 .belt-ic-img {
   height: 24px; width: auto; display: block;
   margin: -2px 0;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)) brightness(1.12);
+  /* só a sombra aqui: o brilho é da lente, que sabe se a aba está no
+     destaque ou no couro. Fixar brilho aqui aplicaria duas vezes. */
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
 }
 .belt-lbl { white-space: nowrap; }
 

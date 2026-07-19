@@ -158,8 +158,20 @@ function fazerLente(track, items) {
       const dx = (-Math.sign(i - pos) * 28 * Math.min(1, Math.max(0, d - 1))).toFixed(1);
       items[i].style.transform = `translate(${dx}px, ${dy}px) scale(${(0.78 + 0.42 * k).toFixed(3)})`;
       items[i].querySelector('.belt-lbl').style.opacity = '';   // nome em todas as abas
-      items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
-      items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
+      // Fora do destaque a aba leva TRÊS atenuações somadas: menos opacidade,
+      // dessaturação e escurecimento. Emoji colorido aguenta; o falcão
+      // azul-marinho da comunidade sumia no couro escuro.
+      // Para ícone em imagem o caminho é o inverso: clareia e satura fora do
+      // centro, voltando ao natural quando entra na fivela. Não é privilégio,
+      // é o que iguala a leitura entre um desenho escuro e um emoji vivo.
+      const ehImagem = !!items[i].querySelector('.belt-ic-img');
+      if (ehImagem) {
+        items[i].style.opacity = (0.92 + 0.08 * k).toFixed(3);
+        items[i].style.filter  = `brightness(${(1.34 - 0.34 * k).toFixed(2)}) saturate(${(1.40 - 0.40 * k).toFixed(2)})`;
+      } else {
+        items[i].style.opacity = (0.75 + 0.25 * k).toFixed(3);
+        items[i].style.filter  = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
+      }
     }
     janela = nova;
   };
