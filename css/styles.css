@@ -2655,7 +2655,6 @@ body.time-picker-open { overflow: hidden; }
 .belt-strap::before {
   content: ''; position: absolute; left: 0; right: 0; top: 34px; bottom: 0; z-index: 0;
   background:
-    repeating-linear-gradient(90deg, rgba(246,226,122,0.30) 0 6px, transparent 6px 12px) left 0 bottom 2px / 100% 1px no-repeat,
     linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -34px / 100% 84px no-repeat;
   border-top: 1px solid rgba(214,175,55,0.55);
   box-shadow: 0 -6px 24px rgba(0,0,0,0.40), inset 0 -2px 6px rgba(0,0,0,0.35);
@@ -2670,6 +2669,10 @@ body.time-picker-open { overflow: hidden; }
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
   padding: 34px calc(50% - 46px) 13px;        /* 34px = zona livre pra ampliar */
+  /* Nas pontas a aba era fatiada pela borda da tela. Com a máscara ela
+     dissolve no couro — o corte seco vira transição. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 17%, #000 83%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0%, #000 17%, #000 83%, transparent 100%);
   /* Só aparece depois de centralizada na aba ativa. Sem isso ela pinta em
      scrollLeft 0 — com a aba ERRADA sob a lente — e pula: era a piscada. */
   visibility: hidden;
@@ -2711,14 +2714,6 @@ body.time-picker-open { overflow: hidden; }
   background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
   box-shadow: 0 -6px 18px rgba(0,0,0,0.42), inset 0 1px 0 rgba(246,226,122,0.20);
 }
-/* costura acompanhando a curva da subida */
-.belt-bump::before {
-  content: ''; position: absolute; left: 4px; right: 4px; top: 4px; bottom: 0;
-  border-radius: 29px 29px 0 0;
-  border: 1px dashed rgba(246,226,122,0.26);
-  border-bottom: none;
-}
-
 /* A PLACA — parada no centro, SÓLIDA (nunca transparente), no tom do cinturão */
 .belt-lens {
   position: absolute; z-index: 3; pointer-events: none;
