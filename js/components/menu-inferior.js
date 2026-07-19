@@ -56,6 +56,9 @@ export function bottomNav(active) {
   return `
     <nav class="bottom-nav belt" data-active="${active}" data-idx="${idxAtivo}">
       <div class="belt-strap">
+        <span class="belt-screen s-esq" aria-hidden="true"></span>
+        <span class="belt-screen s-cen" aria-hidden="true"></span>
+        <span class="belt-screen s-dir" aria-hidden="true"></span>
         <div class="belt-track">${itens}</div>
       </div>
       <div class="belt-frame" aria-hidden="true"></div>
