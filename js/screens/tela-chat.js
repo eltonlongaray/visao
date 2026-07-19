@@ -20,6 +20,7 @@ import {
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
+import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 
 let aba = 'mural';        // 'mural' | 'privado'
@@ -27,6 +28,9 @@ let conversaCom = null;   // { id, nome } quando aberta
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
 let editando = null;      // id da mensagem em edição
+// Mesma fonte que o RLS usa (profiles.is_admin), não a lista de e-mails do
+// app: se as duas divergissem, o botão apareceria e a exclusão falharia.
+let souAdmin = false;
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -62,6 +66,7 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 export async function renderChat(app) {
   app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">Carregando conversas…</div>`;
   meuNome = await meuNomeDeChat();
+  try { souAdmin = !!(await getProfile())?.isAdmin; } catch { souAdmin = false; }
   faxinaChat();   // sem await: é limpeza de fundo
 
   desenharCasca(app);
@@ -139,7 +144,7 @@ function linhaDiscord(m, anterior, minha) {
         ${agrupa ? '' : inicial(nome)}
       </div>
       <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
-      ${minha ? menuDaMensagem(m.id) : ''}
+      ${minha || souAdmin ? menuDaMensagem(m.id, minha) : ''}
     </div>`;
 }
 
@@ -273,12 +278,12 @@ function balao(m, minha, mostrarAutor) {
 
 // Três pontos no canto da própria mensagem. O botão antigo só aparecia no
 // hover — que não existe em celular, então apagar era inacessível no aparelho.
-function menuDaMensagem(id) {
+function menuDaMensagem(id, podeEditar) {
   return `
     <div class="msg-menu">
       <button class="msg-menu-btn" data-menu="${id}" aria-label="Opções da mensagem">⋯</button>
       <div class="msg-pop" data-pop="${id}" hidden>
-        <button class="msg-pop-item" data-editar="${id}">✏️ Editar</button>
+        ${podeEditar ? `<button class="msg-pop-item" data-editar="${id}">✏️ Editar</button>` : ''}
         <button class="msg-pop-item" data-apagar="${id}">🗑 Excluir</button>
       </div>
     </div>`;
@@ -342,8 +347,12 @@ function ligarEventos(app) {
 
     const apagar = t.closest('[data-apagar]');
     if (apagar) {
+      const alheia = !apagar.closest('.dc-msg, .wa-msg')?.querySelector('[data-editar]');
       const ok = await confirmModal({
-        title: 'Apagar mensagem?', message: 'Ela some para todo mundo.',
+        title: alheia ? 'Apagar mensagem de outra pessoa?' : 'Apagar mensagem?',
+        message: alheia
+          ? 'Você está apagando como administrador. Ela some para todo mundo.'
+          : 'Ela some para todo mundo.',
         confirmText: 'Apagar', cancelText: 'Manter', danger: true,
       });
       if (!ok) return;

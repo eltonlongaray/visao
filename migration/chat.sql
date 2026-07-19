@@ -201,3 +201,22 @@ create trigger chat_edita_texto
   for each row execute function public.chat_so_edita_texto();
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════
+-- MODERAÇÃO: admin pode APAGAR, nunca editar
+-- ═══════════════════════════════════════════════════════════════
+-- Apagar conteúdo abusivo é moderação. Editar a fala de outra pessoa é pior
+-- que o problema que se quer resolver — por isso a policy de UPDATE segue
+-- restrita ao autor.
+drop policy if exists chat_apagar on public.chat_mensagens;
+create policy chat_apagar on public.chat_mensagens
+  for delete to authenticated
+  using (
+    autor_id = auth.uid()
+    or exists (
+      select 1 from public.profiles p
+      where p.user_id = auth.uid() and p.is_admin
+    )
+  );
+
+notify pgrst, 'reload schema';
