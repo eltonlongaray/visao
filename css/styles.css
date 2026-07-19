@@ -2668,16 +2668,18 @@ body.time-picker-open { overflow: hidden; }
 .belt-track {
   /* z4: a placa virou opaca, então as abas têm que passar POR CIMA dela */
   position: relative; z-index: 4;
-  display: flex; align-items: flex-end;       /* abas assentam sobre o couro */
+  display: flex; align-items: center;
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
   scrollbar-width: none; -ms-overflow-style: none;
-  padding: 34px calc(50% - 38px) 13px;        /* 34px = zona livre pra ampliar */
+  /* padding-bottom 0 + align-items center = miolo do trecho visível do couro
+     (34 -> 84), então as abas ficam com a MESMA folga em cima e embaixo. */
+  padding: 34px calc(50% - 44px) 0;
   /* Nas pontas a aba era fatiada pela borda da tela. Com a máscara ela
      dissolve no couro — o corte seco vira transição. */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 11%, #000 89%, transparent 100%);
-          mask-image: linear-gradient(90deg, transparent 0%, #000 11%, #000 89%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
   /* Só aparece depois de centralizada na aba ativa. Sem isso ela pinta em
      scrollLeft 0 — com a aba ERRADA sob a lente — e pula: era a piscada. */
   visibility: hidden;
@@ -2686,7 +2688,7 @@ body.time-picker-open { overflow: hidden; }
 .belt-track::-webkit-scrollbar { display: none; }
 
 .belt-item {
-  flex: 0 0 76px;                 /* precisa bater com ITEM_W no JS */
+  flex: 0 0 88px;                 /* precisa bater com ITEM_W no JS */
   scroll-snap-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   text-decoration: none;
@@ -2694,7 +2696,9 @@ body.time-picker-open { overflow: hidden; }
   color: #e8cd6a;
   opacity: 0.75;
   transform: scale(0.78);
-  transform-origin: bottom center;   /* cresce PRA CIMA, para dentro da placa */
+  /* centro, não base: a aba central é reposicionada pelo JS pra cair no meio
+     da placa, que não é o mesmo meio do couro. */
+  transform-origin: center;
   /* sem transition: a escala vem contínua do scroll, animar causaria atraso */
 }
 .belt-item .belt-ic { font-size: 20px; line-height: 1; }

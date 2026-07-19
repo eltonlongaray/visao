@@ -23,9 +23,10 @@ const TABS = [
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
-const ITEM_W  = 76;                  // precisa bater com o CSS (.belt-item flex-basis)
-// 76 e o maior vao em que as 5 abas cabem INTEIRAS numa tela de 375px:
-// com 92 as das pontas passavam da margem e a tela cortava.
+const ITEM_W  = 88;                  // precisa bater com o CSS (.belt-item flex-basis)
+// 88: afasta o suficiente pra "Desempenho" da aba vizinha nao encostar na
+// placa. As abas das pontas passam da tela, mas a mascara das bordas as
+// dissolve no couro em vez de deixar corte seco.
 const CICLO   = TABS.length;         // abas por volta
 const REPEATS = 21;                  // voltas renderizadas (cada render do app cria essas ancoras)
 const CENTRO  = 10;                  // volta central (meio das 21)
@@ -83,7 +84,10 @@ function fazerLente(track, items) {
       // ainda vinha ampliada (0.945) e encostava na costura do couro. Agora
       // ela repousa no tamanho pequeno e só cresce ao entrar sob a placa.
       const k = Math.max(0, 1 - d);
-      items[i].style.transform = `scale(${(0.78 + 0.54 * k).toFixed(3)})`;   // 0.78 -> 1.32
+      // Sobe a aba conforme ela entra na placa: o meio do couro (59) e o meio
+      // da placa (43,5) nao coincidem, entao ela desliza os 15,5px entre os dois.
+      const dy = (-15.5 * k).toFixed(1);
+      items[i].style.transform = `translateY(${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
       items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
       items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
     }
