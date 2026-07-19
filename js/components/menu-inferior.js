@@ -24,8 +24,10 @@ const TABS = [
   // Ícone em imagem, não emoji: é a marca da comunidade. O tamanho é fixado
   // no CSS pra a altura da aba bater com as outras — se ela crescer, essa aba
   // fica desalinhada das demais no cinturão.
+  // O ?v= é obrigatório: imagem é cache-first no service worker e sem trocar
+  // a URL o arquivo antigo fica servido pra sempre.
   { id: 'chat',       route: '#/chat',
-    ic: '<img src="img/falcao.png" alt="" class="belt-ic-img">', lbl: () => t('nav.chat') },
+    ic: '<img src="img/falcao.png?v=20260720y" alt="" class="belt-ic-img">', lbl: () => t('nav.chat') },
   { id: 'desafios',   route: '#/desafios',   ic: '🏆', lbl: () => t('nav.desafios') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];

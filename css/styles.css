@@ -2823,11 +2823,14 @@ body.time-picker-open { overflow: hidden; }
 
 /* --- conversa privada no estilo WhatsApp --- */
 /* Fundo da conversa: ladrilho de hieróglifos e runas em traço.
+   ATENÇÃO ao ?v= na URL: o service worker guarda imagem em CACHE-FIRST, e
+   sem trocar a URL o arquivo antigo é servido pra sempre. Mudou o desenho,
+   sobe esse número junto. */
    Os glifos são DESENHADOS no SVG, não escritos como texto Unicode — os
    blocos de hieróglifo egípcio dependem de fonte instalada e no Android
    viram quadradinho. */
 .chat-lista.wa-fundo {
-  background-image: url('../img/padrao-runas.svg');
+  background-image: url('../img/padrao-runas.svg?v=20260720y');
   background-size: 150px 150px;
   background-repeat: repeat;
   border-radius: 12px;
