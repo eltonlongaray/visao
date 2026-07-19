@@ -26,20 +26,26 @@ export function markPerfilDone() {
 export async function maybeInvitePerfil() {
   if (_open) return;
   if (document.querySelector('.modal-overlay, .legal-modal-overlay')) return; // não empilha com outro modal
+
+  let perfil = null;
+  try { perfil = await getProfile(); } catch { return; }
+  const temNome = !!String(perfil?.preferredName || perfil?.fullName || '').trim();
+
+  // SEM NOME: obrigatório e fora da cadência — reaparece toda vez até
+  // preencher. Se respeitasse a cadência, quem fechasse o app sem preencher
+  // ficaria uma semana sem identidade nas Conversas.
+  if (!temNome) { _show(1, true, perfil); return; }
+
+  // COM NOME: o resto (telefone, aniversário) segue opcional e com a cadência
+  // original — 1x, +7 dias, +7 dias e nunca mais.
   const s = _state();
   if (s.done) return;
-
-  // Já tem dado preenchido? → conclui e não incomoda.
-  try {
-    const p = await getProfile();
-    if (p && (p.phone || p.fullName || p.preferredName || p.birthDate)) { markPerfilDone(); return; }
-  } catch { /* segue */ }
+  if (perfil?.phone || perfil?.birthDate) { markPerfilDone(); return; }
 
   const now = Date.now();
   const stage = s.stage || 0;
-
-  if (stage === 0)      { _show(1); s.stage = 1; s.shownAt = now; _save(s); }
-  else if (stage === 1 && now - (s.shownAt || 0) >= WEEK) { _show(2); s.stage = 2; s.shownAt = now; _save(s); }
+  if (stage === 0)      { _show(1, false, perfil); s.stage = 1; s.shownAt = now; _save(s); }
+  else if (stage === 1 && now - (s.shownAt || 0) >= WEEK) { _show(2, false, perfil); s.stage = 2; s.shownAt = now; _save(s); }
   else if (stage === 2 && now - (s.shownAt || 0) >= WEEK) { _show(3); s.done = true; _save(s); }
 }
 
@@ -66,7 +72,7 @@ function _content(stage) {
     cancel: 'Agora não' };
 }
 
-function _show(stage, force = false) {
+function _show(stage, force = false, perfil = null) {
   if (_open) return;
   _open = true;
   const c = _content(stage);
@@ -94,7 +100,7 @@ function _show(stage, force = false) {
 
       <label class="input-field"><div class="input-field-label">Nome completo</div>
         <input id="pf-nome" placeholder="Seu nome completo" autocomplete="name" /></label>
-      <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a)</div>
+      <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a) <span style="color:var(--red)">*</span></div>
         <input id="pf-apelido" placeholder="Ex: Elton" autocomplete="nickname" /></label>
       <label class="input-field"><div class="input-field-label">Data de nascimento</div>
         <input id="pf-nasc" type="date" /></label>
@@ -102,19 +108,28 @@ function _show(stage, force = false) {
         <input id="pf-wpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
 
       <div class="modal-hint" style="font-size:12px;margin:8px 2px 2px">
+        <strong>*</strong> Só o nome é obrigatório — os outros campos você preenche se quiser.<br><br>
         Ao tocar em <strong>Salvar</strong>, você autoriza o uso desses dados para as finalidades acima. Nada é compartilhado com terceiros — edite ou remova quando quiser em Ajustes.
       </div>
 
       <div class="modal-hint" id="pf-err" style="color:var(--red);min-height:16px;font-size:12px"></div>
-      <div class="modal-actions" style="flex-direction:column;gap:8px">
+      <div class="modal-actions">
         <button class="btn-primary" id="pf-save" style="width:100%">Salvar</button>
-        <button class="btn-secondary" id="pf-cancel" style="width:100%">${c.cancel}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
 
+  // Preenche o que a pessoa já tinha salvo: sem isto, quem já tem nome veria
+  // os campos vazios e o botão reclamando de um dado que ela já deu.
+  if (perfil) {
+    const põe = (id, v) => { if (v) overlay.querySelector(id).value = v; };
+    põe('#pf-nome',    perfil.fullName);
+    põe('#pf-apelido', perfil.preferredName);
+    põe('#pf-nasc',    perfil.birthDate);
+    põe('#pf-wpp',     perfil.phone);
+  }
+
   const close = () => { overlay.remove(); _open = false; };
-  overlay.querySelector('#pf-cancel').onclick = close;
 
   overlay.querySelector('#pf-save').onclick = async () => {
     const full  = overlay.querySelector('#pf-nome').value.trim();
@@ -123,7 +138,13 @@ function _show(stage, force = false) {
     const phone = overlay.querySelector('#pf-wpp').value.trim();
     const err = overlay.querySelector('#pf-err');
 
-    if (!full && !nick && !birth && !phone) { err.textContent = 'Preencha ao menos um campo, ou toque em "' + c.cancel + '".'; return; }
+    // O nome é o único obrigatório: é ele que identifica a pessoa nas
+    // Conversas da comunidade. O resto continua opcional.
+    if (!nick && !full) {
+      err.textContent = 'Preencha como quer ser chamado — é o nome que a comunidade vai ver.';
+      overlay.querySelector('#pf-apelido').focus();
+      return;
+    }
 
     const btn = overlay.querySelector('#pf-save');
     btn.disabled = true; btn.textContent = 'Salvando...';
@@ -143,74 +164,4 @@ function _show(stage, force = false) {
       btn.disabled = false; btn.textContent = 'Salvar';
     }
   };
-}
-
-// ═══════════════════════════════════════════════════════════════
-// NOME OBRIGATÓRIO
-// ═══════════════════════════════════════════════════════════════
-// Com o chat da comunidade, ficar sem nome deixou de ser detalhe: a pessoa
-// aparece como um código na lista e ninguém sabe com quem está falando.
-// Este modal NÃO fecha sem preencher — é o único do app assim, e é de
-// propósito.
-//
-// Aproveita o nome que veio do login do Google como sugestão, então na
-// maioria das vezes é só confirmar.
-export async function exigirNome() {
-  if (_open) return;
-  try {
-    const p = await getProfile();
-    const jaTem = (p?.preferredName || p?.fullName || '').trim();
-    if (jaTem) return;
-  } catch { return; }   // sem conseguir ler o perfil, não atrapalha o uso
-
-  let sugestao = '';
-  try {
-    const { supabase } = await import('./config-supabase.js');
-    const { data } = await supabase.auth.getUser();
-    const meta = data?.user?.user_metadata || {};
-    sugestao = (meta.full_name || meta.name || '').trim()
-      || (data?.user?.email || '').split('@')[0];
-  } catch { /* segue sem sugestão */ }
-
-  _open = true;
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal" style="max-width:400px">
-      <div style="font-size:38px;text-align:center;margin-bottom:2px">🦅</div>
-      <div class="modal-title" style="text-align:center">Como quer ser chamado?</div>
-      <div class="modal-hint" style="margin-bottom:14px;font-size:14px;line-height:1.6">
-        É o nome que a comunidade vai ver quando você falar nas
-        <strong>Conversas</strong>. Dá pra mudar depois em Ajustes.
-      </div>
-      <label class="input-field"><div class="input-field-label">Seu nome</div>
-        <input id="nm-campo" placeholder="Ex: Elton" autocomplete="nickname"
-               maxlength="40" value="${String(sugestao).replace(/"/g, '&quot;')}" /></label>
-      <div class="modal-hint" id="nm-err" style="color:var(--red);min-height:16px;font-size:12px"></div>
-      <div class="modal-actions">
-        <button class="btn-primary" id="nm-ok" style="width:100%">Confirmar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-
-  const campo = overlay.querySelector('#nm-campo');
-  const err   = overlay.querySelector('#nm-err');
-  const btn   = overlay.querySelector('#nm-ok');
-  setTimeout(() => campo.focus(), 120);
-
-  const salvar = async () => {
-    const nome = campo.value.trim();
-    if (nome.length < 2) { err.textContent = 'Escreva pelo menos 2 letras.'; return; }
-    btn.disabled = true; btn.textContent = 'Salvando…';
-    try {
-      await setProfile({ preferredName: nome });
-      overlay.remove(); _open = false;
-      showToast(`🦅 Bem-vindo, ${nome}!`, 'success');
-    } catch (e) {
-      err.textContent = e.message || 'Não deu pra salvar. Tente de novo.';
-      btn.disabled = false; btn.textContent = 'Confirmar';
-    }
-  };
-  btn.onclick = salvar;
-  campo.addEventListener('keydown', (e) => { if (e.key === 'Enter') salvar(); });
 }
