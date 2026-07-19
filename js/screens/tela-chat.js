@@ -207,12 +207,16 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
 }
 
 function balao(m, minha, mostrarAutor) {
+  // Estilo WhatsApp: a hora vai DENTRO da bolha, no canto de baixo. Fora dela
+  // cada mensagem ganhava uma linha extra e a conversa ficava esparramada.
   return `
-    <div class="chat-msg ${minha ? 'minha' : ''}" data-id="${m.id}">
-      ${mostrarAutor && !minha ? `<div class="chat-autor">${esc(m.autor_nome || 'Falcão')}</div>` : ''}
-      <div class="chat-bolha">${esc(m.texto)}</div>
-      <div class="chat-meta">${hora(m.created_at)} · some em ${tempoRestante(m.created_at)}
-        ${minha ? `<button class="chat-apagar" data-apagar="${m.id}">apagar</button>` : ''}</div>
+    <div class="wa-msg ${minha ? 'minha' : ''}" data-id="${m.id}">
+      <div class="wa-bolha">
+        ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
+        <span class="wa-txt">${esc(m.texto)}</span>
+        <span class="wa-hora">${hora(m.created_at)} · ${tempoRestante(m.created_at)}
+          ${minha ? `<button class="chat-apagar" data-apagar="${m.id}">apagar</button>` : ''}</span>
+      </div>
     </div>`;
 }
 
