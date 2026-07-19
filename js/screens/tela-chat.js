@@ -196,13 +196,19 @@ async function desenharConversa(corpo) {
 // BLOCO 6: HELPERS
 // ═══════════════════════════════════════════════════════════════
 function pintar(corpo, lista, placeholder, cabecalho = '') {
-  corpo.innerHTML = `
+  // Com cabeçalho = conversa aberta, e aí ela toma a TELA INTEIRA como no
+  // WhatsApp: título e abas do app somem, cabeçalho no topo, mensagens
+  // ocupando o meio e o campo colado no rodapé. Presa embaixo das abas ela
+  // ficava com um terço da altura e não parecia uma conversa.
+  const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <form class="chat-envio" id="chat-envio">
       <input id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000" autocomplete="off" />
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>`;
+
+  corpo.innerHTML = cabecalho ? `<div class="chat-cheia">${corpoHtml}</div>` : corpoHtml;
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
 }
