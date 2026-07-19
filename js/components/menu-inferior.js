@@ -57,6 +57,7 @@ export function bottomNav(active) {
       </div>
       <div class="belt-bump" aria-hidden="true"></div>
       <div class="belt-lens" aria-hidden="true"></div>
+      <div class="belt-lens-frame" aria-hidden="true"></div>
     </nav>
   `;
 }
@@ -98,7 +99,7 @@ function fazerLente(track, items) {
       // so a aparencia se comprime nas pontas. 28px e o que faz caber o NOME
       // inteiro das distantes dentro da tela, nao so o icone.
       const dx = (-Math.sign(i - pos) * 28 * Math.min(1, Math.max(0, d - 1))).toFixed(1);
-      items[i].style.transform = `translate(${dx}px, ${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
+      items[i].style.transform = `translate(${dx}px, ${dy}px) scale(${(0.78 + 0.42 * k).toFixed(3)})`;
       items[i].querySelector('.belt-lbl').style.opacity = '';   // nome em todas as abas
       items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
       items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
