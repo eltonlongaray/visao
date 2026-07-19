@@ -2715,10 +2715,11 @@ body.time-picker-open { overflow: hidden; }
   left: 50%; transform: translateX(-50%);
   /* Folga UNIFORME de 7px: lateral (126-112)/2, vertical (9-2) e — a parte
      que faltava — o raio, que precisa ser o da placa + 7. Com raio menor que
-     isso a curva de fora deixa de ser paralela e os cantos abrem. */
+     isso a curva de fora deixa de ser paralela e os cantos abrem.
+     Placa passou pra 15 nos quatro cantos, então aqui vira 22. */
   top: 2px; height: 33px;
   width: 126px;
-  border-radius: 33px 33px 0 0;
+  border-radius: 22px 22px 0 0;
   border: 1px solid rgba(214,175,55,0.55);
   border-bottom: none;
   background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
@@ -2732,7 +2733,8 @@ body.time-picker-open { overflow: hidden; }
   left: 50%; transform: translateX(-50%);
   top: 9px; bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   width: 112px;
-  border-radius: 26px 26px 15px 15px;
+  /* topo com o MESMO raio da base: os quatro cantos em 15px */
+  border-radius: 15px;
   border: 2px solid #e8cd6a;
   /* fundo preto: mantém o degradê sutil pro friso e o brilho do topo ainda
      terem em que se apoiar — preto chapado mataria o reflexo. */
@@ -2746,14 +2748,14 @@ body.time-picker-open { overflow: hidden; }
 /* friso interno dourado — o detalhe que dá cara de placa de campeão */
 .belt-lens::before {
   content: ''; position: absolute; inset: 4px;
-  border-radius: 22px 22px 11px 11px;
+  border-radius: 11px;
   border: 1px solid rgba(232,205,106,0.42);
   box-shadow: inset 0 1px 0 rgba(253,243,189,0.18);
 }
 /* brilho de luz batendo no topo da placa */
 .belt-lens::after {
   content: ''; position: absolute; left: 12px; right: 12px; top: 3px; height: 22px;
-  border-radius: 26px 26px 50% 50%;
+  border-radius: 13px 13px 50% 50%;
   background: linear-gradient(180deg, rgba(253,243,189,0.20), transparent);
 }
 
