@@ -91,7 +91,13 @@ function fazerLente(track, items) {
       // e o meio da placa e 43,5. A aba desce 6,5px quando esta no couro e
       // sobe pros 43,5 conforme entra na placa.
       const dy = (6.5 - 15.5 * k).toFixed(1);
-      items[i].style.transform = `translateY(${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
+      // As abas distantes sao PUXADAS pra dentro. Diminuir o vao de verdade
+      // nao dava: ele precisa ser grande pro "Desempenho" da vizinha nao
+      // encostar na placa. Como o transform nao mexe no layout, a rolagem
+      // continua com o vao uniforme que o encaixe e o teleporte precisam —
+      // so a aparencia se comprime nas pontas.
+      const dx = (-Math.sign(i - pos) * 20 * Math.min(1, Math.max(0, d - 1))).toFixed(1);
+      items[i].style.transform = `translate(${dx}px, ${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
       // O rotulo some nas abas distantes: so o icone sobra, e ai nada e
       // fatiado pela borda da tela mesmo com o vao maior.
       items[i].querySelector('.belt-lbl').style.opacity =
