@@ -5090,7 +5090,9 @@ body.tour-active { overflow: hidden; }
 /* Wrapper — flutua acima do bottom nav */
 #visao-pet {
   position: fixed;
-  bottom: 78px;
+  /* 150px: o padrão 78 sobrepunha 28px do botão de enviar do chat.
+     O JS reposiciona a partir do que o usuário arrastar. */
+  bottom: 150px;
   right: 14px;
   z-index: 9000;
   display: flex;
@@ -5099,6 +5101,10 @@ body.tour-active { overflow: hidden; }
   gap: 10px;
   pointer-events: none;
   transition: opacity 0.2s, transform 0.2s;
+}
+#visao-pet.pet-arrastando .pet-body {
+  transform: scale(1.15);
+  box-shadow: 0 6px 22px rgba(124,58,237,0.55), 0 0 0 3px rgba(167,139,250,0.35);
 }
 #visao-pet.pet-hidden { opacity: 0; pointer-events: none !important; transform: scale(0.8); }
 
