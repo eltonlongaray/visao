@@ -15,14 +15,15 @@ import { t } from '../idioma.js';
 import { playClick } from '../sons.js';
 
 const TABS = [
+  // A ORDEM IMPORTA. Com 6 abas e 5 visíveis, a que some é sempre a que está
+  // 3 posições da central. O chat fica exatamente a 3 da Home, então na Home
+  // ele é o invisível — só entra quando o usuário gira o cinturão.
   { id: 'home',       route: '#/home',       ic: '🏠', lbl: () => t('nav.home') },
   { id: 'ritual',     route: '#/ritual',     ic: '🔮', lbl: () => t('nav.ritual') },
   { id: 'desempenho', route: '#/desempenho', ic: '📊', lbl: () => t('nav.desempenho') },
+  { id: 'chat',       route: '#/chat',       ic: '💬', lbl: () => t('nav.chat') },
   { id: 'desafios',   route: '#/desafios',   ic: '🏆', lbl: () => t('nav.desafios') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
-  // 6ª aba: com 5 visíveis por vez, ela nasce fora da tela e entra conforme
-  // o usuário gira o cinturão — foi assim que combinamos.
-  { id: 'chat',       route: '#/chat',       ic: '💬', lbl: () => t('nav.chat') },
 ];
 
 const ITEM_W  = 88;                  // precisa bater com o CSS (.belt-item flex-basis)
