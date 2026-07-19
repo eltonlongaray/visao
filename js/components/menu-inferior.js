@@ -91,17 +91,15 @@ function fazerLente(track, items) {
       // e o meio da placa e 43,5. A aba desce 6,5px quando esta no couro e
       // sobe pros 43,5 conforme entra na placa.
       const dy = (6.5 - 15.5 * k).toFixed(1);
-      // As abas distantes sao PUXADAS pra dentro. Diminuir o vao de verdade
-      // nao dava: ele precisa ser grande pro "Desempenho" da vizinha nao
-      // encostar na placa. Como o transform nao mexe no layout, a rolagem
+      // As abas distantes sao PUXADAS 28px pra dentro. Diminuir o vao de
+      // verdade nao dava: ele precisa ser grande pro "Desempenho" da vizinha
+      // nao encostar na placa. Como o transform nao mexe no layout, a rolagem
       // continua com o vao uniforme que o encaixe e o teleporte precisam —
-      // so a aparencia se comprime nas pontas.
-      const dx = (-Math.sign(i - pos) * 20 * Math.min(1, Math.max(0, d - 1))).toFixed(1);
+      // so a aparencia se comprime nas pontas. 28px e o que faz caber o NOME
+      // inteiro das distantes dentro da tela, nao so o icone.
+      const dx = (-Math.sign(i - pos) * 28 * Math.min(1, Math.max(0, d - 1))).toFixed(1);
       items[i].style.transform = `translate(${dx}px, ${dy}px) scale(${(0.78 + 0.54 * k).toFixed(3)})`;
-      // O rotulo some nas abas distantes: so o icone sobra, e ai nada e
-      // fatiado pela borda da tela mesmo com o vao maior.
-      items[i].querySelector('.belt-lbl').style.opacity =
-        Math.min(1, Math.max(0, (1.6 - d) / 0.6)).toFixed(2);
+      items[i].querySelector('.belt-lbl').style.opacity = '';   // nome em todas as abas
       items[i].style.opacity   = (0.75 + 0.25 * k).toFixed(3);      // vizinhas bem mais legiveis
       items[i].style.filter    = `grayscale(${((1 - k) * 0.20).toFixed(2)}) brightness(${(0.93 + 0.07 * k).toFixed(2)})`;
     }
