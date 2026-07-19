@@ -1,9 +1,8 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // BLOCO 1 — IMPORTS + ABAS + CONSTANTES
-// BLOCO 2 — RENDER — cinturão de campeão com lente fixa
+// BLOCO 2 — CINTURÃO PERMANENTE — vive no body, sobrevive à troca de tela
 // BLOCO 3 — LENTE — magnificação contínua por proximidade do centro
 // BLOCO 4 — ROLAGEM INFINITA — teleporte por ciclos, som, navegação
-// BLOCO 5 — AUTO-WIRE — liga sozinho a cada render de tela
 // ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS + ABAS + CONSTANTES
@@ -35,12 +34,46 @@ const CENTRO  = 10;                  // volta central (meio das 21)
 const ESPERAS = [0, 0, 0, 32, 120, 400];
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: RENDER
+// BLOCO 2: CINTURÃO PERMANENTE
 // ═══════════════════════════════════════════════════════════════
+// O cinturão NÃO faz mais parte do HTML das telas: ele mora direto no body e
+// sobrevive à troca de tela. Antes ele era recriado a cada render, então
+// sumia junto com a tela durante o carregamento — e ainda custava 315 nós de
+// DOM por navegação.
+//
+// A assinatura continua a mesma e devolve string vazia, então nenhuma tela
+// precisou ser alterada: `${bottomNav('home')}` simplesmente não injeta nada.
+let cinturao = null;   // o <nav> permanente
+let controle = null;   // API devolvida pelo wireBelt
+
 export function bottomNav(active) {
-  ensureWiring();
+  if (typeof document === 'undefined') return '';
   const idxAtivo = Math.max(0, TABS.findIndex(x => x.id === active));
 
+  if (!cinturao || !document.contains(cinturao)) {
+    const molde = document.createElement('div');
+    molde.innerHTML = markupCinturao(active, idxAtivo);
+    cinturao = molde.firstElementChild;
+    (document.body || document.documentElement).appendChild(cinturao);
+    controle = wireBelt(cinturao.querySelector('.belt-track'));
+  }
+
+  cinturao.dataset.active = active;
+  controle?.irPara(idxAtivo);      // rola até a aba nova, animado
+  mostrarConformeRota();
+  return '';
+}
+
+// Como o cinturão agora é permanente, ele ficaria visível em telas que NÃO o
+// pedem (login, cadastro, termos). Some fora das rotas de aba.
+function mostrarConformeRota() {
+  if (!cinturao) return;
+  const rota = '#' + (location.hash || '#/login').slice(1).split('?')[0];
+  cinturao.style.display = TABS.some(t => t.route === rota) ? '' : 'none';
+}
+if (typeof window !== 'undefined') window.addEventListener('hashchange', mostrarConformeRota);
+
+function markupCinturao(active, idxAtivo) {
   let itens = '';
   for (let volta = 0; volta < REPEATS; volta++) {
     for (const tab of TABS) {
@@ -49,7 +82,6 @@ export function bottomNav(active) {
                `<span class="belt-lbl">${tab.lbl()}</span></a>`;
     }
   }
-
   return `
     <nav class="bottom-nav belt" data-active="${active}" data-idx="${idxAtivo}">
       <div class="belt-strap">
@@ -170,6 +202,45 @@ function wireBelt(track) {
   };
   tentar(0);
 
+  // Conduz a fita até `alvo` com desaceleração no fim. Não uso
+  // scrollTo({behavior:'smooth'}) porque há engines em que ele simplesmente
+  // não anima — e aí o cinturão saltava em vez de rolar.
+  const rolarAte = (alvo) => {
+    const inicio = track.scrollLeft;
+    if (Math.abs(alvo - inicio) < 2) return;
+    const t0 = (performance.now ? performance.now() : Date.now());
+    const DUR = 420;
+    let rodou = false;
+    const passo = (agora) => {
+      rodou = true;
+      const t = Math.min(1, ((agora || Date.now()) - t0) / DUR);
+      track.scrollLeft = inicio + (alvo - inicio) * (1 - Math.pow(1 - t, 3));
+      if (t < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+    // Rede: se requestAnimationFrame estiver suspenso (webview em segundo
+    // plano), põe a fita no lugar em vez de deixá-la parada no meio.
+    setTimeout(() => setTimeout(() => { if (!rodou) track.scrollLeft = alvo; }, 0), 0);
+  };
+
+  // Leva a aba `idxTab` ao centro rolando. Escolhe a volta mais próxima da
+  // posição atual pra fita girar o mínimo possível.
+  const irPara = (idxTab) => {
+    const voltaMaisPerto = Math.round((track.scrollLeft / ITEM_W - idxTab) / CICLO) * CICLO + idxTab;
+    rolarAte(posDe(voltaMaisPerto));
+  };
+
+  // Tocar numa aba não navega na hora: conduz o cinturão até ela e a
+  // navegação sai do fim da rolagem (o settle abaixo).
+  track.addEventListener('click', (ev) => {
+    const alvo = ev.target.closest?.('.belt-item');
+    if (!alvo) return;
+    const i = items.indexOf(alvo);
+    if (i < 0 || Math.abs(track.scrollLeft - posDe(i)) < 2) return;
+    ev.preventDefault();
+    rolarAte(posDe(i));
+  }, true);
+
   let parada;
   track.addEventListener('scroll', () => {
     if (teleportando) return;
@@ -187,41 +258,6 @@ function wireBelt(track) {
       if (destino && location.hash !== destino) location.hash = destino;
     }, 220);
   }, { passive: true });
-}
 
-// ═══════════════════════════════════════════════════════════════
-// BLOCO 5: AUTO-WIRE
-// ═══════════════════════════════════════════════════════════════
-// As telas montam o nav via string HTML, então não há hook de "montou".
-// Um observer único liga qualquer cinturão novo que apareça no DOM —
-// evita ter que alterar as 5+ telas que chamam bottomNav().
-let observando = false;
-
-function varrer() {
-  document.querySelectorAll('.belt-track:not([data-ready])').forEach(wireBelt);
-}
-// Sem guard de "ja agendado": ele podia engolir a varredura de um render que
-// chegasse junto de outro, e o cinturao ficava sem ligar. O custo e um
-// querySelectorAll por render — barato perto de perder a navegacao.
-function agendarVarredura() { setTimeout(varrer, 0); }
-
-function ensureWiring() {
-  if (typeof document === 'undefined') return;
-
-  // Caminho rápido: a tela insere o HTML de forma SÍNCRONA logo depois de
-  // chamar bottomNav(), então um macrotask já acha o elemento no DOM.
-  // É por aqui que o cinturão liga, em ~10ms.
-  agendarVarredura();
-  setTimeout(varrer, 0);    // 2ª passada, caso a inserção tenha sido adiada
-
-  // MutationObserver como rede de segurança — ele é rápido (~1ms), o que
-  // custava caro era a escada de retentativas, não ele.
-  if (observando) return;
-  observando = true;
-  const iniciar = () => {
-    new MutationObserver(agendarVarredura).observe(document.body, { childList: true, subtree: true });
-    varrer();
-  };
-  if (document.body) iniciar();
-  else document.addEventListener('DOMContentLoaded', iniciar, { once: true });
+  return { irPara };
 }
