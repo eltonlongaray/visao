@@ -21,7 +21,7 @@ export default {
   'nav.ritual':     'Ritual',
   'nav.desempenho': 'Desempenho',
   'nav.desafios':   'Desafios',
-  'nav.chat':      'Conversas',
+  'nav.chat':      'Falcon Hunters',
   'nav.ajustes':    'Ajustes',
   'desafios.sub':   'Encare um desafio com a comunidade 🦅',
   'desafios.empty': 'Nenhum desafio ativo agora. Logo tem novidade! 🦅',
