@@ -2714,6 +2714,32 @@ body.time-picker-open { overflow: hidden; }
   background: linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top 0 / 100% 84px no-repeat;
   box-shadow: 0 -6px 18px rgba(0,0,0,0.42), inset 0 1px 0 rgba(246,226,122,0.20);
 }
+/* CONCORDÂNCIA — onde a lateral da fivela desce e encontra a reta do cinto
+   havia uma quina de 90°. Aqui entra um quarto de círculo que abre em direção
+   ao cinto, transformando o encontro numa curva.
+
+   Tudo num gradiente radial só: vazio no miolo, o traço dourado no raio exato
+   e couro para fora. Tentei antes com máscara + círculo de borda, mas a
+   máscara cortava o traço na metade da espessura e ele sumia. */
+.belt-fillet {
+  position: absolute; z-index: 2; pointer-events: none;
+  top: 20px; width: 14px; height: 14px;
+}
+.belt-fillet.f-esq {
+  left: calc(50% - 77px);
+  background: radial-gradient(circle 30px at 0 0,
+    transparent 0 13.2px,
+    rgba(226,190,90,0.60) 13.2px 14.4px,
+    #33231a 14.4px);
+}
+.belt-fillet.f-dir {
+  left: calc(50% + 63px);
+  background: radial-gradient(circle 30px at 100% 0,
+    transparent 0 13.2px,
+    rgba(226,190,90,0.60) 13.2px 14.4px,
+    #33231a 14.4px);
+}
+
 /* A PLACA — parada no centro, SÓLIDA (nunca transparente), no tom do cinturão */
 .belt-lens {
   position: absolute; z-index: 3; pointer-events: none;
