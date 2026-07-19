@@ -23,16 +23,10 @@ const TABS = [
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
-// Números MEDIDOS na img/cinturao.png (600x224, janelas achadas por
-// varredura do canal alfa). Se a imagem trocar, remedir estes valores.
-const IMG_PROP     = 600 / 224;   // proporção da moldura
-const VAO_JANELAS  = 0.28625;     // distância entre janelas, em fração da largura
-const JANELA_Y     = 0.478;       // altura do centro das janelas
-const ALT_MIN = 96, ALT_MAX = 120;
+const ITEM_W  = 92;                  // precisa bater com o CSS (.belt-item flex-basis)
 const CICLO   = TABS.length;         // abas por volta
 const REPEATS = 21;                  // voltas renderizadas (cada render do app cria essas ancoras)
 const CENTRO  = 10;                  // volta central (meio das 21)
-
 // Degraus iniciais em 0ms de proposito: alguns webviews clampam qualquer
 // setTimeout nao-zero para ~1s, e a escada virava 1s de aba sumida.
 const ESPERAS = [0, 0, 0, 32, 120, 400];
@@ -56,12 +50,10 @@ export function bottomNav(active) {
   return `
     <nav class="bottom-nav belt" data-active="${active}" data-idx="${idxAtivo}">
       <div class="belt-strap">
-        <span class="belt-screen s-esq" aria-hidden="true"></span>
-        <span class="belt-screen s-cen" aria-hidden="true"></span>
-        <span class="belt-screen s-dir" aria-hidden="true"></span>
         <div class="belt-track">${itens}</div>
       </div>
-      <div class="belt-frame" aria-hidden="true"></div>
+      <div class="belt-bump" aria-hidden="true"></div>
+      <div class="belt-lens" aria-hidden="true"></div>
     </nav>
   `;
 }
@@ -72,28 +64,23 @@ export function bottomNav(active) {
 // A escala varia de forma contínua com a distância até o centro — é isso
 // que dá a sensação de lente de aumento em vez de "item selecionado".
 // Só mexe na janela ao redor do centro: são centenas de itens no DOM.
-function fazerLente(track, items, iw) {
+function fazerLente(track, items) {
   let janela = [];
   return () => {
-    const pos = track.scrollLeft / iw;
+    const pos = track.scrollLeft / ITEM_W;          // índice fracionário sob a lente
     const c   = Math.round(pos);
     const nova = [];
-    for (let i = Math.max(0, c - 2); i <= Math.min(items.length - 1, c + 2); i++) nova.push(i);
+    for (let i = Math.max(0, c - 3); i <= Math.min(items.length - 1, c + 3); i++) nova.push(i);
 
     for (const i of janela) {
-      if (nova.indexOf(i) === -1) {
-        items[i].style.transform = ''; items[i].style.opacity = '';
-        items[i].querySelector('.belt-lbl').style.opacity = '';
-      }
+      if (nova.indexOf(i) === -1) { items[i].style.transform = ''; items[i].style.opacity = ''; items[i].style.filter = ''; }
     }
     for (const i of nova) {
       const d = Math.abs(i - pos);
-      const k = Math.max(0, 1 - d);                 // 1 na janela central, 0 na lateral
-      items[i].style.transform = `scale(${(0.62 + 0.38 * k).toFixed(3)})`;
-      items[i].style.opacity   = (0.7 + 0.3 * k).toFixed(3);
-      // Janela lateral é estreita: só o ícone cabe. O nome aparece conforme
-      // a aba entra na janela do meio.
-      items[i].querySelector('.belt-lbl').style.opacity = Math.max(0, (k - 0.45) / 0.55).toFixed(2);
+      const k = Math.max(0, 1 - d / 1.6);           // 1 sob a lente, 0 fora dela
+      items[i].style.transform = `scale(${(0.78 + 0.54 * k).toFixed(3)})`;   // contraste forte: 0.78 -> 1.32
+      items[i].style.opacity   = (0.5 + 0.5 * k).toFixed(3);
+      items[i].style.filter    = `grayscale(${((1 - k) * 0.5).toFixed(2)}) brightness(${(0.82 + 0.18 * k).toFixed(2)})`;
     }
     janela = nova;
   };
@@ -109,40 +96,29 @@ function wireBelt(track) {
   if (!items.length) return;
 
   const idxAtivo = parseInt(nav?.dataset.idx || '0', 10) || 0;
+  const cicloPx  = CICLO * ITEM_W;
+  const MIN_SEG  = 3 * cicloPx;                    // janela segura antes do teleporte
+  const MAX_SEG  = (REPEATS - 3) * cicloPx;
+
+  // Com padding lateral de (metade da fita − metade do item), centralizar o
+  // item i vira exatamente scrollLeft = i * ITEM_W.
+  const posDe = (i) => i * ITEM_W;
 
   let travado    = true;      // posicionamento inicial não soa nem navega
   let teleportando = false;
   let atual      = CENTRO * CICLO + idxAtivo;
-  let iw = 0;
-  let pintarLente = () => {};
 
-  // A moldura é imagem: a nav toma a proporção dela, e o vão entre as abas
-  // tem que ser exatamente o vão entre as janelas, senão a aba para torta.
-  const dimensionar = () => {
-    const W = Math.round(nav.getBoundingClientRect().width);
-    if (!W) return false;
-    const H = Math.round(Math.max(ALT_MIN, Math.min(ALT_MAX, W / IMG_PROP)));
-    iw = Math.round(W * VAO_JANELAS);
-    nav.style.height = H + 'px';
-    // publica pro CSS: as telas reservam essa folga no rodapé
-    document.documentElement.style.setProperty('--nav-h', H + 'px');
-    track.style.setProperty('--belt-item-w', iw + 'px');
-    track.style.setProperty('--belt-item-y', Math.round(H * JANELA_Y) + 'px');
-    pintarLente = fazerLente(track, items, iw);
-    return true;
-  };
-  const posDe = (i) => i * iw;
+  const pintarLente = fazerLente(track, items);
 
   const talvezTeleportar = () => {
-    if (teleportando || !iw) return;
-    const cicloPx = CICLO * iw, MIN_SEG = 3 * cicloPx, MAX_SEG = (REPEATS - 3) * cicloPx;
+    if (teleportando) return;
     const sl = track.scrollLeft;
     if (sl >= MIN_SEG && sl < MAX_SEG) return;
     teleportando = true;
     const dentroDoCiclo = ((sl % cicloPx) + cicloPx) % cicloPx;
     const novo = CENTRO * cicloPx + dentroDoCiclo;
     track.scrollLeft = novo;
-    atual = Math.round(novo / iw);                  // salto invisível não é clique
+    atual = Math.round(novo / ITEM_W);              // salto invisível não é clique
     setTimeout(() => { teleportando = false; }, 0);
   };
 
@@ -157,7 +133,7 @@ function wireBelt(track) {
     // leitura no mesmo tick é furado: scrollLeft costuma devolver o valor
     // ANTIGO até o layout seguinte, então a checagem nunca passava e a escada
     // ia até o fim — ~1s de aba sumida a cada troca de tela.
-    if (track.clientWidth > 0 && dimensionar() && track.scrollWidth > track.clientWidth) {
+    if (track.clientWidth > 0 && track.scrollWidth > track.clientWidth) {
       const alvo = posDe(atual);
       track.scrollLeft = alvo;
       revelar();
@@ -168,15 +144,15 @@ function wireBelt(track) {
       return;
     }
     if (i < ESPERAS.length) setTimeout(() => tentar(i + 1), ESPERAS[i]);
-    else { dimensionar(); revelar(); }   // desiste de centralizar, mas nunca some
+    else revelar();   // desiste da centralização, mas nunca deixa a fita sumida
   };
   tentar(0);
 
   let parada;
   track.addEventListener('scroll', () => {
-    if (teleportando || !iw) return;
+    if (teleportando) return;
     pintarLente();
-    const i = Math.round(track.scrollLeft / iw);
+    const i = Math.round(track.scrollLeft / ITEM_W);
     if (i !== atual) {
       atual = i;
       if (!travado) playClick();                    // um clique por trava do tambor
@@ -189,16 +165,6 @@ function wireBelt(track) {
       if (destino && location.hash !== destino) location.hash = destino;
     }, 220);
   }, { passive: true });
-
-  // Girar o aparelho muda a largura — proporção e vão precisam refazer.
-  let redim;
-  window.addEventListener('resize', () => {
-    clearTimeout(redim);
-    redim = setTimeout(() => {
-      if (!document.contains(track)) return;
-      if (dimensionar()) { track.scrollLeft = posDe(atual); pintarLente(); }
-    }, 150);
-  });
 }
 
 // ═══════════════════════════════════════════════════════════════

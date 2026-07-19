@@ -501,7 +501,7 @@ function _esqueletoRitual() {
   const dias = Array.from({ length: 6 }, (_, i) =>
     `<div class="sk" style="height:58px;margin-bottom:10px;border-radius:14px;opacity:${(1 - i * 0.13).toFixed(2)}"></div>`
   ).join('');
-  return `<div style="padding:16px 16px calc(var(--nav-h, 120px) + 18px)">
+  return `<div style="padding:16px 16px 120px">
     <div class="sk" style="height:26px;width:78px;margin:10px auto 18px"></div>
     <div class="sk" style="height:88px;margin-bottom:18px;border-radius:16px"></div>
     ${dias}
