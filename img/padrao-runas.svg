@@ -3,7 +3,8 @@
        Desenhado em traço, não em texto: hieróglifo egípcio Unicode depende de
        fonte instalada e no Android costuma virar quadradinho.
        Formas ANGULARES de propósito — os glifos curvos (onda, pena, disco
-       alado, escaravelho) liam como clipes de papel e foram substituídos. -->
+       alado, escaravelho) liam como clipes de papel e foram substituídos.
+       O obelisco também saiu: no ladrilho ele lia como um clipe em pé. -->
   <g fill="none" stroke="#ffffff" stroke-opacity="0.055" stroke-width="1.6"
      stroke-linecap="round" stroke-linejoin="round">
 
@@ -65,9 +66,9 @@
       <path d="M0 -7 L12 7 M0 7 L12 -7 M0 -7 V7 M12 -7 V7"/>
     </g>
 
-    <!-- obelisco -->
-    <g transform="translate(116,120)">
-      <path d="M-4 12 V-6 L0 -12 L4 -6 V12 Z"/>
+    <!-- estrela seba -->
+    <g transform="translate(116,122)">
+      <path d="M 0 -9 L 2.2 -3 L 8.6 -2.8 L 3.5 1.1 L 5.3 7.3 L 0 3.7 L -5.3 7.3 L -3.5 1.1 L -8.6 -2.8 L -2.2 -3 Z"/>
     </g>
   </g>
 </svg>
