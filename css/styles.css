@@ -2849,10 +2849,14 @@ body.time-picker-open { overflow: hidden; }
   padding: 7px 11px 6px;
   display: flex; flex-direction: column;
 }
+/* Balão OPACO: com fundo semitransparente os hieróglifos apareciam por
+   trás do texto e atrapalhavam a leitura. Este é o tom sólido equivalente
+   ao roxo que estava sendo misturado. */
 .wa-msg.minha .wa-bolha {
-  background: rgba(167,139,250,0.18); border-color: rgba(167,139,250,0.32);
+  background: #302f53; border-color: rgba(167,139,250,0.42);
   border-radius: 12px 12px 3px 12px;
 }
+:root[data-theme="light"] .wa-msg.minha .wa-bolha { background: #e7dfed; }
 .wa-autor { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .wa-txt {
   font-size: 14.5px; line-height: 1.42; color: var(--text);
