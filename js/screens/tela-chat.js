@@ -246,13 +246,17 @@ function avatar(id, nome, classe) {
   const cor = corDe(id);
   if (!foto) return `<span class="${classe}" style="background:${cor}22;color:${cor}">${inicial(nome)}</span>`;
   const alt = `<span class=&quot;${classe}&quot; style=&quot;background:${cor}22;color:${cor}&quot;>${inicial(nome)}</span>`;
-  // referrerpolicy="no-referrer" NÃO é enfeite: o lh3.googleusercontent.com
-  // devolve 403 para a foto de perfil quando a requisição vem com Referer de
-  // outro site. A imagem falhava, o onerror trocava pela inicial colorida e o
-  // sintoma virava "a foto não aparece" — parecendo dado ausente, não erro
-  // de rede. Sem referrer, o Google serve normalmente.
-  return `<img class="${classe} tem-foto" src="${esc(foto)}" alt="" loading="lazy"
-    referrerpolicy="no-referrer"
+  // SEM loading="lazy". Medido no navegador com a URL real: com lazy a
+  // imagem fica "pendente" para sempre (currentSrc vazio, complete=false,
+  // e NENHUM erro — por isso o sintoma parecia dado ausente); sem lazy ela
+  // carrega. O avatar tem ~4 KB e está sempre visível, então adiar não
+  // economizava nada. Some com a lista sendo reescrita a cada 12s: o
+  // elemento era descartado antes de o navegador decidir buscá-lo.
+  //
+  // referrerpolicy fica por precaução — não era a causa (o Google devolve
+  // 200 com e sem Referer, verificado), mas não custa nada.
+  return `<img class="${classe} tem-foto" src="${esc(foto)}" alt=""
+    referrerpolicy="no-referrer" decoding="async"
     onerror="this.outerHTML='${alt.replace(/'/g, "&#39;")}'" />`;
 }
 
