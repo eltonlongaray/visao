@@ -2812,19 +2812,27 @@ body.time-picker-open { overflow: hidden; }
 #chat-corpo > .chat-convs, #chat-corpo > .chat-busca { flex-shrink: 0; }
 .chat-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .chat-titulo-conv { font-size: 14px; font-weight: 700; color: var(--text); }
-/* Era um ‹ de 13px sem fundo: ninguém achava que dava pra voltar ali.
-   Agora é seta cheia em área de toque de 40px, com fundo próprio. */
+/* Seta desenhada em SVG, não em texto: o glifo ← muda de espessura e de
+   tamanho conforme a fonte do aparelho, e ficava fino demais. Sem círculo —
+   a área de toque de 42px continua lá, só não é pintada. */
 .chat-voltar {
-  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
-  background: var(--card-2); border: 1px solid var(--border);
-  color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
+  flex: 0 0 42px; width: 42px; height: 42px;
+  background: none; border: none; border-radius: 50%;
+  color: var(--text); cursor: pointer;
   display: grid; place-items: center; padding: 0; font-family: inherit;
-  margin-right: 2px;
+  margin-left: -6px;   /* encosta na margem, como no WhatsApp */
 }
-.chat-voltar:active { background: rgba(255,255,255,0.12); }
+.chat-voltar:active { background: rgba(255,255,255,0.10); }
 .chat-lista {
   display: flex; flex-direction: column; gap: 5px;
-  max-height: 52vh; overflow-y: auto; padding: 4px 2px 10px;
+  max-height: 52vh; overflow-y: auto;
+  /* A lista ocupa a largura TODA e carrega ela mesma o respiro lateral. Com
+     o padding no container, a faixa de seleção era cortada antes da borda —
+     'overflow-y:auto' obriga o eixo X a recortar junto, e o corte acontece
+     no limite do padding da lista, não do container. */
+  --sangria: 16px;
+  margin-left: calc(-1 * var(--sangria)); margin-right: calc(-1 * var(--sangria));
+  padding: 4px var(--sangria) 10px;
 }
 /* Conversa aberta = tela cheia até o cinturão, como no WhatsApp. */
 .chat-cheia {
@@ -2838,7 +2846,9 @@ body.time-picker-open { overflow: hidden; }
   flex-shrink: 0; padding-bottom: 10px;
   border-bottom: 1px solid var(--border); margin-bottom: 8px;
 }
-.chat-cheia .chat-lista { flex: 1; max-height: none; min-height: 0; }
+.chat-cheia .chat-lista { flex: 1; max-height: none; min-height: 0; --sangria: 12px; }
+/* de ponta a ponta, o canto arredondado do fundo não teria onde aparecer */
+.chat-cheia .chat-lista.wa-fundo { border-radius: 0; }
 .chat-cheia .chat-envio { flex-shrink: 0; padding-bottom: 10px; }
 
 /* --- menu de opções da mensagem (⋯) ---
@@ -2856,11 +2866,22 @@ body.time-picker-open { overflow: hidden; }
 /* o texto do campo de escrita segue selecionável normalmente */
 .chat-envio textarea { -webkit-user-select: text; user-select: text; }
 
-.dc-msg.msg-sel, .wa-msg.msg-sel {
-  background: rgba(234,179,8,0.16);
-  box-shadow: 0 0 0 1px rgba(234,179,8,0.35) inset;
-  border-radius: 10px;
+/* A faixa de seleção vai de borda a borda da tela, como no WhatsApp. Ela é
+   um ::before que ESTOURA a lista pelos dois lados usando a mesma medida que
+   a lista usa de sangria — por isso --sangria é variável e não número solto:
+   o mural fica dentro de um padding de 16px e a conversa de 12px. */
+.dc-msg.msg-sel::before, .wa-msg.msg-sel::before {
+  content: '';
+  /* z-index 0 na faixa e 1 no conteúdo, em vez de -1 na faixa: com valor
+     negativo ela é pintada ATRÁS do fundo de qualquer ancestral que tenha um
+     — o ladrilho de hieróglifos da conversa, por exemplo — e sumiria lá. */
+  position: absolute; z-index: 0;
+  top: -3px; bottom: -3px;
+  left: calc(-1 * var(--sangria, 16px));
+  right: calc(-1 * var(--sangria, 16px));
+  background: rgba(234,179,8,0.18);
 }
+.dc-msg.msg-sel > *, .wa-msg.msg-sel > * { position: relative; z-index: 1; }
 
 .chat-selbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 90;
@@ -2959,9 +2980,27 @@ body.time-picker-open { overflow: hidden; }
 /* textarea, e não input: no input o Enter submete o form e o usuário não
    consegue quebrar linha. Aqui o Enter é quebra de linha nativa e o envio
    sai só pelo ➤ (ou Ctrl/⌘+Enter). A altura é calculada no JS. */
+/* A pílula é o CONTÊINER agora — a borda e o fundo saíram da textarea e
+   vieram pra cá, senão o botão de emoji ficaria fora do campo em vez de
+   dentro dele, como é no WhatsApp. */
+.chat-campo {
+  flex: 1; min-width: 0;
+  display: flex; align-items: flex-end; gap: 2px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 22px; padding-left: 4px;
+}
+.chat-campo:focus-within { border-color: var(--accent); }
+.chat-emoji-btn {
+  flex: 0 0 38px; height: 42px; background: none; border: none;
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 0;
+  display: grid; place-items: center; font-family: inherit;
+  opacity: 0.75;
+}
+.chat-emoji-btn:active { opacity: 1; }
+
 .chat-envio textarea {
-  flex: 1; background: var(--card); border: 1px solid var(--border);
-  border-radius: 22px; padding: 11px 16px; color: var(--text);
+  flex: 1; background: none; border: none;
+  border-radius: 0; padding: 11px 14px 11px 4px; color: var(--text);
   font-size: 14px; font-family: inherit; line-height: 1.4;
   resize: none; min-height: 44px; max-height: 132px;
   box-sizing: border-box; display: block; min-width: 0;
@@ -2975,7 +3014,7 @@ body.time-picker-open { overflow: hidden; }
 }
 .chat-envio textarea.rolando { overflow-y: auto; }
 .chat-envio textarea::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.chat-envio textarea:focus { outline: none; border-color: var(--accent); }
+.chat-envio textarea:focus { outline: none; }
 .chat-enviar {
   flex: 0 0 44px; height: 44px; border-radius: 50%;
   background: var(--accent); border: none; color: #fff;
@@ -2989,7 +3028,7 @@ body.time-picker-open { overflow: hidden; }
   background: var(--card); border: 1px solid var(--border);
   color: var(--muted); font-size: 15px; cursor: pointer; font-family: inherit;
 }
-.chat-envio.editando textarea { border-color: var(--accent); }
+.chat-envio.editando .chat-campo { border-color: var(--accent); }
 
 .chat-nova {
   width: 100%; padding: 12px; margin-bottom: 12px;
@@ -5785,3 +5824,44 @@ body.tour-active { overflow: hidden; }
 .perf-foto-btns .btn-secondary {
   padding: 7px 13px; font-size: 12.5px; width: auto; flex: 0 0 auto;
 }
+
+/* === Seletor de emoji === */
+/* Altura fixa parecida com a de um teclado: o painel entra no lugar dele e a
+   conversa não dá dois pulos diferentes ao alternar entre os dois. */
+.chat-emojis {
+  flex-shrink: 0;
+  height: 244px;
+  display: flex; flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border); border-radius: 14px;
+  margin-top: 8px; overflow: hidden;
+}
+.chat-emojis[hidden] { display: none; }
+.emoji-grade {
+  flex: 1; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 2px; padding: 8px;
+  scrollbar-width: none;
+}
+.emoji-grade::-webkit-scrollbar { width: 0; display: none; }
+.emoji-item {
+  background: none; border: none; cursor: pointer; padding: 0;
+  height: 42px; font-size: 24px; line-height: 1; border-radius: 9px;
+  display: grid; place-items: center; font-family: inherit;
+}
+.emoji-item:active { background: rgba(255,255,255,0.10); }
+.emoji-vazio {
+  grid-column: 1 / -1; text-align: center; color: var(--muted);
+  font-size: 12.5px; padding: 26px 16px; line-height: 1.5;
+}
+.emoji-abas {
+  flex-shrink: 0; display: flex; justify-content: space-around;
+  border-top: 1px solid var(--border); padding: 4px 2px;
+}
+.emoji-aba {
+  background: none; border: none; cursor: pointer; padding: 0;
+  width: 40px; height: 36px; font-size: 18px; line-height: 1;
+  border-radius: 9px; display: grid; place-items: center;
+  font-family: inherit; opacity: 0.5;
+}
+.emoji-aba.ativa { opacity: 1; background: rgba(255,255,255,0.08); }

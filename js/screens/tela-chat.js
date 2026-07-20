@@ -22,6 +22,7 @@ import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
 import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
+import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 
 let aba = 'mural';        // 'mural' | 'privado'
 let conversaCom = null;   // { id, nome } quando aberta
@@ -312,9 +313,67 @@ async function desenharConversa(corpo) {
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
   pintar(corpo, lista, `Mensagem para ${conversaCom.nome}…`, `
-    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">←</button>
+    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+    </button>
     ${avatar(conversaCom.id, conversaCom.nome, 'chat-conv-av')}
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SELETOR DE EMOJI
+// ═══════════════════════════════════════════════════════════════
+// Abrir o seletor FECHA o teclado do sistema (e vice-versa) — os dois
+// disputariam o mesmo espaço no rodapé e a conversa sumiria atrás deles.
+// É o que o botão faz alternando entre a carinha e o ícone de teclado.
+let abaEmoji = 'rostos';
+
+function montarEmojis() {
+  const painel = document.getElementById('chat-emojis');
+  if (!painel) return;
+  const cats = CATEGORIAS.map(c => c.id === 'recentes' ? { ...c, itens: recentes() } : c);
+  const atual = cats.find(c => c.id === abaEmoji) || cats[1];
+
+  painel.innerHTML = `
+    <div class="emoji-grade">
+      ${atual.itens.length
+        ? atual.itens.map(e => `<button type="button" class="emoji-item" data-emoji="${e}">${e}</button>`).join('')
+        : '<div class="emoji-vazio">Os que você mais usar aparecem aqui.</div>'}
+    </div>
+    <div class="emoji-abas">
+      ${cats.map(c => `<button type="button" class="emoji-aba ${c.id === atual.id ? 'ativa' : ''}"
+          data-emoji-aba="${c.id}" aria-label="${c.nome}">${c.icone}</button>`).join('')}
+    </div>`;
+}
+
+function alternarEmojis(mostrar) {
+  const painel = document.getElementById('chat-emojis');
+  const btn = document.getElementById('chat-emoji-btn');
+  const campo = document.getElementById('chat-texto');
+  if (!painel || !btn) return;
+  const abrir = mostrar ?? painel.hidden;
+  if (abrir) montarEmojis();
+  painel.hidden = !abrir;
+  btn.textContent = abrir ? '⌨️' : '🙂';
+  if (abrir) campo?.blur();
+  else campo?.focus();
+}
+
+// Insere no CURSOR, não no fim: quem volta pra corrigir o meio da frase
+// esperaria o emoji ali, e não grudado no final do texto.
+function inserirEmoji(emoji) {
+  const campo = document.getElementById('chat-texto');
+  if (!campo) return;
+  const ini = campo.selectionStart ?? campo.value.length;
+  const fim = campo.selectionEnd ?? ini;
+  campo.value = campo.value.slice(0, ini) + emoji + campo.value.slice(fim);
+  const pos = ini + emoji.length;
+  try { campo.setSelectionRange(pos, pos); } catch {}
+  ajustarAltura(campo);
+  guardarRascunho();
+  registrarUso(emoji);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -358,11 +417,16 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <form class="chat-envio" id="chat-envio">
-      <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
-        rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
+      <div class="chat-campo">
+        <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
+          aria-label="Emojis">🙂</button>
+        <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
+          rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
+      </div>
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
-    </form>`;
+    </form>
+    <div class="chat-emojis" id="chat-emojis" hidden></div>`;
 
   corpo.innerHTML = cabecalho ? `<div class="chat-cheia">${corpoHtml}</div>` : corpoHtml;
   corpo.dataset.modo = modo;
@@ -485,6 +549,23 @@ function ligarEventos(app) {
       // no mesmo gesto.
       if (engolirClique) { engolirClique = false; return; }
       limparSelecao();
+      return;
+    }
+
+    if (t.closest('#chat-emoji-btn')) { alternarEmojis(); return; }
+
+    const abaEmj = t.closest('[data-emoji-aba]');
+    if (abaEmj) { abaEmoji = abaEmj.dataset.emojiAba; montarEmojis(); return; }
+
+    const emj = t.closest('[data-emoji]');
+    if (emj) { inserirEmoji(emj.dataset.emoji); return; }
+
+    // Tocar no campo de texto devolve o teclado do sistema. Só age se o
+    // seletor estiver aberto — senão cada toque no campo viraria um
+    // blur/focus à toa, e no aparelho isso pisca o teclado.
+    if (t.closest('#chat-texto')) {
+      const painel = document.getElementById('chat-emojis');
+      if (painel && !painel.hidden) alternarEmojis(false);
       return;
     }
 
