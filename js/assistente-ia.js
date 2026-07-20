@@ -509,11 +509,40 @@ function _posSalva() {
   try { return JSON.parse(localStorage.getItem(POS_PET) || 'null'); } catch { return null; }
 }
 
+// Altura fixa não serve: em telas menores (e com barra de navegação do
+// Android ocupando espaço) os 150px caem EM CIMA do botão de enviar do chat,
+// que foi o que apareceu no aparelho do pai do Elton.
+//
+// Aqui o pet mede onde o botão está e se desvia. Preferência: ficar ABAIXO
+// dele — é onde atrapalha menos a leitura da conversa. Só sobe quando não
+// há espaço embaixo.
+const PET_CORPO = 58;    // diâmetro do olho
+const PET_FOLGA = 10;
+
+function desviarDoEnviar() {
+  const botao = document.querySelector('.chat-enviar');
+  if (!botao) return PET_BOTTOM;                  // fora do chat, valor padrão
+  const r = botao.getBoundingClientRect();
+  if (!r.height) return PET_BOTTOM;
+
+  const alturaJanela = window.innerHeight;
+  const abaixoDoBotao = alturaJanela - r.bottom;  // do botão até o fim da tela
+  const acimaDoBotao  = alturaJanela - r.top;     // do topo do botão até o fim
+
+  // Cabe embaixo? Então centraliza o pet nesse vão.
+  const precisa = PET_CORPO + PET_FOLGA * 2;
+  if (abaixoDoBotao >= precisa) {
+    return Math.round(abaixoDoBotao / 2 - PET_CORPO / 2);
+  }
+  // Não cabe: sobe pra logo acima do botão.
+  return Math.round(acimaDoBotao + PET_FOLGA);
+}
+
 function aplicarPosicaoPet(lado) {
   const el = document.getElementById('visao-pet');
   if (!el) return;
   const l = lado || (_posSalva()?.lado === 'esq' ? 'esq' : 'dir');
-  el.style.bottom = PET_BOTTOM + 'px';
+  el.style.bottom = desviarDoEnviar() + 'px';
   if (l === 'esq') {
     el.style.left = PET_MARGEM + 'px'; el.style.right = 'auto'; el.style.alignItems = 'flex-start';
   } else {
@@ -521,7 +550,7 @@ function aplicarPosicaoPet(lado) {
   }
   // O painel do pet nasce ACIMA dele. Sem publicar essa altura, o CSS calcula
   // o painel como se o pet ainda estivesse em 78px e o topo do chat sai da tela.
-  document.documentElement.style.setProperty('--pet-bottom', PET_BOTTOM + 'px');
+  document.documentElement.style.setProperty('--pet-bottom', desviarDoEnviar() + 'px');
   // Esta função roda no resize da janela — que é exatamente o que dispara ao
   // abrir o teclado. Sem re-aplicar, o bottom acima desfaz o levantamento.
   ajustarChatAoTeclado();
@@ -581,6 +610,10 @@ function ligarArrastePet() {
   window.addEventListener('pointermove', mover, { passive: false });
   window.addEventListener('pointerup', soltar);
   window.addEventListener('resize', () => aplicarPosicaoPet());
+  // Trocar de tela muda o que existe embaixo do pet: o botão de enviar só
+  // aparece no chat. A espera curta é pra medir DEPOIS que a tela desenhou —
+  // medir antes devolveria o valor padrão sempre.
+  window.addEventListener('hashchange', () => setTimeout(() => aplicarPosicaoPet(), 150));
 }
 
 function openChatPanel() {
@@ -1155,12 +1188,21 @@ function showAndroidNotifHelp() {
 
 function showAndroidInstallSteps() {
   const box = document.getElementById('pet-messages');
-  addMessage('🤖 <strong>Passo 1 · instalar o app</strong><br><br>' +
-    'Por enquanto o Falcon é um web app (logo vira aplicativo). Pra instalar:<br>' +
-    '• Menu do Chrome (<strong>⋮</strong> em cima) → <strong>“Instalar app”</strong> ou <strong>“Adicionar à tela inicial”</strong><br>' +
-    '• Às vezes tem um ícone de <strong>instalar (⊕ / ↓)</strong> na barra de endereço<br>' +
-    '• Ou o menu mostra <strong>“Adicionar ao Início”</strong>', 'bot');
-  if (canInstallApp() && box) {
+  const podeAgora = canInstallApp();
+
+  // Se dá pra instalar com um toque, o BOTÃO vem primeiro. Antes eu despejava
+  // o passo a passo do menu do Chrome mesmo tendo o botão logo abaixo — pedir
+  // pra pessoa caçar opção em menu quando o app pode se instalar sozinho é
+  // trabalho inventado.
+  addMessage(podeAgora
+    ? '🤖 <strong>Posso instalar agora mesmo</strong><br><br>É só tocar no botão aqui embaixo. 👇'
+    : '🤖 <strong>Passo 1 · instalar o app</strong><br><br>' +
+      'Por enquanto o Falcon é um web app (logo vira aplicativo). Pra instalar:<br>' +
+      '• Menu do Chrome (<strong>⋮</strong> em cima) → <strong>“Instalar app”</strong> ou <strong>“Adicionar à tela inicial”</strong><br>' +
+      '• Às vezes tem um ícone de <strong>instalar (⊕ / ↓)</strong> na barra de endereço<br>' +
+      '• Ou o menu mostra <strong>“Adicionar ao Início”</strong>', 'bot');
+
+  if (podeAgora && box) {
     const div = document.createElement('div');
     div.className = 'pet-msg pet-msg-bot';
     div.innerHTML = `<span class="pet-preview-card"><button class="pet-reg-btn" id="pet-install-btn">📲 Instalar Falcon agora</button></span>`;

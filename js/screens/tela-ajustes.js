@@ -25,6 +25,7 @@ import { playDelete } from '../sons.js';
 import * as tour from '../tour-guiado.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { t } from '../idioma.js';
+import { canInstallApp, promptInstallApp } from '../notificacoes.js';
 import { subscribeToPush, notifSupported, permissionStatus, getNotifMuted, setNotifMuted, showNotifPopupGuide } from '../notificacoes.js';
 
 const WORKER_URL     = 'https://visao-push-worker.eltonvisao.workers.dev';
@@ -101,6 +102,14 @@ export async function renderAjustes(app) {
         ${adminSection}
 
         <!-- Grupos retráteis (topo) -->
+        <div class="ajustes-instalar" id="ajustesInstalar" hidden>
+          <div class="ajustes-instalar-txt">
+            <strong>📲 Instalar o Falcon</strong>
+            <span>Vira ícone na sua tela inicial, abre sem barra de navegador e recebe os lembretes com mais confiança.</span>
+          </div>
+          <button class="btn-primary" id="btnInstalarApp">Instalar</button>
+        </div>
+
         ${acc('👤 Meu perfil', `
           <div class="perf-foto-row">
             <span class="perf-foto-wrap">
@@ -120,7 +129,7 @@ export async function renderAjustes(app) {
           <label class="input-field" style="margin-top:6px"><div class="input-field-label">Nome completo</div>
             <input id="perfNome" placeholder="Seu nome completo" autocomplete="name" /></label>
           <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a)</div>
-            <input id="perfApelido" placeholder="Ex: Elton" autocomplete="nickname" /></label>
+            <input id="perfApelido" placeholder="" autocomplete="nickname" /></label>
           <label class="input-field"><div class="input-field-label">Data de nascimento</div>
             <input id="perfNasc" type="date" /></label>
           <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
@@ -257,6 +266,23 @@ async function wire(app) {
       fotoPropria = !!p?.fotoUrl;
       mostrarFoto(p?.fotoUrl || auth.currentUser?.photoURL || null);
     } catch (e) { console.warn('[ajustes] load perfil:', e); }
+  })();
+
+  // ── Instalar o app ──
+  // Só aparece quando REALMENTE dá pra instalar: o navegador precisa ter
+  // disparado o beforeinstallprompt, e não pode já estar instalado. Um botão
+  // que não instala nada é pior que nenhum botão.
+  (() => {
+    const caixa = app.querySelector('#ajustesInstalar');
+    const btn = app.querySelector('#btnInstalarApp');
+    if (!caixa || !btn) return;
+    caixa.hidden = !canInstallApp();
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Abrindo…';
+      const r = await promptInstallApp();
+      if (r === 'accepted') { caixa.hidden = true; showToast('✅ Instalando o Falcon!', 'success'); }
+      else { btn.disabled = false; btn.textContent = 'Instalar'; }
+    });
   })();
 
   // ── Foto de perfil ──

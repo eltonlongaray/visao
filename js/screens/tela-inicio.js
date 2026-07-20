@@ -168,11 +168,13 @@ export async function renderHome(app) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
   } else {
-    // Não instalado (iOS Safari ou Android no navegador): avisa 1x como instalar.
-    // Só depois do tour pra não empilhar dois modais.
-    setTimeout(() => maybeInstallHint(), 1200);
-    // Convite de perfil/contato (cadência 7 dias). A trava interna evita empilhar.
-    setTimeout(() => maybeInvitePerfil(), 2200);
+    // isCompleted() vira true no INÍCIO do tour (markDone acima), não no fim.
+    // Então qualquer re-render da Home enquanto o tutorial roda caía aqui e
+    // jogava um modal por cima dele — foi o que apareceu no meio do tutorial
+    // no teste com usuário novo. Daí o isActive() nas duas chamadas, inclusive
+    // DENTRO do setTimeout: o tour pode começar no intervalo da espera.
+    setTimeout(() => { if (!tour.isActive()) maybeInstallHint(); }, 1200);
+    setTimeout(() => { if (!tour.isActive()) maybeInvitePerfil(); }, 2200);
   }
 }
 

@@ -5906,3 +5906,15 @@ body.tour-active { overflow: hidden; }
   display: grid; place-items: center; padding: 0;
 }
 .chat-envio.enviando .chat-enviar { opacity: 0.6; cursor: default; }
+
+/* === Instalar o app (Ajustes) === */
+.ajustes-instalar {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--accent);
+  border-radius: 14px; padding: 12px 14px; margin-bottom: 12px;
+}
+.ajustes-instalar[hidden] { display: none; }
+.ajustes-instalar-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ajustes-instalar-txt strong { font-size: 14px; color: var(--text); }
+.ajustes-instalar-txt span { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.ajustes-instalar .btn-primary { width: auto; flex: 0 0 auto; padding: 9px 18px; font-size: 13px; }
