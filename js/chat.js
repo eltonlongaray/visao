@@ -46,14 +46,15 @@ export async function fetchMural() {
   return (data || []).reverse();   // mais antigas em cima, como conversa
 }
 
-export async function enviarNoMural(texto, nome) {
+export async function enviarNoMural(texto, nome, imagemPath = null) {
   const t = (texto || '').trim();
-  if (!t) return;
+  if (!t && !imagemPath) return;
   const { error } = await supabase.from('chat_mensagens').insert({
     escopo: 'comunidade',
     autor_id: auth.currentUser?.uid,
     autor_nome: nome,
-    texto: t.slice(0, 2000),
+    texto: t ? t.slice(0, 2000) : null,
+    imagem_path: imagemPath,
   });
   _falha(error);
 }
@@ -77,17 +78,77 @@ export async function fetchConversa(outroId) {
   return (data || []).reverse();
 }
 
-export async function enviarPrivado(outroId, texto, nome) {
+export async function enviarPrivado(outroId, texto, nome, imagemPath = null) {
   const t = (texto || '').trim();
-  if (!t || !outroId) return;
+  if ((!t && !imagemPath) || !outroId) return;
   const { error } = await supabase.from('chat_mensagens').insert({
     escopo: 'privado',
     autor_id: auth.currentUser?.uid,
     para_id: outroId,
     autor_nome: nome,
-    texto: t.slice(0, 2000),
+    texto: t ? t.slice(0, 2000) : null,
+    imagem_path: imagemPath,
   });
   _falha(error);
+}
+
+// ─── FOTO NA MENSAGEM ──────────────────────────────────────────
+// Sobe a imagem primeiro e insere a mensagem depois. Se o envio falhar, não
+// nasce mensagem quebrada apontando pra arquivo que não existe.
+export async function subirFotoDoChat(blob) {
+  const id = auth.currentUser?.uid;
+  if (!id) throw new Error('Sessão expirada');
+  const nome = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const caminho = `${id}/${nome}`;
+  const { error } = await supabase.storage
+    .from('chat-fotos')
+    .upload(caminho, blob, { contentType: 'image/jpeg' });
+  if (error) throw new Error(error.message || 'Não deu pra enviar a foto');
+  return caminho;
+}
+
+// O bucket é privado, então a imagem só abre por URL assinada. Assina em
+// LOTE: uma chamada por mensagem seriam dezenas de idas ao servidor a cada
+// atualização da lista. Validade curta de propósito — a lista se redesenha
+// sozinha e as URLs são refeitas junto.
+const ASSINATURA_SEG = 60 * 60;
+export async function assinarFotos(caminhos) {
+  const unicos = [...new Set((caminhos || []).filter(Boolean))];
+  if (!unicos.length) return new Map();
+  const { data, error } = await supabase.storage
+    .from('chat-fotos')
+    .createSignedUrls(unicos, ASSINATURA_SEG);
+  if (error) {
+    console.warn('[Falcon] assinarFotos:', error.message);
+    return new Map();
+  }
+  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+}
+
+// Apaga do armazenamento toda foto MINHA que não está mais presa a uma
+// mensagem viva — expirada ou apagada. Sem isto o arquivo sobreviveria à
+// mensagem e o "some em 7 dias" valeria só para o texto.
+//
+// Cada um limpa a própria pasta porque a policy de remoção só permite isso.
+// Consequência assumida: quem nunca mais abre o chat deixa arquivo pra trás.
+export async function faxinaFotos() {
+  const id = auth.currentUser?.uid;
+  if (!id) return;
+  try {
+    const { data: arquivos, error } = await supabase.storage
+      .from('chat-fotos').list(id, { limit: 200 });
+    if (error || !arquivos?.length) return;
+
+    const { data: vivas } = await supabase
+      .from('chat_mensagens')
+      .select('imagem_path')
+      .eq('autor_id', id)
+      .not('imagem_path', 'is', null);
+
+    const usados = new Set((vivas || []).map(v => v.imagem_path));
+    const lixo = arquivos.map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
+    if (lixo.length) await supabase.storage.from('chat-fotos').remove(lixo);
+  } catch { /* faxina é acessória: falhar aqui não pode atrapalhar o chat */ }
 }
 
 // Lista de quem já trocou mensagem comigo, com a última de cada conversa.

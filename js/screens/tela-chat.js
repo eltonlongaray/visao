@@ -17,6 +17,7 @@
 import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
+  subirFotoDoChat, assinarFotos, faxinaFotos,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -33,6 +34,8 @@ let editando = null;      // id da mensagem em edição
 // app: se as duas divergissem, o botão apareceria e a exclusão falharia.
 let souAdmin = false;
 let perfis = new Map();   // id -> { nome, foto }, alimentado por fetchPerfis()
+let fotos = new Map();    // caminho no bucket -> URL assinada (vale 1h)
+let anexo = null;         // { blob, previa } escolhido e ainda não enviado
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -125,6 +128,7 @@ export async function renderChat(app) {
   meuNome = await meuNomeDeChat();
   try { souAdmin = !!(await getProfile())?.isAdmin; } catch { souAdmin = false; }
   faxinaChat();   // sem await: é limpeza de fundo
+  faxinaFotos();  // idem: apaga imagens que perderam a mensagem dona
 
   desenharCasca(app);
   ajustarConversaAoTeclado();   // dimensiona pela tela visível já na entrada
@@ -144,6 +148,10 @@ export async function renderChat(app) {
     clearInterval(recarga); recarga = null;
     conversaCom = null;
     limparSelecao();
+    limparAnexo();
+    // URLs assinadas valem 1h e morrem com a sessão da tela: guardar entre
+    // visitas devolveria link vencido na volta
+    fotos.clear();
     entradaOrfa = entradaNoHistorico;
     entradaNoHistorico = false;
   };
@@ -198,6 +206,7 @@ async function desenharMural(corpo) {
   catch (e) { corpo.innerHTML = erro(e); return; }
 
   const meu = auth.currentUser?.uid;
+  await carregarFotos(msgs);
   const lista = msgs.length
     ? msgs.map((m, i) => linhaDiscord(m, msgs[i - 1], m.autor_id === meu)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
@@ -224,7 +233,7 @@ function linhaDiscord(m, anterior, minha) {
     <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha || souAdmin ? 1 : 0}">
       ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
-      <div class="dc-body">${cabecalho}<div class="dc-txt">${esc(m.texto)}</div></div>
+      <div class="dc-body">${cabecalho}${blocoFoto(m)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
     </div>`;
 }
 
@@ -318,6 +327,7 @@ async function desenharConversa(corpo) {
   catch (e) { corpo.innerHTML = erro(e); return; }
 
   const meu = auth.currentUser?.uid;
+  await carregarFotos(msgs);
   const lista = msgs.length
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
@@ -330,6 +340,92 @@ async function desenharConversa(corpo) {
     </button>
     ${avatar(conversaCom.id, conversaCom.nome, 'chat-conv-av')}
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FOTO NA MENSAGEM
+// ═══════════════════════════════════════════════════════════════
+const FOTO_LADO_MAX = 1600;   // reduz antes de subir: a câmera manda vários MB
+
+// Recorta nada, só encolhe o lado maior. Cortar foto de conversa seria
+// decidir pela pessoa o que importa na imagem.
+function reduzirImagem(arquivo) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(arquivo);
+    const im = new Image();
+    im.onload = () => {
+      URL.revokeObjectURL(url);
+      const escala = Math.min(1, FOTO_LADO_MAX / Math.max(im.width, im.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(im.width * escala);
+      cv.height = Math.round(im.height * escala);
+      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+      cv.toBlob(b => b ? resolve(b) : reject(new Error('Não deu pra processar a imagem')),
+                'image/jpeg', 0.82);
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Arquivo de imagem inválido')); };
+    im.src = url;
+  });
+}
+
+// A URL assinada vem do mapa `fotos`. Enquanto ela não chegou, o espaço fica
+// reservado com a mesma proporção — sem isso a lista pula quando a imagem
+// carrega e a pessoa perde a linha que estava lendo.
+function blocoFoto(m) {
+  if (!m.imagem_path) return '';
+  const url = fotos.get(m.imagem_path);
+  if (!url) return `<div class="msg-foto msg-foto-vazia"></div>`;
+  return `<a class="msg-foto" href="${esc(url)}" target="_blank" rel="noopener"
+    download="falcon-${esc(String(m.id).slice(0, 8))}.jpg">
+    <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
+    <span class="msg-foto-baixar" aria-hidden="true">⤓</span>
+  </a>`;
+}
+
+// Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
+// segundos e reassinar tudo a cada volta seria uma chamada por ciclo à toa.
+async function carregarFotos(msgs) {
+  const faltando = (msgs || [])
+    .map(m => m.imagem_path)
+    .filter(c => c && !fotos.has(c));
+  if (!faltando.length) return;
+  const novas = await assinarFotos(faltando);
+  novas.forEach((url, caminho) => fotos.set(caminho, url));
+}
+
+function mostrarPrevia() {
+  const box = document.getElementById('chat-previa');
+  if (!box) return;
+  box.hidden = !anexo;
+  box.innerHTML = anexo
+    ? `<img src="${anexo.previa}" alt="Prévia da foto escolhida" />
+       <span class="previa-txt">Foto pronta pra enviar</span>
+       <button type="button" class="previa-x" id="previa-remover" aria-label="Tirar a foto">✕</button>`
+    : '';
+}
+
+// Sem sinal de "estou enviando", subir uma foto em rede ruim parece que não
+// fez nada — e a pessoa toca em enviar de novo, e de novo. Foi exatamente o
+// que aconteceu no teste: três tentativas até aparecer algum retorno.
+function marcarEnviando(ligado) {
+  const form = document.getElementById('chat-envio');
+  const botao = form?.querySelector('.chat-enviar');
+  const previa = document.getElementById('chat-previa');
+  if (form) form.classList.toggle('enviando', ligado);
+  if (botao) {
+    botao.disabled = ligado;              // trava o toque repetido
+    botao.textContent = ligado ? '⏳' : '➤';
+  }
+  if (ligado && previa) {
+    previa.hidden = false;
+    previa.innerHTML = '<span class="previa-txt">Enviando foto…</span>';
+  }
+}
+
+function limparAnexo() {
+  if (anexo?.previa) URL.revokeObjectURL(anexo.previa);
+  anexo = null;
+  mostrarPrevia();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -426,13 +522,17 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
   const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
+    <div class="chat-previa" id="chat-previa" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
         <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
           aria-label="Emojis">🙂</button>
         <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
           rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
+        <button type="button" class="chat-foto-btn" id="chat-foto-btn"
+          aria-label="Enviar foto">📎</button>
       </div>
+      <input type="file" id="chat-foto-arq" accept="image/*" hidden />
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>
@@ -472,7 +572,8 @@ function balao(m, minha, mostrarAutor) {
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       <div class="wa-bolha">
         ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
-        <span class="wa-txt">${esc(m.texto)}</span>
+        ${blocoFoto(m)}
+        ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
         <span class="wa-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
       </div>
     </div>`;
@@ -561,6 +662,9 @@ function ligarEventos(app) {
       limparSelecao();
       return;
     }
+
+    if (t.closest('#chat-foto-btn')) { app.querySelector('#chat-foto-arq')?.click(); return; }
+    if (t.closest('#previa-remover')) { limparAnexo(); return; }
 
     if (t.closest('#chat-emoji-btn')) { alternarEmojis(); return; }
 
@@ -655,6 +759,19 @@ function ligarEventos(app) {
     selecionarMensagem(msg);
   });
 
+  app.addEventListener('change', async (ev) => {
+    if (ev.target.id !== 'chat-foto-arq') return;
+    const arquivo = ev.target.files?.[0];
+    ev.target.value = '';   // permite reescolher o MESMO arquivo depois
+    if (!arquivo) return;
+    try {
+      limparAnexo();
+      const blob = await reduzirImagem(arquivo);
+      anexo = { blob, previa: URL.createObjectURL(blob) };
+      mostrarPrevia();
+    } catch (e) { showToast(e.message || 'Não deu pra abrir a imagem', 'error'); }
+  });
+
   // A caixa cresce com o texto. Sem isso a quebra de linha existiria mas a
   // pessoa escreveria às cegas numa fresta de uma linha.
   app.addEventListener('input', (ev) => {
@@ -679,17 +796,26 @@ function ligarEventos(app) {
     const campo = app.querySelector('#chat-texto');
     // trim só nas pontas: quebras de linha NO MEIO do texto são conteúdo
     const texto = campo.value.trim();
-    if (!texto) return;
+    // foto sozinha é mensagem válida; texto vazio sem foto, não
+    if (!texto && !anexo) return;
+    // editar não mexe na imagem (o banco também rejeita), então some com o anexo
+    if (editando && anexo) limparAnexo();
+
+    const paraEnviar = anexo;
     campo.value = '';
     ajustarAltura(campo);
     rascunhos.delete(modoAtual());
+    if (paraEnviar) { anexo = null; mostrarPrevia(); marcarEnviando(true); }
     try {
+      // a imagem sobe ANTES: se falhar, não nasce mensagem apontando pra
+      // arquivo que não existe, e o texto volta pro campo intacto
+      const caminho = paraEnviar ? await subirFotoDoChat(paraEnviar.blob) : null;
       if (editando) {
         await editarMensagem(editando, texto);
         editando = null;
         app.querySelector('#chat-envio')?.classList.remove('editando');
-      } else if (aba === 'mural') await enviarNoMural(texto, meuNome);
-      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome);
+      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho);
+      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho);
       await recarregar();
       // A lista só se auto-rola quando já estava no fim. Depois de enviar, a
       // própria mensagem tem que aparecer mesmo pra quem tinha subido a tela.
@@ -699,7 +825,12 @@ function ligarEventos(app) {
       campo.value = texto;   // devolve o que a pessoa escreveu
       ajustarAltura(campo);
       guardarRascunho();
+      // devolve TAMBÉM a foto: perder a imagem escolhida por uma falha de
+      // rede obrigaria a pessoa a procurá-la na galeria de novo
+      if (paraEnviar) { anexo = paraEnviar; mostrarPrevia(); }
       showToast(e.message || 'Não deu pra enviar', 'error');
+    } finally {
+      marcarEnviando(false);
     }
   });
 }
