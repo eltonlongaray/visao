@@ -2965,21 +2965,16 @@ body.time-picker-open { overflow: hidden; }
   font-size: 14px; font-family: inherit; line-height: 1.4;
   resize: none; min-height: 44px; max-height: 132px;
   box-sizing: border-box; display: block; min-width: 0;
-  /* hidden é o padrão: com 'auto' o navegador já reserva/desenha a barra
-     antes da caixa encher, e ela aparecia colada na borda arredondada. O JS
-     liga a rolagem (.rolando) só quando o texto passa do max-height. */
+  /* hidden é o padrão: sem texto pra rolar não existe o que rolar. O JS
+     liga a rolagem (.rolando) quando o texto passa do max-height. */
   overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  /* Barra NUNCA visível — a rolagem é no dedo. Rolar continua funcionando
+     com a barra escondida; o que 'none' tira é só o desenho dela. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-/* Barra por DENTRO: o padding-right extra abre a canaleta e o border-box do
-   fundo transparente impede que ela encoste na borda arredondada. */
-.chat-envio textarea.rolando { overflow-y: auto; padding-right: 10px; }
-.chat-envio textarea::-webkit-scrollbar { width: 6px; }
-.chat-envio textarea::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
-.chat-envio textarea::-webkit-scrollbar-thumb {
-  background: var(--border); border-radius: 3px;
-}
+.chat-envio textarea.rolando { overflow-y: auto; }
+.chat-envio textarea::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .chat-envio textarea:focus { outline: none; border-color: var(--accent); }
 .chat-enviar {
   flex: 0 0 44px; height: 44px; border-radius: 50%;
