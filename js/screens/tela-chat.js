@@ -246,7 +246,13 @@ function avatar(id, nome, classe) {
   const cor = corDe(id);
   if (!foto) return `<span class="${classe}" style="background:${cor}22;color:${cor}">${inicial(nome)}</span>`;
   const alt = `<span class=&quot;${classe}&quot; style=&quot;background:${cor}22;color:${cor}&quot;>${inicial(nome)}</span>`;
+  // referrerpolicy="no-referrer" NÃO é enfeite: o lh3.googleusercontent.com
+  // devolve 403 para a foto de perfil quando a requisição vem com Referer de
+  // outro site. A imagem falhava, o onerror trocava pela inicial colorida e o
+  // sintoma virava "a foto não aparece" — parecendo dado ausente, não erro
+  // de rede. Sem referrer, o Google serve normalmente.
   return `<img class="${classe} tem-foto" src="${esc(foto)}" alt="" loading="lazy"
+    referrerpolicy="no-referrer"
     onerror="this.outerHTML='${alt.replace(/'/g, "&#39;")}'" />`;
 }
 

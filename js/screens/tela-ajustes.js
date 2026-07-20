@@ -104,7 +104,7 @@ export async function renderAjustes(app) {
         ${acc('👤 Meu perfil', `
           <div class="perf-foto-row">
             <span class="perf-foto-wrap">
-              <img id="perfFoto" class="perf-foto" alt="" hidden />
+              <img id="perfFoto" class="perf-foto" alt="" referrerpolicy="no-referrer" hidden />
               <span id="perfFotoVazia" class="perf-foto-vazia">🦅</span>
             </span>
             <div class="perf-foto-acoes">
