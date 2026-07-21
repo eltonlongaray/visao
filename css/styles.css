@@ -5867,28 +5867,36 @@ body.tour-active { overflow: hidden; }
 .emoji-aba.ativa { opacity: 1; background: rgba(255,255,255,0.08); }
 
 /* === Foto na mensagem === */
+/* O ícone segue a cor do texto do tema — claro no fundo escuro, escuro no
+   fundo claro. A opacidade de antes o apagava demais no modo noite. */
 .chat-foto-btn {
-  flex: 0 0 38px; height: 42px; background: none; border: none;
-  font-size: 18px; line-height: 1; cursor: pointer; padding: 0;
-  display: grid; place-items: center; font-family: inherit; opacity: 0.72;
+  flex: 0 0 42px; height: 42px; background: none; border: none;
+  cursor: pointer; padding: 0; color: var(--text);
+  display: grid; place-items: center; font-family: inherit; opacity: 0.9;
 }
 .chat-foto-btn:active { opacity: 1; }
 
+/* Moldura igual à do privado, agora também no mural. O padding-bottom maior
+   é espaço reservado pra curtir/comentar — melhor abrir agora do que mexer no
+   tamanho da foto depois que as pessoas já se acostumaram com ele. */
 .msg-foto {
-  display: block; position: relative; margin: 2px 0 6px;
-  border-radius: 12px; overflow: hidden; max-width: 260px;
-  background: var(--card-2); line-height: 0;
+  display: block; position: relative; margin: 2px 0 6px; padding: 4px 4px 26px;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--card-2); line-height: 0; cursor: pointer;
+  /* fit-content: a moldura encolhe até a foto. Com largura fixa, um retrato
+     alto batia no max-height e sobravam faixas vazias dos dois lados. */
+  width: fit-content; max-width: 260px; font-family: inherit;
 }
-.msg-foto img { display: block; width: 100%; height: auto; max-height: 320px; object-fit: cover; }
+/* object-fit:cover CORTAVA a foto. Aqui ela entra inteira: a altura segue a
+   proporção da imagem, limitada só pra não tomar a tela toda. */
+.msg-foto img {
+  display: block; width: auto; height: auto;
+  max-width: 100%; max-height: 340px;
+  border-radius: 10px; background: var(--bg);
+}
 /* Espaço reservado enquanto a URL assinada não chegou: sem ele a lista pula
    quando a imagem entra e a pessoa perde a linha que estava lendo. */
-.msg-foto-vazia { width: 200px; height: 150px; border-radius: 12px; }
-.msg-foto-baixar {
-  position: absolute; right: 6px; bottom: 6px;
-  width: 30px; height: 30px; border-radius: 50%;
-  background: rgba(0,0,0,0.55); color: #fff;
-  display: grid; place-items: center; font-size: 15px; line-height: 1;
-}
+.msg-foto-vazia { width: 200px; height: 150px; border-radius: 14px; padding: 0; }
 
 /* Prévia do que vai ser enviado */
 /* Colada na barra de escrita: solta acima parecia um card de outra coisa, e
@@ -5936,3 +5944,54 @@ body.tour-active { overflow: hidden; }
 }
 .midia-op:active { background: var(--card-2); border-color: var(--accent); }
 .midia-ic { font-size: 22px; line-height: 1; }
+
+/* === Telas cheias de foto (envio com legenda e visualização) === */
+body.sem-rolagem { overflow: hidden; }
+
+.foto-envio, .foto-ver {
+  position: fixed; inset: 0; z-index: 120;
+  background: #000; display: flex; flex-direction: column;
+}
+.foto-envio[hidden], .foto-ver[hidden] { display: none; }
+
+.fe-palco, .fv-palco {
+  flex: 1; min-height: 0; display: grid; place-items: center; padding: 12px;
+}
+.fe-palco img, .fv-palco img {
+  max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+}
+.fe-x {
+  position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 10px;
+  z-index: 2; width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255,255,255,0.14); border: none; color: #fff;
+  font-size: 17px; cursor: pointer; display: grid; place-items: center;
+}
+.fe-baixo {
+  flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px;
+  padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: rgba(0,0,0,0.85);
+}
+.fe-baixo textarea {
+  flex: 1; min-width: 0; background: rgba(255,255,255,0.12); border: none;
+  border-radius: 22px; padding: 12px 16px; color: #fff; font-size: 14.5px;
+  font-family: inherit; line-height: 1.4; resize: none; min-height: 46px;
+  max-height: 120px; outline: none; overflow-y: auto; scrollbar-width: none;
+}
+.fe-baixo textarea::placeholder { color: rgba(255,255,255,0.55); }
+.fe-enviar {
+  flex: 0 0 46px; height: 46px; border-radius: 50%;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 18px; cursor: pointer;
+}
+.fe-enviar:disabled { opacity: 0.65; cursor: default; }
+
+.fv-topo {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+}
+.fv-btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255,255,255,0.14); border: none; color: #fff;
+  font-size: 18px; cursor: pointer; display: grid; place-items: center;
+  text-decoration: none;
+}

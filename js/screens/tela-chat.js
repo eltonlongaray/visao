@@ -172,6 +172,8 @@ function desenharCasca(app) {
 
       <div id="chat-corpo"></div>
     </div>
+    <div class="foto-envio" id="foto-envio" hidden></div>
+    <div class="foto-ver" id="foto-ver" hidden></div>
     <div class="chat-selbar" id="chat-selbar" hidden>
       <button class="selbar-x" id="sel-cancelar" aria-label="Cancelar seleção">✕</button>
       <span class="selbar-tit">1 mensagem</span>
@@ -375,11 +377,11 @@ function blocoFoto(m) {
   if (!m.imagem_path) return '';
   const url = fotos.get(m.imagem_path);
   if (!url) return `<div class="msg-foto msg-foto-vazia"></div>`;
-  return `<a class="msg-foto" href="${esc(url)}" target="_blank" rel="noopener"
-    download="falcon-${esc(String(m.id).slice(0, 8))}.jpg">
+  // Sem botão de baixar aqui: ele fica no visualizador, ao abrir a foto.
+  // Pendurado na miniatura, tapava justamente o canto da imagem.
+  return `<button type="button" class="msg-foto" data-abrir-foto="${esc(url)}">
     <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
-    <span class="msg-foto-baixar" aria-hidden="true">⤓</span>
-  </a>`;
+  </button>`;
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
@@ -393,15 +395,24 @@ async function carregarFotos(msgs) {
   novas.forEach((url, caminho) => fotos.set(caminho, url));
 }
 
+// Tela cheia com a foto, campo de legenda e ENVIAR — o fluxo do WhatsApp.
+// A barrinha de prévia anterior obrigava a escrever no campo lá embaixo e
+// mandava no ➤ comum: não ficava claro que aquele texto era legenda da foto.
 function mostrarPrevia() {
-  const box = document.getElementById('chat-previa');
-  if (!box) return;
-  box.hidden = !anexo;
-  box.innerHTML = anexo
-    ? `<img src="${anexo.previa}" alt="Prévia da foto escolhida" />
-       <span class="previa-txt">Foto pronta pra enviar</span>
-       <button type="button" class="previa-x" id="previa-remover" aria-label="Tirar a foto">✕</button>`
-    : '';
+  const tela = document.getElementById('foto-envio');
+  if (!tela) return;
+  tela.hidden = !anexo;
+  document.body.classList.toggle('sem-rolagem', !!anexo);
+  if (!anexo) { tela.innerHTML = ''; return; }
+  tela.innerHTML = `
+    <button type="button" class="fe-x" id="fe-cancelar" aria-label="Cancelar">✕</button>
+    <div class="fe-palco"><img src="${anexo.previa}" alt="Foto escolhida" /></div>
+    <div class="fe-baixo">
+      <textarea id="fe-legenda" rows="1" maxlength="2000"
+        placeholder="Adicione uma legenda…">${esc(anexo.legenda || '')}</textarea>
+      <button type="button" class="fe-enviar" id="fe-enviar" aria-label="Enviar">➤</button>
+    </div>`;
+  tela.querySelector('#fe-legenda')?.focus();
 }
 
 // Sem sinal de "estou enviando", subir uma foto em rede ruim parece que não
@@ -410,16 +421,39 @@ function mostrarPrevia() {
 function marcarEnviando(ligado) {
   const form = document.getElementById('chat-envio');
   const botao = form?.querySelector('.chat-enviar');
-  const previa = document.getElementById('chat-previa');
+  const previa = document.getElementById('foto-envio');
   if (form) form.classList.toggle('enviando', ligado);
   if (botao) {
     botao.disabled = ligado;              // trava o toque repetido
     botao.textContent = ligado ? '⏳' : '➤';
   }
-  if (ligado && previa) {
-    previa.hidden = false;
-    previa.innerHTML = '<span class="previa-txt">Enviando foto…</span>';
-  }
+  const botaoFe = document.getElementById('fe-enviar');
+  if (botaoFe) { botaoFe.disabled = ligado; botaoFe.textContent = ligado ? '⏳' : '➤'; }
+  if (previa && ligado) previa.classList.add('enviando');
+}
+
+// Visualizador em tela cheia. O botão de baixar mora AQUI, no topo — na
+// miniatura ele tapava o canto da imagem e só atrapalhava a leitura.
+function verFoto(url) {
+  const tela = document.getElementById('foto-ver');
+  if (!tela) return;
+  tela.hidden = false;
+  document.body.classList.add('sem-rolagem');
+  tela.innerHTML = `
+    <div class="fv-topo">
+      <button type="button" class="fv-btn" id="fv-fechar" aria-label="Fechar">✕</button>
+      <a class="fv-btn" href="${esc(url)}" download="falcon-foto.jpg"
+        target="_blank" rel="noopener" aria-label="Baixar foto">⤓</a>
+    </div>
+    <div class="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>`;
+}
+
+function fecharVisualizador() {
+  const tela = document.getElementById('foto-ver');
+  if (!tela) return;
+  tela.hidden = true;
+  tela.innerHTML = '';
+  document.body.classList.remove('sem-rolagem');
 }
 
 function limparAnexo() {
@@ -530,7 +564,6 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
         <span class="midia-ic">🖼️</span><span>Galeria</span>
       </button>
     </div>
-    <div class="chat-previa" id="chat-previa" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
         <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
@@ -539,8 +572,8 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
           rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
         <button type="button" class="chat-foto-btn" id="chat-foto-btn"
           aria-label="Enviar foto" title="Enviar foto">
-          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.1-1.8A1.5 1.5 0 0 1 9.1 4.5h5.8a1.5 1.5 0 0 1 1.3.7L17.3 7h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
             <circle cx="12" cy="12.8" r="3.4"/>
           </svg>
@@ -682,6 +715,12 @@ function ligarEventos(app) {
       limparSelecao();
       return;
     }
+
+    const abrirFoto = t.closest('[data-abrir-foto]');
+    if (abrirFoto) { verFoto(abrirFoto.dataset.abrirFoto); return; }
+    if (t.closest('#fv-fechar')) { fecharVisualizador(); return; }
+    if (t.closest('#fe-cancelar')) { limparAnexo(); return; }
+    if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
 
     if (t.closest('#chat-foto-btn')) {
       const folha = app.querySelector('#chat-midia');
@@ -830,18 +869,25 @@ function ligarEventos(app) {
     if (!ev.target.closest('#chat-envio')) return;
     ev.preventDefault();
     const campo = app.querySelector('#chat-texto');
-    // trim só nas pontas: quebras de linha NO MEIO do texto são conteúdo
-    const texto = campo.value.trim();
+    // Com foto escolhida, o que vale é a legenda da tela cheia — o campo de
+    // baixo está atrás dela e pode ter um rascunho de outra mensagem.
+    const legenda = app.querySelector('#fe-legenda');
+    const texto = (anexo && legenda ? legenda.value : campo.value).trim();
     // foto sozinha é mensagem válida; texto vazio sem foto, não
     if (!texto && !anexo) return;
     // editar não mexe na imagem (o banco também rejeita), então some com o anexo
     if (editando && anexo) limparAnexo();
 
     const paraEnviar = anexo;
-    campo.value = '';
-    ajustarAltura(campo);
-    rascunhos.delete(modoAtual());
-    if (paraEnviar) { anexo = null; mostrarPrevia(); marcarEnviando(true); }
+    if (!paraEnviar) {
+      campo.value = '';
+      ajustarAltura(campo);
+      rascunhos.delete(modoAtual());
+    }
+    // A tela da legenda fica ABERTA durante o envio: é nela que o botão vira
+    // ⏳. Fechar antes deixava a pessoa sem nenhum sinal de que algo estava
+    // acontecendo — que foi o que gerou os envios repetidos no teste.
+    if (paraEnviar) { paraEnviar.legenda = texto; marcarEnviando(true); }
     try {
       // a imagem sobe ANTES: se falhar, não nasce mensagem apontando pra
       // arquivo que não existe, e o texto volta pro campo intacto
@@ -852,18 +898,20 @@ function ligarEventos(app) {
         app.querySelector('#chat-envio')?.classList.remove('editando');
       } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho);
       else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho);
+      if (paraEnviar) limparAnexo();   // só fecha depois que deu certo
       await recarregar();
       // A lista só se auto-rola quando já estava no fim. Depois de enviar, a
       // própria mensagem tem que aparecer mesmo pra quem tinha subido a tela.
       const l = document.getElementById('chat-lista');
       if (l) l.scrollTop = l.scrollHeight;
     } catch (e) {
-      campo.value = texto;   // devolve o que a pessoa escreveu
-      ajustarAltura(campo);
-      guardarRascunho();
-      // devolve TAMBÉM a foto: perder a imagem escolhida por uma falha de
-      // rede obrigaria a pessoa a procurá-la na galeria de novo
-      if (paraEnviar) { anexo = paraEnviar; mostrarPrevia(); }
+      if (!paraEnviar) {
+        campo.value = texto;   // devolve o que a pessoa escreveu
+        ajustarAltura(campo);
+        guardarRascunho();
+      }
+      // a foto e a legenda continuam ali: perder a imagem escolhida por uma
+      // falha de rede obrigaria a pessoa a procurá-la na galeria de novo
       showToast(e.message || 'Não deu pra enviar', 'error');
     } finally {
       marcarEnviando(false);
