@@ -5876,27 +5876,61 @@ body.tour-active { overflow: hidden; }
 }
 .chat-foto-btn:active { opacity: 1; }
 
-/* Moldura igual à do privado, agora também no mural. O padding-bottom maior
-   é espaço reservado pra curtir/comentar — melhor abrir agora do que mexer no
-   tamanho da foto depois que as pessoas já se acostumaram com ele. */
+/* Moldura de foto revelada na hora: margem fina em cima e nas laterais,
+   GROSSA embaixo. Sem borda própria — a moldura é o papel (o fundo claro),
+   e uma borda por cima virava a segunda linha ao redor da foto. */
 .msg-foto {
-  display: block; position: relative; margin: 2px 0 6px; padding: 4px 4px 26px;
-  border: 1px solid var(--border); border-radius: 14px;
-  background: var(--card-2); line-height: 0; cursor: pointer;
-  /* fit-content: a moldura encolhe até a foto. Com largura fixa, um retrato
-     alto batia no max-height e sobravam faixas vazias dos dois lados. */
-  width: fit-content; max-width: 260px; font-family: inherit;
+  display: block; position: relative; margin: 2px 0 6px;
+  padding: 7px 7px 30px;
+  border: none; border-radius: 6px;
+  background: #f4f1ea;                     /* papel fotográfico */
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  line-height: 0; cursor: pointer;
+  width: 100%; font-family: inherit;
 }
-/* object-fit:cover CORTAVA a foto. Aqui ela entra inteira: a altura segue a
-   proporção da imagem, limitada só pra não tomar a tela toda. */
+:root[data-theme="light"] .msg-foto { background: #fbf9f4; box-shadow: 0 2px 10px rgba(0,0,0,0.16); }
+
+/* Sem max-height: a foto ocupa a largura toda e a altura acompanha a
+   proporção. Limitar a altura obrigava a escolher entre cortar ou deixar
+   faixa vazia — e a foto tem que aparecer inteira. */
+.msg-foto-abrir {
+  display: block; width: 100%; padding: 0; border: none;
+  background: none; cursor: pointer; line-height: 0;
+}
 .msg-foto img {
-  display: block; width: auto; height: auto;
-  max-width: 100%; max-height: 340px;
-  border-radius: 10px; background: var(--bg);
+  display: block; width: 100%; height: auto;
+  border-radius: 2px; background: var(--bg);
 }
+/* Curtir e comentar ocupam a margem grossa de baixo do papel */
+.foto-acoes {
+  display: flex; gap: 4px; align-items: center;
+  height: 30px; margin-bottom: -30px; padding-top: 3px;
+}
+.fa-btn {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer; padding: 3px 7px;
+  border-radius: 14px; font-size: 15px; line-height: 1; font-family: inherit;
+  color: #4a4a4a;
+}
+.fa-btn span { font-size: 12px; font-weight: 700; }
+.fa-btn:active { background: rgba(0,0,0,0.07); }
+
+
+/* No privado a bolha JÁ é uma moldura. Com a do papel dentro dela ficavam
+   duas bordas em volta da mesma foto. Quando a mensagem é só foto, a bolha
+   se apaga e quem emoldura é o papel. */
+/* Marcado por CLASSE e não por :has() — o seletor :has é recente e o Chrome
+   do aparelho pode ser antigo; aqui a diferença seria a foto voltar a ter
+   duas bordas em volta, sem nenhum aviso. */
+.wa-bolha.bolha-foto { background: none; border: none; padding: 0; box-shadow: none; }
+.wa-msg.minha .wa-bolha.bolha-foto { background: none; border: none; }
+.wa-bolha.bolha-foto .wa-hora { margin: 4px 6px 0 0; }
+.wa-bolha.bolha-foto .wa-txt { padding: 6px 10px 0; }
+/* No privado a foto não toma a largura inteira: fica no lado de quem enviou */
+.wa-msg.wa-com-foto { max-width: 74%; }
 /* Espaço reservado enquanto a URL assinada não chegou: sem ele a lista pula
    quando a imagem entra e a pessoa perde a linha que estava lendo. */
-.msg-foto-vazia { width: 200px; height: 150px; border-radius: 14px; padding: 0; }
+.msg-foto-vazia { width: 100%; height: 190px; border-radius: 6px; padding: 0; box-shadow: none; }
 
 /* Prévia do que vai ser enviado */
 /* Colada na barra de escrita: solta acima parecia um card de outra coisa, e
@@ -5995,3 +6029,39 @@ body.sem-rolagem { overflow: hidden; }
   font-size: 18px; cursor: pointer; display: grid; place-items: center;
   text-decoration: none;
 }
+
+/* No mural a foto usa toda a largura disponível da mensagem — era o que a
+   deixava estreita demais no meio da tela. */
+.dc-body .msg-foto { max-width: 100%; }
+
+/* === Folha de comentários === */
+.coment-folha { position: fixed; inset: 0; z-index: 115; display: flex; flex-direction: column; }
+.coment-folha[hidden] { display: none; }
+.cf-fundo { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+.cf-caixa {
+  position: relative; margin-top: auto;
+  max-height: 74vh; display: flex; flex-direction: column;
+  background: var(--card); border-radius: 18px 18px 0 0;
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cf-puxador { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 9px auto 4px; }
+.cf-titulo { text-align: center; font-size: 14px; font-weight: 700; color: var(--text); padding-bottom: 9px; border-bottom: 1px solid var(--border); }
+.cf-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 12px; }
+.cf-carregando, .cf-vazio { text-align: center; color: var(--muted); font-size: 13px; padding: 28px 16px; line-height: 1.55; }
+.cf-item { display: flex; gap: 9px; align-items: flex-start; }
+.cf-av { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; object-fit: cover; }
+.cf-corpo { flex: 1; min-width: 0; }
+.cf-topo { display: flex; align-items: baseline; gap: 7px; }
+.cf-nome { font-size: 12.5px; font-weight: 700; }
+.cf-hora { font-size: 10px; color: var(--muted); }
+.cf-txt { font-size: 13.5px; line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.cf-x { flex: 0 0 28px; height: 28px; border-radius: 50%; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.cf-envio { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--border); }
+.cf-envio textarea {
+  flex: 1; min-width: 0; background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 10px 14px; color: var(--text); font-size: 14px;
+  font-family: inherit; resize: none; min-height: 42px; max-height: 110px;
+  outline: none; overflow-y: auto; scrollbar-width: none;
+}
+.cf-enviar { flex: 0 0 42px; height: 42px; border-radius: 50%; background: var(--accent); border: none; color: #fff; font-size: 16px; cursor: pointer; }

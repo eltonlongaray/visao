@@ -92,6 +92,64 @@ export async function enviarPrivado(outroId, texto, nome, imagemPath = null) {
   _falha(error);
 }
 
+// ─── CURTIR E COMENTAR ─────────────────────────────────────────
+// Contagem em LOTE: desenhar 50 mensagens buscando curtidas e comentários de
+// uma em uma seriam 100 consultas por atualização da lista.
+export async function resumoReacoes(ids) {
+  const lista = [...new Set((ids || []).filter(Boolean))];
+  if (!lista.length) return new Map();
+  const { data, error } = await supabase.rpc('resumo_reacoes', { ids: lista });
+  if (error) { console.warn('[Falcon] resumo_reacoes:', error.message); return new Map(); }
+  return new Map((data || []).map(r => [r.mensagem_id, {
+    curtidas: Number(r.curtidas) || 0,
+    euCurti: !!r.eu_curti,
+    comentarios: Number(r.comentarios) || 0,
+  }]));
+}
+
+// Curtir é alternância. A chave composta no banco já impede curtir duas
+// vezes, então aqui basta decidir entre inserir e apagar.
+export async function alternarCurtida(mensagemId, jaCurti) {
+  const id = auth.currentUser?.uid;
+  if (!id) throw new Error('Sessão expirada');
+  if (jaCurti) {
+    const { error } = await supabase.from('chat_curtidas')
+      .delete().eq('mensagem_id', mensagemId).eq('user_id', id);
+    _falha(error);
+  } else {
+    const { error } = await supabase.from('chat_curtidas')
+      .insert({ mensagem_id: mensagemId, user_id: id });
+    _falha(error);
+  }
+}
+
+export async function fetchComentarios(mensagemId) {
+  const { data, error } = await supabase
+    .from('chat_comentarios')
+    .select('id, autor_id, autor_nome, texto, created_at')
+    .eq('mensagem_id', mensagemId)
+    .order('created_at', { ascending: true });
+  _falha(error);
+  return data || [];
+}
+
+export async function comentar(mensagemId, texto, nome) {
+  const t = (texto || '').trim();
+  if (!t) return;
+  const { error } = await supabase.from('chat_comentarios').insert({
+    mensagem_id: mensagemId,
+    autor_id: auth.currentUser?.uid,
+    autor_nome: nome,
+    texto: t.slice(0, 600),
+  });
+  _falha(error);
+}
+
+export async function apagarComentario(id) {
+  const { error } = await supabase.from('chat_comentarios').delete().eq('id', id);
+  _falha(error);
+}
+
 // ─── FOTO NA MENSAGEM ──────────────────────────────────────────
 // Sobe a imagem primeiro e insere a mensagem depois. Se o envio falhar, não
 // nasce mensagem quebrada apontando pra arquivo que não existe.

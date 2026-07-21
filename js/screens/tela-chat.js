@@ -18,6 +18,7 @@ import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
   subirFotoDoChat, assinarFotos, faxinaFotos,
+  resumoReacoes, alternarCurtida, fetchComentarios, comentar, apagarComentario,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -36,6 +37,8 @@ let souAdmin = false;
 let perfis = new Map();   // id -> { nome, foto }, alimentado por fetchPerfis()
 let fotos = new Map();    // caminho no bucket -> URL assinada (vale 1h)
 let anexo = null;         // { blob, previa } escolhido e ainda não enviado
+let reacoes = new Map();  // id da mensagem -> { curtidas, euCurti, comentarios }
+let comentandoEm = null;  // id da mensagem com a folha de comentários aberta
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -149,6 +152,7 @@ export async function renderChat(app) {
     conversaCom = null;
     limparSelecao();
     limparAnexo();
+    fecharComentarios();
     // URLs assinadas valem 1h e morrem com a sessão da tela: guardar entre
     // visitas devolveria link vencido na volta
     fotos.clear();
@@ -172,6 +176,7 @@ function desenharCasca(app) {
 
       <div id="chat-corpo"></div>
     </div>
+    <div class="coment-folha" id="coment-folha" hidden></div>
     <div class="foto-envio" id="foto-envio" hidden></div>
     <div class="foto-ver" id="foto-ver" hidden></div>
     <div class="chat-selbar" id="chat-selbar" hidden>
@@ -209,6 +214,7 @@ async function desenharMural(corpo) {
 
   const meu = auth.currentUser?.uid;
   await carregarFotos(msgs);
+  await carregarReacoes(msgs);
   const lista = msgs.length
     ? msgs.map((m, i) => linhaDiscord(m, msgs[i - 1], m.autor_id === meu)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
@@ -330,6 +336,7 @@ async function desenharConversa(corpo) {
 
   const meu = auth.currentUser?.uid;
   await carregarFotos(msgs);
+  await carregarReacoes(msgs);
   const lista = msgs.length
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
@@ -379,13 +386,36 @@ function blocoFoto(m) {
   if (!url) return `<div class="msg-foto msg-foto-vazia"></div>`;
   // Sem botão de baixar aqui: ele fica no visualizador, ao abrir a foto.
   // Pendurado na miniatura, tapava justamente o canto da imagem.
-  return `<button type="button" class="msg-foto" data-abrir-foto="${esc(url)}">
-    <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
-  </button>`;
+  const r = reacoes.get(m.id) || { curtidas: 0, euCurti: false, comentarios: 0 };
+  // A barra vive DENTRO da moldura, ocupando a margem grossa de baixo — é
+  // pra ela que aquele espaço foi reservado.
+  return `<div class="msg-foto">
+    <button type="button" class="msg-foto-abrir" data-abrir-foto="${esc(url)}"
+      aria-label="Abrir foto">
+      <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
+    </button>
+    <div class="foto-acoes">
+      <button type="button" class="fa-btn ${r.euCurti ? 'curtida' : ''}"
+        data-curtir="${m.id}" aria-label="Curtir">
+        ${r.euCurti ? '❤️' : '🤍'}${r.curtidas ? `<span>${r.curtidas}</span>` : ''}
+      </button>
+      <button type="button" class="fa-btn" data-comentar="${m.id}" aria-label="Comentar">
+        💬${r.comentarios ? `<span>${r.comentarios}</span>` : ''}
+      </button>
+    </div>
+  </div>`;
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
 // segundos e reassinar tudo a cada volta seria uma chamada por ciclo à toa.
+// Curtidas e comentários só existem em mensagem com foto por enquanto —
+// buscar para as de texto seria consulta à toa.
+async function carregarReacoes(msgs) {
+  const ids = (msgs || []).filter(m => m.imagem_path).map(m => m.id);
+  if (!ids.length) { reacoes = new Map(); return; }
+  reacoes = await resumoReacoes(ids);
+}
+
 async function carregarFotos(msgs) {
   const faltando = (msgs || [])
     .map(m => m.imagem_path)
@@ -430,6 +460,68 @@ function marcarEnviando(ligado) {
   const botaoFe = document.getElementById('fe-enviar');
   if (botaoFe) { botaoFe.disabled = ligado; botaoFe.textContent = ligado ? '⏳' : '➤'; }
   if (previa && ligado) previa.classList.add('enviando');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMENTÁRIOS
+// ═══════════════════════════════════════════════════════════════
+// Folha que sobe de baixo, como no Instagram. Não usei tela cheia porque o
+// comentário é sobre a foto: sumir com ela tira a referência do que se
+// está comentando.
+async function abrirComentarios(msgId) {
+  const folha = document.getElementById('coment-folha');
+  if (!folha) return;
+  comentandoEm = msgId;
+  folha.hidden = false;
+  folha.innerHTML = `<div class="cf-caixa"><div class="cf-carregando">Carregando…</div></div>`;
+  await desenharComentarios();
+}
+
+async function desenharComentarios() {
+  const folha = document.getElementById('coment-folha');
+  if (!folha || !comentandoEm) return;
+  let lista = [];
+  try { lista = await fetchComentarios(comentandoEm); }
+  catch (e) { showToast(e.message, 'error'); }
+
+  const meu = auth.currentUser?.uid;
+  const linhas = lista.length
+    ? lista.map(c => `
+        <div class="cf-item">
+          ${avatar(c.autor_id, c.autor_nome || 'Falcão', 'cf-av')}
+          <div class="cf-corpo">
+            <div class="cf-topo">
+              <span class="cf-nome" style="color:${corDe(c.autor_id)}">${esc(c.autor_nome || 'Falcão')}</span>
+              <span class="cf-hora">${hora(c.created_at)}</span>
+            </div>
+            <div class="cf-txt">${esc(c.texto)}</div>
+          </div>
+          ${c.autor_id === meu || souAdmin
+            ? `<button type="button" class="cf-x" data-apagar-coment="${c.id}" aria-label="Apagar comentário">✕</button>`
+            : ''}
+        </div>`).join('')
+    : `<div class="cf-vazio">Nenhum comentário ainda.<br>Seja o primeiro a falar.</div>`;
+
+  folha.innerHTML = `
+    <div class="cf-fundo" id="cf-fechar-fora"></div>
+    <div class="cf-caixa">
+      <div class="cf-puxador"></div>
+      <div class="cf-titulo">Comentários</div>
+      <div class="cf-lista">${linhas}</div>
+      <form class="cf-envio" id="cf-envio">
+        <textarea id="cf-texto" rows="1" maxlength="600"
+          placeholder="Escreva um comentário…"></textarea>
+        <button type="submit" class="cf-enviar" aria-label="Enviar">➤</button>
+      </form>
+    </div>`;
+}
+
+function fecharComentarios() {
+  const folha = document.getElementById('coment-folha');
+  comentandoEm = null;
+  if (!folha) return;
+  folha.hidden = true;
+  folha.innerHTML = '';
 }
 
 // Visualizador em tela cheia. O botão de baixar mora AQUI, no topo — na
@@ -621,9 +713,9 @@ function balao(m, minha, mostrarAutor) {
   // Estilo WhatsApp: a hora vai DENTRO da bolha, no canto de baixo. Fora dela
   // cada mensagem ganhava uma linha extra e a conversa ficava esparramada.
   return `
-    <div class="wa-msg ${minha ? 'minha' : ''}" data-id="${m.id}"
+    <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
-      <div class="wa-bolha">
+      <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
         ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
         ${blocoFoto(m)}
         ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
@@ -713,6 +805,33 @@ function ligarEventos(app) {
       // no mesmo gesto.
       if (engolirClique) { engolirClique = false; return; }
       limparSelecao();
+      return;
+    }
+
+    const btnCurtir = t.closest('[data-curtir]');
+    if (btnCurtir) {
+      const id = btnCurtir.dataset.curtir;
+      const atual = reacoes.get(id) || { curtidas: 0, euCurti: false, comentarios: 0 };
+      // Pinta na hora e conserta depois se o servidor recusar: esperar a
+      // ida e volta pra ver o coração mudar faz o toque parecer perdido.
+      const novo = { ...atual, euCurti: !atual.euCurti,
+                     curtidas: atual.curtidas + (atual.euCurti ? -1 : 1) };
+      reacoes.set(id, novo);
+      btnCurtir.classList.toggle('curtida', novo.euCurti);
+      btnCurtir.innerHTML = `${novo.euCurti ? '❤️' : '🤍'}${novo.curtidas ? `<span>${novo.curtidas}</span>` : ''}`;
+      try { await alternarCurtida(id, atual.euCurti); }
+      catch (e) { reacoes.set(id, atual); showToast(e.message, 'error'); await recarregar(); }
+      return;
+    }
+
+    const btnComentar = t.closest('[data-comentar]');
+    if (btnComentar) { await abrirComentarios(btnComentar.dataset.comentar); return; }
+    if (t.closest('#cf-fechar-fora')) { fecharComentarios(); return; }
+
+    const apagarCom = t.closest('[data-apagar-coment]');
+    if (apagarCom) {
+      try { await apagarComentario(apagarCom.dataset.apagarComent); await desenharComentarios(); }
+      catch (e) { showToast(e.message, 'error'); }
       return;
     }
 
@@ -866,6 +985,19 @@ function ligarEventos(app) {
   });
 
   app.addEventListener('submit', async (ev) => {
+    if (ev.target.closest('#cf-envio')) {
+      ev.preventDefault();
+      const campo = app.querySelector('#cf-texto');
+      const texto = campo.value.trim();
+      if (!texto || !comentandoEm) return;
+      campo.value = '';
+      try {
+        await comentar(comentandoEm, texto, meuNome);
+        await desenharComentarios();
+        await recarregar();   // atualiza o contador na foto
+      } catch (e) { campo.value = texto; showToast(e.message, 'error'); }
+      return;
+    }
     if (!ev.target.closest('#chat-envio')) return;
     ev.preventDefault();
     const campo = app.querySelector('#chat-texto');
