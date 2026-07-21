@@ -266,6 +266,42 @@ export async function trocarMinhaFoto(blob) {
   return url;
 }
 
+// Traz a foto do Google pra DENTRO do nosso bucket, uma vez só. Apontar pro
+// lh3.googleusercontent.com deixava a foto refém de um servidor que não é
+// nosso: link que caduca, política que muda, conta que some. Depois disto a
+// imagem é nossa e não depende de mais ninguém.
+//
+// Roda em silêncio: se falhar, a foto do Google continua sendo usada como
+// estava e ninguém perde nada.
+const MARCA_ESPELHO = 'falcon_foto_espelhada';
+export async function espelharFotoDoGoogle() {
+  try {
+    if (localStorage.getItem(MARCA_ESPELHO) === '1') return;
+    const id = auth.currentUser?.uid;
+    const origem = auth.currentUser?.photoURL;
+    if (!id || !origem) return;
+
+    // Já tem foto escolhida? Então não há o que espelhar — a dela vence.
+    const p = await getProfile();
+    if (p?.fotoUrl) { localStorage.setItem(MARCA_ESPELHO, '1'); return; }
+
+    const resp = await fetch(origem, { mode: 'cors', referrerPolicy: 'no-referrer' });
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    if (!blob.size || blob.size > 2_000_000) return;
+
+    const caminho = `${id}/foto.jpg`;
+    const { error } = await supabase.storage
+      .from('avatares').upload(caminho, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+    if (error) return;
+
+    const { data } = supabase.storage.from('avatares').getPublicUrl(caminho);
+    await setProfile({ fotoUrl: `${data.publicUrl}?t=${Date.now()}` });
+    localStorage.setItem(MARCA_ESPELHO, '1');
+    limparCachePerfis();
+  } catch { /* silencioso de propósito: a foto do Google segue valendo */ }
+}
+
 // Volta pra foto do Google (ou pras iniciais, se a pessoa não entrou por lá).
 export async function removerMinhaFoto() {
   const id = auth.currentUser?.uid;

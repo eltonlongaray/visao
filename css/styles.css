@@ -2072,7 +2072,10 @@ body.time-picker-open { overflow: hidden; }
 .desafios-card .reminders-icon { background: rgba(245,158,11,0.20); } /* dourado */
 .desafio-list {
   display: flex; flex-direction: column; gap: 12px; margin-top: 4px;
-  max-height: 52vh; overflow-y: auto; padding-right: 4px;
+  max-height: 52vh; overflow-y: auto;
+  /* explícito: com 'auto' no eixo X a faixa de seleção criaria barra de
+     rolagem horizontal em vez de ser aparada */
+  overflow-x: hidden; padding-right: 4px;
 }
 .desafio-item {
   background: var(--card);
@@ -2877,8 +2880,11 @@ body.time-picker-open { overflow: hidden; }
      — o ladrilho de hieróglifos da conversa, por exemplo — e sumiria lá. */
   position: absolute; z-index: 0;
   top: -3px; bottom: -3px;
-  left: calc(-1 * var(--sangria, 16px));
-  right: calc(-1 * var(--sangria, 16px));
+  /* 100vw pros dois lados, e não a sangria da lista: o balão tem no máximo
+     84% da largura e fica encostado num dos lados, então esticar só a
+     sangria nunca alcançava a borda oposta. Quem apara o excesso é o
+     overflow-x:hidden da lista. */
+  left: -100vw; right: -100vw;
   background: rgba(234,179,8,0.18);
 }
 .dc-msg.msg-sel > *, .wa-msg.msg-sel > * { position: relative; z-index: 1; }
@@ -6005,12 +6011,14 @@ body.sem-rolagem { overflow: hidden; }
 .fe-baixo {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   display: flex; align-items: flex-end; gap: 8px;
-  padding: 26px 12px calc(14px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, rgba(0,0,0,0.88) 40%, rgba(0,0,0,0));
+  /* sobe o campo: colado no rodapé ele caía sobre a barra de navegação do
+     Android e ficava difícil de acertar */
+  padding: 30px 12px calc(64px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(0,0,0,0.9) 55%, rgba(0,0,0,0));
 }
-.fe-palco { padding-bottom: 84px; }
+.fe-palco { padding-bottom: 130px; }
 .fe-baixo textarea {
-  flex: 1; min-width: 0; background: rgba(255,255,255,0.12); border: none;
+  flex: 1; min-width: 0; background: rgba(30,30,40,0.92); border: 1px solid rgba(255,255,255,0.18);
   border-radius: 22px; padding: 12px 16px; color: #fff; font-size: 14.5px;
   font-family: inherit; line-height: 1.4; resize: none; min-height: 46px;
   max-height: 120px; outline: none; overflow-y: auto; scrollbar-width: none;
@@ -6023,16 +6031,36 @@ body.sem-rolagem { overflow: hidden; }
 }
 .fe-enviar:disabled { opacity: 0.65; cursor: default; }
 
+/* As opções ficam sobre uma máscara escura que some ao tocar na imagem: a
+   foto é o conteúdo, os botões são passageiros. */
+.fv-topo, .fv-baixo {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  display: flex; align-items: center; gap: 10px;
+  opacity: 1; transition: opacity 0.2s;
+}
 .fv-topo {
-  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
-  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+  top: 0; justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 26px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0));
 }
+.fv-baixo {
+  bottom: 0;
+  padding: 26px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
+}
+.fv-resp-txt { color: rgba(255,255,255,0.72); font-size: 14.5px; }
+.fv-dir { display: flex; gap: 6px; }
+/* sem a classe, as tarjas somem — o toque na imagem alterna */
+.foto-ver:not(.com-opcoes) .fv-topo,
+.foto-ver:not(.com-opcoes) .fv-baixo { opacity: 0; pointer-events: none; }
+.fv-palco { cursor: pointer; }
 .fv-btn {
-  width: 42px; height: 42px; border-radius: 50%;
-  background: rgba(255,255,255,0.14); border: none; color: #fff;
-  font-size: 18px; cursor: pointer; display: grid; place-items: center;
-  text-decoration: none;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(0,0,0,0.42); border: none; color: #fff;
+  cursor: pointer; display: grid; place-items: center;
+  text-decoration: none; font-size: 19px; padding: 0;
 }
+.fv-btn:active { background: rgba(255,255,255,0.2); }
 
 /* No mural a foto usa toda a largura disponível da mensagem — era o que a
    deixava estreita demais no meio da tela. */
@@ -6059,9 +6087,10 @@ body.sem-rolagem { overflow: hidden; }
 }
 
 /* === Fita de reação rápida (aparece com a mensagem selecionada) === */
+/* Posicionada pelo JS, na altura da mensagem selecionada. Fixa no topo ela
+   ficava longe do que estava sendo reagido e parecia de outra coisa. */
 .reac-barra {
-  position: fixed; left: 50%; transform: translateX(-50%);
-  top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 92;
+  position: fixed; z-index: 92;
   display: flex; gap: 2px; padding: 5px 7px;
   background: var(--card); border: 1px solid var(--border);
   border-radius: 26px; box-shadow: 0 6px 22px rgba(0,0,0,0.4);

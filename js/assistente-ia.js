@@ -543,9 +543,19 @@ function desviarDoEnviar() {
   return Math.round(acimaDoBotao + PET_FOLGA);
 }
 
+// Telas onde o pet NÃO aparece. Na conversa ele disputava espaço com o botão
+// de enviar, a foto e as opções — e ali ele não tem nada a fazer: é ajudante
+// de rotina, não de conversa.
+const TELAS_SEM_PET = ['#/chat'];
+function petEscondido() {
+  return TELAS_SEM_PET.some(r => (location.hash || '').startsWith(r));
+}
+
 function aplicarPosicaoPet(lado) {
   const el = document.getElementById('visao-pet');
   if (!el) return;
+  el.style.display = petEscondido() ? 'none' : '';
+  if (petEscondido()) return;
   const l = lado || (_posSalva()?.lado === 'esq' ? 'esq' : 'dir');
   el.style.bottom = desviarDoEnviar() + 'px';
   if (l === 'esq') {

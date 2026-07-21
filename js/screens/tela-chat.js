@@ -17,7 +17,7 @@
 import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
-  subirFotoDoChat, assinarFotos, faxinaFotos,
+  subirFotoDoChat, assinarFotos, faxinaFotos, espelharFotoDoGoogle,
   resumoReacoes, reagir, encaminhar,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
@@ -92,6 +92,7 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 let entradaNoHistorico = false;   // empurrei uma entrada e ela ainda vale?
 let entradaOrfa = false;          // saí da tela deixando uma pra trás
 let fotoNoHistorico = false;      // visualizador de foto empurrou entrada
+let fotoAberta = null;            // { url, msgId } da foto em tela cheia
 
 function abrirConversa(id, nome) {
   conversaCom = { id, nome };
@@ -110,7 +111,7 @@ if (typeof window !== 'undefined') {
 
     // Com mensagem selecionada, o voltar desfaz a seleção e a conversa fica —
     // igual ao WhatsApp. Reponho a entrada pro próximo voltar fechar a conversa.
-    if (selecionada) {
+    if (selecionados.size) {
       limparSelecao();
       if (conversaCom) history.pushState({ falconConversa: 1 }, '');
       return;
@@ -137,6 +138,7 @@ export async function renderChat(app) {
   try { souAdmin = !!(await getProfile())?.isAdmin; } catch { souAdmin = false; }
   faxinaChat();   // sem await: é limpeza de fundo
   faxinaFotos();  // idem: apaga imagens que perderam a mensagem dona
+  espelharFotoDoGoogle();   // uma vez só: traz a foto do Google pro nosso bucket
 
   desenharCasca(app);
   ajustarConversaAoTeclado();   // dimensiona pela tela visível já na entrada
@@ -149,7 +151,7 @@ export async function renderChat(app) {
   // apagaria o destaque e a barra ficaria apontando pra um elemento que não
   // existe mais.
   recarga = setInterval(() => {
-    if (selecionada) return;
+    if (selecionados.size) return;
     if (document.getElementById('chat-corpo')) recarregar();
   }, 12000);
   return () => {
@@ -230,7 +232,7 @@ async function desenharMural(corpo) {
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
 
-  pintar(corpo, lista, 'Falar com a comunidade…', '', true);
+  pintar(corpo, lista, 'Responder mensagem', '', true);
 }
 
 // Linha no estilo Discord: avatar + nome + texto corrido, sem balão.
@@ -352,7 +354,7 @@ async function desenharConversa(corpo) {
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
-  pintar(corpo, lista, `Mensagem para ${conversaCom.nome}…`, `
+  pintar(corpo, lista, 'Responder mensagem', `
     <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">
       <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
         stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -486,10 +488,10 @@ function pintarRespondendo() {
     <button type="button" class="resp-x" id="resp-cancelar" aria-label="Cancelar resposta">✕</button>` : '';
 }
 
-async function abrirEncaminhar(msg) {
+async function abrirEncaminhar(msgs) {
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
-  encaminhando = msg;
+  encaminhando = Array.isArray(msgs) ? msgs : [msgs];
   folha.hidden = false;
   folha.innerHTML = `<div class="enc-fundo" id="enc-fundo"></div>
     <div class="enc-caixa"><div class="cf-carregando">Carregando…</div></div>`;
@@ -548,35 +550,59 @@ function fecharCatalogoReacao() {
 
 // Visualizador em tela cheia. O botão de baixar mora AQUI, no topo — na
 // miniatura ele tapava o canto da imagem e só atrapalhava a leitura.
-function verFoto(url) {
+// Ícones em SVG e não em texto: ⤓ e ↪ saem finos e minúsculos porque
+// dependem da fonte do aparelho. Aqui a espessura é nossa.
+const IC_BAIXAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M6.5 11.5 12 17l5.5-5.5M4 20h16"/></svg>';
+const IC_ENCAM  = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5.5 20.5 12 13 18.5V14C7.5 14 5 16 3.5 19c.5-6 3.5-9.5 9.5-9.5z"/></svg>';
+const IC_RESP   = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5.5 3.5 12 11 18.5V14c5.5 0 8 2 9.5 5-.5-6-3.5-9.5-9.5-9.5z"/></svg>';
+
+// Visualizador em tela cheia. As opções ficam sob uma máscara escura que
+// some ao tocar na imagem — a foto é o conteúdo, os botões são passageiros.
+function verFoto(url, msgId) {
   const tela = document.getElementById('foto-ver');
   if (!tela) return;
+  fotoAberta = { url, msgId };
   tela.hidden = false;
-  // Entrada própria no histórico: sem ela, o voltar do aparelho saía da
-  // conversa inteira em vez de apenas fechar a foto que está aberta.
+  // Entrada própria no histórico: sem ela o voltar do aparelho saía da tela
+  // inteira em vez de apenas fechar a foto.
   history.pushState({ falconFoto: 1 }, '');
   fotoNoHistorico = true;
   document.body.classList.add('sem-rolagem');
+  tela.className = 'foto-ver com-opcoes';
   tela.innerHTML = `
     <div class="fv-topo">
       <button type="button" class="fv-btn" id="fv-fechar" aria-label="Fechar">✕</button>
-      <a class="fv-btn" href="${esc(url)}" download="falcon-foto.jpg"
-        target="_blank" rel="noopener" aria-label="Baixar foto">⤓</a>
+      <div class="fv-dir">
+        <a class="fv-btn" href="${esc(url)}" download="falcon-foto.jpg"
+          target="_blank" rel="noopener" aria-label="Baixar">${IC_BAIXAR}</a>
+        <button type="button" class="fv-btn" id="fv-encaminhar" aria-label="Encaminhar">${IC_ENCAM}</button>
+      </div>
     </div>
-    <div class="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>`;
+    <div class="fv-palco" id="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>
+    <div class="fv-baixo">
+      <button type="button" class="fv-btn" id="fv-responder" aria-label="Responder">${IC_RESP}</button>
+      <span class="fv-resp-txt">Responder mensagem</span>
+    </div>`;
+}
+
+function alternarOpcoesFoto() {
+  const tela = document.getElementById('foto-ver');
+  if (tela) tela.classList.toggle('com-opcoes');
 }
 
 function fecharVisualizador({ voltando = false } = {}) {
   const tela = document.getElementById('foto-ver');
   if (!tela) return;
-  // Fechar pelo ✕ consome a entrada do histórico; se veio do popstate ela
-  // já foi consumida e chamar back() de novo sairia da conversa.
+  // Fechar pelo ✕ consome a entrada do histórico; vindo do popstate ela já
+  // foi consumida e chamar back() de novo sairia da conversa.
   if (fotoNoHistorico && !voltando) { fotoNoHistorico = false; history.back(); return; }
   fotoNoHistorico = false;
+  fotoAberta = null;
   tela.hidden = true;
   tela.innerHTML = '';
   document.body.classList.remove('sem-rolagem');
 }
+
 
 function limparAnexo() {
   if (anexo?.previa) URL.revokeObjectURL(anexo.previa);
@@ -794,29 +820,43 @@ function balao(m, minha, mostrarAutor) {
 // as linhas por causa de uma ação que quase nunca é usada, e desalinhava as
 // bolhas. No padrão do WhatsApp a mensagem não carrega botão nenhum — segura
 // em cima dela e as ações aparecem numa barra no topo da tela.
-let selecionada = null;   // { id, editavel, apagavel, texto }
+const selecionados = new Map();   // id -> { id, editavel, apagavel, texto }
 let engolirClique = false;   // ver o handler de clique: o clique do próprio gesto
 
+// Alterna: tocar numa já selecionada tira, em outra soma. Encaminhar várias
+// de uma vez é o caso que justifica isso — separar um trecho de conversa uma
+// mensagem por vez seria trabalho de formiga.
 function selecionarMensagem(el) {
-  document.querySelectorAll('.msg-sel').forEach(e => e.classList.remove('msg-sel'));
-  el.classList.add('msg-sel');
-  selecionada = {
-    id: el.dataset.id,
-    editavel: el.dataset.editavel === '1',
-    apagavel: el.dataset.apagavel === '1',
-    texto: el.querySelector('.dc-txt, .wa-txt')?.textContent || '',
-  };
+  const id = el.dataset.id;
+  if (!id) return;
+  if (selecionados.has(id)) {
+    selecionados.delete(id);
+    el.classList.remove('msg-sel');
+  } else {
+    selecionados.set(id, {
+      id,
+      editavel: el.dataset.editavel === '1',
+      apagavel: el.dataset.apagavel === '1',
+      texto: el.querySelector('.dc-txt, .wa-txt')?.textContent || '',
+    });
+    el.classList.add('msg-sel');
+  }
   pintarBarraSelecao();
   engolirClique = true;
-  // Confirmação tátil: sem ela não fica claro que o "segurar" pegou.
   try { navigator.vibrate?.(12); } catch {}
 }
 
 function limparSelecao() {
-  selecionada = null;
+  selecionados.clear();
   document.querySelectorAll('.msg-sel').forEach(e => e.classList.remove('msg-sel'));
   pintarBarraSelecao();
 }
+
+// Atalho: a maioria das ações só faz sentido com UMA selecionada.
+function umaSo() {
+  return selecionados.size === 1 ? [...selecionados.values()][0] : null;
+}
+
 
 // Sete atalhos + "…" pro catálogo completo, como no WhatsApp. Os sete são os
 // que cobrem quase todo uso real; obrigar a abrir o catálogo pra dar um 👍
@@ -826,22 +866,49 @@ const REAC_RAPIDAS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '💪'];
 function pintarBarraSelecao() {
   const barra = document.getElementById('chat-selbar');
   const fita = document.getElementById('reac-barra');
-  if (!barra) return;
-  barra.hidden = !selecionada;
+  const n = selecionados.size;
+  const uma = umaSo();
+  if (barra) {
+    barra.hidden = !n;
+    if (n) {
+      barra.querySelector('.selbar-tit').textContent = n === 1 ? '1 mensagem' : n + ' mensagens';
+      // Responder, editar e copiar são de UMA mensagem. Encaminhar e apagar
+      // valem para o conjunto — apagar só se eu puder apagar todas.
+      barra.querySelector('[data-sel-responder]').hidden = !uma;
+      barra.querySelector('[data-sel-editar]').hidden = !(uma && uma.editavel);
+      barra.querySelector('[data-sel-copiar]').hidden = !uma;
+      barra.querySelector('[data-sel-apagar]').hidden =
+        [...selecionados.values()].some(m => !m.apagavel);
+    }
+  }
+  // Reagir é sobre UMA mensagem: com várias, não há em qual colar o emoji.
   if (fita) {
-    fita.hidden = !selecionada;
-    if (selecionada) {
-      const minha = (reacoes.get(selecionada.id) || []).find(r => r.eu)?.emoji || null;
-      fita.innerHTML = REAC_RAPIDAS.map(e => `
-        <button type="button" class="rb-item ${e === minha ? 'ativa' : ''}"
-          data-reagir="${selecionada.id}" data-emoji="${e}">${e}</button>`).join('')
-        + `<button type="button" class="rb-item rb-mais" id="rb-mais" aria-label="Mais emojis">＋</button>`;
+    fita.hidden = !uma;
+    if (uma) {
+      const minha = (reacoes.get(uma.id) || []).find(r => r.eu)?.emoji || null;
+      fita.innerHTML = REAC_RAPIDAS.map(e =>
+        '<button type="button" class="rb-item ' + (e === minha ? 'ativa' : '') + '"' +
+        ' data-reagir="' + uma.id + '" data-emoji="' + e + '">' + e + '</button>').join('')
+        + '<button type="button" class="rb-item rb-mais" id="rb-mais" aria-label="Mais emojis">＋</button>';
+      posicionarFitaReacao(uma.id);
     } else { fita.innerHTML = ''; }
   }
-  if (!selecionada) return;
-  barra.querySelector('[data-sel-editar]').hidden = !selecionada.editavel;
-  barra.querySelector('[data-sel-apagar]').hidden = !selecionada.apagavel;
 }
+
+// A fita nasce colada na mensagem: acima dela quando há espaço, abaixo quando
+// a mensagem está no topo da tela. Fixa no topo ela parecia de outra coisa.
+function posicionarFitaReacao(id) {
+  const fita = document.getElementById('reac-barra');
+  const msg = document.querySelector('[data-id="' + id + '"]');
+  if (!fita || !msg) return;
+  const r = msg.getBoundingClientRect();
+  const alt = 54;
+  const acima = r.top - alt - 8;
+  fita.style.top = (acima > 70 ? acima : Math.min(r.bottom + 8, window.innerHeight - alt - 90)) + 'px';
+  fita.style.left = '50%';
+  fita.style.transform = 'translateX(-50%)';
+}
+
 
 // Os ouvintes são DELEGADOS no #app, que é permanente entre telas — o
 // roteador troca o innerHTML, não o elemento. Sem esta trava, cada entrada no
@@ -871,14 +938,12 @@ function ligarEventos(app) {
     const conv = t.closest('[data-abrir]');
     if (conv) return abrirConversa(conv.dataset.abrir, conv.dataset.nome);
 
-    if (selecionada && !t.closest('.chat-selbar')) {
-      // Em modo de seleção, tocar em OUTRA mensagem troca a seleção em vez
-      // de sair dele — é o que o WhatsApp faz.
+    if (selecionados.size && !t.closest('.chat-selbar') && !t.closest('.reac-barra')
+        && !t.closest('.enc-folha')) {
+      // Em modo de seleção, tocar numa mensagem ALTERNA: soma se for nova,
+      // tira se já estava. É o que permite juntar várias pra encaminhar.
       const outra = t.closest('.dc-msg, .wa-msg');
-      if (outra?.dataset.id && outra.dataset.id !== selecionada.id) {
-        selecionarMensagem(outra);
-        return;
-      }
+      if (outra?.dataset.id) { selecionarMensagem(outra); return; }
       // Soltar o dedo depois de segurar dispara um clique logo atrás da
       // seleção. Sem engolir esse primeiro clique, a barra abria e fechava
       // no mesmo gesto.
@@ -900,7 +965,7 @@ function ligarEventos(app) {
     }
     if (t.closest('#rb-mais')) {
       // catálogo completo, reaproveitando o mesmo seletor do teclado
-      const alvo = selecionada?.id;
+      const alvo = umaSo()?.id;
       limparSelecao();
       abrirCatalogoReacao(alvo);
       return;
@@ -917,8 +982,8 @@ function ligarEventos(app) {
     if (t.closest('#rc-fundo')) { fecharCatalogoReacao(); return; }
 
     // ── responder ──
-    if (t.closest('[data-sel-responder]') && selecionada) {
-      const m = porId.get(selecionada.id);
+    if (t.closest('[data-sel-responder]') && umaSo()) {
+      const m = porId.get(umaSo().id);
       respondendoA = m ? { id: m.id, nome: m.autor_nome || 'Falcão',
                            texto: m.texto || '', temFoto: !!m.imagem_path } : null;
       limparSelecao();
@@ -941,10 +1006,10 @@ function ligarEventos(app) {
     }
 
     // ── encaminhar ──
-    if (t.closest('[data-sel-encaminhar]') && selecionada) {
-      const m = porId.get(selecionada.id);
+    if (t.closest('[data-sel-encaminhar]') && selecionados.size) {
+      const msgs = [...selecionados.keys()].map(id => porId.get(id)).filter(Boolean);
       limparSelecao();
-      if (m) await abrirEncaminhar(m);
+      if (msgs.length) await abrirEncaminhar(msgs);
       return;
     }
     if (t.closest('#enc-fundo')) { fecharEncaminhar(); return; }
@@ -952,15 +1017,45 @@ function ligarEventos(app) {
     if (encPara) {
       const alvo = encPara.dataset.encaminharPara;
       const nomeAlvo = encPara.dataset.nome;
-      const m = encaminhando;
+      const msgs = encaminhando || [];
       fecharEncaminhar();
-      try { await encaminhar(m, alvo, meuNome); showToast(`Enviado para ${nomeAlvo}.`, 'success'); }
-      catch (e) { showToast(e.message, 'error'); }
+      try {
+        for (const m of msgs) await encaminhar(m, alvo, meuNome);
+        // Levar pra conversa em vez de avisar: o aviso obrigava a pessoa a
+        // procurar a conversa pra conferir se chegou.
+        aba = 'privado';
+        conversaCom = { id: alvo, nome: nomeAlvo };
+        history.pushState({ falconConversa: 1 }, '');
+        entradaNoHistorico = true;
+        app.querySelectorAll('[data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === 'privado'));
+        await recarregar();
+      } catch (e) { showToast(e.message, 'error'); }
       return;
     }
 
     const abrirFoto = t.closest('[data-abrir-foto]');
-    if (abrirFoto) { verFoto(abrirFoto.dataset.abrirFoto); return; }
+    if (abrirFoto) {
+      verFoto(abrirFoto.dataset.abrirFoto, abrirFoto.closest('[data-id]')?.dataset.id);
+      return;
+    }
+    if (t.closest('#fv-palco')) { alternarOpcoesFoto(); return; }
+    if (t.closest('#fv-encaminhar') && fotoAberta?.msgId) {
+      const m = porId.get(fotoAberta.msgId);
+      fecharVisualizador();
+      if (m) await abrirEncaminhar([m]);
+      return;
+    }
+    if (t.closest('#fv-responder') && fotoAberta?.msgId) {
+      const m = porId.get(fotoAberta.msgId);
+      fecharVisualizador();
+      if (m) {
+        respondendoA = { id: m.id, nome: m.autor_nome || 'Falcão',
+                         texto: m.texto || '', temFoto: !!m.imagem_path };
+        pintarRespondendo();
+        app.querySelector('#chat-texto')?.focus();
+      }
+      return;
+    }
     if (t.closest('#fv-fechar')) { fecharVisualizador(); return; }
     if (t.closest('#fe-cancelar')) { limparAnexo(); return; }
     if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
@@ -1003,19 +1098,20 @@ function ligarEventos(app) {
 
     if (t.closest('#sel-cancelar')) { limparSelecao(); return; }
 
-    if (t.closest('[data-sel-copiar]') && selecionada) {
-      const texto = selecionada.texto;
+    if (t.closest('[data-sel-copiar]') && umaSo()) {
+      const texto = umaSo().texto;
       limparSelecao();
       try { await navigator.clipboard.writeText(texto); showToast('Copiado.', 'info'); }
       catch { showToast('Seu navegador não deixou copiar.', 'error'); }
       return;
     }
 
-    if (t.closest('[data-sel-editar]') && selecionada?.editavel) {
+    if (t.closest('[data-sel-editar]') && umaSo()?.editavel) {
       const campo = app.querySelector('#chat-texto');
       if (campo) {
-        editando = selecionada.id;
-        campo.value = selecionada.texto;
+        const alvoEd = umaSo();
+        editando = alvoEd.id;
+        campo.value = alvoEd.texto;
         ajustarAltura(campo);
         campo.focus();
         app.querySelector('#chat-envio')?.classList.add('editando');
@@ -1030,22 +1126,26 @@ function ligarEventos(app) {
       return;
     }
 
-    if (t.closest('[data-sel-apagar]') && selecionada?.apagavel) {
-      // Alheia = eu posso apagar mas não editar, e isso só acontece via
+    if (t.closest('[data-sel-apagar]') && selecionados.size) {
+      // Alheia = posso apagar mas não editar, o que só acontece por
       // privilégio de administrador.
-      const alheia = !selecionada.editavel;
-      const id = selecionada.id;
+      const alvos = [...selecionados.values()];
+      const alheia = alvos.some(m => !m.editavel);
+      const n = alvos.length;
       limparSelecao();
       const ok = await confirmModal({
-        title: alheia ? 'Apagar mensagem de outra pessoa?' : 'Apagar mensagem?',
+        title: n > 1 ? `Apagar ${n} mensagens?`
+             : alheia ? 'Apagar mensagem de outra pessoa?' : 'Apagar mensagem?',
         message: alheia
-          ? 'Você está apagando como administrador. Ela some para todo mundo.'
-          : 'Ela some para todo mundo.',
+          ? 'Você está apagando como administrador. Some para todo mundo.'
+          : 'Some para todo mundo.',
         confirmText: 'Apagar', cancelText: 'Manter', danger: true,
       });
       if (!ok) return;
-      try { await apagarMensagem(id); await recarregar(); }
-      catch (e) { showToast(e.message, 'error'); }
+      try {
+        for (const m of alvos) await apagarMensagem(m.id);
+        await recarregar();
+      } catch (e) { showToast(e.message, 'error'); }
     }
   });
 
