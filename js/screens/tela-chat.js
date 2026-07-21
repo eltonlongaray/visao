@@ -18,7 +18,7 @@ import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
   subirFotoDoChat, assinarFotos, faxinaFotos,
-  resumoReacoes, alternarCurtida, fetchComentarios, comentar, apagarComentario,
+  resumoReacoes, reagir, encaminhar,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -37,8 +37,9 @@ let souAdmin = false;
 let perfis = new Map();   // id -> { nome, foto }, alimentado por fetchPerfis()
 let fotos = new Map();    // caminho no bucket -> URL assinada (vale 1h)
 let anexo = null;         // { blob, previa } escolhido e ainda não enviado
-let reacoes = new Map();  // id da mensagem -> { curtidas, euCurti, comentarios }
-let comentandoEm = null;  // id da mensagem com a folha de comentários aberta
+let reacoes = new Map();  // id da mensagem -> [{ emoji, total, eu }]
+let porId = new Map();    // id -> mensagem, pra citação achar a original
+let respondendoA = null;  // { id, nome, texto, temFoto } citado no envio
 
 // ═══════════════════════════════════════════════════════════════
 // TECLADO ABERTO
@@ -156,7 +157,6 @@ export async function renderChat(app) {
     conversaCom = null;
     limparSelecao();
     limparAnexo();
-    fecharComentarios();
     // URLs assinadas valem 1h e morrem com a sessão da tela: guardar entre
     // visitas devolveria link vencido na volta
     fotos.clear();
@@ -180,18 +180,21 @@ function desenharCasca(app) {
 
       <div id="chat-corpo"></div>
     </div>
-    <div class="coment-folha" id="coment-folha" hidden></div>
     <div class="foto-envio" id="foto-envio" hidden></div>
     <div class="foto-ver" id="foto-ver" hidden></div>
     <div class="chat-selbar" id="chat-selbar" hidden>
       <button class="selbar-x" id="sel-cancelar" aria-label="Cancelar seleção">✕</button>
       <span class="selbar-tit">1 mensagem</span>
       <div class="selbar-acoes">
+        <button data-sel-responder aria-label="Responder" title="Responder">↩</button>
+        <button data-sel-encaminhar aria-label="Encaminhar" title="Encaminhar">↪</button>
         <button data-sel-copiar aria-label="Copiar" title="Copiar">⧉</button>
         <button data-sel-editar aria-label="Editar" title="Editar">✎</button>
         <button data-sel-apagar aria-label="Excluir" title="Excluir">🗑</button>
       </div>
     </div>
+    <div class="reac-barra" id="reac-barra" hidden></div>
+    <div class="enc-folha" id="enc-folha" hidden></div>
     ${bottomNav('chat')}
   `;
   ligarEventos(app);
@@ -407,7 +410,8 @@ function blocoFoto(m) {
 // Curtidas e comentários só existem em mensagem com foto por enquanto —
 // buscar para as de texto seria consulta à toa.
 async function carregarReacoes(msgs) {
-  const ids = (msgs || []).filter(m => m.imagem_path).map(m => m.id);
+  porId = new Map((msgs || []).map(m => [m.id, m]));
+  const ids = (msgs || []).map(m => m.id);
   if (!ids.length) { reacoes = new Map(); return; }
   reacoes = await resumoReacoes(ids);
 }
@@ -462,65 +466,84 @@ function marcarEnviando(ligado) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// COMENTÁRIOS
+// RESPONDER · ENCAMINHAR · CATÁLOGO DE REAÇÃO
 // ═══════════════════════════════════════════════════════════════
-// Folha que sobe de baixo, como no Instagram. Não usei tela cheia porque o
-// comentário é sobre a foto: sumir com ela tira a referência do que se
-// está comentando.
-async function abrirComentarios(msgId) {
-  const folha = document.getElementById('coment-folha');
-  if (!folha) return;
-  comentandoEm = msgId;
-  folha.hidden = false;
-  folha.innerHTML = `<div class="cf-caixa"><div class="cf-carregando">Carregando…</div></div>`;
-  await desenharComentarios();
+let encaminhando = null;
+
+// Faixa acima do campo mostrando a quem estou respondendo. Sem ela, depois
+// de escolher "responder" nada mudaria na tela e a pessoa mandaria a
+// mensagem sem saber que ia sair como resposta.
+function pintarRespondendo() {
+  const box = document.getElementById('chat-respondendo');
+  if (!box) return;
+  box.hidden = !respondendoA;
+  box.innerHTML = respondendoA ? `
+    <span class="cita-barra"></span>
+    <span class="cita-txt">
+      <span class="cita-nome">${esc(respondendoA.nome)}</span>
+      <span class="cita-linha">${respondendoA.temFoto ? '📷 ' : ''}${esc(corta(respondendoA.texto || 'Foto', 46))}</span>
+    </span>
+    <button type="button" class="resp-x" id="resp-cancelar" aria-label="Cancelar resposta">✕</button>` : '';
 }
 
-async function desenharComentarios() {
-  const folha = document.getElementById('coment-folha');
-  if (!folha || !comentandoEm) return;
-  let lista = [];
-  try { lista = await fetchComentarios(comentandoEm); }
-  catch (e) { showToast(e.message, 'error'); }
-
-  const meu = auth.currentUser?.uid;
-  const linhas = lista.length
-    ? lista.map(c => `
-        <div class="cf-item">
-          ${avatar(c.autor_id, c.autor_nome || 'Falcão', 'cf-av')}
-          <div class="cf-corpo">
-            <div class="cf-topo">
-              <span class="cf-nome" style="color:${corDe(c.autor_id)}">${esc(c.autor_nome || 'Falcão')}</span>
-              <span class="cf-hora">${hora(c.created_at)}</span>
-            </div>
-            <div class="cf-txt">${esc(c.texto)}</div>
-          </div>
-          ${c.autor_id === meu || souAdmin
-            ? `<button type="button" class="cf-x" data-apagar-coment="${c.id}" aria-label="Apagar comentário">✕</button>`
-            : ''}
-        </div>`).join('')
-    : `<div class="cf-vazio">Nenhum comentário ainda.<br>Seja o primeiro a falar.</div>`;
-
+async function abrirEncaminhar(msg) {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  encaminhando = msg;
+  folha.hidden = false;
+  folha.innerHTML = `<div class="enc-fundo" id="enc-fundo"></div>
+    <div class="enc-caixa"><div class="cf-carregando">Carregando…</div></div>`;
+  let membros = [];
+  try { membros = await fetchMembros(); } catch (e) { showToast(e.message, 'error'); }
   folha.innerHTML = `
-    <div class="cf-fundo" id="cf-fechar-fora"></div>
-    <div class="cf-caixa">
+    <div class="enc-fundo" id="enc-fundo"></div>
+    <div class="enc-caixa">
       <div class="cf-puxador"></div>
-      <div class="cf-titulo">Comentários</div>
-      <div class="cf-lista">${linhas}</div>
-      <form class="cf-envio" id="cf-envio">
-        <textarea id="cf-texto" rows="1" maxlength="600"
-          placeholder="Escreva um comentário…"></textarea>
-        <button type="submit" class="cf-enviar" aria-label="Enviar">➤</button>
-      </form>
+      <div class="cf-titulo">Encaminhar para</div>
+      <div class="enc-lista">
+        ${membros.length ? membros.map(m => `
+          <button type="button" class="chat-conv" data-encaminhar-para="${m.user_id}"
+            data-nome="${esc(m.nome)}">
+            ${avatar(m.user_id, m.nome, 'chat-conv-av')}
+            <span class="chat-conv-txt"><span class="chat-conv-nome">${esc(m.nome)}</span></span>
+          </button>`).join('')
+          : '<div class="cf-vazio">Ninguém mais por aqui ainda.</div>'}
+      </div>
     </div>`;
 }
 
-function fecharComentarios() {
-  const folha = document.getElementById('coment-folha');
-  comentandoEm = null;
+function fecharEncaminhar() {
+  const folha = document.getElementById('enc-folha');
+  encaminhando = null;
   if (!folha) return;
-  folha.hidden = true;
-  folha.innerHTML = '';
+  folha.hidden = true; folha.innerHTML = '';
+}
+
+// Reaproveita o catálogo do teclado de emoji: manter duas listas separadas
+// faria uma sair da outra com o tempo.
+function abrirCatalogoReacao(msgId) {
+  if (!msgId) return;
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.hidden = false;
+  const todos = CATEGORIAS.filter(c => c.id !== 'recentes')
+    .flatMap(c => c.itens).slice(0, 160);
+  folha.innerHTML = `
+    <div class="enc-fundo" id="rc-fundo"></div>
+    <div class="enc-caixa">
+      <div class="cf-puxador"></div>
+      <div class="cf-titulo">Reagir</div>
+      <div class="rc-grade">
+        ${todos.map(e => `<button type="button" class="emoji-item"
+          data-emoji-reac="${e}" data-msg-reac="${msgId}">${e}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function fecharCatalogoReacao() {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.hidden = true; folha.innerHTML = '';
 }
 
 // Visualizador em tela cheia. O botão de baixar mora AQUI, no topo — na
@@ -663,6 +686,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
         <span class="midia-ic">🖼️</span><span>Galeria</span>
       </button>
     </div>
+    <div class="chat-respondendo" id="chat-respondendo" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
         <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
@@ -700,6 +724,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   if (l) l.scrollTop = l.scrollHeight;
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
+  pintarRespondendo();
   window.dispatchEvent(new Event('falcon:layout'));
 }
 
@@ -716,6 +741,35 @@ function separadorDeDia(m, anterior) {
   return `<div class="wa-dia"><span>${rotulo}</span></div>`;
 }
 
+// Reações agrupadas embaixo do balão: "👍3 ❤️2". A minha vem destacada pra
+// eu saber, de relance, se já reagi — e em qual.
+function fitaReacoes(m) {
+  const lista = reacoes.get(m.id);
+  if (!lista?.length) return '';
+  return `<div class="reac-fita">${lista.map(r => `
+    <button type="button" class="reac-chip ${r.eu ? 'minha' : ''}"
+      data-reagir="${m.id}" data-emoji="${esc(r.emoji)}">
+      ${esc(r.emoji)}${r.total > 1 ? `<span>${r.total}</span>` : ''}
+    </button>`).join('')}</div>`;
+}
+
+// Citação da mensagem respondida. Toca nela e a lista rola até a original —
+// sem isso a resposta vira um recorte sem contexto quando a conversa cresce.
+function citacao(m) {
+  if (!m.responde_a) return '';
+  const orig = porId.get(m.responde_a);
+  if (!orig) return `<div class="cita cita-sumiu">Mensagem apagada</div>`;
+  const url = orig.imagem_path ? fotos.get(orig.imagem_path) : null;
+  return `<button type="button" class="cita" data-ir-para="${orig.id}">
+    <span class="cita-barra"></span>
+    <span class="cita-txt">
+      <span class="cita-nome" style="color:${corDe(orig.autor_id)}">${esc(orig.autor_nome || 'Falcão')}</span>
+      <span class="cita-linha">${orig.imagem_path ? '📷 ' : ''}${esc(corta(orig.texto || 'Foto', 46))}</span>
+    </span>
+    ${url ? `<img class="cita-mini" src="${esc(url)}" alt="" />` : ''}
+  </button>`;
+}
+
 function balao(m, minha, mostrarAutor) {
   // Estilo WhatsApp: a hora vai DENTRO da bolha, no canto de baixo. Fora dela
   // cada mensagem ganhava uma linha extra e a conversa ficava esparramada.
@@ -724,10 +778,12 @@ function balao(m, minha, mostrarAutor) {
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
         ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
+        ${citacao(m)}
         ${blocoFoto(m)}
         ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
         <span class="wa-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
       </div>
+      ${fitaReacoes(m)}
     </div>`;
 }
 
@@ -762,10 +818,26 @@ function limparSelecao() {
   pintarBarraSelecao();
 }
 
+// Sete atalhos + "…" pro catálogo completo, como no WhatsApp. Os sete são os
+// que cobrem quase todo uso real; obrigar a abrir o catálogo pra dar um 👍
+// transformaria um gesto em três toques.
+const REAC_RAPIDAS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '💪'];
+
 function pintarBarraSelecao() {
   const barra = document.getElementById('chat-selbar');
+  const fita = document.getElementById('reac-barra');
   if (!barra) return;
   barra.hidden = !selecionada;
+  if (fita) {
+    fita.hidden = !selecionada;
+    if (selecionada) {
+      const minha = (reacoes.get(selecionada.id) || []).find(r => r.eu)?.emoji || null;
+      fita.innerHTML = REAC_RAPIDAS.map(e => `
+        <button type="button" class="rb-item ${e === minha ? 'ativa' : ''}"
+          data-reagir="${selecionada.id}" data-emoji="${e}">${e}</button>`).join('')
+        + `<button type="button" class="rb-item rb-mais" id="rb-mais" aria-label="Mais emojis">＋</button>`;
+    } else { fita.innerHTML = ''; }
+  }
   if (!selecionada) return;
   barra.querySelector('[data-sel-editar]').hidden = !selecionada.editavel;
   barra.querySelector('[data-sel-apagar]').hidden = !selecionada.apagavel;
@@ -815,29 +887,74 @@ function ligarEventos(app) {
       return;
     }
 
-    const btnCurtir = t.closest('[data-curtir]');
-    if (btnCurtir) {
-      const id = btnCurtir.dataset.curtir;
-      const atual = reacoes.get(id) || { curtidas: 0, euCurti: false, comentarios: 0 };
-      // Pinta na hora e conserta depois se o servidor recusar: esperar a
-      // ida e volta pra ver o coração mudar faz o toque parecer perdido.
-      const novo = { ...atual, euCurti: !atual.euCurti,
-                     curtidas: atual.curtidas + (atual.euCurti ? -1 : 1) };
-      reacoes.set(id, novo);
-      btnCurtir.classList.toggle('curtida', novo.euCurti);
-      btnCurtir.innerHTML = `${novo.euCurti ? '❤️' : '🤍'}${novo.curtidas ? `<span>${novo.curtidas}</span>` : ''}`;
-      try { await alternarCurtida(id, atual.euCurti); }
-      catch (e) { reacoes.set(id, atual); showToast(e.message, 'error'); await recarregar(); }
+    // ── reagir (fita da seleção OU chip embaixo da mensagem) ──
+    const btnReagir = t.closest('[data-reagir]');
+    if (btnReagir) {
+      const id = btnReagir.dataset.reagir;
+      const emoji = btnReagir.dataset.emoji;
+      const atual = (reacoes.get(id) || []).find(r => r.eu)?.emoji || null;
+      limparSelecao();
+      try { await reagir(id, emoji, atual); await recarregar(); }
+      catch (e) { showToast(e.message, 'error'); }
+      return;
+    }
+    if (t.closest('#rb-mais')) {
+      // catálogo completo, reaproveitando o mesmo seletor do teclado
+      const alvo = selecionada?.id;
+      limparSelecao();
+      abrirCatalogoReacao(alvo);
+      return;
+    }
+    const emjReac = t.closest('[data-emoji-reac]');
+    if (emjReac) {
+      const id = emjReac.dataset.msgReac;
+      const atual = (reacoes.get(id) || []).find(r => r.eu)?.emoji || null;
+      fecharCatalogoReacao();
+      try { await reagir(id, emjReac.dataset.emojiReac, atual); await recarregar(); }
+      catch (e) { showToast(e.message, 'error'); }
+      return;
+    }
+    if (t.closest('#rc-fundo')) { fecharCatalogoReacao(); return; }
+
+    // ── responder ──
+    if (t.closest('[data-sel-responder]') && selecionada) {
+      const m = porId.get(selecionada.id);
+      respondendoA = m ? { id: m.id, nome: m.autor_nome || 'Falcão',
+                           texto: m.texto || '', temFoto: !!m.imagem_path } : null;
+      limparSelecao();
+      pintarRespondendo();
+      app.querySelector('#chat-texto')?.focus();
+      return;
+    }
+    if (t.closest('#resp-cancelar')) { respondendoA = null; pintarRespondendo(); return; }
+
+    // ── ir até a mensagem citada ──
+    const irPara = t.closest('[data-ir-para]');
+    if (irPara) {
+      const alvo = app.querySelector(`.wa-msg[data-id="${irPara.dataset.irPara}"]`);
+      if (alvo) {
+        alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        alvo.classList.add('piscando');
+        setTimeout(() => alvo.classList.remove('piscando'), 1400);
+      } else { showToast('Essa mensagem já saiu da conversa.', 'info'); }
       return;
     }
 
-    const btnComentar = t.closest('[data-comentar]');
-    if (btnComentar) { await abrirComentarios(btnComentar.dataset.comentar); return; }
-    if (t.closest('#cf-fechar-fora')) { fecharComentarios(); return; }
-
-    const apagarCom = t.closest('[data-apagar-coment]');
-    if (apagarCom) {
-      try { await apagarComentario(apagarCom.dataset.apagarComent); await desenharComentarios(); }
+    // ── encaminhar ──
+    if (t.closest('[data-sel-encaminhar]') && selecionada) {
+      const m = porId.get(selecionada.id);
+      limparSelecao();
+      if (m) await abrirEncaminhar(m);
+      return;
+    }
+    if (t.closest('#enc-fundo')) { fecharEncaminhar(); return; }
+    const encPara = t.closest('[data-encaminhar-para]');
+    if (encPara) {
+      const alvo = encPara.dataset.encaminharPara;
+      const nomeAlvo = encPara.dataset.nome;
+      const m = encaminhando;
+      fecharEncaminhar();
+      try { await encaminhar(m, alvo, meuNome); showToast(`Enviado para ${nomeAlvo}.`, 'success'); }
       catch (e) { showToast(e.message, 'error'); }
       return;
     }
@@ -992,19 +1109,6 @@ function ligarEventos(app) {
   });
 
   app.addEventListener('submit', async (ev) => {
-    if (ev.target.closest('#cf-envio')) {
-      ev.preventDefault();
-      const campo = app.querySelector('#cf-texto');
-      const texto = campo.value.trim();
-      if (!texto || !comentandoEm) return;
-      campo.value = '';
-      try {
-        await comentar(comentandoEm, texto, meuNome);
-        await desenharComentarios();
-        await recarregar();   // atualiza o contador na foto
-      } catch (e) { campo.value = texto; showToast(e.message, 'error'); }
-      return;
-    }
     if (!ev.target.closest('#chat-envio')) return;
     ev.preventDefault();
     const campo = app.querySelector('#chat-texto');
@@ -1035,9 +1139,10 @@ function ligarEventos(app) {
         await editarMensagem(editando, texto);
         editando = null;
         app.querySelector('#chat-envio')?.classList.remove('editando');
-      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho);
-      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho);
+      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho, respondendoA?.id || null);
+      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho, respondendoA?.id || null);
       if (paraEnviar) limparAnexo();   // só fecha depois que deu certo
+      respondendoA = null; pintarRespondendo();
       await recarregar();
       // A lista só se auto-rola quando já estava no fim. Depois de enviar, a
       // própria mensagem tem que aparecer mesmo pra quem tinha subido a tela.

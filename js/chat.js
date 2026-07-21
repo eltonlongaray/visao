@@ -38,7 +38,7 @@ export async function meuNomeDeChat() {
 export async function fetchMural() {
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, autor_nome, texto, imagem_path, created_at, expira_em, editada_em')
+    .select('id, autor_id, autor_nome, texto, imagem_path, responde_a, created_at, expira_em, editada_em')
     .eq('escopo', 'comunidade')
     .order('created_at', { ascending: false })
     .limit(LIMITE);
@@ -46,7 +46,7 @@ export async function fetchMural() {
   return (data || []).reverse();   // mais antigas em cima, como conversa
 }
 
-export async function enviarNoMural(texto, nome, imagemPath = null) {
+export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = null) {
   const t = (texto || '').trim();
   if (!t && !imagemPath) return;
   const { error } = await supabase.from('chat_mensagens').insert({
@@ -69,7 +69,7 @@ export async function fetchConversa(outroId) {
   // filtro explícito evita puxar o mural junto.
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, para_id, autor_nome, texto, imagem_path, created_at, editada_em')
+    .select('id, autor_id, para_id, autor_nome, texto, imagem_path, responde_a, created_at, editada_em')
     .eq('escopo', 'privado')
     .or(`and(autor_id.eq.${meu},para_id.eq.${outroId}),and(autor_id.eq.${outroId},para_id.eq.${meu})`)
     .order('created_at', { ascending: false })
@@ -78,7 +78,7 @@ export async function fetchConversa(outroId) {
   return (data || []).reverse();
 }
 
-export async function enviarPrivado(outroId, texto, nome, imagemPath = null) {
+export async function enviarPrivado(outroId, texto, nome, imagemPath = null, respondeA = null) {
   const t = (texto || '').trim();
   if ((!t && !imagemPath) || !outroId) return;
   const { error } = await supabase.from('chat_mensagens').insert({
@@ -88,65 +88,58 @@ export async function enviarPrivado(outroId, texto, nome, imagemPath = null) {
     autor_nome: nome,
     texto: t ? t.slice(0, 2000) : null,
     imagem_path: imagemPath,
+    responde_a: respondeA,
   });
   _falha(error);
 }
 
-// ─── CURTIR E COMENTAR ─────────────────────────────────────────
-// Contagem em LOTE: desenhar 50 mensagens buscando curtidas e comentários de
-// uma em uma seriam 100 consultas por atualização da lista.
+// ─── REAGIR E ENCAMINHAR ───────────────────────────────────────
+// Uma linha por emoji, em LOTE: buscar reação de mensagem em mensagem seriam
+// dezenas de consultas por atualização da lista.
 export async function resumoReacoes(ids) {
   const lista = [...new Set((ids || []).filter(Boolean))];
   if (!lista.length) return new Map();
   const { data, error } = await supabase.rpc('resumo_reacoes', { ids: lista });
   if (error) { console.warn('[Falcon] resumo_reacoes:', error.message); return new Map(); }
-  return new Map((data || []).map(r => [r.mensagem_id, {
-    curtidas: Number(r.curtidas) || 0,
-    euCurti: !!r.eu_curti,
-    comentarios: Number(r.comentarios) || 0,
-  }]));
+  const mapa = new Map();
+  for (const r of data || []) {
+    if (!mapa.has(r.mensagem_id)) mapa.set(r.mensagem_id, []);
+    mapa.get(r.mensagem_id).push({ emoji: r.emoji, total: Number(r.total) || 0, eu: !!r.eu });
+  }
+  return mapa;
 }
 
-// Curtir é alternância. A chave composta no banco já impede curtir duas
-// vezes, então aqui basta decidir entre inserir e apagar.
-export async function alternarCurtida(mensagemId, jaCurti) {
+// UMA reação por pessoa: tocar no mesmo emoji tira, tocar em outro troca.
+// O upsert é o que faz a troca ser uma operação só — apagar e recriar faria
+// a reação piscar para todo mundo que estivesse com a tela aberta.
+export async function reagir(mensagemId, emoji, meuAtual) {
   const id = auth.currentUser?.uid;
   if (!id) throw new Error('Sessão expirada');
-  if (jaCurti) {
-    const { error } = await supabase.from('chat_curtidas')
+  if (meuAtual === emoji) {
+    const { error } = await supabase.from('chat_reacoes')
       .delete().eq('mensagem_id', mensagemId).eq('user_id', id);
     _falha(error);
-  } else {
-    const { error } = await supabase.from('chat_curtidas')
-      .insert({ mensagem_id: mensagemId, user_id: id });
-    _falha(error);
+    return;
   }
-}
-
-export async function fetchComentarios(mensagemId) {
-  const { data, error } = await supabase
-    .from('chat_comentarios')
-    .select('id, autor_id, autor_nome, texto, created_at')
-    .eq('mensagem_id', mensagemId)
-    .order('created_at', { ascending: true });
+  const { error } = await supabase.from('chat_reacoes')
+    .upsert({ mensagem_id: mensagemId, user_id: id, emoji },
+            { onConflict: 'mensagem_id,user_id' });
   _falha(error);
-  return data || [];
 }
 
-export async function comentar(mensagemId, texto, nome) {
-  const t = (texto || '').trim();
-  if (!t) return;
-  const { error } = await supabase.from('chat_comentarios').insert({
-    mensagem_id: mensagemId,
+// Encaminhar NÃO copia o arquivo da foto: a mensagem nova aponta pro mesmo
+// caminho. A permissão continua correta porque quem pode ler a mensagem nova
+// pode ver a imagem dela.
+export async function encaminhar(msg, paraId, nome) {
+  if (!paraId) return;
+  const { error } = await supabase.from('chat_mensagens').insert({
+    escopo: 'privado',
     autor_id: auth.currentUser?.uid,
+    para_id: paraId,
     autor_nome: nome,
-    texto: t.slice(0, 600),
+    texto: msg.texto || null,
+    imagem_path: msg.imagem_path || null,
   });
-  _falha(error);
-}
-
-export async function apagarComentario(id) {
-  const { error } = await supabase.from('chat_comentarios').delete().eq('id', id);
   _falha(error);
 }
 

@@ -2943,8 +2943,11 @@ body.time-picker-open { overflow: hidden; }
   border-radius: 999px; padding: 3px 12px;
 }
 
-.wa-msg { display: flex; max-width: 84%; }
-.wa-msg.minha { align-self: flex-end; justify-content: flex-end; }
+/* Coluna, não linha: a fita de reações é IRMÃ do balão e em linha ela ia
+   parar ao lado dele, espremida numa faixa vertical. Em coluna ela cai
+   embaixo, que é onde deve ficar. */
+.wa-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 84%; }
+.wa-msg.minha { align-self: flex-end; align-items: flex-end; }
 .wa-bolha {
   position: relative;
   background: var(--card); border: 1px solid var(--border);
@@ -2955,11 +2958,19 @@ body.time-picker-open { overflow: hidden; }
 /* Balão OPACO: com fundo semitransparente os hieróglifos apareciam por
    trás do texto e atrapalhavam a leitura. Este é o tom sólido equivalente
    ao roxo que estava sendo misturado. */
+/* A minha mensagem tem cor PRÓPRIA, bem separada da dos outros. O #302f53
+   anterior estava a poucos pontos do fundo dos balões alheios (#141a2e) e,
+   de relance, os dois lados pareciam iguais — a cor é a primeira coisa que
+   diz "isto é meu" antes mesmo de olhar de que lado está. */
 .wa-msg.minha .wa-bolha {
-  background: #302f53; border-color: rgba(167,139,250,0.42);
+  background: #4c3a8f; border-color: rgba(167,139,250,0.6);
   border-radius: 12px 12px 3px 12px;
 }
-:root[data-theme="light"] .wa-msg.minha .wa-bolha { background: #e7dfed; }
+.wa-msg.minha .wa-bolha .wa-hora { color: rgba(255,255,255,0.72); }
+:root[data-theme="light"] .wa-msg.minha .wa-bolha {
+  background: #d9c9f5; border-color: rgba(91,33,182,0.34);
+}
+:root[data-theme="light"] .wa-msg.minha .wa-bolha .wa-hora { color: rgba(0,0,0,0.5); }
 .wa-autor { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .wa-txt {
   font-size: 14.5px; line-height: 1.42; color: var(--text);
@@ -6027,34 +6038,74 @@ body.sem-rolagem { overflow: hidden; }
    deixava estreita demais no meio da tela. */
 .dc-body .msg-foto { max-width: 100%; }
 
-/* === Folha de comentários === */
-.coment-folha { position: fixed; inset: 0; z-index: 115; display: flex; flex-direction: column; }
-.coment-folha[hidden] { display: none; }
-.cf-fundo { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
-.cf-caixa {
-  position: relative; margin-top: auto;
-  max-height: 74vh; display: flex; flex-direction: column;
+/* === Folhas que sobem de baixo (encaminhar / reagir) === */
+.enc-folha { position: fixed; inset: 0; z-index: 118; display: flex; flex-direction: column; }
+.enc-folha[hidden] { display: none; }
+.enc-fundo { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+.enc-caixa {
+  position: relative; margin-top: auto; max-height: 72vh;
+  display: flex; flex-direction: column;
   background: var(--card); border-radius: 18px 18px 0 0;
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .cf-puxador { width: 40px; height: 4px; border-radius: 2px; background: var(--border); margin: 9px auto 4px; }
 .cf-titulo { text-align: center; font-size: 14px; font-weight: 700; color: var(--text); padding-bottom: 9px; border-bottom: 1px solid var(--border); }
-.cf-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 12px; }
 .cf-carregando, .cf-vazio { text-align: center; color: var(--muted); font-size: 13px; padding: 28px 16px; line-height: 1.55; }
-.cf-item { display: flex; gap: 9px; align-items: flex-start; }
-.cf-av { flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; object-fit: cover; }
-.cf-corpo { flex: 1; min-width: 0; }
-.cf-topo { display: flex; align-items: baseline; gap: 7px; }
-.cf-nome { font-size: 12.5px; font-weight: 700; }
-.cf-hora { font-size: 10px; color: var(--muted); }
-.cf-txt { font-size: 13.5px; line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
-.cf-x { flex: 0 0 28px; height: 28px; border-radius: 50%; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; }
-.cf-envio { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--border); }
-.cf-envio textarea {
-  flex: 1; min-width: 0; background: var(--card-2); border: 1px solid var(--border);
-  border-radius: 20px; padding: 10px 14px; color: var(--text); font-size: 14px;
-  font-family: inherit; resize: none; min-height: 42px; max-height: 110px;
-  outline: none; overflow-y: auto; scrollbar-width: none;
+.enc-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.rc-grade {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 2px;
 }
-.cf-enviar { flex: 0 0 42px; height: 42px; border-radius: 50%; background: var(--accent); border: none; color: #fff; font-size: 16px; cursor: pointer; }
+
+/* === Fita de reação rápida (aparece com a mensagem selecionada) === */
+.reac-barra {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 92;
+  display: flex; gap: 2px; padding: 5px 7px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 26px; box-shadow: 0 6px 22px rgba(0,0,0,0.4);
+}
+.reac-barra[hidden] { display: none; }
+.rb-item {
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: none;
+  font-size: 22px; line-height: 1; cursor: pointer; padding: 0;
+  display: grid; place-items: center; font-family: inherit;
+}
+.rb-item.ativa { background: rgba(234,179,8,0.22); }
+.rb-mais { font-size: 18px; color: var(--muted); background: var(--card-2); }
+
+/* === Reações embaixo da mensagem === */
+.reac-fita { display: flex; gap: 4px; margin: -3px 0 2px; flex-wrap: wrap; }
+.wa-msg.minha .reac-fita { justify-content: flex-end; }
+.reac-chip {
+  display: flex; align-items: center; gap: 3px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2px 7px; font-size: 13px; line-height: 1.5;
+  cursor: pointer; font-family: inherit; color: var(--text);
+}
+.reac-chip.minha { border-color: var(--accent); background: var(--card-2); }
+.reac-chip span { font-size: 11px; font-weight: 700; }
+
+/* === Citação de resposta === */
+.cita, .chat-respondendo {
+  display: flex; align-items: stretch; gap: 8px; text-align: left;
+  background: rgba(255,255,255,0.07); border: none; border-radius: 7px;
+  padding: 5px 7px; margin-bottom: 4px; cursor: pointer; font-family: inherit;
+  width: 100%; overflow: hidden;
+}
+:root[data-theme="light"] .cita, :root[data-theme="light"] .chat-respondendo { background: rgba(0,0,0,0.06); }
+.cita-barra { flex: 0 0 3px; border-radius: 2px; background: var(--accent); }
+.cita-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cita-nome { font-size: 11.5px; font-weight: 700; color: var(--accent); }
+.cita-linha { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cita-mini { flex: 0 0 34px; width: 34px; height: 34px; object-fit: cover; border-radius: 5px; }
+.cita-sumiu { color: var(--muted); font-size: 11.5px; font-style: italic; padding: 5px 8px; cursor: default; }
+.chat-respondendo { margin: 8px 0 -4px; align-items: center; cursor: default; }
+.chat-respondendo[hidden] { display: none; }
+.resp-x { flex: 0 0 30px; height: 30px; border-radius: 50%; background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+
+/* Destaque ao pular para a mensagem citada */
+@keyframes piscaMsg { 0%,100% { background: transparent; } 35% { background: rgba(234,179,8,0.22); } }
+.wa-msg.piscando { animation: piscaMsg 1.4s ease; border-radius: 10px; }
+
