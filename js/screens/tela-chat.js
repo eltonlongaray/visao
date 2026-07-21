@@ -90,6 +90,7 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 // não existirem dois caminhos de saída que podem sair de sincronia.
 let entradaNoHistorico = false;   // empurrei uma entrada e ela ainda vale?
 let entradaOrfa = false;          // saí da tela deixando uma pra trás
+let fotoNoHistorico = false;      // visualizador de foto empurrou entrada
 
 function abrirConversa(id, nome) {
   conversaCom = { id, nome };
@@ -102,6 +103,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
     // Fora da tela de chat o voltar não é nosso.
     if (!document.getElementById('chat-corpo')) { entradaOrfa = entradaNoHistorico; return; }
+
+    // Foto aberta é o primeiro a fechar: é a camada mais de cima da tela.
+    if (fotoNoHistorico) { fecharVisualizador({ voltando: true }); return; }
 
     // Com mensagem selecionada, o voltar desfaz a seleção e a conversa fica —
     // igual ao WhatsApp. Reponho a entrada pro próximo voltar fechar a conversa.
@@ -165,7 +169,7 @@ function desenharCasca(app) {
   app.innerHTML = `
     <div class="screen-pad chat-tela">
       <div class="screen-title">
-        <h1>💬 Conversas</h1>
+        <h1>🦅 Comunidade Falcon Hunters</h1>
         <div class="sub">As mensagens somem sozinhas depois de 7 dias.</div>
       </div>
 
@@ -215,11 +219,15 @@ async function desenharMural(corpo) {
   const meu = auth.currentUser?.uid;
   await carregarFotos(msgs);
   await carregarReacoes(msgs);
+  // Mesmo balão do privado. O formato Discord (avatar + nome + texto corrido)
+  // não deixava claro o que era meu: numa conversa, quem fala de que lado é a
+  // primeira informação que a pessoa lê. Aqui o autor aparece dentro do balão
+  // porque no mural são muitas pessoas, não duas.
   const lista = msgs.length
-    ? msgs.map((m, i) => linhaDiscord(m, msgs[i - 1], m.autor_id === meu)).join('')
+    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
 
-  pintar(corpo, lista, 'Falar com a comunidade…');
+  pintar(corpo, lista, 'Falar com a comunidade…', '', true);
 }
 
 // Linha no estilo Discord: avatar + nome + texto corrido, sem balão.
@@ -386,24 +394,12 @@ function blocoFoto(m) {
   if (!url) return `<div class="msg-foto msg-foto-vazia"></div>`;
   // Sem botão de baixar aqui: ele fica no visualizador, ao abrir a foto.
   // Pendurado na miniatura, tapava justamente o canto da imagem.
-  const r = reacoes.get(m.id) || { curtidas: 0, euCurti: false, comentarios: 0 };
-  // A barra vive DENTRO da moldura, ocupando a margem grossa de baixo — é
-  // pra ela que aquele espaço foi reservado.
-  return `<div class="msg-foto">
-    <button type="button" class="msg-foto-abrir" data-abrir-foto="${esc(url)}"
-      aria-label="Abrir foto">
-      <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
-    </button>
-    <div class="foto-acoes">
-      <button type="button" class="fa-btn ${r.euCurti ? 'curtida' : ''}"
-        data-curtir="${m.id}" aria-label="Curtir">
-        ${r.euCurti ? '❤️' : '🤍'}${r.curtidas ? `<span>${r.curtidas}</span>` : ''}
-      </button>
-      <button type="button" class="fa-btn" data-comentar="${m.id}" aria-label="Comentar">
-        💬${r.comentarios ? `<span>${r.comentarios}</span>` : ''}
-      </button>
-    </div>
-  </div>`;
+  // Sem botão de curtir aqui: reagir é gesto (segurar a mensagem), como no
+  // WhatsApp. Um coração fixo em toda foto polui e sugere uma reação só.
+  return `<button type="button" class="msg-foto" data-abrir-foto="${esc(url)}"
+    aria-label="Abrir foto">
+    <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
+  </button>`;
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
@@ -434,6 +430,9 @@ function mostrarPrevia() {
   tela.hidden = !anexo;
   document.body.classList.toggle('sem-rolagem', !!anexo);
   if (!anexo) { tela.innerHTML = ''; return; }
+  // A barra de legenda flutua SOBRE a foto: ela é parte da mesma coisa que
+  // vai ser enviada, e não um passo seguinte. Assim a pessoa escreve e manda
+  // sem sair de cima da imagem.
   tela.innerHTML = `
     <button type="button" class="fe-x" id="fe-cancelar" aria-label="Cancelar">✕</button>
     <div class="fe-palco"><img src="${anexo.previa}" alt="Foto escolhida" /></div>
@@ -530,6 +529,10 @@ function verFoto(url) {
   const tela = document.getElementById('foto-ver');
   if (!tela) return;
   tela.hidden = false;
+  // Entrada própria no histórico: sem ela, o voltar do aparelho saía da
+  // conversa inteira em vez de apenas fechar a foto que está aberta.
+  history.pushState({ falconFoto: 1 }, '');
+  fotoNoHistorico = true;
   document.body.classList.add('sem-rolagem');
   tela.innerHTML = `
     <div class="fv-topo">
@@ -540,9 +543,13 @@ function verFoto(url) {
     <div class="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>`;
 }
 
-function fecharVisualizador() {
+function fecharVisualizador({ voltando = false } = {}) {
   const tela = document.getElementById('foto-ver');
   if (!tela) return;
+  // Fechar pelo ✕ consome a entrada do histórico; se veio do popstate ela
+  // já foi consumida e chamar back() de novo sairia da conversa.
+  if (fotoNoHistorico && !voltando) { fotoNoHistorico = false; history.back(); return; }
+  fotoNoHistorico = false;
   tela.hidden = true;
   tela.innerHTML = '';
   document.body.classList.remove('sem-rolagem');
@@ -623,7 +630,7 @@ function guardarRascunho() {
   else rascunhos.delete(modoAtual());
 }
 
-function pintar(corpo, lista, placeholder, cabecalho = '') {
+function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   const modo = modoAtual();
 
   // ── Atualização em pé: só a LISTA é reescrita ──
@@ -647,7 +654,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
   // ficava com um terço da altura e não parecia uma conversa.
   const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
-    <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
+    <div class="chat-lista ${cabecalho || comFundo ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <div class="chat-midia" id="chat-midia" hidden>
       <button type="button" class="midia-op" data-midia="camera">
         <span class="midia-ic">📷</span><span>Câmera</span>

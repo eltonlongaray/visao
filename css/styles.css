@@ -5893,27 +5893,15 @@ body.tour-active { overflow: hidden; }
 /* Sem max-height: a foto ocupa a largura toda e a altura acompanha a
    proporção. Limitar a altura obrigava a escolher entre cortar ou deixar
    faixa vazia — e a foto tem que aparecer inteira. */
-.msg-foto-abrir {
-  display: block; width: 100%; padding: 0; border: none;
-  background: none; cursor: pointer; line-height: 0;
-}
+/* Retrato inteiro numa lista de conversa vira uma parede de imagem e empurra
+   todo o resto pra fora da tela. Aqui a altura é limitada e o corte sai do
+   RODAPÉ (object-position: top), preservando rosto e enquadramento — a foto
+   inteira aparece ao tocar nela. */
 .msg-foto img {
   display: block; width: 100%; height: auto;
+  max-height: 300px; object-fit: cover; object-position: top;
   border-radius: 2px; background: var(--bg);
 }
-/* Curtir e comentar ocupam a margem grossa de baixo do papel */
-.foto-acoes {
-  display: flex; gap: 4px; align-items: center;
-  height: 30px; margin-bottom: -30px; padding-top: 3px;
-}
-.fa-btn {
-  display: flex; align-items: center; gap: 4px;
-  background: none; border: none; cursor: pointer; padding: 3px 7px;
-  border-radius: 14px; font-size: 15px; line-height: 1; font-family: inherit;
-  color: #4a4a4a;
-}
-.fa-btn span { font-size: 12px; font-weight: 700; }
-.fa-btn:active { background: rgba(0,0,0,0.07); }
 
 
 /* No privado a bolha JÁ é uma moldura. Com a do papel dentro dela ficavam
@@ -6000,11 +5988,16 @@ body.sem-rolagem { overflow: hidden; }
   background: rgba(255,255,255,0.14); border: none; color: #fff;
   font-size: 17px; cursor: pointer; display: grid; place-items: center;
 }
+/* Flutua SOBRE a foto (absolute), não abaixo dela: a legenda faz parte do
+   que vai ser enviado, não é uma etapa seguinte. O degradê garante leitura
+   do texto mesmo sobre imagem clara. */
 .fe-baixo {
-  flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px;
-  padding: 10px 12px calc(14px + env(safe-area-inset-bottom, 0px));
-  background: rgba(0,0,0,0.85);
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 26px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(0,0,0,0.88) 40%, rgba(0,0,0,0));
 }
+.fe-palco { padding-bottom: 84px; }
 .fe-baixo textarea {
   flex: 1; min-width: 0; background: rgba(255,255,255,0.12); border: none;
   border-radius: 22px; padding: 12px 16px; color: #fff; font-size: 14.5px;
