@@ -128,6 +128,18 @@ export async function reagir(mensagemId, emoji, meuAtual) {
   _falha(error);
 }
 
+// Quem reagiu, pra folha de detalhe. O RLS já garante que só volta gente de
+// mensagem que eu posso ver.
+export async function quemReagiu(mensagemId) {
+  const { data, error } = await supabase
+    .from('chat_reacoes')
+    .select('user_id, emoji, created_at')
+    .eq('mensagem_id', mensagemId)
+    .order('created_at', { ascending: true });
+  if (error) { console.warn('[Falcon] quemReagiu:', error.message); return []; }
+  return data || [];
+}
+
 // Encaminhar NÃO copia o arquivo da foto: a mensagem nova aponta pro mesmo
 // caminho. A permissão continua correta porque quem pode ler a mensagem nova
 // pode ver a imagem dela.

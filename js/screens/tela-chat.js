@@ -18,7 +18,7 @@ import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
   subirFotoDoChat, assinarFotos, faxinaFotos, espelharFotoDoGoogle,
-  resumoReacoes, reagir, encaminhar,
+  resumoReacoes, reagir, encaminhar, quemReagiu,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { auth } from '../autenticacao.js';
@@ -570,6 +570,54 @@ function fecharEncaminhar() {
 }
 
 
+// Folha de detalhe: quantas reações, quais emojis e QUEM reagiu. A minha vem
+// com "Toque para remover" — é o caminho mais direto pra desfazer, e evita
+// ter que adivinhar que tocar no emoji de novo tira.
+async function abrirDetalheReacoes(msgId) {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.hidden = false;
+  folha.innerHTML = `<div class="enc-fundo" id="dr-fundo"></div>
+    <div class="enc-caixa"><div class="cf-carregando">Carregando…</div></div>`;
+
+  const lista = await quemReagiu(msgId);
+  const meu = auth.currentUser?.uid;
+  const porEmoji = new Map();
+  for (const r of lista) porEmoji.set(r.emoji, (porEmoji.get(r.emoji) || 0) + 1);
+
+  folha.innerHTML = `
+    <div class="enc-fundo" id="dr-fundo"></div>
+    <div class="enc-caixa">
+      <div class="cf-puxador"></div>
+      <div class="dr-topo">${lista.length} ${lista.length === 1 ? 'reação' : 'reações'}</div>
+      <div class="dr-abas">
+        ${[...porEmoji].map(([e, n]) =>
+          `<span class="dr-aba">${esc(e)} <b>${n}</b></span>`).join('')}
+      </div>
+      <div class="enc-lista">
+        ${lista.map(r => {
+          const nome = perfis.get(r.user_id)?.nome || 'Falcão';
+          const eu = r.user_id === meu;
+          return `<button type="button" class="chat-conv dr-linha"
+            ${eu ? `data-tirar-reacao="${msgId}"` : ''}>
+            ${avatar(r.user_id, nome, 'chat-conv-av')}
+            <span class="chat-conv-txt">
+              <span class="chat-conv-nome">${eu ? 'Você' : esc(nome)}</span>
+              ${eu ? '<span class="chat-conv-ult">Toque para remover</span>' : ''}
+            </span>
+            <span class="dr-emoji">${esc(r.emoji)}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function fecharDetalheReacoes() {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.hidden = true; folha.innerHTML = '';
+}
+
 // Reaproveita o catálogo do teclado de emoji: manter duas listas separadas
 // faria uma sair da outra com o tempo.
 function abrirCatalogoReacao(msgId) {
@@ -823,9 +871,11 @@ function separadorDeDia(m, anterior) {
 function fitaReacoes(m) {
   const lista = reacoes.get(m.id);
   if (!lista?.length) return '';
-  return `<div class="reac-fita">${lista.map(r => `
+  // O chip abre o DETALHE (quem reagiu), não reage de novo: tocar por engano
+  // num emoji alheio trocaria a minha reação sem eu perceber.
+  return `<div class="reac-fita ${m.imagem_path ? 'sobre-foto' : ''}">${lista.map(r => `
     <button type="button" class="reac-chip ${r.eu ? 'minha' : ''}"
-      data-reagir="${m.id}" data-emoji="${esc(r.emoji)}">
+      data-ver-reacoes="${m.id}">
       ${esc(r.emoji)}${r.total > 1 ? `<span>${r.total}</span>` : ''}
     </button>`).join('')}</div>`;
 }
@@ -858,7 +908,7 @@ function balao(m, minha, mostrarAutor) {
         ${citacao(m)}
         ${blocoFoto(m)}
         ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
-        <span class="wa-hora">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
+        <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
       </div>
       ${fitaReacoes(m)}
     </div>`;
@@ -1006,6 +1056,19 @@ function ligarEventos(app) {
     }
 
     // ── reagir (fita da seleção OU chip embaixo da mensagem) ──
+    const chipReac = t.closest('[data-ver-reacoes]');
+    if (chipReac) { await abrirDetalheReacoes(chipReac.dataset.verReacoes); return; }
+    if (t.closest('#dr-fundo')) { fecharDetalheReacoes(); return; }
+    const tirarMinha = t.closest('[data-tirar-reacao]');
+    if (tirarMinha) {
+      const id = tirarMinha.dataset.tirarReacao;
+      const atual = (reacoes.get(id) || []).find(r => r.eu)?.emoji || null;
+      fecharDetalheReacoes();
+      try { await reagir(id, atual, atual); await recarregar(); }
+      catch (e) { showToast(e.message, 'error'); }
+      return;
+    }
+
     const btnReagir = t.closest('[data-reagir]');
     if (btnReagir) {
       const id = btnReagir.dataset.reagir;
