@@ -522,6 +522,14 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
   const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
+    <div class="chat-midia" id="chat-midia" hidden>
+      <button type="button" class="midia-op" data-midia="camera">
+        <span class="midia-ic">📷</span><span>Câmera</span>
+      </button>
+      <button type="button" class="midia-op" data-midia="galeria">
+        <span class="midia-ic">🖼️</span><span>Galeria</span>
+      </button>
+    </div>
     <div class="chat-previa" id="chat-previa" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
@@ -530,9 +538,19 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
         <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
           rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
         <button type="button" class="chat-foto-btn" id="chat-foto-btn"
-          aria-label="Enviar foto">📎</button>
+          aria-label="Enviar foto" title="Enviar foto">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.1-1.8A1.5 1.5 0 0 1 9.1 4.5h5.8a1.5 1.5 0 0 1 1.3.7L17.3 7h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
+            <circle cx="12" cy="12.8" r="3.4"/>
+          </svg>
+        </button>
       </div>
-      <input type="file" id="chat-foto-arq" accept="image/*" hidden />
+      <!-- Dois campos, não um: 'capture' abre a câmera direto e a AUSÊNCIA
+           dele abre a galeria. Não dá pra ter os dois no mesmo input, por
+           isso a escolha aparece antes. -->
+      <input type="file" id="chat-foto-camera" accept="image/*" capture="environment" hidden />
+      <input type="file" id="chat-foto-galeria" accept="image/*" hidden />
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>
@@ -549,6 +567,8 @@ function pintar(corpo, lista, placeholder, cabecalho = '') {
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
+  // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
+  window.dispatchEvent(new Event('falcon:layout'));
 }
 
 // "Hoje" / "Ontem" / a data, quando a conversa vira o dia — sem isso uma
@@ -663,7 +683,23 @@ function ligarEventos(app) {
       return;
     }
 
-    if (t.closest('#chat-foto-btn')) { app.querySelector('#chat-foto-arq')?.click(); return; }
+    if (t.closest('#chat-foto-btn')) {
+      const folha = app.querySelector('#chat-midia');
+      if (folha) folha.hidden = !folha.hidden;
+      return;
+    }
+    const opMidia = t.closest('[data-midia]');
+    if (opMidia) {
+      app.querySelector('#chat-midia').hidden = true;
+      const alvo = opMidia.dataset.midia === 'camera' ? '#chat-foto-camera' : '#chat-foto-galeria';
+      app.querySelector(alvo)?.click();
+      return;
+    }
+    // toque fora fecha a folha de mídia
+    if (!t.closest('.chat-midia')) {
+      const folha = app.querySelector('#chat-midia');
+      if (folha && !folha.hidden) folha.hidden = true;
+    }
     if (t.closest('#previa-remover')) { limparAnexo(); return; }
 
     if (t.closest('#chat-emoji-btn')) { alternarEmojis(); return; }
@@ -760,7 +796,7 @@ function ligarEventos(app) {
   });
 
   app.addEventListener('change', async (ev) => {
-    if (ev.target.id !== 'chat-foto-arq') return;
+    if (ev.target.id !== 'chat-foto-camera' && ev.target.id !== 'chat-foto-galeria') return;
     const arquivo = ev.target.files?.[0];
     ev.target.value = '';   // permite reescolher o MESMO arquivo depois
     if (!arquivo) return;

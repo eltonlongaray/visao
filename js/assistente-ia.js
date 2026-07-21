@@ -518,6 +518,7 @@ function _posSalva() {
 // há espaço embaixo.
 const PET_CORPO = 58;    // diâmetro do olho
 const PET_FOLGA = 10;
+const CINTURAO  = 84;    // altura da barra de navegação de baixo
 
 function desviarDoEnviar() {
   const botao = document.querySelector('.chat-enviar');
@@ -526,15 +527,19 @@ function desviarDoEnviar() {
   if (!r.height) return PET_BOTTOM;
 
   const alturaJanela = window.innerHeight;
-  const abaixoDoBotao = alturaJanela - r.bottom;  // do botão até o fim da tela
-  const acimaDoBotao  = alturaJanela - r.top;     // do topo do botão até o fim
+  // O vão embaixo do botão termina no CINTURÃO, não na borda da tela. Sem
+  // descontar isso, os 84px do cinturão contavam como espaço livre: no mural
+  // a conta dizia que cabia e o pet ia parar em cima do botão de enviar.
+  const topoDoCinturao = alturaJanela - CINTURAO;
+  const abaixoDoBotao = topoDoCinturao - r.bottom;
+  const acimaDoBotao  = alturaJanela - r.top;
 
-  // Cabe embaixo? Então centraliza o pet nesse vão.
   const precisa = PET_CORPO + PET_FOLGA * 2;
   if (abaixoDoBotao >= precisa) {
-    return Math.round(abaixoDoBotao / 2 - PET_CORPO / 2);
+    // centraliza no vão real, medido a partir do topo do cinturão
+    return Math.round(CINTURAO + abaixoDoBotao / 2 - PET_CORPO / 2);
   }
-  // Não cabe: sobe pra logo acima do botão.
+  // Não cabe embaixo: sobe pra logo acima do botão.
   return Math.round(acimaDoBotao + PET_FOLGA);
 }
 
@@ -614,6 +619,9 @@ function ligarArrastePet() {
   // aparece no chat. A espera curta é pra medir DEPOIS que a tela desenhou —
   // medir antes devolveria o valor padrão sempre.
   window.addEventListener('hashchange', () => setTimeout(() => aplicarPosicaoPet(), 150));
+  // Trocar de aba DENTRO da mesma tela (Comunidade <-> Privado) não mexe na
+  // rota, então o hashchange acima não pega. Quem redesenha avisa por aqui.
+  window.addEventListener('falcon:layout', () => aplicarPosicaoPet());
 }
 
 function openChatPanel() {

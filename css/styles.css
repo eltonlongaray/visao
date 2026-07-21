@@ -5891,10 +5891,14 @@ body.tour-active { overflow: hidden; }
 }
 
 /* Prévia do que vai ser enviado */
+/* Colada na barra de escrita: solta acima parecia um card de outra coisa, e
+   não "a foto que vai junto com esta mensagem". Por isso o arredondamento só
+   em cima e a borda de baixo removida — ela encosta na pílula. */
 .chat-previa {
   display: flex; align-items: center; gap: 10px;
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 12px; padding: 8px 10px; margin-top: 8px;
+  background: var(--card); border: 1px solid var(--border); border-bottom: none;
+  border-radius: 14px 14px 0 0; padding: 8px 10px 12px;
+  margin: 8px 0 -8px;
 }
 .chat-previa[hidden] { display: none; }
 .chat-previa img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; display: block; }
@@ -5918,3 +5922,17 @@ body.tour-active { overflow: hidden; }
 .ajustes-instalar-txt strong { font-size: 14px; color: var(--text); }
 .ajustes-instalar-txt span { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
 .ajustes-instalar .btn-primary { width: auto; flex: 0 0 auto; padding: 9px 18px; font-size: 13px; }
+
+/* === Escolha câmera x galeria === */
+.chat-midia {
+  display: flex; gap: 8px; margin-top: 8px;
+}
+.chat-midia[hidden] { display: none; }
+.midia-op {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 13px 8px; color: var(--text); font-size: 12.5px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.midia-op:active { background: var(--card-2); border-color: var(--accent); }
+.midia-ic { font-size: 22px; line-height: 1; }

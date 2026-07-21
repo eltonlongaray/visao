@@ -38,7 +38,7 @@ export async function meuNomeDeChat() {
 export async function fetchMural() {
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, autor_nome, texto, created_at, expira_em, editada_em')
+    .select('id, autor_id, autor_nome, texto, imagem_path, created_at, expira_em, editada_em')
     .eq('escopo', 'comunidade')
     .order('created_at', { ascending: false })
     .limit(LIMITE);
@@ -69,7 +69,7 @@ export async function fetchConversa(outroId) {
   // filtro explícito evita puxar o mural junto.
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, para_id, autor_nome, texto, created_at, editada_em')
+    .select('id, autor_id, para_id, autor_nome, texto, imagem_path, created_at, editada_em')
     .eq('escopo', 'privado')
     .or(`and(autor_id.eq.${meu},para_id.eq.${outroId}),and(autor_id.eq.${outroId},para_id.eq.${meu})`)
     .order('created_at', { ascending: false })
