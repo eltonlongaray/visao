@@ -492,6 +492,21 @@ function pintarRespondendo() {
 // uma vez e ainda mandar um texto junto do que está sendo encaminhado.
 let encAlvos = new Set();
 
+const IC_ENVIAR = '<svg viewBox="0 0 24 24" width="23" height="23" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10.1 15.5 12 3.4 13.9z"/></svg>';
+
+// Miniatura do que está sendo encaminhado, DENTRO da caixa de escrever: sem
+// ela a pessoa escreve sem ver o que vai junto, e com várias mensagens
+// selecionadas nem lembra quais eram.
+function miniaturaEncaminhada() {
+  const msgs = encaminhando || [];
+  if (!msgs.length) return '';
+  const primeira = msgs[0];
+  const url = primeira.imagem_path ? fotos.get(primeira.imagem_path) : null;
+  const extra = msgs.length > 1 ? `<span class="enc-mini-n">+${msgs.length - 1}</span>` : '';
+  if (url) return `<span class="enc-mini">${extra}<img src="${esc(url)}" alt="" /></span>`;
+  return `<span class="enc-mini enc-mini-txt">${extra}${esc(corta(primeira.texto || 'Mensagem', 24))}</span>`;
+}
+
 async function abrirEncaminhar(msgs) {
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
@@ -507,6 +522,7 @@ async function abrirEncaminhar(msgs) {
     <div class="enc-caixa">
       <div class="cf-puxador"></div>
       <div class="cf-titulo">Encaminhar para…</div>
+      <input class="chat-busca enc-busca" id="enc-filtro" placeholder="Buscar pessoa…" autocomplete="off" />
       <div class="enc-lista" id="enc-lista">
         ${membros.length ? membros.map(m => `
           <button type="button" class="chat-conv enc-op" data-marcar="${m.user_id}"
@@ -518,9 +534,14 @@ async function abrirEncaminhar(msgs) {
           : '<div class="cf-vazio">Ninguém mais por aqui ainda.</div>'}
       </div>
       <form class="enc-envio" id="enc-envio">
-        <textarea id="enc-texto" rows="1" maxlength="2000"
-          placeholder="Adicione uma mensagem"></textarea>
-        <button type="submit" class="cf-enviar" id="enc-mandar" aria-label="Enviar">➤</button>
+        <div class="enc-campo">
+          ${miniaturaEncaminhada()}
+          <textarea id="enc-texto" rows="1" maxlength="2000"
+            placeholder="Adicione uma mensagem"></textarea>
+        </div>
+        <button type="submit" class="enc-mandar" id="enc-mandar" aria-label="Enviar">
+          ${IC_ENVIAR}
+        </button>
       </form>
     </div>`;
   pintarMarcados();
@@ -1192,10 +1213,17 @@ function ligarEventos(app) {
   });
   // No aparelho, segurar dispara o menu nativo de seleção de texto por cima
   // do nosso. No computador, é o clique direito que abre a mesma barra.
+  // No Android, segurar o dedo dispara DOIS caminhos: o temporizador acima e
+  // o contextmenu nativo. Quando selecionar apenas marcava, chamar duas vezes
+  // era inofensivo — agora que ALTERNA, a segunda chamada desmarcava o que a
+  // primeira tinha acabado de marcar, e a seleção nunca ficava de pé.
+  // Aqui o contextmenu só age se o toque longo ainda não tiver resolvido.
   app.addEventListener('contextmenu', (ev) => {
     const msg = ev.target.closest('.dc-msg, .wa-msg');
     if (!msg || !msg.dataset.id) return;
-    ev.preventDefault();
+    ev.preventDefault();   // sempre: o menu nativo de seleção de texto atrapalha
+    if (selecionados.has(msg.dataset.id)) return;   // o toque longo já marcou
+    clearTimeout(pressTimer); pressTimer = null;    // evita marcar de novo em seguida
     selecionarMensagem(msg);
   });
 
@@ -1215,6 +1243,13 @@ function ligarEventos(app) {
   // A caixa cresce com o texto. Sem isso a quebra de linha existiria mas a
   // pessoa escreveria às cegas numa fresta de uma linha.
   app.addEventListener('input', (ev) => {
+    if (ev.target.id === 'enc-filtro') {
+      const termo = ev.target.value.trim().toLowerCase();
+      app.querySelectorAll('#enc-lista [data-marcar]').forEach(b => {
+        b.hidden = !!termo && !b.dataset.nome.toLowerCase().includes(termo);
+      });
+      return;
+    }
     if (ev.target.id !== 'chat-texto') return;
     ajustarAltura(ev.target);
     guardarRascunho();
