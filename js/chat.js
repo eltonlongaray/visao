@@ -55,6 +55,7 @@ export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = 
     autor_nome: nome,
     texto: t ? t.slice(0, 2000) : null,
     imagem_path: imagemPath,
+    responde_a: respondeA,
   });
   _falha(error);
 }

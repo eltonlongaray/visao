@@ -6117,18 +6117,22 @@ body.sem-rolagem { overflow: hidden; }
 .reac-chip span { font-size: 11px; font-weight: 700; }
 
 /* === Citação de resposta === */
+/* A citação é um bloco com peso próprio dentro do balão, como no WhatsApp:
+   fundo mais escuro que a bolha, barra colorida grossa à esquerda, nome em
+   destaque e a miniatura da foto à direita. Antes ela se confundia com o
+   texto da própria mensagem. */
 .cita, .chat-respondendo {
-  display: flex; align-items: stretch; gap: 8px; text-align: left;
-  background: rgba(255,255,255,0.07); border: none; border-radius: 7px;
-  padding: 5px 7px; margin-bottom: 4px; cursor: pointer; font-family: inherit;
-  width: 100%; overflow: hidden;
+  display: flex; align-items: stretch; gap: 9px; text-align: left;
+  background: rgba(0,0,0,0.26); border: none; border-radius: 8px;
+  padding: 7px 9px; margin-bottom: 5px; cursor: pointer; font-family: inherit;
+  width: 100%; overflow: hidden; min-height: 46px;
 }
-:root[data-theme="light"] .cita, :root[data-theme="light"] .chat-respondendo { background: rgba(0,0,0,0.06); }
-.cita-barra { flex: 0 0 3px; border-radius: 2px; background: var(--accent); }
+:root[data-theme="light"] .cita, :root[data-theme="light"] .chat-respondendo { background: rgba(0,0,0,0.08); }
+.cita-barra { flex: 0 0 4px; border-radius: 3px; background: var(--accent); }
 .cita-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.cita-nome { font-size: 11.5px; font-weight: 700; color: var(--accent); }
+.cita-nome { font-size: 12.5px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .cita-linha { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cita-mini { flex: 0 0 34px; width: 34px; height: 34px; object-fit: cover; border-radius: 5px; }
+.cita-mini { flex: 0 0 40px; width: 40px; height: 40px; object-fit: cover; border-radius: 6px; align-self: center; }
 .cita-sumiu { color: var(--muted); font-size: 11.5px; font-style: italic; padding: 5px 8px; cursor: default; }
 .chat-respondendo { margin: 8px 0 -4px; align-items: center; cursor: default; }
 .chat-respondendo[hidden] { display: none; }
