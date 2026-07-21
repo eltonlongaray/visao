@@ -6142,3 +6142,44 @@ body.sem-rolagem { overflow: hidden; }
 @keyframes piscaMsg { 0%,100% { background: transparent; } 35% { background: rgba(234,179,8,0.22); } }
 .wa-msg.piscando { animation: piscaMsg 1.4s ease; border-radius: 10px; }
 
+
+/* === Encaminhar: marcação por bolinha === */
+.enc-op { position: relative; padding-right: 46px; }
+.enc-bola {
+  position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--border); background: transparent;
+}
+.enc-op.marcado .enc-bola {
+  background: var(--accent); border-color: var(--accent);
+}
+/* o ✓ só existe quando marcado — desenhado, e não caractere, pra não
+   depender da fonte do aparelho */
+.enc-op.marcado .enc-bola::after {
+  content: ''; position: absolute; left: 7px; top: 3px;
+  width: 6px; height: 11px; border: solid #fff;
+  border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+}
+.enc-op.marcado { border-color: var(--accent); }
+.enc-envio {
+  flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 12px; border-top: 1px solid var(--border);
+}
+.enc-envio textarea {
+  flex: 1; min-width: 0; background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 10px 14px; color: var(--text); font-size: 14px;
+  font-family: inherit; resize: none; min-height: 42px; max-height: 100px;
+  outline: none; overflow-y: auto; scrollbar-width: none;
+}
+.cf-enviar:disabled { opacity: 0.45; cursor: default; }
+
+/* === Campo de resposta dentro da foto aberta === */
+.fv-baixo textarea {
+  flex: 1; min-width: 0; background: rgba(30,30,40,0.92);
+  border: 1px solid rgba(255,255,255,0.18); border-radius: 22px;
+  padding: 11px 16px; color: #fff; font-size: 14.5px; font-family: inherit;
+  resize: none; min-height: 46px; max-height: 110px; outline: none;
+  overflow-y: auto; scrollbar-width: none;
+}
+.fv-baixo textarea::placeholder { color: rgba(255,255,255,0.55); }
+.fv-mandar { background: var(--accent); }

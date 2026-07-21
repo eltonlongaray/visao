@@ -488,10 +488,15 @@ function pintarRespondendo() {
     <button type="button" class="resp-x" id="resp-cancelar" aria-label="Cancelar resposta">✕</button>` : '';
 }
 
+// Marcação por bolinha, como no WhatsApp: dá pra escolher várias pessoas de
+// uma vez e ainda mandar um texto junto do que está sendo encaminhado.
+let encAlvos = new Set();
+
 async function abrirEncaminhar(msgs) {
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
   encaminhando = Array.isArray(msgs) ? msgs : [msgs];
+  encAlvos = new Set();
   folha.hidden = false;
   folha.innerHTML = `<div class="enc-fundo" id="enc-fundo"></div>
     <div class="enc-caixa"><div class="cf-carregando">Carregando…</div></div>`;
@@ -501,25 +506,48 @@ async function abrirEncaminhar(msgs) {
     <div class="enc-fundo" id="enc-fundo"></div>
     <div class="enc-caixa">
       <div class="cf-puxador"></div>
-      <div class="cf-titulo">Encaminhar para</div>
-      <div class="enc-lista">
+      <div class="cf-titulo">Encaminhar para…</div>
+      <div class="enc-lista" id="enc-lista">
         ${membros.length ? membros.map(m => `
-          <button type="button" class="chat-conv" data-encaminhar-para="${m.user_id}"
+          <button type="button" class="chat-conv enc-op" data-marcar="${m.user_id}"
             data-nome="${esc(m.nome)}">
             ${avatar(m.user_id, m.nome, 'chat-conv-av')}
             <span class="chat-conv-txt"><span class="chat-conv-nome">${esc(m.nome)}</span></span>
+            <span class="enc-bola" aria-hidden="true"></span>
           </button>`).join('')
           : '<div class="cf-vazio">Ninguém mais por aqui ainda.</div>'}
       </div>
+      <form class="enc-envio" id="enc-envio">
+        <textarea id="enc-texto" rows="1" maxlength="2000"
+          placeholder="Adicione uma mensagem"></textarea>
+        <button type="submit" class="cf-enviar" id="enc-mandar" aria-label="Enviar">➤</button>
+      </form>
     </div>`;
+  pintarMarcados();
+}
+
+function pintarMarcados() {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.querySelectorAll('[data-marcar]').forEach(b => {
+    b.classList.toggle('marcado', encAlvos.has(b.dataset.marcar));
+  });
+  const mandar = folha.querySelector('#enc-mandar');
+  if (mandar) mandar.disabled = encAlvos.size === 0;
+  const tit = folha.querySelector('.cf-titulo');
+  if (tit) tit.textContent = encAlvos.size
+    ? `${encAlvos.size} selecionad${encAlvos.size > 1 ? 'os' : 'o'}`
+    : 'Encaminhar para…';
 }
 
 function fecharEncaminhar() {
   const folha = document.getElementById('enc-folha');
   encaminhando = null;
+  encAlvos = new Set();
   if (!folha) return;
   folha.hidden = true; folha.innerHTML = '';
 }
+
 
 // Reaproveita o catálogo do teclado de emoji: manter duas listas separadas
 // faria uma sair da outra com o tempo.
@@ -579,10 +607,12 @@ function verFoto(url, msgId) {
       </div>
     </div>
     <div class="fv-palco" id="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>
-    <div class="fv-baixo">
+    <form class="fv-baixo" id="fv-envio">
       <button type="button" class="fv-btn" id="fv-responder" aria-label="Responder">${IC_RESP}</button>
-      <span class="fv-resp-txt">Responder mensagem</span>
-    </div>`;
+      <textarea id="fv-texto" rows="1" maxlength="2000"
+        placeholder="Responder mensagem"></textarea>
+      <button type="submit" class="fv-btn fv-mandar" aria-label="Enviar">➤</button>
+    </form>`;
 }
 
 function alternarOpcoesFoto() {
@@ -940,14 +970,16 @@ function ligarEventos(app) {
 
     if (selecionados.size && !t.closest('.chat-selbar') && !t.closest('.reac-barra')
         && !t.closest('.enc-folha')) {
+      // ESTA CHECAGEM VEM PRIMEIRO. Soltar o dedo depois de segurar dispara
+      // um clique logo atrás da seleção, em cima da MESMA mensagem. Com a
+      // alternância antes daqui, esse clique desmarcava o que o toque longo
+      // acabara de marcar — a seleção piscava e sumia.
+      if (engolirClique) { engolirClique = false; return; }
+
       // Em modo de seleção, tocar numa mensagem ALTERNA: soma se for nova,
       // tira se já estava. É o que permite juntar várias pra encaminhar.
       const outra = t.closest('.dc-msg, .wa-msg');
       if (outra?.dataset.id) { selecionarMensagem(outra); return; }
-      // Soltar o dedo depois de segurar dispara um clique logo atrás da
-      // seleção. Sem engolir esse primeiro clique, a barra abria e fechava
-      // no mesmo gesto.
-      if (engolirClique) { engolirClique = false; return; }
       limparSelecao();
       return;
     }
@@ -1013,23 +1045,13 @@ function ligarEventos(app) {
       return;
     }
     if (t.closest('#enc-fundo')) { fecharEncaminhar(); return; }
-    const encPara = t.closest('[data-encaminhar-para]');
-    if (encPara) {
-      const alvo = encPara.dataset.encaminharPara;
-      const nomeAlvo = encPara.dataset.nome;
-      const msgs = encaminhando || [];
-      fecharEncaminhar();
-      try {
-        for (const m of msgs) await encaminhar(m, alvo, meuNome);
-        // Levar pra conversa em vez de avisar: o aviso obrigava a pessoa a
-        // procurar a conversa pra conferir se chegou.
-        aba = 'privado';
-        conversaCom = { id: alvo, nome: nomeAlvo };
-        history.pushState({ falconConversa: 1 }, '');
-        entradaNoHistorico = true;
-        app.querySelectorAll('[data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === 'privado'));
-        await recarregar();
-      } catch (e) { showToast(e.message, 'error'); }
+    const marcar = t.closest('[data-marcar]');
+    if (marcar) {
+      const id = marcar.dataset.marcar;
+      if (encAlvos.has(id)) encAlvos.delete(id); else encAlvos.add(id);
+      encAlvos._nomes = encAlvos._nomes || {};
+      encAlvos._nomes[id] = marcar.dataset.nome;
+      pintarMarcados();
       return;
     }
 
@@ -1209,6 +1231,54 @@ function ligarEventos(app) {
   });
 
   app.addEventListener('submit', async (ev) => {
+    if (ev.target.closest('#enc-envio')) {
+      ev.preventDefault();
+      if (!encAlvos.size) return;
+      const extra = (app.querySelector('#enc-texto')?.value || '').trim();
+      const msgs = encaminhando || [];
+      const alvos = [...encAlvos];
+      const nomes = encAlvos._nomes || {};
+      fecharEncaminhar();
+      try {
+        for (const alvo of alvos) {
+          for (const m of msgs) await encaminhar(m, alvo, meuNome);
+          if (extra) await enviarPrivado(alvo, extra, meuNome);
+        }
+        if (alvos.length === 1) {
+          // Uma pessoa só: abre a conversa dela, com a mensagem já lá. Assim
+          // a pessoa vê que chegou em vez de ter que confiar num aviso.
+          aba = 'privado';
+          conversaCom = { id: alvos[0], nome: nomes[alvos[0]] || 'Falcão' };
+          history.pushState({ falconConversa: 1 }, '');
+          entradaNoHistorico = true;
+          app.querySelectorAll('[data-aba]').forEach(b =>
+            b.classList.toggle('active', b.dataset.aba === 'privado'));
+          await recarregar();
+        } else {
+          // Várias: não faz sentido abrir uma delas, então fica onde estava
+          // e o aviso é o que confirma o envio.
+          showToast(`Enviado para ${alvos.length} pessoas.`, 'success');
+        }
+      } catch (e) { showToast(e.message, 'error'); }
+      return;
+    }
+
+    // Responder de dentro da foto aberta, sem precisar fechá-la primeiro.
+    if (ev.target.closest('#fv-envio')) {
+      ev.preventDefault();
+      const campo = app.querySelector('#fv-texto');
+      const texto = campo.value.trim();
+      if (!texto || !fotoAberta?.msgId) return;
+      campo.value = '';
+      const alvo = fotoAberta.msgId;
+      try {
+        if (aba === 'mural') await enviarNoMural(texto, meuNome, null, alvo);
+        else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, null, alvo);
+        fecharVisualizador();
+        await recarregar();
+      } catch (e) { campo.value = texto; showToast(e.message, 'error'); }
+      return;
+    }
     if (!ev.target.closest('#chat-envio')) return;
     ev.preventDefault();
     const campo = app.querySelector('#chat-texto');
