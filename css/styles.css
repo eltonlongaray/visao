@@ -2861,11 +2861,15 @@ body.time-picker-open { overflow: hidden; }
 /* Segurar dispara a seleção de texto nativa do sistema por cima da nossa
    barra. Desligar isso nas mensagens é o preço do gesto — o botão Copiar
    da barra cobre o que a seleção manual fazia. */
-.dc-msg, .wa-msg {
-  position: relative;
+/* Segurar o dedo é o nosso gesto de selecionar mensagem. Sem desligar a
+   seleção nativa, o Android marcava a hora, o separador de dia ou o emoji do
+   botão de enviar e abria o menu de copiar por cima do nosso. */
+.dc-msg, .wa-msg, .chat-lista, .chat-envio, .chat-selbar, .reac-barra,
+.chat-cab, .wa-dia {
   -webkit-user-select: none; user-select: none;
   -webkit-touch-callout: none;
 }
+.dc-msg, .wa-msg { position: relative; }
 /* o texto do campo de escrita segue selecionável normalmente */
 .chat-envio textarea { -webkit-user-select: text; user-select: text; }
 
@@ -2903,10 +2907,11 @@ body.time-picker-open { overflow: hidden; }
 .chat-selbar[hidden] { display: none; }
 .selbar-x, .selbar-acoes button {
   background: none; border: none; cursor: pointer; font-family: inherit;
-  color: var(--text); font-size: 18px; line-height: 1;
-  min-width: 42px; min-height: 42px; border-radius: 50%;
+  color: var(--text); font-size: 19px; line-height: 1;
+  min-width: 44px; min-height: 44px; border-radius: 50%;
   display: grid; place-items: center; padding: 0;
 }
+.selbar-acoes svg { display: block; }
 .selbar-x:active, .selbar-acoes button:active { background: rgba(255,255,255,0.10); }
 .selbar-acoes button[hidden] { display: none; }
 .selbar-tit { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
@@ -2952,8 +2957,13 @@ body.time-picker-open { overflow: hidden; }
 /* Coluna, não linha: a fita de reações é IRMÃ do balão e em linha ela ia
    parar ao lado dele, espremida numa faixa vertical. Em coluna ela cai
    embaixo, que é onde deve ficar. */
-.wa-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 84%; }
-.wa-msg.minha { align-self: flex-end; align-items: flex-end; }
+/* A LINHA ocupa a largura toda; quem se limita a 84% é a bolha. Assim o
+   toque longo pega em qualquer ponto na altura da mensagem, inclusive no
+   espaço vazio ao lado dela — antes só a bolha respondia, e errar por
+   poucos pixels não selecionava nada. */
+.wa-msg { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
+.wa-msg.minha { align-items: flex-end; }
+.wa-bolha { max-width: 84%; }
 .wa-bolha {
   position: relative;
   background: var(--card); border: 1px solid var(--border);

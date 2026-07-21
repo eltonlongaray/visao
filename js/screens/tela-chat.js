@@ -73,6 +73,16 @@ function ajustarConversaAoTeclado() {
   const lista = document.getElementById('chat-lista');
   if (lista) lista.scrollTop = lista.scrollHeight;
 }
+
+// A fita de reação é `position: fixed`, então rolar a lista a deixava parada
+// enquanto a mensagem subia — e ela passava a apontar pra mensagem errada.
+if (typeof document !== 'undefined') {
+  document.addEventListener('scroll', () => {
+    const uma = umaSo();
+    if (uma) posicionarFitaReacao(uma.id);
+  }, true);   // captura: o scroll acontece na lista, não na janela
+}
+
 if (typeof window !== 'undefined' && window.visualViewport) {
   window.visualViewport.addEventListener('resize', ajustarConversaAoTeclado);
   window.visualViewport.addEventListener('scroll', ajustarConversaAoTeclado);
@@ -188,11 +198,11 @@ function desenharCasca(app) {
       <button class="selbar-x" id="sel-cancelar" aria-label="Cancelar seleção">✕</button>
       <span class="selbar-tit">1 mensagem</span>
       <div class="selbar-acoes">
-        <button data-sel-responder aria-label="Responder" title="Responder">↩</button>
-        <button data-sel-encaminhar aria-label="Encaminhar" title="Encaminhar">↪</button>
-        <button data-sel-copiar aria-label="Copiar" title="Copiar">⧉</button>
-        <button data-sel-editar aria-label="Editar" title="Editar">✎</button>
-        <button data-sel-apagar aria-label="Excluir" title="Excluir">🗑</button>
+        <button data-sel-responder aria-label="Responder" title="Responder">${IC_RESP}</button>
+        <button data-sel-encaminhar aria-label="Encaminhar" title="Encaminhar">${IC_ENCAM}</button>
+        <button data-sel-copiar aria-label="Copiar" title="Copiar">${IC_COPIAR}</button>
+        <button data-sel-editar aria-label="Editar" title="Editar">${IC_EDITAR}</button>
+        <button data-sel-apagar aria-label="Excluir" title="Excluir">${IC_LIXO}</button>
       </div>
     </div>
     <div class="reac-barra" id="reac-barra" hidden></div>
@@ -232,7 +242,7 @@ async function desenharMural(corpo) {
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('')
     : `<div class="chat-vazio">Ninguém falou nada ainda.<br>Abre o jogo — a comunidade lê.</div>`;
 
-  pintar(corpo, lista, 'Responder mensagem', '', true);
+  pintar(corpo, lista, 'Escrever mensagem', '', true);
 }
 
 // Linha no estilo Discord: avatar + nome + texto corrido, sem balão.
@@ -354,7 +364,7 @@ async function desenharConversa(corpo) {
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
-  pintar(corpo, lista, 'Responder mensagem', `
+  pintar(corpo, lista, 'Escrever mensagem', `
     <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">
       <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
         stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -649,6 +659,9 @@ function fecharCatalogoReacao() {
 // miniatura ele tapava o canto da imagem e só atrapalhava a leitura.
 // Ícones em SVG e não em texto: ⤓ e ↪ saem finos e minúsculos porque
 // dependem da fonte do aparelho. Aqui a espessura é nossa.
+const IC_COPIAR = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M6 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V6"/></svg>';
+const IC_EDITAR = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.2L19.6 8.6a2.1 2.1 0 0 0 0-3l-1.2-1.2a2.1 2.1 0 0 0-3 0L4 15.8z"/></svg>';
+const IC_LIXO   = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M9.5 6.5V4.2h5v2.3M6.5 6.5 7.6 20h8.8l1.1-13.5M10 10.5v6M14 10.5v6"/></svg>';
 const IC_BAIXAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M6.5 11.5 12 17l5.5-5.5M4 20h16"/></svg>';
 const IC_ENCAM  = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5.5 20.5 12 13 18.5V14C7.5 14 5 16 3.5 19c.5-6 3.5-9.5 9.5-9.5z"/></svg>';
 const IC_RESP   = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5.5 3.5 12 11 18.5V14c5.5 0 8 2 9.5 5-.5-6-3.5-9.5-9.5-9.5z"/></svg>';
