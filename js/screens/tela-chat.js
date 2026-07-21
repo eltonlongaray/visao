@@ -192,6 +192,16 @@ function desenharCasca(app) {
 
       <div id="chat-corpo"></div>
     </div>
+    <div class="cam-tela" id="cam-tela" hidden>
+      <video id="cam-video" autoplay playsinline muted></video>
+      <button type="button" class="cam-btn cam-x" id="cam-fechar" aria-label="Fechar">✕</button>
+      <button type="button" class="cam-btn cam-virar" id="cam-virar" aria-label="Virar câmera">⟲</button>
+      <div class="cam-baixo">
+        <button type="button" class="cam-btn cam-lado" id="cam-galeria" aria-label="Galeria">🖼</button>
+        <button type="button" class="cam-disparo" id="cam-disparo" aria-label="Tirar foto"></button>
+        <span class="cam-lado"></span>
+      </div>
+    </div>
     <div class="foto-envio" id="foto-envio" hidden></div>
     <div class="foto-ver" id="foto-ver" hidden></div>
     <div class="chat-selbar" id="chat-selbar" hidden>
@@ -453,6 +463,7 @@ function mostrarPrevia() {
     <button type="button" class="fe-x" id="fe-cancelar" aria-label="Cancelar">✕</button>
     <div class="fe-palco"><img src="${anexo.previa}" alt="Foto escolhida" /></div>
     <div class="fe-baixo">
+      <button type="button" class="fe-emoji" id="fe-emoji" aria-label="Emojis">🙂</button>
       <textarea id="fe-legenda" rows="1" maxlength="2000"
         placeholder="Adicione uma legenda…">${esc(anexo.legenda || '')}</textarea>
       <button type="button" class="fe-enviar" id="fe-enviar" aria-label="Enviar">➤</button>
@@ -622,6 +633,25 @@ async function abrirDetalheReacoes(msgId) {
     </div>`;
 }
 
+// Emoji para a legenda da foto. Usa a mesma folha das outras listas e o
+// mesmo catálogo do teclado — duas listas separadas sairiam de sincronia.
+function abrirEmojisDaLegenda() {
+  const folha = document.getElementById('enc-folha');
+  if (!folha) return;
+  folha.hidden = false;
+  const todos = CATEGORIAS.filter(c => c.id !== 'recentes').flatMap(c => c.itens).slice(0, 160);
+  folha.innerHTML = `
+    <div class="enc-fundo" id="el-fundo"></div>
+    <div class="enc-caixa">
+      <div class="cf-puxador"></div>
+      <div class="cf-titulo">Emoji na legenda</div>
+      <div class="rc-grade">
+        ${todos.map(e => `<button type="button" class="emoji-item"
+          data-emoji-legenda="${e}">${e}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
 function fecharDetalheReacoes() {
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
@@ -719,6 +749,76 @@ function fecharVisualizador({ voltando = false } = {}) {
 function limparAnexo() {
   if (anexo?.previa) URL.revokeObjectURL(anexo.previa);
   anexo = null;
+  mostrarPrevia();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CÂMERA DENTRO DO APP
+// ═══════════════════════════════════════════════════════════════
+// O <input capture> entrega a câmera do sistema, que exige confirmar a foto
+// (✓) antes de devolvê-la — e o botão de voltar ali DESCARTA a imagem. Com a
+// câmera aqui dentro não existe esse passo: apertou, virou anexo.
+//
+// Se o aparelho negar a câmera, cai de volta no input do sistema em vez de
+// deixar a pessoa sem saída.
+let camStream = null;
+let camLado = 'environment';
+
+async function abrirCamera() {
+  const tela = document.getElementById('cam-tela');
+  const video = document.getElementById('cam-video');
+  if (!tela || !video || !navigator.mediaDevices?.getUserMedia) {
+    document.getElementById('chat-foto-camera')?.click();
+    return;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: camLado, width: { ideal: 1920 }, height: { ideal: 1920 } },
+      audio: false,
+    });
+    video.srcObject = camStream;
+    tela.hidden = false;
+    document.body.classList.add('sem-rolagem');
+  } catch {
+    // permissão negada ou câmera ocupada: o caminho do sistema ainda funciona
+    document.getElementById('chat-foto-camera')?.click();
+  }
+}
+
+function fecharCamera() {
+  const tela = document.getElementById('cam-tela');
+  const video = document.getElementById('cam-video');
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  if (video) video.srcObject = null;
+  if (tela) tela.hidden = true;
+  document.body.classList.remove('sem-rolagem');
+}
+
+async function virarCamera() {
+  camLado = camLado === 'environment' ? 'user' : 'environment';
+  fecharCamera();
+  await abrirCamera();
+}
+
+// Desenha o QUADRO ATUAL do vídeo num canvas. É o mesmo caminho de redução
+// que a galeria usa, então a foto sai do mesmo tamanho pelos dois lados.
+async function dispararFoto() {
+  const video = document.getElementById('cam-video');
+  if (!video?.videoWidth) return;
+  const escala = Math.min(1, FOTO_LADO_MAX / Math.max(video.videoWidth, video.videoHeight));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(video.videoWidth * escala);
+  cv.height = Math.round(video.videoHeight * escala);
+  const ctx = cv.getContext('2d');
+  // A frontal mostra espelhado; sem desespelhar, a foto sai invertida do que
+  // a pessoa viu na tela.
+  if (camLado === 'user') { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(video, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.82));
+  fecharCamera();
+  if (!blob) { showToast('Não deu pra capturar a foto.', 'error'); return; }
+  limparAnexo();
+  anexo = { blob, previa: URL.createObjectURL(blob) };
   mostrarPrevia();
 }
 
@@ -1177,6 +1277,14 @@ function ligarEventos(app) {
     }
     if (t.closest('#fv-fechar')) { fecharVisualizador(); return; }
     if (t.closest('#fe-cancelar')) { limparAnexo(); return; }
+    if (t.closest('#fe-emoji')) { abrirEmojisDaLegenda(); return; }
+    const emjLeg = t.closest('[data-emoji-legenda]');
+    if (emjLeg) {
+      const campo = app.querySelector('#fe-legenda');
+      if (campo) { campo.value += emjLeg.dataset.emojiLegenda; registrarUso(emjLeg.dataset.emojiLegenda); }
+      return;
+    }
+    if (t.closest('#el-fundo')) { document.getElementById('enc-folha').hidden = true; return; }
     if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
 
     if (t.closest('#chat-foto-btn')) {
@@ -1187,8 +1295,16 @@ function ligarEventos(app) {
     const opMidia = t.closest('[data-midia]');
     if (opMidia) {
       app.querySelector('#chat-midia').hidden = true;
-      const alvo = opMidia.dataset.midia === 'camera' ? '#chat-foto-camera' : '#chat-foto-galeria';
-      app.querySelector(alvo)?.click();
+      if (opMidia.dataset.midia === 'camera') await abrirCamera();
+      else app.querySelector('#chat-foto-galeria')?.click();
+      return;
+    }
+    if (t.closest('#cam-fechar')) { fecharCamera(); return; }
+    if (t.closest('#cam-virar')) { await virarCamera(); return; }
+    if (t.closest('#cam-disparo')) { await dispararFoto(); return; }
+    if (t.closest('#cam-galeria')) {
+      fecharCamera();
+      app.querySelector('#chat-foto-galeria')?.click();
       return;
     }
     // toque fora fecha a folha de mídia
