@@ -5324,7 +5324,7 @@ body.tour-active { overflow: hidden; }
   position: fixed;
   /* 142 = cinturão (84) + um pet (58): fica logo acima da tarja marrom, com
      um corpo de folga. O JS reposiciona conforme o canto escolhido. */
-  bottom: 113px;
+  bottom: 92px;
   right: 14px;
   z-index: 9000;
   display: flex;
@@ -6486,4 +6486,21 @@ body.sem-rolagem { overflow: hidden; }
 .obj-vazio { padding: 20px 10px; font-size: 13px; }
 .obj-vazio strong { font-size: 15px; margin-bottom: 7px; }
 
-.obj-hint { margin: -2px 0 12px; font-size: 12.5px; line-height: 1.5; }
+
+/* Subtítulo de bloco: diz o que entra ali. O estilo genérico de dica (10px,
+   itálico, apagado) sumia na tela — e era justamente a frase que explica a
+   seção pra quem chega. */
+.bloco-sub {
+  font-size: 13px; color: var(--muted); line-height: 1.5;
+  text-align: left; margin: -4px 0 14px; padding: 0 2px;
+  font-style: normal;
+}
+.bloco-sub-fim { margin: 12px 0 0; }
+
+.obj-vazio {
+  text-align: left; padding: 16px 14px;
+  background: var(--card); border: 1px dashed var(--border);
+  border-radius: 14px; font-size: 13.5px; line-height: 1.55; color: var(--text);
+}
+.obj-vazio span { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.obj-vazio strong { color: var(--accent); font-size: inherit; display: inline; }

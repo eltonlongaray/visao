@@ -146,11 +146,11 @@ export async function renderHome(app) {
       <!-- ATIVIDADES: daqui pra baixo é atividade -->
       <div class="home-section home-bloco">
         <div class="home-section-title home-bloco-titulo">
-          <span>📋 ${t('home.activities')}</span>
+          <span>${t('home.activities')}</span>
           <button class="home-add-btn" id="add-cat" title="${t('home.activity.new')}">+</button>
         </div>
         <div id="cats-list"></div>
-        <div class="home-section-hint">${t('home.activities.hint')}</div>
+        <div class="bloco-sub bloco-sub-fim">${t('home.activities.hint')}</div>
       </div>
 
       <!-- OBJETIVOS: o alvo declarado da constância. Vem DEPOIS das
@@ -160,7 +160,7 @@ export async function renderHome(app) {
           <span>🎯 Meus objetivos</span>
           <button class="home-add-btn" id="obj-novo" title="Novo objetivo">+</button>
         </div>
-        <div class="home-section-hint obj-hint">
+        <div class="bloco-sub">
           Quais atividades que se repetem você gostaria de manter a constância?
         </div>
         <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>

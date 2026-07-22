@@ -32,9 +32,8 @@ export async function montarObjetivos() {
     // pra mesma ação fazem a pessoa procurar a diferença entre eles.
     box.innerHTML = `
       <div class="obj-vazio">
-        Nenhum objetivo ainda.<br>
-        Toque no <strong>+</strong> pra declarar o primeiro — academia 4× por
-        semana, jejum 1× por semana, lazer 1× por mês.
+        Nenhum objetivo ainda. Toque no <strong>+</strong> pra declarar o primeiro.
+        <span>Academia 4× por semana · jejum 1× por semana · lazer 1× por mês</span>
       </div>`;
     return;
   }
