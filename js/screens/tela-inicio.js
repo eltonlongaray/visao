@@ -39,6 +39,7 @@ import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { loadDesafiosDot } from '../desafios.js';
 import { openDesafiosVitrine } from '../desafios-vitrine.js';
+import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -99,6 +100,15 @@ export async function renderHome(app) {
           </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
         </div>
+      </div>
+
+      <!-- OBJETIVOS: o alvo declarado da constância -->
+      <div class="home-section" id="obj-secao">
+        <div class="home-section-title">
+          <span>🎯 Meus objetivos</span>
+          <button class="obj-add" id="obj-novo" title="Novo objetivo">+</button>
+        </div>
+        <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
       </div>
 
       <!-- AVISOS (comunicados do time) -->
@@ -164,6 +174,9 @@ export async function renderHome(app) {
 
   // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
+  ligarObjetivos();
+  montarObjetivos();   // sem await: a Home não espera os objetivos pra aparecer
+
   if (!tour.isCompleted()) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);

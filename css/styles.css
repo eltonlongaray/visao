@@ -6380,3 +6380,72 @@ body.sem-rolagem { overflow: hidden; }
   height: calc(100vh - var(--pet-bottom, 16px) - 78px - 84px);
   max-height: calc(100vh - var(--pet-bottom, 16px) - 78px - 84px);
 }
+
+/* === Objetivos (Home) === */
+.obj-add {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--card-2); border: 1px solid var(--border);
+  color: var(--text); font-size: 19px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center; padding: 0; font-family: inherit;
+}
+.obj-carregando, .obj-vazio {
+  color: var(--muted); font-size: 12.5px; line-height: 1.6;
+  padding: 14px 4px; text-align: center;
+}
+.obj-vazio strong { display: block; color: var(--text); font-size: 14px; margin-bottom: 5px; }
+.obj-vazio-btn { margin-top: 12px; width: auto; padding: 9px 16px; font-size: 13px; }
+
+.obj-item {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 11px 12px; margin-bottom: 8px;
+}
+.obj-item.cumprido { border-color: rgba(95,211,165,0.5); }
+.obj-ic { flex: 0 0 30px; font-size: 22px; line-height: 1; text-align: center; }
+.obj-corpo { flex: 1; min-width: 0; }
+.obj-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.obj-nome { font-size: 14px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.obj-conta { font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+.obj-item.cumprido .obj-conta { color: #5fd3a5; }
+.obj-barra {
+  height: 5px; border-radius: 3px; background: var(--card-2);
+  margin: 6px 0 5px; overflow: hidden;
+}
+.obj-barra i { display: block; height: 100%; background: var(--accent); border-radius: 3px;
+  transition: width 0.35s ease; }
+.obj-item.cumprido .obj-barra i { background: #5fd3a5; }
+.obj-sub { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: var(--muted); }
+/* Bolinhas: dão a leitura de "quanto falta" sem precisar ler o número */
+.obj-bolinhas { display: inline-flex; gap: 3px; }
+.obj-bolinhas i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border); display: block;
+}
+.obj-bolinhas i.cheia { background: var(--accent); }
+.obj-item.cumprido .obj-bolinhas i.cheia { background: #5fd3a5; }
+
+.obj-check {
+  flex: 0 0 38px; height: 38px; border-radius: 50%;
+  background: var(--card-2); border: 2px solid var(--border);
+  color: #fff; font-size: 17px; cursor: pointer; font-family: inherit;
+  display: grid; place-items: center; padding: 0;
+}
+.obj-check.feito { background: #5fd3a5; border-color: #5fd3a5; }
+/* Objetivo que puxa do Ritual não tem o que marcar aqui — o botão vira acesso
+   à edição, e o traço mais fraco diz que ele não é o gesto principal. */
+.obj-check.obj-auto { color: var(--muted); border-style: dashed; font-size: 15px; }
+
+.obj-modal { max-width: 420px; }
+.obj-linha { display: flex; gap: 8px; }
+.obj-mini { flex: 1; min-width: 0; }
+.obj-modos { display: flex; gap: 8px; margin-bottom: 4px; }
+.obj-modo {
+  flex: 1; text-align: left; cursor: pointer; font-family: inherit;
+  background: var(--card-2); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 10px 11px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.obj-modo strong { font-size: 13px; color: var(--text); }
+.obj-modo span { font-size: 10.5px; color: var(--muted); line-height: 1.4; }
+.obj-modo.ativo { border-color: var(--accent); background: var(--card); }
