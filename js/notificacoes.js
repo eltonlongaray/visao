@@ -213,8 +213,19 @@ export function unlockAudio() {
   } catch (_) {}
 }
 
+// Dois caminhos independentes podem pedir o grito quase ao mesmo tempo: o
+// verificador local (que acha o lembrete vencido quando o app abre) e o push
+// que chega do Worker. Os dois estão certos em existir — um cobre o app
+// aberto, o outro o app fechado —, mas juntos tocavam o falcão duas vezes.
+// A trava por tempo resolve sem precisar que um saiba do outro.
+let _ultimoGrito = 0;
+const GRITO_MIN_MS = 4000;
+
 export async function playFalconCry() {
   if (getNotifMuted()) return;
+  const agora = Date.now();
+  if (agora - _ultimoGrito < GRITO_MIN_MS) return;
+  _ultimoGrito = agora;
   if ('vibrate' in navigator) navigator.vibrate([500, 100, 500, 100, 500, 100, 500, 100, 1000]);
   if (!_audioCtx || _audioCtx.state !== 'running') return;
   // Aguarda o buffer se ainda não carregou (máx ~3s antes de desistir)
