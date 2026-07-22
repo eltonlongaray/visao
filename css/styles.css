@@ -2963,7 +2963,7 @@ body.time-picker-open { overflow: hidden; }
    poucos pixels não selecionava nada. */
 /* A LINHA e uma faixa horizontal: [rosto][coluna com balao e reacoes]. Em
    coluna, o rosto ficaria empilhado em cima do balao em vez de ao lado. */
-.wa-msg { display: flex; flex-direction: row; align-items: flex-end; gap: 8px; width: 100%; }
+.wa-msg { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; width: 100%; }
 .wa-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; }
 .wa-msg.minha { justify-content: flex-end; }
 .wa-msg.minha .wa-col { align-items: flex-end; }
@@ -2972,15 +2972,35 @@ body.time-picker-open { overflow: hidden; }
 .wa-av {
   flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
   display: grid; place-items: center; font-size: 14px; font-weight: 700;
-  object-fit: cover; align-self: flex-end; margin-bottom: 2px;
+  object-fit: cover; align-self: flex-start;
 }
 .wa-bolha {
   position: relative;
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 12px 12px 12px 3px;
+  /* canto vivo no TOPO do lado do rosto: é de lá que sai o rabinho. Antes
+     era embaixo, quando o avatar ficava no pé da mensagem. */
+  border-radius: 3px 12px 12px 12px;
   padding: 7px 11px 6px;
   display: flex; flex-direction: column;
 }
+/* O rabinho faz a fala parecer sair do rosto de quem enviou. Desenhado com
+   borda (triângulo), não com imagem: acompanha a cor do balão em qualquer
+   tema sem arquivo extra. Só onde há balão pintado — em mensagem só de foto
+   o balão é transparente e não haveria de onde sair. */
+.wa-bolha:not(.bolha-foto)::after {
+  content: ''; position: absolute; top: -1px; width: 0; height: 0;
+}
+.wa-msg:not(.minha) .wa-bolha:not(.bolha-foto)::after {
+  left: -7px;
+  border-top: 9px solid var(--card);
+  border-left: 9px solid transparent;
+}
+.wa-msg.minha .wa-bolha:not(.bolha-foto)::after {
+  right: -7px;
+  border-top: 9px solid #4c3a8f;
+  border-right: 9px solid transparent;
+}
+:root[data-theme="light"] .wa-msg.minha .wa-bolha:not(.bolha-foto)::after { border-top-color: #d9c9f5; }
 /* Balão OPACO: com fundo semitransparente os hieróglifos apareciam por
    trás do texto e atrapalhavam a leitura. Este é o tom sólido equivalente
    ao roxo que estava sendo misturado. */
@@ -2990,7 +3010,7 @@ body.time-picker-open { overflow: hidden; }
    diz "isto é meu" antes mesmo de olhar de que lado está. */
 .wa-msg.minha .wa-bolha {
   background: #4c3a8f; border-color: rgba(167,139,250,0.6);
-  border-radius: 12px 12px 3px 12px;
+  border-radius: 12px 3px 12px 12px;
 }
 .wa-msg.minha .wa-bolha .wa-hora { color: rgba(255,255,255,0.72); }
 :root[data-theme="light"] .wa-msg.minha .wa-bolha {
@@ -6139,7 +6159,10 @@ body.sem-rolagem { overflow: hidden; }
 .rb-mais { font-size: 18px; color: var(--muted); background: var(--card-2); }
 
 /* === Reações embaixo da mensagem === */
-.reac-fita { display: flex; gap: 4px; margin: -3px 0 2px; flex-wrap: wrap; }
+/* z-index acima do balão: ela sobrepõe a base dele de propósito e sem
+   isto ficava escondida atrás. */
+.reac-fita { display: flex; gap: 4px; margin: -3px 0 2px; flex-wrap: wrap;
+  position: relative; z-index: 5; }
 .wa-msg.minha .reac-fita { justify-content: flex-end; }
 .reac-chip {
   display: flex; align-items: center; gap: 3px;
@@ -6251,7 +6274,7 @@ body.sem-rolagem { overflow: hidden; }
 /* === Reação sobre a foto === */
 /* Sobrepõe um pedaço da imagem, como no WhatsApp: a reação pertence à foto e
    flutuando abaixo dela parecia de outra coisa. */
-.reac-fita.sobre-foto { margin-top: -16px; position: relative; z-index: 3; padding: 0 8px; }
+.reac-fita.sobre-foto { margin-top: -16px; padding: 0 8px; }
 .reac-fita.sobre-foto .reac-chip { box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
 /* Hora por cima da imagem quando não há legenda — abaixo dela sobrava uma
