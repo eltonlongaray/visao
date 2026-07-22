@@ -427,10 +427,20 @@ export async function startNotifChecker() {
     const due = list.filter(n => n.timestamp <= now);
     if (!due.length) return;
     localStorage.setItem(SCHED_KEY, JSON.stringify(list.filter(n => n.timestamp > now)));
+
+    // Vencidos há MUITO tempo são descartados sem avisar. O Worker entrega
+    // com o app fechado, mas não tem como apagar esta cópia local — então ao
+    // abrir o app horas depois o lembrete de ontem tocava de novo, agora como
+    // notificação separada (a tag do envio virou única). Avisar fora de hora
+    // não ajuda ninguém: o compromisso já passou.
+    const JANELA_MS = 5 * 60_000;
+    const recentes = due.filter(n => now - n.timestamp <= JANELA_MS);
+    if (!recentes.length) return;
+
     playFalconCry();
     try {
       const reg = await navigator.serviceWorker.ready;
-      for (const n of due) {
+      for (const n of recentes) {
         const muted = getNotifMuted();
         await reg.showNotification(n.title, {
           body:    n.body,
