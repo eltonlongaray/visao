@@ -122,22 +122,29 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
   if (!title.startsWith('⏰')) title = '⏰ ' + title;
 
   // ── Via Worker (notificação mesmo com app fechado) ───────────
+  let peloWorker = false;
   if (userId && !WORKER_URL.includes('REPLACE')) {
     try {
       await subscribeToPush(); // garante que a subscription existe
-      await fetch(`${WORKER_URL}/schedule`, {
+      const r = await fetch(`${WORKER_URL}/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': WORKER_API_KEY },
         body: JSON.stringify({ userId, title, body, tag, timestamp }),
       });
+      peloWorker = r.ok;
     } catch (err) {
       console.warn('[notif] worker schedule falhou:', err.message);
     }
   }
 
-  // ── SW setTimeout — disparo exato em até 60 min (funciona com app em background/fechado parcial) ──
+  // ── SW setTimeout — só quando o Worker NÃO assumiu ──
+  // Os dois caminhos juntos agendavam o MESMO lembrete duas vezes com a mesma
+  // tag: um mostrava a notificação e o outro a substituía. Substituição no
+  // Android não toca som nem mostra banner. Além disso este temporizador só
+  // sobrevive enquanto o service worker está vivo (minutos), enquanto o
+  // Worker entrega com o app fechado — então ele é reserva, não paralelo.
   const delayMs = timestamp - Date.now();
-  if (delayMs > 0 && delayMs < 60 * 60_000) {
+  if (!peloWorker && delayMs > 0 && delayMs < 60 * 60_000) {
     navigator.serviceWorker.ready.then(reg => {
       reg.active?.postMessage({
         type: 'SCHEDULE_NOTIF', title, body, tag, delayMs,
