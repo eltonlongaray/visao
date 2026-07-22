@@ -109,6 +109,26 @@ if (typeof window !== 'undefined' && window.visualViewport) {
 let entradaNoHistorico = false;   // empurrei uma entrada e ela ainda vale?
 let entradaOrfa = false;          // saí da tela deixando uma pra trás
 let fotoNoHistorico = false;      // visualizador de foto empurrou entrada
+// Pilha das camadas abertas por cima da conversa (legenda, folhas, câmera).
+// Cada uma empurra uma entrada no histórico pra que o voltar do aparelho
+// feche UMA de cada vez. Sem isso, o voltar não achava o que consumir,
+// escorregava pro roteador e saía do chat inteiro — foi o que fez o app
+// "ir pra Home" ao fechar o seletor de emoji.
+const camadas = [];
+function empilharCamada(fechar) {
+  camadas.push(fechar);
+  history.pushState({ falconCamada: camadas.length }, '');
+}
+function fecharCamadaTopo() {
+  const fechar = camadas.pop();
+  if (fechar) { try { fechar(); } catch {} return true; }
+  return false;
+}
+// Fechar pelo botão da própria tela precisa consumir a entrada também, senão
+// sobra lixo no histórico e um voltar futuro não faz nada.
+function sairDaCamada() {
+  if (camadas.length) history.back();
+}
 let fotoAberta = null;            // { url, msgId } da foto em tela cheia
 
 function abrirConversa(id, nome) {
@@ -122,6 +142,9 @@ if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
     // Fora da tela de chat o voltar não é nosso.
     if (!document.getElementById('chat-corpo')) { entradaOrfa = entradaNoHistorico; return; }
+
+    // Camadas sobrepostas fecham uma por vez, de cima pra baixo.
+    if (camadas.length) { fecharCamadaTopo(); return; }
 
     // Foto aberta é o primeiro a fechar: é a camada mais de cima da tela.
     if (fotoNoHistorico) { fecharVisualizador({ voltando: true }); return; }
@@ -540,6 +563,7 @@ function miniaturaEncaminhada() {
 }
 
 async function abrirEncaminhar(msgs) {
+  empilharCamada(fecharEncaminhar);
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
   encaminhando = Array.isArray(msgs) ? msgs : [msgs];
@@ -606,6 +630,7 @@ function fecharEncaminhar() {
 // com "Toque para remover" — é o caminho mais direto pra desfazer, e evita
 // ter que adivinhar que tocar no emoji de novo tira.
 async function abrirDetalheReacoes(msgId) {
+  empilharCamada(fecharDetalheReacoes);
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
   folha.hidden = false;
@@ -647,6 +672,7 @@ async function abrirDetalheReacoes(msgId) {
 // Emoji para a legenda da foto. Usa a mesma folha das outras listas e o
 // mesmo catálogo do teclado — duas listas separadas sairiam de sincronia.
 function abrirEmojisDaLegenda() {
+  empilharCamada(() => { const f = document.getElementById('enc-folha'); if (f) { f.hidden = true; f.innerHTML = ''; } });
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
   folha.hidden = false;
@@ -672,6 +698,7 @@ function fecharDetalheReacoes() {
 // Reaproveita o catálogo do teclado de emoji: manter duas listas separadas
 // faria uma sair da outra com o tempo.
 function abrirCatalogoReacao(msgId) {
+  empilharCamada(fecharCatalogoReacao);
   if (!msgId) return;
   const folha = document.getElementById('enc-folha');
   if (!folha) return;
@@ -1028,7 +1055,10 @@ function balao(m, minha, mostrarAutor) {
     <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
-        ${mostrarAutor && !minha ? `<span class="wa-autor">${esc(m.autor_nome || 'Falcão')}</span>` : ''}
+        ${mostrarAutor && !minha ? `<span class="wa-autor">
+          ${avatar(m.autor_id, perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão', 'wa-autor-av')}
+          <span>${esc(perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão')}</span>
+        </span>` : ''}
         ${citacao(m)}
         ${blocoFoto(m)}
         ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
@@ -1182,7 +1212,7 @@ function ligarEventos(app) {
     // ── reagir (fita da seleção OU chip embaixo da mensagem) ──
     const chipReac = t.closest('[data-ver-reacoes]');
     if (chipReac) { await abrirDetalheReacoes(chipReac.dataset.verReacoes); return; }
-    if (t.closest('#dr-fundo')) { fecharDetalheReacoes(); return; }
+    if (t.closest('#dr-fundo')) { sairDaCamada(); return; }
     const tirarMinha = t.closest('[data-tirar-reacao]');
     if (tirarMinha) {
       const id = tirarMinha.dataset.tirarReacao;
@@ -1219,7 +1249,7 @@ function ligarEventos(app) {
       catch (e) { showToast(e.message, 'error'); }
       return;
     }
-    if (t.closest('#rc-fundo')) { fecharCatalogoReacao(); return; }
+    if (t.closest('#rc-fundo')) { sairDaCamada(); return; }
 
     // ── responder ──
     if (t.closest('[data-sel-responder]') && umaSo()) {
@@ -1252,7 +1282,7 @@ function ligarEventos(app) {
       if (msgs.length) await abrirEncaminhar(msgs);
       return;
     }
-    if (t.closest('#enc-fundo')) { fecharEncaminhar(); return; }
+    if (t.closest('#enc-fundo')) { sairDaCamada(); return; }
     const marcar = t.closest('[data-marcar]');
     if (marcar) {
       const id = marcar.dataset.marcar;
@@ -1295,7 +1325,7 @@ function ligarEventos(app) {
       if (campo) { campo.value += emjLeg.dataset.emojiLegenda; registrarUso(emjLeg.dataset.emojiLegenda); }
       return;
     }
-    if (t.closest('#el-fundo')) { document.getElementById('enc-folha').hidden = true; return; }
+    if (t.closest('#el-fundo')) { sairDaCamada(); return; }
     if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
 
     if (t.closest('#chat-foto-btn')) {

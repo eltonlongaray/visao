@@ -2987,7 +2987,18 @@ body.time-picker-open { overflow: hidden; }
   background: #d9c9f5; border-color: rgba(91,33,182,0.34);
 }
 :root[data-theme="light"] .wa-msg.minha .wa-bolha .wa-hora { color: rgba(0,0,0,0.5); }
-.wa-autor { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+/* Rosto junto do nome: com muita gente no mural, o nome sozinho exige ler
+   pra saber quem falou. O nome vem do perfil ATUAL, não do gravado na
+   mensagem — quem preencheu o nome depois some de "Falcão" no histórico. */
+.wa-autor {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px;
+}
+.wa-autor-av {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+  object-fit: cover;
+}
 .wa-txt {
   font-size: 14.5px; line-height: 1.42; color: var(--text);
   white-space: pre-wrap; word-break: break-word;
@@ -5941,8 +5952,11 @@ body.tour-active { overflow: hidden; }
 .wa-msg.minha .wa-bolha.bolha-foto { background: none; border: none; }
 .wa-bolha.bolha-foto .wa-hora { margin: 4px 6px 0 0; }
 .wa-bolha.bolha-foto .wa-txt { padding: 6px 10px 0; }
-/* No privado a foto não toma a largura inteira: fica no lado de quem enviou */
-.wa-msg.wa-com-foto { max-width: 74%; }
+/* A LINHA da foto ocupa a largura toda (o toque longo precisa dela inteira);
+   quem fica em 2/3 é a bolha, logo abaixo. Esta regra limitava a linha a 74%
+   e a bolha calculava 66% DESSE valor — a foto saía com 47% da tela e a
+   minha aparecia centralizada em vez de encostada à direita. */
+.wa-msg.wa-com-foto { max-width: 100%; }
 /* Espaço reservado enquanto a URL assinada não chegou: sem ele a lista pula
    quando a imagem entra e a pessoa perde a linha que estava lendo. */
 .msg-foto-vazia { width: 100%; height: 190px; border-radius: 6px; padding: 0; box-shadow: none; }
