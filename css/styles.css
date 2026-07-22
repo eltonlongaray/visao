@@ -6021,12 +6021,13 @@ body.sem-rolagem { overflow: hidden; }
 .fe-baixo {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   display: flex; align-items: flex-end; gap: 8px;
-  /* sobe o campo: colado no rodapé ele caía sobre a barra de navegação do
-     Android e ficava difícil de acertar */
-  padding: 30px 12px calc(64px + env(safe-area-inset-bottom, 0px));
+  /* Só o respiro da barra de navegação. Os 64px de antes viravam uma faixa
+     preta entre o campo e o teclado — agora quem afasta do teclado é o JS,
+     que mede a altura real dele. */
+  padding: 30px 12px calc(14px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to top, rgba(0,0,0,0.9) 55%, rgba(0,0,0,0));
 }
-.fe-palco { padding-bottom: 130px; }
+.fe-palco { padding-bottom: 90px; }
 .fe-baixo textarea {
   flex: 1; min-width: 0; background: rgba(30,30,40,0.92); border: 1px solid rgba(255,255,255,0.18);
   border-radius: 22px; padding: 12px 16px; color: #fff; font-size: 14.5px;
@@ -6077,7 +6078,9 @@ body.sem-rolagem { overflow: hidden; }
 .dc-body .msg-foto { max-width: 100%; }
 
 /* === Folhas que sobem de baixo (encaminhar / reagir) === */
-.enc-folha { position: fixed; inset: 0; z-index: 118; display: flex; flex-direction: column; }
+/* 130: acima da tela de legenda (120) e da câmera (125). Em 118 a folha
+   de emoji abria ATRÁS da legenda e parecia que nada acontecia. */
+.enc-folha { position: fixed; inset: 0; z-index: 130; display: flex; flex-direction: column; }
 .enc-folha[hidden] { display: none; }
 .enc-fundo { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
 .enc-caixa {
@@ -6289,3 +6292,27 @@ body.sem-rolagem { overflow: hidden; }
   font-size: 21px; cursor: pointer; padding: 0;
   display: grid; place-items: center; font-family: inherit;
 }
+
+/* A foto ocupa dois terços da largura, encostada no lado de quem enviou.
+   Antes ela herdava a largura do conteúdo e ficava estreita e centralizada
+   no meio da conversa. */
+.wa-msg.wa-com-foto .wa-bolha { width: 66%; max-width: 66%; }
+.wa-msg.wa-com-foto { align-items: flex-start; }
+.wa-msg.wa-com-foto.minha { align-items: flex-end; }
+.msg-foto { max-width: 100%; }
+
+/* Emoji DENTRO do campo de legenda, não ao lado dele */
+.fe-baixo { align-items: flex-end; }
+.fe-campo {
+  flex: 1; min-width: 0; display: flex; align-items: flex-end;
+  background: rgba(30,30,40,0.94); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px; padding-left: 4px;
+}
+.fe-campo textarea {
+  flex: 1; background: none; border: none; padding: 12px 14px 12px 4px;
+  color: #fff; font-size: 14.5px; font-family: inherit; resize: none;
+  min-height: 46px; max-height: 110px; outline: none;
+  overflow-y: auto; scrollbar-width: none;
+}
+.fe-campo textarea::placeholder { color: rgba(255,255,255,0.55); }
+.fe-baixo > textarea { display: none; }

@@ -72,6 +72,13 @@ function ajustarConversaAoTeclado() {
 
   const lista = document.getElementById('chat-lista');
   if (lista) lista.scrollTop = lista.scrollHeight;
+
+  // A barra de legenda fica no rodapé de uma tela cheia, que não encolhe com
+  // o teclado — sobrava uma faixa preta entre as duas. Aqui ela sobe junto.
+  const feBaixo = document.querySelector('.fe-baixo');
+  if (feBaixo) feBaixo.style.bottom = teclado < 80 ? '' : teclado + 'px';
+  const fvBaixo = document.querySelector('.fv-baixo');
+  if (fvBaixo) fvBaixo.style.bottom = teclado < 80 ? '' : teclado + 'px';
 }
 
 // A fita de reação é `position: fixed`, então rolar a lista a deixava parada
@@ -463,12 +470,16 @@ function mostrarPrevia() {
     <button type="button" class="fe-x" id="fe-cancelar" aria-label="Cancelar">✕</button>
     <div class="fe-palco"><img src="${anexo.previa}" alt="Foto escolhida" /></div>
     <div class="fe-baixo">
-      <button type="button" class="fe-emoji" id="fe-emoji" aria-label="Emojis">🙂</button>
-      <textarea id="fe-legenda" rows="1" maxlength="2000"
-        placeholder="Adicione uma legenda…">${esc(anexo.legenda || '')}</textarea>
-      <button type="button" class="fe-enviar" id="fe-enviar" aria-label="Enviar">➤</button>
+      <div class="fe-campo">
+        <button type="button" class="fe-emoji" id="fe-emoji" aria-label="Emojis">🙂</button>
+        <textarea id="fe-legenda" rows="1" maxlength="2000"
+          placeholder="Adicione uma legenda…">${esc(anexo.legenda || '')}</textarea>
+      </div>
+      <button type="button" class="fe-enviar" id="fe-enviar" aria-label="Enviar">${IC_ENVIAR}</button>
     </div>`;
-  tela.querySelector('#fe-legenda')?.focus();
+  // SEM focus() automático: abrir a foto com o teclado já em cima tapa metade
+  // da imagem que a pessoa acabou de tirar. O teclado sobe quando ela tocar
+  // no campo.
 }
 
 // Sem sinal de "estou enviando", subir uma foto em rede ruim parece que não
