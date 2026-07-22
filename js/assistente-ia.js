@@ -500,48 +500,14 @@ if (window.visualViewport) {
 //
 // O X é imantado numa das laterais — solto no meio da tela ele taparia
 // conteúdo e ficaria no caminho de qualquer toque.
-const POS_PET = 'visao_pet_pos';       // { lado: 'esq'|'dir' }
-const PET_BOTTOM = 150;                // fixo: 78 punha o olho sobre o botão
-                                       // de enviar do chat (28px medidos)
+const POS_PET = 'visao_pet_pos';       // { lado: 'esq'|'dir', vert: 'cima'|'baixo' }
+const PET_CORPO  = 58;                 // diâmetro do olho
 const PET_MARGEM = 14;
-
-function _posSalva() {
-  try { return JSON.parse(localStorage.getItem(POS_PET) || 'null'); } catch { return null; }
-}
-
-// Altura fixa não serve: em telas menores (e com barra de navegação do
-// Android ocupando espaço) os 150px caem EM CIMA do botão de enviar do chat,
-// que foi o que apareceu no aparelho do pai do Elton.
-//
-// Aqui o pet mede onde o botão está e se desvia. Preferência: ficar ABAIXO
-// dele — é onde atrapalha menos a leitura da conversa. Só sobe quando não
-// há espaço embaixo.
-const PET_CORPO = 58;    // diâmetro do olho
-const PET_FOLGA = 10;
-const CINTURAO  = 84;    // altura da barra de navegação de baixo
-
-function desviarDoEnviar() {
-  const botao = document.querySelector('.chat-enviar');
-  if (!botao) return PET_BOTTOM;                  // fora do chat, valor padrão
-  const r = botao.getBoundingClientRect();
-  if (!r.height) return PET_BOTTOM;
-
-  const alturaJanela = window.innerHeight;
-  // O vão embaixo do botão termina no CINTURÃO, não na borda da tela. Sem
-  // descontar isso, os 84px do cinturão contavam como espaço livre: no mural
-  // a conta dizia que cabia e o pet ia parar em cima do botão de enviar.
-  const topoDoCinturao = alturaJanela - CINTURAO;
-  const abaixoDoBotao = topoDoCinturao - r.bottom;
-  const acimaDoBotao  = alturaJanela - r.top;
-
-  const precisa = PET_CORPO + PET_FOLGA * 2;
-  if (abaixoDoBotao >= precisa) {
-    // centraliza no vão real, medido a partir do topo do cinturão
-    return Math.round(CINTURAO + abaixoDoBotao / 2 - PET_CORPO / 2);
-  }
-  // Não cabe embaixo: sobe pra logo acima do botão.
-  return Math.round(acimaDoBotao + PET_FOLGA);
-}
+const CINTURAO   = 84;                 // altura da barra de navegação de baixo
+// Um "pet" de folga acima do cinturão. Antes ele parava bem mais alto porque
+// precisava desviar do botão de enviar do chat — e agora ele nem aparece lá.
+const PET_BOTTOM = CINTURAO + PET_CORPO;
+const PET_TOPO   = 16;                 // folga do topo quando está em cima
 
 // Telas onde o pet NÃO aparece. Na conversa ele disputava espaço com o botão
 // de enviar, a foto e as opções — e ali ele não tem nada a fazer: é ajudante
@@ -551,25 +517,47 @@ function petEscondido() {
   return TELAS_SEM_PET.some(r => (location.hash || '').startsWith(r));
 }
 
-function aplicarPosicaoPet(lado) {
+function _posSalva() {
+  try { return JSON.parse(localStorage.getItem(POS_PET) || 'null'); } catch { return null; }
+}
+
+function aplicarPosicaoPet(lado, vert) {
   const el = document.getElementById('visao-pet');
   if (!el) return;
   el.style.display = petEscondido() ? 'none' : '';
   if (petEscondido()) return;
-  const l = lado || (_posSalva()?.lado === 'esq' ? 'esq' : 'dir');
-  el.style.bottom = desviarDoEnviar() + 'px';
+
+  const salvo = _posSalva();
+  const l = lado || (salvo?.lado === 'esq' ? 'esq' : 'dir');
+  const v = vert || (salvo?.vert === 'cima' ? 'cima' : 'baixo');
+
   if (l === 'esq') {
-    el.style.left = PET_MARGEM + 'px'; el.style.right = 'auto'; el.style.alignItems = 'flex-start';
+    el.style.left = PET_MARGEM + 'px'; el.style.right = 'auto';
+    el.style.alignItems = 'flex-start';
   } else {
-    el.style.right = PET_MARGEM + 'px'; el.style.left = 'auto'; el.style.alignItems = 'flex-end';
+    el.style.right = PET_MARGEM + 'px'; el.style.left = 'auto';
+    el.style.alignItems = 'flex-end';
   }
-  // O painel do pet nasce ACIMA dele. Sem publicar essa altura, o CSS calcula
-  // o painel como se o pet ainda estivesse em 78px e o topo do chat sai da tela.
-  document.documentElement.style.setProperty('--pet-bottom', desviarDoEnviar() + 'px');
-  // Esta função roda no resize da janela — que é exatamente o que dispara ao
-  // abrir o teclado. Sem re-aplicar, o bottom acima desfaz o levantamento.
+
+  if (v === 'cima') {
+    el.style.top = `calc(${PET_TOPO}px + env(safe-area-inset-top, 0px))`;
+    el.style.bottom = 'auto';
+    // Em cima, o painel tem que abrir PRA BAIXO — na ordem normal ele nasce
+    // acima do olho e sairia inteiro pela borda superior da tela.
+    el.classList.add('pet-em-cima');
+  } else {
+    el.style.bottom = PET_BOTTOM + 'px';
+    el.style.top = 'auto';
+    el.classList.remove('pet-em-cima');
+  }
+
+  // O painel do pet é dimensionado a partir daqui; publicar a altura evita
+  // que o CSS calcule com um valor antigo.
+  document.documentElement.style.setProperty('--pet-bottom',
+    (v === 'cima' ? PET_TOPO : PET_BOTTOM) + 'px');
   ajustarChatAoTeclado();
 }
+
 
 let _petMoveu = false;   // impede que o arraste abra o chat ao soltar
 
@@ -579,13 +567,16 @@ function ligarArrastePet() {
   if (!el || !corpo) return;
 
   const LIMIAR = 10;   // px de movimento que separam "toquei" de "arrastei"
-  let x0 = 0, ativo = false, lado = _posSalva()?.lado === 'esq' ? 'esq' : 'dir';
+  let x0 = 0, y0 = 0, ativo = false;
+  let lado = _posSalva()?.lado === 'esq' ? 'esq' : 'dir';
+  let vert = _posSalva()?.vert === 'cima' ? 'cima' : 'baixo';
 
   const px = (ev) => ev.clientX ?? ev.touches?.[0]?.clientX ?? 0;
+  const py = (ev) => ev.clientY ?? ev.touches?.[0]?.clientY ?? 0;
 
   const comecar = (ev) => {
     if (document.getElementById('pet-chat')?.classList.contains('pet-chat-open')) return;
-    x0 = px(ev); ativo = true; _petMoveu = false;
+    x0 = px(ev); y0 = py(ev); ativo = true; _petMoveu = false;
     // Captura o ponteiro: garante que os movimentos sigam chegando mesmo se
     // o dedo sair de cima do olho durante o arraste.
     try { corpo.setPointerCapture(ev.pointerId); } catch {}
@@ -593,26 +584,28 @@ function ligarArrastePet() {
 
   const mover = (ev) => {
     if (!ativo) return;
-    const dx = px(ev) - x0;
+    const dx = px(ev) - x0, dy = py(ev) - y0;
     // Só vira arraste depois do limiar: sem isso qualquer tremida no toque
     // impediria de abrir o chat.
-    if (!_petMoveu && Math.abs(dx) < LIMIAR) return;
+    if (!_petMoveu && Math.hypot(dx, dy) < LIMIAR) return;
     if (!_petMoveu) {
       _petMoveu = true;
       el.classList.add('pet-arrastando');
       if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
     }
     ev.preventDefault();
-    // Só a horizontal: a altura é fixa, o pet só troca de lado.
-    lado = px(ev) < window.innerWidth / 2 ? 'esq' : 'dir';
-    aplicarPosicaoPet(lado);
+    // Imantado nos 4 cantos: solto em qualquer ponto ele taparia conteúdo e
+    // ficaria no caminho de toques. A metade da tela decide cada eixo.
+    lado = px(ev) < window.innerWidth  / 2 ? 'esq'  : 'dir';
+    vert = py(ev) < window.innerHeight / 2 ? 'cima' : 'baixo';
+    aplicarPosicaoPet(lado, vert);
   };
 
   const soltar = (ev) => {
     try { if (ev?.pointerId != null) corpo.releasePointerCapture(ev.pointerId); } catch {}
     if (ativo && _petMoveu) {
       el.classList.remove('pet-arrastando');
-      localStorage.setItem(POS_PET, JSON.stringify({ lado }));
+      localStorage.setItem(POS_PET, JSON.stringify({ lado, vert }));
     }
     ativo = false;
   };
@@ -625,14 +618,10 @@ function ligarArrastePet() {
   window.addEventListener('pointermove', mover, { passive: false });
   window.addEventListener('pointerup', soltar);
   window.addEventListener('resize', () => aplicarPosicaoPet());
-  // Trocar de tela muda o que existe embaixo do pet: o botão de enviar só
-  // aparece no chat. A espera curta é pra medir DEPOIS que a tela desenhou —
-  // medir antes devolveria o valor padrão sempre.
   window.addEventListener('hashchange', () => setTimeout(() => aplicarPosicaoPet(), 150));
-  // Trocar de aba DENTRO da mesma tela (Comunidade <-> Privado) não mexe na
-  // rota, então o hashchange acima não pega. Quem redesenha avisa por aqui.
   window.addEventListener('falcon:layout', () => aplicarPosicaoPet());
 }
+
 
 function openChatPanel() {
   document.getElementById('pet-chat').classList.add('pet-chat-open');

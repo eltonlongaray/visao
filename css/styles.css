@@ -5322,9 +5322,9 @@ body.tour-active { overflow: hidden; }
 /* Wrapper — flutua acima do bottom nav */
 #visao-pet {
   position: fixed;
-  /* 150px: o padrão 78 sobrepunha 28px do botão de enviar do chat.
-     O JS reposiciona a partir do que o usuário arrastar. */
-  bottom: 150px;
+  /* 142 = cinturão (84) + um pet (58): fica logo acima da tarja marrom, com
+     um corpo de folga. O JS reposiciona conforme o canto escolhido. */
+  bottom: 142px;
   right: 14px;
   z-index: 9000;
   display: flex;
@@ -6370,3 +6370,13 @@ body.sem-rolagem { overflow: hidden; }
 }
 .fe-campo textarea::placeholder { color: rgba(255,255,255,0.55); }
 .fe-baixo > textarea { display: none; }
+
+/* === Pet nos cantos de cima === */
+/* Ordem invertida: o painel nasce ABAIXO do olho. Na ordem normal ele nasce
+   acima e, com o pet no topo, sairia inteiro pela borda superior da tela. */
+#visao-pet.pet-em-cima { flex-direction: column-reverse; }
+#visao-pet.pet-em-cima .pet-chat.pet-chat-open {
+  /* 78 = corpo do olho (44) + gap (10) + respiro (24); 84 = cinturão */
+  height: calc(100vh - var(--pet-bottom, 16px) - 78px - 84px);
+  max-height: calc(100vh - var(--pet-bottom, 16px) - 78px - 84px);
+}
