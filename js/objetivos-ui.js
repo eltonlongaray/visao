@@ -28,12 +28,13 @@ export async function montarObjetivos() {
   catch (e) { box.innerHTML = `<div class="obj-vazio">Não deu pra carregar: ${esc(e.message)}</div>`; return; }
 
   if (!objetivos.length) {
+    // Sem botão aqui: o + ao lado do título já é o caminho, e dois botões
+    // pra mesma ação fazem a pessoa procurar a diferença entre eles.
     box.innerHTML = `
       <div class="obj-vazio">
-        <strong>O que você quer manter com constância?</strong>
-        Academia 4× por semana, dormir cedo, jejum 1× por semana…<br>
-        Declare o alvo e o Desempenho passa a medir contra ele.
-        <button class="btn-secondary obj-vazio-btn" id="obj-primeiro">Criar meu primeiro objetivo</button>
+        Nenhum objetivo ainda.<br>
+        Toque no <strong>+</strong> pra declarar o primeiro — academia 4× por
+        semana, jejum 1× por semana, lazer 1× por mês.
       </div>`;
     return;
   }
@@ -91,7 +92,7 @@ export async function abrirEditorObjetivo(id) {
     <div class="modal-box obj-modal">
       <h3>${obj ? 'Editar objetivo' : 'Novo objetivo'}</h3>
 
-      <label class="input-field"><div class="input-field-label">O que você quer manter</div>
+      <label class="input-field"><div class="input-field-label">Qual atividade</div>
         <input id="obj-nome" placeholder="Academia" maxlength="40" value="${esc(obj?.nome || '')}" /></label>
 
       <div class="obj-linha">
@@ -195,7 +196,7 @@ export function ligarObjetivos() {
   document.body.dataset.objLigado = '1';
 
   document.addEventListener('click', async (ev) => {
-    if (ev.target.closest('#obj-novo') || ev.target.closest('#obj-primeiro')) {
+    if (ev.target.closest('#obj-novo')) {
       await abrirEditorObjetivo(null);
       return;
     }

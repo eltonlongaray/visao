@@ -160,8 +160,8 @@ export async function renderHome(app) {
           <span>🎯 Meus objetivos</span>
           <button class="home-add-btn" id="obj-novo" title="Novo objetivo">+</button>
         </div>
-        <div class="home-section-hint" style="margin-top:-2px;margin-bottom:10px">
-          O que você quer manter com constância — e o Desempenho mede contra isso.
+        <div class="home-section-hint obj-hint">
+          Quais atividades que se repetem você gostaria de manter a constância?
         </div>
         <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
       </div>

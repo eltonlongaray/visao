@@ -5324,7 +5324,7 @@ body.tour-active { overflow: hidden; }
   position: fixed;
   /* 142 = cinturão (84) + um pet (58): fica logo acima da tarja marrom, com
      um corpo de folga. O JS reposiciona conforme o canto escolhido. */
-  bottom: 142px;
+  bottom: 113px;
   right: 14px;
   z-index: 9000;
   display: flex;
@@ -6480,3 +6480,5 @@ body.sem-rolagem { overflow: hidden; }
 .obj-check { flex: 0 0 44px; height: 44px; font-size: 20px; }
 .obj-vazio { padding: 20px 10px; font-size: 13px; }
 .obj-vazio strong { font-size: 15px; margin-bottom: 7px; }
+
+.obj-hint { margin: -2px 0 12px; font-size: 12.5px; line-height: 1.5; }

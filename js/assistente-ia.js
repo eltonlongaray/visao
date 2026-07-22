@@ -504,9 +504,10 @@ const POS_PET = 'visao_pet_pos';       // { lado: 'esq'|'dir', vert: 'cima'|'bai
 const PET_CORPO  = 58;                 // diâmetro do olho
 const PET_MARGEM = 14;
 const CINTURAO   = 84;                 // altura da barra de navegação de baixo
-// Um "pet" de folga acima do cinturão. Antes ele parava bem mais alto porque
-// precisava desviar do botão de enviar do chat — e agora ele nem aparece lá.
-const PET_BOTTOM = CINTURAO + PET_CORPO;
+// Folga acima do cinturão. Um corpo inteiro (58) deixava o pet flutuando
+// alto demais no meio da tela; meio corpo aproxima sem encostar na tarja.
+const PET_FOLGA  = Math.round(PET_CORPO / 2);
+const PET_BOTTOM = CINTURAO + PET_FOLGA;
 const PET_TOPO   = 16;                 // folga do topo quando está em cima
 
 // Telas onde o pet NÃO aparece. Na conversa ele disputava espaço com o botão
