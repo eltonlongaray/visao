@@ -6449,3 +6449,34 @@ body.sem-rolagem { overflow: hidden; }
 .obj-modo strong { font-size: 13px; color: var(--text); }
 .obj-modo span { font-size: 10.5px; color: var(--muted); line-height: 1.4; }
 .obj-modo.ativo { border-color: var(--accent); background: var(--card); }
+
+/* === Blocos de seção da Home (Atividades / Objetivos) === */
+/* Estes dois títulos são DIVISORES, não rótulos: eles dizem "daqui pra baixo
+   é isso". Por isso ganham linha de topo, tamanho maior e respiro grande —
+   no tamanho dos outros títulos ninguém percebia onde uma parte terminava e
+   a outra começava. */
+.home-bloco { margin-top: 30px; }
+.home-bloco-titulo {
+  font-size: 18px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.3px;
+  padding-top: 16px; margin-bottom: 10px;
+  border-top: 2px solid var(--border);
+}
+.home-bloco-titulo span { font-size: 18px; font-weight: 800; }
+.home-bloco-titulo .home-add-btn {
+  width: 34px; height: 34px; font-size: 21px;
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+
+/* Objetivos ficam maiores: eram pequenos demais pra algo que é o alvo da
+   pessoa e precisa ser lido de relance. */
+.obj-item { padding: 14px 14px; gap: 13px; border-radius: 16px; margin-bottom: 10px; }
+.obj-ic { flex: 0 0 40px; font-size: 28px; }
+.obj-nome { font-size: 16px; font-weight: 700; }
+.obj-conta { font-size: 14px; }
+.obj-barra { height: 8px; border-radius: 4px; margin: 8px 0 7px; }
+.obj-sub { font-size: 11.5px; }
+.obj-bolinhas i { width: 9px; height: 9px; }
+.obj-check { flex: 0 0 44px; height: 44px; font-size: 20px; }
+.obj-vazio { padding: 20px 10px; font-size: 13px; }
+.obj-vazio strong { font-size: 15px; margin-bottom: 7px; }

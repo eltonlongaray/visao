@@ -102,15 +102,6 @@ export async function renderHome(app) {
         </div>
       </div>
 
-      <!-- OBJETIVOS: o alvo declarado da constância -->
-      <div class="home-section" id="obj-secao">
-        <div class="home-section-title">
-          <span>🎯 Meus objetivos</span>
-          <button class="obj-add" id="obj-novo" title="Novo objetivo">+</button>
-        </div>
-        <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
-      </div>
-
       <!-- AVISOS (comunicados do time) -->
       <button class="reminders-card avisos-card" id="avisos-card" type="button">
         <div class="reminders-icon">📢</div>
@@ -152,13 +143,27 @@ export async function renderHome(app) {
       </button>
 
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
-      <div class="home-section">
-        <div class="home-section-title">
-          <span>${t('home.activities')}</span>
+      <!-- ATIVIDADES: daqui pra baixo é atividade -->
+      <div class="home-section home-bloco">
+        <div class="home-section-title home-bloco-titulo">
+          <span>📋 ${t('home.activities')}</span>
           <button class="home-add-btn" id="add-cat" title="${t('home.activity.new')}">+</button>
         </div>
         <div id="cats-list"></div>
         <div class="home-section-hint">${t('home.activities.hint')}</div>
+      </div>
+
+      <!-- OBJETIVOS: o alvo declarado da constância. Vem DEPOIS das
+           atividades porque é delas que ele puxa a contagem. -->
+      <div class="home-section home-bloco" id="obj-secao">
+        <div class="home-section-title home-bloco-titulo">
+          <span>🎯 Meus objetivos</span>
+          <button class="home-add-btn" id="obj-novo" title="Novo objetivo">+</button>
+        </div>
+        <div class="home-section-hint" style="margin-top:-2px;margin-bottom:10px">
+          O que você quer manter com constância — e o Desempenho mede contra isso.
+        </div>
+        <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
       </div>
 
     </div>
