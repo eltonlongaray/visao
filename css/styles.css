@@ -2961,9 +2961,19 @@ body.time-picker-open { overflow: hidden; }
    toque longo pega em qualquer ponto na altura da mensagem, inclusive no
    espaço vazio ao lado dela — antes só a bolha respondia, e errar por
    poucos pixels não selecionava nada. */
-.wa-msg { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
-.wa-msg.minha { align-items: flex-end; }
+/* A LINHA e uma faixa horizontal: [rosto][coluna com balao e reacoes]. Em
+   coluna, o rosto ficaria empilhado em cima do balao em vez de ao lado. */
+.wa-msg { display: flex; flex-direction: row; align-items: flex-end; gap: 8px; width: 100%; }
+.wa-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; }
+.wa-msg.minha { justify-content: flex-end; }
+.wa-msg.minha .wa-col { align-items: flex-end; }
 .wa-bolha { max-width: 84%; }
+/* 34px: o de 22 dentro do balao ficava pequeno demais pra reconhecer alguem */
+.wa-av {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 14px; font-weight: 700;
+  object-fit: cover; align-self: flex-end; margin-bottom: 2px;
+}
 .wa-bolha {
   position: relative;
   background: var(--card); border: 1px solid var(--border);
@@ -2990,10 +3000,7 @@ body.time-picker-open { overflow: hidden; }
 /* Rosto junto do nome: com muita gente no mural, o nome sozinho exige ler
    pra saber quem falou. O nome vem do perfil ATUAL, não do gravado na
    mensagem — quem preencheu o nome depois some de "Falcão" no histórico. */
-.wa-autor {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px;
-}
+.wa-autor { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px; }
 .wa-autor-av {
   flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%;
   display: grid; place-items: center; font-size: 10px; font-weight: 700;
@@ -6310,9 +6317,13 @@ body.sem-rolagem { overflow: hidden; }
 /* A foto ocupa dois terços da largura, encostada no lado de quem enviou.
    Antes ela herdava a largura do conteúdo e ficava estreita e centralizada
    no meio da conversa. */
-.wa-msg.wa-com-foto .wa-bolha { width: 66%; max-width: 66%; }
-.wa-msg.wa-com-foto { align-items: flex-start; }
-.wa-msg.wa-com-foto.minha { align-items: flex-end; }
+.wa-msg.wa-com-foto .wa-bolha { width: 100%; max-width: 100%; }
+/* a coluna e que limita: assim a foto nao encolhe de novo quando ha rosto */
+.wa-msg.wa-com-foto .wa-col { max-width: 72%; }
+/* mais folga quando ha rosto: os 42px dele saem da linha, e sem compensar
+   a foto de quem tem avatar sairia menor que a minha */
+.wa-msg.wa-com-foto.com-rosto .wa-col { max-width: 72%; }
+
 .msg-foto { max-width: 100%; }
 
 /* Emoji DENTRO do campo de legenda, não ao lado dele */

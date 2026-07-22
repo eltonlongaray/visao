@@ -784,10 +784,22 @@ function fecharVisualizador({ voltando = false } = {}) {
 }
 
 
-function limparAnexo() {
+// Fecha SEM mexer no histórico. As funções de fechar de cada camada têm que
+// poder rodar duas vezes sem efeito: o popstate chama uma, e o caminho de
+// sucesso do envio pode chamar a outra.
+function limparAnexoDireto() {
   if (anexo?.previa) URL.revokeObjectURL(anexo.previa);
   anexo = null;
-  mostrarPrevia();
+  const tela = document.getElementById('foto-envio');
+  if (tela) { tela.hidden = true; tela.innerHTML = ''; }
+  document.body.classList.remove('sem-rolagem');
+}
+
+function limparAnexo() {
+  // Sai pelo histórico pra consumir a entrada da camada; sem isso sobraria
+  // lixo e um voltar futuro não faria nada visível.
+  if (camadas.length) { sairDaCamada(); return; }
+  limparAnexoDireto();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -817,19 +829,25 @@ async function abrirCamera() {
     video.srcObject = camStream;
     tela.hidden = false;
     document.body.classList.add('sem-rolagem');
+    empilharCamada(fecharCameraDireto);
   } catch {
     // permissão negada ou câmera ocupada: o caminho do sistema ainda funciona
     document.getElementById('chat-foto-camera')?.click();
   }
 }
 
-function fecharCamera() {
+function fecharCameraDireto() {
   const tela = document.getElementById('cam-tela');
   const video = document.getElementById('cam-video');
   if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
   if (video) video.srcObject = null;
   if (tela) tela.hidden = true;
   document.body.classList.remove('sem-rolagem');
+}
+
+function fecharCamera() {
+  if (camadas.length) { sairDaCamada(); return; }
+  fecharCameraDireto();
 }
 
 async function virarCamera() {
@@ -853,11 +871,16 @@ async function dispararFoto() {
   if (camLado === 'user') { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }
   ctx.drawImage(video, 0, 0, cv.width, cv.height);
   const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.82));
-  fecharCamera();
-  if (!blob) { showToast('Não deu pra capturar a foto.', 'error'); return; }
-  limparAnexo();
+  fecharCameraDireto();
+  if (!blob) { sairDaCamada(); showToast('Não deu pra capturar a foto.', 'error'); return; }
+
   anexo = { blob, previa: URL.createObjectURL(blob) };
   mostrarPrevia();
+  // Câmera e legenda são o MESMO passo pra quem usa: reaproveita a entrada
+  // do histórico trocando só quem fecha. Dar back() aqui pra empilhar outra
+  // criava corrida — o popstate chegava depois e fechava a legenda recém-aberta.
+  if (camadas.length) camadas[camadas.length - 1] = limparAnexoDireto;
+  else empilharCamada(limparAnexoDireto);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -886,17 +909,32 @@ function montarEmojis() {
     </div>`;
 }
 
+function fecharPainelEmojis() {
+  const painel = document.getElementById('chat-emojis');
+  const btn = document.getElementById('chat-emoji-btn');
+  if (painel) painel.hidden = true;
+  if (btn) btn.textContent = '🙂';
+}
+
 function alternarEmojis(mostrar) {
   const painel = document.getElementById('chat-emojis');
   const btn = document.getElementById('chat-emoji-btn');
   const campo = document.getElementById('chat-texto');
   if (!painel || !btn) return;
   const abrir = mostrar ?? painel.hidden;
-  if (abrir) montarEmojis();
-  painel.hidden = !abrir;
-  btn.textContent = abrir ? '⌨️' : '🙂';
-  if (abrir) campo?.blur();
-  else campo?.focus();
+  if (abrir) {
+    montarEmojis();
+    painel.hidden = false;
+    btn.textContent = '⌨️';
+    campo?.blur();
+    // Camada própria: sem ela o voltar do aparelho passava direto e trocava
+    // a aba do cinturão em vez de só fechar o teclado de emoji.
+    empilharCamada(fecharPainelEmojis);
+  } else {
+    if (camadas.length) { sairDaCamada(); return; }
+    fecharPainelEmojis();
+    campo?.focus();
+  }
 }
 
 // Insere no CURSOR, não no fim: quem volta pra corrigir o meio da frase
@@ -1051,20 +1089,27 @@ function citacao(m) {
 function balao(m, minha, mostrarAutor) {
   // Estilo WhatsApp: a hora vai DENTRO da bolha, no canto de baixo. Fora dela
   // cada mensagem ganhava uma linha extra e a conversa ficava esparramada.
+  // O nome vem do perfil ATUAL, não do gravado na linha: quem preencheu o
+  // nome depois deixaria de ser "Falcão" só nas mensagens novas.
+  const nome = perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão';
+  const comRosto = mostrarAutor && !minha;
+
+  // O rosto fica FORA do balão, à esquerda, como em grupo de WhatsApp. Dentro
+  // dele, roubava largura do texto e da foto.
   return `
-    <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''}" data-id="${m.id}"
-      data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
-      <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
-        ${mostrarAutor && !minha ? `<span class="wa-autor">
-          ${avatar(m.autor_id, perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão', 'wa-autor-av')}
-          <span>${esc(perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão')}</span>
-        </span>` : ''}
-        ${citacao(m)}
-        ${blocoFoto(m)}
-        ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
-        <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
+    <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''} ${comRosto ? 'com-rosto' : ''}"
+      data-id="${m.id}" data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
+      ${comRosto ? avatar(m.autor_id, nome, 'wa-av') : ''}
+      <div class="wa-col">
+        <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
+          ${comRosto ? `<span class="wa-autor">${esc(nome)}</span>` : ''}
+          ${citacao(m)}
+          ${blocoFoto(m)}
+          ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
+          <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
+        </div>
+        ${fitaReacoes(m)}
       </div>
-      ${fitaReacoes(m)}
     </div>`;
 }
 
@@ -1470,6 +1515,7 @@ function ligarEventos(app) {
       const blob = await reduzirImagem(arquivo);
       anexo = { blob, previa: URL.createObjectURL(blob) };
       mostrarPrevia();
+      empilharCamada(limparAnexoDireto);
     } catch (e) { showToast(e.message || 'Não deu pra abrir a imagem', 'error'); }
   });
 
