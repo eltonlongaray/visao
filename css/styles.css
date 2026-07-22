@@ -3147,13 +3147,19 @@ body.time-picker-open { overflow: hidden; }
    quadrada — sem isso ela entra esticada. O aro discreto separa a foto do
    fundo quando ela é clara. As agrupadas continuam sem rosto: a img só é
    renderizada na primeira mensagem do bloco. */
+/* .wa-av entrou depois e ficou de fora desta lista: a imagem carregava mas
+   sem object-fit nem display:block, então saía esticada dentro do círculo. */
 .dc-av.tem-foto,
-.chat-conv-av.tem-foto {
+.chat-conv-av.tem-foto,
+.wa-av.tem-foto,
+.cf-av.tem-foto {
+  /* sem width/height aqui: a imagem É o elemento da classe (não um filho),
+     e cada uma já traz o próprio tamanho. Forçar 100% a esticaria pra
+     largura da linha inteira. */
   object-fit: cover;
   background: var(--card-2);
   border: 1px solid var(--border);
   display: block;
-  width: 36px;
 }
 .dc-body { flex: 1; min-width: 0; }
 .dc-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
