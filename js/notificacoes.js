@@ -153,8 +153,13 @@ export async function scheduleNotif({ title, body, tag, timestamp }) {
     }).catch(() => {});
   }
 
-  // ── Fallback: dynamic timer, funciona enquanto app aberto ──
-  _saveLocal({ title, body, tag, timestamp });
+  // ── Reserva local: SÓ quando o Worker não assumiu ──
+  // Com o Worker entregando, esta cópia vira uma segunda notificação: ele
+  // entrega no horário e o verificador local acha o mesmo lembrete quando o
+  // app abre. Como as tags de envio agora são únicas, as duas não se fundem
+  // mais — aparecem empilhadas. Era o "apareceu, deu um tempo e apareceu de
+  // novo".
+  if (!peloWorker) _saveLocal({ title, body, tag, timestamp });
   return 'scheduled';
 }
 

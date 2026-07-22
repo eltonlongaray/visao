@@ -7,8 +7,7 @@
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
 import {
-  listarObjetivos, salvarObjetivo, removerObjetivo, alternarMarcacao,
-  progressoDosObjetivos, marcadoHoje,
+  listarObjetivos, salvarObjetivo, removerObjetivo, progressoDosObjetivos,
 } from './objetivos.js';
 import { getCategories } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
@@ -62,13 +61,10 @@ function linhaObjetivo(o, p) {
         <div class="obj-barra"><i style="width:${pct}%"></i></div>
         <div class="obj-sub">
           ${bolinhas}
-          <span>${periodo}${o.origem === 'ritual' ? ' · pelo Ritual' : ''}</span>
+          <span>${periodo}</span>
         </div>
       </div>
-      ${o.origem === 'manual'
-        ? `<button class="obj-check ${marcadoHoje(o) ? 'feito' : ''}" data-marcar="${o.id}"
-             aria-label="Marcar hoje">${marcadoHoje(o) ? '✓' : ''}</button>`
-        : ''}
+
     </div>`;
 }
 
@@ -85,9 +81,8 @@ export async function abrirEditorObjetivo(id) {
   // "Atividades" na Home são as CATEGORIAS. O catálogo `activities` é outra
   // coisa e vinha vazio — por isso o seletor não abria nada.
   let atividades = [];
-  try { atividades = await getCategories(); } catch { /* segue no modo manual */ }
+  try { atividades = await getCategories(); } catch (e) { console.warn('[objetivos] categorias:', e.message); }
 
-  const manualInicial = obj?.origem === 'manual';
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
@@ -95,26 +90,11 @@ export async function abrirEditorObjetivo(id) {
     <div class="modal-box obj-modal">
       <h3>${obj ? 'Editar objetivo' : 'Novo objetivo'}</h3>
 
-      <label class="input-field" id="obj-campo-ativ">
-        <div class="input-field-label">Qual atividade do Ritual</div>
-        <select id="obj-atividade">
-          <option value="">— escolher —</option>
-          ${atividades.map(a => `<option value="${esc(a.id)}" ${obj?.atividadeId === a.id ? 'selected' : ''}>${esc(a.icon || '')} ${esc(a.name || 'Atividade')}</option>`).join('')}
-        </select>
-      </label>
-
-      <label class="input-field" id="obj-campo-nome" hidden>
-        <div class="input-field-label">Nome do objetivo</div>
-        <input id="obj-nome" placeholder="Ligar pra minha mãe" maxlength="40" value="${esc(obj?.nome || '')}" />
-      </label>
-
-      <label class="obj-manual">
-        <input type="checkbox" id="obj-eh-manual" ${manualInicial ? 'checked' : ''} />
-        <span>
-          <strong>Não está no Ritual — vou marcar na mão</strong>
-          <em>Sem isto, a contagem anda sozinha quando você conclui a atividade.</em>
-        </span>
-      </label>
+      <div class="input-field-label">Qual atividade do Ritual</div>
+      <select id="obj-atividade" class="obj-select">
+        <option value="">Toque para escolher…</option>
+        ${atividades.map(a => `<option value="${esc(a.id)}" ${obj?.atividadeId === a.id ? 'selected' : ''}>${esc(a.icon || '')} ${esc(a.name || 'Atividade')}</option>`).join('')}
+      </select>
 
       <div class="obj-linha">
         <label class="input-field obj-mini"><div class="input-field-label">Ícone</div>
@@ -142,10 +122,9 @@ export async function abrirEditorObjetivo(id) {
     </div>`;
   document.body.appendChild(ov);
 
-  const chkManual = ov.querySelector('#obj-eh-manual');
   const campoAtiv = ov.querySelector('#obj-campo-ativ');
   const campoNome = ov.querySelector('#obj-campo-nome');
-  const selAtiv   = ov.querySelector('#obj-atividade');
+  const selAtiv = ov.querySelector('#obj-atividade');
 
   // Frase em português do que foi configurado. Três campos numéricos soltos
   // não dizem o que vai acontecer; a frase diz.
@@ -155,17 +134,9 @@ export async function abrirEditorObjetivo(id) {
     const per = ov.querySelector('#obj-periodo').value === 'mes' ? 'mês' : 'semana';
     const parteDia = dia > 1 ? `${dia}× no mesmo dia` : 'uma vez no dia';
     ov.querySelector('#obj-explica').textContent =
-      `Conta um dia quando você fizer ${parteDia}. A meta é ${dias} ${dias > 1 ? 'dias' : 'dia'} por ${per}.`;
+      `Conta um dia quando você concluir ${parteDia} no Ritual. A meta é ${dias} ${dias > 1 ? 'dias' : 'dia'} por ${per}.`;
   };
-
-  const pintarModo = () => {
-    const manual = chkManual.checked;
-    campoAtiv.hidden = manual;
-    campoNome.hidden = !manual;
-    explicar();
-  };
-  pintarModo();
-  chkManual.addEventListener('change', pintarModo);
+  explicar();
   ov.querySelectorAll('#obj-vezes-dia, #obj-vezes, #obj-periodo')
     .forEach(el => el.addEventListener('input', explicar));
 
@@ -187,30 +158,22 @@ export async function abrirEditorObjetivo(id) {
   });
 
   ov.querySelector('#obj-salvar').addEventListener('click', async () => {
-    const manual = chkManual.checked;
     const atividadeId = selAtiv.value || null;
-    const nomeManual = ov.querySelector('#obj-nome').value.trim();
+    // Sem atividade escolhida o objetivo nasceria travado em zero pra sempre:
+    // não haveria o que contar.
+    if (!atividadeId) { showToast('Escolhe a atividade do Ritual.', 'info'); return; }
 
-    // Sem atividade escolhida, "pelo Ritual" não teria o que contar e o
-    // objetivo nasceria travado em zero pra sempre.
-    if (!manual && !atividadeId) {
-      showToast('Escolhe a atividade do Ritual — ou marca que vai contar na mão.', 'info');
-      return;
-    }
-    if (manual && !nomeManual) { showToast('Dá um nome pro objetivo.', 'info'); return; }
-
-    const nomeAtiv = selAtiv.options[selAtiv.selectedIndex]?.text?.trim() || '';
+    const nomeAtiv = selAtiv.options[selAtiv.selectedIndex]?.text?.trim() || 'Objetivo';
     await salvarObjetivo({
       id: obj?.id,
-      nome: manual ? nomeManual : nomeAtiv,
+      nome: nomeAtiv,
       icone: ov.querySelector('#obj-icone').value.trim() || '🎯',
       vezes: Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1),
       vezesDia: Math.max(1, Number(ov.querySelector('#obj-vezes-dia').value) || 1),
       periodo: ov.querySelector('#obj-periodo').value,
-      origem: manual ? 'manual' : 'ritual',
-      atividadeId: manual ? null : atividadeId,
-      atividadeNome: manual ? null : nomeAtiv,
-      marcados: obj?.marcados || [],
+      origem: 'ritual',
+      atividadeId,
+      atividadeNome: nomeAtiv,
     });
     fechar();
     await montarObjetivos();
@@ -227,18 +190,6 @@ export function ligarObjetivos() {
   document.addEventListener('click', async (ev) => {
     if (ev.target.closest('#obj-novo')) {
       await abrirEditorObjetivo(null);
-      return;
-    }
-
-    // Marcar vem ANTES de editar: o botão de marcar fica DENTRO do card, e o
-    // card inteiro abre a edição. Na ordem inversa, marcar abriria o editor
-    // junto e a pessoa perderia o gesto.
-    const mk = ev.target.closest('[data-marcar]');
-    if (mk && mk.closest('#obj-lista')) {
-      try {
-        await alternarMarcacao(mk.dataset.marcar);
-        await montarObjetivos();
-      } catch (e) { showToast(e.message, 'error'); }
       return;
     }
 
