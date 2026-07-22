@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v361';
+const CACHE_NAME = 'visao-v362';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -123,7 +123,9 @@ self.addEventListener('message', (event) => {
           requireInteraction: true,
           renotify:           true,
           silent:             _muted,
-          data:               { url: '/' },
+          // o dia vai junto pra que o clique saiba pra onde levar mesmo se a
+          // tag mudar de formato um dia
+          data:               { day: _dayFromTag(tag) },
         });
         resolve();
       }, delayMs);
@@ -141,6 +143,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Falcon';
   const body  = data.body  || 'You have a reminder';
   const tag   = data.tag   || 'visao-notif';
+  // day explícito no payload: não depende do formato da tag
+  const day   = data.day   || _dayFromTag(tag);
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(title, {
@@ -152,7 +156,7 @@ self.addEventListener('push', (event) => {
         requireInteraction: true,
         renotify:           true,
         silent:             _muted,
-        data:               { url: '/' },
+        data:               { day },
       }),
       // Notifica o app aberto (foreground) para mostrar banner + som internamente
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
@@ -175,20 +179,36 @@ function _dayFromTag(tag) {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const tag  = event.notification.tag || '';
-  const day  = _dayFromTag(tag);
+  // O dia vem primeiro do PAYLOAD e só depois da tag. Push do Worker sem
+  // tag no formato esperado caía em 'visao-notif', o dia saía nulo e a
+  // notificação abria o Ritual sem levar a lugar nenhum dentro dele.
+  const day  = event.notification.data?.day || _dayFromTag(tag);
   const qs   = day ? `?day=${day}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}` : '';
   const hash = `#/ritual${qs}`;
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const client of list) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          // App já aberto: manda navegar pro dia/tarefa do compromisso e foca
-          client.postMessage({ type: 'OPEN_RITUAL_DAY', day, tag });
-          return client.focus();
-        }
-      }
-      // App fechado: abre direto no Ritual naquele dia
-      return clients.openWindow('./' + hash);
-    })
-  );
+  const alvo = new URL('./' + hash, self.location.href).href;
+
+  event.waitUntil((async () => {
+    const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of list) {
+      if (!client.url.includes(self.location.origin)) continue;
+
+      // NAVEGAR é o caminho principal, não avisar por mensagem. Antes isto
+      // dependia de o app receber um postMessage; quando ele não chegava — e
+      // não chega logo depois de o service worker ser trocado, o que ocorre a
+      // cada atualização — o focus() só trazia a janela de volta na tela em
+      // que ela estava, que costuma ser a Home. Ninguém navegava e parecia
+      // que a notificação levava pro lugar errado.
+      try {
+        if ('navigate' in client) await client.navigate(alvo);
+      } catch { /* navigate falha se o cliente não for controlado por nós */ }
+
+      // A mensagem continua, agora como reforço: se o app já estiver na rota
+      // certa, ela força o redesenho no dia/tarefa do compromisso.
+      try { client.postMessage({ type: 'OPEN_RITUAL_DAY', day, tag }); } catch {}
+      if ('focus' in client) return client.focus();
+      return;
+    }
+    // App fechado: abre direto no Ritual naquele dia
+    return clients.openWindow(alvo);
+  })());
 });
