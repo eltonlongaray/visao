@@ -146,22 +146,28 @@ export async function progressoDosObjetivos(objetivos, hoje = new Date()) {
   return mapa;
 }
 
-// Conta DIAS com a atividade concluída, não tarefas: duas idas à academia no
-// mesmo dia continuam sendo um dia de academia.
+// Conta DIAS, não tarefas. Com `vezesDia` maior que 1, o dia só entra quando
+// a atividade foi concluída aquele número de vezes — é o que permite alvos do
+// tipo "3× no mesmo dia, 5 dias por semana".
 function _contarNoRitual(obj, porDia, ini, fim) {
+  const porDiaAlvo = Math.max(1, Number(obj.vezesDia) || 1);
   let n = 0;
   for (const d = new Date(ini); d <= fim; d.setDate(d.getDate() + 1)) {
     const dia = porDia.get(idDoDia(d));
     if (!dia?.tasks?.length) continue;
-    if (dia.tasks.some(t => t.done && _casa(t, obj))) n++;
+    const feitas = dia.tasks.filter(t => t.done && _casa(t, obj)).length;
+    if (feitas >= porDiaAlvo) n++;
   }
   return n;
 }
 
-// Casa por activityId quando existe — renomear a atividade não pode quebrar o
-// vínculo. O título é só reserva, para tarefa criada solta.
+// Casa pela ATIVIDADE (que no banco é a categoria da tarefa) — renomear não
+// pode quebrar o vínculo. Título é só reserva, pra tarefa criada solta.
 function _casa(tarefa, obj) {
-  if (obj.atividadeId && tarefa.activityId) return tarefa.activityId === obj.atividadeId;
+  if (obj.atividadeId) {
+    if (tarefa.categoryId) return tarefa.categoryId === obj.atividadeId;
+    if (tarefa.activityId) return tarefa.activityId === obj.atividadeId;
+  }
   return _limpo(tarefa.title) === _limpo(obj.atividadeNome || obj.nome);
 }
 
