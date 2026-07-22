@@ -506,9 +506,12 @@ const PET_MARGEM = 14;
 const CINTURAO   = 84;                 // altura da barra de navegação de baixo
 // Folga acima do cinturão. Um corpo inteiro (58) deixava o pet flutuando
 // alto demais no meio da tela; meio corpo aproxima sem encostar na tarja.
-// 8px: quase encostado na tarja. Meio corpo ainda deixava ele solto no ar.
+// A tarja PLANA do cinturão só começa a 58px do fim da tela: a nav tem 84,
+// mas os 26 de cima são a corcova da fivela. Medir a folga a partir de 84
+// deixava o pet 34px no ar mesmo com "8 de folga".
+const CINTURAO_COURO = 58;
 const PET_FOLGA  = 8;
-const PET_BOTTOM = CINTURAO + PET_FOLGA;
+const PET_BOTTOM = CINTURAO_COURO + PET_FOLGA;
 const PET_TOPO   = 16;                 // folga do topo quando está em cima
 
 // Telas onde o pet NÃO aparece. Na conversa ele disputava espaço com o botão

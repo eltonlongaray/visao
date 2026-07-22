@@ -52,7 +52,7 @@ function linhaObjetivo(o, p) {
     : '';
 
   return `
-    <div class="obj-item ${cumprido ? 'cumprido' : ''}" data-obj="${o.id}">
+    <div class="obj-item ${cumprido ? 'cumprido' : ''}" data-obj="${o.id}" data-editar="${o.id}">
       <span class="obj-ic">${esc(o.icone || '🎯')}</span>
       <div class="obj-corpo">
         <div class="obj-topo">
@@ -68,7 +68,7 @@ function linhaObjetivo(o, p) {
       ${o.origem === 'manual'
         ? `<button class="obj-check ${marcadoHoje(o) ? 'feito' : ''}" data-marcar="${o.id}"
              aria-label="Marcar hoje">${marcadoHoje(o) ? '✓' : ''}</button>`
-        : `<button class="obj-check obj-auto" data-editar="${o.id}" aria-label="Editar">⋯</button>`}
+        : ''}
     </div>`;
 }
 
@@ -229,13 +229,24 @@ export function ligarObjetivos() {
       await abrirEditorObjetivo(null);
       return;
     }
-    const ed = ev.target.closest('[data-editar]');
-    if (ed && ed.closest('#obj-lista')) { await abrirEditorObjetivo(ed.dataset.editar); return; }
 
+    // Marcar vem ANTES de editar: o botão de marcar fica DENTRO do card, e o
+    // card inteiro abre a edição. Na ordem inversa, marcar abriria o editor
+    // junto e a pessoa perderia o gesto.
     const mk = ev.target.closest('[data-marcar]');
     if (mk && mk.closest('#obj-lista')) {
-      try { await alternarMarcacao(mk.dataset.marcar); await montarObjetivos(); }
-      catch (e) { showToast(e.message, 'error'); }
+      try {
+        await alternarMarcacao(mk.dataset.marcar);
+        await montarObjetivos();
+      } catch (e) { showToast(e.message, 'error'); }
+      return;
+    }
+
+    // Sem botão de três pontos: o card inteiro é o caminho de edição. Um
+    // botão só pra abrir o que o toque no card já abriria era peso a mais.
+    const ed = ev.target.closest('[data-editar]');
+    if (ed && ed.closest('#obj-lista')) {
+      await abrirEditorObjetivo(ed.dataset.editar);
     }
   });
 }

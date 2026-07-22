@@ -5324,7 +5324,7 @@ body.tour-active { overflow: hidden; }
   position: fixed;
   /* 142 = cinturão (84) + um pet (58): fica logo acima da tarja marrom, com
      um corpo de folga. O JS reposiciona conforme o canto escolhido. */
-  bottom: 92px;
+  bottom: 66px;
   right: 14px;
   z-index: 9000;
   display: flex;
@@ -6504,3 +6504,7 @@ body.sem-rolagem { overflow: hidden; }
 }
 .obj-vazio span { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
 .obj-vazio strong { color: var(--accent); font-size: inherit; display: inline; }
+
+/* Card do objetivo é clicável inteiro (abre a edição) — sem os três pontos,
+   que eram um botão só pra fazer o que o toque no card já faz. */
+.obj-item { cursor: pointer; }
