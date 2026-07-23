@@ -376,6 +376,10 @@ export default {
 </ul>
 <strong>Registro de Atividades</strong>
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
+<em style="color:var(--muted);font-size:0.85em">Ditando título e descrição</em>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
+  <li><em>agendar compromisso pra domingo às 10h. Título lazer. Descrição aniversário</em></li>
+</ul>
 <em style="color:var(--muted);font-size:0.85em">Tarefas</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>marcar tarefa fazer academia amanhã às 7h</em></li>

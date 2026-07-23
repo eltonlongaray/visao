@@ -23,6 +23,7 @@ import {
 import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
+import { extrairCampos } from './ditado-campos.js';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -678,12 +679,24 @@ async function dispatchCommand(text) {
 // Verbos que indicam intenção de registrar algo (PT + EN)
 const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|register)\b/i;
 
+// Título e descrição ditados em rótulo ficam guardados aqui até o registro
+// acontecer — o fluxo passa por perguntas ("é atividade ou compromisso?") e
+// perderia os campos no caminho.
+let ditado = { titulo: null, descricao: null };
+
 async function routeCommand(text) {
+  // "…Título lazer. Descrição aniversário" — os rótulos saem do comando pra
+  // não virarem parte do nome, e voltam na hora de gravar.
+  const campos = extrairCampos(text);
+  if (campos.titulo || campos.descricao) {
+    ditado = { titulo: campos.titulo, descricao: campos.descricao };
+    text = campos.comando;
+  }
   const tl = text.toLowerCase();
 
   // ── Continua conversa em andamento ──
   if (convState?.type === 'waiting_name') {
-    const name = text;
+    const name = ditado.titulo || text;
     const date = convState.date || new Date();
     convState = null;
     return askType(name, date);
@@ -736,7 +749,8 @@ async function routeCommand(text) {
                         : /\batividade\b|\btarefa\b|activity|task/i.test(tl)  ? 'atividade'
                         : null;
     const taskTime = extractTime(text);
-    const nameRaw  = extractTaskName(text);
+    // Título ditado vence o extraído da frase: ele foi declarado, não inferido.
+    const nameRaw  = ditado.titulo || extractTaskName(text);
 
     if (!nameRaw) {
       convState = { type: 'waiting_name', date: targetDate, time: taskTime };
@@ -1085,9 +1099,10 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
     btn.disabled = true;
     btn.textContent = t('pet.preview.registering');
     try {
-      await executeRegistro(name, done, date, time);
+      await executeRegistro(name, done, date, time, ditado.descricao || '');
       btn.textContent = t('pet.preview.done');
       btn.classList.add('pet-reg-done');
+      ditado = { titulo: null, descricao: null };
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(t(done ? 'pet.registered.activity' : 'pet.registered.commitment'));
       if (time) {
@@ -1113,7 +1128,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   box.scrollTop = box.scrollHeight;
 }
 
-async function executeRegistro(name, done, date, time = '') {
+async function executeRegistro(name, done, date, time = '', descricao = '') {
   const targetId = dayId(date);
   const [, tasks, shifts, cats] = await Promise.all([
     setDayMeta(targetId, {}),
@@ -1131,7 +1146,7 @@ async function executeRegistro(name, done, date, time = '') {
     kind: done ? 'task' : 'commitment',
     startTime: time,
     order: tasks.length,
-    desc: '',
+    desc: descricao || '',
     icon: cat?.icon || '',
     categoryId: cat?.id || null,
     shiftId: pickShift(shifts, time),
