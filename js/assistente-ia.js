@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getProfile, setProfile,
+  getCategories, getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
@@ -1115,11 +1115,16 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
 
 async function executeRegistro(name, done, date, time = '') {
   const targetId = dayId(date);
-  const [, tasks, shifts] = await Promise.all([
+  const [, tasks, shifts, cats] = await Promise.all([
     setDayMeta(targetId, {}),
     getDayTasks(targetId),
     getShifts(),
+    getCategories().catch(() => []),
   ]);
+  // Sem atividade, a tarefa não conta pros objetivos: eles casam POR
+  // ATIVIDADE. "Marquei um lazer pelo pet" virava um título solto que o
+  // objetivo de Lazer ignorava — e não havia sinal nenhum disso na tela.
+  const cat = _acharCategoria(cats, name);
   await addDayTask(targetId, {
     title: name,
     done,
@@ -1127,11 +1132,27 @@ async function executeRegistro(name, done, date, time = '') {
     startTime: time,
     order: tasks.length,
     desc: '',
-    icon: '',
-    categoryId: null,
+    icon: cat?.icon || '',
+    categoryId: cat?.id || null,
     shiftId: pickShift(shifts, time),
     reminderEnabled: false,
   });
+  return cat;
+}
+
+// Acha a atividade pelo que a pessoa falou. Compara nos dois sentidos: "lazer"
+// acha a atividade "Lazer", e "fui na academia hoje" acha "Academia" porque o
+// nome dela está contido na frase.
+function _acharCategoria(cats, texto) {
+  const limpo = (v) => String(v || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const alvo = limpo(texto);
+  if (!alvo || !cats?.length) return null;
+  // exata primeiro; só depois "contém", pra "Lazer" não perder pra "Lazer em
+  // família" quando as duas existirem
+  return cats.find(c => limpo(c.name) === alvo)
+      || cats.find(c => limpo(c.name) && alvo.includes(limpo(c.name)))
+      || null;
 }
 
 // Escolhe o turno pelo horário — compara contra nomes armazenados em PT no Firestore
@@ -1519,7 +1540,11 @@ async function startMic() {
   function buildRecognition() {
     const r = new SR();
     r.lang           = getLang();
-    r.continuous     = false;
+    // continuous=true: sem isto o reconhecedor PARA a cada pausa da fala e o
+    // onend abaixo o reinicia — e cada reinício toca o bipe do sistema no meio
+    // da frase, além de arriscar perder o trecho seguinte na troca. O laço de
+    // reinício continua existindo como rede, mas agora é exceção e não regra.
+    r.continuous     = true;
     r.interimResults = true;
 
     r.onresult = (e) => {
