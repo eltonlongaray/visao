@@ -87,7 +87,7 @@ export async function abrirEditorObjetivo(id) {
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.innerHTML = `
-    <div class="modal-box obj-modal">
+    <div class="modal obj-modal">
       <h3>${obj ? 'Editar objetivo' : 'Novo objetivo'}</h3>
 
       <div class="input-field-label">Qual atividade do Ritual</div>
@@ -122,8 +122,6 @@ export async function abrirEditorObjetivo(id) {
     </div>`;
   document.body.appendChild(ov);
 
-  const campoAtiv = ov.querySelector('#obj-campo-ativ');
-  const campoNome = ov.querySelector('#obj-campo-nome');
   const selAtiv = ov.querySelector('#obj-atividade');
 
   // Frase em português do que foi configurado. Três campos numéricos soltos

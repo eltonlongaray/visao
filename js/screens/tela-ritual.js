@@ -508,8 +508,21 @@ function _esqueletoRitual() {
   </div>`;
 }
 
+// Qual dia estava aberto na última vez que o Ritual foi montado. `expanded` é
+// um Set de módulo: ele sobrevive ao app ficar em segundo plano, então quem
+// saiu ontem à noite com o dia de ontem aberto voltava hoje com a tela rolada
+// lá pra baixo, no dia errado.
+let _diaDaMontagem = null;
+
 export async function renderRitual(app) {
   app.innerHTML = _esqueletoRitual();
+
+  // Virou o dia desde a última montagem? Então o que estava aberto é passado:
+  // fecha tudo e deixa a tela abrir no topo, em hoje.
+  const hojeId = dayId(new Date());
+  if (_diaDaMontagem && _diaDaMontagem !== hojeId) expanded.clear();
+  _diaDaMontagem = hojeId;
+
   // Sempre que abre o Ritual, volta pra semana de HOJE (evita ficar preso em semanas longe)
   weekStart = getWeekStart(new Date());
   // Alvo vindo de clique em notificação: #/ritual?day=YYYY-MM-DD&tag=...
@@ -540,6 +553,13 @@ export async function renderRitual(app) {
   await _migrateTemplateGroupIds();
   await loadWeek(pSemana);
   renderUI(app);
+  // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
+  // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
+  // o fim do dia anterior.
+  if (!_hasTarget) {
+    const rol = document.scrollingElement || document.documentElement;
+    rol.scrollTop = 0;
+  }
   // Veio de clique em notificação → rola e pisca a tarefa específica (ou o dia)
   if (_hasTarget) {
     setTimeout(() => {
@@ -576,6 +596,13 @@ async function maybeShowSovereigntyPrompt() {
   if (tourIsActive()) return;
   // Se já dispensou hoje (ou abriu as mensagens), não mostra
   if (localStorage.getItem(sovereigntyTodayKey()) === '1') return;
+  // Já tem um na tela? O Ritual é remontado a cada volta de outra aba, e sem
+  // esta trava o prompt empilhava — fechar um deixava o de baixo aparecendo,
+  // que é o "continua na tela depois do decreto".
+  if (document.querySelector('.sov-prompt')) return;
+  // Qualquer outro modal aberto tem precedência: jogar este por cima
+  // esconderia o que a pessoa está lendo.
+  if (document.querySelector('.modal-overlay')) return;
   // hasUnreadToday() retorna true se NÃO leu hoje; queremos disparar se NÃO leu
   const { hasUnreadToday, openMorningMessages } = await import('../mensagens-manha.js');
   if (!hasUnreadToday()) {
@@ -586,8 +613,13 @@ async function maybeShowSovereigntyPrompt() {
 
   // Dá um respiro pra UI renderizar antes do modal
   setTimeout(() => {
+    // Reconfere no disparo: entre o agendamento e este ponto passaram 600ms,
+    // tempo suficiente pra pessoa ter aberto as mensagens por outro caminho.
+    if (localStorage.getItem(sovereigntyTodayKey()) === '1') return;
+    if (document.querySelector('.sov-prompt')) return;
+
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
+    overlay.className = 'modal-overlay sov-prompt';
     overlay.innerHTML = `
       <div class="modal" style="max-width:380px;text-align:center">
         <div style="font-size:42px;margin-bottom:8px">👑</div>

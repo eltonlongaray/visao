@@ -13,11 +13,9 @@
 // Cada objetivo tem a própria periodicidade — 4× por semana e 1× por mês são
 // alvos diferentes e não podem ser medidos pela mesma régua.
 //
-// Dois modos de contagem:
-//   'ritual' — puxa das tarefas concluídas no Ritual. É o caminho bom: a
-//              pessoa já marca a academia lá, e pedir pra marcar de novo aqui
-//              seria trabalho dobrado com duas contagens que divergem.
-//   'manual' — pra objetivo que não vira tarefa (ex.: "ligar pra mãe").
+// A contagem é SEMPRE automática, puxada das tarefas concluídas no Ritual.
+// Marcação manual foi removida a pedido: se a contagem pode ser automática,
+// oferecer a manual só cria a chance das duas divergirem.
 //
 // Ficam em profiles.extra (o setProfile joga chave desconhecida pra lá), o
 // que evita tabela nova e SQL pra rodar. São poucos por pessoa e sempre lidos

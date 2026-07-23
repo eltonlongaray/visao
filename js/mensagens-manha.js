@@ -142,6 +142,11 @@ function getMessages() {
 // ═══════════════════════════════════════════════════════════════
 export function openMorningMessages() {
   markReadToday();
+  // Fecha o prompt "Vamos começar o dia com soberania?" se ele ainda estiver
+  // na tela. Ele é fechado por quem o abriu, mas se as mensagens forem
+  // abertas por OUTRO caminho (o card da Home, por exemplo) ele ficava atrás
+  // e reaparecia quando estas telas fechassem.
+  document.querySelectorAll('.sov-prompt').forEach(el => el.remove());
   // Pré-carrega as notas do Firestore em background (não bloqueia abrir a lista)
   // Quando o user abrir o detalhe da msg 3, o cache já estará pronto
   if (!notesCache) preloadNotesFromFirestore();
