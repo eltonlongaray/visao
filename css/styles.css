@@ -6437,6 +6437,12 @@ body.sem-rolagem { overflow: hidden; }
 .obj-check.obj-auto { color: var(--muted); border-style: dashed; font-size: 15px; }
 
 .obj-modal { max-width: 420px; }
+/* O h3 não tinha regra nenhuma no modal e herdava a margem do navegador, que
+   é quase nula embaixo — o título ficava encostado no primeiro campo. */
+.obj-modal h3 {
+  font-size: 19px; font-weight: 700; color: var(--text);
+  margin: 2px 0 18px; letter-spacing: -0.3px;
+}
 .obj-linha { display: flex; gap: 8px; }
 .obj-mini { flex: 1; min-width: 0; }
 .obj-explica {
