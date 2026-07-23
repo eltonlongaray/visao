@@ -103,11 +103,13 @@ export async function abrirEditorObjetivo(id) {
     <div class="modal obj-modal">
       <h3>${obj ? 'Editar objetivo' : 'Novo objetivo'}</h3>
 
-      <div class="input-field-label">Qual atividade do Ritual</div>
-      <select id="obj-atividade" class="obj-select">
-        <option value="">Toque para escolher…</option>
-        ${atividades.map(a => `<option value="${esc(a.id)}" ${obj?.atividadeId === a.id ? 'selected' : ''}>${esc(a.icon || '')} ${esc(a.name || 'Atividade')}</option>`).join('')}
-      </select>
+      <label class="input-field obj-campo-ativ">
+        <div class="input-field-label">Qual atividade do Ritual</div>
+        <select id="obj-atividade">
+          <option value="">Toque para escolher…</option>
+          ${atividades.map(a => `<option value="${esc(a.id)}" ${obj?.atividadeId === a.id ? 'selected' : ''}>${esc(a.icon || '')} ${esc(a.name || 'Atividade')}</option>`).join('')}
+        </select>
+      </label>
 
       <div class="obj-linha">
         <label class="input-field obj-mini"><div class="input-field-label">Ícone</div>

@@ -6498,22 +6498,12 @@ body.sem-rolagem { overflow: hidden; }
    que eram um botão só pra fazer o que o toque no card já faz. */
 .obj-item { cursor: pointer; }
 
-/* Campo de atividade: sem a caixa branca de rótulo, mas COM moldura própria.
-   Sem moldura nenhuma ele virava texto solto e ninguém percebia que dava pra
-   tocar — que foi o "o botão sumiu". */
-.obj-select {
-  width: 100%; appearance: none; -webkit-appearance: none;
-  background: var(--card-2); border: 1.5px solid var(--accent);
-  border-radius: 14px; padding: 14px 40px 14px 14px;
-  color: var(--text); font-size: 15px; font-family: inherit;
-  cursor: pointer; margin-bottom: 12px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-                    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
-}
-.obj-select:focus { outline: none; border-color: var(--accent); }
+/* O <select> volta pra DENTRO de .input-field, como todos os outros do app.
+   Solto, ele era zerado por `.modal select` (fundo transparente, borda 0,
+   altura 19px) — regra de dois seletores que vence uma classe só. Brigar por
+   especificidade aqui seria remendo; a estrutura certa já existia. */
+.obj-campo-ativ { border-color: var(--accent); margin-bottom: 12px; }
+.obj-campo-ativ select { font-size: 15px; padding-top: 2px; }
 
 /* Selo de constância: é a resposta pra "há quanto tempo eu mantenho isso?",
    que é o que dá orgulho de olhar. Fica antes de abrir o objetivo. */

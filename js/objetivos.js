@@ -217,9 +217,14 @@ export async function constanciaDosObjetivos(objetivos, hoje = new Date()) {
         : _somaDias(hoje, -7 * atras);
       const ini = inicioDoPeriodo(per, ref);
       const fim = fimDoPeriodo(per, ref);
-      // Antes de o objetivo existir não há o que cobrar — a sequência para
-      // aqui em vez de contar zeros de um passado que não era medido.
-      if (obj.criadoEm && idDoDia(fim) < obj.criadoEm) break;
+      // O histórico do Ritual vale mesmo antes de o objetivo existir: a pessoa
+      // já fazia academia, só não tinha declarado o alvo. Cortar em criadoEm
+      // obrigava a esperar uma semana inteira pra ver qualquer coisa, num
+      // selo que existe justamente pra dar orgulho de olhar.
+      //
+      // A busca para sozinha quando não há mais dias registrados — nesse
+      // ponto não é "falhou", é "não havia app".
+      if (!_temRegistro(porDia, ini, fim)) break;
       if (_contarNoRitual(obj, porDia, ini, fim) >= alvo) seguidos++;
       else break;
     }
@@ -227,6 +232,15 @@ export async function constanciaDosObjetivos(objetivos, hoje = new Date()) {
     mapa.set(obj.id, { periodos: seguidos, texto: _frase(seguidos, per) });
   }
   return mapa;
+}
+
+// Houve QUALQUER dia registrado no período? Distingue "a meta não foi batida"
+// de "o app ainda não existia" — sem isso a sequência quebraria no vazio.
+function _temRegistro(porDia, ini, fim) {
+  for (const d = new Date(ini); d <= fim; d.setDate(d.getDate() + 1)) {
+    if (porDia.has(idDoDia(d))) return true;
+  }
+  return false;
 }
 
 function _somaDias(d, n) {
