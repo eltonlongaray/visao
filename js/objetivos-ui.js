@@ -64,7 +64,7 @@ function linhaObjetivo(o, p) {
 
   return `
     <div class="obj-item ${cumprido ? 'cumprido' : ''}" data-obj="${o.id}" data-editar="${o.id}">
-      <span class="obj-ic">${esc(o.icone || '🎯')}</span>
+      <span class="obj-ic">🎯</span>
       <div class="obj-corpo">
         <div class="obj-topo">
           <span class="obj-nome">${esc(o.nome)}</span>
@@ -111,12 +111,8 @@ export async function abrirEditorObjetivo(id) {
         </select>
       </label>
 
-      <div class="obj-linha">
-        <label class="input-field obj-mini"><div class="input-field-label">Ícone</div>
-          <input id="obj-icone" maxlength="2" value="${esc(obj?.icone || '🎯')}" /></label>
-        <label class="input-field obj-mini"><div class="input-field-label">Vezes por dia</div>
-          <input id="obj-vezes-dia" type="number" min="1" max="20" value="${Number(obj?.vezesDia) || 1}" /></label>
-      </div>
+      <label class="input-field"><div class="input-field-label">Vezes por dia</div>
+        <input id="obj-vezes-dia" type="number" min="1" max="20" value="${Number(obj?.vezesDia) || 1}" /></label>
 
       <div class="obj-linha">
         <label class="input-field obj-mini"><div class="input-field-label">Quantos dias</div>
@@ -180,7 +176,6 @@ export async function abrirEditorObjetivo(id) {
     await salvarObjetivo({
       id: obj?.id,
       nome: nomeAtiv,
-      icone: ov.querySelector('#obj-icone').value.trim() || '🎯',
       vezes: Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1),
       vezesDia: Math.max(1, Number(ov.querySelector('#obj-vezes-dia').value) || 1),
       periodo: ov.querySelector('#obj-periodo').value,
