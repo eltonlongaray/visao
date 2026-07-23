@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   listarObjetivos, salvarObjetivo, removerObjetivo, progressoDosObjetivos,
+  constanciaDosObjetivos,
 } from './objetivos.js';
 import { getCategories } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
@@ -37,8 +38,19 @@ export async function montarObjetivos() {
     return;
   }
 
+  // Progresso primeiro: é o que a pessoa espera ver. A constância olha meses
+  // pra trás e chega depois, sem segurar o resto da tela.
   const prog = await progressoDosObjetivos(objetivos);
   box.innerHTML = objetivos.map(o => linhaObjetivo(o, prog.get(o.id))).join('');
+
+  try {
+    const cons = await constanciaDosObjetivos(objetivos);
+    for (const [id, c] of cons) {
+      if (!c.texto) continue;
+      const alvo = box.querySelector(`[data-obj="${id}"] .obj-selo-lugar`);
+      if (alvo) alvo.innerHTML = `<span class="obj-selo">🔥 ${esc(c.texto)}</span>`;
+    }
+  } catch (e) { console.warn('[objetivos] constância:', e.message); }
 }
 
 function linhaObjetivo(o, p) {
@@ -62,6 +74,7 @@ function linhaObjetivo(o, p) {
         <div class="obj-sub">
           ${bolinhas}
           <span>${periodo}</span>
+          <span class="obj-selo-lugar"></span>
         </div>
       </div>
 

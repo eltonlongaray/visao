@@ -6498,12 +6498,12 @@ body.sem-rolagem { overflow: hidden; }
    que eram um botão só pra fazer o que o toque no card já faz. */
 .obj-item { cursor: pointer; }
 
-/* Campo de atividade sem moldura: um <select> dentro da caixa branca parecia
-   um rótulo, e a pessoa não percebia que era ali que se toca. Sem a caixa,
-   ele fica com cara de campo tocável e abre a lista direto. */
+/* Campo de atividade: sem a caixa branca de rótulo, mas COM moldura própria.
+   Sem moldura nenhuma ele virava texto solto e ninguém percebia que dava pra
+   tocar — que foi o "o botão sumiu". */
 .obj-select {
   width: 100%; appearance: none; -webkit-appearance: none;
-  background: var(--card-2); border: 1.5px solid var(--border);
+  background: var(--card-2); border: 1.5px solid var(--accent);
   border-radius: 14px; padding: 14px 40px 14px 14px;
   color: var(--text); font-size: 15px; font-family: inherit;
   cursor: pointer; margin-bottom: 12px;
@@ -6514,3 +6514,14 @@ body.sem-rolagem { overflow: hidden; }
   background-repeat: no-repeat;
 }
 .obj-select:focus { outline: none; border-color: var(--accent); }
+
+/* Selo de constância: é a resposta pra "há quanto tempo eu mantenho isso?",
+   que é o que dá orgulho de olhar. Fica antes de abrir o objetivo. */
+.obj-selo {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(234,179,8,0.16); color: #eab308;
+  border-radius: 20px; padding: 2px 9px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.obj-item.cumprido .obj-selo { background: rgba(95,211,165,0.16); color: #5fd3a5; }
+.obj-sub { flex-wrap: wrap; row-gap: 5px; }

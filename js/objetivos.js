@@ -179,6 +179,79 @@ function _contarManual(obj, ini, fim) {
   return (obj.marcados || []).filter(d => d >= a && d <= b).length;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: HÁ QUANTO TEMPO ESTÁ CONSTANTE
+// ═══════════════════════════════════════════════════════════════
+// Conta quantos períodos SEGUIDOS a meta foi batida, olhando pra trás a
+// partir do último período FECHADO. O período atual fica de fora de
+// propósito: na segunda-feira de manhã ninguém "quebrou" nada ainda, e
+// contar o atual zeraria a sequência toda semana.
+//
+// Devolve texto pronto ("constante há 3 semanas") em vez de um número: quem
+// desenha não deveria ter que saber que 4 semanas viram "1 mês".
+const MAX_PERIODOS = 26;   // ~6 meses olhando pra trás; além disso não muda a frase
+
+export async function constanciaDosObjetivos(objetivos, hoje = new Date()) {
+  const mapa = new Map();
+  if (!objetivos?.length) return mapa;
+
+  // Uma leitura só cobre o histórico de todos: o intervalo é o maior em uso.
+  const temMes = objetivos.some(o => o.periodo === 'mes');
+  const inicioJanela = temMes
+    ? new Date(hoje.getFullYear(), hoje.getMonth() - MAX_PERIODOS, 1)
+    : _somaDias(inicioDoPeriodo('semana', hoje), -7 * MAX_PERIODOS);
+
+  let dias = [];
+  try { dias = await fetchDaysRange(inicioJanela, fimDoPeriodo('semana', hoje)); }
+  catch (e) { console.warn('[objetivos] histórico:', e.message); return mapa; }
+  const porDia = new Map(dias.map(d => [d.id, d]));
+
+  for (const obj of objetivos) {
+    const per = obj.periodo === 'mes' ? 'mes' : 'semana';
+    const alvo = Math.max(1, Number(obj.vezes) || 1);
+    let seguidos = 0;
+
+    for (let atras = 1; atras <= MAX_PERIODOS; atras++) {
+      const ref = per === 'mes'
+        ? new Date(hoje.getFullYear(), hoje.getMonth() - atras, 15)
+        : _somaDias(hoje, -7 * atras);
+      const ini = inicioDoPeriodo(per, ref);
+      const fim = fimDoPeriodo(per, ref);
+      // Antes de o objetivo existir não há o que cobrar — a sequência para
+      // aqui em vez de contar zeros de um passado que não era medido.
+      if (obj.criadoEm && idDoDia(fim) < obj.criadoEm) break;
+      if (_contarNoRitual(obj, porDia, ini, fim) >= alvo) seguidos++;
+      else break;
+    }
+
+    mapa.set(obj.id, { periodos: seguidos, texto: _frase(seguidos, per) });
+  }
+  return mapa;
+}
+
+function _somaDias(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+// A frase sobe de unidade sozinha: 8 semanas dizem mais como "2 meses".
+function _frase(n, periodo) {
+  if (n <= 0) return '';
+  if (periodo === 'mes') {
+    if (n === 1) return 'constante há 1 mês';
+    if (n < 12) return `constante há ${n} meses`;
+    const anos = Math.floor(n / 12);
+    return `constante há ${anos} ano${anos > 1 ? 's' : ''}`;
+  }
+  if (n === 1) return 'constante há 1 semana';
+  if (n < 4) return `constante há ${n} semanas`;
+  const meses = Math.floor(n / 4);
+  if (meses < 12) return `constante há ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  const anos = Math.floor(meses / 12);
+  return `constante há ${anos} ano${anos > 1 ? 's' : ''}`;
+}
+
 export function marcadoHoje(obj) {
   return (obj.marcados || []).includes(idDoDia(new Date()));
 }
