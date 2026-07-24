@@ -1571,9 +1571,12 @@ async function startMic() {
       // o mesmo pedaço voltava várias vezes — "domingo lazer descrição
       // aniversário" empilhado quatro vezes no campo. Reconstruir é
       // idempotente: chamar duas vezes com os mesmos dados dá o mesmo texto.
+      // A junção vale DENTRO da lista também. A própria e.results chega com o
+      // mesmo enunciado repetido em posições diferentes — concatenar tudo era
+      // o que sobrava de duplicata depois de eu ter tratado só os reinícios.
       let final = '';
       for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+        if (e.results[i].isFinal) final = juntarFala(final, e.results[i][0].transcript);
       }
       trechoAtual = final;
       voiceActive = true;
