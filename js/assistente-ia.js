@@ -24,6 +24,7 @@ import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
+import { juntarFala } from './ditado-merge.js';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -1585,7 +1586,7 @@ async function startMic() {
         confirming  = false;
         recording   = false;
         recognition = null;
-        const clean = formatTranscript((accumulated + trechoAtual).trim());
+        const clean = formatTranscript(juntarFala(accumulated, trechoAtual).trim());
         accumulated = '';
         trechoAtual = '';
         const inp   = document.getElementById('pet-input');
@@ -1594,9 +1595,11 @@ async function startMic() {
         hideRecordingUI();
         setPetState('idle');
       } else if (recording) {
-        // A instância morreu: o que ela reconheceu vira definitivo, e a nova
-        // começa com a lista de resultados zerada.
-        accumulated += trechoAtual;
+        // A instância morreu: o que ela reconheceu vira definitivo. A junção
+        // olha a sobreposição em vez de emendar cego — o reconhecedor do
+        // Android reentrega o enunciado INTEIRO a cada reinício, cada vez um
+        // pouco mais completo, e emendar produzia a frase triplicada.
+        accumulated = juntarFala(accumulated, trechoAtual);
         trechoAtual = '';
         try {
           recognition = buildRecognition();
