@@ -1523,7 +1523,8 @@ function addChoices(label, choices) {
 // ═══════════════════════════════════════════════════════════════
 let recognition  = null;
 let waveAnimId   = null;
-let accumulated  = '';
+let accumulated  = '';   // trechos já fechados por instâncias anteriores
+let trechoAtual  = '';   // o que a instância atual reconheceu até agora
 let recording    = false;
 let confirming   = false;
 let voiceActive  = false;
@@ -1547,7 +1548,8 @@ async function startMic() {
     }
   }
 
-  accumulated = '';
+  accumulated = '';   // fechado por instâncias ANTERIORES do reconhecedor
+  trechoAtual = '';   // o que a instância atual reconheceu até agora
   recording   = true;
   confirming  = false;
   let abortCount = 0;
@@ -1563,9 +1565,16 @@ async function startMic() {
     r.interimResults = true;
 
     r.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
+      // RECONSTRÓI a partir de e.results inteiro, em vez de ACRESCENTAR o
+      // trecho novo. Com continuous=true a lista é reentregue a cada evento e
+      // o mesmo pedaço voltava várias vezes — "domingo lazer descrição
+      // aniversário" empilhado quatro vezes no campo. Reconstruir é
+      // idempotente: chamar duas vezes com os mesmos dados dá o mesmo texto.
+      let final = '';
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
       }
+      trechoAtual = final;
       voiceActive = true;
       clearTimeout(voiceTimer);
       voiceTimer = setTimeout(() => { voiceActive = false; }, 250);
@@ -1576,14 +1585,19 @@ async function startMic() {
         confirming  = false;
         recording   = false;
         recognition = null;
-        const clean = formatTranscript(accumulated.trim());
+        const clean = formatTranscript((accumulated + trechoAtual).trim());
         accumulated = '';
+        trechoAtual = '';
         const inp   = document.getElementById('pet-input');
         if (inp && clean) { inp.value = clean; requestAnimationFrame(() => { resizePetInput(inp); inp.focus(); }); }
         teardownMic();
         hideRecordingUI();
         setPetState('idle');
       } else if (recording) {
+        // A instância morreu: o que ela reconheceu vira definitivo, e a nova
+        // começa com a lista de resultados zerada.
+        accumulated += trechoAtual;
+        trechoAtual = '';
         try {
           recognition = buildRecognition();
           recognition.start();
@@ -1611,6 +1625,7 @@ async function startMic() {
       recording   = false;
       recognition = null;
       accumulated = '';
+      trechoAtual = '';
       teardownMic();
       hideRecordingUI();
       setPetState('idle');
