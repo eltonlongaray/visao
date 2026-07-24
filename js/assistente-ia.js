@@ -884,9 +884,14 @@ function extractTime(text) {
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
   m = tl.match(/\b(\d{1,2})h(\d{2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
-  m = tl.match(/\b(?:às?|as|at)\s+(\d{1,2})\s*h(?:oras?)?\b/);
+  // (?:^|\s) no lugar de \b: "às" começa com À, que NÃO conta como letra na
+  // regra de fronteira de palavra do JS (\w é só A-Z, 0-9 e _). Com \b o
+  // padrão nunca casava em "às 8" — só em "as 8", sem acento. Era isso que
+  // fazia o pet pedir o horário depois de a pessoa já ter dito, sempre que a
+  // palavra "horas" era comida e sobrava só o "às 8".
+  m = tl.match(/(?:^|\s)(?:às?|as|at)\s+(\d{1,2})\s*h(?:oras?)?\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
-  m = tl.match(/\b(?:às?|as|at)\s+(\d{1,2})\b/);
+  m = tl.match(/(?:^|\s)(?:às?|as|at)\s+(\d{1,2})\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
   m = tl.match(/\b(\d{1,2})\s*h(?:oras?)?\b/);
   if (m) return `${m[1].padStart(2,'0')}:00`;
@@ -1382,7 +1387,10 @@ function cleanSearchHint(hint) {
   return hint
     .replace(/\b(de\s+|do\s+|da\s+)?(hoje|aman[hã]|agora|now|today|tomorrow)\b/gi, '')
     .replace(/\b(próxim[ao]\s+)?(seg(unda(-feira)?)?|ter([çc][aã](-feira)?)?|qua(rta(-feira)?)?|qui(nta(-feira)?)?|sex(ta(-feira)?)?|s[aá]b(ado)?|dom(ingo)?)\b/gi, '')
-    .replace(/\bàs?\s+\d{1,2}[h:]\d*/gi, '')
+    // (?:^|\s) e não \b, pelo mesmo motivo do extractTime: À não é "letra"
+    // para \b, então "às 8" nunca era limpo daqui e sujava a busca por nome.
+    .replace(/(?:^|\s)às?\s+\d{1,2}[h:]?\d*/gi, ' ')
+    .replace(/(?:^|\s)as\s+\d{1,2}[h:]?\d*/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
