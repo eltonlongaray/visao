@@ -316,14 +316,21 @@ export default {
   'pet.error.mic.access':   'Could not access the microphone.',
   'pet.error.register':     'Error registering. Please try again.',
 
-  'pet.ask.name':           'What do you want to register?',
+  'pet.ask.name':           `Missing what to schedule. Tell me all at once:<br><br>
+    • <strong>the type</strong> — commitment or task<br>
+    • <strong>the day and time</strong><br>
+    • <strong>the title and description</strong>, like this:<br><br>
+    <em>"schedule commitment sunday at 10, title gym, description leg day"</em>`,
   'pet.ask.time':           'Commitment needs a time. What time? (e.g. 15:30 or 15h)',
   'pet.ask.time.invalid':   'Enter a valid time (e.g. 15:30 or 15h).',
   'pet.ask.for':            'for',
   'pet.ask.type.question':  'Activity or commitment?',
   'pet.ask.type':           'Reply <strong>activity</strong> (already done) or <strong>commitment</strong> (to do).',
 
-  'pet.unknown':            "I didn't understand. Type <strong>help</strong> to see what I can do.",
+  'pet.unknown':            `I didn't understand. To schedule, tell me all at once:<br><br>
+    <em>"schedule commitment sunday at 10, title gym, description leg day"</em><br><br>
+    The <strong>title</strong> is what links to your activities — it's what makes it count toward the goal.<br>
+    Type <strong>help</strong> for the rest.`,
 
   'pet.streak.perfect':     '✅ Perfect week so far!',
   'pet.streak.failed':      '⚠️ This week you <strong>missed {n} day(s)</strong>.',

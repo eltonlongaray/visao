@@ -316,14 +316,21 @@ export default {
   'pet.error.mic.access':   'No se pudo acceder al micrófono.',
   'pet.error.register':     'Error al registrar. Inténtalo de nuevo.',
 
-  'pet.ask.name':           '¿Qué quieres registrar?',
+  'pet.ask.name':           `Faltó qué agendar. Dime todo de una vez:<br><br>
+    • <strong>el tipo</strong> — compromiso o tarea<br>
+    • <strong>el día y la hora</strong><br>
+    • <strong>el título y la descripción</strong>, así:<br><br>
+    <em>"agendar compromiso domingo a las 10, título gimnasio, descripción pierna"</em>`,
   'pet.ask.time':           'El compromiso necesita hora. ¿A qué hora? (ej: 15:30 o 15h)',
   'pet.ask.time.invalid':   'Ingresa una hora válida (ej: 15:30 o 15h).',
   'pet.ask.for':            'para',
   'pet.ask.type.question':  '¿Actividad o compromiso?',
   'pet.ask.type':           'Responde <strong>actividad</strong> (ya lo hice) o <strong>compromiso</strong> (lo haré).',
 
-  'pet.unknown':            'No entendí. Escribe <strong>ayuda</strong> para ver qué sé hacer.',
+  'pet.unknown':            `No entendí. Para agendar, dime todo de una vez:<br><br>
+    <em>"agendar compromiso domingo a las 10, título gimnasio, descripción pierna"</em><br><br>
+    El <strong>título</strong> es lo que conecta con tus actividades — es lo que hace contar para el objetivo.<br>
+    Escribe <strong>ayuda</strong> para el resto.`,
 
   'pet.streak.perfect':     '✅ ¡Semana perfecta hasta ahora!',
   'pet.streak.failed':      '⚠️ Esta semana <strong>fallaste {n} día(s)</strong>.',

@@ -630,19 +630,43 @@ function ligarArrastePet() {
 }
 
 
+// O painel do pet é uma camada sobre a tela, não uma rota. Sem entrada
+// própria no histórico, o voltar do aparelho passava direto por ele e trocava
+// a aba do cinturão — o painel ficava aberto por cima da tela errada.
+let petNoHistorico = false;
+
 function openChatPanel() {
   document.getElementById('pet-chat').classList.add('pet-chat-open');
   ajustarChatAoTeclado();   // dimensiona pela tela visível já na abertura
   setBadge(0);
   setPetState('idle');
+  if (!petNoHistorico) {
+    history.pushState({ falconPet: 1 }, '');
+    petNoHistorico = true;
+  }
   // Sem focus() automático: abrir o chat não deve abrir o teclado junto.
   // O usuário toca no campo quando quiser escrever.
 }
 
-function closeChatPanel() {
+function fecharPainelDireto() {
   if (recording) stopMicCancel();
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
   ajustarChatAoTeclado();   // devolve o pet pro canto e limpa a altura inline
+}
+
+function closeChatPanel() {
+  // Fechar pelo botão consome a entrada do histórico; sem isso sobraria lixo
+  // e um voltar futuro não faria nada visível.
+  if (petNoHistorico) { petNoHistorico = false; history.back(); return; }
+  fecharPainelDireto();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    if (!petNoHistorico) return;
+    petNoHistorico = false;
+    fecharPainelDireto();
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1090,7 +1114,9 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card">
-      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
+      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong>${
+        ditado.descricao ? ` <span class="pet-preview-desc">(${ditado.descricao})</span>` : ''
+      }</span>
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
