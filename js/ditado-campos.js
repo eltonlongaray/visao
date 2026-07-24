@@ -9,21 +9,24 @@
 // acertar no chute. Com o rótulo, "lazer" casa com a atividade Lazer e o
 // objetivo conta.
 //
+// O campo termina no ponto OU no próximo rótulo. Só o ponto não bastava: o
+// reconhecedor de voz NÃO escreve pontuação, então "Título lazer. Descrição
+// aniversário" chega como "título lazer descrição aniversário" — e o título
+// engolia a descrição inteira.
+//
 // Regex LITERAL, não montada por string: `new RegExp('\\s')` depende de a
 // barra dupla sobreviver a toda camada por onde o arquivo passa, e basta uma
 // comer a barra pra o padrão virar a letra "s" e falhar em silêncio.
 
-// O campo termina no primeiro ponto/ponto-e-vírgula — é o separador natural
-// de quem fala ditando ("...às 10 horas. Título lazer.").
-const RE_TITULO = /t[ií]tulo\s*:?\s+([^.;]+)/i;
-const RE_NOME   = /\bnome\s*:?\s+([^.;]+)/i;
-const RE_DESC   = /descri[çc][ãa]o\s*:?\s+([^.;]+)/i;
+const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)/i;
+const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)/i;
+const RE_DESC   = /descri[çc][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s*[.;]|$)/i;
 
 // Versões pra REMOVER do comando, engolindo o separador junto
 const CORTA = [
-  /t[ií]tulo\s*:?\s+[^.;]+[.;]?/i,
-  /descri[çc][ãa]o\s*:?\s+[^.;]+[.;]?/i,
-  /\bnome\s*:?\s+[^.;]+[.;]?/i,
+  /t[ií]tulo\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)[.;]?/i,
+  /descri[çc][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s*[.;]|$)[.;]?/i,
+  /\bnome\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)[.;]?/i,
 ];
 
 function _limpaPontas(s) {
