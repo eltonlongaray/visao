@@ -6524,7 +6524,9 @@ body.sem-rolagem { overflow: hidden; }
 
 /* Descrição na prévia do pet: linha própria abaixo do título, em tom
    secundário — ela acompanha o título, não compete com ele. */
+/* Entre parênteses e colada no título: ela COMPLEMENTA o título, então
+   afastá-la fazia parecer informação de outra linha. */
 .pet-preview-desc {
   display: block; color: var(--muted); font-weight: 400;
-  font-size: 12px; line-height: 1.4; margin: 2px 0 4px;
+  font-size: 12px; line-height: 1.35; margin: 1px 0 1px;
 }

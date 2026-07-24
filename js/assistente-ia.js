@@ -719,6 +719,14 @@ async function routeCommand(text) {
   // compromisso" simples herdava o "descrição aniversário" de um teste feito
   // minutos antes. Só uma conversa EM ANDAMENTO (o pet perguntando a hora,
   // por exemplo) preserva o que já foi dito.
+  // COMANDO NOVO INTERROMPE A CONVERSA EM ANDAMENTO. Sem isto, uma pergunta
+  // pendente ("qual horário?") engolia a próxima frase como resposta — mesmo
+  // sendo um comando completo. Foi o que fez "Agendar compromisso sábado às
+  // 8:00 título academia" virar a resposta de outra pergunta, perdendo data,
+  // hora e título no caminho.
+  const pareceComandoNovo = REGISTER_TRIGGERS.test(String(text).trim());
+  if (pareceComandoNovo && convState) convState = null;
+
   const continuandoConversa = !!convState;
   if (!continuandoConversa) ditado = { titulo: null, descricao: null };
 
@@ -734,9 +742,12 @@ async function routeCommand(text) {
   // ── Continua conversa em andamento ──
   if (convState?.type === 'waiting_name') {
     const name = ditado.titulo || text;
-    const date = convState.date || new Date();
+    // Data e hora podem vir NA RESPOSTA, não só no comando original: quem
+    // responde "academia sábado às 8" está dizendo as três coisas de uma vez.
+    const date = extractDate(text) || convState.date || new Date();
+    const time = extractTime(text) || convState.time || '';
     convState = null;
-    return askType(name, date);
+    return askType(name, date, time);
   }
 
   if (convState?.type === 'waiting_type') {
@@ -1127,7 +1138,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.innerHTML = `
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
-      ${ditado.descricao ? `<span class="pet-preview-desc">${ditado.descricao}</span>` : ''}
+      ${ditado.descricao ? `<span class="pet-preview-desc">(${ditado.descricao})</span>` : ''}
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
@@ -1660,9 +1671,19 @@ async function startMic() {
         accumulated = juntarFala(accumulated, trechoAtual);
         trechoAtual = '';
         try {
-          recognition = buildRecognition();
-          recognition.start();
+          // REAPROVEITA o mesmo reconhecedor em vez de criar outro. Entre o
+          // fim de uma instância e o início da próxima existe um vão sem
+          // captação, e as palavras ditas nele se perdem — é o que "come" o
+          // que a pessoa fala logo depois de uma pausa. Criar objeto novo
+          // reinicializa o áudio inteiro e alarga esse vão; reusar corta boa
+          // parte dele.
+          //
+          // O vão não some de todo: é limite da plataforma, não do código.
+          if (r === recognition) recognition.start();
+          else { recognition = buildRecognition(); recognition.start(); }
         } catch (_) {
+          // start() em objeto já iniciado lança — cai pro caminho antigo
+          try { recognition = buildRecognition(); recognition.start(); return; } catch (_2) {}
           recording   = false;
           recognition = null;
           teardownMic();
