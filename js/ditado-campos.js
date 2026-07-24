@@ -33,6 +33,15 @@ function _limpaPontas(s) {
   return String(s || '').trim().replace(/^[.,;\s]+|[.,;\s]+$/g, '');
 }
 
+// Primeira letra maiúscula. O ditado devolve tudo minúsculo ("academia",
+// "treino de perna") e a tarefa nasceria com cara de rascunho no meio de uma
+// agenda escrita com inicial maiúscula. Só a PRIMEIRA: forçar o resto
+// estragaria siglas e nomes próprios que o reconhecedor já acertou.
+function _maiuscula(s) {
+  const v = String(s || '');
+  return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+}
+
 export function extrairCampos(texto) {
   const t0 = String(texto || '');
   const cap = (re) => {
@@ -41,8 +50,8 @@ export function extrairCampos(texto) {
     return v || null;
   };
 
-  const titulo = cap(RE_TITULO) || cap(RE_NOME);
-  const descricao = cap(RE_DESC);
+  const titulo = _maiuscula(cap(RE_TITULO) || cap(RE_NOME)) || null;
+  const descricao = _maiuscula(cap(RE_DESC)) || null;
 
   // O que sobra é o comando em si: data, hora e tipo.
   let comando = t0;
