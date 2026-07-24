@@ -153,7 +153,7 @@ export async function renderAjustes(app) {
             <textarea id="fbMsg" rows="4" placeholder="Sua sugestão de melhoria..." style="width:100%;box-sizing:border-box;border-radius:12px;border:1px solid var(--border,#3a3a4a);background:var(--input-bg,rgba(255,255,255,.04));color:inherit;padding:10px 12px;font:inherit;resize:vertical"></textarea>
             <button class="btn-primary" id="fbSend" style="width:100%;margin-top:8px">Enviar sugestão</button>
           </div>
-        `)}
+        `, { id: 'accSugestao' })}
 
         ${acc('🔔 Notificações', `
           <div class="ajustes-row" id="rowMuteNotif">
@@ -165,12 +165,12 @@ export async function renderAjustes(app) {
           </div>
           ${row('testPushBtn', t('ajustes.notif.test'), { id: 'testPushSub', text: t('ajustes.notif.test.sub') })}
           ${row('notifGuideBtn', 'Notificações não estão chegando?', 'Toque para ver como ativar som, vibração e pop-up')}
-        `)}
+        `, { id: 'accNotif' })}
 
         ${acc(t('ajustes.data'), `
           ${row('exportJsonBtn', t('ajustes.json.title'), t('ajustes.json.sub'))}
           ${row('exportPdfBtn', t('ajustes.pdf.title'), t('ajustes.pdf.sub'))}
-        `)}
+        `, { id: 'accDados' })}
 
         ${acc(t('ajustes.legal'), `
           <button class="ajustes-row clickable" data-route="/termos">
@@ -181,7 +181,7 @@ export async function renderAjustes(app) {
             <div class="ajustes-row-main"><div class="ajustes-row-title">${t('ajustes.privacy.title')}</div></div>
             <span class="ajustes-row-arrow">›</span>
           </button>
-        `)}
+        `, { id: 'accLegal' })}
 
         <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
         <section class="ajustes-section">
@@ -201,7 +201,7 @@ export async function renderAjustes(app) {
         ${acc(t('ajustes.account'), `
           ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
           ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
-        `)}
+        `, { id: 'accConta' })}
 
         <div class="ajustes-version">
           Falcon · v1.0.0 · build ${window.__BUILD || '?'}<br>

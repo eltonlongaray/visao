@@ -120,6 +120,23 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
+  // ── 7.5. HOME: Objetivos (o alvo da constância) ──
+  {
+    id: 'home-objetivos',
+    route: '/home',
+    noCollapse: true,
+    prepare: async () => {
+      const el = await esperarEl('#obj-secao');
+      if (el) { el.scrollIntoView({ block: 'center' }); await wait(200); }
+    },
+    target: '#obj-secao',
+    noScroll: true,
+    holePad: 10,
+    title: '🎯 Seus objetivos',
+    message: 'Declare o que você quer manter: <strong>academia 4× por semana</strong>, jejum 1× por semana. Eu conto sozinho quando você marca a atividade no Ritual — e mostro há quanto tempo você está constante.',
+    primaryBtn: 'Próximo →'
+  },
+
   // ── 8. RITUAL: estrutura geral + marcar feito ──
   {
     id: 'ritual-week',
@@ -275,6 +292,38 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
+  // ── 15.5. O cinturão (navegação) ──
+  {
+    id: 'cinturao',
+    route: '/desafios',
+    noCollapse: true,
+    prepare: async () => { await wait(300); },
+    target: '.bottom-nav',
+    noScroll: true,
+    holePad: 6,
+    title: 'Seu cinturão 🥇',
+    message: 'Esta é a sua navegação. <strong>Arraste pro lado</strong> pra girar entre as telas — o que está no centro é onde você está. Tem mais abas do que cabem na tela; girando, você acha todas.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 15.6. COMUNIDADE: Falcon Hunters ──
+  {
+    id: 'comunidade',
+    route: '/chat',
+    noCollapse: true,
+    prepare: async () => {
+      await esperarEl('#chat-corpo', 3000);
+      window.scrollTo({ top: 0 });
+      await wait(250);
+    },
+    target: '.screen-title',
+    noScroll: true,
+    holePad: 8,
+    title: '🦅 Comunidade Falcon Hunters',
+    message: 'Aqui é a nossa roda. Fale com todo mundo na <strong>Comunidade</strong> ou no <strong>Privado</strong>, mande foto, responda e reaja. As mensagens somem sozinhas em 7 dias — o que importa é a conversa de agora.',
+    primaryBtn: 'Próximo →'
+  },
+
   // ── 16. AJUSTES: Meu perfil ──
   {
     id: 'ajustes-perfil',
@@ -285,6 +334,40 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     title: '👤 Seu perfil',
     message: 'Se quiser, me conte seu nome, aniversário e WhatsApp. Uso só pra te dar suporte, comemorar seu dia e te manter informado sobre sua comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 16.5. AJUSTES: notificações ──
+  {
+    id: 'ajustes-notif',
+    route: '/ajustes',
+    noCollapse: true,
+    prepare: async () => {
+      const el = await esperarEl('#accNotif');
+      if (el) { el.scrollIntoView({ block: 'center' }); await wait(250); }
+    },
+    target: '#accNotif',
+    noScroll: true,
+    holePad: 8,
+    title: '🔔 Notificações',
+    message: 'É aqui que você testa se os lembretes estão chegando e silencia o som quando precisar. Se algo não chegar, tem um guia passo a passo — <strong>quase sempre é uma permissão do celular</strong>, não do app.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 16.6. AJUSTES: seus dados ──
+  {
+    id: 'ajustes-dados',
+    route: '/ajustes',
+    noCollapse: true,
+    prepare: async () => {
+      const el = await esperarEl('#accDados');
+      if (el) { el.scrollIntoView({ block: 'center' }); await wait(250); }
+    },
+    target: '#accDados',
+    noScroll: true,
+    holePad: 8,
+    title: '📊 Seus dados são seus',
+    message: 'Baixe tudo que você registrou em <strong>PDF</strong> ou em arquivo, quando quiser. Nada aqui é uma via de mão única — você leva o seu histórico com você.',
     primaryBtn: 'Próximo →'
   },
 
@@ -315,7 +398,7 @@ export const ONBOARDING_STEPS = [
     petHome: true,      // não reposicionar o pet: o alvo é ele mesmo
     holePad: 12,
     title: 'E esse aqui é o meu canto 🦅',
-    message: 'Fico sempre por aqui. É só <strong>tocar em mim</strong> pra saber como está seu progresso, criar uma atividade rapidinho ou tirar uma dúvida. Estou a um toque de distância.',
+    message: 'Fico sempre por aqui. Toque em mim e <strong>fale</strong>: "agendar compromisso sábado às 8 horas, título academia, descrição treino de perna" — eu monto pra você. Também respondo sobre seu sono, água e constância. E me arraste pro canto que preferir.',
     primaryBtn: 'Próximo →'
   },
 
