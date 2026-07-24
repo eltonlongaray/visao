@@ -327,6 +327,7 @@ export default {
   'pet.ask.type.question':  'Activity or commitment?',
   'pet.ask.type':           'Reply <strong>activity</strong> (already done) or <strong>commitment</strong> (to do).',
 
+  'pet.duplicate':          '⚠️ <strong>{name}</strong> is already registered for that day and time. To repeat it anyway, edit it directly in the Ritual.',
   'pet.unknown':            `I didn't understand. To schedule, tell me all at once:<br><br>
     <em>"schedule commitment sunday at 10, title gym, description leg day"</em><br><br>
     The <strong>title</strong> is what links to your activities — it's what makes it count toward the goal.<br>

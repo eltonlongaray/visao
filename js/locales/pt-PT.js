@@ -316,14 +316,22 @@ export default {
   'pet.error.mic.access':   'Não foi possível aceder ao microfone.',
   'pet.error.register':     'Erro ao registar. Tenta novamente.',
 
-  'pet.ask.name':           'O que queres registar?',
+  'pet.ask.name':           `Faltou o que agendar. Diz-me tudo de uma vez:<br><br>
+    • <strong>o tipo</strong> — compromisso ou tarefa<br>
+    • <strong>o dia e a hora</strong><br>
+    • <strong>o título e a descrição</strong>, assim:<br><br>
+    <em>"agendar compromisso domingo às 10 horas, título ginásio, descrição treino de perna"</em>`,
   'pet.ask.time':           'O compromisso precisa de hora. Que hora? (ex: 15:30 ou 15h)',
   'pet.ask.time.invalid':   'Indica uma hora válida (ex: 15:30 ou 15h).',
   'pet.ask.for':            'para',
   'pet.ask.type.question':  'Actividade ou compromisso?',
   'pet.ask.type':           'Responde <strong>actividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).',
 
-  'pet.unknown':            'Não percebi. Escreve <strong>ajuda</strong> para ver o que sei fazer.',
+  'pet.duplicate':          '⚠️ <strong>{name}</strong> já está registado nesse dia e hora. Se quiseres mesmo repetir, edita direto no Ritual.',
+  'pet.unknown':            `Não percebi. Para agendar, diz-me tudo de uma vez:<br><br>
+    <em>"agendar compromisso domingo às 10 horas, título ginásio, descrição treino de perna"</em><br><br>
+    O <strong>título</strong> é o que liga às tuas atividades — é ele que faz contar para o objetivo.<br>
+    Escreve <strong>ajuda</strong> para o resto.`,
 
   'pet.streak.perfect':     '✅ Semana perfeita até agora!',
   'pet.streak.failed':      '⚠️ Esta semana <strong>falhaste {n} dia(s)</strong>.',

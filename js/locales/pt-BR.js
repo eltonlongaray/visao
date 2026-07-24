@@ -327,6 +327,7 @@ export default {
   'pet.ask.type.question':  'Atividade ou compromisso?',
   'pet.ask.type':           'Responda <strong>atividade</strong> (já fiz) ou <strong>compromisso</strong> (vou fazer).',
 
+  'pet.duplicate':          '⚠️ <strong>{name}</strong> já está registrado nesse dia e horário. Se quiser mesmo repetir, edite direto no Ritual.',
   'pet.unknown':            `Não entendi. Pra agendar, me diga tudo de uma vez:<br><br>
     <em>"agendar compromisso domingo às 10 horas, título academia, descrição treino de perna"</em><br><br>
     O <strong>título</strong> é o que liga com as suas atividades — é ele que faz contar pro objetivo.<br>

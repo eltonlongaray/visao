@@ -713,8 +713,20 @@ async function routeCommand(text) {
   // "…Título lazer. Descrição aniversário" — os rótulos saem do comando pra
   // não virarem parte do nome, e voltam na hora de gravar.
   const campos = extrairCampos(text);
+
+  // COMANDO NOVO ZERA O DITADO. Sem isto os campos do comando anterior
+  // sobreviviam numa variável de módulo e vazavam pro seguinte: um "agendar
+  // compromisso" simples herdava o "descrição aniversário" de um teste feito
+  // minutos antes. Só uma conversa EM ANDAMENTO (o pet perguntando a hora,
+  // por exemplo) preserva o que já foi dito.
+  const continuandoConversa = !!convState;
+  if (!continuandoConversa) ditado = { titulo: null, descricao: null };
+
   if (campos.titulo || campos.descricao) {
-    ditado = { titulo: campos.titulo, descricao: campos.descricao };
+    ditado = {
+      titulo: campos.titulo || (continuandoConversa ? ditado.titulo : null),
+      descricao: campos.descricao || (continuandoConversa ? ditado.descricao : null),
+    };
     text = campos.comando;
   }
   const tl = text.toLowerCase();
@@ -1114,9 +1126,8 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card">
-      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong>${
-        ditado.descricao ? ` <span class="pet-preview-desc">(${ditado.descricao})</span>` : ''
-      }</span>
+      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
+      ${ditado.descricao ? `<span class="pet-preview-desc">${ditado.descricao}</span>` : ''}
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
@@ -1126,6 +1137,19 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
     btn.disabled = true;
     btn.textContent = t('pet.preview.registering');
     try {
+      // Já existe igual nesse dia? Registrar de novo cria duas linhas na
+      // agenda e, pior, conta duas vezes pro objetivo quando o alvo é "x
+      // vezes no mesmo dia". Melhor avisar do que deixar a pessoa descobrir
+      // depois, olhando um número que não bate.
+      const jaTem = (await getDayTasks(dayId(date)))
+        .some(tk => _limpoTxt(tk.title) === _limpoTxt(name)
+                 && (!time || (tk.startTime || '') === time));
+      if (jaTem) {
+        btn.disabled = false;
+        btn.textContent = `${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}`;
+        addMessage(t('pet.duplicate', { name }), 'bot');
+        return;
+      }
       await executeRegistro(name, done, date, time, ditado.descricao || '');
       btn.textContent = t('pet.preview.done');
       btn.classList.add('pet-reg-done');
@@ -1195,6 +1219,11 @@ function _acharCategoria(cats, texto) {
   return cats.find(c => limpo(c.name) === alvo)
       || cats.find(c => limpo(c.name) && alvo.includes(limpo(c.name)))
       || null;
+}
+
+function _limpoTxt(v) {
+  return String(v || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 // Escolhe o turno pelo horário — compara contra nomes armazenados em PT no Firestore
