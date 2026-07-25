@@ -159,36 +159,29 @@ export function petGuideTo(rect) {
     const centroX = (vis.left + vis.right) / 2;
     const centroY = (vis.top + vis.bottom) / 2;
     const larguraAlvo = vis.right - vis.left;
-    const alvoAlto  = (vis.bottom - vis.top) > vh * 0.45;
-    // "Largo" = ocupa quase a tarja toda. Aí não sobra faixa lateral pro pet
-    // ficar ao lado com distância pra apontar — ele vai por CIMA ou por BAIXO,
-    // onde o olhar tem curso pra mirar de verdade. Era o caso das telas do
-    // Elton: card largo, pet colado na direita, olhar sem para onde ir.
-    const alvoLargo = larguraAlvo > vw * 0.62;
+    const alvoAlto  = (vis.bottom - vis.top) > vh * 0.55;   // card do dia no Ritual
+    const alvoLargo = larguraAlvo > vw * 0.62;              // card que ocupa a tarja
 
-    const folgaDir = (vw - 8) - (rect.right + GAP + TAM);
-    const folgaEsq = (rect.left - GAP - TAM) - 8;
-
-    if (!alvoLargo && (folgaDir >= 0 || folgaEsq >= 0)) {
-      // Cabe ao lado com folga: vai pro lado de MAIOR distância, que é de onde
-      // o olhar cruza mais tela e aponta melhor.
-      x = folgaEsq > folgaDir ? rect.left - GAP - TAM : rect.right + GAP;
-      const desloc = Math.min((vis.bottom - vis.top) / 2 + TAM * 0.5, 95);
-      y = (centroY < vh / 2 ? centroY + desloc : centroY - desloc) - TAM / 2;
+    if (alvoAlto) {
+      // Card muito alto: pet no topo, na altura do × de fechar, pra não tapar
+      // o começo do conteúdo.
+      x = 8;
+      const bx = document.querySelector('.tour2-floating-x')?.getBoundingClientRect();
+      y = bx ? bx.top + (bx.height - TAM) / 2 : 14;
+    } else if (alvoLargo) {
+      // Card largo (Avisos, Desafios...): pet na LATERAL ESQUERDA, na mesma
+      // altura do centro. O olhar sai reto pro meio do card — que é a leitura
+      // de "está olhando pra marcação". À direita ele parecia deslocado.
+      x = 8;
+      y = centroY - TAM / 2;
     } else {
-      // Alvo largo (ou sem faixa lateral): pet ACIMA se o alvo está na metade
-      // de baixo, ABAIXO se está na de cima — sempre olhando pra ele. E
-      // deslocado pro lado do centro pra dar diagonal, nunca reto pra cima.
-      x = centroX <= vw / 2 ? Math.min(vis.right + GAP, vw - TAM - 8)
-                            : Math.max(vis.left - GAP - TAM, 8);
-      x = Math.max(8, Math.min(x, vw - TAM - 8));
-      if (centroY < vh / 2) {
-        // alvo em cima → pet logo abaixo dele
-        y = Math.min(vis.bottom + GAP, maxY);
-      } else {
-        // alvo embaixo → pet logo acima
-        y = Math.max(vis.top - GAP - TAM, 12);
-      }
+      // Alvo estreito (toggle, botão): pet à ESQUERDA e no vertical OPOSTO —
+      // alvo em cima → pet abaixo; alvo embaixo → pet acima. Isso cria a
+      // diagonal: reto embaixo do alvo, o olhar caía pra baixo, longe dele.
+      x = rect.left - GAP - TAM;
+      if (x < 8) x = Math.min(rect.right + GAP, vw - TAM - 8);  // não cabe à esquerda → direita
+      y = centroY < vh / 2 ? Math.min(vis.bottom + GAP, maxY)
+                           : Math.max(vis.top - GAP - TAM, 12);
     }
     mira = { x: centroX, y: alvoAlto ? Math.min(centroY, vis.top + vh * 0.3) : centroY };
   }
