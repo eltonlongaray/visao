@@ -176,7 +176,15 @@ export function petGuideTo(rect) {
       const desloc = Math.min((vis.bottom - vis.top) / 2 + TAM * 0.5, 95);
       y = (centroY < vh / 2 ? centroY + desloc : centroY - desloc) - TAM / 2;
     }
-    mira = { x: centroX, y: alvoAlto ? Math.min(centroY, vis.top + vh * 0.3) : centroY };
+    // A mira aponta pra BORDA do alvo virada pro pet, não pro centro. Como o
+    // pet fica ao LADO do alvo, o centro dele cai quase na mesma linha do
+    // centro do alvo — vetor curtinho e vertical, e a pupila mal se mexia,
+    // dando a impressão de que ele olha pro nada. Mirando a borda mais
+    // próxima, o olhar cruza a tela na direção certa e "aponta" pro destaque.
+    const petCX = x + TAM / 2;
+    const bordaX = petCX > centroX ? vis.right : vis.left;  // olho vai pra dentro do alvo
+    const miraY = alvoAlto ? Math.min(centroY, vis.top + vh * 0.28) : centroY;
+    mira = { x: bordaX, y: miraY };
   }
 
   x = Math.max(8, Math.min(x, vw - TAM - 8));
