@@ -288,7 +288,7 @@ export const ONBOARDING_STEPS = [
     target: '.ds-topo',
     holePad: 8,
     title: 'Crie ou entre num desafio',
-    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não conclui paga uma prenda 🎭 — combinada antes, pra animar a galera.',
+    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não manter a constância, perde o jogo e paga a prenda.',
     primaryBtn: 'Próximo →'
   },
 
@@ -333,7 +333,7 @@ export const ONBOARDING_STEPS = [
     target: '#accPerfil',
     holePad: 8,
     title: '👤 Seu perfil',
-    message: 'Se quiser, me conte seu nome, aniversário e WhatsApp. Uso só pra te dar suporte, comemorar seu dia e te manter informado sobre sua comunidade Falcon Hunters. Você é livre — e pode remover quando quiser.',
+    message: 'Se quiser, me conte seu nome, aniversário e WhatsApp. Uso só pra te dar suporte, comemorar seu dia e te manter informado sobre sua comunidade Falcon Hunters. Você é livre, pode remover seus dados quando quiser.',
     primaryBtn: 'Próximo →'
   },
 

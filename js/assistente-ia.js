@@ -341,6 +341,9 @@ function buildPetHTML() {
       <div class="pet-msg pet-msg-bot">
         <span>${t('pet.greeting')}</span>
       </div>
+      <div class="pet-msg pet-msg-bot">
+        <button class="pet-ensina-btn" id="pet-ensina-agendar">📅 Como agendar uma atividade?</button>
+      </div>
     </div>
 
     <div id="pet-input-row" class="pet-chat-input-row">
@@ -434,6 +437,10 @@ function attachHandlers() {
 
   // Atalhos rápidos via data-pet-cmd (chama função diretamente, sem passar pelo NLP)
   let qaDispatching = false;
+  document.getElementById('pet-messages').addEventListener('click', e => {
+    if (e.target.closest('#pet-ensina-agendar')) ensinarAgendar();
+  });
+
   document.getElementById('pet-quick-actions').addEventListener('click', async e => {
     const btn = e.target.closest('.pet-qa-btn');
     if (!btn || qaDispatching) return;
@@ -454,6 +461,20 @@ function attachHandlers() {
       qaDispatching = false;
     }
   });
+}
+
+// Ensina a agendar em UMA mensagem, com exemplo pronto pra copiar. Passo a
+// passo cansa; um modelo que a pessoa adapta é mais rápido de entender.
+function ensinarAgendar() {
+  addMessage(
+    '📅 <strong>Pra agendar, me diga tudo de uma vez</strong> — por texto ou voz:<br><br>' +
+    '<em>"agendar compromisso sábado às 8 horas, título academia, descrição treino de perna"</em><br><br>' +
+    'Eu separo sozinho:<br>' +
+    '• <strong>o tipo</strong> — compromisso (com hora) ou tarefa<br>' +
+    '• <strong>o dia e a hora</strong><br>' +
+    '• <strong>o título</strong> — é ele que liga com suas atividades e faz contar pros objetivos<br>' +
+    '• <strong>a descrição</strong> — um detalhe, se quiser<br><br>' +
+    'Depois é só tocar em <strong>registrar</strong> na prévia que eu monto. 🦅', 'bot');
 }
 
 function toggleChat() {

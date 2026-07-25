@@ -30,6 +30,7 @@ import {
   saveCategory, fetchDaysRange
 } from '../banco-dados.js';
 import { bottomNav } from '../components/menu-inferior.js';
+import { forceRender } from '../roteador.js';
 import { showToast, showLocalToast, confirmModal } from '../aviso-tela.js';
 import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
@@ -583,6 +584,29 @@ export async function renderRitual(app) {
   // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
   // só dispara se as mensagens da manhã NÃO foram abertas hoje
   maybeShowSovereigntyPrompt();
+
+  ligarViradaDeDia();
+}
+
+// O app fica aberto em segundo plano a noite toda. Ao voltar no dia seguinte,
+// renderRitual NÃO roda de novo (a tela já está montada), então a checagem de
+// virada lá em cima nunca acontecia — e o Ritual seguia rolado no fim do dia
+// de ontem. Aqui a virada é pega no RETORNO do app (visibilitychange), que é
+// o único evento que dispara nesse caso.
+let _viradaLigada = false;
+function ligarViradaDeDia() {
+  if (_viradaLigada) return;
+  _viradaLigada = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!document.querySelector('.ritual-screen')) return;   // não está no Ritual
+    const hoje = dayId(new Date());
+    if (_diaDaMontagem === hoje) return;                      // mesmo dia, nada a fazer
+    // Virou o dia com o app aberto: fecha o de ontem, remonta em hoje no topo.
+    _diaDaMontagem = hoje;
+    expanded.clear();
+    forceRender();
+  });
 }
 
 const SOVEREIGNTY_KEY_PREFIX = 'visao_sovereignty_prompt_dismissed_';

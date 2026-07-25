@@ -6530,3 +6530,12 @@ body.sem-rolagem { overflow: hidden; }
   display: block; color: var(--muted); font-weight: 400;
   font-size: 12px; line-height: 1.35; margin: 1px 0 1px;
 }
+
+/* Botão "Como agendar" na saudação do pet */
+.pet-ensina-btn {
+  background: var(--card-2); border: 1px solid var(--accent);
+  color: var(--accent); border-radius: 14px; padding: 9px 13px;
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  text-align: left; line-height: 1.3;
+}
+.pet-ensina-btn:active { background: rgba(124,58,237,0.15); }
