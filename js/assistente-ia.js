@@ -118,8 +118,11 @@ export function petGuideEnd() {
   el.classList.add('pet-vanish');
   setTimeout(() => {
     el.classList.remove('pet-guiding', 'pet-at-home');
-    el.style.removeProperty('left');
-    el.style.removeProperty('top');
+    // Devolve TUDO que o guia mexeu, não só left/top: right/bottom/align foram
+    // alterados pra corrigir o olho, e sem limpar, o pet nasceria fora do
+    // canto ao terminar o tour. aplicarPosicaoPet redefine na sequência.
+    ['left', 'top', 'right', 'bottom', 'align-items'].forEach(p => el.style.removeProperty(p));
+    aplicarPosicaoPet();
     el.querySelector('.pet-iris-group')?.removeAttribute('transform');
     el.querySelector('.pet-pupil-group')?.removeAttribute('transform');
     el.querySelector('.pet-lid-top')?.setAttribute('ry', LID_RY);
@@ -169,11 +172,12 @@ export function petGuideTo(rect) {
       const bx = document.querySelector('.tour2-floating-x')?.getBoundingClientRect();
       y = bx ? bx.top + (bx.height - TAM) / 2 : 14;
     } else if (alvoLargo) {
-      // Card largo (Avisos, Desafios...): pet na LATERAL ESQUERDA, na mesma
-      // altura do centro. O olhar sai reto pro meio do card — que é a leitura
-      // de "está olhando pra marcação". À direita ele parecia deslocado.
+      // Card largo ocupa a tarja toda — não há lateral livre e, na mesma
+      // altura, o pet cai DENTRO dele. Então fica FORA: canto esquerdo, ACIMA
+      // do card se couber, senão abaixo. O olhar vai em diagonal pro centro.
       x = 8;
-      y = centroY - TAM / 2;
+      y = (vis.top - GAP - TAM >= 12) ? vis.top - GAP - TAM
+                                      : Math.min(vis.bottom + GAP, maxY);
     } else {
       // Alvo estreito (toggle, botão): pet à ESQUERDA e no vertical OPOSTO —
       // alvo em cima → pet abaixo; alvo embaixo → pet acima. Isso cria a
@@ -188,6 +192,13 @@ export function petGuideTo(rect) {
 
   x = Math.max(8, Math.min(x, vw - TAM - 8));
   y = Math.max(12, Math.min(y, maxY));
+  // Limpa right/bottom (deixados por aplicarPosicaoPet) e força o olho pro
+  // COMEÇO do container. O container tem 288px por causa do painel embutido;
+  // com align-items:flex-end o olho ia pra direita DELE e aparecia ~230px à
+  // direita do left que eu setava — anulando todo o cálculo de posição.
+  el.style.right = 'auto';
+  el.style.bottom = 'auto';
+  el.style.alignItems = 'flex-start';
   el.style.left = `${Math.round(x)}px`;
   el.style.top  = `${Math.round(y)}px`;
 
@@ -209,6 +220,11 @@ export function petGuideHome() {
   const x = window.innerWidth  - tam - 14;   // right: 14px
   const y = window.innerHeight - tam - 78;   // bottom: 78px
   el.classList.add('pet-at-home');
+  // mesma base do petGuideTo: olho no início do container, right/bottom limpos,
+  // senão o x calculado do canto direito não bate com onde o olho aparece
+  el.style.right = 'auto';
+  el.style.bottom = 'auto';
+  el.style.alignItems = 'flex-start';
   el.style.left = `${Math.round(x)}px`;
   el.style.top  = `${Math.round(y)}px`;
   _petPos = { x: x + tam / 2, y: y + tam / 2 };
@@ -538,6 +554,11 @@ function _posSalva() {
 function aplicarPosicaoPet(lado, vert) {
   const el = document.getElementById('visao-pet');
   if (!el) return;
+  // Durante o tutorial quem posiciona o pet é petGuideTo. Sem esta guarda, o
+  // hashchange de cada troca de tela do tour re-rodava esta função e resetava
+  // o pet pro canto — anulando o guia. Era por isso que os ajustes de posição
+  // do tour "não mudavam nada".
+  if (el.classList.contains('pet-guiding')) return;
   el.style.display = petEscondido() ? 'none' : '';
   if (petEscondido()) return;
 
