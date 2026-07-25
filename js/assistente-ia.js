@@ -158,33 +158,39 @@ export function petGuideTo(rect) {
     };
     const centroX = (vis.left + vis.right) / 2;
     const centroY = (vis.top + vis.bottom) / 2;
-    const alvoAlto = (vis.bottom - vis.top) > vh * 0.45;
+    const larguraAlvo = vis.right - vis.left;
+    const alvoAlto  = (vis.bottom - vis.top) > vh * 0.45;
+    // "Largo" = ocupa quase a tarja toda. Aí não sobra faixa lateral pro pet
+    // ficar ao lado com distância pra apontar — ele vai por CIMA ou por BAIXO,
+    // onde o olhar tem curso pra mirar de verdade. Era o caso das telas do
+    // Elton: card largo, pet colado na direita, olhar sem para onde ir.
+    const alvoLargo = larguraAlvo > vw * 0.62;
 
-    if (rect.right + GAP + TAM <= vw - 8)      x = rect.right + GAP;       // cabe à direita
-    else if (rect.left - GAP - TAM >= 8)       x = rect.left - GAP - TAM;  // cabe à esquerda
-    else if (alvoAlto)                          x = 8;                      // alvo alto: canto esquerdo
-    else x = centroX <= vw / 2 ? vw - TAM - 8 : 8;    // largo: encosta na borda oposta
+    const folgaDir = (vw - 8) - (rect.right + GAP + TAM);
+    const folgaEsq = (rect.left - GAP - TAM) - 8;
 
-    // Alvo alto → fica junto do TOPO dele (é onde a informação começa).
-    // Senão: alvo em cima → pet embaixo (olha ↑); alvo embaixo → pet em cima (olha ↓).
-    if (alvoAlto) {
-      // Alvo alto (card do dia): sobe pro topo, na mesma altura do × de fechar,
-      // pra não tapar o nome do dia.
-      const bx = document.querySelector('.tour2-floating-x')?.getBoundingClientRect();
-      y = bx ? bx.top + (bx.height - TAM) / 2 : 14;
-    } else {
+    if (!alvoLargo && (folgaDir >= 0 || folgaEsq >= 0)) {
+      // Cabe ao lado com folga: vai pro lado de MAIOR distância, que é de onde
+      // o olhar cruza mais tela e aponta melhor.
+      x = folgaEsq > folgaDir ? rect.left - GAP - TAM : rect.right + GAP;
       const desloc = Math.min((vis.bottom - vis.top) / 2 + TAM * 0.5, 95);
       y = (centroY < vh / 2 ? centroY + desloc : centroY - desloc) - TAM / 2;
+    } else {
+      // Alvo largo (ou sem faixa lateral): pet ACIMA se o alvo está na metade
+      // de baixo, ABAIXO se está na de cima — sempre olhando pra ele. E
+      // deslocado pro lado do centro pra dar diagonal, nunca reto pra cima.
+      x = centroX <= vw / 2 ? Math.min(vis.right + GAP, vw - TAM - 8)
+                            : Math.max(vis.left - GAP - TAM, 8);
+      x = Math.max(8, Math.min(x, vw - TAM - 8));
+      if (centroY < vh / 2) {
+        // alvo em cima → pet logo abaixo dele
+        y = Math.min(vis.bottom + GAP, maxY);
+      } else {
+        // alvo embaixo → pet logo acima
+        y = Math.max(vis.top - GAP - TAM, 12);
+      }
     }
-    // A mira aponta pra BORDA do alvo virada pro pet, não pro centro. Como o
-    // pet fica ao LADO do alvo, o centro dele cai quase na mesma linha do
-    // centro do alvo — vetor curtinho e vertical, e a pupila mal se mexia,
-    // dando a impressão de que ele olha pro nada. Mirando a borda mais
-    // próxima, o olhar cruza a tela na direção certa e "aponta" pro destaque.
-    const petCX = x + TAM / 2;
-    const bordaX = petCX > centroX ? vis.right : vis.left;  // olho vai pra dentro do alvo
-    const miraY = alvoAlto ? Math.min(centroY, vis.top + vh * 0.28) : centroY;
-    mira = { x: bordaX, y: miraY };
+    mira = { x: centroX, y: alvoAlto ? Math.min(centroY, vis.top + vh * 0.3) : centroY };
   }
 
   x = Math.max(8, Math.min(x, vw - TAM - 8));
