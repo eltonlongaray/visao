@@ -18,6 +18,9 @@ function getCtx() {
     ctx = new AC();
   }
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  // Renderiza os cliques em segundo plano assim que houver contexto, pra o
+  // primeiro clique real já sair com som (senão a primeira rolagem é muda).
+  if (typeof _prepararCliques === 'function') _prepararCliques();
   return ctx;
 }
 
@@ -126,63 +129,80 @@ export function playDelete() {
 // decaimento quase instantâneo) + o corpo mecânico do tambor batendo
 // no detente (queda grave e seca). A leve variação aleatória de tom
 // evita o efeito "metralhadora" quando os cliques vêm em sequência.
+// PRÉ-RENDERIZADO. Antes, cada clique montava 10 nós de áudio (ruído +
+// filtro + 4 osciladores + 4 gains). Na rolagem rápida do cinturão eles vinham
+// em rajada e:
+//   • travavam o frame (os 10 nós criados no meio do scroll) → a "tremida"
+//     dos ícones;
+//   • sobrecarregavam o thread de áudio → cliques fora de tempo;
+//   • alguns nem soavam, porque o contexto ainda estava resumindo.
+// Agora o som é renderizado UMA vez em algumas variações e cada clique só
+// dispara um buffer pronto (1 nó). Leve o bastante pra acompanhar a rolagem.
+let _clickBufs = null;
+let _ultimoClick = 0;
+
+function _renderClickBuf(seed) {
+  const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const sr = 44100, dur = 0.09;
+  const oc = new AC(1, Math.ceil(sr * dur), sr);
+  const t = 0;
+  const rnd = (() => { let x = seed * 9973 + 1; return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
+
+  // estalo da trava — ruído em passa-banda alto
+  const nd = Math.ceil(sr * 0.04);
+  const buf = oc.createBuffer(1, nd, sr);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < nd; i++) data[i] = (rnd() * 2 - 1) * Math.pow(1 - i / nd, 9);
+  const src = oc.createBufferSource(); src.buffer = buf;
+  const bp = oc.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.value = 4200 + rnd() * 900; bp.Q.value = 14;
+  const ng = oc.createGain(); ng.gain.value = 0.20;
+  src.connect(bp).connect(ng).connect(oc.destination); src.start(t);
+
+  // ressonância metálica (parciais em razões não inteiras)
+  const base = 1750 + rnd() * 180;
+  for (const [razao, vol, decai] of [[1.00,0.085,0.16],[1.51,0.055,0.13],[2.13,0.038,0.10],[2.87,0.022,0.075]]) {
+    const o = oc.createOscillator(); o.type = 'sine'; o.frequency.value = base * razao;
+    const g = oc.createGain(); g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decai);
+    o.connect(g).connect(oc.destination); o.start(t); o.stop(t + decai + 0.02);
+  }
+  // corpo do mecanismo
+  const osc = oc.createOscillator(); osc.type = 'triangle';
+  osc.frequency.setValueAtTime(320, t); osc.frequency.exponentialRampToValueAtTime(140, t + 0.03);
+  const og = oc.createGain(); og.gain.setValueAtTime(0.10, t);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+  osc.connect(og).connect(oc.destination); osc.start(t); osc.stop(t + 0.05);
+
+  return oc.startRendering();
+}
+
+async function _prepararCliques() {
+  if (_clickBufs) return;
+  _clickBufs = [];   // marca "em preparo" pra não renderizar duas vezes
+  try {
+    _clickBufs = await Promise.all([1, 2, 3, 4].map(_renderClickBuf));
+  } catch { _clickBufs = null; }
+}
+
 export function playClick() {
   if (muted) return;
   const c = getCtx(); if (!c) return;
-  const t = c.currentTime;
 
-  // 1) Estalo da trava — ruído num passa-banda alto e bem estreito.
-  //    Frequência mais alta e Q maior que antes: em vez de "toc" abafado,
-  //    sai o "tec" seco de metal batendo em metal.
-  const dur = 0.04;
-  const buf = c.createBuffer(1, Math.max(1, Math.ceil(c.sampleRate * dur)), c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 9);
-  }
+  // Trava anti-metralhadora: em rolagem muito rápida os cliques chegavam
+  // colados e viravam ruído. 40ms deixa passar ~25/s, que ainda soa contínuo.
+  const agora = performance.now();
+  if (agora - _ultimoClick < 40) return;
+  _ultimoClick = agora;
+
+  if (!_clickBufs) { _prepararCliques(); return; }   // primeira vez: prepara e sai
+  if (!_clickBufs.length) return;
+
+  const buf = _clickBufs[(Math.random() * _clickBufs.length) | 0];
   const src = c.createBufferSource();
   src.buffer = buf;
-  const bp = c.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = 4200 + Math.random() * 900;
-  bp.Q.value = 14;
-  const ng = c.createGain();
-  ng.gain.value = 0.20;
-  src.connect(bp).connect(ng).connect(c.destination);
-  src.start(t);
-
-  // 2) A RESSONÂNCIA DO METAL — o que faz soar metálico e não seco.
-  //    Parciais em razões NÃO inteiras (1 : 1,51 : 2,13 : 2,87), como numa
-  //    barra de metal percutida. Razões inteiras soariam afinadas, tipo sino
-  //    de brinquedo; as quebradas é que dão o timbre de aço.
-  const base = 1750 + Math.random() * 180;
-  const parciais = [
-    [1.00, 0.085, 0.16],
-    [1.51, 0.055, 0.13],
-    [2.13, 0.038, 0.10],
-    [2.87, 0.022, 0.075],
-  ];
-  for (const [razao, vol, decai] of parciais) {
-    const o = c.createOscillator();
-    o.type = 'sine';
-    o.frequency.value = base * razao;
-    const g = c.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + decai);
-    o.connect(g).connect(c.destination);
-    o.start(t);
-    o.stop(t + decai + 0.02);
-  }
-
-  // 3) Corpo do mecanismo — bem curto e discreto, só pra dar peso ao impacto.
-  const osc = c.createOscillator();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(320, t);
-  osc.frequency.exponentialRampToValueAtTime(140, t + 0.03);
-  const og = c.createGain();
-  og.gain.setValueAtTime(0.10, t);
-  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
-  osc.connect(og).connect(c.destination);
-  osc.start(t);
-  osc.stop(t + 0.05);
+  // leve variação de tom pra não soar idêntico a cada clique
+  src.playbackRate.value = 0.97 + Math.random() * 0.06;
+  src.connect(c.destination);
+  src.start();
 }
