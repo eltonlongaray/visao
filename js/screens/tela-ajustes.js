@@ -17,7 +17,7 @@ import { deleteMyAccount } from '../excluir-conta.js';
 import { getProfile, setProfile } from '../banco-dados.js';
 import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
-import { markPerfilDone } from '../contato-perfil.js';
+import { markPerfilDone, isPerfilDone } from '../contato-perfil.js';
 import { trocarMinhaFoto, removerMinhaFoto } from '../chat.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
 import { resetDesafiosSeen } from '../desafios.js';
@@ -143,7 +143,7 @@ export async function renderAjustes(app) {
             <button class="btn-primary" id="perfSave">Salvar</button>
             <button class="btn-secondary" id="perfRemove" style="color:var(--red)">Remover meus dados</button>
           </div>
-        `, { open: true, id: 'accPerfil' })}
+        `, { open: !isPerfilDone(), id: 'accPerfil' })}
 
         ${acc('💬 Sugerir melhoria', `
           <div class="ajustes-row-sub" style="padding:10px 12px 6px">

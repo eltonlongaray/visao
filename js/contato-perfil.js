@@ -23,6 +23,12 @@ export function markPerfilDone() {
   const s = _state(); s.done = true; _save(s);
 }
 
+// Já preenchido alguma vez? Usado pra decidir se o card de perfil nasce
+// aberto (primeira vez, vazio) ou fechado (já preencheu, abre só se tocar).
+export function isPerfilDone() {
+  return !!_state().done;
+}
+
 // Chamado na Home. Decide se e qual convite mostrar, respeitando a cadência.
 export async function maybeInvitePerfil() {
   if (_open) return;

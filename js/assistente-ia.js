@@ -337,11 +337,12 @@ function buildPetHTML() {
       <button class="pet-qa-btn" data-pet-cmd="tasks">✅ ${t('pet.qa.tasks')}</button>
     </div>
 
-    <button class="pet-ajuda-btn" id="pet-ajuda">❓ Ajuda — o que dá pra fazer</button>
-
     <div class="pet-chat-messages" id="pet-messages">
       <div class="pet-msg pet-msg-bot">
         <span>${t('pet.greeting')}</span>
+      </div>
+      <div class="pet-msg pet-msg-bot">
+        <button class="pet-ajuda-btn" id="pet-ajuda">❓ Ajuda — o que dá pra fazer</button>
       </div>
     </div>
 
@@ -436,11 +437,10 @@ function attachHandlers() {
 
   // Atalhos rápidos via data-pet-cmd (chama função diretamente, sem passar pelo NLP)
   let qaDispatching = false;
-  document.getElementById('pet-ajuda').addEventListener('click', menuAjuda);
   document.getElementById('pet-messages').addEventListener('click', e => {
-    if (e.target.closest('#aj-agendar')) ensinarAgendar();
+    if (e.target.closest('#pet-ajuda')) menuAjuda();
+    else if (e.target.closest('#aj-agendar')) ensinarAgendar();
     else if (e.target.closest('#aj-editar')) ensinarEditar();
-    else if (e.target.closest('#aj-tudo')) addMessage(cmdAjuda(), 'bot');
   });
 
   document.getElementById('pet-quick-actions').addEventListener('click', async e => {
@@ -476,7 +476,6 @@ function menuAjuda() {
     <strong>O que você quer fazer?</strong>
     <button class="pet-ajuda-op" id="aj-agendar">📅 Agendar uma atividade</button>
     <button class="pet-ajuda-op" id="aj-editar">✏️ Editar ou reagendar</button>
-    <button class="pet-ajuda-op" id="aj-tudo">🦅 Ver tudo que eu faço</button>
   </span>`;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
