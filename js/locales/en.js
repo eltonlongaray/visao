@@ -305,7 +305,7 @@ export default {
   'pet.qa.streak':          'Streak',
   'pet.qa.water':           'Water',
   'pet.qa.tasks':           'Tasks',
-  'pet.greeting':           'Hi! Tap a shortcut or type a command. Type <strong>help</strong> to see everything.',
+  'pet.greeting':           'Hey! Tap a shortcut above to check something, or <strong>Help</strong> below to run a command.',
   'pet.placeholder':        'Type a command...',
   'pet.mic.title':          'Speak',
   'pet.mic.label':          'Microphone',

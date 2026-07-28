@@ -305,7 +305,7 @@ export default {
   'pet.qa.streak':          'Racha',
   'pet.qa.water':           'Agua',
   'pet.qa.tasks':           'Tareas',
-  'pet.greeting':           '¡Hola! Toca un acceso rápido o escribe un comando. Escribe <strong>ayuda</strong> para ver todo.',
+  'pet.greeting':           '¡Hola! Toca un atajo arriba para consultar, o <strong>Ayuda</strong> abajo para ejecutar un comando.',
   'pet.placeholder':        'Escribe un comando...',
   'pet.mic.title':          'Hablar',
   'pet.mic.label':          'Micrófono',

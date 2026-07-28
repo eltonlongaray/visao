@@ -337,12 +337,11 @@ function buildPetHTML() {
       <button class="pet-qa-btn" data-pet-cmd="tasks">✅ ${t('pet.qa.tasks')}</button>
     </div>
 
+    <button class="pet-ajuda-btn" id="pet-ajuda">❓ Ajuda — o que dá pra fazer</button>
+
     <div class="pet-chat-messages" id="pet-messages">
       <div class="pet-msg pet-msg-bot">
         <span>${t('pet.greeting')}</span>
-      </div>
-      <div class="pet-msg pet-msg-bot">
-        <button class="pet-ensina-btn" id="pet-ensina-agendar">📅 Como agendar uma atividade?</button>
       </div>
     </div>
 
@@ -437,8 +436,11 @@ function attachHandlers() {
 
   // Atalhos rápidos via data-pet-cmd (chama função diretamente, sem passar pelo NLP)
   let qaDispatching = false;
+  document.getElementById('pet-ajuda').addEventListener('click', menuAjuda);
   document.getElementById('pet-messages').addEventListener('click', e => {
-    if (e.target.closest('#pet-ensina-agendar')) ensinarAgendar();
+    if (e.target.closest('#aj-agendar')) ensinarAgendar();
+    else if (e.target.closest('#aj-editar')) ensinarEditar();
+    else if (e.target.closest('#aj-tudo')) addMessage(cmdAjuda(), 'bot');
   });
 
   document.getElementById('pet-quick-actions').addEventListener('click', async e => {
@@ -461,6 +463,32 @@ function attachHandlers() {
       qaDispatching = false;
     }
   });
+}
+
+// Menu de Ajuda: EXECUTAR comandos (diferente dos atalhos de cima, que só
+// CONSULTAM). Três opções em botões clicáveis, cada uma abre o como-fazer.
+function menuAjuda() {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `<span class="pet-ajuda-menu">
+    <strong>O que você quer fazer?</strong>
+    <button class="pet-ajuda-op" id="aj-agendar">📅 Agendar uma atividade</button>
+    <button class="pet-ajuda-op" id="aj-editar">✏️ Editar ou reagendar</button>
+    <button class="pet-ajuda-op" id="aj-tudo">🦅 Ver tudo que eu faço</button>
+  </span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function ensinarEditar() {
+  addMessage(
+    '✏️ <strong>Pra mudar uma atividade que já existe</strong>, me diga o que trocar:<br><br>' +
+    '• <em>"editar nome da tarefa academia para musculação"</em><br>' +
+    '• <em>"editar horário do compromisso reunião para 15h"</em><br>' +
+    '• <em>"reagendar tarefa mercado para sexta"</em><br><br>' +
+    'Eu acho a atividade pelo nome e aplico a mudança. 🦅', 'bot');
 }
 
 // Ensina a agendar em UMA mensagem, com exemplo pronto pra copiar. Passo a

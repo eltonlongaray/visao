@@ -288,7 +288,7 @@ export const ONBOARDING_STEPS = [
     target: '.ds-topo',
     holePad: 8,
     title: 'Crie ou entre num desafio',
-    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não manter a constância, perde o jogo e paga a prenda.',
+    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não manter a constância, perde o jogo e paga uma prenda!',
     primaryBtn: 'Próximo →'
   },
 

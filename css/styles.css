@@ -5684,12 +5684,12 @@ body.tour-active { overflow: hidden; }
 .pet-quick-actions::-webkit-scrollbar { display: none; }
 .pet-qa-btn {
   white-space: nowrap;
-  background: var(--card-3);
-  border: 1px solid var(--border);
+  background: rgba(124,58,237,0.14);
+  border: 1px solid rgba(167,139,250,0.55);
   border-radius: 20px;
-  padding: 5px 10px;
-  font-size: 11px;
-  color: var(--text);
+  padding: 6px 11px;
+  font-size: 11.5px; font-weight: 600;
+  color: #c4b5fd;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
@@ -6531,11 +6531,24 @@ body.sem-rolagem { overflow: hidden; }
   font-size: 12px; line-height: 1.35; margin: 1px 0 1px;
 }
 
-/* Botão "Como agendar" na saudação do pet */
-.pet-ensina-btn {
-  background: var(--card-2); border: 1px solid var(--accent);
-  color: var(--accent); border-radius: 14px; padding: 9px 13px;
-  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-  text-align: left; line-height: 1.3;
+/* Botão Ajuda: cheio (accent), pra separar bem de "consultar" (atalhos) e
+   dizer "aqui é executar comando". */
+.pet-ajuda-btn {
+  display: block; width: calc(100% - 24px); margin: 8px 12px 4px;
+  background: var(--accent); border: none; color: #fff;
+  border-radius: 14px; padding: 11px 14px;
+  font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
-.pet-ensina-btn:active { background: rgba(124,58,237,0.15); }
+.pet-ajuda-btn:active { filter: brightness(1.1); }
+/* Menu que abre ao tocar em Ajuda */
+.pet-ajuda-menu { display: flex; flex-direction: column; gap: 6px; }
+.pet-ajuda-menu strong { font-size: 13px; margin-bottom: 2px; }
+.pet-ajuda-op {
+  background: var(--card-2); border: 1px solid rgba(167,139,250,0.5);
+  color: var(--text); border-radius: 12px; padding: 10px 12px;
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  text-align: left;
+}
+.pet-ajuda-op:active { background: rgba(124,58,237,0.16); }
+
+:root[data-theme="light"] .pet-qa-btn { color: #6d28d9; background: rgba(124,58,237,0.1); }
