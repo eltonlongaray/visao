@@ -2069,7 +2069,6 @@ body.time-picker-open { overflow: hidden; }
 .aviso-textarea { resize: vertical; min-height: 72px; }
 
 /* ─── Desafios ─── */
-.desafios-card .reminders-icon { background: rgba(245,158,11,0.20); } /* dourado */
 .desafio-list {
   display: flex; flex-direction: column; gap: 12px; margin-top: 4px;
   max-height: 52vh; overflow-y: auto;

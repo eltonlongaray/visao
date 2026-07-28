@@ -84,18 +84,6 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 5. HOME: Desafios (a vitrine) ──
-  {
-    id: 'home-desafios',
-    route: '/home',
-    target: '#desafios-card',
-    holePad: 8,
-    noCollapse: true,
-    title: '🏆 Desafios',
-    message: 'Aqui eu te mostro o que está "em jogo": os desafios abertos pra você entrar. O desafio em si acontece na aba Desafios — já te levo lá.',
-    primaryBtn: 'Próximo →'
-  },
-
   // ── 6. HOME: Lembretes da semana ──
   {
     id: 'home-lembretes',
@@ -337,20 +325,20 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 16.5. AJUSTES: notificações ──
+  // ── 16.5. AJUSTES: sugerir melhoria ──
   {
-    id: 'ajustes-notif',
+    id: 'ajustes-sugestao',
     route: '/ajustes',
     noCollapse: true,
     prepare: async () => {
-      const el = await esperarEl('#accNotif');
+      const el = await esperarEl('#accSugestao');
       if (el) { el.scrollIntoView({ block: 'center' }); await wait(250); }
     },
-    target: '#accNotif',
+    target: '#accSugestao',
     noScroll: true,
     holePad: 8,
-    title: '🔔 Notificações',
-    message: 'É aqui que você testa se os lembretes estão chegando e silencia o som quando precisar. Se algo não chegar, tem um guia passo a passo — <strong>quase sempre é uma permissão do celular</strong>, não do app.',
+    title: '💬 Sua voz constrói o Falcon',
+    message: 'Teve uma ideia pra melhorar o app? Me conta aqui. Eu leio de verdade — muita coisa que você usa hoje nasceu de sugestão de quem tá na comunidade.',
     primaryBtn: 'Próximo →'
   },
 

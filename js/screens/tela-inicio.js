@@ -37,8 +37,6 @@ import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
-import { loadDesafiosDot } from '../desafios.js';
-import { openDesafiosVitrine } from '../desafios-vitrine.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 
 
@@ -113,15 +111,6 @@ export async function renderHome(app) {
       </button>
 
       <!-- DESAFIOS (engajamento em grupo) -->
-      <button class="reminders-card desafios-card" id="desafios-card" type="button">
-        <div class="reminders-icon">🏆</div>
-        <div class="reminders-text">
-          <div class="reminders-title">${t('home.desafios.title')}</div>
-          <div class="reminders-sub">${t('home.desafios.sub')}</div>
-        </div>
-        <div class="msgs-dot" id="desafios-dot" style="display:none"></div>
-      </button>
-
       <!-- LEMBRETES DA SEMANA -->
       <button class="reminders-card" id="reminders-card" type="button">
         <div class="reminders-icon">🔔</div>
@@ -175,7 +164,6 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
   loadAvisosDot();
-  loadDesafiosDot();
 
   // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
@@ -412,7 +400,6 @@ function attachHandlers() {
   document.getElementById('add-cat').addEventListener('click', () => openCategoryEditor(null));
   document.getElementById('reminders-card').addEventListener('click', openRemindersModal);
   document.getElementById('avisos-card').addEventListener('click', openAvisosModal);
-  document.getElementById('desafios-card').addEventListener('click', openDesafiosVitrine);
 
   // Card de mensagens — abre o modal e marca como lido (some a bolinha do dia)
   document.getElementById('morning-msgs-card').addEventListener('click', () => {
