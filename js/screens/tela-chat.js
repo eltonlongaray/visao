@@ -479,7 +479,7 @@ function blocoArquivo(m, minha = false) {
     // reprodução ficam em montarPlayersAudio/togglePlayAudio.
     const nome = perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão';
     return `<div class="msg-audio ${minha ? 'au-minha' : ''}" data-audio="${esc(url)}" data-path="${esc(m.arquivo_path)}">
-      <button type="button" class="au-play" aria-label="Tocar">▶</button>
+      <button type="button" class="au-play" aria-label="Tocar"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M8 6.4 L18 12 L8 17.6 Z"/></svg></button>
       <div class="au-mid">
         <div class="au-onda" aria-hidden="true"></div>
         <span class="au-tempo">0:00</span>
@@ -621,84 +621,102 @@ async function _decodificarEl(el) {
   } catch (e) { console.warn('[audio] decode', e?.message || e); }
 }
 
-// posição ATUAL na faixa (em segundos), levando a velocidade em conta
+// Reprodução via <audio> alimentado por um WAV gerado do buffer decodificado.
+// Por quê: (1) o webm do MediaRecorder não tem duração no cabeçalho e cortava
+// no <audio> — o WAV tem cabeçalho certo e toca inteiro; (2) a playbackRate do
+// AudioBufferSourceNode (abordagem anterior) mudava o TOM ao acelerar. O
+// <audio> com preservesPitch acelera SEM afinar a voz.
+let _audioEl = null;
+function _audioTag() {
+  if (!_audioEl) {
+    _audioEl = new Audio();
+    _audioEl.preload = 'auto';
+    _audioEl.addEventListener('ended', () => { if (tocando) _resetAudioEl(tocando.el); });
+  }
+  return _audioEl;
+}
+function _preservarTom(a) { a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; }
 function _posTrack() {
   if (!tocando) return 0;
   if (!tocando.ativo) return tocando.offset || 0;
-  return Math.min(tocando.dur, (_ctx().currentTime - tocando.inicio) * (tocando.vel || 1));
+  return _audioTag().currentTime;
 }
-// cria o source do zero a partir de um ponto (offset em segundos da faixa). A
-// playbackRate de um AudioBufferSourceNode não muda sem recriar, então trocar
-// de velocidade também passa por aqui.
-function _iniciarSource(el, info, offTrack) {
-  const ctx = _ctx();
-  const src = ctx.createBufferSource();
-  src.buffer = info.buffer;
-  src.playbackRate.value = _velAudio;
-  src.connect(ctx.destination);
-  src.start(0, offTrack);
-  tocando = {
-    el, path: el.dataset.path, src, dur: info.dur, vel: _velAudio,
-    inicio: ctx.currentTime - (offTrack / _velAudio), offset: offTrack, ativo: true, _pausa: false, raf: 0,
-  };
-  src.onended = () => { if (tocando && tocando.el === el && !tocando._pausa) _resetAudioEl(el); };
-  el.classList.add('tocando');
-  const pill = el.querySelector('.au-vel');
-  if (pill) pill.textContent = _rotVel(_velAudio);
-  _btnPlay(el, true);
-  _animarAudio();
+// PCM decodificado → WAV (16-bit mono). Gerado só quando a faixa toca de fato.
+function bufferParaWavURL(buffer) {
+  const ch = buffer.getChannelData(0);
+  const sr = buffer.sampleRate, len = ch.length;
+  const ab = new ArrayBuffer(44 + len * 2);
+  const dv = new DataView(ab);
+  const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + len * 2, true); wr(8, 'WAVE');
+  wr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  wr(36, 'data'); dv.setUint32(40, len * 2, true);
+  let off = 44;
+  for (let i = 0; i < len; i++) { const s = Math.max(-1, Math.min(1, ch[i])); dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2; }
+  return URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+}
+function _garantirWav(info) {
+  if (!info.wav && info.buffer) info.wav = bufferParaWavURL(info.buffer);
+  return info.wav;
 }
 
 async function togglePlayAudio(el) {
   if (!el) return;
   if (tocando && tocando.el === el && tocando.ativo) { pausarAudio(); return; }
   const retomar = tocando && tocando.el === el && !tocando.ativo;
-  const offTrack = retomar ? (tocando.offset || 0) : 0;
-  if (!retomar) _velAudio = 1;   // faixa nova começa sempre no 1× (normal)
   if (tocando && tocando.el !== el) _resetAudioEl(tocando.el);   // uma faixa por vez
+  if (!retomar) _velAudio = 1;   // faixa nova começa no 1× (normal)
   let info;
   try { info = await prepararAudio(el.dataset.path, el.dataset.audio); }
   catch { showToast('Não deu pra abrir o áudio.', 'info'); return; }
-  const ctx = _ctx();
-  if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
-  _iniciarSource(el, info, offTrack);
+  const a = _audioTag();
+  const wav = _garantirWav(info);
+  const pos = retomar ? (tocando.offset || 0) : 0;
+  if (!a.src || a.src !== wav) a.src = wav;
+  _preservarTom(a);
+  a.playbackRate = _velAudio;
+  try { a.currentTime = pos; } catch {}
+  tocando = { el, path: el.dataset.path, dur: info.dur, vel: _velAudio, offset: pos, ativo: true, raf: 0 };
+  el.classList.add('tocando');
+  const pill = el.querySelector('.au-vel'); if (pill) pill.textContent = _rotVel(_velAudio);
+  _btnPlay(el, true);
+  try { await a.play(); } catch { /* bloqueio de autoplay: o toque já é gesto */ }
+  _animarAudio();
 }
 function pausarAudio() {
   if (!tocando || !tocando.ativo) return;
-  tocando.offset = _posTrack();
-  tocando._pausa = true; tocando.ativo = false;
-  try { tocando.src.stop(); } catch {}
+  const a = _audioTag();
+  try { a.pause(); } catch {}
+  tocando.offset = a.currentTime;
+  tocando.ativo = false;
   cancelAnimationFrame(tocando.raf);
   _btnPlay(tocando.el, false);
-  // mantém a classe 'tocando': o progresso e a pill de velocidade continuam à mostra
+  // mantém a classe 'tocando': progresso e pill de velocidade continuam à mostra
 }
-// Toca ali de novo troca a velocidade (1 → 1.5 → 2 → 1), reiniciando do ponto.
+// Toca ali de novo → 1 → 1.5 → 2 → 1. Muda a rate ao vivo (preservesPitch
+// mantém o tom), sem recriar nem cortar.
 function ciclarVelocidade() {
   _velAudio = _ORDEM_VEL[(_ORDEM_VEL.indexOf(_velAudio) + 1) % _ORDEM_VEL.length];
   document.querySelectorAll('.au-vel').forEach(b => b.textContent = _rotVel(_velAudio));
-  if (tocando && tocando.ativo) {
-    const info = audioBuffers.get(tocando.path);
-    const el = tocando.el;
-    const pos = _posTrack();
-    tocando._pausa = true; try { tocando.src.stop(); } catch {}
-    cancelAnimationFrame(tocando.raf);
-    if (info) _iniciarSource(el, info, pos);
+  if (tocando) {
+    tocando.vel = _velAudio;
+    const a = _audioTag(); _preservarTom(a); a.playbackRate = _velAudio;
   }
 }
 function _animarAudio() {
   if (!tocando || !tocando.ativo) return;
-  const pos = _posTrack();
+  const pos = _audioTag().currentTime;
   const ratio = tocando.dur ? Math.min(1, pos / tocando.dur) : 0;
   _pintarProgresso(tocando.el, ratio);
   const t = tocando.el.querySelector('.au-tempo');
   if (t) t.textContent = _mmssSeg(pos);
-  if (pos >= tocando.dur) { _resetAudioEl(tocando.el); return; }
   tocando.raf = requestAnimationFrame(_animarAudio);
 }
 function _resetAudioEl(el) {
   if (tocando && tocando.el === el) {
     cancelAnimationFrame(tocando.raf);
-    if (tocando.ativo) { tocando._pausa = true; try { tocando.src.stop(); } catch {} }
+    try { _audioTag().pause(); } catch {}
     tocando = null;
   }
   _btnPlay(el, false);
@@ -708,9 +726,11 @@ function _resetAudioEl(el) {
   const info = audioBuffers.get(el.dataset.path);
   if (t && info) t.textContent = _mmssSeg(info.dur);
 }
+const SVG_PLAY = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M8 6.4 L18 12 L8 17.6 Z"/></svg>`;
+const SVG_PAUSE = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="2"/><rect x="13.5" y="5" width="4" height="14" rx="2"/></svg>`;
 function _btnPlay(el, ativo) {
   const b = el.querySelector('.au-play');
-  if (b) b.textContent = ativo ? '⏸' : '▶';
+  if (b) b.innerHTML = ativo ? SVG_PAUSE : SVG_PLAY;
 }
 function _pintarProgresso(el, ratio) {
   const barras = el.querySelectorAll('.au-barra');
