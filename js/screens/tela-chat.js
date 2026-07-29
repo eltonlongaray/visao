@@ -1179,7 +1179,14 @@ function _uiSegurando() {
     <span class="grava-ponto"></span>
     <span class="grava-tempo" id="grava-tempo">${_mmss(_decorrido())}</span>
     <span class="grava-cancelar-dica">‹ arraste para cancelar</span>
-    <span class="grava-trava-dica" aria-hidden="true">🔒</span>`;
+    <div class="grava-cadeado" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="11" width="14" height="10" rx="2"/>
+        <path class="cad-arco" d="M8 11V8a4 4 0 0 1 8 0v3"/>
+      </svg>
+      <span class="grava-seta-cima">⌃</span>
+    </div>`;
 }
 function _uiArmar(on) {
   const box = _gravaBox(); if (!box) return;
