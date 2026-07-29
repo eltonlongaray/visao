@@ -473,8 +473,10 @@ function blocoArquivo(m) {
   if (!url) return `<div class="msg-arq msg-arq-vazio">carregando…</div>`;
 
   if (mime.startsWith('audio/')) {
+    // preload=metadata (não 'none') pra o loadedmetadata disparar e a correção
+    // de duração do webm rodar antes de a pessoa dar play.
     return `<div class="msg-audio">
-      <audio controls preload="none" src="${esc(url)}"></audio>
+      <audio controls preload="metadata" src="${esc(url)}"></audio>
     </div>`;
   }
   const nome = m.arquivo_nome || 'arquivo';
@@ -503,6 +505,25 @@ async function carregarArquivos(msgs) {
   if (!faltando.length) return;
   const novas = await assinarArquivos(faltando);
   novas.forEach((url, caminho) => arquivos.set(caminho, url));
+}
+
+// webm do MediaRecorder não guarda a duração no cabeçalho: o <audio> pensa que
+// dura 0:00 e corta a reprodução antes do fim. Pular UMA vez pro fim força o
+// navegador a ler a duração real; aí voltamos pro começo e a faixa toca inteira.
+function corrigirDuracaoAudios(escopo) {
+  const raiz = escopo || document;
+  raiz.querySelectorAll('.msg-audio audio:not([data-durfix])').forEach(a => {
+    a.dataset.durfix = '1';
+    const fix = () => {
+      if (a.duration === Infinity || Number.isNaN(a.duration)) {
+        const volta = () => { a.currentTime = 0; a.removeEventListener('timeupdate', volta); };
+        a.addEventListener('timeupdate', volta);
+        try { a.currentTime = 1e101; } catch { /* alguns navegadores recusam o salto */ }
+      }
+    };
+    if (a.readyState > 0) fix();
+    else a.addEventListener('loadedmetadata', fix, { once: true });
+  });
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
@@ -558,7 +579,10 @@ function mostrarPrevia() {
 // que aconteceu no teste: três tentativas até aparecer algum retorno.
 function marcarEnviando(ligado) {
   const form = document.getElementById('chat-envio');
-  const botao = form?.querySelector('.chat-enviar');
+  // SÓ o botão de mandar (➤). Mirar '.chat-enviar' pegava o PRIMEIRO do DOM,
+  // que agora é o mic — e escrevia '➤' por cima do SVG dele, deixando o mic
+  // com cara de seta (mas ainda gravando ao segurar).
+  const botao = form?.querySelector('.chat-mandar');
   const previa = document.getElementById('foto-envio');
   if (form) form.classList.toggle('enviando', ligado);
   if (botao) {
@@ -1234,6 +1258,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
     // histórico era jogado de volta pra baixo a cada atualização.
     const noFim = listaEl.scrollHeight - listaEl.scrollTop - listaEl.clientHeight < 60;
     listaEl.innerHTML = lista;
+    corrigirDuracaoAudios(listaEl);
     if (noFim) listaEl.scrollTop = listaEl.scrollHeight;
     return;
   }
@@ -1296,7 +1321,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   atualizarBotaoEnvio();
 
   const l = corpo.querySelector('#chat-lista');
-  if (l) l.scrollTop = l.scrollHeight;
+  if (l) { l.scrollTop = l.scrollHeight; corrigirDuracaoAudios(l); }
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
   pintarRespondendo();
