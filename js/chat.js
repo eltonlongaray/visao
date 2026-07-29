@@ -38,7 +38,7 @@ export async function meuNomeDeChat() {
 export async function fetchMural() {
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, autor_nome, texto, imagem_path, responde_a, created_at, expira_em, editada_em')
+    .select('id, autor_id, autor_nome, texto, imagem_path, arquivo_path, arquivo_nome, arquivo_mime, responde_a, created_at, expira_em, editada_em')
     .eq('escopo', 'comunidade')
     .order('created_at', { ascending: false })
     .limit(LIMITE);
@@ -46,7 +46,7 @@ export async function fetchMural() {
   return (data || []).reverse();   // mais antigas em cima, como conversa
 }
 
-export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = null) {
+export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = null, arquivo = null) {
   const t = (texto || '').trim();
   if (!t && !imagemPath) return;
   const { error } = await supabase.from('chat_mensagens').insert({
@@ -70,7 +70,7 @@ export async function fetchConversa(outroId) {
   // filtro explícito evita puxar o mural junto.
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, para_id, autor_nome, texto, imagem_path, responde_a, created_at, editada_em')
+    .select('id, autor_id, para_id, autor_nome, texto, imagem_path, arquivo_path, arquivo_nome, arquivo_mime, responde_a, created_at, editada_em')
     .eq('escopo', 'privado')
     .or(`and(autor_id.eq.${meu},para_id.eq.${outroId}),and(autor_id.eq.${outroId},para_id.eq.${meu})`)
     .order('created_at', { ascending: false })
@@ -79,7 +79,7 @@ export async function fetchConversa(outroId) {
   return (data || []).reverse();
 }
 
-export async function enviarPrivado(outroId, texto, nome, imagemPath = null, respondeA = null) {
+export async function enviarPrivado(outroId, texto, nome, imagemPath = null, respondeA = null, arquivo = null) {
   const t = (texto || '').trim();
   if ((!t && !imagemPath) || !outroId) return;
   const { error } = await supabase.from('chat_mensagens').insert({
@@ -90,6 +90,9 @@ export async function enviarPrivado(outroId, texto, nome, imagemPath = null, res
     texto: t ? t.slice(0, 2000) : null,
     imagem_path: imagemPath,
     responde_a: respondeA,
+    arquivo_path: arquivo?.path || null,
+    arquivo_nome: arquivo?.nome || null,
+    arquivo_mime: arquivo?.mime || null,
   });
   _falha(error);
 }
@@ -152,6 +155,9 @@ export async function encaminhar(msg, paraId, nome) {
     autor_nome: nome,
     texto: msg.texto || null,
     imagem_path: msg.imagem_path || null,
+    arquivo_path: msg.arquivo_path || null,
+    arquivo_nome: msg.arquivo_nome || null,
+    arquivo_mime: msg.arquivo_mime || null,
   });
   _falha(error);
 }
@@ -187,6 +193,54 @@ export async function assinarFotos(caminhos) {
     return new Map();
   }
   return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+}
+
+// ─── ARQUIVOS E ÁUDIO ──────────────────────────────────────────
+// Sobe o arquivo e devolve o que a mensagem precisa guardar. Preserva o nome
+// original (pra mostrar e baixar) e o mime (pra decidir player x card).
+export async function subirArquivoDoChat(file) {
+  const id = auth.currentUser?.uid;
+  if (!id) throw new Error('Sessão expirada');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo grande demais (máx 10 MB).');
+  // extensão preservada só pra o navegador reconhecer no download; o nome
+  // real fica em arquivo_nome
+  const ext = (file.name.match(/\.[a-z0-9]{1,8}$/i) || [''])[0].toLowerCase();
+  const caminho = `${id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+  const { error } = await supabase.storage
+    .from('chat-arquivos')
+    .upload(caminho, file, { contentType: file.type || 'application/octet-stream' });
+  if (error) throw new Error(error.message || 'Não deu pra enviar o arquivo');
+  return { path: caminho, nome: file.name || 'arquivo', mime: file.type || '' };
+}
+
+// Assina em lote, igual às fotos — bucket privado.
+export async function assinarArquivos(caminhos) {
+  const unicos = [...new Set((caminhos || []).filter(Boolean))];
+  if (!unicos.length) return new Map();
+  const { data, error } = await supabase.storage
+    .from('chat-arquivos')
+    .createSignedUrls(unicos, ASSINATURA_SEG);
+  if (error) { console.warn('[Falcon] assinarArquivos:', error.message); return new Map(); }
+  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+}
+
+// Faxina dos arquivos vencidos, mesma lógica das fotos.
+export async function faxinaArquivos() {
+  const id = auth.currentUser?.uid;
+  if (!id) return;
+  try {
+    const { data: arqs, error } = await supabase.storage
+      .from('chat-arquivos').list(id, { limit: 200 });
+    if (error || !arqs?.length) return;
+    const { data: vivas } = await supabase
+      .from('chat_mensagens')
+      .select('arquivo_path')
+      .eq('autor_id', id)
+      .not('arquivo_path', 'is', null);
+    const usados = new Set((vivas || []).map(v => v.arquivo_path));
+    const lixo = arqs.map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
+    if (lixo.length) await supabase.storage.from('chat-arquivos').remove(lixo);
+  } catch { /* acessória */ }
 }
 
 // Apaga do armazenamento toda foto MINHA que não está mais presa a uma

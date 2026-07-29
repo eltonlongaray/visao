@@ -18,6 +18,7 @@ import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
   subirFotoDoChat, assinarFotos, faxinaFotos, espelharFotoDoGoogle,
+  subirArquivoDoChat, assinarArquivos, faxinaArquivos,
   resumoReacoes, reagir, encaminhar, quemReagiu,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
@@ -36,7 +37,9 @@ let editando = null;      // id da mensagem em edição
 let souAdmin = false;
 let perfis = new Map();   // id -> { nome, foto }, alimentado por fetchPerfis()
 let fotos = new Map();    // caminho no bucket -> URL assinada (vale 1h)
+let arquivos = new Map(); // idem, pro bucket de arquivos/áudio
 let anexo = null;         // { blob, previa } escolhido e ainda não enviado
+let anexoArq = null;      // { file, nome, mime } arquivo/áudio ainda não enviado
 let reacoes = new Map();  // id da mensagem -> [{ emoji, total, eu }]
 let porId = new Map();    // id -> mensagem, pra citação achar a original
 let respondendoA = null;  // { id, nome, texto, temFoto } citado no envio
@@ -178,6 +181,7 @@ export async function renderChat(app) {
   try { souAdmin = !!(await getProfile())?.isAdmin; } catch { souAdmin = false; }
   faxinaChat();   // sem await: é limpeza de fundo
   faxinaFotos();  // idem: apaga imagens que perderam a mensagem dona
+  faxinaArquivos();
   espelharFotoDoGoogle();   // uma vez só: traz a foto do Google pro nosso bucket
 
   desenharCasca(app);
@@ -202,6 +206,7 @@ export async function renderChat(app) {
     // URLs assinadas valem 1h e morrem com a sessão da tela: guardar entre
     // visitas devolveria link vencido na volta
     fotos.clear();
+    arquivos.clear();
     entradaOrfa = entradaNoHistorico;
     entradaNoHistorico = false;
   };
@@ -273,6 +278,7 @@ async function desenharMural(corpo) {
 
   const meu = auth.currentUser?.uid;
   await carregarFotos(msgs);
+  await carregarArquivos(msgs);
   await carregarReacoes(msgs);
   // Mesmo balão do privado. O formato Discord (avatar + nome + texto corrido)
   // não deixava claro o que era meu: numa conversa, quem fala de que lado é a
@@ -304,7 +310,7 @@ function linhaDiscord(m, anterior, minha) {
     <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha || souAdmin ? 1 : 0}">
       ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
-      <div class="dc-body">${cabecalho}${blocoFoto(m)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
+      <div class="dc-body">${cabecalho}${blocoFoto(m)}${blocoArquivo(m)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
     </div>`;
 }
 
@@ -399,6 +405,7 @@ async function desenharConversa(corpo) {
 
   const meu = auth.currentUser?.uid;
   await carregarFotos(msgs);
+  await carregarArquivos(msgs);
   await carregarReacoes(msgs);
   const lista = msgs.length
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
@@ -455,6 +462,47 @@ function blocoFoto(m) {
     aria-label="Abrir foto">
     <img src="${esc(url)}" alt="Foto enviada na conversa" decoding="async" />
   </button>`;
+}
+
+// Arquivo ou áudio na mensagem. Áudio vira player; o resto vira um cartão com
+// nome + tamanho estimado + baixar. O mime decide qual dos dois.
+function blocoArquivo(m) {
+  if (!m.arquivo_path) return '';
+  const url = arquivos.get(m.arquivo_path);
+  const mime = m.arquivo_mime || '';
+  if (!url) return `<div class="msg-arq msg-arq-vazio">carregando…</div>`;
+
+  if (mime.startsWith('audio/')) {
+    return `<div class="msg-audio">
+      <audio controls preload="none" src="${esc(url)}"></audio>
+    </div>`;
+  }
+  const nome = m.arquivo_nome || 'arquivo';
+  const ic = _iconeArquivo(mime, nome);
+  return `<a class="msg-arq" href="${esc(url)}" download="${esc(nome)}"
+    target="_blank" rel="noopener">
+    <span class="msg-arq-ic">${ic}</span>
+    <span class="msg-arq-nome">${esc(nome)}</span>
+    <span class="msg-arq-baixar">⤓</span>
+  </a>`;
+}
+
+function _iconeArquivo(mime, nome) {
+  const n = (nome || '').toLowerCase();
+  if (mime.includes('pdf') || n.endsWith('.pdf')) return '📕';
+  if (mime.includes('sheet') || mime.includes('excel') || /\.(xlsx?|csv)$/.test(n)) return '📊';
+  if (mime.includes('presentation') || /\.pptx?$/.test(n)) return '📽️';
+  if (mime.includes('word') || /\.docx?$/.test(n)) return '📘';
+  return '📄';
+}
+
+async function carregarArquivos(msgs) {
+  const faltando = (msgs || [])
+    .map(m => m.arquivo_path)
+    .filter(c => c && !arquivos.has(c));
+  if (!faltando.length) return;
+  const novas = await assinarArquivos(faltando);
+  novas.forEach((url, caminho) => arquivos.set(caminho, url));
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
@@ -802,6 +850,89 @@ function limparAnexo() {
   limparAnexoDireto();
 }
 
+// ── ARQUIVO ANEXADO (prévia antes de enviar) ──
+function mostrarAnexoArq() {
+  const box = document.getElementById('chat-previa');
+  if (!box || !anexoArq) return;
+  const ehAudio = (anexoArq.mime || '').startsWith('audio/');
+  box.hidden = false;
+  box.innerHTML = `
+    <span class="chat-arq-ic">${ehAudio ? '🎤' : '📎'}</span>
+    <span class="previa-txt">${esc(anexoArq.nome)}</span>
+    <button type="button" class="previa-x" id="chat-arq-x" aria-label="Tirar o arquivo">✕</button>`;
+}
+function limparAnexoArq() {
+  anexoArq = null;
+  const box = document.getElementById('chat-previa');
+  if (box) { box.hidden = true; box.innerHTML = ''; }
+}
+
+// ── GRAVADOR DE ÁUDIO ──
+// MediaRecorder grava no navegador (webm/opus no Android Chrome). O <audio>
+// da mensagem reproduz o mesmo formato. Se o navegador não suportar ou negar o
+// microfone, avisa e não trava.
+let _mediaRec = null, _audioChunks = [], _gravaInicio = 0, _gravaTimer = null;
+
+async function abrirGravador() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    showToast('Seu navegador não grava áudio.', 'info'); return;
+  }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { showToast('Preciso da permissão do microfone.', 'info'); return; }
+
+  const box = document.getElementById('chat-grava');
+  if (!box) return;
+  _audioChunks = [];
+  _mediaRec = new MediaRecorder(stream);
+  _mediaRec.ondataavailable = e => { if (e.data.size) _audioChunks.push(e.data); };
+  _mediaRec.onstop = () => { stream.getTracks().forEach(t => t.stop()); };
+  _mediaRec.start();
+  _gravaInicio = Date.now();
+
+  box.hidden = false;
+  box.innerHTML = `
+    <span class="grava-ponto"></span>
+    <span class="grava-tempo" id="grava-tempo">0:00</span>
+    <span class="grava-label">gravando…</span>
+    <button type="button" class="grava-btn grava-cancelar" id="grava-cancelar" aria-label="Cancelar">✕</button>
+    <button type="button" class="grava-btn grava-parar" id="grava-parar" aria-label="Parar e anexar">✓</button>`;
+  clearInterval(_gravaTimer);
+  _gravaTimer = setInterval(() => {
+    const seg = Math.floor((Date.now() - _gravaInicio) / 1000);
+    const el = document.getElementById('grava-tempo');
+    if (el) el.textContent = `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
+    if (seg >= 300) pararGravacao();   // teto de 5 min
+  }, 250);
+}
+
+function _fecharGravador() {
+  clearInterval(_gravaTimer);
+  const box = document.getElementById('chat-grava');
+  if (box) { box.hidden = true; box.innerHTML = ''; }
+}
+
+async function pararGravacao() {
+  if (!_mediaRec) return;
+  const rec = _mediaRec; _mediaRec = null;
+  await new Promise(res => { rec.onstop = () => res(); rec.stop(); });
+  _fecharGravador();
+  const blob = new Blob(_audioChunks, { type: rec.mimeType || 'audio/webm' });
+  _audioChunks = [];
+  if (!blob.size) return;
+  // vira um File pra reaproveitar subirArquivoDoChat, que lê name/type
+  const file = new File([blob], `audio-${Date.now()}.webm`, { type: blob.type });
+  limparAnexo(); limparAnexoArq();
+  anexoArq = { file, nome: 'Áudio', mime: blob.type };
+  mostrarAnexoArq();
+}
+
+function cancelarGravacao() {
+  if (_mediaRec) { const r = _mediaRec; _mediaRec = null; try { r.stop(); } catch {} }
+  _audioChunks = [];
+  _fecharGravador();
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CÂMERA DENTRO DO APP
 // ═══════════════════════════════════════════════════════════════
@@ -999,7 +1130,14 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
       <button type="button" class="midia-op" data-midia="galeria">
         <span class="midia-ic">🖼️</span><span>Galeria</span>
       </button>
+      <button type="button" class="midia-op" data-midia="arquivo">
+        <span class="midia-ic">📎</span><span>Arquivo</span>
+      </button>
+      <button type="button" class="midia-op" data-midia="audio">
+        <span class="midia-ic">🎤</span><span>Áudio</span>
+      </button>
     </div>
+    <div class="chat-grava" id="chat-grava" hidden></div>
     <div class="chat-respondendo" id="chat-respondendo" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
@@ -1021,6 +1159,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
            isso a escolha aparece antes. -->
       <input type="file" id="chat-foto-camera" accept="image/*" capture="environment" hidden />
       <input type="file" id="chat-foto-galeria" accept="image/*" hidden />
+      <input type="file" id="chat-arquivo-arq" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*" hidden />
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
       <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
     </form>
@@ -1105,6 +1244,7 @@ function balao(m, minha, mostrarAutor) {
           ${comRosto ? `<span class="wa-autor">${esc(nome)}</span>` : ''}
           ${citacao(m)}
           ${blocoFoto(m)}
+          ${blocoArquivo(m)}
           ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
         </div>
@@ -1381,10 +1521,16 @@ function ligarEventos(app) {
     const opMidia = t.closest('[data-midia]');
     if (opMidia) {
       app.querySelector('#chat-midia').hidden = true;
-      if (opMidia.dataset.midia === 'camera') await abrirCamera();
-      else app.querySelector('#chat-foto-galeria')?.click();
+      const tipo = opMidia.dataset.midia;
+      if (tipo === 'camera') await abrirCamera();
+      else if (tipo === 'galeria') app.querySelector('#chat-foto-galeria')?.click();
+      else if (tipo === 'arquivo') app.querySelector('#chat-arquivo-arq')?.click();
+      else if (tipo === 'audio') await abrirGravador();
       return;
     }
+    if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
+    if (t.closest('#grava-parar')) { await pararGravacao(); return; }
+    if (t.closest('#grava-cancelar')) { cancelarGravacao(); return; }
     if (t.closest('#cam-fechar')) { fecharCamera(); return; }
     if (t.closest('#cam-virar')) { await virarCamera(); return; }
     if (t.closest('#cam-disparo')) { await dispararFoto(); return; }
@@ -1506,6 +1652,16 @@ function ligarEventos(app) {
   });
 
   app.addEventListener('change', async (ev) => {
+    if (ev.target.id === 'chat-arquivo-arq') {
+      const f = ev.target.files?.[0];
+      ev.target.value = '';
+      if (!f) return;
+      if (f.size > 10 * 1024 * 1024) { showToast('Arquivo grande demais (máx 10 MB).', 'info'); return; }
+      limparAnexo(); limparAnexoArq();
+      anexoArq = { file: f, nome: f.name || 'arquivo', mime: f.type || '' };
+      mostrarAnexoArq();
+      return;
+    }
     if (ev.target.id !== 'chat-foto-camera' && ev.target.id !== 'chat-foto-galeria') return;
     const arquivo = ev.target.files?.[0];
     ev.target.value = '';   // permite reescolher o MESMO arquivo depois
@@ -1600,8 +1756,8 @@ function ligarEventos(app) {
     // baixo está atrás dela e pode ter um rascunho de outra mensagem.
     const legenda = app.querySelector('#fe-legenda');
     const texto = (anexo && legenda ? legenda.value : campo.value).trim();
-    // foto sozinha é mensagem válida; texto vazio sem foto, não
-    if (!texto && !anexo) return;
+    // foto/arquivo sozinho é mensagem válida; texto vazio sem anexo, não
+    if (!texto && !anexo && !anexoArq) return;
     // editar não mexe na imagem (o banco também rejeita), então some com o anexo
     if (editando && anexo) limparAnexo();
 
@@ -1615,17 +1771,23 @@ function ligarEventos(app) {
     // ⏳. Fechar antes deixava a pessoa sem nenhum sinal de que algo estava
     // acontecendo — que foi o que gerou os envios repetidos no teste.
     if (paraEnviar) { paraEnviar.legenda = texto; marcarEnviando(true); }
+    // Arquivo/áudio: sobe junto, no mesmo envio. Só um anexo por vez — foto e
+    // arquivo não convivem na mesma mensagem.
+    const arqParaEnviar = anexoArq;
+    if (arqParaEnviar) marcarEnviando(true);
     try {
       // a imagem sobe ANTES: se falhar, não nasce mensagem apontando pra
       // arquivo que não existe, e o texto volta pro campo intacto
       const caminho = paraEnviar ? await subirFotoDoChat(paraEnviar.blob) : null;
+      const arq = arqParaEnviar ? await subirArquivoDoChat(arqParaEnviar.file) : null;
       if (editando) {
         await editarMensagem(editando, texto);
         editando = null;
         app.querySelector('#chat-envio')?.classList.remove('editando');
-      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho, respondendoA?.id || null);
-      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho, respondendoA?.id || null);
+      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho, respondendoA?.id || null, arq);
+      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho, respondendoA?.id || null, arq);
       if (paraEnviar) limparAnexo();   // só fecha depois que deu certo
+      if (arqParaEnviar) limparAnexoArq();
       respondendoA = null; pintarRespondendo();
       await recarregar();
       // A lista só se auto-rola quando já estava no fim. Depois de enviar, a

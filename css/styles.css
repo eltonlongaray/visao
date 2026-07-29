@@ -6637,3 +6637,42 @@ body.sem-rolagem { overflow: hidden; }
   background: var(--card-2); border: 1px solid var(--border);
   color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit;
 }
+
+/* === Arquivo e áudio na mensagem === */
+.msg-arq {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px; margin: 3px 0 5px;
+  text-decoration: none; max-width: 260px;
+}
+.msg-arq-ic { font-size: 26px; flex: 0 0 auto; }
+.msg-arq-nome { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-arq-baixar { flex: 0 0 auto; color: var(--accent); font-size: 18px; }
+.msg-arq-vazio { color: var(--muted); font-size: 12px; font-style: italic; }
+.msg-audio { margin: 3px 0 5px; }
+.msg-audio audio { width: 240px; max-width: 100%; height: 40px; display: block; }
+
+.chat-arq-ic { font-size: 22px; }
+
+/* === Gravador de áudio (barra que sobe acima do campo) === */
+.chat-grava {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  background: var(--card); border: 1px solid var(--accent);
+  border-radius: 22px; padding: 8px 12px;
+}
+.chat-grava[hidden] { display: none; }
+.grava-ponto { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; animation: gravaPulsa 1s infinite; }
+@keyframes gravaPulsa { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.grava-tempo { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.grava-label { flex: 1; font-size: 12.5px; color: var(--muted); }
+.grava-btn {
+  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
+  border: none; cursor: pointer; font-size: 17px; display: grid; place-items: center;
+}
+.grava-cancelar { background: var(--card-2); color: var(--muted); }
+.grava-parar { background: var(--accent); color: #fff; }
+
+/* 4 opções agora: câmera, galeria, arquivo, áudio */
+.chat-midia { flex-wrap: wrap; }
+.chat-midia .midia-op { flex: 1 1 calc(50% - 4px); }
