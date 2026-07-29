@@ -6689,8 +6689,32 @@ body.sem-rolagem { overflow: hidden; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msg-arq-baixar { flex: 0 0 auto; color: var(--accent); font-size: 18px; }
 .msg-arq-vazio { color: var(--muted); font-size: 12px; font-style: italic; }
-.msg-audio { margin: 3px 0 5px; }
-.msg-audio audio { width: 240px; max-width: 100%; height: 40px; display: block; }
+/* Player de áudio próprio: play/pause · onda · tempo (estilo Telegram). */
+.msg-audio {
+  display: flex; align-items: center; gap: 10px;
+  margin: 3px 0 5px; min-width: 190px; max-width: 260px;
+}
+.au-play {
+  flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%;
+  border: none; cursor: pointer; background: var(--accent); color: #fff;
+  font-size: 15px; line-height: 1; display: grid; place-items: center; font-family: inherit;
+}
+.au-onda { flex: 1; display: flex; align-items: center; gap: 2px; height: 26px; min-width: 84px; }
+.au-barra {
+  flex: 1 1 0; min-width: 2px; max-width: 3px; height: 22%;
+  border-radius: 2px; background: currentColor; opacity: 0.32; align-self: center;
+  transition: opacity 0.08s linear;
+}
+.au-barra.tocado { opacity: 0.95; }
+.au-tempo {
+  flex: 0 0 auto; min-width: 30px; font-size: 11.5px;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+/* na minha bolha (fundo roxo/accent) o círculo accent some — inverte pra ter
+   contraste, e o tempo fica legível no fundo escuro. */
+.wa-msg.minha .au-play { background: #fff; color: var(--accent); }
+.wa-msg.minha .au-tempo { color: rgba(255,255,255,0.72); }
+:root[data-theme="light"] .wa-msg.minha .au-tempo { color: rgba(0,0,0,0.5); }
 
 .chat-arq-ic { font-size: 22px; }
 

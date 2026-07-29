@@ -473,10 +473,12 @@ function blocoArquivo(m) {
   if (!url) return `<div class="msg-arq msg-arq-vazio">carregando…</div>`;
 
   if (mime.startsWith('audio/')) {
-    // preload=metadata (não 'none') pra o loadedmetadata disparar e a correção
-    // de duração do webm rodar antes de a pessoa dar play.
-    return `<div class="msg-audio">
-      <audio controls preload="metadata" src="${esc(url)}"></audio>
+    // Player próprio (onda + play/pause + tempo), estilo Telegram/WhatsApp. A
+    // decodificação e a reprodução ficam em montarPlayersAudio/togglePlayAudio.
+    return `<div class="msg-audio" data-audio="${esc(url)}" data-path="${esc(m.arquivo_path)}">
+      <button type="button" class="au-play" aria-label="Tocar">▶</button>
+      <div class="au-onda" aria-hidden="true"></div>
+      <span class="au-tempo">0:00</span>
     </div>`;
   }
   const nome = m.arquivo_nome || 'arquivo';
@@ -507,23 +509,153 @@ async function carregarArquivos(msgs) {
   novas.forEach((url, caminho) => arquivos.set(caminho, url));
 }
 
-// webm do MediaRecorder não guarda a duração no cabeçalho: o <audio> pensa que
-// dura 0:00 e corta a reprodução antes do fim. Pular UMA vez pro fim força o
-// navegador a ler a duração real; aí voltamos pro começo e a faixa toca inteira.
-function corrigirDuracaoAudios(escopo) {
+// ── PLAYER DE ÁUDIO (onda estilo Telegram/WhatsApp) ──
+// O <audio controls> nativo dependia da duração no cabeçalho — que o webm do
+// MediaRecorder não traz — e por isso cortava antes do fim e mostrava 0:00.
+// Aqui a gente decodifica o áudio inteiro (Web Audio API): a duração é real, a
+// reprodução sai do buffer decodificado (nunca corta) e de quebra saem os picos
+// pra desenhar a onda. Decodifica só quando o player entra na tela.
+const N_BARRAS = 38;
+const audioBuffers = new Map();   // path -> { buffer, dur, peaks }
+let _actx = null;
+let _audioObs = null;
+let tocando = null;   // { el, path, src, inicio, offset, dur, ativo, _pausa, raf }
+
+function _ctx() {
+  if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  return _actx;
+}
+function _mmssSeg(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function peaksDe(buffer, n) {
+  const data = buffer.getChannelData(0);
+  const bloco = Math.floor(data.length / n) || 1;
+  const picos = []; let max = 0.0001;
+  for (let i = 0; i < n; i++) {
+    let soma = 0; const ini = i * bloco;
+    for (let j = 0; j < bloco; j++) { const v = data[ini + j] || 0; soma += v * v; }
+    const rms = Math.sqrt(soma / bloco);
+    picos.push(rms); if (rms > max) max = rms;
+  }
+  return picos.map(p => Math.max(0.12, p / max));   // 0.12..1 (barra nunca some)
+}
+async function prepararAudio(path, url) {
+  if (path && audioBuffers.has(path)) return audioBuffers.get(path);
+  const resp = await fetch(url);
+  const bytes = await resp.arrayBuffer();
+  const buffer = await _ctx().decodeAudioData(bytes);
+  const info = { buffer, dur: buffer.duration, peaks: peaksDe(buffer, N_BARRAS) };
+  if (path) audioBuffers.set(path, info);
+  return info;
+}
+
+// Chamado após pintar a lista. Desenha barras-placeholder e agenda a decodificação
+// (só quando o player aparece na tela) pra não baixar áudio à toa no histórico.
+function _barrasHtml(peaks) {
+  return peaks.map(p => `<span class="au-barra" style="height:${Math.round(p * 100)}%"></span>`).join('');
+}
+function montarPlayersAudio(escopo) {
   const raiz = escopo || document;
-  raiz.querySelectorAll('.msg-audio audio:not([data-durfix])').forEach(a => {
-    a.dataset.durfix = '1';
-    const fix = () => {
-      if (a.duration === Infinity || Number.isNaN(a.duration)) {
-        const volta = () => { a.currentTime = 0; a.removeEventListener('timeupdate', volta); };
-        a.addEventListener('timeupdate', volta);
-        try { a.currentTime = 1e101; } catch { /* alguns navegadores recusam o salto */ }
+  raiz.querySelectorAll('.msg-audio:not([data-pronto])').forEach(el => {
+    el.dataset.pronto = '1';
+    const path = el.dataset.path;
+    const cache = path ? audioBuffers.get(path) : null;
+    const onda = el.querySelector('.au-onda');
+    const t = el.querySelector('.au-tempo');
+    if (cache) {
+      // já decodificado antes (ex.: redesenho da lista) — pinta na hora
+      if (onda) onda.innerHTML = _barrasHtml(cache.peaks);
+      if (t) t.textContent = _mmssSeg(cache.dur);
+    } else {
+      if (onda && !onda.childElementCount) {
+        onda.innerHTML = Array.from({ length: N_BARRAS }, () => '<span class="au-barra" style="height:22%"></span>').join('');
       }
-    };
-    if (a.readyState > 0) fix();
-    else a.addEventListener('loadedmetadata', fix, { once: true });
+      if (!_audioObs) {
+        _audioObs = new IntersectionObserver(ents => {
+          ents.forEach(e => { if (e.isIntersecting) { _audioObs.unobserve(e.target); _decodificarEl(e.target); } });
+        }, { rootMargin: '250px' });
+      }
+      _audioObs.observe(el);
+    }
+    // Se ESTA faixa está tocando e a lista se redesenhou, re-vincula o player ao
+    // elemento novo pra não resetar o play no meio da reprodução.
+    if (tocando && tocando.ativo && tocando.path && tocando.path === path) {
+      tocando.el = el; el.classList.add('tocando'); _btnPlay(el, true);
+    }
   });
+}
+async function _decodificarEl(el) {
+  try {
+    const info = await prepararAudio(el.dataset.path, el.dataset.audio);
+    const onda = el.querySelector('.au-onda');
+    if (onda) onda.innerHTML = _barrasHtml(info.peaks);
+    const t = el.querySelector('.au-tempo');
+    if (t && !el.classList.contains('tocando')) t.textContent = _mmssSeg(info.dur);
+  } catch (e) { console.warn('[audio] decode', e?.message || e); }
+}
+
+async function togglePlayAudio(el) {
+  if (!el) return;
+  if (tocando && tocando.el === el && tocando.ativo) { pausarAudio(); return; }
+  if (tocando && tocando.el !== el) _resetAudioEl(tocando.el);   // uma faixa por vez
+  let info;
+  try { info = await prepararAudio(el.dataset.path, el.dataset.audio); }
+  catch { showToast('Não deu pra abrir o áudio.', 'info'); return; }
+  const ctx = _ctx();
+  if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
+  const offset = (tocando && tocando.el === el) ? tocando.offset : 0;
+  const src = ctx.createBufferSource();
+  src.buffer = info.buffer;
+  src.connect(ctx.destination);
+  src.start(0, offset);
+  tocando = { el, path: el.dataset.path, src, inicio: ctx.currentTime - offset, offset, dur: info.dur, ativo: true, _pausa: false, raf: 0 };
+  el.classList.add('tocando');
+  _btnPlay(el, true);
+  src.onended = () => { if (tocando && tocando.el === el && !tocando._pausa) _resetAudioEl(el); };
+  _animarAudio();
+}
+function pausarAudio() {
+  if (!tocando || !tocando.ativo) return;
+  tocando.offset = _ctx().currentTime - tocando.inicio;
+  tocando._pausa = true; tocando.ativo = false;
+  try { tocando.src.stop(); } catch {}
+  cancelAnimationFrame(tocando.raf);
+  _btnPlay(tocando.el, false);
+  tocando.el.classList.remove('tocando');
+}
+function _animarAudio() {
+  if (!tocando || !tocando.ativo) return;
+  const pos = _ctx().currentTime - tocando.inicio;
+  const ratio = tocando.dur ? Math.min(1, pos / tocando.dur) : 0;
+  _pintarProgresso(tocando.el, ratio);
+  const t = tocando.el.querySelector('.au-tempo');
+  if (t) t.textContent = _mmssSeg(Math.min(pos, tocando.dur));
+  if (pos >= tocando.dur) { _resetAudioEl(tocando.el); return; }
+  tocando.raf = requestAnimationFrame(_animarAudio);
+}
+function _resetAudioEl(el) {
+  if (tocando && tocando.el === el) {
+    cancelAnimationFrame(tocando.raf);
+    if (tocando.ativo) { tocando._pausa = true; try { tocando.src.stop(); } catch {} }
+    tocando = null;
+  }
+  _btnPlay(el, false);
+  el.classList.remove('tocando');
+  _pintarProgresso(el, 0);
+  const t = el.querySelector('.au-tempo');
+  const info = audioBuffers.get(el.dataset.path);
+  if (t && info) t.textContent = _mmssSeg(info.dur);
+}
+function _btnPlay(el, ativo) {
+  const b = el.querySelector('.au-play');
+  if (b) b.textContent = ativo ? '⏸' : '▶';
+}
+function _pintarProgresso(el, ratio) {
+  const barras = el.querySelectorAll('.au-barra');
+  const ate = Math.round(ratio * barras.length);
+  barras.forEach((b, i) => b.classList.toggle('tocado', i < ate));
 }
 
 // Assina só o que ainda não tem URL viva. A lista se redesenha de 12 em 12
@@ -1258,7 +1390,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
     // histórico era jogado de volta pra baixo a cada atualização.
     const noFim = listaEl.scrollHeight - listaEl.scrollTop - listaEl.clientHeight < 60;
     listaEl.innerHTML = lista;
-    corrigirDuracaoAudios(listaEl);
+    montarPlayersAudio(listaEl);
     if (noFim) listaEl.scrollTop = listaEl.scrollHeight;
     return;
   }
@@ -1321,7 +1453,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   atualizarBotaoEnvio();
 
   const l = corpo.querySelector('#chat-lista');
-  if (l) { l.scrollTop = l.scrollHeight; corrigirDuracaoAudios(l); }
+  if (l) { l.scrollTop = l.scrollHeight; montarPlayersAudio(l); }
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
   pintarRespondendo();
@@ -1665,6 +1797,8 @@ function ligarEventos(app) {
     if (t.closest('#chat-clipe-btn')) { app.querySelector('#chat-arquivo-arq')?.click(); return; }
     if (t.closest('#chat-cam-btn')) { await abrirCamera(); return; }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
+    const play = t.closest('.au-play');
+    if (play) { await togglePlayAudio(play.closest('.msg-audio')); return; }
     // Gravação travada (mãos livres): lixeira, pausar/continuar, enviar.
     if (t.closest('#grava-lixo')) { _descartarAudio(); return; }
     if (t.closest('#grava-pausa')) { _pausarRetomar(); return; }
