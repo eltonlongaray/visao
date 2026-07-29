@@ -48,7 +48,9 @@ export async function fetchMural() {
 
 export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = null, arquivo = null) {
   const t = (texto || '').trim();
-  if (!t && !imagemPath) return;
+  // áudio/arquivo sozinho é mensagem válida — sem isto o áudio no mural era
+  // barrado aqui e nunca chegava a inserir.
+  if (!t && !imagemPath && !arquivo?.path) return;
   const { error } = await supabase.from('chat_mensagens').insert({
     escopo: 'comunidade',
     autor_id: auth.currentUser?.uid,
@@ -56,6 +58,9 @@ export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = 
     texto: t ? t.slice(0, 2000) : null,
     imagem_path: imagemPath,
     responde_a: respondeA,
+    arquivo_path: arquivo?.path || null,
+    arquivo_nome: arquivo?.nome || null,
+    arquivo_mime: arquivo?.mime || null,
   });
   _falha(error);
 }
@@ -81,7 +86,8 @@ export async function fetchConversa(outroId) {
 
 export async function enviarPrivado(outroId, texto, nome, imagemPath = null, respondeA = null, arquivo = null) {
   const t = (texto || '').trim();
-  if ((!t && !imagemPath) || !outroId) return;
+  // áudio/arquivo sozinho também vale no privado
+  if ((!t && !imagemPath && !arquivo?.path) || !outroId) return;
   const { error } = await supabase.from('chat_mensagens').insert({
     escopo: 'privado',
     autor_id: auth.currentUser?.uid,
