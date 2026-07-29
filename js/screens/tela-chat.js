@@ -641,8 +641,10 @@ function _posTrack() {
   if (!tocando.ativo) return tocando.offset || 0;
   return _audioTag().currentTime;
 }
-// PCM decodificado → WAV (16-bit mono). Gerado só quando a faixa toca de fato.
-function bufferParaWavURL(buffer) {
+// PCM decodificado → WAV (16-bit mono). WAV toca em QUALQUER aparelho (webm/opus
+// não toca no iPhone/Safari — por isso os áudios saíam mudos pra quem está no
+// iOS). Usado tanto pra reprodução local quanto pra transcodificar no envio.
+function bufferParaWavBlob(buffer) {
   const ch = buffer.getChannelData(0);
   const sr = buffer.sampleRate, len = ch.length;
   const ab = new ArrayBuffer(44 + len * 2);
@@ -654,11 +656,29 @@ function bufferParaWavURL(buffer) {
   wr(36, 'data'); dv.setUint32(40, len * 2, true);
   let off = 44;
   for (let i = 0; i < len; i++) { const s = Math.max(-1, Math.min(1, ch[i])); dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2; }
-  return URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+  return new Blob([ab], { type: 'audio/wav' });
 }
+function bufferParaWavURL(buffer) { return URL.createObjectURL(bufferParaWavBlob(buffer)); }
 function _garantirWav(info) {
   if (!info.wav && info.buffer) info.wav = bufferParaWavURL(info.buffer);
   return info.wav;
+}
+
+// Grava webm/opus (é o que o Android dá) → converte pra WAV 16 kHz mono no
+// aparelho de quem envia, que SABE decodificar o próprio webm. O resultado toca
+// em todo mundo. Reamostra em 16 kHz (voz) pra o arquivo caber (< ~2 MB/min).
+async function webmParaWav(blob) {
+  const bytes = await blob.arrayBuffer();
+  const decoded = await _ctx().decodeAudioData(bytes);
+  const alvo = 16000;
+  const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(
+    1, Math.max(1, Math.ceil(decoded.duration * alvo)), alvo);
+  const src = off.createBufferSource();
+  src.buffer = decoded;
+  src.connect(off.destination);
+  src.start(0);
+  const render = await off.startRendering();
+  return bufferParaWavBlob(render);
 }
 
 async function togglePlayAudio(el) {
@@ -1218,10 +1238,20 @@ async function _enviarAudio() {
   _esconderBarra();
   const blob = new Blob(chunks, { type: mimeBruto });
   if (!blob.size || dur < G_MIN_MS) return;
-  const mime = mimeBruto.split(';')[0] || 'audio/webm';   // tira ';codecs=opus'
-  const file = new File([blob], `audio-${Date.now()}.webm`, { type: mime });
+  // Converte pra WAV pra tocar em qualquer aparelho (inclusive iPhone). Se a
+  // conversão falhar, manda o webm original (melhor um áudio que só alguns
+  // ouvem do que nenhum).
+  let file;
+  try {
+    const wav = await webmParaWav(blob);
+    file = new File([wav], `audio-${Date.now()}.wav`, { type: 'audio/wav' });
+  } catch (e) {
+    console.warn('[audio] transcode falhou, mandando webm:', e?.message || e);
+    const mime = mimeBruto.split(';')[0] || 'audio/webm';
+    file = new File([blob], `audio-${Date.now()}.webm`, { type: mime });
+  }
   limparAnexo(); limparAnexoArq();
-  anexoArq = { file, nome: 'Áudio', mime };
+  anexoArq = { file, nome: 'Áudio', mime: file.type };
   _formEnvio()?.requestSubmit();
 }
 
