@@ -382,6 +382,12 @@ async function desenharListaPrivada(corpo) {
   corpo.innerHTML = `
     <input class="chat-busca" id="chat-filtro" placeholder="Buscar pessoa…" autocomplete="off" />
     ${convs.length ? `<div class="chat-sec">Suas conversas</div><div class="chat-convs">${linhasConv}</div>` : ''}
+    <div class="chat-sec">Meus Grupos</div>
+    <button class="chat-grupo-novo" data-criar-grupo>
+      <span class="chat-grupo-novo-ic">＋</span>
+      <span class="chat-grupo-novo-txt">Criar um grupo</span>
+    </button>
+    <div class="chat-grupos-vazio">Você ainda não participa de nenhum grupo.</div>
     ${outros.length
       ? `<div class="chat-sec">Todos no app</div><div class="chat-convs">${linhasMembros}</div>`
       : (convs.length ? '' : `<div class="chat-vazio">Ninguém mais por aqui ainda.<br>Assim que a comunidade crescer, os nomes aparecem nesta lista.</div>`)}`;
@@ -537,7 +543,7 @@ const audioBuffers = new Map();   // path -> { buffer, dur, peaks }
 let _actx = null;
 let _audioObs = null;
 let tocando = null;   // { el, path, src, inicio, offset, dur, vel, ativo, _pausa, raf }
-let _velAudio = 1;    // 1 → 1.5 → 2 → 1 (reinicia no 1 a cada faixa nova)
+let _velAudio = 1;    // 1 → 1.5 → 2 → 1; persiste entre áudios (não reseta)
 const _ORDEM_VEL = [1, 1.5, 2];
 const _rotVel = (v) => v + '×';
 
@@ -686,7 +692,7 @@ async function togglePlayAudio(el) {
   if (tocando && tocando.el === el && tocando.ativo) { pausarAudio(); return; }
   const retomar = tocando && tocando.el === el && !tocando.ativo;
   if (tocando && tocando.el !== el) _resetAudioEl(tocando.el);   // uma faixa por vez
-  if (!retomar) _velAudio = 1;   // faixa nova começa no 1× (normal)
+  // a velocidade escolhida PERSISTE entre áudios (não volta pro 1× a cada play)
   let info;
   try { info = await prepararAudio(el.dataset.path, el.dataset.audio); }
   catch { showToast('Não deu pra abrir o áudio.', 'info'); return; }
@@ -1773,6 +1779,11 @@ function ligarEventos(app) {
 
     const conv = t.closest('[data-abrir]');
     if (conv) return abrirConversa(conv.dataset.abrir, conv.dataset.nome);
+
+    if (t.closest('[data-criar-grupo]')) {
+      showToast('Grupos de conversa chegam já já. 🦅', 'info');
+      return;
+    }
 
     if (selecionados.size && !t.closest('.chat-selbar') && !t.closest('.reac-barra')
         && !t.closest('.enc-folha')) {
