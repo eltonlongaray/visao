@@ -134,7 +134,7 @@ export async function renderHome(app) {
 
       <!-- CAIXA DE FERRAMENTAS: listas de recados sem data -->
       <button class="reminders-card" id="ferramentas-card" type="button">
-        <div class="reminders-icon">🧰</div>
+        <div class="reminders-icon">🛠️</div>
         <div class="reminders-text">
           <div class="reminders-title">Caixa de Ferramentas</div>
           <div class="reminders-sub">Coisas que você precisa fazer, por grupo</div>

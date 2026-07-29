@@ -6637,22 +6637,56 @@ body.sem-rolagem { overflow: hidden; }
   display: grid; place-items: center; padding: 0; font-family: inherit;
 }
 .fr-sub { padding: 10px 16px 4px; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+/* seta de voltar (SVG da comunidade) */
+.fr-voltar svg { display: block; }
 
 /* grupos */
 .fr-grupos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px 20px; overflow-y: auto; }
 .fr-grupo {
-  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   background: var(--card-2); border: 1px solid var(--border); border-radius: 14px;
   padding: 14px 13px; cursor: pointer; font-family: inherit; text-align: left;
 }
 .fr-grupo:active { border-color: var(--accent); }
-.fr-grupo-ic { font-size: 26px; line-height: 1; }
 .fr-grupo-nome { font-size: 14px; font-weight: 600; color: var(--text); }
+/* ícone dentro de um círculo colorido (Pessoal fica azul) */
+.fr-ic-circ {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 21px; line-height: 1;
+}
+.fr-titulo .fr-ic-circ { width: 30px; height: 30px; font-size: 16px; vertical-align: middle; }
+.fr-grupo-novo { align-items: center; justify-content: center; border-style: dashed; }
+.fr-ic-novo { background: var(--card); color: var(--accent); font-size: 24px; font-weight: 700; }
 .fr-grupo-badge {
   position: absolute; top: 10px; right: 10px;
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
   background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
   display: grid; place-items: center;
+}
+
+/* área rolável do grupo (soltos + seções + rodapé) */
+.fr-scroll { flex: 1; overflow-y: auto; }
+
+/* seções (título + lista própria) */
+.fr-secao { margin: 6px 12px 2px; padding-top: 8px; border-top: 1px solid var(--border); }
+.fr-secao-cab { display: flex; align-items: center; gap: 8px; padding: 4px 4px 2px; }
+.fr-secao-nome { flex: 1; font-size: 14.5px; font-weight: 800; color: var(--text); cursor: text; }
+.fr-secao-x { flex: 0 0 auto; background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; }
+.fr-secao .fr-nova { padding: 6px 4px 4px; }
+.fr-secao .fr-lista { padding: 2px 0 6px; }
+
+.fr-add-secao {
+  display: block; width: calc(100% - 32px); margin: 10px 16px 6px;
+  padding: 11px; border-radius: 12px; border: 1px dashed var(--border);
+  background: var(--card-2); color: var(--accent); font-size: 13.5px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.fr-rodape { display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 18px; }
+.fr-rodape .fr-limpar { align-self: flex-start; }
+.fr-apagar-grupo {
+  padding: 10px; border-radius: 12px; background: none;
+  border: 1px solid var(--border); color: var(--red);
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 
 /* itens */
@@ -6667,7 +6701,7 @@ body.sem-rolagem { overflow: hidden; }
   flex: 0 0 42px; height: 42px; border-radius: 50%; background: var(--accent);
   border: none; color: #fff; font-size: 20px; cursor: pointer;
 }
-.fr-lista { flex: 1; overflow-y: auto; padding: 4px 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+.fr-lista { padding: 4px 12px 8px; display: flex; flex-direction: column; gap: 4px; }
 .fr-vazio-grupo { text-align: center; color: var(--muted); font-size: 13px; padding: 22px 12px; }
 .fr-item {
   display: flex; align-items: center; gap: 10px;
@@ -6695,7 +6729,7 @@ body.sem-rolagem { overflow: hidden; }
 .fr-limpar { background: none; border: none; color: var(--red); font-size: 12px;
   font-weight: 700; cursor: pointer; font-family: inherit; }
 .fr-renomear {
-  margin: 4px 16px 16px; padding: 10px; border-radius: 12px;
+  padding: 10px; border-radius: 12px;
   background: var(--card-2); border: 1px solid var(--border);
   color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit;
 }
