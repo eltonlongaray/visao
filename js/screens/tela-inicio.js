@@ -38,6 +38,7 @@ import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
+import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -131,6 +132,16 @@ export async function renderHome(app) {
         <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
       </button>
 
+      <!-- CAIXA DE FERRAMENTAS: listas de recados sem data -->
+      <button class="reminders-card" id="ferramentas-card" type="button">
+        <div class="reminders-icon">🧰</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Caixa de Ferramentas</div>
+          <div class="reminders-sub">Coisas que você precisa fazer, por grupo</div>
+        </div>
+        <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
+      </button>
+
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
       <!-- ATIVIDADES: daqui pra baixo é atividade -->
       <div class="home-section home-bloco">
@@ -169,6 +180,9 @@ export async function renderHome(app) {
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
   ligarObjetivos();
   montarObjetivos();   // sem await: a Home não espera os objetivos pra aparecer
+  ligarFerramentas();
+  pintarBadgeFerramentas();
+  document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
 
   if (!tour.isCompleted()) {
     tour.markDone();
