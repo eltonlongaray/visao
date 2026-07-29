@@ -50,6 +50,42 @@ registerRoute('/aceite', renderLegalConsent);
 registerRoute('/ajustes', renderAjustes);
 
 await initI18n();
+
+// ── Guard de armazenamento ──────────────────────────────────────
+// O login do Supabase é guardado no localStorage. Em navegador embutido
+// (abrir o link DENTRO do WhatsApp/Instagram) ou aba anônima, o localStorage
+// é bloqueado ou some — e aí a sessão nunca cola: a pessoa "entra" mas todo
+// salvar falha com "não autenticado"/"sessão expirada". Foi o que travou a
+// Marluce. Aqui a gente detecta isso e explica, em vez de deixar o erro cru.
+function _armazenamentoOk() {
+  try {
+    const k = '__falcon_store_test__';
+    localStorage.setItem(k, '1');
+    const ok = localStorage.getItem(k) === '1';
+    localStorage.removeItem(k);
+    return ok;
+  } catch { return false; }
+}
+if (!_armazenamentoOk()) {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;
+                background:#0d1220;color:#e8ecf5;font-family:system-ui,-apple-system,sans-serif;text-align:center;">
+      <div style="max-width:420px;">
+        <div style="font-size:44px;margin-bottom:14px;">🦅</div>
+        <h2 style="font-size:20px;margin:0 0 12px;">Seu navegador está bloqueando o login</h2>
+        <p style="font-size:15px;line-height:1.5;color:#b7c0d8;margin:0 0 14px;">
+          Isso acontece quando o Falcon é aberto <b>dentro de outro app</b> (WhatsApp, Instagram)
+          ou numa <b>aba anônima</b>. Assim o app não consegue guardar seu acesso.
+        </p>
+        <p style="font-size:15px;line-height:1.5;color:#e8ecf5;margin:0;">
+          Abra o Falcon <b>direto no Chrome</b>: toque nos <b>⋮</b> no canto e em
+          <b>“Abrir no navegador”</b>. Depois, se puder, use <b>“Instalar o Falcon”</b>.
+        </p>
+      </div>
+    </div>`;
+  throw new Error('[boot] localStorage indisponível — navegador embutido ou aba anônima');
+}
+
 forceRender();
 initAutoLock();
 // Chegou pelo link de "redefinir senha" → abre o modal pra definir a nova
