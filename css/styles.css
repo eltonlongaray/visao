@@ -6687,23 +6687,31 @@ body.sem-rolagem { overflow: hidden; }
 .chat-arq-ic { font-size: 22px; }
 
 /* === Gravador de áudio (barra que sobe acima do campo) === */
+/* Barra de gravação ocupa o lugar da barra de escrever inteira (esta é
+   escondida enquanto grava). Segurar → grava; soltar → envia. */
+.chat-envio.escondido-grava { display: none; }
 .chat-grava {
-  display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  display: flex; align-items: center; gap: 10px;
   background: var(--card); border: 1px solid var(--accent);
-  border-radius: 22px; padding: 8px 12px;
+  border-radius: 22px; padding: 9px 14px; min-height: 48px;
 }
 .chat-grava[hidden] { display: none; }
-.grava-ponto { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; animation: gravaPulsa 1s infinite; }
+.grava-ponto { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 50%; background: #ef4444; animation: gravaPulsa 1s infinite; }
 @keyframes gravaPulsa { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-.grava-tempo { font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.grava-label { flex: 1; font-size: 12.5px; color: var(--muted); }
+.grava-tempo { flex: 0 0 auto; font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+/* segurando: ponto · tempo · dica de cancelar (centro) · cadeado */
+.grava-cancelar-dica { flex: 1; text-align: center; font-size: 12.5px; color: var(--muted); }
+.grava-trava-dica { flex: 0 0 auto; font-size: 15px; opacity: 0.85; }
+.chat-grava.vai-cancelar { border-color: #ef4444; }
+.chat-grava.vai-cancelar .grava-cancelar-dica { color: #ef4444; font-weight: 700; }
+/* travado (mãos livres): lixeira · ponto · tempo · pausar · enviar */
+.chat-grava.travado .grava-tempo { flex: 1; }
 .grava-btn {
   flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
-  border: none; cursor: pointer; font-size: 17px; display: grid; place-items: center;
+  border: none; cursor: pointer; font-size: 16px; display: grid; place-items: center; font-family: inherit;
 }
-.grava-cancelar { background: var(--card-2); color: var(--muted); }
-.grava-parar { background: var(--accent); color: #fff; }
-
-/* 4 opções agora: câmera, galeria, arquivo, áudio */
-.chat-midia { flex-wrap: wrap; }
-.chat-midia .midia-op { flex: 1 1 calc(50% - 4px); }
+.grava-lixo { background: var(--card-2); color: #ef4444; }
+.grava-pausa { background: var(--card-2); color: var(--text); }
+.grava-enviar-audio { background: var(--accent); color: #fff; font-size: 17px; }
+/* o mic não pode rolar a tela durante o gesto de segurar-e-arrastar */
+#chat-mic-btn { touch-action: none; }

@@ -870,70 +870,177 @@ function limparAnexoArq() {
   atualizarBotaoEnvio();
 }
 
-// ── GRAVADOR DE ÁUDIO ──
-// MediaRecorder grava no navegador (webm/opus no Android Chrome). O <audio>
-// da mensagem reproduz o mesmo formato. Se o navegador não suportar ou negar o
-// microfone, avisa e não trava.
-let _mediaRec = null, _audioChunks = [], _gravaInicio = 0, _gravaTimer = null;
+// ── GRAVADOR DE ÁUDIO (segurar pra gravar, estilo WhatsApp) ──
+// Segura o mic → grava. Solta → envia. Arrasta pra CIMA → trava (mãos livres,
+// com pausar/continuar, lixeira e enviar). Arrasta pra ESQUERDA → cancela.
+// A barra de gravação ocupa a barra de escrever inteira enquanto grava.
+//
+// MediaRecorder grava no navegador (webm/opus no Android Chrome). O <audio> da
+// mensagem reproduz o mesmo formato. O mime é gravado SEM o ';codecs=opus': o
+// bucket compara mime por igualdade exata e recusaria; o codec vai nos bytes e
+// o player reconhece sozinho.
+const G = {
+  mr: null, chunks: [], stream: null, inicio: 0, pausadoAcc: 0, pausadoEm: 0,
+  timer: null, segurando: false, travado: false, pausado: false,
+  x0: 0, y0: 0, armar: false, pointerId: null, mic: null,
+};
+const G_LOCK = 55;     // px pra cima → trava
+const G_CANCEL = 90;   // px pra esquerda → cancela
+const G_MIN_MS = 700;  // toque curto demais = não gravou
 
-async function abrirGravador() {
+function _formEnvio() { return document.getElementById('chat-envio'); }
+function _gravaBox() { return document.getElementById('chat-grava'); }
+function _mmss(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function _decorrido() {
+  if (!G.inicio) return 0;
+  const fim = G.pausado ? G.pausadoEm : Date.now();
+  return fim - G.inicio - G.pausadoAcc;
+}
+
+// Início: chamado no pointerdown do mic. getUserMedia é async — se a pessoa
+// soltar (ou travar) antes da permissão chegar, tratamos a corrida no fim.
+async function micDown(e, mic) {
+  if (G.segurando || G.travado || G.mr) return;
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
     showToast('Seu navegador não grava áudio.', 'info'); return;
   }
+  G.segurando = true; G.travado = false; G.armar = false; G.pausado = false;
+  G.pausadoAcc = 0; G.pausadoEm = 0; G.inicio = 0;
+  G.x0 = e.clientX; G.y0 = e.clientY; G.mic = mic; G.pointerId = e.pointerId;
+  try { mic.setPointerCapture(e.pointerId); } catch {}
+
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { showToast('Preciso da permissão do microfone.', 'info'); return; }
+  catch { G.segurando = false; _limparEstado(); _esconderBarra(); showToast('Preciso da permissão do microfone.', 'info'); return; }
+  // soltou antes de a permissão chegar: descarta o stream e sai
+  if (!G.segurando && !G.travado) { stream.getTracks().forEach(t => t.stop()); return; }
 
-  const box = document.getElementById('chat-grava');
-  if (!box) return;
-  _audioChunks = [];
-  _mediaRec = new MediaRecorder(stream);
-  _mediaRec.ondataavailable = e => { if (e.data.size) _audioChunks.push(e.data); };
-  _mediaRec.onstop = () => { stream.getTracks().forEach(t => t.stop()); };
-  _mediaRec.start();
-  _gravaInicio = Date.now();
+  G.stream = stream; G.chunks = [];
+  G.mr = new MediaRecorder(stream);
+  G.mr.ondataavailable = ev => { if (ev.data.size) G.chunks.push(ev.data); };
+  G.mr.start();
+  G.inicio = Date.now();
+  if (G.travado) _uiTravado(); else _uiSegurando();
+  clearInterval(G.timer);
+  G.timer = setInterval(() => {
+    const t = document.getElementById('grava-tempo');
+    if (t) t.textContent = _mmss(_decorrido());
+    if (_decorrido() >= 300000) _enviarAudio();   // teto de 5 min
+  }, 200);
+}
 
-  box.hidden = false;
+function micMove(e) {
+  if (!G.segurando || G.travado) return;
+  const dx = e.clientX - G.x0, dy = e.clientY - G.y0;
+  if (dy <= -G_LOCK) { _travar(); return; }
+  const armar = dx <= -G_CANCEL;
+  if (armar !== G.armar) { G.armar = armar; _uiArmar(armar); }
+}
+
+function micUp() {
+  if (!G.segurando || G.travado) return;
+  G.segurando = false;
+  try { G.mic?.releasePointerCapture(G.pointerId); } catch {}
+  if (G.armar) { _descartarAudio(); return; }
+  if (!G.mr || _decorrido() < G_MIN_MS) { showToast('Segure para gravar.', 'info'); _descartarAudio(); return; }
+  _enviarAudio();
+}
+
+function _travar() {
+  G.travado = true; G.segurando = false;
+  try { G.mic?.releasePointerCapture(G.pointerId); } catch {}
+  _uiTravado();
+}
+
+function _pausarRetomar() {
+  if (!G.mr) return;
+  const btn = document.getElementById('grava-pausa');
+  if (!G.pausado && G.mr.state === 'recording') {
+    G.mr.pause(); G.pausado = true; G.pausadoEm = Date.now();
+    if (btn) { btn.textContent = '▶'; btn.setAttribute('aria-label', 'Continuar'); }
+  } else if (G.pausado && G.mr.state === 'paused') {
+    G.pausadoAcc += Date.now() - G.pausadoEm; G.pausadoEm = 0;
+    G.mr.resume(); G.pausado = false;
+    if (btn) { btn.textContent = '⏸'; btn.setAttribute('aria-label', 'Pausar'); }
+  }
+}
+
+// Encerra e envia direto (sem passar pela prévia + ➤).
+async function _enviarAudio() {
+  const dur = _decorrido();
+  const mr = G.mr;
+  if (!mr) { _limparEstado(); _esconderBarra(); return; }
+  G.mr = null;
+  clearInterval(G.timer);
+  const chunks = G.chunks; const mimeBruto = mr.mimeType || 'audio/webm';
+  await new Promise(res => { mr.onstop = () => res(); try { mr.stop(); } catch { res(); } });
+  G.stream?.getTracks().forEach(t => t.stop());
+  _limparEstado();
+  _esconderBarra();
+  const blob = new Blob(chunks, { type: mimeBruto });
+  if (!blob.size || dur < G_MIN_MS) return;
+  const mime = mimeBruto.split(';')[0] || 'audio/webm';   // tira ';codecs=opus'
+  const file = new File([blob], `audio-${Date.now()}.webm`, { type: mime });
+  limparAnexo(); limparAnexoArq();
+  anexoArq = { file, nome: 'Áudio', mime };
+  _formEnvio()?.requestSubmit();
+}
+
+function _descartarAudio() {
+  const mr = G.mr; G.mr = null;
+  clearInterval(G.timer);
+  if (mr) { try { mr.onstop = null; mr.stop(); } catch {} }
+  G.stream?.getTracks().forEach(t => t.stop());
+  G.chunks = [];
+  _limparEstado();
+  _esconderBarra();
+}
+
+function _limparEstado() {
+  clearInterval(G.timer);
+  G.segurando = false; G.travado = false; G.pausado = false; G.armar = false;
+  G.inicio = 0; G.pausadoAcc = 0; G.pausadoEm = 0; G.stream = null; G.mic = null;
+}
+
+function _mostrarBarra() {
+  const f = _formEnvio(); if (f) f.classList.add('escondido-grava');
+  const box = _gravaBox(); if (box) box.hidden = false;
+}
+function _esconderBarra() {
+  const box = _gravaBox();
+  if (box) { box.hidden = true; box.innerHTML = ''; box.className = 'chat-grava'; }
+  const f = _formEnvio(); if (f) f.classList.remove('escondido-grava');
+}
+
+function _uiSegurando() {
+  const box = _gravaBox(); if (!box) return;
+  _mostrarBarra();
+  box.className = 'chat-grava segurando';
   box.innerHTML = `
     <span class="grava-ponto"></span>
-    <span class="grava-tempo" id="grava-tempo">0:00</span>
-    <span class="grava-label">gravando…</span>
-    <button type="button" class="grava-btn grava-cancelar" id="grava-cancelar" aria-label="Cancelar">✕</button>
-    <button type="button" class="grava-btn grava-parar" id="grava-parar" aria-label="Parar e anexar">✓</button>`;
-  clearInterval(_gravaTimer);
-  _gravaTimer = setInterval(() => {
-    const seg = Math.floor((Date.now() - _gravaInicio) / 1000);
-    const el = document.getElementById('grava-tempo');
-    if (el) el.textContent = `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`;
-    if (seg >= 300) pararGravacao();   // teto de 5 min
-  }, 250);
+    <span class="grava-tempo" id="grava-tempo">${_mmss(_decorrido())}</span>
+    <span class="grava-cancelar-dica">‹ arraste para cancelar</span>
+    <span class="grava-trava-dica" aria-hidden="true">🔒</span>`;
 }
-
-function _fecharGravador() {
-  clearInterval(_gravaTimer);
-  const box = document.getElementById('chat-grava');
-  if (box) { box.hidden = true; box.innerHTML = ''; }
+function _uiArmar(on) {
+  const box = _gravaBox(); if (!box) return;
+  box.classList.toggle('vai-cancelar', on);
+  const dica = box.querySelector('.grava-cancelar-dica');
+  if (dica) dica.textContent = on ? 'solte para cancelar' : '‹ arraste para cancelar';
 }
-
-async function pararGravacao() {
-  if (!_mediaRec) return;
-  const rec = _mediaRec; _mediaRec = null;
-  await new Promise(res => { rec.onstop = () => res(); rec.stop(); });
-  _fecharGravador();
-  const blob = new Blob(_audioChunks, { type: rec.mimeType || 'audio/webm' });
-  _audioChunks = [];
-  if (!blob.size) return;
-  // vira um File pra reaproveitar subirArquivoDoChat, que lê name/type
-  const file = new File([blob], `audio-${Date.now()}.webm`, { type: blob.type });
-  limparAnexo(); limparAnexoArq();
-  anexoArq = { file, nome: 'Áudio', mime: blob.type };
-  mostrarAnexoArq();
-}
-
-function cancelarGravacao() {
-  if (_mediaRec) { const r = _mediaRec; _mediaRec = null; try { r.stop(); } catch {} }
-  _audioChunks = [];
-  _fecharGravador();
+function _uiTravado() {
+  const box = _gravaBox(); if (!box) return;
+  _mostrarBarra();
+  box.className = 'chat-grava travado';
+  box.innerHTML = `
+    <button type="button" class="grava-btn grava-lixo" id="grava-lixo" aria-label="Apagar">🗑</button>
+    <span class="grava-ponto"></span>
+    <span class="grava-tempo" id="grava-tempo">${_mmss(_decorrido())}</span>
+    <button type="button" class="grava-btn grava-pausa" id="grava-pausa" aria-label="Pausar">⏸</button>
+    <button type="button" class="grava-btn grava-enviar-audio" id="grava-enviar-audio" aria-label="Enviar">➤</button>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1528,13 +1635,15 @@ function ligarEventos(app) {
     if (t.closest('#el-fundo')) { sairDaCamada(); return; }
     if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
 
-    // Barra estilo WhatsApp: clipe → arquivo, câmera → câmera direta, mic → áudio.
+    // Barra estilo WhatsApp: clipe → arquivo, câmera → câmera direta. O mic NÃO
+    // é clique — é segurar (tratado nos pointer events abaixo).
     if (t.closest('#chat-clipe-btn')) { app.querySelector('#chat-arquivo-arq')?.click(); return; }
     if (t.closest('#chat-cam-btn')) { await abrirCamera(); return; }
-    if (t.closest('#chat-mic-btn')) { await abrirGravador(); return; }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
-    if (t.closest('#grava-parar')) { await pararGravacao(); return; }
-    if (t.closest('#grava-cancelar')) { cancelarGravacao(); return; }
+    // Gravação travada (mãos livres): lixeira, pausar/continuar, enviar.
+    if (t.closest('#grava-lixo')) { _descartarAudio(); return; }
+    if (t.closest('#grava-pausa')) { _pausarRetomar(); return; }
+    if (t.closest('#grava-enviar-audio')) { await _enviarAudio(); return; }
     if (t.closest('#cam-fechar')) { fecharCamera(); return; }
     if (t.closest('#cam-virar')) { await virarCamera(); return; }
     if (t.closest('#cam-disparo')) { await dispararFoto(); return; }
@@ -1699,6 +1808,20 @@ function ligarEventos(app) {
       app.querySelector('#chat-envio')?.requestSubmit();
     }
   });
+
+  // MIC = segurar para gravar (estilo WhatsApp). O setPointerCapture no mic faz
+  // os move/up seguintes chegarem mesmo com o dedo saindo do botão; por isso os
+  // listeners ficam no container, delegados. touch-action:none (no CSS) evita a
+  // rolagem durante o gesto.
+  app.addEventListener('pointerdown', (ev) => {
+    const mic = ev.target.closest('#chat-mic-btn');
+    if (!mic) return;
+    ev.preventDefault();
+    micDown(ev, mic);
+  });
+  app.addEventListener('pointermove', micMove);
+  app.addEventListener('pointerup', micUp);
+  app.addEventListener('pointercancel', () => { if (G.segurando && !G.travado) _descartarAudio(); });
 
   app.addEventListener('submit', async (ev) => {
     if (ev.target.closest('#enc-envio')) {
