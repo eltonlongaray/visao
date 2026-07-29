@@ -6689,17 +6689,19 @@ body.sem-rolagem { overflow: hidden; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msg-arq-baixar { flex: 0 0 auto; color: var(--accent); font-size: 18px; }
 .msg-arq-vazio { color: var(--muted); font-size: 12px; font-style: italic; }
-/* Player de áudio próprio: play/pause · onda · tempo (estilo Telegram). */
+/* Player de áudio: play · (onda + tempo) · foto-com-mic / velocidade. Estilo
+   WhatsApp. A foto vira a pill de velocidade quando toca. */
 .msg-audio {
-  display: flex; align-items: center; gap: 10px;
-  margin: 3px 0 5px; min-width: 190px; max-width: 260px;
+  display: flex; align-items: center; gap: 9px;
+  margin: 3px 0 5px; min-width: 214px; max-width: 274px;
 }
 .au-play {
   flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%;
   border: none; cursor: pointer; background: var(--accent); color: #fff;
   font-size: 15px; line-height: 1; display: grid; place-items: center; font-family: inherit;
 }
-.au-onda { flex: 1; display: flex; align-items: center; gap: 2px; height: 26px; min-width: 84px; }
+.au-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.au-onda { display: flex; align-items: center; gap: 2px; height: 24px; }
 .au-barra {
   flex: 1 1 0; min-width: 2px; max-width: 3px; height: 22%;
   border-radius: 2px; background: currentColor; opacity: 0.32; align-self: center;
@@ -6707,14 +6709,41 @@ body.sem-rolagem { overflow: hidden; }
 }
 .au-barra.tocado { opacity: 0.95; }
 .au-tempo {
-  flex: 0 0 auto; min-width: 30px; font-size: 11.5px;
+  min-width: 30px; font-size: 11px;
   color: var(--muted); font-variant-numeric: tabular-nums;
 }
-/* na minha bolha (fundo roxo/accent) o círculo accent some — inverte pra ter
-   contraste, e o tempo fica legível no fundo escuro. */
+/* Lado direito (nas minhas, esquerdo): foto do autor com micro-badge, que troca
+   pela pill de velocidade durante a reprodução. */
+.au-lado { flex: 0 0 auto; display: grid; place-items: center; min-width: 36px; }
+.msg-audio.au-minha .au-lado { order: -1; }
+.au-foto { position: relative; width: 36px; height: 36px; }
+.au-av {
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.au-mic {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: grid; place-items: center; border: 2px solid var(--card);
+}
+.au-vel {
+  display: none; align-items: center; justify-content: center;
+  border: none; cursor: pointer; font-family: inherit; font-weight: 700;
+  background: var(--card-2); color: var(--text);
+  border-radius: 13px; min-width: 40px; height: 26px; padding: 0 8px; font-size: 12px;
+}
+/* durante a reprodução: some a foto, aparece a velocidade */
+.msg-audio.tocando .au-foto { display: none; }
+.msg-audio.tocando .au-vel { display: inline-flex; }
+/* na minha bolha (fundo accent) inverte cores pra ter contraste */
 .wa-msg.minha .au-play { background: #fff; color: var(--accent); }
 .wa-msg.minha .au-tempo { color: rgba(255,255,255,0.72); }
+.wa-msg.minha .au-mic { border-color: #4c3a8f; }
+.wa-msg.minha .au-vel { background: rgba(255,255,255,0.22); color: #fff; }
 :root[data-theme="light"] .wa-msg.minha .au-tempo { color: rgba(0,0,0,0.5); }
+:root[data-theme="light"] .wa-msg.minha .au-mic { border-color: #d9c9f5; }
+:root[data-theme="light"] .wa-msg.minha .au-vel { background: rgba(0,0,0,0.12); color: #2a2140; }
 
 .chat-arq-ic { font-size: 22px; }
 

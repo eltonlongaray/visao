@@ -310,7 +310,7 @@ function linhaDiscord(m, anterior, minha) {
     <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha || souAdmin ? 1 : 0}">
       ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
-      <div class="dc-body">${cabecalho}${blocoFoto(m)}${blocoArquivo(m)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
+      <div class="dc-body">${cabecalho}${blocoFoto(m)}${blocoArquivo(m, minha)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
     </div>`;
 }
 
@@ -466,19 +466,36 @@ function blocoFoto(m) {
 
 // Arquivo ou áudio na mensagem. Áudio vira player; o resto vira um cartão com
 // nome + tamanho estimado + baixar. O mime decide qual dos dois.
-function blocoArquivo(m) {
+function blocoArquivo(m, minha = false) {
   if (!m.arquivo_path) return '';
   const url = arquivos.get(m.arquivo_path);
   const mime = m.arquivo_mime || '';
   if (!url) return `<div class="msg-arq msg-arq-vazio">carregando…</div>`;
 
   if (mime.startsWith('audio/')) {
-    // Player próprio (onda + play/pause + tempo), estilo Telegram/WhatsApp. A
-    // decodificação e a reprodução ficam em montarPlayersAudio/togglePlayAudio.
-    return `<div class="msg-audio" data-audio="${esc(url)}" data-path="${esc(m.arquivo_path)}">
+    // Player próprio (foto + onda + play/pause + tempo + velocidade), estilo
+    // WhatsApp. A foto é a de quem mandou, com o micro-badge. A pill de
+    // velocidade aparece ao tocar (1× → 1.5× → 2× → 1×). A decodificação e a
+    // reprodução ficam em montarPlayersAudio/togglePlayAudio.
+    const nome = perfis.get(m.autor_id)?.nome || m.autor_nome || 'Falcão';
+    return `<div class="msg-audio ${minha ? 'au-minha' : ''}" data-audio="${esc(url)}" data-path="${esc(m.arquivo_path)}">
       <button type="button" class="au-play" aria-label="Tocar">▶</button>
-      <div class="au-onda" aria-hidden="true"></div>
-      <span class="au-tempo">0:00</span>
+      <div class="au-mid">
+        <div class="au-onda" aria-hidden="true"></div>
+        <span class="au-tempo">0:00</span>
+      </div>
+      <div class="au-lado">
+        <span class="au-foto">
+          ${avatar(m.autor_id, nome, 'au-av')}
+          <span class="au-mic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+              <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
+              <path d="M17 11a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11z"/>
+            </svg>
+          </span>
+        </span>
+        <button type="button" class="au-vel" aria-label="Velocidade">1×</button>
+      </div>
     </div>`;
   }
   const nome = m.arquivo_nome || 'arquivo';
@@ -519,7 +536,10 @@ const N_BARRAS = 38;
 const audioBuffers = new Map();   // path -> { buffer, dur, peaks }
 let _actx = null;
 let _audioObs = null;
-let tocando = null;   // { el, path, src, inicio, offset, dur, ativo, _pausa, raf }
+let tocando = null;   // { el, path, src, inicio, offset, dur, vel, ativo, _pausa, raf }
+let _velAudio = 1;    // 1 → 1.5 → 2 → 1 (reinicia no 1 a cada faixa nova)
+const _ORDEM_VEL = [1, 1.5, 2];
+const _rotVel = (v) => v + '×';
 
 function _ctx() {
   if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -579,10 +599,15 @@ function montarPlayersAudio(escopo) {
       }
       _audioObs.observe(el);
     }
-    // Se ESTA faixa está tocando e a lista se redesenhou, re-vincula o player ao
-    // elemento novo pra não resetar o play no meio da reprodução.
-    if (tocando && tocando.ativo && tocando.path && tocando.path === path) {
-      tocando.el = el; el.classList.add('tocando'); _btnPlay(el, true);
+    // Se ESTA faixa está tocando/pausada e a lista se redesenhou, re-vincula o
+    // player ao elemento novo pra não resetar o play no meio.
+    if (tocando && tocando.path && tocando.path === path) {
+      tocando.el = el;
+      el.classList.add('tocando');
+      _btnPlay(el, tocando.ativo);
+      const pill = el.querySelector('.au-vel');
+      if (pill) pill.textContent = _rotVel(tocando.vel || 1);
+      _pintarProgresso(el, tocando.dur ? _posTrack() / tocando.dur : 0);
     }
   });
 }
@@ -596,42 +621,77 @@ async function _decodificarEl(el) {
   } catch (e) { console.warn('[audio] decode', e?.message || e); }
 }
 
+// posição ATUAL na faixa (em segundos), levando a velocidade em conta
+function _posTrack() {
+  if (!tocando) return 0;
+  if (!tocando.ativo) return tocando.offset || 0;
+  return Math.min(tocando.dur, (_ctx().currentTime - tocando.inicio) * (tocando.vel || 1));
+}
+// cria o source do zero a partir de um ponto (offset em segundos da faixa). A
+// playbackRate de um AudioBufferSourceNode não muda sem recriar, então trocar
+// de velocidade também passa por aqui.
+function _iniciarSource(el, info, offTrack) {
+  const ctx = _ctx();
+  const src = ctx.createBufferSource();
+  src.buffer = info.buffer;
+  src.playbackRate.value = _velAudio;
+  src.connect(ctx.destination);
+  src.start(0, offTrack);
+  tocando = {
+    el, path: el.dataset.path, src, dur: info.dur, vel: _velAudio,
+    inicio: ctx.currentTime - (offTrack / _velAudio), offset: offTrack, ativo: true, _pausa: false, raf: 0,
+  };
+  src.onended = () => { if (tocando && tocando.el === el && !tocando._pausa) _resetAudioEl(el); };
+  el.classList.add('tocando');
+  const pill = el.querySelector('.au-vel');
+  if (pill) pill.textContent = _rotVel(_velAudio);
+  _btnPlay(el, true);
+  _animarAudio();
+}
+
 async function togglePlayAudio(el) {
   if (!el) return;
   if (tocando && tocando.el === el && tocando.ativo) { pausarAudio(); return; }
+  const retomar = tocando && tocando.el === el && !tocando.ativo;
+  const offTrack = retomar ? (tocando.offset || 0) : 0;
+  if (!retomar) _velAudio = 1;   // faixa nova começa sempre no 1× (normal)
   if (tocando && tocando.el !== el) _resetAudioEl(tocando.el);   // uma faixa por vez
   let info;
   try { info = await prepararAudio(el.dataset.path, el.dataset.audio); }
   catch { showToast('Não deu pra abrir o áudio.', 'info'); return; }
   const ctx = _ctx();
   if (ctx.state === 'suspended') { try { await ctx.resume(); } catch {} }
-  const offset = (tocando && tocando.el === el) ? tocando.offset : 0;
-  const src = ctx.createBufferSource();
-  src.buffer = info.buffer;
-  src.connect(ctx.destination);
-  src.start(0, offset);
-  tocando = { el, path: el.dataset.path, src, inicio: ctx.currentTime - offset, offset, dur: info.dur, ativo: true, _pausa: false, raf: 0 };
-  el.classList.add('tocando');
-  _btnPlay(el, true);
-  src.onended = () => { if (tocando && tocando.el === el && !tocando._pausa) _resetAudioEl(el); };
-  _animarAudio();
+  _iniciarSource(el, info, offTrack);
 }
 function pausarAudio() {
   if (!tocando || !tocando.ativo) return;
-  tocando.offset = _ctx().currentTime - tocando.inicio;
+  tocando.offset = _posTrack();
   tocando._pausa = true; tocando.ativo = false;
   try { tocando.src.stop(); } catch {}
   cancelAnimationFrame(tocando.raf);
   _btnPlay(tocando.el, false);
-  tocando.el.classList.remove('tocando');
+  // mantém a classe 'tocando': o progresso e a pill de velocidade continuam à mostra
+}
+// Toca ali de novo troca a velocidade (1 → 1.5 → 2 → 1), reiniciando do ponto.
+function ciclarVelocidade() {
+  _velAudio = _ORDEM_VEL[(_ORDEM_VEL.indexOf(_velAudio) + 1) % _ORDEM_VEL.length];
+  document.querySelectorAll('.au-vel').forEach(b => b.textContent = _rotVel(_velAudio));
+  if (tocando && tocando.ativo) {
+    const info = audioBuffers.get(tocando.path);
+    const el = tocando.el;
+    const pos = _posTrack();
+    tocando._pausa = true; try { tocando.src.stop(); } catch {}
+    cancelAnimationFrame(tocando.raf);
+    if (info) _iniciarSource(el, info, pos);
+  }
 }
 function _animarAudio() {
   if (!tocando || !tocando.ativo) return;
-  const pos = _ctx().currentTime - tocando.inicio;
+  const pos = _posTrack();
   const ratio = tocando.dur ? Math.min(1, pos / tocando.dur) : 0;
   _pintarProgresso(tocando.el, ratio);
   const t = tocando.el.querySelector('.au-tempo');
-  if (t) t.textContent = _mmssSeg(Math.min(pos, tocando.dur));
+  if (t) t.textContent = _mmssSeg(pos);
   if (pos >= tocando.dur) { _resetAudioEl(tocando.el); return; }
   tocando.raf = requestAnimationFrame(_animarAudio);
 }
@@ -642,7 +702,7 @@ function _resetAudioEl(el) {
     tocando = null;
   }
   _btnPlay(el, false);
-  el.classList.remove('tocando');
+  el.classList.remove('tocando');   // volta a mostrar a foto no lugar da velocidade
   _pintarProgresso(el, 0);
   const t = el.querySelector('.au-tempo');
   const info = audioBuffers.get(el.dataset.path);
@@ -1530,7 +1590,7 @@ function balao(m, minha, mostrarAutor) {
           ${comRosto ? `<span class="wa-autor">${esc(nome)}</span>` : ''}
           ${citacao(m)}
           ${blocoFoto(m)}
-          ${blocoArquivo(m)}
+          ${blocoArquivo(m, minha)}
           ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
         </div>
@@ -1804,6 +1864,7 @@ function ligarEventos(app) {
     if (t.closest('#chat-clipe-btn')) { app.querySelector('#chat-arquivo-arq')?.click(); return; }
     if (t.closest('#chat-cam-btn')) { await abrirCamera(); return; }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
+    if (t.closest('.au-vel')) { ciclarVelocidade(); return; }
     const play = t.closest('.au-play');
     if (play) { await togglePlayAudio(play.closest('.msg-audio')); return; }
     // Gravação travada (mãos livres): lixeira, pausar/continuar, enviar.
