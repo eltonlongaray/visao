@@ -3047,6 +3047,14 @@ body.time-picker-open { overflow: hidden; }
 /* A pílula é o CONTÊINER agora — a borda e o fundo saíram da textarea e
    vieram pra cá, senão o botão de emoji ficaria fora do campo em vez de
    dentro dele, como é no WhatsApp. */
+/* Segurar o mic (e tocar nos botões) não pode selecionar texto nem abrir o
+   menu de seleção/callout do navegador. A barra inteira é "não selecionável";
+   só a textarea volta a ser, pra pessoa poder marcar o que escreve. */
+.chat-envio, .chat-grava {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.chat-envio textarea { -webkit-user-select: text; user-select: text; }
+
 .chat-campo {
   flex: 1; min-width: 0;
   display: flex; align-items: flex-end; gap: 2px;
