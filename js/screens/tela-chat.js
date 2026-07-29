@@ -841,6 +841,7 @@ function limparAnexoDireto() {
   const tela = document.getElementById('foto-envio');
   if (tela) { tela.hidden = true; tela.innerHTML = ''; }
   document.body.classList.remove('sem-rolagem');
+  atualizarBotaoEnvio();   // sem foto: reavalia mic vs ➤
 }
 
 function limparAnexo() {
@@ -857,14 +858,16 @@ function mostrarAnexoArq() {
   const ehAudio = (anexoArq.mime || '').startsWith('audio/');
   box.hidden = false;
   box.innerHTML = `
-    <span class="chat-arq-ic">${ehAudio ? '🎤' : '📎'}</span>
+    <span class="chat-arq-ic">${ehAudio ? '🎙️' : '📎'}</span>
     <span class="previa-txt">${esc(anexoArq.nome)}</span>
     <button type="button" class="previa-x" id="chat-arq-x" aria-label="Tirar o arquivo">✕</button>`;
+  atualizarBotaoEnvio();
 }
 function limparAnexoArq() {
   anexoArq = null;
   const box = document.getElementById('chat-previa');
   if (box) { box.hidden = true; box.innerHTML = ''; }
+  atualizarBotaoEnvio();
 }
 
 // ── GRAVADOR DE ÁUDIO ──
@@ -949,7 +952,7 @@ async function abrirCamera() {
   const tela = document.getElementById('cam-tela');
   const video = document.getElementById('cam-video');
   if (!tela || !video || !navigator.mediaDevices?.getUserMedia) {
-    document.getElementById('chat-foto-camera')?.click();
+    document.getElementById('chat-foto-galeria')?.click();   // sem câmera: cai na galeria
     return;
   }
   try {
@@ -962,8 +965,9 @@ async function abrirCamera() {
     document.body.classList.add('sem-rolagem');
     empilharCamada(fecharCameraDireto);
   } catch {
-    // permissão negada ou câmera ocupada: o caminho do sistema ainda funciona
-    document.getElementById('chat-foto-camera')?.click();
+    // permissão negada ou câmera ocupada: cai na galeria, que é o outro caminho
+    showToast('Não deu pra abrir a câmera. Escolha da galeria.', 'info');
+    document.getElementById('chat-foto-galeria')?.click();
   }
 }
 
@@ -1005,6 +1009,7 @@ async function dispararFoto() {
   fecharCameraDireto();
   if (!blob) { sairDaCamada(); showToast('Não deu pra capturar a foto.', 'error'); return; }
 
+  limparAnexoArq();   // um anexo por vez: foto zera áudio/arquivo pendente
   anexo = { blob, previa: URL.createObjectURL(blob) };
   mostrarPrevia();
   // Câmera e legenda são o MESMO passo pra quem usa: reaproveita a entrada
@@ -1068,6 +1073,16 @@ function alternarEmojis(mostrar) {
   }
 }
 
+// Microfone quando não há nada pra enviar; ➤ quando há texto OU anexo (foto,
+// arquivo, áudio). Sem isto, o áudio gravado ficava sem botão de enviar.
+function atualizarBotaoEnvio() {
+  const form = document.getElementById('chat-envio');
+  if (!form) return;
+  const campo = document.getElementById('chat-texto');
+  const temConteudo = !!(campo?.value.trim()) || !!anexo || !!anexoArq;
+  form.classList.toggle('tem-texto', temConteudo);
+}
+
 // Insere no CURSOR, não no fim: quem volta pra corrigir o meio da frase
 // esperaria o emoji ali, e não grudado no final do texto.
 function inserirEmoji(emoji) {
@@ -1123,45 +1138,44 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho || comFundo ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
-    <div class="chat-midia" id="chat-midia" hidden>
-      <button type="button" class="midia-op" data-midia="camera">
-        <span class="midia-ic">📷</span><span>Câmera</span>
-      </button>
-      <button type="button" class="midia-op" data-midia="galeria">
-        <span class="midia-ic">🖼️</span><span>Galeria</span>
-      </button>
-      <button type="button" class="midia-op" data-midia="arquivo">
-        <span class="midia-ic">📎</span><span>Arquivo</span>
-      </button>
-      <button type="button" class="midia-op" data-midia="audio">
-        <span class="midia-ic">🎤</span><span>Áudio</span>
-      </button>
-    </div>
     <div class="chat-grava" id="chat-grava" hidden></div>
     <div class="chat-respondendo" id="chat-respondendo" hidden></div>
+    <div class="chat-previa" id="chat-previa" hidden></div>
     <form class="chat-envio" id="chat-envio">
       <div class="chat-campo">
         <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
           aria-label="Emojis">🙂</button>
         <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
           rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
-        <button type="button" class="chat-foto-btn" id="chat-foto-btn"
-          aria-label="Enviar foto" title="Enviar foto">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+        <!-- clipe à esquerda da câmera, como no WhatsApp -->
+        <button type="button" class="chat-ic-btn" id="chat-clipe-btn" aria-label="Anexar arquivo" title="Arquivo">
+          <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.3-2.3l7.8-7.8"/>
+          </svg>
+        </button>
+        <button type="button" class="chat-ic-btn" id="chat-cam-btn" aria-label="Câmera" title="Câmera">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.1-1.8A1.5 1.5 0 0 1 9.1 4.5h5.8a1.5 1.5 0 0 1 1.3.7L17.3 7h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>
             <circle cx="12" cy="12.8" r="3.4"/>
           </svg>
         </button>
       </div>
-      <!-- Dois campos, não um: 'capture' abre a câmera direto e a AUSÊNCIA
-           dele abre a galeria. Não dá pra ter os dois no mesmo input, por
-           isso a escolha aparece antes. -->
-      <input type="file" id="chat-foto-camera" accept="image/*" capture="environment" hidden />
       <input type="file" id="chat-foto-galeria" accept="image/*" hidden />
       <input type="file" id="chat-arquivo-arq" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*" hidden />
       <button type="button" class="chat-cancelar-ed" id="chat-cancelar-edicao" aria-label="Cancelar edição">✕</button>
-      <button type="submit" class="chat-enviar" aria-label="Enviar">➤</button>
+      <!-- Microfone quando o campo está vazio, ➤ quando há texto. Só um dos
+           dois aparece — a classe 'tem-texto' no form decide via CSS. -->
+      <button type="button" class="chat-enviar chat-mic" id="chat-mic-btn" aria-label="Gravar áudio">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+          stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 10v2a7 7 0 0 0 14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+      <button type="submit" class="chat-enviar chat-mandar" aria-label="Enviar">➤</button>
     </form>
     <div class="chat-emojis" id="chat-emojis" hidden></div>`;
 
@@ -1172,6 +1186,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   const campo = corpo.querySelector('#chat-texto');
   const guardado = rascunhos.get(modo);
   if (campo && guardado) { campo.value = guardado; ajustarAltura(campo); }
+  atualizarBotaoEnvio();
 
   const l = corpo.querySelector('#chat-lista');
   if (l) l.scrollTop = l.scrollHeight;
@@ -1240,7 +1255,7 @@ function balao(m, minha, mostrarAutor) {
       data-id="${m.id}" data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       ${comRosto ? avatar(m.autor_id, nome, 'wa-av') : ''}
       <div class="wa-col">
-        <div class="wa-bolha ${m.imagem_path ? 'bolha-foto' : ''}">
+        <div class="wa-bolha ${m.imagem_path && !m.texto ? 'bolha-foto' : ''} ${m.imagem_path && m.texto ? 'bolha-legenda' : ''}">
           ${comRosto ? `<span class="wa-autor">${esc(nome)}</span>` : ''}
           ${citacao(m)}
           ${blocoFoto(m)}
@@ -1513,21 +1528,10 @@ function ligarEventos(app) {
     if (t.closest('#el-fundo')) { sairDaCamada(); return; }
     if (t.closest('#fe-enviar')) { app.querySelector('#chat-envio')?.requestSubmit(); return; }
 
-    if (t.closest('#chat-foto-btn')) {
-      const folha = app.querySelector('#chat-midia');
-      if (folha) folha.hidden = !folha.hidden;
-      return;
-    }
-    const opMidia = t.closest('[data-midia]');
-    if (opMidia) {
-      app.querySelector('#chat-midia').hidden = true;
-      const tipo = opMidia.dataset.midia;
-      if (tipo === 'camera') await abrirCamera();
-      else if (tipo === 'galeria') app.querySelector('#chat-foto-galeria')?.click();
-      else if (tipo === 'arquivo') app.querySelector('#chat-arquivo-arq')?.click();
-      else if (tipo === 'audio') await abrirGravador();
-      return;
-    }
+    // Barra estilo WhatsApp: clipe → arquivo, câmera → câmera direta, mic → áudio.
+    if (t.closest('#chat-clipe-btn')) { app.querySelector('#chat-arquivo-arq')?.click(); return; }
+    if (t.closest('#chat-cam-btn')) { await abrirCamera(); return; }
+    if (t.closest('#chat-mic-btn')) { await abrirGravador(); return; }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
     if (t.closest('#grava-parar')) { await pararGravacao(); return; }
     if (t.closest('#grava-cancelar')) { cancelarGravacao(); return; }
@@ -1538,11 +1542,6 @@ function ligarEventos(app) {
       fecharCamera();
       app.querySelector('#chat-foto-galeria')?.click();
       return;
-    }
-    // toque fora fecha a folha de mídia
-    if (!t.closest('.chat-midia')) {
-      const folha = app.querySelector('#chat-midia');
-      if (folha && !folha.hidden) folha.hidden = true;
     }
     if (t.closest('#previa-remover')) { limparAnexo(); return; }
 
@@ -1662,12 +1661,12 @@ function ligarEventos(app) {
       mostrarAnexoArq();
       return;
     }
-    if (ev.target.id !== 'chat-foto-camera' && ev.target.id !== 'chat-foto-galeria') return;
+    if (ev.target.id !== 'chat-foto-galeria') return;
     const arquivo = ev.target.files?.[0];
     ev.target.value = '';   // permite reescolher o MESMO arquivo depois
     if (!arquivo) return;
     try {
-      limparAnexo();
+      limparAnexo(); limparAnexoArq();   // um anexo por vez: foto zera áudio/arquivo pendente
       const blob = await reduzirImagem(arquivo);
       anexo = { blob, previa: URL.createObjectURL(blob) };
       mostrarPrevia();
@@ -1688,6 +1687,7 @@ function ligarEventos(app) {
     if (ev.target.id !== 'chat-texto') return;
     ajustarAltura(ev.target);
     guardarRascunho();
+    atualizarBotaoEnvio();
   });
 
   // Enter = quebra de linha (comportamento nativo da textarea, não mexemos).
@@ -1766,14 +1766,16 @@ function ligarEventos(app) {
       campo.value = '';
       ajustarAltura(campo);
       rascunhos.delete(modoAtual());
+      atualizarBotaoEnvio();   // campo vazio: o mic volta no lugar do ➤
     }
     // A tela da legenda fica ABERTA durante o envio: é nela que o botão vira
     // ⏳. Fechar antes deixava a pessoa sem nenhum sinal de que algo estava
     // acontecendo — que foi o que gerou os envios repetidos no teste.
     if (paraEnviar) { paraEnviar.legenda = texto; marcarEnviando(true); }
-    // Arquivo/áudio: sobe junto, no mesmo envio. Só um anexo por vez — foto e
-    // arquivo não convivem na mesma mensagem.
-    const arqParaEnviar = anexoArq;
+    // Só um anexo por vez — foto e arquivo/áudio não convivem na mesma
+    // mensagem. Se os dois estiverem setados (áudio pendente + foto), a foto
+    // vence e o áudio fica pra ser enviado sozinho depois.
+    const arqParaEnviar = paraEnviar ? null : anexoArq;
     if (arqParaEnviar) marcarEnviando(true);
     try {
       // a imagem sobe ANTES: se falhar, não nasce mensagem apontando pra

@@ -3094,6 +3094,25 @@ body.time-picker-open { overflow: hidden; }
 }
 .chat-envio.editando .chat-campo { border-color: var(--accent); }
 
+/* Clipe e câmera dentro do campo (à direita do texto). Traço fino, cor de
+   apoio — não competem com o botão redondo de ação. */
+.chat-ic-btn {
+  flex: 0 0 40px; height: 42px; background: none; border: none;
+  color: var(--muted); cursor: pointer; padding: 0;
+  display: grid; place-items: center; font-family: inherit;
+}
+.chat-ic-btn:active { color: var(--accent); }
+
+/* Mic quando o campo está vazio, ➤ quando há texto — como no WhatsApp. A
+   classe tem-texto no form (posta pelo JS) faz a troca; só um ocupa espaço. */
+.chat-enviar.chat-mic { display: grid; place-items: center; }
+.chat-enviar.chat-mandar { display: none; place-items: center; }
+.chat-envio.tem-texto .chat-mic { display: none; }
+.chat-envio.tem-texto .chat-mandar { display: grid; }
+/* Editando: sempre ➤ (não se grava áudio no meio de uma edição de texto). */
+.chat-envio.editando .chat-mic { display: none; }
+.chat-envio.editando .chat-mandar { display: grid; }
+
 .chat-nova {
   width: 100%; padding: 12px; margin-bottom: 12px;
   background: var(--card); border: 1px dashed var(--border); border-radius: 14px;
@@ -5984,6 +6003,18 @@ body.tour-active { overflow: hidden; }
 .wa-msg.minha .wa-bolha.bolha-foto { background: none; border: none; }
 .wa-bolha.bolha-foto .wa-hora { margin: 4px 6px 0 0; }
 .wa-bolha.bolha-foto .wa-txt { padding: 6px 10px 0; }
+/* Foto COM legenda: mantém o balão pintado (a legenda precisa de fundo), mas a
+   foto sangra até as bordas do balão e arredonda só no topo — a legenda senta
+   logo abaixo, como no WhatsApp. Sem o papel fotográfico aqui: a moldura vira o
+   próprio balão. */
+.wa-bolha.bolha-legenda .msg-foto {
+  margin: -7px -11px 5px; width: calc(100% + 22px);
+  padding: 0; background: none; box-shadow: none;
+  border-radius: 3px 12px 0 0;
+}
+.wa-bolha.bolha-legenda .msg-foto img { border-radius: 3px 12px 0 0; }
+.wa-msg.minha .wa-bolha.bolha-legenda .msg-foto,
+.wa-msg.minha .wa-bolha.bolha-legenda .msg-foto img { border-radius: 12px 3px 0 0; }
 /* A LINHA da foto ocupa a largura toda (o toque longo precisa dela inteira);
    quem fica em 2/3 é a bolha, logo abaixo. Esta regra limitava a linha a 74%
    e a bolha calculava 66% DESSE valor — a foto saía com 47% da tela e a
