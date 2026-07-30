@@ -1998,6 +1998,9 @@ body.time-picker-open { overflow: hidden; }
   flex-shrink: 0;
 }
 
+/* Caixa de Ferramentas: martelo/chave um pouco maior que os outros ícones */
+#ferramentas-card .reminders-icon { font-size: 23px; }
+
 /* ─── Mensagens da manhã ─── */
 .msgs-card .reminders-icon {
   background: rgba(244,114,182,0.18); /* tom rosa-suave pra diferenciar */
@@ -6681,6 +6684,36 @@ body.sem-rolagem { overflow: hidden; }
   background: var(--card-2); color: var(--accent); font-size: 13.5px; font-weight: 700;
   cursor: pointer; font-family: inherit;
 }
+/* mini-modal de nova categoria (input + sugestões) */
+.fr-mini-ov {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.fr-mini {
+  width: 100%; max-width: 320px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+}
+.fr-mini-tit { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.fr-mini-input {
+  width: 100%; background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; color: var(--text); font-size: 14px;
+  font-family: inherit; outline: none; box-sizing: border-box;
+}
+.fr-mini-input:focus { border-color: var(--accent); }
+.fr-mini-sugs { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0 4px; }
+.fr-sug {
+  background: var(--card-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 12px; color: var(--text); font-size: 12.5px; cursor: pointer; font-family: inherit;
+}
+.fr-sug:active { border-color: var(--accent); color: var(--accent); }
+.fr-mini-acoes { display: flex; gap: 8px; margin-top: 14px; }
+.fr-mini-cancel, .fr-mini-ok {
+  flex: 1; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; border: 1px solid var(--border);
+}
+.fr-mini-cancel { background: var(--card-2); color: var(--muted); }
+.fr-mini-ok { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 .fr-rodape { display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 18px; }
 .fr-rodape .fr-limpar { align-self: flex-start; }
 .fr-apagar-grupo {

@@ -464,7 +464,12 @@ function attachHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function openCategoryEditor(id) {
   const isNew = id === null;
-  const COLORS = ['#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#fb923c','#c084fc','#22d3ee','#facc15'];
+  // Paleta ampla: a lista de atividades é grande e as cores estavam repetindo.
+  const COLORS = [
+    '#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#fb923c','#c084fc','#22d3ee','#facc15',
+    '#818cf8','#2dd4bf','#e879f9','#38bdf8','#fcd34d','#fca5a5','#f59e0b','#4ade80','#f43f5e','#0ea5e9',
+    '#a3e635','#c026d3','#14b8a6','#eab308','#ef4444','#3b82f6','#ec4899','#10b981','#8b5cf6','#f97316',
+  ];
   const ICONS = [
     // Vida diária / hábitos
     '🏷️','💧','🥗','💪','⚽','🏃','📚','🌙','💼','🧘','🥋','💰','🎨','🧹','📞','🛒','✈️','💝',

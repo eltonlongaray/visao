@@ -16,9 +16,12 @@ import { auth } from './autenticacao.js';
 
 // Grupos sugeridos (ficam no código; aparecem mesmo vazios). Cor pinta o ícone
 // num círculo — "Pessoal" em azul, a pedido. Custom entram na tabela.
+// "Pessoal" usa SVG (não emoji): o emoji 👤 é um glifo cinza que ignora a cor
+// CSS e ficava tosco. O SVG pega a cor do círculo e fica azul de verdade.
+const SVG_PESSOA = '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.42 0-8 2.69-8 6v1h16v-1c0-3.31-3.58-6-8-6z"/>';
 export const GRUPOS_PADRAO = [
   { nome: 'Casa',     icone: '🏠',       cor: '#2dd4bf' },
-  { nome: 'Pessoal',  icone: '👤',       cor: '#3b82f6' },
+  { nome: 'Pessoal',  icone: '👤', svg: SVG_PESSOA, cor: '#3b82f6' },
   { nome: 'Trabalho', icone: '💼',       cor: '#f59e0b' },
   { nome: 'Família',  icone: '👨‍👩‍👧', cor: '#ec4899' },
   { nome: 'Amigos',   icone: '🤝',       cor: '#a78bfa' },
@@ -49,10 +52,10 @@ export async function carregarFerramentas() {
   const itens = ri.data || [], secoes = rs.data || [], gruposCustom = rg.data || [];
 
   const porGrupo = new Map();
-  const novoGrupo = (nome, icone, cor, custom, grupoId) =>
-    ({ nome, icone, cor, custom: !!custom, grupoId: grupoId || null, soltos: [], secoes: [] });
+  const novoGrupo = (nome, icone, cor, custom, grupoId, svg) =>
+    ({ nome, icone, svg: svg || null, cor, custom: !!custom, grupoId: grupoId || null, soltos: [], secoes: [] });
 
-  for (const g of GRUPOS_PADRAO) porGrupo.set(g.nome, novoGrupo(g.nome, g.icone, g.cor, false));
+  for (const g of GRUPOS_PADRAO) porGrupo.set(g.nome, novoGrupo(g.nome, g.icone, g.cor, false, null, g.svg));
   for (const g of gruposCustom) if (!porGrupo.has(g.nome)) porGrupo.set(g.nome, novoGrupo(g.nome, g.icone || '📌', _corCustom(g.nome), true, g.id));
 
   // seções por grupo (com um índice id->objeto pra pendurar os itens)

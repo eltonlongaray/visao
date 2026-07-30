@@ -22,6 +22,17 @@ const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 let grupos = [];
 let grupoAberto = null;   // nome do grupo aberto; null = lista de grupos
 
+// Sugestões de categoria por grupo (a pessoa escreve OU toca numa sugestão).
+const SUGESTOES = {
+  Casa:     ['Cozinha', 'Mercado', 'Limpeza', 'Contas', 'Conserto'],
+  Pessoal:  ['Saúde', 'Estudos', 'Documentos', 'Compras', 'Metas'],
+  Trabalho: ['Reuniões', 'Projetos', 'E-mails', 'Ideias', 'Prazos'],
+  Família:  ['Filhos', 'Compromissos', 'Compras', 'Casa'],
+  Amigos:   ['Rolês', 'Aniversários', 'Combinar'],
+  Academia: ['Peito', 'Costas', 'Pernas', 'Braços', 'Ombros', 'Abdômen'],
+};
+const SUGESTOES_GERAIS = ['A comprar', 'A ligar', 'A resolver', 'Ideias', 'Importante'];
+
 const _pendGrupo = (g) =>
   g.soltos.filter(i => !i.feito).length + g.secoes.reduce((n, s) => n + s.itens.filter(i => !i.feito).length, 0);
 
@@ -51,8 +62,12 @@ function desenhar() {
 }
 
 // ── ícone do grupo num círculo colorido ──
+// svg pega a cor do círculo (currentColor); emoji fica como está.
 function icone(g) {
-  return `<span class="fr-ic-circ" style="background:${g.cor}22;color:${g.cor}">${esc(g.icone || '📌')}</span>`;
+  const dentro = g.svg
+    ? `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="display:block">${g.svg}</svg>`
+    : esc(g.icone || '📌');
+  return `<span class="fr-ic-circ" style="background:${g.cor}22;color:${g.cor}">${dentro}</span>`;
 }
 
 // ── Lista de grupos ──
@@ -135,9 +150,9 @@ function telaItens() {
       ${formNova('', 'Adicionar item…')}
       <div class="fr-lista">${bloco(g.soltos, '')}</div>
 
-      ${secoesHtml}
+      <button class="fr-add-secao" data-nova-secao>＋ Adicionar categoria</button>
 
-      <button class="fr-add-secao" data-nova-secao>＋ Novo título / seção</button>
+      ${secoesHtml}
 
       <div class="fr-rodape">
         ${totalFeitos ? `<button class="fr-limpar" data-limpar>Limpar concluídos (${totalFeitos})</button>` : ''}
@@ -247,10 +262,43 @@ async function editarInline(id) {
   try { await editarItem(id, t); } catch (e) { showToast(e.message, 'error'); }
 }
 
+// Mini-modal: escrever a categoria OU tocar numa sugestão. Resolve com o nome
+// escolhido (ou null se cancelar).
+function pedirCategoria(grupoNome) {
+  return new Promise((resolve) => {
+    const sugs = SUGESTOES[grupoNome] || SUGESTOES_GERAIS;
+    const ov = document.createElement('div');
+    ov.className = 'fr-mini-ov';
+    ov.innerHTML = `
+      <div class="fr-mini">
+        <div class="fr-mini-tit">Nova categoria</div>
+        <input class="fr-mini-input" id="fr-cat-input" placeholder="Escreva a categoria…" maxlength="60" autocomplete="off" />
+        <div class="fr-mini-sugs">
+          ${sugs.map(s => `<button type="button" class="fr-sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}
+        </div>
+        <div class="fr-mini-acoes">
+          <button type="button" class="fr-mini-cancel" data-cat-cancelar>Cancelar</button>
+          <button type="button" class="fr-mini-ok" data-cat-ok>Criar</button>
+        </div>
+      </div>`;
+    document.getElementById('ferramentas-ov')?.appendChild(ov);
+    const input = ov.querySelector('#fr-cat-input');
+    setTimeout(() => input?.focus(), 30);
+    const fim = (val) => { ov.remove(); resolve(val); };
+    ov.addEventListener('click', (e) => {
+      if (e.target === ov || e.target.closest('[data-cat-cancelar]')) return fim(null);
+      const sug = e.target.closest('[data-sug]');
+      if (sug) { input.value = sug.dataset.sug; input.focus(); return; }
+      if (e.target.closest('[data-cat-ok]')) { const t = input.value.trim(); return t ? fim(t) : input.focus(); }
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { const t = input.value.trim(); if (t) fim(t); }
+    });
+  });
+}
+
 async function novaSecao() {
-  const nome = prompt('Título da seção (ex.: Cozinha, Mercado):', '');
-  if (nome == null) return;
-  const n = nome.trim();
+  const n = await pedirCategoria(grupoAberto);
   if (!n) return;
   const g = grupos.find(x => x.nome === grupoAberto);
   try {
