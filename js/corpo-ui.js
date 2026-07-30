@@ -135,7 +135,8 @@ function formHtml() {
           <span class="cp-foto-lbl">${l.lbl}</span>
         </button>`).join('')}
     </div>
-    <input type="file" id="cp-foto-arq" accept="image/*" hidden />
+    <input type="file" id="cp-foto-cam" accept="image/*" capture="environment" hidden />
+    <input type="file" id="cp-foto-gal" accept="image/*" hidden />
 
     <button class="cp-salvar" data-salvar>Salvar medição</button>`;
 }
@@ -202,7 +203,13 @@ export function ligarComposicao() {
     if (ap) { await apagarUI(ap.dataset.apagar); return; }
 
     const slot = e.target.closest('[data-foto]');
-    if (slot) { ladoAtivo = slot.dataset.foto; document.getElementById('cp-foto-arq')?.click(); return; }
+    if (slot) {
+      ladoAtivo = slot.dataset.foto;
+      const op = await escolherFoto();
+      if (op === 'camera') document.getElementById('cp-foto-cam')?.click();
+      else if (op === 'galeria') document.getElementById('cp-foto-gal')?.click();
+      return;
+    }
 
     if (e.target.closest('[data-salvar]')) { await salvar(); return; }
   });
@@ -216,7 +223,7 @@ export function ligarComposicao() {
   });
 
   document.addEventListener('change', async (e) => {
-    if (e.target.id !== 'cp-foto-arq' || !novo || !ladoAtivo) return;
+    if ((e.target.id !== 'cp-foto-cam' && e.target.id !== 'cp-foto-gal') || !novo || !ladoAtivo) return;
     const f = e.target.files?.[0]; e.target.value = '';
     if (!f) return;
     try {
@@ -256,6 +263,29 @@ async function salvar() {
     showToast('Erro ao salvar: ' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Salvar medição'; }
   }
+}
+
+// Ao tocar num slot: escolhe câmera (abre a câmera) ou galeria. Resolve com
+// 'camera' | 'galeria' | null.
+function escolherFoto() {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'cp-escolha-ov';
+    ov.innerHTML = `
+      <div class="cp-escolha">
+        <div class="cp-escolha-tit">Foto de progresso</div>
+        <button type="button" class="cp-escolha-op" data-op="camera">📷 Tirar foto agora</button>
+        <button type="button" class="cp-escolha-op" data-op="galeria">🖼️ Escolher da galeria</button>
+        <button type="button" class="cp-escolha-cancel" data-op="">Cancelar</button>
+      </div>`;
+    document.body.appendChild(ov);
+    const fim = (v) => { ov.remove(); resolve(v); };
+    ov.addEventListener('click', (e) => {
+      if (e.target === ov) return fim(null);
+      const b = e.target.closest('[data-op]');
+      if (b) fim(b.dataset.op || null);
+    });
+  });
 }
 
 // Reduz a foto antes de subir (fotos são permanentes; economiza espaço/banda).

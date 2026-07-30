@@ -609,6 +609,22 @@ html, body {
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 800; font-family: inherit;
 }
 .cp-salvar:disabled { background: var(--card-2); color: var(--muted); cursor: default; border: 1px solid var(--border); }
+/* escolha câmera x galeria (folha no rodapé) */
+.cp-escolha-ov { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-end; justify-content: center; padding: 14px; }
+.cp-escolha { width: 100%; max-width: 420px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.cp-escolha-tit { text-align: center; font-size: 12.5px; color: var(--muted); font-weight: 700; padding: 6px 0 2px; }
+.cp-escolha-op {
+  padding: 14px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card-2); color: var(--text); font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit; text-align: center;
+}
+.cp-escolha-op:active { border-color: var(--accent); }
+.cp-escolha-cancel {
+  padding: 13px; border-radius: 12px; border: none; background: none;
+  color: var(--muted); font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
 /* card travado (já mediu há menos de 3 meses) */
 .cp-bloqueado {
   display: flex; gap: 10px; align-items: flex-start;
