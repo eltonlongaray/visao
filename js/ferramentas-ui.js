@@ -254,7 +254,7 @@ async function _salvarMarca(it) {
 async function editarInline(id) {
   const it = _item(id);
   if (!it) return;
-  const novo = prompt('Editar item:', it.texto);
+  const novo = await pedirTexto({ titulo: 'Editar item', valor: it.texto, max: 500 });
   if (novo == null) return;
   const t = novo.trim();
   if (!t || t === it.texto) return;
@@ -262,43 +262,38 @@ async function editarInline(id) {
   try { await editarItem(id, t); } catch (e) { showToast(e.message, 'error'); }
 }
 
-// Mini-modal: escrever a categoria OU tocar numa sugestão. Resolve com o nome
-// escolhido (ou null se cancelar).
-function pedirCategoria(grupoNome) {
+// Mini-modal bonito (substitui o prompt() nativo): título, campo, sugestões
+// opcionais, Cancelar/OK. Resolve com o texto (ou null se cancelar).
+function pedirTexto({ titulo, valor = '', placeholder = '', sugestoes = [], ok = 'Salvar', max = 60 }) {
   return new Promise((resolve) => {
-    const sugs = SUGESTOES[grupoNome] || SUGESTOES_GERAIS;
     const ov = document.createElement('div');
     ov.className = 'fr-mini-ov';
     ov.innerHTML = `
       <div class="fr-mini">
-        <div class="fr-mini-tit">Nova categoria</div>
-        <input class="fr-mini-input" id="fr-cat-input" placeholder="Escreva a categoria…" maxlength="60" autocomplete="off" />
-        <div class="fr-mini-sugs">
-          ${sugs.map(s => `<button type="button" class="fr-sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}
-        </div>
+        <div class="fr-mini-tit">${esc(titulo)}</div>
+        <input class="fr-mini-input" id="fr-mini-in" value="${esc(valor)}" placeholder="${esc(placeholder)}" maxlength="${max}" autocomplete="off" />
+        ${sugestoes.length ? `<div class="fr-mini-sugs">${sugestoes.map(s => `<button type="button" class="fr-sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
         <div class="fr-mini-acoes">
-          <button type="button" class="fr-mini-cancel" data-cat-cancelar>Cancelar</button>
-          <button type="button" class="fr-mini-ok" data-cat-ok>Criar</button>
+          <button type="button" class="fr-mini-cancel" data-c>Cancelar</button>
+          <button type="button" class="fr-mini-ok" data-k>${esc(ok)}</button>
         </div>
       </div>`;
     document.getElementById('ferramentas-ov')?.appendChild(ov);
-    const input = ov.querySelector('#fr-cat-input');
-    setTimeout(() => input?.focus(), 30);
-    const fim = (val) => { ov.remove(); resolve(val); };
+    const input = ov.querySelector('#fr-mini-in');
+    setTimeout(() => { input?.focus(); if (valor) input?.select(); }, 30);
+    const fim = (v) => { ov.remove(); resolve(v); };
     ov.addEventListener('click', (e) => {
-      if (e.target === ov || e.target.closest('[data-cat-cancelar]')) return fim(null);
+      if (e.target === ov || e.target.closest('[data-c]')) return fim(null);
       const sug = e.target.closest('[data-sug]');
       if (sug) { input.value = sug.dataset.sug; input.focus(); return; }
-      if (e.target.closest('[data-cat-ok]')) { const t = input.value.trim(); return t ? fim(t) : input.focus(); }
+      if (e.target.closest('[data-k]')) { const t = input.value.trim(); return t ? fim(t) : input.focus(); }
     });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { const t = input.value.trim(); if (t) fim(t); }
-    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const t = input.value.trim(); if (t) fim(t); } });
   });
 }
 
 async function novaSecao() {
-  const n = await pedirCategoria(grupoAberto);
+  const n = await pedirTexto({ titulo: 'Nova categoria', placeholder: 'Escreva a categoria…', ok: 'Criar', sugestoes: SUGESTOES[grupoAberto] || SUGESTOES_GERAIS });
   if (!n) return;
   const g = grupos.find(x => x.nome === grupoAberto);
   try {
@@ -312,7 +307,7 @@ async function renomearSecaoUI(id) {
   const g = grupos.find(x => x.nome === grupoAberto);
   const sec = g?.secoes.find(s => s.id === id);
   if (!sec) return;
-  const novo = prompt('Renomear seção:', sec.nome);
+  const novo = await pedirTexto({ titulo: 'Renomear categoria', valor: sec.nome });
   if (novo == null) return;
   const t = novo.trim();
   if (!t || t === sec.nome) return;
@@ -350,7 +345,7 @@ async function limpar() {
 async function renomear() {
   const g = grupos.find(x => x.nome === grupoAberto);
   if (!g) return;
-  const novo = prompt('Renomear grupo:', g.nome);
+  const novo = await pedirTexto({ titulo: 'Renomear grupo', valor: g.nome });
   if (novo == null) return;
   const t = novo.trim();
   if (!t || t === g.nome) return;
@@ -360,7 +355,7 @@ async function renomear() {
 }
 
 async function novoGrupo() {
-  const nome = prompt('Nome do novo grupo:', '');
+  const nome = await pedirTexto({ titulo: 'Novo grupo', placeholder: 'Nome do grupo', ok: 'Criar', max: 40 });
   if (nome == null) return;
   const n = nome.trim();
   if (!n) return;
