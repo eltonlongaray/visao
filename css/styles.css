@@ -566,10 +566,11 @@ html, body {
 
 /* histórico */
 .cp-reg { background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
-.cp-reg-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.cp-reg-data { font-size: 13.5px; font-weight: 700; color: var(--text); }
-.cp-reg-bf { flex: 1; font-size: 12px; color: var(--blue); font-weight: 700; }
-.cp-reg-x { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; margin-left: auto; }
+.cp-reg-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.cp-reg-data { flex: 1; font-size: 13.5px; font-weight: 700; color: var(--text); }
+.cp-reg-comp { font-size: 12.5px; color: var(--blue); line-height: 1.45; margin-bottom: 8px; }
+.cp-reg-comp b { color: var(--text); }
+.cp-reg-x { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; }
 .cp-reg-medidas { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
 .cp-reg-medidas b { color: var(--text); }
 .cp-reg-fotos { display: flex; gap: 8px; margin-top: 10px; }

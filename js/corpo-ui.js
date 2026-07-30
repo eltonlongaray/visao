@@ -32,6 +32,24 @@ let novo = null;            // { medidas:{}, fotos:{frente,lado,costas} }
 let carregado = false;
 
 const box = () => document.getElementById('cp-inline');
+const br = (n) => String(n).replace('.', ',');
+
+// Do % de gordura + peso saem os kg de gordura e de massa magra (e o % magra).
+function composicao(peso, bf) {
+  const p = Number(peso), g = Number(bf);
+  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(g)) return null;
+  const fatKg = Math.round(p * g / 100 * 10) / 10;
+  const leanKg = Math.round((p - fatKg) * 10) / 10;
+  const leanPct = Math.round((100 - g) * 10) / 10;
+  return { fatKg, leanKg, leanPct };
+}
+// "Gordura X% (Z kg) · Massa magra Y% (W kg)" — ou só o % se faltar o peso.
+function textoComposicao(peso, bf) {
+  if (bf == null) return '';
+  const c = composicao(peso, bf);
+  if (!c) return `Gordura <b>${bf}%</b>`;
+  return `Gordura <b>${bf}%</b> (${br(c.fatKg)} kg) · Massa magra <b>${c.leanPct}%</b> (${br(c.leanKg)} kg)`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: RENDER INLINE
@@ -143,9 +161,9 @@ function historicoHtml() {
       <div class="cp-reg" data-reg="${r.id}">
         <div class="cp-reg-cab">
           <span class="cp-reg-data">${dt}</span>
-          ${r.gordura_pct != null ? `<span class="cp-reg-bf">${r.gordura_pct}% gordura</span>` : ''}
           <button class="cp-reg-x" data-apagar="${r.id}" aria-label="Apagar">🗑</button>
         </div>
+        ${r.gordura_pct != null ? `<div class="cp-reg-comp">🔬 ${textoComposicao(r.peso, r.gordura_pct)}</div>` : ''}
         <div class="cp-reg-medidas">
           ${MEDIDAS.filter(m => r[m.k] != null).map(m => `<span>${m.lbl}: <b>${r[m.k]}${m.un}</b></span>`).join('')}
         </div>
@@ -160,7 +178,11 @@ function atualizarGordura() {
   const el = document.getElementById('cp-gordura');
   if (!el) return;
   const pct = gorduraNavy({ sexo: dados.sexo, alturaCm: dados.alturaCm, pescoco: novo.medidas.pescoco, cintura: novo.medidas.cintura, quadril: novo.medidas.quadril });
-  if (pct != null) { el.innerHTML = `<span class="cp-bf-ok">🔬 % de gordura estimado: <b>${pct}%</b></span>`; return; }
+  if (pct != null) {
+    const semPeso = !novo.medidas.peso ? ' <small>(preencha o peso pra ver em kg)</small>' : '';
+    el.innerHTML = `<span class="cp-bf-ok">🔬 ${textoComposicao(novo.medidas.peso, pct)}${semPeso}</span>`;
+    return;
+  }
   const falta = faltaBase() ? 'sexo e altura (no Meu perfil)'
     : (dados.sexo === 'F' ? 'pescoço, cintura e quadril' : 'pescoço e cintura');
   el.innerHTML = `<span class="cp-bf-hint">Preencha ${falta} pra estimar o % de gordura.</span>`;
