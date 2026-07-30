@@ -160,7 +160,7 @@ export async function renderAjustes(app) {
           </div>
         `, { open: !isPerfilDone(), id: 'accPerfil' })}
 
-        ${acc('🧮 Cálculo de Massa Corporal', `
+        ${acc('🧮 Cálculo de massa corporal', `
           <div class="ajustes-row-sub" style="padding:10px 12px 4px">
             Descubra seu <b>percentual de gordura</b> e de <b>massa magra</b>!
           </div>
