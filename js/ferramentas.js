@@ -27,6 +27,16 @@ export const GRUPOS_PADRAO = [
   { nome: 'Amigos',   icone: '🤝',       cor: '#a78bfa' },
   { nome: 'Academia', icone: '🏋️',      cor: '#ef4444' },
 ];
+// Categorias que já vêm prontas em cada grupo padrão (a pessoa pode remover ou
+// criar mais; o GRUPO em si não se apaga). Semeadas 1x por conta.
+const CATEGORIAS_PADRAO = {
+  'Casa':     ['Reforma', 'Mercado', 'Limpeza'],
+  'Pessoal':  ['Alimentação', 'Lazer', 'Saúde'],
+  'Trabalho': ['Reuniões', 'Projetos', 'Prazos'],
+  'Família':  ['Lazer', 'Compromissos', 'Compras'],
+  'Amigos':   ['Rolês', 'Aniversários', 'Combinar'],
+  'Academia': ['Treino A', 'Treino B', 'Cardio'],
+};
 const CORES_CUSTOM = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#c084fc', '#38bdf8', '#fb7185'];
 function _corCustom(nome) {
   let h = 0; const s = String(nome || '');
@@ -51,6 +61,16 @@ export async function carregarFerramentas() {
   _falha(ri.error); _falha(rs.error); _falha(rg.error);
   const itens = ri.data || [], secoes = rs.data || [], gruposCustom = rg.data || [];
 
+  // Semeia as categorias padrão 1x por conta (idempotente: só cria as que ainda
+  // não existem, então apagar uma não a faz voltar no mesmo aparelho).
+  if (!localStorage.getItem('falcon_ferr_seed')) {
+    try {
+      const novas = await _semearCategorias(secoes);
+      if (novas.length) secoes.push(...novas);
+      localStorage.setItem('falcon_ferr_seed', '1');
+    } catch (e) { console.warn('[ferramentas] seed:', e?.message || e); }
+  }
+
   const porGrupo = new Map();
   const novoGrupo = (nome, icone, cor, custom, grupoId, svg) =>
     ({ nome, icone, svg: svg || null, cor, custom: !!custom, grupoId: grupoId || null, soltos: [], secoes: [] });
@@ -73,6 +93,21 @@ export async function carregarFerramentas() {
     else porGrupo.get(it.grupo).soltos.push(it);
   }
   return [...porGrupo.values()];
+}
+
+// Insere as categorias padrão que ainda não existem pra este usuário.
+async function _semearCategorias(secoesExistentes) {
+  const existe = new Set((secoesExistentes || []).map(s => s.grupo + '|' + (s.nome || '').toLowerCase()));
+  const novas = [];
+  for (const [grupo, cats] of Object.entries(CATEGORIAS_PADRAO)) {
+    cats.forEach((nome, i) => {
+      if (!existe.has(grupo + '|' + nome.toLowerCase())) novas.push({ user_id: _uid(), grupo, nome, ord: i });
+    });
+  }
+  if (!novas.length) return [];
+  const { data, error } = await supabase.from('ferramentas_secoes').insert(novas).select('id, grupo, nome, ord');
+  if (error) throw error;
+  return data || [];
 }
 
 // Nº de pendentes (badge do card na Home) — sem baixar tudo.
