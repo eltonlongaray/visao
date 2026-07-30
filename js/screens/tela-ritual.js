@@ -220,6 +220,64 @@ function hydrationMsg(ml, goal) {
   return `${Math.round(pct)}% — ainda tem que beber bastante`;
 }
 
+// Pinta o estado da água (valor, barra, bolinha, mensagem) — usado pelos botões
+// ± e pela bolinha arrastável.
+function _hydPintar(card, dayId, ml, goal) {
+  const pct = Math.min(100, Math.round((ml / (goal || 2000)) * 100));
+  const val = card.querySelector(`.hyd-ml[data-day="${dayId}"]`);
+  const fill = card.querySelector(`.hydration-fill[data-day="${dayId}"]`);
+  const dot = card.querySelector(`.hyd-dot[data-day="${dayId}"]`);
+  const msg = card.querySelector(`.hydration-msg[data-day="${dayId}"]`);
+  if (val) val.textContent = ml;
+  if (fill) fill.style.width = pct + '%';
+  if (dot) dot.style.left = pct + '%';
+  if (msg) msg.textContent = hydrationMsg(ml, goal);
+}
+
+// Bolinha arrastável na barra de água: passo de 50 ml (os botões ± fazem 250).
+// Delegado no document + pointer capture (a lista se redesenha). Só liga 1x.
+let _hydDragOn = false;
+function _wireHydDrag() {
+  if (_hydDragOn) return; _hydDragOn = true;
+  let arr = null;   // { card, bar, dayId, goal }
+  const mover = (e) => {
+    if (!arr) return;
+    const r = arr.bar.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    let ml = Math.round((frac * arr.goal) / 50) * 50;        // snap 50 ml
+    ml = Math.max(0, Math.min(arr.goal, ml));
+    const day = weekData.find(d => d.id === arr.dayId);
+    if (day) day.meta.hydrationMl = ml;
+    _hydPintar(arr.card, arr.dayId, ml, arr.goal);
+  };
+  document.addEventListener('pointerdown', (e) => {
+    const dot = e.target.closest('.hyd-dot');
+    if (!dot) return;
+    e.preventDefault();
+    const card = dot.closest('.day-card');
+    const bar = card?.querySelector('.hydration-bar');
+    const dayId = dot.dataset.day;
+    const day = weekData.find(d => d.id === dayId);
+    if (!card || !bar || !day) return;
+    arr = { card, bar, dayId, goal: day.meta.hydrationGoal || 2000 };
+    try { dot.setPointerCapture(e.pointerId); } catch {}
+    mover(e);
+  });
+  document.addEventListener('pointermove', mover);
+  document.addEventListener('pointerup', () => {
+    if (!arr) return;
+    const dayId = arr.dayId;
+    const day = weekData.find(d => d.id === dayId);
+    arr = null;
+    if (day) {
+      const key = dayId + ':hydrationMl';
+      clearTimeout(saveTimers[key]);
+      saveTimers[key] = setTimeout(() => setDayMeta(dayId, { hydrationMl: day.meta.hydrationMl }), 400);
+    }
+  });
+}
+_wireHydDrag();
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 5: LABELS DA SEMANA / MÊS
@@ -241,9 +299,18 @@ function weekRangeLabel() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 6: DATA LOADING (Firestore)
 // ═══════════════════════════════════════════════════════════════
+// Meta de água = peso × 35 ml/kg (o peso vem do perfil, digitado na Home). Sem
+// peso, cai no default de 2000 ml. Derivar do peso faz a meta acompanhar quando
+// a pessoa muda o peso, sem precisar mexer dia a dia.
+function _metaAguaDoPeso() {
+  const kg = Number(profile?.pesoKg) || 0;
+  return kg > 0 ? Math.round(kg * 35) : 0;
+}
 function _normalizeMeta(meta) {
   const m = { wakeTime: '', sleepTime: '', hydrationMl: 0, hydrationGoal: 2000, notes: '', ...(meta || {}) };
-  if (!m.hydrationGoal || m.hydrationGoal <= 0) m.hydrationGoal = 2000;
+  const metaPeso = _metaAguaDoPeso();
+  if (metaPeso > 0) m.hydrationGoal = metaPeso;
+  else if (!m.hydrationGoal || m.hydrationGoal <= 0) m.hydrationGoal = 2000;
   return m;
 }
 
@@ -963,7 +1030,10 @@ function renderDayContent(d) {
         </div>
         <button class="hyd-btn" data-hyd-step="250" data-day="${d.id}" title="+250ml">+</button>
       </div>
-      <div class="hydration-bar"><div class="hydration-fill" data-day="${d.id}" style="width:${hydPct}%"></div></div>
+      <div class="hydration-bar">
+        <div class="hydration-fill" data-day="${d.id}" style="width:${hydPct}%"></div>
+        <button type="button" class="hyd-dot" data-day="${d.id}" style="left:${hydPct}%" aria-label="Arraste pra ajustar (50 ml)"></button>
+      </div>
       <div class="hydration-msg" data-day="${d.id}">${hydrationMsg(d.meta.hydrationMl, d.meta.hydrationGoal)}</div>
     </div>
 
@@ -2419,14 +2489,9 @@ function attachHandlers(app) {
       if (!day) return;
       const newMl = Math.max(0, (day.meta.hydrationMl || 0) + step);
       day.meta.hydrationMl = newMl;
-      // Atualiza UI
+      // Atualiza UI (valor, barra, bolinha e mensagem)
       const card = hydBtn.closest('.day-card');
-      const valEl = card.querySelector(`.hyd-ml[data-day="${dayDocId}"]`);
-      const fillEl = card.querySelector(`.hydration-fill[data-day="${dayDocId}"]`);
-      const msgEl = card.querySelector(`.hydration-msg[data-day="${dayDocId}"]`);
-      if (valEl) valEl.textContent = newMl;
-      if (fillEl) fillEl.style.width = Math.min(100, Math.round((newMl / day.meta.hydrationGoal) * 100)) + '%';
-      if (msgEl) msgEl.textContent = hydrationMsg(newMl, day.meta.hydrationGoal);
+      _hydPintar(card, dayDocId, newMl, day.meta.hydrationGoal);
       // Debounce save
       const key = dayDocId + ':hydrationMl';
       clearTimeout(saveTimers[key]);

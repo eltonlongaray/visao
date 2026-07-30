@@ -508,6 +508,27 @@ html, body {
 /* === HOME · Preferências de sono === */
 .sleep-prefs { display: flex; flex-direction: column; gap: 8px; }
 .sleep-info { padding: 4px 4px 0; }
+
+/* peso → meta de água (abaixo do horário) */
+.peso-agua { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.peso-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 9px 12px;
+}
+.peso-ic { font-size: 16px; }
+.peso-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.peso-input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  color: var(--text); font-size: 15px; font-weight: 700; font-family: inherit; text-align: right;
+  -moz-appearance: textfield;
+}
+.peso-input::-webkit-outer-spin-button, .peso-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.peso-un { font-size: 13px; color: var(--muted); }
+.agua-meta { padding: 0 4px; }
+.agua-hint { font-size: 11.5px; color: var(--muted); font-style: italic; }
+.agua-ok { font-size: 12px; color: var(--blue); }
+.agua-ok b { color: var(--text); }
 .sleep-info-empty { font-size: 11px; color: var(--muted); font-style: italic; }
 .sleep-info-tag {
   display: inline-block; font-size: 11px; font-weight: 700;
@@ -1815,8 +1836,18 @@ body.time-picker-open { overflow: hidden; }
 .hyd-ml { font-size: 26px; font-weight: 800; color: var(--blue); letter-spacing: -0.5px; }
 .hyd-value small { font-size: 12px; color: var(--muted); font-weight: 600; }
 
-.hydration-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
-.hydration-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--accent-2)); border-radius: 3px; transition: width 0.4s; }
+/* barra com bolinha arrastável (passo 50 ml). overflow visível pra bolinha
+   passar das bordas; a bolinha não é cortada. */
+.hydration-bar { position: relative; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; margin: 8px 9px; }
+.hydration-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--accent-2)); border-radius: 4px; transition: width 0.15s; }
+.hyd-dot {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 20px; height: 20px; border-radius: 50%; padding: 0;
+  background: #fff; border: 3px solid var(--blue);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35); cursor: grab; touch-action: none;
+  transition: left 0.15s;
+}
+.hyd-dot:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.15); transition: none; }
 .hydration-msg {
   font-size: 11px; color: var(--muted);
   margin-top: 6px; text-align: center; font-weight: 500;

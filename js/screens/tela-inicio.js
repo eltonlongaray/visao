@@ -98,6 +98,16 @@ export async function renderHome(app) {
             </label>
           </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
+          <div class="peso-agua">
+            <label class="peso-row">
+              <span class="peso-ic">⚖️</span>
+              <span class="peso-label">Seu peso</span>
+              <input type="number" inputmode="decimal" id="pref-peso" class="peso-input"
+                placeholder="kg" min="20" max="400" step="0.1" value="${profile.pesoKg || ''}" />
+              <span class="peso-un">kg</span>
+            </label>
+            <div class="agua-meta" id="agua-meta">${aguaMetaHtml()}</div>
+          </div>
         </div>
       </div>
 
@@ -353,9 +363,36 @@ function sleepInfoHtml() {
   return `<span class="sleep-info-tag ${cls}">${emoji} ${t('home.sleep.summary', { h, m: String(m).padStart(2, '0'), status: t('home.sleep.status.' + cls) })}</span>`;
 }
 
+// Meta de água = 35 ml por kg de peso. Sem peso, mostra o convite pra preencher.
+function aguaMetaHtml() {
+  const kg = Number(profile.pesoKg) || 0;
+  if (!kg) return `<span class="agua-hint">💧 Coloque seu peso pra calcular quanta água beber por dia.</span>`;
+  const ml = Math.round(kg * 35);
+  const litros = (ml / 1000).toFixed(1).replace('.', ',');
+  return `<span class="agua-ok">💧 Meta de água: <b>${ml} ml</b> (~${litros} L) por dia · 35 ml/kg</span>`;
+}
+
 function attachPrefHandlers() {
   const wake = document.getElementById('pref-wake');
   const sleep = document.getElementById('pref-sleep');
+
+  // Peso → meta de água (35 ml/kg). Guarda em profile.pesoKg; o Ritual lê daí.
+  const peso = document.getElementById('pref-peso');
+  if (peso) {
+    const atualizaMeta = () => { const el = document.getElementById('agua-meta'); if (el) el.innerHTML = aguaMetaHtml(); };
+    peso.addEventListener('input', () => {
+      const kg = Math.max(0, Math.min(400, parseFloat(peso.value) || 0));
+      profile.pesoKg = kg || null;
+      atualizaMeta();
+    });
+    peso.addEventListener('change', async () => {
+      const kg = Math.max(0, Math.min(400, parseFloat(peso.value) || 0)) || null;
+      profile.pesoKg = kg;
+      try { await setProfile({ pesoKg: kg }); }
+      catch (e) { showToast('Erro ao salvar peso: ' + e.message, 'error'); }
+    });
+  }
+
   if (!wake || !sleep) return;
 
   const persist = async () => {
