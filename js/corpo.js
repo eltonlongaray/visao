@@ -37,15 +37,16 @@ export function gorduraNavy({ sexo, alturaCm, pescoco, cintura, quadril }) {
   return Math.max(2, Math.min(60, Math.round(pct * 10) / 10));
 }
 
-// Meta de água = 35 ml/kg, mas com PESO AJUSTADO pelo IMC (obeso não bebe pelo
-// peso cru). IMC ≤ 25 → peso real. IMC > 25 → base(IMC 25) + 40% do excesso.
+// Meta de água = 35 ml/kg sobre o PESO IDEAL (obeso não bebe pelo peso cru).
+// IMC ≤ 25 → peso real. IMC > 25 → peso máximo saudável pra altura (IMC 25),
+// ignorando o excesso de gordura. Ex.: 1,74 m com 120 kg → ~2,6 L (não 4,2 L).
 export function metaAgua(pesoKg, alturaCm) {
   const kg = _num(pesoKg); if (!kg) return 0;
   const h = (_num(alturaCm) || 0) / 100;
   let base = kg;
   if (h > 0) {
     const imc = kg / (h * h);
-    if (imc > 25) { const pesoMax = 25 * h * h; base = pesoMax + 0.4 * (kg - pesoMax); }
+    if (imc > 25) base = 25 * h * h;   // peso ideal (IMC 25) pra aquela altura
   }
   return Math.round(base * 35);
 }
