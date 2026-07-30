@@ -15,7 +15,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 
 const MEDIDAS = [
   { k: 'peso',        lbl: 'Peso',        un: 'kg' },
-  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm', hint: '(p/ % de gordura)' },
+  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm' },
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
   { k: 'quadril',     lbl: 'Quadril',     un: 'cm' },
