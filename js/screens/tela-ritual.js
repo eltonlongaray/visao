@@ -31,6 +31,7 @@ import {
 } from '../banco-dados.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { forceRender } from '../roteador.js';
+import { metaAgua } from '../corpo.js';
 import { showToast, showLocalToast, confirmModal } from '../aviso-tela.js';
 import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
@@ -303,8 +304,7 @@ function weekRangeLabel() {
 // peso, cai no default de 2000 ml. Derivar do peso faz a meta acompanhar quando
 // a pessoa muda o peso, sem precisar mexer dia a dia.
 function _metaAguaDoPeso() {
-  const kg = Number(profile?.pesoKg) || 0;
-  return kg > 0 ? Math.round(kg * 35) : 0;
+  return metaAgua(profile?.pesoKg, profile?.alturaCm);   // 35 ml/kg, IMC-ajustada
 }
 function _normalizeMeta(meta) {
   const m = { wakeTime: '', sleepTime: '', hydrationMl: 0, hydrationGoal: 2000, notes: '', ...(meta || {}) };

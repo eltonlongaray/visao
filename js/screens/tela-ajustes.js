@@ -18,6 +18,7 @@ import { getProfile, setProfile } from '../banco-dados.js';
 import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone, isPerfilDone } from '../contato-perfil.js';
+import { metaAgua } from '../corpo.js';
 import { trocarMinhaFoto, removerMinhaFoto } from '../chat.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
 import { resetDesafiosSeen } from '../desafios.js';
@@ -132,6 +133,19 @@ export async function renderAjustes(app) {
             <input id="perfApelido" placeholder="" autocomplete="nickname" /></label>
           <label class="input-field"><div class="input-field-label">Data de nascimento</div>
             <input id="perfNasc" type="date" /></label>
+          <div class="perf-corpo-linha">
+            <label class="input-field"><div class="input-field-label">Sexo</div>
+              <select id="perfSexo">
+                <option value="">—</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select></label>
+            <label class="input-field"><div class="input-field-label">Altura (cm)</div>
+              <input id="perfAltura" type="number" inputmode="numeric" min="80" max="250" placeholder="cm" /></label>
+            <label class="input-field"><div class="input-field-label">Peso (kg)</div>
+              <input id="perfPeso" type="number" inputmode="decimal" min="20" max="400" step="0.1" placeholder="kg" /></label>
+          </div>
+          <div class="perf-agua-meta" id="perfAguaMeta"></div>
           <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
             <input id="perfWpp" type="tel" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="tel" /></label>
           <div class="ajustes-row-sub" style="padding:8px 12px 2px;font-size:12px;line-height:1.5">
@@ -262,11 +276,29 @@ async function wire(app) {
         app.querySelector('#perfApelido').value = p.preferredName || '';
         app.querySelector('#perfNasc').value    = p.birthDate || '';
         app.querySelector('#perfWpp').value     = p.phone || '';
+        app.querySelector('#perfSexo').value    = p.sexo || '';
+        app.querySelector('#perfAltura').value  = p.alturaCm || '';
+        app.querySelector('#perfPeso').value    = p.pesoKg || '';
       }
       fotoPropria = !!p?.fotoUrl;
       mostrarFoto(p?.fotoUrl || auth.currentUser?.photoURL || null);
+      pintarAguaMeta();
     } catch (e) { console.warn('[ajustes] load perfil:', e); }
   })();
+
+  // Meta de água (peso × 35 ml/kg, IMC-ajustada) — mostra abaixo de peso/altura.
+  const pintarAguaMeta = () => {
+    const el = app.querySelector('#perfAguaMeta');
+    if (!el) return;
+    const kg = parseFloat(app.querySelector('#perfPeso')?.value) || 0;
+    const alt = parseFloat(app.querySelector('#perfAltura')?.value) || 0;
+    if (!kg) { el.innerHTML = `<span class="agua-hint">💧 Coloque peso e altura pra calcular sua meta de água.</span>`; return; }
+    const ml = metaAgua(kg, alt);
+    const litros = (ml / 1000).toFixed(1).replace('.', ',');
+    el.innerHTML = `<span class="agua-ok">💧 Meta de água: <b>${ml} ml</b> (~${litros} L) por dia</span>`;
+  };
+  app.querySelector('#perfPeso')?.addEventListener('input', pintarAguaMeta);
+  app.querySelector('#perfAltura')?.addEventListener('input', pintarAguaMeta);
 
   // ── Instalar o app ──
   // Só aparece quando REALMENTE dá pra instalar: o navegador precisa ter
@@ -360,9 +392,13 @@ async function wire(app) {
     const nick  = app.querySelector('#perfApelido').value.trim();
     const birth = app.querySelector('#perfNasc').value;
     const phone = app.querySelector('#perfWpp').value.trim();
+    const sexo   = app.querySelector('#perfSexo').value || null;
+    const altura = parseFloat(app.querySelector('#perfAltura').value) || null;
+    const peso   = parseFloat(app.querySelector('#perfPeso').value) || null;
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
-      await setProfile({ fullName: full || null, preferredName: nick || null, birthDate: birth || null, phone: phone || null });
+      await setProfile({ fullName: full || null, preferredName: nick || null, birthDate: birth || null, phone: phone || null,
+        sexo, alturaCm: altura, pesoKg: peso });
       if (full || nick || birth || phone) await recordConsent('perfil_contato_v1', 1);
       markPerfilDone();
       showToast('✅ Perfil salvo!', 'success');

@@ -24,6 +24,7 @@ import {
 } from '../banco-dados.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
+import { metaAgua } from '../corpo.js';
 import { playDelete } from '../sons.js';
 import { currentTheme, toggleTheme } from '../tema.js';
 import { auth } from '../autenticacao.js';
@@ -98,16 +99,7 @@ export async function renderHome(app) {
             </label>
           </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
-          <div class="peso-agua">
-            <label class="peso-row">
-              <span class="peso-ic">⚖️</span>
-              <span class="peso-label">Seu peso</span>
-              <input type="number" inputmode="decimal" id="pref-peso" class="peso-input"
-                placeholder="kg" min="20" max="400" step="0.1" value="${profile.pesoKg || ''}" />
-              <span class="peso-un">kg</span>
-            </label>
-            <div class="agua-meta" id="agua-meta">${aguaMetaHtml()}</div>
-          </div>
+          <div class="agua-meta" id="agua-meta">${aguaMetaHtml()}</div>
         </div>
       </div>
 
@@ -363,36 +355,18 @@ function sleepInfoHtml() {
   return `<span class="sleep-info-tag ${cls}">${emoji} ${t('home.sleep.summary', { h, m: String(m).padStart(2, '0'), status: t('home.sleep.status.' + cls) })}</span>`;
 }
 
-// Meta de água = 35 ml por kg de peso. Sem peso, mostra o convite pra preencher.
+// Meta de água (só leitura): calculada do peso + altura do perfil (35 ml/kg,
+// IMC-ajustada). O peso/altura são preenchidos em Ajustes > Meu Perfil.
 function aguaMetaHtml() {
-  const kg = Number(profile.pesoKg) || 0;
-  if (!kg) return `<span class="agua-hint">💧 Coloque seu peso pra calcular quanta água beber por dia.</span>`;
-  const ml = Math.round(kg * 35);
+  const ml = metaAgua(profile.pesoKg, profile.alturaCm);
+  if (!ml) return `<span class="agua-hint">💧 Preencha peso e altura no seu perfil (Ajustes) pra ver sua meta de água.</span>`;
   const litros = (ml / 1000).toFixed(1).replace('.', ',');
-  return `<span class="agua-ok">💧 Meta de água: <b>${ml} ml</b> (~${litros} L) por dia · 35 ml/kg</span>`;
+  return `<span class="agua-ok">💧 Meta de água: <b>${ml} ml</b> (~${litros} L) por dia</span>`;
 }
 
 function attachPrefHandlers() {
   const wake = document.getElementById('pref-wake');
   const sleep = document.getElementById('pref-sleep');
-
-  // Peso → meta de água (35 ml/kg). Guarda em profile.pesoKg; o Ritual lê daí.
-  const peso = document.getElementById('pref-peso');
-  if (peso) {
-    const atualizaMeta = () => { const el = document.getElementById('agua-meta'); if (el) el.innerHTML = aguaMetaHtml(); };
-    peso.addEventListener('input', () => {
-      const kg = Math.max(0, Math.min(400, parseFloat(peso.value) || 0));
-      profile.pesoKg = kg || null;
-      atualizaMeta();
-    });
-    peso.addEventListener('change', async () => {
-      const kg = Math.max(0, Math.min(400, parseFloat(peso.value) || 0)) || null;
-      profile.pesoKg = kg;
-      try { await setProfile({ pesoKg: kg }); }
-      catch (e) { showToast('Erro ao salvar peso: ' + e.message, 'error'); }
-    });
-  }
-
   if (!wake || !sleep) return;
 
   const persist = async () => {
