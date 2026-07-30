@@ -109,6 +109,9 @@ function telaPrincipal(pode) {
 // BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
 function formHtml() {
+  const roupa = dados.sexo === 'F' ? 'Fique de <b>top e short</b>'
+    : dados.sexo === 'M' ? 'Fique <b>sem camisa e de calção curto</b>'
+    : 'Homens <b>sem camisa e de calção</b>, mulheres de <b>top e short</b>';
   return `
     <div class="cp-medidas">
       ${MEDIDAS.map(m => `
@@ -125,7 +128,7 @@ function formHtml() {
     <div class="cp-gordura" id="cp-gordura"></div>
 
     <div class="cp-secao-tit">Fotos de progresso</div>
-    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b> — assim dá pra comparar a evolução com clareza.</div>
+    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
     <div class="cp-fotos">
       ${LADOS.map(l => `
         <button type="button" class="cp-foto-slot" data-foto="${l.k}">
