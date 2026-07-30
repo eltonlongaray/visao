@@ -147,16 +147,16 @@ function telaItens() {
     </div>
 
     <div class="fr-scroll">
-      ${formNova('', 'Adicionar item…')}
-      <div class="fr-lista">${bloco(g.soltos, '')}</div>
+      ${g.soltos.length ? `<div class="fr-lista">${bloco(g.soltos, '')}</div>` : ''}
 
       <button class="fr-add-secao" data-nova-secao>＋ Adicionar categoria</button>
 
-      ${secoesHtml}
+      ${g.secoes.length ? secoesHtml
+        : '<div class="fr-vazio-grupo">Crie uma categoria pra começar (ex.: Cozinha, Mercado).</div>'}
 
       <div class="fr-rodape">
         ${totalFeitos ? `<button class="fr-limpar" data-limpar>Limpar concluídos (${totalFeitos})</button>` : ''}
-        <button class="fr-renomear" data-renomear>✏️ Renomear grupo</button>
+        ${g.custom ? `<button class="fr-renomear" data-renomear>✏️ Renomear grupo</button>` : ''}
         ${g.custom ? `<button class="fr-apagar-grupo" data-apagar-grupo>🗑 Apagar grupo</button>` : ''}
       </div>
     </div>`;
