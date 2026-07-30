@@ -162,7 +162,7 @@ export async function renderAjustes(app) {
 
         ${acc('🧮 Cálculo de Massa Corporal', `
           <div class="ajustes-row-sub" style="padding:10px 12px 4px">
-            Pra quem quer <b>ganhar massa magra</b> ou <b>reduzir gordura</b>: registre suas medidas, veja o <b>% de gordura</b> e guarde fotos pra acompanhar a evolução. Opcional — ideal a cada 3 meses.
+            Medidas, <b>% de gordura</b> e fotos pra acompanhar sua evolução. Opcional.
           </div>
           <div id="cp-inline" class="cp-inline"></div>
         `, { id: 'accCorpo' })}

@@ -81,7 +81,7 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Registre suas medidas, veja o <b>% de gordura</b> e guarde fotos pra acompanhar a evolução. Uma medição a cada <b>3 meses</b>.</div>
+    <div class="cp-intro">Preencha as medidas e adicione as fotos. Nova medição a cada <b>3 meses</b> pra ver a evolução.</div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${pode ? formHtml() : bloqueadoHtml()}
     ${historicoHtml()}`;
