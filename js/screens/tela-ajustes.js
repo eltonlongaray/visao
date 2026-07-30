@@ -162,7 +162,7 @@ export async function renderAjustes(app) {
 
         ${acc('🧮 Cálculo de Massa Corporal', `
           <div class="ajustes-row-sub" style="padding:10px 12px 4px">
-            Medidas, <b>% de gordura</b> e fotos pra acompanhar sua evolução. Opcional.
+            Medidas, <b>% de gordura</b> e fotos pra acompanhar sua evolução.
           </div>
           <div id="cp-inline" class="cp-inline"></div>
         `, { id: 'accCorpo' })}

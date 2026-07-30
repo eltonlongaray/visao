@@ -99,7 +99,7 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Preencha as medidas e adicione as fotos. Nova medição a cada <b>3 meses</b> pra ver a evolução.</div>
+    <div class="cp-intro">Preencha as medidas e adicione 3 fotos. Atualize as medidas a cada <b>3 meses</b> para acompanhar sua evolução.</div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${pode ? formHtml() : bloqueadoHtml()}
     ${historicoHtml()}`;
@@ -125,7 +125,7 @@ function formHtml() {
     <div class="cp-gordura" id="cp-gordura"></div>
 
     <div class="cp-secao-tit">Fotos de progresso</div>
-    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b>, num lugar <b>bem iluminado</b> — assim dá pra comparar a evolução com clareza.</div>
+    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b> — assim dá pra comparar a evolução com clareza.</div>
     <div class="cp-fotos">
       ${LADOS.map(l => `
         <button type="button" class="cp-foto-slot" data-foto="${l.k}">
