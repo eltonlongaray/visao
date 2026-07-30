@@ -19,7 +19,7 @@ import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone, isPerfilDone } from '../contato-perfil.js';
 import { metaAgua } from '../corpo.js';
-import { abrirComposicao, ligarComposicao } from '../corpo-ui.js';
+import { montarComposicao, ligarComposicao } from '../corpo-ui.js';
 import { trocarMinhaFoto, removerMinhaFoto } from '../chat.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
 import { resetDesafiosSeen } from '../desafios.js';
@@ -160,13 +160,11 @@ export async function renderAjustes(app) {
           </div>
         `, { open: !isPerfilDone(), id: 'accPerfil' })}
 
-        ${acc('💪 Composição corporal', `
-          <div class="ajustes-row-sub" style="padding:10px 12px 6px">
-            Pra quem quer <b>ganhar massa magra</b> ou <b>reduzir gordura</b>: registre suas medidas, veja o <b>% de gordura</b> e guarde fotos (frente, lado, costas) pra acompanhar a evolução. É opcional — recomendado atualizar a cada 3 meses.
+        ${acc('🧮 Cálculo de Massa Corporal', `
+          <div class="ajustes-row-sub" style="padding:10px 12px 4px">
+            Pra quem quer <b>ganhar massa magra</b> ou <b>reduzir gordura</b>: registre suas medidas, veja o <b>% de gordura</b> e guarde fotos pra acompanhar a evolução. Opcional — ideal a cada 3 meses.
           </div>
-          <div style="padding:0 12px 12px">
-            <button class="btn-primary" id="cpAbrir" type="button">💪 Abrir composição corporal</button>
-          </div>
+          <div id="cp-inline" class="cp-inline"></div>
         `, { id: 'accCorpo' })}
 
         ${acc('💬 Sugerir melhoria', `
@@ -252,6 +250,7 @@ async function wire(app) {
       const open = !sec.classList.contains('open');
       sec.classList.toggle('open', open);
       body.hidden = !open;
+      if (open && sec.id === 'accCorpo') montarComposicao();   // carrega ao abrir
     });
   });
 
@@ -435,9 +434,8 @@ async function wire(app) {
     } catch (e) { showToast('Erro ao remover: ' + e.message, 'error'); }
   });
 
-  // ── Composição corporal ──
+  // ── Cálculo de Massa Corporal (inline) ──
   ligarComposicao();
-  app.querySelector('#cpAbrir')?.addEventListener('click', abrirComposicao);
 
   // ── Sugerir melhoria ──
   app.querySelector('#fbSend')?.addEventListener('click', async () => {

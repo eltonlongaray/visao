@@ -1,6 +1,6 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // BLOCO 1 — IMPORTS + ESTADO
-// BLOCO 2 — MODAL (histórico → nova medição)
+// BLOCO 2 — RENDER INLINE (histórico → nova medição), sem pop-up
 // BLOCO 3 — NOVA MEDIÇÃO (medidas + fotos + % gordura)
 // BLOCO 4 — WIRES
 // ─────────────────────────────────────────────────────────────
@@ -29,32 +29,31 @@ let dados = { sexo: null, alturaCm: null, pesoKg: null };
 let registros = [];
 let urls = new Map();       // path -> signed url
 let novo = null;            // { medidas:{}, fotos:{frente,lado,costas} }
-const fmt = (v) => (v == null || v === '' ? '—' : v);
+let carregado = false;
+
+const box = () => document.getElementById('cp-inline');
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: MODAL
+// BLOCO 2: RENDER INLINE
 // ═══════════════════════════════════════════════════════════════
-export async function abrirComposicao() {
-  const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'cp-ov';
-  ov.innerHTML = `<div class="modal cp-modal"><div class="cp-corpo"><div class="cp-carregando">Carregando…</div></div></div>`;
-  document.body.appendChild(ov);
-  ov.addEventListener('click', (e) => { if (e.target === ov && !novo) fechar(); });
+// Chamado quando o card "Cálculo de Massa Corporal" abre. Carrega 1x.
+export async function montarComposicao() {
+  const c = box(); if (!c) return;
+  if (carregado) { desenhar(); return; }
+  c.innerHTML = `<div class="cp-carregando">Carregando…</div>`;
   try {
     dados = await getDadosCorpo();
     registros = await carregarRegistros();
     await assinar();
+    carregado = true;
+    novo = null;
+    desenhar();
   } catch (e) {
-    ov.querySelector('.cp-corpo').innerHTML = `<div class="cp-vazio">Não deu pra carregar: ${esc(e.message)}</div>`;
-    return;
+    c.innerHTML = `<div class="cp-vazio">Não deu pra carregar: ${esc(e.message)}</div>`;
   }
-  novo = null;
-  desenhar();
 }
-function fechar() { document.getElementById('cp-ov')?.remove(); }
 function desenhar() {
-  const c = document.querySelector('#cp-ov .cp-corpo');
-  if (!c) return;
+  const c = box(); if (!c) return;
   c.innerHTML = novo ? telaForm() : telaLista();
   if (novo) atualizarGordura();
 }
@@ -62,7 +61,6 @@ async function assinar() {
   const paths = registros.flatMap(r => [r.foto_frente, r.foto_lado, r.foto_costas]);
   urls = await assinarFotos(paths);
 }
-
 function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaLista() {
@@ -85,17 +83,11 @@ function telaLista() {
   }).join('');
 
   return `
-    <div class="cp-cab">
-      <span class="cp-titulo">💪 Composição corporal</span>
-      <button class="cp-x" data-fechar aria-label="Fechar">✕</button>
-    </div>
-    <div class="cp-scroll">
-      <div class="cp-intro">Acompanhe sua evolução: medidas, % de gordura e fotos (frente, lado, costas). Ideal atualizar a cada <b>3 meses</b>.</div>
-      ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> no seu perfil pra calcular o % de gordura.</div>` : ''}
-      <button class="cp-nova-btn" data-nova>＋ Nova medição</button>
-      ${registros.length ? `<div class="cp-secao-tit">Histórico</div>${linhas}`
-        : `<div class="cp-vazio-hist">Nenhuma medição ainda. Registre a primeira pra começar a acompanhar. 🦅</div>`}
-    </div>`;
+    <div class="cp-intro">Acompanhe sua evolução: medidas, % de gordura e fotos (frente, lado, costas). Ideal atualizar a cada <b>3 meses</b>.</div>
+    ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
+    <button class="cp-nova-btn" data-nova>＋ Nova medição</button>
+    ${registros.length ? `<div class="cp-secao-tit">Histórico</div>${linhas}`
+      : `<div class="cp-vazio-hist">Nenhuma medição ainda. Registre a primeira pra começar a acompanhar. 🦅</div>`}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -103,42 +95,35 @@ function telaLista() {
 // ═══════════════════════════════════════════════════════════════
 function telaForm() {
   return `
-    <div class="cp-cab">
-      <button class="cp-voltar" data-voltar aria-label="Voltar">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>
-      </button>
-      <span class="cp-titulo">Nova medição</span>
-      <button class="cp-x" data-fechar aria-label="Fechar">✕</button>
+    <button class="cp-voltar-lista" data-voltar>← Voltar</button>
+    <div class="cp-medidas">
+      ${MEDIDAS.map(m => `
+        <label class="cp-campo">
+          <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
+          <span class="cp-campo-in">
+            <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
+              value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
+            <em>${m.un}</em>
+          </span>
+        </label>`).join('')}
     </div>
-    <div class="cp-scroll">
-      <div class="cp-medidas">
-        ${MEDIDAS.map(m => `
-          <label class="cp-campo">
-            <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
-            <span class="cp-campo-in">
-              <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
-                value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
-              <em>${m.un}</em>
-            </span>
-          </label>`).join('')}
-      </div>
 
-      <div class="cp-gordura" id="cp-gordura"></div>
+    <div class="cp-gordura" id="cp-gordura"></div>
 
-      <div class="cp-secao-tit">Fotos de progresso</div>
-      <div class="cp-fotos">
-        ${LADOS.map(l => `
-          <button type="button" class="cp-foto-slot" data-foto="${l.k}">
-            ${novo.fotos[l.k]?.previa
-              ? `<img src="${esc(novo.fotos[l.k].previa)}" alt="${l.lbl}" />`
-              : `<span class="cp-foto-mais">＋</span>`}
-            <span class="cp-foto-lbl">${l.lbl}</span>
-          </button>`).join('')}
-      </div>
-      <input type="file" id="cp-foto-arq" accept="image/*" hidden />
+    <div class="cp-secao-tit">Fotos de progresso</div>
+    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b>, num lugar <b>bem iluminado</b> — assim dá pra comparar a evolução com clareza.</div>
+    <div class="cp-fotos">
+      ${LADOS.map(l => `
+        <button type="button" class="cp-foto-slot" data-foto="${l.k}">
+          ${novo.fotos[l.k]?.previa
+            ? `<img src="${esc(novo.fotos[l.k].previa)}" alt="${l.lbl}" />`
+            : `<span class="cp-foto-mais">＋</span>`}
+          <span class="cp-foto-lbl">${l.lbl}</span>
+        </button>`).join('')}
+    </div>
+    <input type="file" id="cp-foto-arq" accept="image/*" hidden />
 
-      <button class="cp-salvar" data-salvar>Salvar medição</button>
-    </div>`;
+    <button class="cp-salvar" data-salvar>Salvar medição</button>`;
 }
 
 function atualizarGordura() {
@@ -146,7 +131,7 @@ function atualizarGordura() {
   if (!el) return;
   const pct = gorduraNavy({ sexo: dados.sexo, alturaCm: dados.alturaCm, pescoco: novo.medidas.pescoco, cintura: novo.medidas.cintura, quadril: novo.medidas.quadril });
   if (pct != null) { el.innerHTML = `<span class="cp-bf-ok">🔬 % de gordura estimado: <b>${pct}%</b></span>`; return; }
-  const falta = faltaBase() ? 'sexo e altura (no perfil)'
+  const falta = faltaBase() ? 'sexo e altura (no Meu perfil)'
     : (dados.sexo === 'F' ? 'pescoço, cintura e quadril' : 'pescoço e cintura');
   el.innerHTML = `<span class="cp-bf-hint">Preencha ${falta} pra estimar o % de gordura.</span>`;
 }
@@ -159,8 +144,7 @@ export function ligarComposicao() {
   if (ligado) return; ligado = true;
 
   document.addEventListener('click', async (e) => {
-    if (!e.target.closest('#cp-ov')) return;
-    if (e.target.closest('[data-fechar]')) { fechar(); return; }
+    if (!e.target.closest('#cp-inline')) return;
     if (e.target.closest('[data-voltar]')) { novo = null; desenhar(); return; }
     if (e.target.closest('[data-nova]')) { novo = { medidas: {}, fotos: {} }; desenhar(); return; }
 
@@ -174,7 +158,7 @@ export function ligarComposicao() {
   });
 
   document.addEventListener('input', (e) => {
-    const inp = e.target.closest('#cp-ov [data-medida]');
+    const inp = e.target.closest('#cp-inline [data-medida]');
     if (!inp || !novo) return;
     const v = inp.value.trim();
     novo.medidas[inp.dataset.medida] = v === '' ? null : parseFloat(v);
@@ -201,7 +185,7 @@ async function apagarUI(id) {
 }
 
 async function salvar() {
-  const btn = document.querySelector('#cp-ov [data-salvar]');
+  const btn = document.querySelector('#cp-inline [data-salvar]');
   const temMedida = MEDIDAS.some(m => novo.medidas[m.k] != null);
   const temFoto = LADOS.some(l => novo.fotos[l.k]?.blob);
   if (!temMedida && !temFoto) { showToast('Preencha ao menos uma medida ou foto.', 'info'); return; }
@@ -224,7 +208,7 @@ async function salvar() {
   }
 }
 
-// Reduz a foto antes de subir (economiza banda e espaço; fotos são permanentes).
+// Reduz a foto antes de subir (fotos são permanentes; economiza espaço/banda).
 async function reduzir(file, max = 1280) {
   const img = await createImageBitmap(file);
   const escala = Math.min(1, max / Math.max(img.width, img.height));
