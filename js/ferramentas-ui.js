@@ -21,6 +21,7 @@ const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 
 let grupos = [];
 let grupoAberto = null;   // nome do grupo aberto; null = lista de grupos
+let _hist = 0;            // camadas empurradas no histórico (pro voltar do aparelho)
 
 // Sugestões de categoria por grupo (a pessoa escreve OU toca numa sugestão).
 const SUGESTOES = {
@@ -46,6 +47,7 @@ export async function abrirFerramentas() {
   ov.innerHTML = `<div class="modal fr-modal"><div class="fr-corpo"><div class="fr-carregando">Carregando…</div></div></div>`;
   document.body.appendChild(ov);
   ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
+  history.pushState({ fr: 1 }, ''); _hist = 1;   // voltar do aparelho fecha a camada
 
   try { grupos = await carregarFerramentas(); }
   catch (e) { ov.querySelector('.fr-corpo').innerHTML = `<div class="fr-vazio">Não deu pra carregar: ${esc(e.message)}</div>`; return; }
@@ -53,7 +55,12 @@ export async function abrirFerramentas() {
   desenhar();
 }
 
-function fechar() { document.getElementById('ferramentas-ov')?.remove(); }
+function fechar() {
+  const ov = document.getElementById('ferramentas-ov');
+  if (ov) ov.remove();
+  const n = _hist; _hist = 0; grupoAberto = null;
+  if (n > 0) history.go(-n);   // consome as camadas que empurramos
+}
 
 function desenhar() {
   const corpo = document.querySelector('#ferramentas-ov .fr-corpo');
@@ -170,14 +177,24 @@ export function ligarFerramentas() {
   if (ligado) return;
   ligado = true;
 
+  // Voltar do aparelho: fecha a camada (grupo → lista → fecha), em vez de sair
+  // da Caixa e cair no menu.
+  window.addEventListener('popstate', () => {
+    const ov = document.getElementById('ferramentas-ov');
+    if (!ov || _hist === 0) return;
+    _hist--;
+    if (grupoAberto) { grupoAberto = null; desenhar(); }
+    else { ov.remove(); _hist = 0; }
+  });
+
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#ferramentas-ov')) return;
 
     if (e.target.closest('[data-fechar]')) { fechar(); return; }
-    if (e.target.closest('[data-voltar]')) { grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-voltar]')) { history.back(); return; }  // popstate volta pra lista
 
     const abrir = e.target.closest('[data-grupo]');
-    if (abrir) { grupoAberto = abrir.dataset.grupo; desenhar(); return; }
+    if (abrir) { history.pushState({ fr: 1 }, ''); _hist++; grupoAberto = abrir.dataset.grupo; desenhar(); return; }
 
     if (e.target.closest('[data-novo-grupo]')) { await novoGrupo(); return; }
     if (e.target.closest('[data-nova-secao]')) { await novaSecao(); return; }

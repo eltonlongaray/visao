@@ -134,15 +134,15 @@ export async function renderAjustes(app) {
             <input id="perfApelido" placeholder="" autocomplete="nickname" /></label>
           <label class="input-field"><div class="input-field-label">Data de nascimento</div>
             <input id="perfNasc" type="date" /></label>
+          <label class="input-field"><div class="input-field-label">Sexo</div>
+            <select id="perfSexo" class="perf-select">
+              <option value="">—</option>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+            </select></label>
           <div class="perf-corpo-linha">
-            <label class="input-field"><div class="input-field-label">Sexo</div>
-              <select id="perfSexo">
-                <option value="">—</option>
-                <option value="M">Masculino</option>
-                <option value="F">Feminino</option>
-              </select></label>
-            <label class="input-field"><div class="input-field-label">Altura (cm)</div>
-              <input id="perfAltura" type="number" inputmode="numeric" min="80" max="250" placeholder="cm" /></label>
+            <label class="input-field"><div class="input-field-label">Altura (m)</div>
+              <input id="perfAltura" type="text" inputmode="decimal" placeholder="1,74" /></label>
             <label class="input-field"><div class="input-field-label">Peso (kg)</div>
               <input id="perfPeso" type="number" inputmode="decimal" min="20" max="400" step="0.1" placeholder="kg" /></label>
           </div>
@@ -287,7 +287,7 @@ async function wire(app) {
         app.querySelector('#perfNasc').value    = p.birthDate || '';
         app.querySelector('#perfWpp').value     = p.phone || '';
         app.querySelector('#perfSexo').value    = p.sexo || '';
-        app.querySelector('#perfAltura').value  = p.alturaCm || '';
+        app.querySelector('#perfAltura').value  = p.alturaCm ? String(p.alturaCm / 100).replace('.', ',') : '';
         app.querySelector('#perfPeso').value    = p.pesoKg || '';
       }
       fotoPropria = !!p?.fotoUrl;
@@ -296,12 +296,20 @@ async function wire(app) {
     } catch (e) { console.warn('[ajustes] load perfil:', e); }
   })();
 
+  // Altura: a pessoa digita em METROS (1,74). Convertemos pra cm (aceita 174
+  // também, caso alguém digite em cm). Guardamos sempre em cm.
+  const alturaCmDoInput = () => {
+    const n = parseFloat(String(app.querySelector('#perfAltura')?.value || '').replace(',', '.'));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n < 3 ? n * 100 : n);   // < 3 = metros; senão já é cm
+  };
+
   // Meta de água (peso × 35 ml/kg, IMC-ajustada) — mostra abaixo de peso/altura.
   const pintarAguaMeta = () => {
     const el = app.querySelector('#perfAguaMeta');
     if (!el) return;
     const kg = parseFloat(app.querySelector('#perfPeso')?.value) || 0;
-    const alt = parseFloat(app.querySelector('#perfAltura')?.value) || 0;
+    const alt = alturaCmDoInput();
     if (!kg) { el.innerHTML = `<span class="agua-hint">💧 Coloque peso e altura pra calcular sua meta de água.</span>`; return; }
     const ml = metaAgua(kg, alt);
     const litros = (ml / 1000).toFixed(1).replace('.', ',');
@@ -403,7 +411,7 @@ async function wire(app) {
     const birth = app.querySelector('#perfNasc').value;
     const phone = app.querySelector('#perfWpp').value.trim();
     const sexo   = app.querySelector('#perfSexo').value || null;
-    const altura = parseFloat(app.querySelector('#perfAltura').value) || null;
+    const altura = alturaCmDoInput();
     const peso   = parseFloat(app.querySelector('#perfPeso').value) || null;
     btn.disabled = true; btn.textContent = 'Salvando...';
     try {
