@@ -575,12 +575,12 @@ html, body {
 .cp-reg-fotos { display: flex; gap: 8px; margin-top: 10px; }
 .cp-reg-fotos img { width: 33%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: var(--bg); }
 
-/* formulário */
-.cp-medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.cp-campo { display: flex; flex-direction: column; gap: 4px; }
-.cp-campo-lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
-.cp-campo-lbl small { font-weight: 400; opacity: 0.8; }
-.cp-campo-in { display: flex; align-items: center; gap: 6px; background: var(--card-2);
+/* formulário — uma medida por linha (label à esquerda, campo à direita) */
+.cp-medidas { display: flex; flex-direction: column; gap: 8px; }
+.cp-campo { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.cp-campo-lbl { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text); font-weight: 600; }
+.cp-campo-lbl small { font-weight: 400; color: var(--muted); }
+.cp-campo-in { flex: 0 0 128px; display: flex; align-items: center; gap: 6px; background: var(--card-2);
   border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
 .cp-campo-in:focus-within { border-color: var(--accent); }
 .cp-campo-in input { flex: 1; min-width: 0; background: none; border: none; outline: none;
@@ -607,6 +607,15 @@ html, body {
   width: 100%; margin-top: 18px; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 800; font-family: inherit;
 }
+.cp-salvar:disabled { background: var(--card-2); color: var(--muted); cursor: default; border: 1px solid var(--border); }
+/* card travado (já mediu há menos de 3 meses) */
+.cp-bloqueado {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: rgba(96,165,250,0.10); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--muted); line-height: 1.5;
+}
+.cp-bloqueado b { color: var(--text); }
+.cp-bloq-ic { font-size: 18px; }
 .sleep-info-empty { font-size: 11px; color: var(--muted); font-style: italic; }
 .sleep-info-tag {
   display: inline-block; font-size: 11px; font-weight: 700;

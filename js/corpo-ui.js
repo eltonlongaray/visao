@@ -52,10 +52,26 @@ export async function montarComposicao() {
     c.innerHTML = `<div class="cp-vazio">Não deu pra carregar: ${esc(e.message)}</div>`;
   }
 }
+// Abre DIRETO no formulário quando pode medir; quando já mediu, mostra o card
+// travado (libera 3 meses depois). O histórico fica sempre abaixo.
+const DIAS_TRAVA = 90;
+function podeNovaMedicao() {
+  if (!registros.length) return true;
+  const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
+  return Math.floor((Date.now() - ultima) / 86400000) >= DIAS_TRAVA;
+}
+function diasParaLiberar() {
+  if (!registros.length) return 0;
+  const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
+  return Math.max(0, DIAS_TRAVA - Math.floor((Date.now() - ultima) / 86400000));
+}
+
 function desenhar() {
   const c = box(); if (!c) return;
-  c.innerHTML = novo ? telaForm() : telaLista();
-  if (novo) atualizarGordura();
+  const pode = podeNovaMedicao();
+  if (pode) { if (!novo) novo = { medidas: {}, fotos: {} }; } else { novo = null; }
+  c.innerHTML = telaPrincipal(pode);
+  if (pode) atualizarGordura();
 }
 async function assinar() {
   const paths = registros.flatMap(r => [r.foto_frente, r.foto_lado, r.foto_costas]);
@@ -63,39 +79,19 @@ async function assinar() {
 }
 function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
-function telaLista() {
-  const linhas = registros.map(r => {
-    const dt = new Date(r.data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-    const fotos = [r.foto_frente, r.foto_lado, r.foto_costas].filter(Boolean);
-    return `
-      <div class="cp-reg" data-reg="${r.id}">
-        <div class="cp-reg-cab">
-          <span class="cp-reg-data">${dt}</span>
-          ${r.gordura_pct != null ? `<span class="cp-reg-bf">${r.gordura_pct}% gordura</span>` : ''}
-          <button class="cp-reg-x" data-apagar="${r.id}" aria-label="Apagar">🗑</button>
-        </div>
-        <div class="cp-reg-medidas">
-          ${MEDIDAS.filter(m => r[m.k] != null).map(m => `<span>${m.lbl}: <b>${r[m.k]}${m.un}</b></span>`).join('')}
-        </div>
-        ${fotos.length ? `<div class="cp-reg-fotos">${fotos.map(p => urls.get(p)
-          ? `<img src="${esc(urls.get(p))}" alt="foto" loading="lazy" />` : '').join('')}</div>` : ''}
-      </div>`;
-  }).join('');
-
+function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Acompanhe sua evolução: medidas, % de gordura e fotos (frente, lado, costas). Ideal atualizar a cada <b>3 meses</b>.</div>
+    <div class="cp-intro">Registre suas medidas, veja o <b>% de gordura</b> e guarde fotos pra acompanhar a evolução. Uma medição a cada <b>3 meses</b>.</div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
-    <button class="cp-nova-btn" data-nova>＋ Nova medição</button>
-    ${registros.length ? `<div class="cp-secao-tit">Histórico</div>${linhas}`
-      : `<div class="cp-vazio-hist">Nenhuma medição ainda. Registre a primeira pra começar a acompanhar. 🦅</div>`}`;
+    ${pode ? formHtml() : bloqueadoHtml()}
+    ${historicoHtml()}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: NOVA MEDIÇÃO
+// BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
-function telaForm() {
+function formHtml() {
   return `
-    <button class="cp-voltar-lista" data-voltar>← Voltar</button>
     <div class="cp-medidas">
       ${MEDIDAS.map(m => `
         <label class="cp-campo">
@@ -126,6 +122,40 @@ function telaForm() {
     <button class="cp-salvar" data-salvar>Salvar medição</button>`;
 }
 
+function bloqueadoHtml() {
+  const dias = diasParaLiberar();
+  const ultima = registros.length ? new Date(registros[0].data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : '';
+  const d = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  return `
+    <div class="cp-bloqueado">
+      <span class="cp-bloq-ic">⏳</span>
+      <span>Você registrou em <b>${ultima}</b>. A próxima medição libera em <b>${d}</b> — a cada 3 meses, pra dar tempo de ver evolução real.</span>
+    </div>
+    <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>`;
+}
+
+function historicoHtml() {
+  if (!registros.length) return '';
+  const linhas = registros.map(r => {
+    const dt = new Date(r.data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+    const fotos = [r.foto_frente, r.foto_lado, r.foto_costas].filter(Boolean);
+    return `
+      <div class="cp-reg" data-reg="${r.id}">
+        <div class="cp-reg-cab">
+          <span class="cp-reg-data">${dt}</span>
+          ${r.gordura_pct != null ? `<span class="cp-reg-bf">${r.gordura_pct}% gordura</span>` : ''}
+          <button class="cp-reg-x" data-apagar="${r.id}" aria-label="Apagar">🗑</button>
+        </div>
+        <div class="cp-reg-medidas">
+          ${MEDIDAS.filter(m => r[m.k] != null).map(m => `<span>${m.lbl}: <b>${r[m.k]}${m.un}</b></span>`).join('')}
+        </div>
+        ${fotos.length ? `<div class="cp-reg-fotos">${fotos.map(p => urls.get(p)
+          ? `<img src="${esc(urls.get(p))}" alt="foto" loading="lazy" />` : '').join('')}</div>` : ''}
+      </div>`;
+  }).join('');
+  return `<div class="cp-secao-tit">Histórico</div>${linhas}`;
+}
+
 function atualizarGordura() {
   const el = document.getElementById('cp-gordura');
   if (!el) return;
@@ -145,8 +175,6 @@ export function ligarComposicao() {
 
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#cp-inline')) return;
-    if (e.target.closest('[data-voltar]')) { novo = null; desenhar(); return; }
-    if (e.target.closest('[data-nova]')) { novo = { medidas: {}, fotos: {} }; desenhar(); return; }
 
     const ap = e.target.closest('[data-apagar]');
     if (ap) { await apagarUI(ap.dataset.apagar); return; }
