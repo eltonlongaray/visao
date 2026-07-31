@@ -151,7 +151,7 @@ async function renderCorpoEvolucao() {
   try { regs = await carregarRegistros(); } catch { regs = []; }
   if (!regs.length) {
     el.innerHTML = `<div class="ce-card ce-vazio">
-      <div class="ce-tit">💪 Composição corporal</div>
+      <div class="ce-tit">💪 Desempenho de massa corporal</div>
       <div class="ce-sub">Registre suas medidas no <b>Cálculo de massa corporal</b> (Ajustes) pra acompanhar sua evolução aqui — % de gordura, massa magra, cintura e mais.</div>
     </div>`;
     return;
@@ -177,7 +177,7 @@ async function renderCorpoEvolucao() {
   const desde = new Date(primeiro.data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
   el.innerHTML = `
     <div class="ce-card">
-      <div class="ce-tit">💪 Composição corporal</div>
+      <div class="ce-tit">💪 Desempenho de massa corporal</div>
       <div class="ce-sub">${regs.length} ${regs.length === 1 ? 'medição' : 'medições'} · desde ${desde}</div>
       ${metrica('Peso', atual.peso, primeiro.peso, ' kg', 'neutro')}
       ${metrica('% de gordura', atual.gordura_pct, primeiro.gordura_pct, '%', 'menor')}
