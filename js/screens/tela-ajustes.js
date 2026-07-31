@@ -162,7 +162,7 @@ export async function renderAjustes(app) {
 
         ${acc('🧮 Cálculo de massa corporal', `
           <div class="ajustes-row-sub" style="padding:12px 12px 4px;font-size:15.5px;line-height:1.4;color:var(--text);font-weight:600">
-            Descubra seu <b style="color:var(--accent)">percentual de gordura</b> e de <b style="color:var(--accent)">massa magra</b>!
+            Descubra seu <b>percentual de gordura</b> e de <b>massa magra</b>!
           </div>
           <div id="cp-inline" class="cp-inline"></div>
         `, { id: 'accCorpo' })}

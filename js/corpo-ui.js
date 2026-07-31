@@ -108,7 +108,15 @@ function statusHtml() {
 function desenhar() {
   const c = box(); if (!c) return;
   const pode = podeNovaMedicao();
-  if (pode) { if (!novo) novo = { medidas: {}, fotos: {} }; } else { novo = null; }
+  if (pode) {
+    if (!novo) novo = { medidas: {}, fotos: {} };
+    // Pescoço muda pouco (só com grande variação de peso). Carrega o da última
+    // medição pra não remedir todo mês.
+    if (novo.medidas.pescoco == null) {
+      const ult = registros.find(r => r.pescoco != null);
+      if (ult) novo.medidas.pescoco = ult.pescoco;
+    }
+  } else { novo = null; }
   c.innerHTML = telaPrincipal(pode);
   if (pode) atualizarGordura();
 }
@@ -120,7 +128,7 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Meça <b>uma vez por mês</b> pra acompanhar os números e receber dicas. As <b>fotos</b> você tira a cada <b>3 meses</b> — mês a mês a mudança quase não aparece na imagem.</div>
+    <div class="cp-intro">Meça <b>uma vez por mês</b> pra acompanhar os números e receber dicas. As <b>fotos</b> você tira a cada <b>3 meses</b>.</div>
     <div class="cp-dicas">
       <b>Pra medir certo:</b>
       <span>① Sempre de <b>manhã</b>, em jejum, depois do banheiro.</span>
@@ -154,10 +162,16 @@ function formHtml() {
   const roupa = dados.sexo === 'F' ? 'Fique de <b>top e short</b>'
     : dados.sexo === 'M' ? 'Fique <b>sem camisa e de calção curto</b>'
     : 'Homens <b>sem camisa e de calção</b>, mulheres de <b>top e short</b>';
+  // Pescoço: some depois de preenchido, a não ser que a pessoa esteja bem acima
+  // do peso (IMC ≥ 30) — aí o pescoço muda com a perda e vale remedir.
+  const h = (Number(dados.alturaCm) || 0) / 100;
+  const imc = (Number(dados.pesoKg) && h) ? Number(dados.pesoKg) / (h * h) : 0;
+  const acimaPeso = imc >= 30;
+  const medidasVis = MEDIDAS.filter(m => !(m.k === 'pescoco' && novo.medidas.pescoco != null && !acimaPeso));
   return `
     <div class="cp-form-corpo">
       <div class="cp-medidas">
-        ${MEDIDAS.map(m => `
+        ${medidasVis.map(m => `
           <label class="cp-campo">
             <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
             <span class="cp-campo-in">
