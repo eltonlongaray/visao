@@ -256,9 +256,7 @@ function atualizarGordura() {
     el.innerHTML = `<span class="cp-bf-ok">🔬 ${textoComposicao(novo.medidas.peso, pct)}${semPeso}</span>`;
     return;
   }
-  const falta = faltaBase() ? 'sexo e altura (no Meu perfil)'
-    : (dados.sexo === 'F' ? 'pescoço, cintura e quadril' : 'pescoço e cintura');
-  el.innerHTML = `<span class="cp-bf-hint">Preencha ${falta} pra estimar o % de gordura.</span>`;
+  el.innerHTML = '';   // sem os dados pra calcular ainda: não mostra nada
 }
 
 // ═══════════════════════════════════════════════════════════════
