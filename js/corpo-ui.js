@@ -174,13 +174,15 @@ function _blocoSaude(r) {
   if (r.gordura_pct != null && dados.sexo) {
     const lim = dados.sexo === 'F' ? 28 : 20;
     const ok = r.gordura_pct <= lim;
-    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Gordura <b>${r.gordura_pct}%</b> — ${ok ? 'na faixa saudável' : 'acima do saudável'} (ideal até ${lim}%).</div>`;
+    const falta = ok ? '' : ` — falta baixar <b>${_1(r.gordura_pct - lim)}%</b>`;
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Gordura <b>${r.gordura_pct}%</b> — ${ok ? 'na faixa saudável' : `ideal até ${lim}%${falta}`}.</div>`;
   }
   if (r.cintura && dados.alturaCm) {
     const razao = r.cintura / dados.alturaCm;
     const alvo = Math.round(dados.alturaCm * 0.5);
     const ok = razao < 0.5;
-    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Cintura <b>${r.cintura} cm</b> — ${ok ? 'saudável' : `acima do ideal (< ${alvo} cm)`}. <small>cintura/altura ${razao.toFixed(2)} · ideal < 0,50</small></div>`;
+    const falta = ok ? '' : ` — reduza <b>${_1(r.cintura - alvo)} cm</b>`;
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Cintura <b>${r.cintura} cm</b> — ${ok ? 'saudável' : `ideal < ${alvo} cm${falta}`}. <small>cintura/altura ${razao.toFixed(2)} · ideal < 0,50</small></div>`;
   }
   return out;
 }
@@ -205,10 +207,10 @@ function _blocoPump(r, ant) {
   let falta = '';
   if (!acima && nivel < 3) {
     const prox = niveis[nivel];
-    const grande = isF ? r.quadril : r.ombro;
-    const grandeAlvo = Math.ceil(r.cintura * prox);
-    const cintAlvo = Math.floor((isF ? r.quadril : r.ombro) / prox);
-    falta = `<br><small>Pro Pump ${nivel + 1}: ${isF ? 'quadril' : 'ombro'} ${grandeAlvo} cm OU cintura ${cintAlvo} cm.</small>`;
+    const membro = isF ? r.quadril : r.ombro;
+    const dMembro = Math.max(0, Math.ceil(r.cintura * prox) - membro);
+    const dCint = Math.max(0, r.cintura - Math.floor(membro / prox));
+    falta = `<br><small>Pro <b>Pump ${nivel + 1}</b>: +${_1(dMembro)} cm de ${isF ? 'quadril' : 'ombro'} <b>OU</b> −${_1(dCint)} cm de cintura.</small>`;
   }
   let pernas = '';
   const parts = [];
