@@ -107,6 +107,7 @@ function telaPrincipal(pode) {
       <span>① Sempre de <b>manhã</b>, em jejum, depois do banheiro.</span>
       <span>② <b>Sem sugar a barriga</b> — respira normal e mede.</span>
       <span>③ Mede <b>1x por mês</b> e atualiza aqui.</span>
+      <span>④ Sem fita métrica? Usa um <b>barbante</b>: dá a volta, marca com o dedo e mede o barbante numa régua.</span>
     </div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${dicaVO()}

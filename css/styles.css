@@ -565,8 +565,8 @@ html, body {
 .cp-vo-bom { background: rgba(52,211,153,0.14); color: var(--green); }
 .cp-vo-alerta { background: rgba(245,158,11,0.14); color: var(--orange); }
 .cp-vo-neutro { background: var(--card-2); color: var(--muted); }
-.cp-alerta, .cp-bf-hint { font-size: 12.5px; color: var(--orange); background: rgba(245,158,11,0.12);
-  border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; }
+.cp-alerta, .cp-bf-hint { display: block; font-size: 12.5px; color: var(--orange); background: rgba(245,158,11,0.12);
+  border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; line-height: 1.5; }
 .cp-nova-btn {
   width: 100%; padding: 13px; border-radius: 12px; border: none; cursor: pointer;
   background: var(--accent); color: #fff; font-size: 14.5px; font-weight: 700; font-family: inherit;
