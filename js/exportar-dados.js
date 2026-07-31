@@ -13,6 +13,7 @@ import { getProfile, getShifts, getCategories, fetchDaysRange } from './banco-da
 import { listAllConsents } from './lgpd-consentimentos.js';
 import { supabase } from './config-supabase.js';
 import { t, getLang } from './idioma.js';
+import { carregarRegistros } from './corpo.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -22,13 +23,14 @@ export async function gatherAllData() {
   const user = auth.currentUser;
   if (!user) throw new Error('Não autenticado');
 
-  const [profile, shifts, categories, consents, weeks, rawDays] = await Promise.all([
+  const [profile, shifts, categories, consents, weeks, rawDays, corpo] = await Promise.all([
     getProfile(),
     getShifts(),
     getCategories(),
     listAllConsents(),
     _fetchWeeks(),
     fetchDaysRange(new Date('2000-01-01'), new Date('2100-01-01')),
+    carregarRegistros().catch(() => []),
   ]);
 
   // fetchDaysRange devolve {id, ...meta, tasks} → reshape pra {id, meta, tasks} (formato do relatório)
@@ -47,7 +49,8 @@ export async function gatherAllData() {
     categories,
     days,
     weeks,
-    consents
+    consents,
+    corpo: corpo || []
   };
 }
 
@@ -355,6 +358,8 @@ ${weeksWithNotes.length
   ? weeksWithNotes.map(w => `<div class="week"><div class="when">${t('pdf.reflections.week', { id: escape(w.id || '') })}</div><div class="note">${escape(w.note)}</div></div>`).join('')
   : `<p>${t('pdf.reflections.empty')}</p>`}
 
+${corpoSection(data)}
+
 <footer>
   ${t('pdf.footer')}<br>
   ${t('pdf.generated', { date: generatedDate })} · ${t('pdf.footer.days', { days: data.days.length })}
@@ -372,6 +377,44 @@ function escape(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+}
+
+// Seção de composição corporal no relatório (medidas datadas + massa magra).
+function corpoSection(data) {
+  const regs = Array.isArray(data.corpo) ? data.corpo : [];
+  if (!regs.length) return '';
+  const p = data.profile || {};
+  const _1 = (x) => (x == null ? '—' : (Math.round(x * 10) / 10).toString().replace('.', ','));
+  const linhas = regs.map(r => {
+    const gorda = (r.peso && r.gordura_pct != null) ? r.peso * r.gordura_pct / 100 : null;
+    const magra = gorda != null ? r.peso - gorda : null;
+    const dt = new Date(r.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `<tr>
+      <td><strong>${dt}</strong></td>
+      <td>${_1(r.peso)}</td>
+      <td>${r.gordura_pct != null ? _1(r.gordura_pct) + '%' : '—'}</td>
+      <td>${_1(magra)}</td>
+      <td>${_1(r.cintura)}</td>
+      <td>${_1(r.quadril)}</td>
+      <td>${_1(r.ombro)}</td>
+      <td>${_1(r.braco)}</td>
+      <td>${_1(r.coxa)}</td>
+      <td>${_1(r.panturrilha)}</td>
+    </tr>`;
+  }).join('');
+  const perfil = [];
+  if (p.sexo) perfil.push(`Sexo: ${p.sexo === 'F' ? 'Feminino' : 'Masculino'}`);
+  if (p.alturaCm) perfil.push(`Altura: ${_1(p.alturaCm / 100)} m`);
+  return `
+<h2>Composição corporal</h2>
+${perfil.length ? `<p><small>${perfil.join(' · ')}</small></p>` : ''}
+<table class="sleep-tbl">
+  <thead><tr>
+    <th>Data</th><th>Peso</th><th>Gordura</th><th>M. magra</th><th>Cintura</th><th>Quadril</th><th>Ombro</th><th>Braço</th><th>Coxa</th><th>Pant.</th>
+  </tr></thead>
+  <tbody>${linhas}</tbody>
+</table>
+<p><small>Medidas em cm; peso e massa magra em kg.</small></p>`;
 }
 
 function stamp() {

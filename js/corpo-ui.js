@@ -110,6 +110,9 @@ function desenhar() {
   const pode = podeNovaMedicao();
   if (pode) {
     if (!novo) novo = { medidas: {}, fotos: {} };
+    // Puxa o peso do perfil como sugestão (a pessoa não atualiza em 2 lugares —
+    // salvar a medição também grava o peso no perfil).
+    if (novo.medidas.peso == null && dados.pesoKg) novo.medidas.peso = dados.pesoKg;
     // Pescoço muda pouco (só com grande variação de peso). Carrega o da última
     // medição pra não remedir todo mês.
     if (novo.medidas.pescoco == null) {

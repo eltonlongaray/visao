@@ -23,6 +23,7 @@ import {
 } from '../banco-dados.js';
 import { calcularConstancia, isActiveDay } from '../metricas-constancia.js';
 import { renderDesafiosDoDesempenho } from '../desempenho-desafios.js';
+import { carregarRegistros } from '../corpo.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { isAdmin } from '../permissao-admin.js';
 import { deleteWeek } from '../excluir-conta.js';
@@ -112,6 +113,8 @@ async function renderUI(app) {
 
       <div id="desafios-desempenho"></div>
 
+      <div id="corpo-evolucao"></div>
+
       <div class="tab-switch" id="period-tabs">
         <button class="tab-btn ${period==='semana'?'active':''}" data-period="semana">${t('desempenho.period.week')}</button>
         <button class="tab-btn ${period==='mes'?'active':''}" data-period="mes">${t('desempenho.period.month')}</button>
@@ -137,6 +140,44 @@ async function renderUI(app) {
 
   attachHandlers(app);
   await refreshData();
+  renderCorpoEvolucao();
+}
+
+// ── Evolução da composição corporal (do 1º registro ao atual) ──
+async function renderCorpoEvolucao() {
+  const el = document.getElementById('corpo-evolucao');
+  if (!el) return;
+  let regs = [];
+  try { regs = await carregarRegistros(); } catch { return; }
+  if (!regs.length) { el.innerHTML = ''; return; }
+  const _1 = (x) => (x == null ? '—' : (Math.round(x * 10) / 10).toString().replace('.', ','));
+  const comp = (r) => (r.peso && r.gordura_pct != null) ? { magra: r.peso - r.peso * r.gordura_pct / 100 } : null;
+  const atual = regs[0], primeiro = regs[regs.length - 1];
+  // modo: 'menor' = cair é bom; 'maior' = subir é bom; 'neutro' = sem cor
+  const metrica = (lbl, va, vp, un, modo) => {
+    if (va == null) return '';
+    let delta = '';
+    if (regs.length > 1 && vp != null) {
+      const d = Math.round((va - vp) * 10) / 10;
+      const arrow = d === 0 ? '→' : (d > 0 ? '↑' : '↓');
+      let cls = 'neutro';
+      if (modo === 'menor') cls = d < 0 ? 'bom' : (d > 0 ? 'ruim' : 'neutro');
+      else if (modo === 'maior') cls = d > 0 ? 'bom' : (d < 0 ? 'ruim' : 'neutro');
+      delta = `<span class="ce-delta ce-${cls}">${arrow} ${_1(Math.abs(d))}${un}</span>`;
+    }
+    return `<div class="ce-linha"><span class="ce-lbl">${lbl}</span><span class="ce-val">${_1(va)}${un}${delta}</span></div>`;
+  };
+  const ca = comp(atual), cp = comp(primeiro);
+  const desde = new Date(primeiro.data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+  el.innerHTML = `
+    <div class="ce-card">
+      <div class="ce-tit">💪 Composição corporal</div>
+      <div class="ce-sub">${regs.length} ${regs.length === 1 ? 'medição' : 'medições'} · desde ${desde}</div>
+      ${metrica('Peso', atual.peso, primeiro.peso, ' kg', 'neutro')}
+      ${metrica('% de gordura', atual.gordura_pct, primeiro.gordura_pct, '%', 'menor')}
+      ${ca ? metrica('Massa magra', ca.magra, cp && cp.magra, ' kg', 'maior') : ''}
+      ${metrica('Cintura', atual.cintura, primeiro.cintura, ' cm', 'menor')}
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
