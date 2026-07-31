@@ -101,7 +101,7 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Preencha as medidas e adicione 3 fotos. Atualize <b>uma vez por mês</b> para acompanhar sua evolução e receber dicas.</div>
+    <div class="cp-intro">Meça <b>uma vez por mês</b> pra acompanhar os números e receber dicas. As <b>fotos</b> você tira a cada <b>3 meses</b> — mês a mês a mudança quase não aparece na imagem.</div>
     <div class="cp-dicas">
       <b>Pra medir certo:</b>
       <span>① Sempre de <b>manhã</b>, em jejum, depois do banheiro.</span>
@@ -152,7 +152,7 @@ function formHtml() {
 
     <div class="cp-gordura" id="cp-gordura"></div>
 
-    <div class="cp-secao-tit">Fotos de progresso</div>
+    <div class="cp-secao-tit">Fotos de progresso <small style="font-weight:400;color:var(--muted)">· a cada 3 meses</small></div>
     <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
     <div class="cp-fotos">
       ${LADOS.map(l => `
