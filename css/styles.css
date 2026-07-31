@@ -586,8 +586,8 @@ html, body {
 .cp-reg-fotos { display: flex; gap: 8px; margin-top: 10px; }
 .cp-reg-fotos img { width: 33%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: var(--bg); }
 
-/* formulário — 2 colunas: medidas (esq, estreitas) + avatares (dir, altura toda) */
-.cp-form-corpo { display: flex; gap: 8px; align-items: stretch; }
+/* formulário — 2 colunas: medidas (esq, estreitas) + avatares GRANDES (dir) */
+.cp-form-corpo { display: flex; gap: 8px; align-items: flex-start; }
 .cp-medidas { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .cp-campo { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .cp-campo-lbl { font-size: 12px; color: var(--text); font-weight: 600; }
@@ -595,11 +595,10 @@ html, body {
 .cp-campo-in { display: flex; align-items: center; gap: 5px; background: var(--card-2);
   border: 1px solid var(--border); border-radius: 9px; padding: 6px 9px; }
 .cp-campo-in input { font-size: 14px; }
-/* avatares: coluna estica até a altura das medidas; cada figura ocupa metade
-   e a imagem enche o máximo possível (do topo até a panturrilha). */
-.cp-avatar { flex: 0 0 140px; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
-.cp-fig { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.cp-fig img, .cp-fig svg { max-height: calc(100% - 14px); max-width: 100%; width: auto; height: auto; object-fit: contain; display: block; }
+/* avatares grandes: imagem = largura da coluna (bem maior); empilhadas */
+.cp-avatar { flex: 0 0 185px; display: flex; flex-direction: column; gap: 6px; color: var(--text); }
+.cp-fig { display: flex; flex-direction: column; align-items: center; }
+.cp-fig img, .cp-fig svg { width: 100%; height: auto; display: block; }
 .cp-fig-lbl { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 2px; }
 .cp-campo-in:focus-within { border-color: var(--accent); }
 .cp-campo-in input { flex: 1; min-width: 0; background: none; border: none; outline: none;
