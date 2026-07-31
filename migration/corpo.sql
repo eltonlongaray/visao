@@ -59,3 +59,7 @@ create policy corpofoto_apagar on storage.objects for delete to authenticated
   using (bucket_id = 'corpo-fotos' and (storage.foldername(name))[1] = auth.uid()::text);
 
 notify pgrst, 'reload schema';
+
+-- Ombro (para o índice cintura/ombro V vs O)
+alter table public.corpo_registros add column if not exists ombro numeric(5,1);
+notify pgrst, 'reload schema';

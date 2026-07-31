@@ -16,6 +16,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 const MEDIDAS = [
   { k: 'peso',        lbl: 'Peso',        un: 'kg' },
   { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm' },
+  { k: 'ombro',       lbl: 'Ombro',       un: 'cm' },
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
   { k: 'quadril',     lbl: 'Quadril',     un: 'cm' },
@@ -108,8 +109,21 @@ function telaPrincipal(pode) {
       <span>③ Mede <b>1x por mês</b> e atualiza aqui.</span>
     </div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
+    ${dicaVO()}
     ${pode ? formHtml() : bloqueadoHtml()}
     ${historicoHtml()}`;
+}
+
+// Índice cintura ÷ ombro comparando as 2 medições mais recentes: caindo = mais
+// V (músculo), subindo = mais O (gordura no meio). Só aparece com 2 registros.
+function dicaVO() {
+  const c = registros.filter(r => r.cintura && r.ombro);
+  if (c.length < 2) return '';
+  const rA = c[0].cintura / c[0].ombro, rB = c[1].cintura / c[1].ombro;
+  const dif = rA - rB;
+  if (Math.abs(dif) < 0.005) return `<div class="cp-vo cp-vo-neutro">➖ Cintura ÷ ombro estável (${rA.toFixed(2)}) — mantendo a forma.</div>`;
+  if (dif < 0) return `<div class="cp-vo cp-vo-bom">🔺 Cintura ÷ ombro caiu (${rB.toFixed(2)} → ${rA.toFixed(2)}) — você está ficando mais em <b>V</b>: mais músculo, menos gordura no meio. 💪</div>`;
+  return `<div class="cp-vo cp-vo-alerta">⭕ Cintura ÷ ombro subiu (${rB.toFixed(2)} → ${rA.toFixed(2)}) — atenção: pode estar ganhando gordura no meio (formato <b>O</b>). Foco na dieta e no treino.</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════

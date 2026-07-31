@@ -77,12 +77,12 @@ export async function salvarDadosCorpo({ sexo, alturaCm, pesoKg }) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 4: REGISTROS (medições datadas — histórico de evolução)
 // ═══════════════════════════════════════════════════════════════
-const CAMPOS = ['peso', 'pescoco', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha'];
+const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha'];
 
 export async function carregarRegistros() {
   const { data, error } = await supabase
     .from('corpo_registros')
-    .select('id, data, peso, pescoco, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
+    .select('id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
     .order('data', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
@@ -96,7 +96,7 @@ export async function salvarRegistro({ medidas, gorduraPct, fotos, data }) {
   for (const c of CAMPOS) linha[c] = _num(medidas?.[c]);
   const { data: row, error } = await supabase
     .from('corpo_registros').insert(linha)
-    .select('id, data, peso, pescoco, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
+    .select('id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
     .single();
   if (error) throw new Error(error.message);
   // peso mais recente vira o peso do perfil (pra meta de água acompanhar)
