@@ -599,8 +599,8 @@ html, body {
 .cp-campo-in { display: flex; align-items: center; gap: 5px; background: var(--card-2);
   border: 1px solid var(--border); border-radius: 9px; padding: 6px 9px; }
 .cp-campo-in input { font-size: 14px; }
-/* avatares grandes: imagem = largura da coluna (bem maior); empilhadas */
-.cp-avatar { flex: 0 0 185px; display: flex; flex-direction: column; gap: 6px; color: var(--text); }
+/* avatares BEM grandes: imagem = largura da coluna; empilhadas quase encostando */
+.cp-avatar { flex: 0 0 210px; display: flex; flex-direction: column; gap: 2px; color: var(--text); }
 .cp-fig { display: flex; flex-direction: column; align-items: center; }
 .cp-fig img, .cp-fig svg { width: 100%; height: auto; display: block; }
 .cp-fig-lbl { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 2px; }
