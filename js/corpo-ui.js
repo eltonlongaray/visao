@@ -208,6 +208,26 @@ function _blocoPump(r, ant) {
   if (acima) txt = `🏆 <b>Nível fisiculturismo</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump Nível 1 = ${_1(niveis[0])})</small>`;
   else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
+  txt += ` <small style="opacity:.55">— silhueta (formato)</small>`;
+
+  // Ganho real de músculo: variação do membro-âncora (glúteo/ombro) desde a 1ª
+  // medição, com a cintura do mesmo período ao lado — assim dá pra separar músculo
+  // de gordura. A fita não separa osso de músculo num retrato só; o movimento no
+  // tempo separa (bacia larga já nasce grande, mas crescimento é músculo novo).
+  let ganho = '';
+  {
+    const key = isF ? 'quadril' : 'ombro';
+    const prim = [...registros].reverse().find(x => x !== r && x[key] != null);
+    if (prim) {
+      const d = membro - prim[key];
+      if (Math.abs(d) >= 0.1) {
+        const emoji = isF ? '🍑' : '💪';
+        const nomeCap = membroNome.charAt(0).toUpperCase() + membroNome.slice(1);
+        const cintTxt = (prim.cintura != null && r.cintura != null) ? ` · cintura ${_sinal(r.cintura - prim.cintura)} cm` : '';
+        ganho = `<br><small>${emoji} <b>${nomeCap} ${_sinal(d)} cm</b> desde a 1ª medição${cintTxt} <span style="opacity:.6">(volume real de músculo)</span></small>`;
+      }
+    }
+  }
   let falta = '';
   if (!acima && nivel < 3) {
     const prox = niveis[nivel];
@@ -261,7 +281,7 @@ function _blocoPump(r, ant) {
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
     meta = `<br><small><b>🎯 Corpo ideal no Pump Nível ${nivel + 1}</b>:<br>${l.join('<br>')}</small>`;
   }
-  return `<div class="cp-an cp-an-pump">${txt}${falta}${agora}${meta}</div>`;
+  return `<div class="cp-an cp-an-pump">${txt}${ganho}${falta}${agora}${meta}</div>`;
 }
 
 function analiseHtml() {
