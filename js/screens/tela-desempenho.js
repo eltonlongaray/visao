@@ -303,10 +303,11 @@ async function refreshMonthData() {
   // Bar chart
   renderMonthChart(monthsData);
 
-  // Extrato: trajetória semanal completa — TODAS as semanas que o usuário registrou.
-  // Busca janela ampla (5 anos pra trás). Firestore retorna só docs existentes.
-  const recordsStart = new Date(viewMonth.getFullYear() - 5, 0, 1);
-  const recordsEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0);
+  // Extrato + Constância: trajetória COMPLETA e o streak ATUAL — vão sempre até
+  // HOJE, independente do mês navegado no topo (navegar mês só muda os números
+  // do topo; a constância é o streak de verdade, não "como estava naquele mês").
+  const recordsStart = new Date(new Date().getFullYear() - 5, 0, 1);
+  const recordsEnd = new Date();
   fetchDaysRange(recordsStart, recordsEnd).then(async allHistoryDays => {
     if (!userProfile) userProfile = await getProfile().catch(() => null);
     renderRecords(allHistoryDays);
