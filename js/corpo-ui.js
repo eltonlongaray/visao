@@ -236,7 +236,7 @@ function _blocoPump(r, ant) {
     };
     add('Coxa', r.coxa, ant?.coxa, RC);
     add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
-    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ ${membroNome})</span>: ${l.join(' · ')} cm</small>`;
+    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ o ${membroNome} atual)</span>: ${l.join(' · ')} cm</small>`;
   }
   return `<div class="cp-an cp-an-pump">${txt}${falta}${pernas}</div>`;
 }
