@@ -193,14 +193,15 @@ function _blocoSaude(r) {
 // Bloco 3 — nível de shape / Pump (ratio principal por sexo + pernas de apoio)
 function _blocoPump(r, ant) {
   const isF = dados.sexo === 'F';
-  let ratio, rotulo, niveis;
+  let ratio, membro, membroNome, niveis;
   if (isF) {
     if (!r.quadril || !r.cintura) return '';
-    ratio = r.quadril / r.cintura; rotulo = 'Quadril ÷ cintura'; niveis = [1.3, 1.4, 1.5];
+    membro = r.quadril; membroNome = 'glúteo'; ratio = r.quadril / r.cintura; niveis = [1.3, 1.4, 1.5];
   } else {
     if (!r.ombro || !r.cintura) return '';
-    ratio = r.ombro / r.cintura; rotulo = 'Ombro ÷ cintura'; niveis = [1.4, 1.5, 1.618];
+    membro = r.ombro; membroNome = 'ombro'; ratio = r.ombro / r.cintura; niveis = [1.4, 1.5, 1.618];
   }
+  const rotulo = `${membroNome.charAt(0).toUpperCase() + membroNome.slice(1)} ÷ cintura`;
   let nivel = 0; niveis.forEach((n, i) => { if (ratio >= n) nivel = i + 1; });
   const acima = ratio >= niveis[2];
   let txt;
@@ -210,10 +211,13 @@ function _blocoPump(r, ant) {
   let falta = '';
   if (!acima && nivel < 3) {
     const prox = niveis[nivel];
-    const membro = isF ? r.quadril : r.ombro;
-    const dMembro = Math.max(0, Math.ceil(r.cintura * prox) - membro);
-    const dCint = Math.max(0, r.cintura - Math.floor(membro / prox));
-    falta = `<br><small>Pro <b>Pump ${nivel + 1}</b>: +${_1(dMembro)} cm de ${isF ? 'quadril' : 'ombro'} <b>OU</b> −${_1(dCint)} cm de cintura.</small>`;
+    const dMembro = Math.max(0, r.cintura * prox - membro);      // só engrossar o membro
+    const dCint = Math.max(0, r.cintura - membro / prox);         // só afinar a cintura
+    // mix: metade do ganho no membro, o resto sai da cintura
+    const membroMix = membro + dMembro / 2;
+    const dMembroMix = membroMix - membro;
+    const dCintMix = r.cintura - membroMix / prox;
+    falta = `<br><small>Pro <b>Pump ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} de ${membroNome} e −${_1(dCintMix)} de cintura).</small>`;
   }
   let pernas = '';
   const parts = [];
@@ -314,7 +318,10 @@ function historicoHtml() {
         </div>
         ${r.gordura_pct != null ? `<div class="cp-reg-comp">🔬 ${textoComposicao(r.peso, r.gordura_pct)}</div>` : ''}
         <div class="cp-reg-medidas">
-          ${MEDIDAS.filter(m => r[m.k] != null).map(m => `<span>${m.lbl}: <b>${r[m.k]}${m.un}</b></span>`).join('')}
+          ${MEDIDAS.filter(m => r[m.k] != null).map(m => {
+            const lbl = (m.k === 'quadril' && dados.sexo === 'F') ? 'Glúteo' : m.lbl;
+            return `<span>${lbl}: <b>${r[m.k]}${m.un}</b></span>`;
+          }).join('')}
         </div>
         ${fotos.length ? `<div class="cp-reg-fotos">${fotos.map(p => urls.get(p)
           ? `<img src="${esc(urls.get(p))}" alt="foto" loading="lazy" />` : '').join('')}</div>` : ''}
