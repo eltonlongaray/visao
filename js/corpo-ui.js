@@ -173,8 +173,8 @@ function formHtml() {
 function avatarHtml() {
   const dir = dados.sexo === 'F' ? 'mulher' : 'homem';
   return `
-    <div class="cp-fig"><img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" /><span class="cp-fig-lbl">Frente</span></div>
-    <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /><span class="cp-fig-lbl">Lado</span></div>`;
+    <div class="cp-fig"><img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" /></div>
+    <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /></div>`;
 }
 
 function bloqueadoHtml() {
