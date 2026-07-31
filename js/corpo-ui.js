@@ -86,6 +86,25 @@ function diasParaLiberar() {
   return Math.max(0, DIAS_TRAVA - Math.floor((Date.now() - ultima) / 86400000));
 }
 
+// Bloco de status: última medição + quando liberam as próximas medidas (mensal)
+// e fotos (trimestral).
+function statusHtml() {
+  if (!registros.length) return '';
+  const fmt = (dt) => dt.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+  const dataTxt = (dt) => dt.getTime() <= Date.now() ? 'disponível agora' : fmt(dt);
+  const ultima = new Date(registros[0].data + 'T00:00:00');
+  const proxMedida = new Date(ultima.getTime() + 30 * 86400000);
+  const comFoto = registros.find(r => r.foto_frente || r.foto_lado || r.foto_costas);
+  const linhaFoto = comFoto
+    ? `<div><span>Próximas fotos:</span> <b>${dataTxt(new Date(new Date(comFoto.data + 'T00:00:00').getTime() + 90 * 86400000))}</b></div>`
+    : `<div><span>Fotos:</span> <b>tire as primeiras</b></div>`;
+  return `<div class="cp-status">
+    <div><span>Última medição:</span> <b>${fmt(ultima)}</b></div>
+    <div><span>Próximas medidas:</span> <b>${dataTxt(proxMedida)}</b></div>
+    ${linhaFoto}
+  </div>`;
+}
+
 function desenhar() {
   const c = box(); if (!c) return;
   const pode = podeNovaMedicao();
@@ -109,6 +128,7 @@ function telaPrincipal(pode) {
       <span>③ Mede <b>1x por mês</b> e atualiza aqui.</span>
       <span>④ Sem fita métrica? Usa um <b>barbante</b>: dá a volta, marca com o dedo e mede o barbante numa régua.</span>
     </div>
+    ${statusHtml()}
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${dicaVO()}
     ${pode ? formHtml() : bloqueadoHtml()}
@@ -152,7 +172,8 @@ function formHtml() {
 
     <div class="cp-gordura" id="cp-gordura"></div>
 
-    <div class="cp-secao-tit">Fotos de progresso <small style="font-weight:400;color:var(--muted)">· a cada 3 meses</small></div>
+    <div class="cp-secao-tit">Fotos de progresso</div>
+    <div class="cp-secao-sub">A cada 3 meses.</div>
     <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
     <div class="cp-fotos">
       ${LADOS.map(l => `
