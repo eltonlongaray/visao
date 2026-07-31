@@ -339,9 +339,11 @@ async function _fetchWeekDays(startDate) {
 
 async function loadWeek(promessaSemana) {
   weekData = await (promessaSemana || _fetchWeekDays(weekStart));
+  await dedupTemplates();   // limpa a FONTE das repetições antes de gerar
   // Garante tarefas recorrentes na semana atual — essa precisa ficar aqui,
   // é o que o usuário vai ver agora.
   await autoGenerateMissingTasks(weekData);
+  await dedupTasksNaSemana(weekData);   // limpa repetições já existentes nos dias
 
   // A próxima semana é geração PREVENTIVA: ninguém está olhando pra ela.
   // Segurava a pintura da tela por mais uma busca inteira + escritas.
@@ -392,7 +394,13 @@ async function autoGenerateMissingTasks(days = weekData) {
     // Dia virgem (sem tarefas + nunca gerado) → preenche do template do DOW (se houver)
     if (day.tasks.length === 0 && !day.meta.generated) {
       if (Array.isArray(template) && template.length > 0) {
-        const tplFiltered = template.filter(x => !isExcluded(x));
+        // dedup por identidade visível: o template pode ter cópias (foi o que
+        // gerou triplicatas de Almoço/Café/etc.).
+        const vistos = new Set();
+        const tplFiltered = template.filter(x => {
+          if (isExcluded(x)) return false;
+          const k = visKey(x); if (vistos.has(k)) return false; vistos.add(k); return true;
+        });
         if (tplFiltered.length > 0) await addTemplateTasksToDay(day, tplFiltered, 0);
       }
       await setDayMeta(day.id, { generated: true });
@@ -449,6 +457,51 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
     };
     const tid = await addDayTask(day.id, newTask);
     day.tasks.push({ id: tid, ...newTask });
+  }
+}
+
+// Identidade VISÍVEL (ignora recurrenceGroupId de propósito): é por aqui que as
+// cópias escapavam — a mesma tarefa com groupIds diferentes contava como
+// distinta e triplicava. Pra limpar/deduplicar, o que vale é o que a pessoa vê.
+function visKey(t) {
+  return `${t.categoryId || ''}|${(t.title || '').trim().toLowerCase()}|${t.shiftId || ''}|${t.startTime || ''}`;
+}
+
+// Tira cópias dos weekdayTemplates (a fonte das repetições) e salva 1x.
+async function dedupTemplates() {
+  const tpls = profile?.weekdayTemplates;
+  if (!tpls || typeof tpls !== 'object') return;
+  let mudou = false;
+  const novo = {};
+  for (const [dow, arr] of Object.entries(tpls)) {
+    if (!Array.isArray(arr)) { novo[dow] = arr; continue; }
+    const vistos = new Set();
+    novo[dow] = arr.filter(t => {
+      const k = visKey(t); if (vistos.has(k)) { mudou = true; return false; } vistos.add(k); return true;
+    });
+  }
+  if (mudou) {
+    profile.weekdayTemplates = novo;
+    try { await setProfile({ weekdayTemplates: novo }); } catch (e) { console.warn('[dedup tpl]', e); }
+  }
+}
+
+// Remove tarefas repetidas (mesma identidade visível) dentro de cada dia,
+// mantendo UMA — a que estiver feita, se houver. Apaga as sobras do banco.
+async function dedupTasksNaSemana(days) {
+  for (const day of days) {
+    const vistos = new Map(); const remover = [];
+    for (const t of day.tasks) {
+      const k = visKey(t); const mantida = vistos.get(k);
+      if (!mantida) { vistos.set(k, t); continue; }
+      if (t.done && !mantida.done) { remover.push(mantida); vistos.set(k, t); }
+      else remover.push(t);
+    }
+    if (remover.length) {
+      const ids = new Set(remover.map(t => t.id));
+      day.tasks = day.tasks.filter(t => !ids.has(t.id));
+      for (const t of remover) { try { await deleteDayTask(day.id, t.id); } catch {} }
+    }
   }
 }
 

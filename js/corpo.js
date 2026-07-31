@@ -48,7 +48,9 @@ export function metaAgua(pesoKg, alturaCm) {
     const imc = kg / (h * h);
     if (imc > 25) base = 25 * h * h;   // peso ideal (IMC 25) pra aquela altura
   }
-  return Math.round(base * 35);
+  // arredonda pro múltiplo de 250 ml mais próximo — vira copos redondos, a
+  // pessoa sabe quantos faltam (ex.: 2590 → 2500 = 10 copos).
+  return Math.round(base * 35 / 250) * 250;
 }
 
 export function imc(pesoKg, alturaCm) {
