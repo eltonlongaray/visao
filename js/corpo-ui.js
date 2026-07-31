@@ -113,16 +113,19 @@ function formHtml() {
     : dados.sexo === 'M' ? 'Fique <b>sem camisa e de calção curto</b>'
     : 'Homens <b>sem camisa e de calção</b>, mulheres de <b>top e short</b>';
   return `
-    <div class="cp-medidas">
-      ${MEDIDAS.map(m => `
-        <label class="cp-campo">
-          <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
-          <span class="cp-campo-in">
-            <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
-              value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
-            <em>${m.un}</em>
-          </span>
-        </label>`).join('')}
+    <div class="cp-form-corpo">
+      <div class="cp-medidas">
+        ${MEDIDAS.map(m => `
+          <label class="cp-campo">
+            <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
+            <span class="cp-campo-in">
+              <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
+                value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
+              <em>${m.un}</em>
+            </span>
+          </label>`).join('')}
+      </div>
+      <div class="cp-avatar" aria-hidden="true">${AVATAR_SVG}</div>
     </div>
 
     <div class="cp-gordura" id="cp-gordura"></div>
@@ -143,6 +146,39 @@ function formHtml() {
 
     <button class="cp-salvar" data-salvar>Salvar medição</button>`;
 }
+
+// Avatar simples com as fitas indicando onde medir cada parte.
+const AVATAR_SVG = `
+  <svg viewBox="0 0 150 200" xmlns="http://www.w3.org/2000/svg">
+    <g fill="currentColor" opacity="0.16">
+      <circle cx="45" cy="17" r="12"/>
+      <rect x="39" y="26" width="12" height="8" rx="3"/>
+      <path d="M27 38 Q45 32 63 38 L58 88 Q45 95 32 88 Z"/>
+      <rect x="18" y="40" width="9" height="54" rx="4"/>
+      <rect x="63" y="40" width="9" height="54" rx="4"/>
+      <rect x="30" y="88" width="30" height="14" rx="6"/>
+      <rect x="31" y="100" width="12" height="82" rx="5"/>
+      <rect x="47" y="100" width="12" height="82" rx="5"/>
+    </g>
+    <g stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="3 2.5" fill="none">
+      <line x1="33" y1="31" x2="76" y2="31"/>
+      <line x1="26" y1="47" x2="76" y2="47"/>
+      <line x1="16" y1="60" x2="76" y2="60"/>
+      <line x1="29" y1="85" x2="76" y2="85"/>
+      <line x1="28" y1="99" x2="76" y2="99"/>
+      <line x1="30" y1="126" x2="76" y2="126"/>
+      <line x1="31" y1="160" x2="76" y2="160"/>
+    </g>
+    <g fill="var(--muted)" font-size="8" font-family="system-ui,sans-serif" dominant-baseline="middle">
+      <text x="79" y="31">Pescoço</text>
+      <text x="79" y="47">Peitoral</text>
+      <text x="79" y="60">Braço</text>
+      <text x="79" y="85">Cintura</text>
+      <text x="79" y="99">Quadril</text>
+      <text x="79" y="126">Coxa</text>
+      <text x="79" y="160">Panturrilha</text>
+    </g>
+  </svg>`;
 
 function bloqueadoHtml() {
   const dias = diasParaLiberar();
