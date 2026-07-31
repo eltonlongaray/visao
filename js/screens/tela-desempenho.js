@@ -148,8 +148,14 @@ async function renderCorpoEvolucao() {
   const el = document.getElementById('corpo-evolucao');
   if (!el) return;
   let regs = [];
-  try { regs = await carregarRegistros(); } catch { return; }
-  if (!regs.length) { el.innerHTML = ''; return; }
+  try { regs = await carregarRegistros(); } catch { regs = []; }
+  if (!regs.length) {
+    el.innerHTML = `<div class="ce-card ce-vazio">
+      <div class="ce-tit">💪 Composição corporal</div>
+      <div class="ce-sub">Registre suas medidas no <b>Cálculo de massa corporal</b> (Ajustes) pra acompanhar sua evolução aqui — % de gordura, massa magra, cintura e mais.</div>
+    </div>`;
+    return;
+  }
   const _1 = (x) => (x == null ? '—' : (Math.round(x * 10) / 10).toString().replace('.', ','));
   const comp = (r) => (r.peso && r.gordura_pct != null) ? { magra: r.peso - r.peso * r.gordura_pct / 100 } : null;
   const atual = regs[0], primeiro = regs[regs.length - 1];
