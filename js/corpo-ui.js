@@ -71,8 +71,9 @@ export async function montarComposicao() {
   }
 }
 // Abre DIRETO no formulário quando pode medir; quando já mediu, mostra o card
-// travado (libera 3 meses depois). O histórico fica sempre abaixo.
-const DIAS_TRAVA = 90;
+// travado (libera 1 mês depois). O histórico fica sempre abaixo. Mensal (não
+// trimestral) pra pegar mudança cedo e dar dica antes de sair do controle.
+const DIAS_TRAVA = 30;
 function podeNovaMedicao() {
   if (!registros.length) return true;
   const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
@@ -99,7 +100,13 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Preencha as medidas e adicione 3 fotos. Atualize as medidas a cada <b>3 meses</b> para acompanhar sua evolução.</div>
+    <div class="cp-intro">Preencha as medidas e adicione 3 fotos. Atualize <b>uma vez por mês</b> para acompanhar sua evolução e receber dicas.</div>
+    <div class="cp-dicas">
+      <b>Pra medir certo:</b>
+      <span>① Sempre de <b>manhã</b>, em jejum, depois do banheiro.</span>
+      <span>② <b>Sem sugar a barriga</b> — respira normal e mede.</span>
+      <span>③ Mede <b>1x por mês</b> e atualiza aqui.</span>
+    </div>
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${pode ? formHtml() : bloqueadoHtml()}
     ${historicoHtml()}`;
@@ -187,7 +194,7 @@ function bloqueadoHtml() {
   return `
     <div class="cp-bloqueado">
       <span class="cp-bloq-ic">⏳</span>
-      <span>Você registrou em <b>${ultima}</b>. A próxima medição libera em <b>${d}</b> — a cada 3 meses, pra dar tempo de ver evolução real.</span>
+      <span>Você registrou em <b>${ultima}</b>. A próxima medição libera em <b>${d}</b> — 1x por mês pra acompanhar de perto.</span>
     </div>
     <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>`;
 }
