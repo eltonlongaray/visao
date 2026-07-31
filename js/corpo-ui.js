@@ -219,11 +219,25 @@ function _blocoPump(r, ant) {
     const dCintMix = r.cintura - membroMix / prox;
     falta = `<br><small>Pro <b>Pump ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} de ${membroNome} e −${_1(dCintMix)} de cintura).</small>`;
   }
+  // Pernas: alvo proporcional ao membro-âncora (glúteo/ombro), pra não ficar desproporcional.
+  // Cada perna com seu próprio tamanho — só ancorada na mesma referência.
   let pernas = '';
-  const parts = [];
-  if (r.coxa) parts.push(`coxa ${r.coxa}${ant?.coxa ? ` (${_sinal(r.coxa - ant.coxa)})` : ''}`);
-  if (r.panturrilha) parts.push(`panturrilha ${r.panturrilha}${ant?.panturrilha ? ` (${_sinal(r.panturrilha - ant.panturrilha)})` : ''}`);
-  if (parts.length) pernas = `<br><small>Pernas: ${parts.join(' · ')} cm</small>`;
+  if (r.coxa || r.panturrilha) {
+    const RC = isF ? 0.60 : 0.50;   // coxa como fração do glúteo (F) / ombro (M)
+    const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
+    const l = [];
+    const add = (nome, val, prev, ratio) => {
+      if (!val) return;
+      const alvo = Math.round(membro * ratio);
+      const d = alvo - val;
+      const evo = prev != null && prev !== val ? ` <small>(${_sinal(val - prev)})</small>` : '';
+      const st = d > 1 ? `<b>faltam ${_1(d)}</b>` : '✓';
+      l.push(`${nome} ${val}${evo} → ~${alvo} ${st}`);
+    };
+    add('Coxa', r.coxa, ant?.coxa, RC);
+    add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
+    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ ${membroNome})</span>: ${l.join(' · ')} cm</small>`;
+  }
   return `<div class="cp-an cp-an-pump">${txt}${falta}${pernas}</div>`;
 }
 
