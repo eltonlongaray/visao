@@ -206,8 +206,8 @@ function _blocoPump(r, ant) {
   const acima = ratio >= niveis[2];
   let txt;
   if (acima) txt = `🏆 <b>Nível fisiculturismo</b> · ${rotulo} = ${ratio.toFixed(2)}`;
-  else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump 1 = ${_1(niveis[0])})</small>`;
-  else txt = `🏆 <b>Pump nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
+  else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump Nível 1 = ${_1(niveis[0])})</small>`;
+  else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   let falta = '';
   if (!acima && nivel < 3) {
     const prox = niveis[nivel];
@@ -217,7 +217,7 @@ function _blocoPump(r, ant) {
     const membroMix = membro + dMembro / 2;
     const dMembroMix = membroMix - membro;
     const dCintMix = r.cintura - membroMix / prox;
-    falta = `<br><small>Pro <b>Pump ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} de ${membroNome} e −${_1(dCintMix)} de cintura).</small>`;
+    falta = `<br><small>Pro <b>Pump Nível ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} cm de ${membroNome} e −${_1(dCintMix)} cm de cintura).</small>`;
   }
   // Pernas: alvo proporcional ao membro-âncora (glúteo/ombro), pra não ficar desproporcional.
   // Cada perna com seu próprio tamanho — só ancorada na mesma referência.
@@ -230,13 +230,13 @@ function _blocoPump(r, ant) {
       if (!val) return;
       const alvo = Math.round(membro * ratio);
       const d = alvo - val;
-      const evo = prev != null && prev !== val ? ` <small>(${_sinal(val - prev)})</small>` : '';
-      const st = d > 1 ? `<b>faltam ${_1(d)}</b>` : '✓';
-      l.push(`${nome} ${val}${evo} → ~${alvo} ${st}`);
+      const evo = prev != null && prev !== val ? ` <small>(${_sinal(val - prev)} cm)</small>` : '';
+      const st = d > 1 ? `<b>faltam ${_1(d)} cm</b>` : '✓';
+      l.push(`${nome} ${val} cm${evo} → alvo ~${alvo} cm ${st}`);
     };
     add('Coxa', r.coxa, ant?.coxa, RC);
     add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
-    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ o ${membroNome} atual)</span>: ${l.join(' · ')} cm</small>`;
+    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ o ${membroNome} atual)</span>: ${l.join(' · ')}</small>`;
   }
   return `<div class="cp-an cp-an-pump">${txt}${falta}${pernas}</div>`;
 }
