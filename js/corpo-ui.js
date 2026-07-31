@@ -219,12 +219,13 @@ function _blocoPump(r, ant) {
     const dCintMix = r.cintura - membroMix / prox;
     falta = `<br><small>Pro <b>Pump Nível ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} cm de ${membroNome} e −${_1(dCintMix)} cm de cintura).</small>`;
   }
-  // Pernas: alvo proporcional ao membro-âncora (glúteo/ombro), pra não ficar desproporcional.
-  // Cada perna com seu próprio tamanho — só ancorada na mesma referência.
-  let pernas = '';
-  if (r.coxa || r.panturrilha) {
-    const RC = isF ? 0.60 : 0.50;   // coxa como fração do glúteo (F) / ombro (M)
-    const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
+  // Proporções das pernas em relação ao membro-âncora (glúteo/ombro).
+  const RC = isF ? 0.60 : 0.50;   // coxa como fração do glúteo (F) / ombro (M)
+  const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
+
+  // ── Leitura 1: proporção AGORA (pernas ancoradas no membro atual) ──
+  let agora = '';
+  {
     const l = [];
     const add = (nome, val, prev, ratio) => {
       if (!val) return;
@@ -236,9 +237,31 @@ function _blocoPump(r, ant) {
     };
     add('Coxa', r.coxa, ant?.coxa, RC);
     add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
-    pernas = `<br><small>Pernas <span style="opacity:.65">(proporção c/ o ${membroNome} atual)</span>: ${l.join(' · ')}</small>`;
+    if (l.length) agora = `<br><small><b>⚖️ Proporção agora</b> <span style="opacity:.65">(c/ o ${membroNome} atual)</span>: ${l.join(' · ')}</small>`;
   }
-  return `<div class="cp-an cp-an-pump">${txt}${falta}${pernas}</div>`;
+
+  // ── Leitura 2: corpo IDEAL no próximo Pump (cintura saudável + tudo proporcional) ──
+  let meta = '';
+  if (!acima && nivel < 3) {
+    const metaRatio = niveis[nivel];
+    const cintAlvo = dados.alturaCm ? Math.min(r.cintura, Math.round(dados.alturaCm * 0.5)) : r.cintura;
+    const membroAlvo = Math.round(cintAlvo * metaRatio);
+    const coxaAlvo = Math.round(membroAlvo * RC);
+    const pantAlvo = Math.round(membroAlvo * RP);
+    const l = [];
+    const linha = (nome, atual, alvo, cresce) => {
+      if (atual == null) return;
+      const d = cresce ? alvo - atual : atual - alvo;
+      const st = d > 1 ? `<b>${cresce ? '+' : '−'}${_1(d)} cm</b>` : '<b>✓</b>';
+      l.push(`${nome} ${atual} cm → ${alvo} cm ${st}`);
+    };
+    linha('Cintura', r.cintura, cintAlvo, false);
+    linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
+    linha('Coxa', r.coxa, coxaAlvo, true);
+    linha('Panturrilha', r.panturrilha, pantAlvo, true);
+    meta = `<br><small><b>🎯 Corpo ideal no Pump Nível ${nivel + 1}</b>:<br>${l.join('<br>')}</small>`;
+  }
+  return `<div class="cp-an cp-an-pump">${txt}${falta}${agora}${meta}</div>`;
 }
 
 function analiseHtml() {
