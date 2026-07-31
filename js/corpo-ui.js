@@ -138,21 +138,92 @@ function telaPrincipal(pode) {
     </div>
     ${statusHtml()}
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
-    ${dicaVO()}
+    ${analiseHtml()}
     ${pode ? formHtml() : bloqueadoHtml()}
     ${historicoHtml()}`;
 }
 
-// Índice cintura ÷ ombro comparando as 2 medições mais recentes: caindo = mais
-// V (músculo), subindo = mais O (gordura no meio). Só aparece com 2 registros.
-function dicaVO() {
-  const c = registros.filter(r => r.cintura && r.ombro);
-  if (c.length < 2) return '';
-  const rA = c[0].cintura / c[0].ombro, rB = c[1].cintura / c[1].ombro;
-  const dif = rA - rB;
-  if (Math.abs(dif) < 0.005) return `<div class="cp-vo cp-vo-neutro">➖ Cintura ÷ ombro estável (${rA.toFixed(2)}) — mantendo a forma.</div>`;
-  if (dif < 0) return `<div class="cp-vo cp-vo-bom">🔺 Cintura ÷ ombro caiu (${rB.toFixed(2)} → ${rA.toFixed(2)}) — você está ficando mais em <b>V</b>: mais músculo, menos gordura no meio. 💪</div>`;
-  return `<div class="cp-vo cp-vo-alerta">⭕ Cintura ÷ ombro subiu (${rB.toFixed(2)} → ${rA.toFixed(2)}) — atenção: pode estar ganhando gordura no meio (formato <b>O</b>). Foco na dieta e no treino.</div>`;
+// ── ANÁLISE (3 blocos): músculo×gordura · saúde · pump ──
+const _1 = (x) => (Math.round(x * 10) / 10).toString().replace('.', ',');
+const _sinal = (x) => (x >= 0 ? '+' : '') + _1(x);
+function _comp(peso, bf) {
+  if (!peso || bf == null) return null;
+  const gorda = peso * bf / 100;
+  return { gorda, magra: peso - gorda };
+}
+
+// Bloco 1 — ganhou músculo ou gordura (vs mês passado)
+function _blocoMusculo(r, ant) {
+  const a = _comp(r.peso, r.gordura_pct);
+  if (!a) return '';
+  const b = ant && _comp(ant.peso, ant.gordura_pct);
+  if (!b) return `<div class="cp-an cp-an-neutro"><b>Composição:</b> ${_1(a.magra)} kg de massa magra · ${_1(a.gorda)} kg de gordura. <span class="cp-an-hint">Registre no mês que vem pra ver a evolução.</span></div>`;
+  const dM = a.magra - b.magra, dG = a.gorda - b.gorda;
+  let cls, msg;
+  if (dM > 0.1 && dG < -0.1) { cls = 'bom'; msg = '🔥 Recomposição! Ganhou músculo e perdeu gordura.'; }
+  else if (dM > 0.1) { cls = 'bom'; msg = '💪 Ganhou músculo.'; }
+  else if (dG > 0.1 && dM <= 0.1) { cls = 'alerta'; msg = '⚠️ Ganhou gordura. Ajusta dieta e treino.'; }
+  else if (dM < -0.1 && dG < -0.1) { cls = 'neutro'; msg = 'Perdeu peso — parte gordura, parte músculo. Capricha na proteína.'; }
+  else { cls = 'neutro'; msg = 'Sem grande mudança este mês.'; }
+  return `<div class="cp-an cp-an-${cls}">${msg}<br><small>Massa magra ${_sinal(dM)} kg · Gordura ${_sinal(dG)} kg (vs mês passado)</small></div>`;
+}
+
+// Bloco 2 — corpo saudável (%gordura + cintura/altura)
+function _blocoSaude(r) {
+  let out = '';
+  if (r.gordura_pct != null && dados.sexo) {
+    const lim = dados.sexo === 'F' ? 28 : 20;
+    const ok = r.gordura_pct <= lim;
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Gordura <b>${r.gordura_pct}%</b> — ${ok ? 'na faixa saudável' : 'acima do saudável'} (ideal até ${lim}%).</div>`;
+  }
+  if (r.cintura && dados.alturaCm) {
+    const razao = r.cintura / dados.alturaCm;
+    const alvo = Math.round(dados.alturaCm * 0.5);
+    const ok = razao < 0.5;
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Cintura <b>${r.cintura} cm</b> — ${ok ? 'saudável' : `acima do ideal (< ${alvo} cm)`}. <small>cintura/altura ${razao.toFixed(2)} · ideal < 0,50</small></div>`;
+  }
+  return out;
+}
+
+// Bloco 3 — nível de shape / Pump (ratio principal por sexo + pernas de apoio)
+function _blocoPump(r, ant) {
+  const isF = dados.sexo === 'F';
+  let ratio, rotulo, niveis;
+  if (isF) {
+    if (!r.quadril || !r.cintura) return '';
+    ratio = r.quadril / r.cintura; rotulo = 'Quadril ÷ cintura'; niveis = [1.3, 1.4, 1.5];
+  } else {
+    if (!r.ombro || !r.cintura) return '';
+    ratio = r.ombro / r.cintura; rotulo = 'Ombro ÷ cintura'; niveis = [1.4, 1.5, 1.618];
+  }
+  let nivel = 0; niveis.forEach((n, i) => { if (ratio >= n) nivel = i + 1; });
+  const acima = ratio >= niveis[2];
+  let txt;
+  if (acima) txt = `🏆 <b>Nível fisiculturismo</b> · ${rotulo} = ${ratio.toFixed(2)}`;
+  else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump 1 = ${_1(niveis[0])})</small>`;
+  else txt = `🏆 <b>Pump nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
+  let falta = '';
+  if (!acima && nivel < 3) {
+    const prox = niveis[nivel];
+    const grande = isF ? r.quadril : r.ombro;
+    const grandeAlvo = Math.ceil(r.cintura * prox);
+    const cintAlvo = Math.floor((isF ? r.quadril : r.ombro) / prox);
+    falta = `<br><small>Pro Pump ${nivel + 1}: ${isF ? 'quadril' : 'ombro'} ${grandeAlvo} cm OU cintura ${cintAlvo} cm.</small>`;
+  }
+  let pernas = '';
+  const parts = [];
+  if (r.coxa) parts.push(`coxa ${r.coxa}${ant?.coxa ? ` (${_sinal(r.coxa - ant.coxa)})` : ''}`);
+  if (r.panturrilha) parts.push(`panturrilha ${r.panturrilha}${ant?.panturrilha ? ` (${_sinal(r.panturrilha - ant.panturrilha)})` : ''}`);
+  if (parts.length) pernas = `<br><small>Pernas: ${parts.join(' · ')} cm</small>`;
+  return `<div class="cp-an cp-an-pump">${txt}${falta}${pernas}</div>`;
+}
+
+function analiseHtml() {
+  if (!registros.length) return '';
+  const r = registros[0], ant = registros[1];
+  const blocos = _blocoMusculo(r, ant) + _blocoSaude(r) + _blocoPump(r, ant);
+  if (!blocos.trim()) return '';
+  return `<div class="cp-analise"><div class="cp-analise-tit">📊 Sua análise</div>${blocos}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -564,11 +564,18 @@ html, body {
 .cp-status { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted);
   background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
 .cp-status b { color: var(--text); }
-.cp-vo { font-size: 12.5px; line-height: 1.5; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
-.cp-vo b { color: var(--text); }
-.cp-vo-bom { background: rgba(52,211,153,0.14); color: var(--green); }
-.cp-vo-alerta { background: rgba(245,158,11,0.14); color: var(--orange); }
-.cp-vo-neutro { background: var(--card-2); color: var(--muted); }
+/* Análise: bloco com o resumo (músculo×gordura, saúde, pump) */
+.cp-analise { margin-bottom: 14px; }
+.cp-analise-tit { font-size: 14px; font-weight: 800; color: var(--text); margin: 2px 2px 8px; }
+.cp-an { font-size: 12.5px; line-height: 1.5; border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; }
+.cp-an b { color: var(--text); }
+.cp-an small { opacity: 0.85; }
+.cp-an-bom { background: rgba(52,211,153,0.14); color: var(--green); }
+.cp-an-alerta { background: rgba(245,158,11,0.14); color: var(--orange); }
+.cp-an-neutro { background: var(--card-2); color: var(--muted); }
+.cp-an-pump { background: rgba(167,139,250,0.16); color: var(--accent); }
+.cp-an-pump b { color: var(--accent); }
+.cp-an-hint { opacity: 0.85; }
 .cp-alerta, .cp-bf-hint { display: block; font-size: 12.5px; color: var(--orange); background: rgba(245,158,11,0.12);
   border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; line-height: 1.5; }
 .cp-nova-btn {
