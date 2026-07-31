@@ -219,12 +219,26 @@ function _blocoPump(r, ant) {
     const key = isF ? 'quadril' : 'ombro';
     const prim = [...registros].reverse().find(x => x !== r && x[key] != null);
     if (prim) {
-      const d = membro - prim[key];
-      if (Math.abs(d) >= 0.1) {
+      const dG = membro - prim[key];
+      if (Math.abs(dG) >= 0.1) {
         const emoji = isF ? '🍑' : '💪';
         const nomeCap = membroNome.charAt(0).toUpperCase() + membroNome.slice(1);
-        const cintTxt = (prim.cintura != null && r.cintura != null) ? ` · cintura ${_sinal(r.cintura - prim.cintura)} cm` : '';
-        ganho = `<br><small>${emoji} <b>${nomeCap} ${_sinal(d)} cm</b> desde a 1ª medição${cintTxt} <span style="opacity:.6">(volume real de músculo)</span></small>`;
+        const temCint = prim.cintura != null && r.cintura != null;
+        const dW = temCint ? r.cintura - prim.cintura : null;
+        const cintTxt = temCint ? ` · cintura ${_sinal(dW)} cm` : '';
+        // Leitura músculo × gordura: pra construir músculo um leve superávit é normal
+        // (vem um pouco de gordura junto). O que importa é o membro subir MAIS rápido
+        // que a cintura — depois um cut revela. Se a cintura acompanha, foi mais gordura.
+        let leitura;
+        if (dG > 0.1) {
+          if (dW == null) leitura = 'cresceu — confirma com a cintura no mês que vem';
+          else if (dW <= 0.1) leitura = '🔥 volume limpo — cresceu sem ganhar cintura';
+          else if (dW < dG * 0.6) leitura = '👍 fase de ganho saudável — pra construir músculo um pouco de gordura junto é normal; depois um cut revela';
+          else leitura = '⚠️ veio bastante gordura junto (cintura quase acompanhou) — depois de construir, seca um pouco pra revelar';
+        } else {
+          leitura = 'diminuiu — capricha na proteína e no treino pra preservar músculo';
+        }
+        ganho = `<br><small>${emoji} <b>${nomeCap} ${_sinal(dG)} cm</b> desde a 1ª medição${cintTxt}<br><span style="opacity:.75">${leitura}</span></small>`;
       }
     }
   }
