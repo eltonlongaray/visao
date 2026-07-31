@@ -146,7 +146,7 @@ function formHtml() {
             </span>
           </label>`).join('')}
       </div>
-      <div class="cp-avatar" aria-hidden="true">${AVATAR_SVG}</div>
+      <div class="cp-avatar">${avatarHtml()}</div>
     </div>
 
     <div class="cp-gordura" id="cp-gordura"></div>
@@ -168,53 +168,14 @@ function formHtml() {
     <button class="cp-salvar" data-salvar>Salvar medição</button>`;
 }
 
-// Avatar: homem (frente) em cima, mulher (perfil, com curvas) embaixo. A fita
-// métrica é um LAÇO em volta de cada parte — deixa claro que se mede a volta de
-// CADA membro individual. Cintura marcada no umbigo (pontinho).
-const TAPE = '#e0a325';   // cor de fita métrica
-// laço de fita: elipse (frente sólida) + arco de trás pontilhado = "dá a volta"
-function _laco(cx, cy, rx, ry) {
-  return `<g stroke="${TAPE}" fill="none" stroke-width="2">
-    <path d="M${cx - rx} ${cy} a ${rx} ${ry} 0 0 0 ${rx * 2} 0" stroke-dasharray="2 2.4" opacity="0.65"/>
-    <path d="M${cx - rx} ${cy} a ${rx} ${ry} 0 0 1 ${rx * 2} 0"/>
-  </g>`;
+// Avatar: as ilustrações reais (frente + lado), conforme o sexo do perfil.
+// Mulher no perfil feminino, homem no masculino (padrão homem se não definido).
+function avatarHtml() {
+  const dir = dados.sexo === 'F' ? 'mulher' : 'homem';
+  return `
+    <div class="cp-fig"><img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" /><span class="cp-fig-lbl">Frente</span></div>
+    <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /><span class="cp-fig-lbl">Lado</span></div>`;
 }
-const FIG_HOMEM = `
-  <svg viewBox="0 0 120 210" xmlns="http://www.w3.org/2000/svg">
-    <g fill="currentColor" opacity="0.20">
-      <circle cx="60" cy="18" r="13"/>
-      <path d="M55 31 h10 v7 h-2 l14 6 q10 5 11 18 l3 22 h-9 l-3 -20 -1 26 -3 42 h-8 l-2 -38 -2 38 h-8 l-3 -42 -1 -26 -3 20 h-9 l3 -22 q1 -13 11 -18 l14 -6 h-2 z"/>
-      <path d="M46 84 h28 l-2 24 -4 55 q-2 8 -8 8 t-8 -8 l-4 -55 z"/>
-    </g>
-    ${_laco(60, 36, 8, 3)}
-    ${_laco(60, 58, 20, 5)}
-    ${_laco(34, 66, 8, 3)}
-    ${_laco(60, 96, 15, 4.5)}
-    ${_laco(60, 110, 17, 5)}
-    ${_laco(52, 140, 8.5, 3.5)}
-    ${_laco(52, 185, 6.5, 3)}
-    <circle cx="60" cy="96" r="1.6" fill="${TAPE}"/>
-  </svg>`;
-const FIG_MULHER = `
-  <svg viewBox="0 0 120 210" xmlns="http://www.w3.org/2000/svg">
-    <g fill="currentColor" opacity="0.20">
-      <circle cx="52" cy="18" r="12"/>
-      <path d="M52 30
-        q6 2 7 10 q1 8 8 12 q9 6 8 15 q-1 7 -9 9 q-8 2 -10 12
-        q-2 10 10 15 q14 6 14 18 q0 12 -14 14 q-10 2 -12 12
-        l-4 40 q-1 7 -7 7 t-6 -7 l2 -46
-        q1 -22 -2 -40 q-2 -14 3 -30 q4 -14 2 -28 q-1 -10 6 -15 z"/>
-    </g>
-    ${_laco(55, 74, 14, 4.5)}
-    ${_laco(52, 96, 12, 4)}
-    ${_laco(56, 118, 18, 5.5)}
-    ${_laco(46, 150, 9, 3.5)}
-    ${_laco(44, 188, 6.5, 3)}
-    <circle cx="52" cy="96" r="1.6" fill="${TAPE}"/>
-  </svg>`;
-const AVATAR_SVG = `
-  <div class="cp-fig">${FIG_HOMEM}<span class="cp-fig-lbl">Homem</span></div>
-  <div class="cp-fig">${FIG_MULHER}<span class="cp-fig-lbl">Mulher</span></div>`;
 
 function bloqueadoHtml() {
   const dias = diasParaLiberar();
