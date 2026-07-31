@@ -339,6 +339,10 @@ async function _fetchWeekDays(startDate) {
 
 async function loadWeek(promessaSemana) {
   weekData = await (promessaSemana || _fetchWeekDays(weekStart));
+  // A busca da semana começa ANTES do perfil carregar, então a meta de água
+  // caía no default (2000). Aqui o perfil já está pronto — recalcula pelo peso.
+  const metaP = _metaAguaDoPeso();
+  if (metaP > 0) weekData.forEach(d => { if (d.meta) d.meta.hydrationGoal = metaP; });
   await dedupTemplates();   // limpa a FONTE das repetições antes de gerar
   // Garante tarefas recorrentes na semana atual — essa precisa ficar aqui,
   // é o que o usuário vai ver agora.
