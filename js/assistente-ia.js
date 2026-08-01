@@ -489,6 +489,7 @@ function ensinarEditar() {
     '• <em>"editar horário do compromisso reunião para 15h"</em><br>' +
     '• <em>"editar descrição do compromisso reunião para pauta trimestral"</em><br>' +
     '• <em>"adicionar lembrete à tarefa academia"</em> (🔔 sininho na Home)<br>' +
+    '• <em>"repetir tarefa academia toda semana"</em> (🔁 repetição)<br>' +
     '• <em>"reagendar tarefa mercado para sexta"</em><br><br>' +
     'Eu acho a atividade pelo nome e aplico a mudança. 🦅', 'bot');
 }
@@ -881,6 +882,22 @@ async function routeCommand(text) {
   const mLembOff = text.match(new RegExp('^(?:tira\\w*|retira\\w*|remov\\w*|desativa\\w*|desliga\\w*|apaga\\w*|cancela\\w*|desmarca\\w*)\\s+' + _lembTail, 'i'));
   if (mLembOff) { await cmdEditarLembrete(mLembOff[2].trim().replace(/[.,;:!?]+$/, ''), mLembOff[1] ? mLembOff[1].toLowerCase() : null, false); return null; }
 
+  // ── Editar SÓ a repetição de uma atividade que já existe ──
+  // "repetir tarefa academia toda semana" / "editar repetição do compromisso X para todo mês"
+  const mRep = text.match(/^(?:repetir|repete|editar?\s+(?:a\s+)?(?:repeti[çc][ãa]o|recorr[êe]ncia))\s+(.+)/i);
+  if (mRep) {
+    const recFrag = parseRecorrencia(mRep[1]);
+    if (!recFrag) { addMessage('Não entendi a repetição. Ex.: <em>"repetir tarefa academia toda semana"</em>.', 'bot'); return null; }
+    let resto = mRep[1].replace(/\bpara\b/gi, ' ').replace(RECUR_STRIP, ' ');
+    let tipoR = null;
+    const mt = resto.match(/\b(compromisso|tarefa|atividade|commitment|task)\b/i);
+    if (mt) { tipoR = mt[1].toLowerCase(); resto = resto.replace(mt[0], ' '); }
+    const nomeR = resto.replace(/\bd[oa]s?\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (!nomeR) { addMessage('Qual atividade? Ex.: <em>"repetir tarefa academia toda semana"</em>.', 'bot'); return null; }
+    await cmdEditarRepeticao(nomeR, tipoR, recFrag);
+    return null;
+  }
+
   // ── Consultas (PT + EN) ──
   if (/dormi|sono|horas de sono|acordei|sleep|how.*sleep|woke.*up/i.test(tl))         return cmdSono();
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
@@ -1258,6 +1275,27 @@ function askType(name, date = new Date(), time = '') {
 }
 
 
+// Identifica qual chip de repetição corresponde à regra atual (ou 'custom' se
+// for algo digitado que não tem chip — ex.: "último domingo", "quinzenal").
+function _recKey(rec) {
+  if (!rec) return 'none';
+  if (rec.freq === 'weekly' && (rec.interval || 1) === 1) return 'week';
+  if (rec.freq === 'monthly' && !rec.lastDayOfMonth && rec.lastWeekday == null) {
+    if (rec.interval === 1) return 'month';
+    if (rec.interval === 3) return '3m';
+    if (rec.interval === 6) return '6m';
+    if (rec.interval === 12) return 'year';
+  }
+  return 'custom';
+}
+// Monta a regra a partir do chip clicado, ancorando na data do agendamento.
+function _buildRec(key, date) {
+  if (key === 'none') return null;
+  if (key === 'week') return { freq: 'weekly', interval: 1, anchor: dayId(date), weekday: date.getDay() };
+  const im = { month: 1, '3m': 3, '6m': 6, year: 12 }[key];
+  return { freq: 'monthly', interval: im, anchor: dayId(date), dayOfMonth: date.getDate() };
+}
+
 function showRegistroPreview(name, done, date = new Date(), time = '') {
   const dd        = date.getDate().toString().padStart(2, '0');
   const mm        = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1275,15 +1313,56 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   const box = document.getElementById('pet-messages');
   if (!box) return;
 
+  const _typedRec = ditado.recorrencia;   // regra digitada (pode ser "custom")
+  const recChips = [
+    ['none', 'Não'], ['week', 'Semana'], ['month', 'Mês'],
+    ['3m', '3 meses'], ['6m', '6 meses'], ['year', 'Ano'],
+  ];
+  const curKey = _recKey(ditado.recorrencia);
+
   const div = document.createElement('div');
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
       ${ditado.descricao ? `<span class="pet-preview-desc">(${ditado.descricao})</span>` : ''}
-      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}${ditado.lembrete ? ' · 🔔 lembrete' : ''}${ditado.recorrencia ? ` · 🔁 ${ruleLabel(ditado.recorrencia)}` : ''}</span>
+      <span class="pet-preview-sub" data-sub>${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
+      <span class="pet-reco-row">
+        <span class="pet-reco-lbl">🔁 Repetir?</span>
+        ${curKey === 'custom' ? `<button type="button" class="pet-reco-chip sel" data-rec="custom">${ruleLabel(ditado.recorrencia)}</button>` : ''}
+        ${recChips.map(([k, l]) => `<button type="button" class="pet-reco-chip ${curKey === k ? 'sel' : ''}" data-rec="${k}">${l}</button>`).join('')}
+      </span>
+      <span class="pet-reco-row">
+        <button type="button" class="pet-reco-chip pet-reco-bell" data-bell>🔔 Lembrete</button>
+      </span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
+
+  const subEl  = div.querySelector('[data-sub]');
+  const bellEl = div.querySelector('[data-bell]');
+  function repaint() {
+    const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
+    const bellOn = !!(ditado.lembrete || monthlyPinned);
+    subEl.textContent = `${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}`
+      + (bellOn ? ' · 🔔' : '')
+      + (ditado.recorrencia ? ` · 🔁 ${ruleLabel(ditado.recorrencia)}` : '');
+    const key = _recKey(ditado.recorrencia);
+    div.querySelectorAll('.pet-reco-chip[data-rec]').forEach(c => c.classList.toggle('sel', c.dataset.rec === key));
+    bellEl.classList.toggle('sel', bellOn);
+    bellEl.classList.toggle('pet-reco-locked', monthlyPinned);   // mensal+ já vem alfinetado
+  }
+  div.querySelectorAll('.pet-reco-chip[data-rec]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      ditado.recorrencia = chip.dataset.rec === 'custom' ? _typedRec : _buildRec(chip.dataset.rec, date);
+      repaint();
+    });
+  });
+  bellEl.addEventListener('click', () => {
+    if (ditado.recorrencia && ditado.recorrencia.freq === 'monthly') return; // travado (alfinete)
+    ditado.lembrete = !ditado.lembrete;
+    repaint();
+  });
+  repaint();
 
   const btn = div.querySelector('.pet-reg-btn');
   btn.addEventListener('click', async () => {
@@ -1613,6 +1692,12 @@ async function cmdEditarLembrete(nameHint, tipo, enabled) {
   showEditCard(matches, 'reminder', { reminderEnabled: enabled });
 }
 
+async function cmdEditarRepeticao(nameHint, tipo, recFrag) {
+  const matches = await searchTasksByName(nameHint, tipo);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'recur', { recFrag });
+}
+
 async function cmdReatgendar(nameHint, afterPara, tipo) {
   const newDate = extractDate(afterPara);
   const newTime = extractTime(afterPara);
@@ -1635,7 +1720,7 @@ function showEditCard(matches, action, payload) {
   function applyEdit(match, btn) {
     btn.disabled = true;
     btn.textContent = t('pet.edit.updating');
-    const { task, dayDocId } = match;
+    const { task, dayDocId, date } = match;
     const reschedCount = (task.rescheduleCount || 0) + 1;
 
     let p;
@@ -1645,6 +1730,20 @@ function showEditCard(matches, action, payload) {
       p = updateDayTask(dayDocId, task.id, { desc: payload.newDesc });
     } else if (action === 'reminder') {
       p = updateDayTask(dayDocId, task.id, { reminderEnabled: payload.reminderEnabled });
+    } else if (action === 'recur') {
+      // Liga/troca a repetição da atividade: ancora na data dela, tagueia com um
+      // groupId e salva a regra. Mensal+ nasce alfinetada (lembrete).
+      const grpId = task.recurrenceGroupId || ('r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+      const rec = { ...payload.recFrag, anchor: dayId(date) };
+      if (rec.freq === 'weekly') rec.weekday = date.getDay();
+      if (rec.freq === 'monthly' && !rec.lastDayOfMonth && rec.lastWeekday == null) rec.dayOfMonth = date.getDate();
+      const pin = rec.freq === 'monthly';
+      p = updateDayTask(dayDocId, task.id, { recurrenceGroupId: grpId, ...(pin ? { reminderEnabled: true } : {}) })
+        .then(() => salvarRegra({
+          groupId: grpId, title: task.title, desc: task.desc || '', kind: task.kind || 'task',
+          startTime: task.startTime || '', categoryId: task.categoryId || null, icon: task.icon || '',
+          reminderEnabled: pin || !!task.reminderEnabled, ...rec,
+        }));
     } else if (action === 'time') {
       p = updateDayTask(dayDocId, task.id, { startTime: payload.newTime, rescheduled: true, rescheduleCount: reschedCount });
     } else {
@@ -1693,6 +1792,10 @@ function showEditCard(matches, action, payload) {
     } else if (action === 'reminder') {
       title.textContent = `🔔 ${task.title}`;
       sub.textContent   = `lembrete ${payload.reminderEnabled ? 'ligado' : 'desligado'} · ${fmtDate(date)}`;
+    } else if (action === 'recur') {
+      title.textContent = `🔁 ${task.title}`;
+      const rl = ruleLabel({ ...payload.recFrag, weekday: date.getDay(), dayOfMonth: date.getDate() });
+      sub.textContent   = `repetir → ${rl}`;
     } else if (action === 'time') {
       title.textContent = `⏰ ${task.title}`;
       sub.textContent   = `${fmtDate(date)} · ${task.startTime || '—'} → ${payload.newTime}`;

@@ -5974,6 +5974,35 @@ body.tour-active { overflow: hidden; }
 .pet-reg-btn:disabled { opacity: 0.6; cursor: default; }
 .pet-reg-btn.pet-reg-done { background: var(--green); }
 
+/* Chips de repetição + lembrete dentro do card de preview */
+.pet-reco-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+.pet-reco-lbl { font-size: 11px; color: var(--muted); margin-right: 2px; }
+.pet-reco-chip {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #e8e8f0);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+.pet-reco-chip:hover { background: rgba(255, 255, 255, 0.12); }
+.pet-reco-chip.sel {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.pet-reco-bell.sel { background: var(--gold, #e0b341); border-color: var(--gold, #e0b341); color: #1a1a2e; }
+.pet-reco-chip.pet-reco-locked { opacity: 0.75; cursor: default; }
+
 /* Botão Google Agenda no chat do Pet */
 .pet-gcal-link {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
