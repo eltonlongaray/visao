@@ -502,7 +502,8 @@ function ensinarAgendar() {
     '• <strong>o tipo</strong> — compromisso (com hora) ou tarefa<br>' +
     '• <strong>o dia e a hora</strong><br>' +
     '• <strong>o título</strong> — é ele que liga com suas atividades e faz contar pros objetivos<br>' +
-    '• <strong>a descrição</strong> — um detalhe, se quiser<br><br>' +
+    '• <strong>a descrição</strong> — um detalhe, se quiser<br>' +
+    '• <strong>"com lembrete"</strong> — se quiser o 🔔 sininho na Home<br><br>' +
     'Depois é só tocar em <strong>registrar</strong> na prévia que eu monto. 🦅', 'bot');
 }
 
@@ -785,9 +786,12 @@ const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|regis
 // Título e descrição ditados em rótulo ficam guardados aqui até o registro
 // acontecer — o fluxo passa por perguntas ("é atividade ou compromisso?") e
 // perderia os campos no caminho.
-let ditado = { titulo: null, descricao: null };
+let ditado = { titulo: null, descricao: null, lembrete: false };
 
 async function routeCommand(text) {
+  // Texto original preservado: "com lembrete" pode vir depois da descrição, e aí
+  // o extrairCampos reescreve `text` e o perde. A detecção do lembrete usa este.
+  const textoBruto = String(text || '');
   // "…Título lazer. Descrição aniversário" — os rótulos saem do comando pra
   // não virarem parte do nome, e voltam na hora de gravar.
   const campos = extrairCampos(text);
@@ -806,7 +810,7 @@ async function routeCommand(text) {
   if (pareceComandoNovo && convState) convState = null;
 
   const continuandoConversa = !!convState;
-  if (!continuandoConversa) ditado = { titulo: null, descricao: null };
+  if (!continuandoConversa) ditado = { titulo: null, descricao: null, lembrete: false };
 
   // Num comando de EDIÇÃO ("editar descrição do compromisso X para Y") a palavra
   // "descrição" é o NOME do campo a mudar, não um valor. Sem esta guarda, o
@@ -818,6 +822,7 @@ async function routeCommand(text) {
     ditado = {
       titulo: campos.titulo || (continuandoConversa ? ditado.titulo : null),
       descricao: campos.descricao || (continuandoConversa ? ditado.descricao : null),
+      lembrete: continuandoConversa ? ditado.lembrete : false,
     };
     text = campos.comando;
   }
@@ -886,6 +891,11 @@ async function routeCommand(text) {
 
   // ── Intenção de registrar ──
   if (REGISTER_TRIGGERS.test(tl)) {
+    // "com lembrete" liga o sininho já na criação; sem falar nada, não liga.
+    ditado.lembrete = /\bcom\s+(?:um\s+)?(?:lembrete|sininho|sino)\b/i.test(textoBruto);
+    // Se "com lembrete" grudou na descrição, tira de lá (é comando, não detalhe).
+    if (ditado.lembrete && ditado.descricao)
+      ditado.descricao = ditado.descricao.replace(/\s*\bcom\s+(?:um\s+)?(?:lembrete|sininho|sino)\b/i, '').trim() || null;
     const targetDate    = extractDate(text);
     const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl)             ? 'compromisso'
                         : /\batividade\b|\btarefa\b|activity|task/i.test(tl)  ? 'atividade'
@@ -1007,6 +1017,7 @@ function extractTaskName(text) {
     .replace(/^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|register)\s*/i, '')
     .replace(/^(um|uma|o|a|a|an|the)\s+/i, '')
     .replace(/\b(pra mim|para mim|for me)\b/gi, '')
+    .replace(/\bcom\s+(um\s+)?(lembrete|sininho|sino)\b\s*/gi, '')
     .replace(/\b(tarefa|compromisso|atividade|commitment|activity|task)\b\s*/gi, '')
     .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
@@ -1256,7 +1267,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
       ${ditado.descricao ? `<span class="pet-preview-desc">(${ditado.descricao})</span>` : ''}
-      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
+      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}${ditado.lembrete ? ' · 🔔 lembrete' : ''}</span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
@@ -1278,10 +1289,10 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
         addMessage(t('pet.duplicate', { name }), 'bot');
         return;
       }
-      await executeRegistro(name, done, date, time, ditado.descricao || '');
+      await executeRegistro(name, done, date, time, ditado.descricao || '', ditado.lembrete || false);
       btn.textContent = t('pet.preview.done');
       btn.classList.add('pet-reg-done');
-      ditado = { titulo: null, descricao: null };
+      ditado = { titulo: null, descricao: null, lembrete: false };
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(t(done ? 'pet.registered.activity' : 'pet.registered.commitment'));
       if (time) {
@@ -1307,7 +1318,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   box.scrollTop = box.scrollHeight;
 }
 
-async function executeRegistro(name, done, date, time = '', descricao = '') {
+async function executeRegistro(name, done, date, time = '', descricao = '', lembrete = false) {
   const targetId = dayId(date);
   const [, tasks, shifts, cats] = await Promise.all([
     setDayMeta(targetId, {}),
@@ -1329,7 +1340,7 @@ async function executeRegistro(name, done, date, time = '', descricao = '') {
     icon: cat?.icon || '',
     categoryId: cat?.id || null,
     shiftId: pickShift(shifts, time),
-    reminderEnabled: false,
+    reminderEnabled: !!lembrete,
   });
   return cat;
 }
