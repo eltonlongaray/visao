@@ -32,6 +32,7 @@ import {
 import { bottomNav } from '../components/menu-inferior.js';
 import { forceRender } from '../roteador.js';
 import { metaAgua } from '../corpo.js';
+import { ruleFiresOn, nextOccurrence } from '../recorrencia.js';
 import { showToast, showLocalToast, confirmModal } from '../aviso-tela.js';
 import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
@@ -357,6 +358,7 @@ async function loadWeek(promessaSemana) {
       const nextStart = new Date(weekStart);
       nextStart.setDate(weekStart.getDate() + 7);
       await autoGenerateMissingTasks(await _fetchWeekDays(nextStart));
+      await ensurePinnedRecurrences();   // fixa a próxima ocorrência de eventos mensais+
     } catch (e) {
       console.warn('[Falcon] pré-geração da próxima semana falhou:', e);
     }
@@ -434,6 +436,62 @@ async function autoGenerateMissingTasks(days = weekData) {
         }
       }
     }
+
+    // ────── 4) Recorrências avançadas SOB DEMANDA (só weekly: toda semana /
+    // quinzenal / N-em-N semanas). Monthly+ são pré-criadas com alfinete por
+    // ensurePinnedRecurrences() — não passam por aqui. ──────
+    const rules = profile?.recurrenceRules;
+    if (Array.isArray(rules) && rules.length > 0 && day.id >= todayId) {
+      const localDate = new Date(_iy, _im - 1, _id);
+      const firing = rules
+        .filter(r => r.freq === 'weekly' && ruleFiresOn(r, localDate))
+        .map(_ruleToTmpl)
+        .filter(tmpl => !isExcluded(tmpl));
+      if (firing.length > 0) {
+        const existing = new Set(day.tasks.map(t => keyOf(t)));
+        const toAdd = firing.filter(tmpl => !existing.has(keyOf(tmpl)));
+        if (toAdd.length > 0) await addTemplateTasksToDay(day, toAdd, day.tasks.length);
+      }
+    }
+  }
+}
+
+// Converte uma regra de recorrência num objeto no formato de template de tarefa
+// (recurrenceGroupId = groupId da regra, pra keyOf/isExcluded/dedup funcionarem).
+function _ruleToTmpl(rule) {
+  return {
+    title: rule.title || 'Sem título',
+    desc: rule.desc || '',
+    kind: rule.kind || 'task',
+    startTime: rule.startTime || '',
+    categoryId: rule.categoryId || null,
+    icon: rule.icon || '',
+    reminderEnabled: !!rule.reminderEnabled,
+    recurrenceGroupId: rule.groupId,
+  };
+}
+
+// Pré-criação alfinetada: pra CADA regra monthly (incl. 1×/mês), garante que a
+// próxima ocorrência >= hoje exista como tarefa real com lembrete (alfinete 📌 no
+// calendário). Eventos raros/importantes ficam fixados sem depender de navegar.
+// Cria só a ocorrência imminente; quando ela passa, o próximo load fixa a seguinte.
+async function ensurePinnedRecurrences() {
+  const rules = profile?.recurrenceRules;
+  if (!Array.isArray(rules) || rules.length === 0) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  for (const rule of rules) {
+    if (rule.freq !== 'monthly') continue;
+    const occ = nextOccurrence(rule, today);
+    if (!occ) continue;
+    const nid = dayId(occ);
+    try {
+      const [dia, tasks] = await Promise.all([getDay(nid), getDayTasks(nid)]);
+      const exG = Array.isArray(dia?.meta?.excludedRecurrenceGroups) ? dia.meta.excludedRecurrenceGroups : [];
+      if (exG.includes(rule.groupId)) continue;                       // usuário excluiu essa ocorrência
+      if ((tasks || []).some(t => t.recurrenceGroupId === rule.groupId)) continue;  // já existe
+      await setDayMeta(nid, {});
+      await addDayTask(nid, { ..._ruleToTmpl(rule), reminderEnabled: true, done: false, order: (tasks?.length || 0) });
+    } catch (e) { console.warn('[recur pin]', e); }
   }
 }
 

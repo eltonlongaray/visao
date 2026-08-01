@@ -24,6 +24,7 @@ import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
+import { parseRecorrencia, ruleLabel, RECUR_STRIP } from './recorrencia.js';
 import { juntarFala } from './ditado-merge.js';
 
 // ═══════════════════════════════════════════════════════════════
@@ -503,7 +504,8 @@ function ensinarAgendar() {
     '• <strong>o dia e a hora</strong><br>' +
     '• <strong>o título</strong> — é ele que liga com suas atividades e faz contar pros objetivos<br>' +
     '• <strong>a descrição</strong> — um detalhe, se quiser<br>' +
-    '• <strong>"com lembrete"</strong> — se quiser o 🔔 sininho na Home<br><br>' +
+    '• <strong>"com lembrete"</strong> — se quiser o 🔔 sininho na Home<br>' +
+    '• <strong>repetição</strong> — "toda semana", "todo mês", "de 2 em 2 semanas", "a cada 3 meses", "último domingo do mês", "último dia do mês"<br><br>' +
     'Depois é só tocar em <strong>registrar</strong> na prévia que eu monto. 🦅', 'bot');
 }
 
@@ -786,7 +788,7 @@ const REGISTER_TRIGGERS = /^(marca[rh]?|agenda[rh]?|registra[rh]?|schedule|regis
 // Título e descrição ditados em rótulo ficam guardados aqui até o registro
 // acontecer — o fluxo passa por perguntas ("é atividade ou compromisso?") e
 // perderia os campos no caminho.
-let ditado = { titulo: null, descricao: null, lembrete: false };
+let ditado = { titulo: null, descricao: null, lembrete: false, recorrencia: null };
 
 async function routeCommand(text) {
   // Texto original preservado: "com lembrete" pode vir depois da descrição, e aí
@@ -810,7 +812,7 @@ async function routeCommand(text) {
   if (pareceComandoNovo && convState) convState = null;
 
   const continuandoConversa = !!convState;
-  if (!continuandoConversa) ditado = { titulo: null, descricao: null, lembrete: false };
+  if (!continuandoConversa) ditado = { titulo: null, descricao: null, lembrete: false, recorrencia: null };
 
   // Num comando de EDIÇÃO ("editar descrição do compromisso X para Y") a palavra
   // "descrição" é o NOME do campo a mudar, não um valor. Sem esta guarda, o
@@ -823,6 +825,7 @@ async function routeCommand(text) {
       titulo: campos.titulo || (continuandoConversa ? ditado.titulo : null),
       descricao: campos.descricao || (continuandoConversa ? ditado.descricao : null),
       lembrete: continuandoConversa ? ditado.lembrete : false,
+      recorrencia: continuandoConversa ? ditado.recorrencia : null,
     };
     text = campos.comando;
   }
@@ -897,6 +900,16 @@ async function routeCommand(text) {
     if (ditado.lembrete && ditado.descricao)
       ditado.descricao = ditado.descricao.replace(/\s*\bcom\s+(?:um\s+)?(?:lembrete|sininho|sino)\b/i, '').trim() || null;
     const targetDate    = extractDate(text);
+    // Recorrência: "toda semana", "todo mês", "último domingo do mês", "a cada 3
+    // meses"… A data do comando vira a ÂNCORA (e o dia-do-mês / dia-da-semana).
+    const recFrag = parseRecorrencia(textoBruto);
+    ditado.recorrencia = null;
+    if (recFrag) {
+      ditado.recorrencia = { ...recFrag, anchor: dayId(targetDate) };
+      if (recFrag.freq === 'weekly') ditado.recorrencia.weekday = targetDate.getDay();
+      if (recFrag.freq === 'monthly' && !recFrag.lastDayOfMonth && recFrag.lastWeekday == null)
+        ditado.recorrencia.dayOfMonth = targetDate.getDate();
+    }
     const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl)             ? 'compromisso'
                         : /\batividade\b|\btarefa\b|activity|task/i.test(tl)  ? 'atividade'
                         : null;
@@ -1018,6 +1031,7 @@ function extractTaskName(text) {
     .replace(/^(um|uma|o|a|a|an|the)\s+/i, '')
     .replace(/\b(pra mim|para mim|for me)\b/gi, '')
     .replace(/\bcom\s+(um\s+)?(lembrete|sininho|sino)\b\s*/gi, '')
+    .replace(RECUR_STRIP, ' ')
     .replace(/\b(tarefa|compromisso|atividade|commitment|activity|task)\b\s*/gi, '')
     .replace(/depois\s+de\s+aman(h[ãa]|ha)\s*/gi, '')
     .replace(/aman(h[ãa]|ha)\s*/gi, '')
@@ -1267,7 +1281,7 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
     <span class="pet-preview-card">
       <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
       ${ditado.descricao ? `<span class="pet-preview-desc">(${ditado.descricao})</span>` : ''}
-      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}${ditado.lembrete ? ' · 🔔 lembrete' : ''}</span>
+      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}${ditado.lembrete ? ' · 🔔 lembrete' : ''}${ditado.recorrencia ? ` · 🔁 ${ruleLabel(ditado.recorrencia)}` : ''}</span>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
@@ -1289,12 +1303,28 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
         addMessage(t('pet.duplicate', { name }), 'bot');
         return;
       }
-      await executeRegistro(name, done, date, time, ditado.descricao || '', ditado.lembrete || false);
+      // Captura recorrência ANTES de zerar o ditado.
+      const rec = ditado.recorrencia;
+      const descAtual = ditado.descricao || '';
+      const grpId = rec ? ('r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)) : null;
+      // Recorrência mensal+ (incl. 1×/mês) nasce alfinetada (lembrete) pra fixar
+      // no calendário — evento raro que não pode escapar.
+      const lembreteFinal = !!(ditado.lembrete || (rec && rec.freq === 'monthly'));
+      const cat = await executeRegistro(name, done, date, time, descAtual, lembreteFinal, grpId);
+      if (rec) {
+        await salvarRegra({
+          groupId: grpId, title: name, desc: descAtual,
+          kind: done ? 'task' : 'commitment', startTime: time || '',
+          categoryId: cat?.id || null, icon: cat?.icon || '',
+          reminderEnabled: lembreteFinal, ...rec,
+        });
+      }
       btn.textContent = t('pet.preview.done');
       btn.classList.add('pet-reg-done');
-      ditado = { titulo: null, descricao: null, lembrete: false };
+      ditado = { titulo: null, descricao: null, lembrete: false, recorrencia: null };
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(t(done ? 'pet.registered.activity' : 'pet.registered.commitment'));
+      if (rec) setTimeout(() => addMessage(`🔁 Vou repetir <b>${name}</b> ${ruleLabel(rec)}.`, 'bot'), 300);
       if (time) {
         const [h, mi]  = time.split(':').map(Number);
         const ts       = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi).getTime();
@@ -1318,7 +1348,17 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   box.scrollTop = box.scrollHeight;
 }
 
-async function executeRegistro(name, done, date, time = '', descricao = '', lembrete = false) {
+// Salva uma regra de recorrência no profile (o motor do Ritual a lê e gera/fixa).
+async function salvarRegra(rule) {
+  try {
+    const prof = await getProfile().catch(() => null);
+    const list = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules.slice() : [];
+    list.push(rule);
+    await setProfile({ recurrenceRules: list });
+  } catch (e) { console.error('[pet] salvar regra recorrência:', e); }
+}
+
+async function executeRegistro(name, done, date, time = '', descricao = '', lembrete = false, recurrenceGroupId = null) {
   const targetId = dayId(date);
   const [, tasks, shifts, cats] = await Promise.all([
     setDayMeta(targetId, {}),
@@ -1341,6 +1381,7 @@ async function executeRegistro(name, done, date, time = '', descricao = '', lemb
     categoryId: cat?.id || null,
     shiftId: pickShift(shifts, time),
     reminderEnabled: !!lembrete,
+    ...(recurrenceGroupId ? { recurrenceGroupId } : {}),
   });
   return cat;
 }
