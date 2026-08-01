@@ -1346,24 +1346,18 @@ function _showGateAtividade(name, done, date, time, cats) {
   aviso.appendChild(asp);
   box.appendChild(aviso);
 
-  // Criar = PRIMEIRA opção (topo); depois a grade das existentes em colunas.
+  // Criar = PRIMEIRA opção (topo); depois a lista das existentes (nome completo).
   const div = document.createElement('div');
-  div.className = 'pet-msg pet-msg-bot';
+  div.className = 'pet-msg pet-msg-bot pet-msg-wide';
   div.innerHTML = `
     <span class="pet-preview-card pet-preview-tight">
       <button type="button" class="pet-atv-create pet-atv-create-full" data-create>➕ Criar “${_esc(name)}”</button>
       ${cats.length ? '<span class="pet-reco-lbl pet-atv-lbl">ou escolha uma existente:</span><div class="pet-atv-grid" data-atv-grid></div>' : ''}
     </span>`;
   const atvGrid = div.querySelector('[data-atv-grid]');
-  if (atvGrid) {
-    atvGrid.innerHTML = cats.map(c =>
-      `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
-    ).join('');
-    // Colunas conforme a quantidade: 3 só quando há MUITAS (evita lista comprida),
-    // 2 pro caso comum, 1 se houver só uma (não fica esparso).
-    const nCols = cats.length >= 7 ? 3 : (cats.length >= 2 ? 2 : 1);
-    atvGrid.style.gridTemplateColumns = `repeat(${nCols}, minmax(0, 1fr))`;
-  }
+  if (atvGrid) atvGrid.innerHTML = cats.map(c =>
+    `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
+  ).join('');
 
   const resolver = (nome) => {
     aviso.remove();   // resolvido: o aviso e o card de escolha somem da tela,
@@ -1421,7 +1415,7 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
       ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <div class="pet-rep" data-rep-wrap></div>
-      <label class="pet-check-row"><input type="checkbox" data-bell><span>🔔 Lembrete</span></label>
+      <button type="button" class="pet-check-row" data-bell><span class="pet-check-box"></span><span>🔔 Lembrete</span></button>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
@@ -1452,18 +1446,18 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
     }));
   }
 
-  // 🔔 Lembrete = checkbox. Recorrência mensal+ mantém marcado (nasce alfinetado).
-  // Sem usar o atributo `disabled` — ele deixava a caixa travada e sem resposta;
-  // aqui só o caso mensal ignora o clique, o resto marca/desmarca livre.
+  // 🔔 Lembrete = toggle próprio (botão), não checkbox nativo — o nativo dava
+  // quirk de toque no mobile e ficava "travado". Mensal+ mantém marcado (alfinete).
+  let bellLocked = false;
   function syncBell() {
     const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
-    bellEl.dataset.locked = monthlyPinned ? '1' : '';
-    bellEl.checked = monthlyPinned ? true : !!ditado.lembrete;
+    bellLocked = monthlyPinned;
+    bellEl.classList.toggle('checked', monthlyPinned ? true : !!ditado.lembrete);
   }
-  bellEl.addEventListener('click', (e) => { if (bellEl.dataset.locked === '1') e.preventDefault(); });
-  bellEl.addEventListener('change', () => {
-    if (bellEl.dataset.locked === '1') { bellEl.checked = true; return; }
-    ditado.lembrete = bellEl.checked;
+  bellEl.addEventListener('click', () => {
+    if (bellLocked) return;
+    ditado.lembrete = !ditado.lembrete;
+    syncBell();
   });
 
   renderRep();

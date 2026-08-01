@@ -5958,14 +5958,14 @@ body.tour-active { overflow: hidden; }
 
 /* Botão de confirmar registro */
 .pet-reg-btn {
-  margin-top: 8px;
-  align-self: flex-start;
+  margin-top: 10px;
+  align-self: stretch;
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 20px;
-  padding: 7px 16px;
-  font-size: 12px;
+  border-radius: 22px;
+  padding: 12px 22px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;
@@ -6034,20 +6034,21 @@ body.tour-active { overflow: hidden; }
 }
 .pet-atv-create:hover { opacity: 0.9; transform: scale(1.03); }
 .pet-atv-create-full { width: 100%; margin: 2px 0 6px; padding: 9px; font-size: 12px; }
-/* Atividades em grade de 2–3 colunas (adapta à largura), chips uniformes */
+/* Atividades: flex que envolve (mostra o NOME COMPLETO, sem reticências).
+   Nomes curtos empacotam vários por linha; nomes longos ocupam a largura que
+   precisam — a mensagem alarga (pet-msg-wide) pra caber. */
 .pet-atv-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 5px;
 }
 .pet-atv-grid .pet-atv-chip {
-  text-align: left;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 12px;
   padding: 7px 11px;
 }
+/* Mensagem de escolha de atividade pode ser mais larga que os balões normais */
+.pet-chat-open .pet-msg.pet-msg-wide { max-width: 97%; }
 
 /* Card mais justo (linhas próximas) + título da atividade bem maior */
 .pet-preview-tight { gap: 2px; }
@@ -6061,15 +6062,35 @@ body.tour-active { overflow: hidden; }
 .pet-check-row {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 6px;
-  font-size: 12px;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   user-select: none;
   align-self: flex-start;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 3px 0;
 }
-.pet-check-row input { width: 18px; height: 18px; accent-color: var(--gold, #e0b341); cursor: pointer; }
+.pet-check-box {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #1a1a2e;
+  line-height: 1;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pet-check-row.checked .pet-check-box { background: var(--gold, #e0b341); border-color: var(--gold, #e0b341); }
+.pet-check-row.checked .pet-check-box::after { content: '✓'; }
 
 /* Repetir: botão retrátil + lista de opções empilhadas */
 .pet-rep { margin-top: 6px; }
