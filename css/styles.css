@@ -6046,6 +6046,29 @@ body.tour-active { overflow: hidden; }
   text-overflow: ellipsis;
 }
 
+/* Card mais justo (linhas próximas) + título da atividade bem maior */
+.pet-preview-tight { gap: 2px; }
+.pet-preview-tight .pet-reco-row { margin-top: 4px; }
+.pet-preview-tight .pet-atv-lbl { margin: 5px 0 3px; }
+.pet-preview-tight .pet-atv-warn { margin: 2px 0 5px; }
+.pet-preview-title-big { font-size: 12px; color: var(--muted); }
+.pet-preview-title-big strong { font-size: 19px; font-weight: 800; color: var(--text, #e8e8f0); }
+
+/* Lembrete como checkbox */
+.pet-check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  align-self: flex-start;
+}
+.pet-check-row input { width: 16px; height: 16px; accent-color: var(--gold, #e0b341); cursor: pointer; }
+.pet-check-row input:disabled { cursor: default; }
+
 /* Botão Google Agenda no chat do Pet */
 .pet-gcal-link {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;

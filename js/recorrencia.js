@@ -26,6 +26,16 @@ export function lastWeekdayDate(y, m, wd) {
   return new Date(y, m, last - diff);
 }
 
+// N-ésima ocorrência do dia-da-semana wd no mês (ex.: 2ª segunda). Se a n-ésima
+// não existe naquele mês (5ª às vezes), cai na última ocorrência existente.
+export function nthWeekdayDate(y, m, wd, n) {
+  const first = new Date(y, m, 1);
+  const offset = (wd - first.getDay() + 7) % 7;
+  let day = 1 + offset + (n - 1) * 7;
+  if (day > lastDayOfMonth(y, m)) day -= 7;
+  return new Date(y, m, day);
+}
+
 function _midnight(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
 function _parseAnchor(s) {
@@ -42,7 +52,16 @@ function _monthsBetween(a, b) {
 export function monthlyTargetDate(rule, y, m) {
   if (rule.lastDayOfMonth) return new Date(y, m, lastDayOfMonth(y, m));
   if (rule.lastWeekday != null) return lastWeekdayDate(y, m, rule.lastWeekday);
+  if (rule.nthWeekday != null && rule.weekday != null) return nthWeekdayDate(y, m, rule.weekday, rule.nthWeekday);
   return new Date(y, m, clampDay(y, m, rule.dayOfMonth || 1));
+}
+
+// "2ª segunda" / "última quinta" com gênero certo (domingo/sábado = masculino).
+export function ordWeekday(weekday, n) {   // n: 1-5 ou 'last'
+  const masc = weekday === 0 || weekday === 6;
+  if (n === 'last') return (masc ? 'último' : 'última') + ' ' + _DOW[weekday];
+  const arr = masc ? ['', '1º', '2º', '3º', '4º', '5º'] : ['', '1ª', '2ª', '3ª', '4ª', '5ª'];
+  return (arr[n] || `${n}ª`) + ' ' + _DOW[weekday];
 }
 
 // === BLOCO 2: A REGRA DISPARA NESSE DIA? ===
@@ -106,15 +125,16 @@ const _DOW = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sáb
 export function ruleLabel(rule) {
   const n = Math.max(1, rule.interval || 1);
   if (rule.freq === 'weekly') {
-    const dia = _DOW[rule.weekday != null ? rule.weekday : 0];
-    if (n === 1) return `toda semana (${dia})`;
-    if (n === 2) return `a cada 2 semanas (${dia})`;
+    const wd = rule.weekday != null ? rule.weekday : 0;
+    const dia = _DOW[wd];
+    if (n === 1) { const art = (wd === 0 || wd === 6) ? 'todo' : 'toda'; return `${art} ${dia}`; }
     return `a cada ${n} semanas (${dia})`;
   }
   // monthly
   let quando;
   if (rule.lastDayOfMonth) quando = 'no último dia';
-  else if (rule.lastWeekday != null) quando = `no último ${_DOW[rule.lastWeekday]}`;
+  else if (rule.lastWeekday != null) quando = ordWeekday(rule.lastWeekday, 'last');
+  else if (rule.nthWeekday != null && rule.weekday != null) quando = ordWeekday(rule.weekday, rule.nthWeekday);
   else quando = `no dia ${rule.dayOfMonth}`;
   if (n === 1) return `todo mês ${quando}`;
   if (n === 12) return `todo ano ${quando}`;

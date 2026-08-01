@@ -24,7 +24,7 @@ import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
-import { parseRecorrencia, ruleLabel, RECUR_STRIP } from './recorrencia.js';
+import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP } from './recorrencia.js';
 import { juntarFala } from './ditado-merge.js';
 
 // ═══════════════════════════════════════════════════════════════
@@ -1275,25 +1275,45 @@ function askType(name, date = new Date(), time = '') {
 }
 
 
-// Identifica qual chip de repetição corresponde à regra atual (ou 'custom' se
-// for algo digitado que não tem chip — ex.: "último domingo", "quinzenal").
-function _recKey(rec) {
-  if (!rec) return 'none';
+// Semana do mês (1..5) da data + se é a ÚLTIMA ocorrência desse dia-da-semana.
+function _semanaDoMes(date) {
+  const dom = date.getDate();
+  const nth = Math.ceil(dom / 7);
+  const ultimoDia = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return { nth, isLast: dom + 7 > ultimoDia };
+}
+// Opções de repetição CONTEXTUAIS à data: "toda segunda", "todo dia 12",
+// "a cada 3/6 meses", "2ª segunda do mês" (ou "última …" se for a última).
+function _repeatOptions(date) {
+  const wd = date.getDay(), dom = date.getDate();
+  const DOWF = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const art = (wd === 0 || wd === 6) ? 'todo' : 'toda';
+  const { nth, isLast } = _semanaDoMes(date);
+  const opts = [
+    { key: 'week', label: `${art} ${DOWF[wd]}`, rule: { freq: 'weekly', interval: 1, weekday: wd } },
+    { key: 'day',  label: `todo dia ${dom}`,    rule: { freq: 'monthly', interval: 1, dayOfMonth: dom } },
+    { key: '3m',   label: 'a cada 3 meses',     rule: { freq: 'monthly', interval: 3, dayOfMonth: dom } },
+    { key: '6m',   label: 'a cada 6 meses',     rule: { freq: 'monthly', interval: 6, dayOfMonth: dom } },
+  ];
+  if (isLast) opts.push({ key: 'lastwd', label: `${ordWeekday(wd, 'last')} do mês`, rule: { freq: 'monthly', interval: 1, lastWeekday: wd } });
+  else        opts.push({ key: 'nthwd',  label: `${ordWeekday(wd, nth)} do mês`,    rule: { freq: 'monthly', interval: 1, nthWeekday: nth, weekday: wd } });
+  return opts;
+}
+// Qual key a regra atual corresponde (ou 'custom' se digitou algo fora das
+// opções, ou null se não há repetição).
+function _recToKey(rec) {
+  if (!rec) return null;
   if (rec.freq === 'weekly' && (rec.interval || 1) === 1) return 'week';
-  if (rec.freq === 'monthly' && !rec.lastDayOfMonth && rec.lastWeekday == null) {
-    if (rec.interval === 1) return 'month';
-    if (rec.interval === 3) return '3m';
-    if (rec.interval === 6) return '6m';
-    if (rec.interval === 12) return 'year';
+  if (rec.freq === 'monthly') {
+    if (rec.lastWeekday != null) return 'lastwd';
+    if (rec.nthWeekday != null) return 'nthwd';
+    if (!rec.lastDayOfMonth) {
+      if (rec.interval === 1) return 'day';
+      if (rec.interval === 3) return '3m';
+      if (rec.interval === 6) return '6m';
+    }
   }
   return 'custom';
-}
-// Monta a regra a partir do chip clicado, ancorando na data do agendamento.
-function _buildRec(key, date) {
-  if (key === 'none') return null;
-  if (key === 'week') return { freq: 'weekly', interval: 1, anchor: dayId(date), weekday: date.getDay() };
-  const im = { month: 1, '3m': 3, '6m': 6, year: 12 }[key];
-  return { freq: 'monthly', interval: im, anchor: dayId(date), dayOfMonth: date.getDate() };
 }
 
 async function showRegistroPreview(name, done, date = new Date(), time = '') {
@@ -1315,55 +1335,42 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
 
   let curName = name;                                   // título ativo (chips trocam)
   let cats = await getCategories().catch(() => []);     // atividades da Home
-  const _typedRec = ditado.recorrencia;   // regra digitada (pode ser "custom")
-  const recChips = [
-    ['none', 'Não'], ['week', 'Semana'], ['month', 'Mês'],
-    ['3m', '3 meses'], ['6m', '6 meses'], ['year', 'Ano'],
-  ];
-  const curKey = _recKey(ditado.recorrencia);
+  const _typedRec = ditado.recorrencia;                 // regra digitada (pode ser "custom")
+  const repOpts = _repeatOptions(date);
 
   const div = document.createElement('div');
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
-    <span class="pet-preview-card">
-      <span class="pet-preview-title">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
+    <span class="pet-preview-card pet-preview-tight">
+      <span data-warn-slot></span>
+      <span class="pet-preview-title pet-preview-title-big">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
       ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
+      <span class="pet-reco-lbl pet-atv-lbl">🎯 Atividade:</span>
+      <div class="pet-atv-grid" data-atv-grid></div>
       <span class="pet-preview-sub" data-sub>${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
-      <span data-atv-wrap></span>
-      <span class="pet-reco-row">
-        <span class="pet-reco-lbl">🔁 Repetir?</span>
-        ${curKey === 'custom' ? `<button type="button" class="pet-reco-chip sel" data-rec="custom">${ruleLabel(ditado.recorrencia)}</button>` : ''}
-        ${recChips.map(([k, l]) => `<button type="button" class="pet-reco-chip ${curKey === k ? 'sel' : ''}" data-rec="${k}">${l}</button>`).join('')}
-      </span>
-      <span class="pet-reco-row">
-        <button type="button" class="pet-reco-chip pet-reco-bell" data-bell>🔔 Lembrete</button>
-      </span>
+      <span class="pet-reco-row" data-rep-row></span>
+      <label class="pet-check-row"><input type="checkbox" data-bell><span>🔔 Lembrete</span></label>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
-  const subEl   = div.querySelector('[data-sub]');
-  const bellEl  = div.querySelector('[data-bell]');
-  const titleEl = div.querySelector('[data-title]');
-  const atvWrap = div.querySelector('[data-atv-wrap]');
+  const titleEl  = div.querySelector('[data-title]');
+  const warnSlot = div.querySelector('[data-warn-slot]');
+  const atvGrid  = div.querySelector('[data-atv-grid]');
+  const repRow   = div.querySelector('[data-rep-row]');
+  const bellEl   = div.querySelector('[data-bell]');
 
-  // 🎯 Atividade: chips das atividades da Home. Toca pra virar o título; se o que
-  // foi digitado não existe, avisa leve + oferece "Criar Nova Atividade" (não trava).
+  // 🎯 Atividade: aviso "não registrada" (no TOPO) + grade de atividades da Home.
   function renderAtv() {
     const combina = cats.some(c => _limpoTxt(c.name) === _limpoTxt(curName));
-    const chips = cats.map(c =>
+    warnSlot.innerHTML = combina ? '' :
+      `<div class="pet-atv-warn"><span>Ops, <b>“${_esc(curName)}”</b> ainda não é uma atividade registrada 😅</span><button type="button" class="pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
+    atvGrid.innerHTML = cats.map(c =>
       `<button type="button" class="pet-reco-chip pet-atv-chip ${_limpoTxt(c.name) === _limpoTxt(curName) ? 'sel' : ''}" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
     ).join('');
-    const warn = combina ? '' :
-      `<div class="pet-atv-warn"><span>Ops, <b>“${_esc(curName)}”</b> ainda não é uma atividade sua 😅</span><button type="button" class="pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
-    // Ordem: rótulo → aviso+criar (ACIMA) → grade de atividades em colunas.
-    atvWrap.innerHTML = `<span class="pet-reco-lbl pet-atv-lbl">🎯 Atividade:</span>${warn}<div class="pet-atv-grid">${chips}</div>`;
-
-    atvWrap.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
-      curName = chip.dataset.atv;
-      titleEl.textContent = curName;
-      renderAtv();
+    atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
+      curName = chip.dataset.atv; titleEl.textContent = curName; renderAtv();
     }));
-    const cbtn = atvWrap.querySelector('[data-create]');
+    const cbtn = warnSlot.querySelector('[data-create]');
     if (cbtn) cbtn.addEventListener('click', async () => {
       cbtn.disabled = true; cbtn.textContent = 'Criando…';
       try {
@@ -1377,30 +1384,35 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
       } catch (e) { cbtn.disabled = false; cbtn.textContent = '➕ Criar Nova Atividade'; console.error('[pet] criar atividade', e); }
     });
   }
-  renderAtv();
-  function repaint() {
-    const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
-    const bellOn = !!(ditado.lembrete || monthlyPinned);
-    subEl.textContent = `${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}`
-      + (bellOn ? ' · 🔔' : '')
-      + (ditado.recorrencia ? ` · 🔁 ${ruleLabel(ditado.recorrencia)}` : '');
-    const key = _recKey(ditado.recorrencia);
-    div.querySelectorAll('.pet-reco-chip[data-rec]').forEach(c => c.classList.toggle('sel', c.dataset.rec === key));
-    bellEl.classList.toggle('sel', bellOn);
-    bellEl.classList.toggle('pet-reco-locked', monthlyPinned);   // mensal+ já vem alfinetado
+
+  // 🔁 Repetir: chips contextuais. Sem "Não" — não marcar = não repete; clicar no
+  // marcado desmarca. Regra digitada fora das opções vira um chip "custom".
+  function renderRep() {
+    const selKey = _recToKey(ditado.recorrencia);
+    const customChip = selKey === 'custom'
+      ? `<button type="button" class="pet-reco-chip sel" data-rep="custom">${ruleLabel(ditado.recorrencia)}</button>` : '';
+    repRow.innerHTML = `<span class="pet-reco-lbl">🔁 Repetir?</span>${customChip}`
+      + repOpts.map(o => `<button type="button" class="pet-reco-chip ${o.key === selKey ? 'sel' : ''}" data-rep="${o.key}">${o.label}</button>`).join('');
+    repRow.querySelectorAll('[data-rep]').forEach(chip => chip.addEventListener('click', () => {
+      const k = chip.dataset.rep;
+      if (k === 'custom') ditado.recorrencia = _typedRec;
+      else if (_recToKey(ditado.recorrencia) === k) ditado.recorrencia = null;   // desmarca
+      else ditado.recorrencia = { ...repOpts.find(x => x.key === k).rule, anchor: dayId(date) };
+      renderRep(); syncBell();
+    }));
   }
-  div.querySelectorAll('.pet-reco-chip[data-rec]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      ditado.recorrencia = chip.dataset.rec === 'custom' ? _typedRec : _buildRec(chip.dataset.rec, date);
-      repaint();
-    });
-  });
-  bellEl.addEventListener('click', () => {
-    if (ditado.recorrencia && ditado.recorrencia.freq === 'monthly') return; // travado (alfinete)
-    ditado.lembrete = !ditado.lembrete;
-    repaint();
-  });
-  repaint();
+
+  // 🔔 Lembrete = checkbox. Recorrência mensal+ trava marcado (nasce alfinetado).
+  function syncBell() {
+    const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
+    if (monthlyPinned) { bellEl.checked = true; bellEl.disabled = true; }
+    else { bellEl.disabled = false; bellEl.checked = !!ditado.lembrete; }
+  }
+  bellEl.addEventListener('change', () => { if (!bellEl.disabled) ditado.lembrete = bellEl.checked; });
+
+  renderAtv();
+  renderRep();
+  syncBell();
 
   const btn = div.querySelector('.pet-reg-btn');
   btn.addEventListener('click', async () => {
