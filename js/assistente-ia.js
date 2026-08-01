@@ -487,6 +487,7 @@ function ensinarEditar() {
     '• <em>"editar nome da tarefa academia para musculação"</em><br>' +
     '• <em>"editar horário do compromisso reunião para 15h"</em><br>' +
     '• <em>"editar descrição do compromisso reunião para pauta trimestral"</em><br>' +
+    '• <em>"adicionar lembrete à tarefa academia"</em> (🔔 sininho na Home)<br>' +
     '• <em>"reagendar tarefa mercado para sexta"</em><br><br>' +
     'Eu acho a atividade pelo nome e aplico a mudança. 🦅', 'bot');
 }
@@ -861,6 +862,16 @@ async function routeCommand(text) {
     showRegistroPreview(name, false, date, time);
     return null;
   }
+
+  // ── Lembrete visual (🔔 sininho / ponto vermelho na Home): liga/desliga numa
+  // atividade que JÁ existe. Vem ANTES das consultas e do register: "marcar
+  // lembrete..." bateria no register e "...na tarefa X" na lista de tarefas. ──
+  const _lembTail = '(?:o\\s+|um\\s+)?lembrete\\s+(?:(?:n[oa]|d[oa]|à|ao|em|pra|para)\\s+)?(?:o\\s+|a\\s+)?(?:(compromisso|tarefa|atividade|commitment|task)\\s+)?(.+)';
+  const mLembOn = text.match(new RegExp('^(?:adicion\\w*|marca\\w*|ativa\\w*|coloca\\w*|liga\\w*|bota\\w*|p[oô]e|habilita\\w*)\\s+' + _lembTail, 'i'));
+  if (mLembOn) { await cmdEditarLembrete(mLembOn[2].trim().replace(/[.,;:!?]+$/, ''), mLembOn[1] ? mLembOn[1].toLowerCase() : null, true); return null; }
+
+  const mLembOff = text.match(new RegExp('^(?:tira\\w*|retira\\w*|remov\\w*|desativa\\w*|desliga\\w*|apaga\\w*|cancela\\w*|desmarca\\w*)\\s+' + _lembTail, 'i'));
+  if (mLembOff) { await cmdEditarLembrete(mLembOff[2].trim().replace(/[.,;:!?]+$/, ''), mLembOff[1] ? mLembOff[1].toLowerCase() : null, false); return null; }
 
   // ── Consultas (PT + EN) ──
   if (/dormi|sono|horas de sono|acordei|sleep|how.*sleep|woke.*up/i.test(tl))         return cmdSono();
@@ -1544,6 +1555,12 @@ async function cmdEditarDescricao(nameHint, newDesc, tipo) {
   showEditCard(matches, 'desc', { newDesc });
 }
 
+async function cmdEditarLembrete(nameHint, tipo, enabled) {
+  const matches = await searchTasksByName(nameHint, tipo);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'reminder', { reminderEnabled: enabled });
+}
+
 async function cmdReatgendar(nameHint, afterPara, tipo) {
   const newDate = extractDate(afterPara);
   const newTime = extractTime(afterPara);
@@ -1574,6 +1591,8 @@ function showEditCard(matches, action, payload) {
       p = updateDayTask(dayDocId, task.id, { title: payload.newName });
     } else if (action === 'desc') {
       p = updateDayTask(dayDocId, task.id, { desc: payload.newDesc });
+    } else if (action === 'reminder') {
+      p = updateDayTask(dayDocId, task.id, { reminderEnabled: payload.reminderEnabled });
     } else if (action === 'time') {
       p = updateDayTask(dayDocId, task.id, { startTime: payload.newTime, rescheduled: true, rescheduleCount: reschedCount });
     } else {
@@ -1619,6 +1638,9 @@ function showEditCard(matches, action, payload) {
     } else if (action === 'desc') {
       title.textContent = `📝 ${task.title}`;
       sub.textContent   = `descrição → "${payload.newDesc}" · ${fmtDate(date)}`;
+    } else if (action === 'reminder') {
+      title.textContent = `🔔 ${task.title}`;
+      sub.textContent   = `lembrete ${payload.reminderEnabled ? 'ligado' : 'desligado'} · ${fmtDate(date)}`;
     } else if (action === 'time') {
       title.textContent = `⏰ ${task.title}`;
       sub.textContent   = `${fmtDate(date)} · ${task.startTime || '—'} → ${payload.newTime}`;
