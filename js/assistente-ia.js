@@ -1446,18 +1446,10 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
     }));
   }
 
-  // 🔔 Lembrete = switch ligado/desligado (mesmo do Ajustes). Mensal+ mantém
-  // ligado (nasce alfinetado) e ignora a tentativa de desligar.
-  let bellLocked = false;
-  function syncBell() {
-    const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
-    bellLocked = monthlyPinned;
-    bellEl.checked = monthlyPinned ? true : !!ditado.lembrete;
-  }
-  bellEl.addEventListener('change', () => {
-    if (bellLocked) { bellEl.checked = true; return; }
-    ditado.lembrete = bellEl.checked;
-  });
+  // 🔔 Lembrete = switch ligado/desligado (mesmo do Ajustes). TOTALMENTE manual:
+  // a repetição não liga/desliga sozinha, a pessoa controla à vontade.
+  function syncBell() { bellEl.checked = !!ditado.lembrete; }
+  bellEl.addEventListener('change', () => { ditado.lembrete = bellEl.checked; });
 
   renderRep();
   syncBell();
@@ -1484,9 +1476,8 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
       const rec = ditado.recorrencia;
       const descAtual = ditado.descricao || '';
       const grpId = rec ? ('r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)) : null;
-      // Recorrência mensal+ (incl. 1×/mês) nasce alfinetada (lembrete) pra fixar
-      // no calendário — evento raro que não pode escapar.
-      const lembreteFinal = !!(ditado.lembrete || (rec && rec.freq === 'monthly'));
+      // Lembrete é escolha da pessoa (não forçado pela recorrência).
+      const lembreteFinal = !!ditado.lembrete;
       const cat = await executeRegistro(curName, done, date, time, descAtual, lembreteFinal, grpId);
       if (rec) {
         await salvarRegra({

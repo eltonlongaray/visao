@@ -490,7 +490,7 @@ async function ensurePinnedRecurrences() {
       if (exG.includes(rule.groupId)) continue;                       // usuário excluiu essa ocorrência
       if ((tasks || []).some(t => t.recurrenceGroupId === rule.groupId)) continue;  // já existe
       await setDayMeta(nid, {});
-      await addDayTask(nid, { ..._ruleToTmpl(rule), reminderEnabled: true, done: false, order: (tasks?.length || 0) });
+      await addDayTask(nid, { ..._ruleToTmpl(rule), done: false, order: (tasks?.length || 0) });
     } catch (e) { console.warn('[recur pin]', e); }
   }
 }

@@ -6069,6 +6069,8 @@ body.tour-active { overflow: hidden; }
   user-select: none;
   align-self: flex-start;
 }
+/* Trilho do switch visível no fundo do card do pet (o --card-3 sumia aqui) */
+.pet-check-row .ajustes-toggle-slider { background: rgba(255, 255, 255, 0.22); }
 
 /* Repetir: botão retrátil + lista de opções empilhadas */
 .pet-rep { margin-top: 6px; }
