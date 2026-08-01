@@ -18,15 +18,20 @@
 // barra dupla sobreviver a toda camada por onde o arquivo passa, e basta uma
 // comer a barra pra o padrão virar a letra "s" e falhar em silêncio.
 
-const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)/i;
-const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)/i;
-const RE_DESC   = /descri[çc][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s*[.;]|$)/i;
+// O campo termina no ponto, no próximo rótulo, OU quando começa um token de
+// DATA/HORA (dia N, às N, N:NN, Nh, N horas, N/N). Sem o corte por data/hora,
+// "descrição Startup dia 12 às 9:00" engolia a data e a hora dentro da descrição
+// — e o compromisso perdia dia e horário. Só tokens NUMÉRICOS: palavras como
+// "amanhã"/dia-da-semana podem ser parte legítima da descrição, então não cortam.
+const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
+const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
+const RE_DESC   = /descri[çc][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
 
 // Versões pra REMOVER do comando, engolindo o separador junto
 const CORTA = [
-  /t[ií]tulo\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)[.;]?/i,
-  /descri[çc][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s*[.;]|$)[.;]?/i,
-  /\bnome\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s*[.;]|$)[.;]?/i,
+  /t[ií]tulo\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
+  /descri[çc][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
+  /\bnome\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
 ];
 
 function _limpaPontas(s) {
