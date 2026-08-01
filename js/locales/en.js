@@ -186,7 +186,7 @@ export default {
   'recur.del.all.sub':       'Removes from this week and future (clears template)',
 
   'notif.body.ritual':        'Ritual reminder',
-  'notif.scheduled':          '🔔 Notification scheduled for {time}',
+  'notif.scheduled':          '⏰ Notification scheduled for {time}',
   'notif.denied':             'Enable Falcon notifications in your phone settings.',
   'ritual.hydration':         '💧 Hydration',
   'ritual.note.registered':   'Note recorded',
@@ -375,7 +375,7 @@ export default {
   'pet.edit.done':      '✓ Updated!',
   'pet.edit.err':       'Update failed.',
 
-  'pet.notif.scheduled':    '🔔 Notification scheduled for <strong>{time}</strong>. You\'ll be reminded!',
+  'pet.notif.scheduled':    '⏰ Notification scheduled for <strong>{time}</strong>. You\'ll be reminded!',
   'pet.notif.blocked':      'Notifications blocked. Add to Google Calendar to get a reminder:',
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>What I understand:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">

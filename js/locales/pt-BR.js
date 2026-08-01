@@ -186,7 +186,7 @@ export default {
   'recur.del.all.sub':       'Remove desta semana e das próximas (limpa o template)',
 
   'notif.body.ritual':        'Lembrete do Ritual',
-  'notif.scheduled':          '🔔 Notificação agendada para {time}',
+  'notif.scheduled':          '⏰ Notificação agendada para {time}',
   'notif.denied':             'Ative as notificações do Falcon nas configurações do celular.',
   'ritual.hydration':         '💧 Hidratação',
   'ritual.note.registered':   'Nota registrada',
@@ -375,7 +375,7 @@ export default {
   'pet.edit.done':      '✓ Atualizado!',
   'pet.edit.err':       'Erro ao atualizar.',
 
-  'pet.notif.scheduled':    '🔔 Notificação agendada para as <strong>{time}</strong>. Você será avisado no horário!',
+  'pet.notif.scheduled':    '⏰ Notificação agendada para as <strong>{time}</strong>. Você será avisado no horário!',
   'pet.notif.blocked':      'Notificações bloqueadas. Adicione ao Google Agenda para receber aviso:',
   'pet.help': `<svg width="18" height="18" viewBox="0 0 60 60" style="vertical-align:middle;margin-right:4px;border-radius:50%"><circle cx="30" cy="30" r="30" fill="#0d0d0d"/><circle cx="30" cy="30" r="27" fill="#eab308"/><ellipse cx="30" cy="30" rx="7" ry="12" fill="#0d0d0d"/><circle cx="37" cy="22" r="4.5" fill="white" opacity="0.75"/></svg> <strong>O que eu entendo:</strong>
 <ul style="margin:4px 0 0 0;padding-left:18px;line-height:1.9">
