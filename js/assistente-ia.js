@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getCategories, getProfile, setProfile,
+  getCategories, saveCategory, getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
@@ -503,7 +503,7 @@ function ensinarAgendar() {
     'Eu separo sozinho:<br>' +
     '• <strong>o tipo</strong> — compromisso (com hora) ou tarefa<br>' +
     '• <strong>o dia e a hora</strong><br>' +
-    '• <strong>o título</strong> — é ele que liga com suas atividades e faz contar pros objetivos<br>' +
+    '• <strong>o título</strong> — tem que ser uma <strong>atividade que você registrou lá na Home</strong> (é ela que faz contar pro objetivo). Se não existir, eu te ofereço criar na hora 😉<br>' +
     '• <strong>a descrição</strong> — um detalhe, se quiser<br>' +
     '• <strong>"com lembrete"</strong> — se quiser o 🔔 sininho na Home<br>' +
     '• <strong>repetição</strong> — "toda semana", "todo mês", "de 2 em 2 semanas", "a cada 3 meses", "último domingo do mês", "último dia do mês"<br><br>' +
@@ -1296,7 +1296,7 @@ function _buildRec(key, date) {
   return { freq: 'monthly', interval: im, anchor: dayId(date), dayOfMonth: date.getDate() };
 }
 
-function showRegistroPreview(name, done, date = new Date(), time = '') {
+async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const dd        = date.getDate().toString().padStart(2, '0');
   const mm        = (date.getMonth() + 1).toString().padStart(2, '0');
   const dow       = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(date);
@@ -1313,6 +1313,8 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   const box = document.getElementById('pet-messages');
   if (!box) return;
 
+  let curName = name;                                   // título ativo (chips trocam)
+  let cats = await getCategories().catch(() => []);     // atividades da Home
   const _typedRec = ditado.recorrencia;   // regra digitada (pode ser "custom")
   const recChips = [
     ['none', 'Não'], ['week', 'Semana'], ['month', 'Mês'],
@@ -1324,9 +1326,10 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card">
-      <span class="pet-preview-title">${tipoIcon} <strong>${name}</strong></span>
-      ${ditado.descricao ? `<span class="pet-preview-desc">(${ditado.descricao})</span>` : ''}
+      <span class="pet-preview-title">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
+      ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
       <span class="pet-preview-sub" data-sub>${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
+      <span data-atv-wrap></span>
       <span class="pet-reco-row">
         <span class="pet-reco-lbl">🔁 Repetir?</span>
         ${curKey === 'custom' ? `<button type="button" class="pet-reco-chip sel" data-rec="custom">${ruleLabel(ditado.recorrencia)}</button>` : ''}
@@ -1338,8 +1341,42 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
-  const subEl  = div.querySelector('[data-sub]');
-  const bellEl = div.querySelector('[data-bell]');
+  const subEl   = div.querySelector('[data-sub]');
+  const bellEl  = div.querySelector('[data-bell]');
+  const titleEl = div.querySelector('[data-title]');
+  const atvWrap = div.querySelector('[data-atv-wrap]');
+
+  // 🎯 Atividade: chips das atividades da Home. Toca pra virar o título; se o que
+  // foi digitado não existe, avisa leve + oferece "Criar Nova Atividade" (não trava).
+  function renderAtv() {
+    const combina = cats.some(c => _limpoTxt(c.name) === _limpoTxt(curName));
+    const chips = cats.map(c =>
+      `<button type="button" class="pet-reco-chip pet-atv-chip ${_limpoTxt(c.name) === _limpoTxt(curName) ? 'sel' : ''}" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
+    ).join('');
+    const warn = combina ? '' :
+      `<div class="pet-atv-warn">Ops, <b>“${_esc(curName)}”</b> não tá na Home 😅 <button type="button" class="pet-reco-chip pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
+    atvWrap.innerHTML = `<span class="pet-reco-row"><span class="pet-reco-lbl">🎯 Atividade:</span>${chips}</span>${warn}`;
+
+    atvWrap.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
+      curName = chip.dataset.atv;
+      titleEl.textContent = curName;
+      renderAtv();
+    }));
+    const cbtn = atvWrap.querySelector('[data-create]');
+    if (cbtn) cbtn.addEventListener('click', async () => {
+      cbtn.disabled = true; cbtn.textContent = 'Criando…';
+      try {
+        const icon  = _emojiAtividade(curName);
+        const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
+        const color = _CATCOLORS[cats.length % _CATCOLORS.length];
+        const newId = await saveCategory(null, { name: curName, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+        cats.push({ id: newId, name: curName, icon, color, order });
+        showCenterToast(`${icon} Atividade criada!`);
+        renderAtv();
+      } catch (e) { cbtn.disabled = false; cbtn.textContent = '➕ Criar Nova Atividade'; console.error('[pet] criar atividade', e); }
+    });
+  }
+  renderAtv();
   function repaint() {
     const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
     const bellOn = !!(ditado.lembrete || monthlyPinned);
@@ -1374,12 +1411,12 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       // vezes no mesmo dia". Melhor avisar do que deixar a pessoa descobrir
       // depois, olhando um número que não bate.
       const jaTem = (await getDayTasks(dayId(date)))
-        .some(tk => _limpoTxt(tk.title) === _limpoTxt(name)
+        .some(tk => _limpoTxt(tk.title) === _limpoTxt(curName)
                  && (!time || (tk.startTime || '') === time));
       if (jaTem) {
         btn.disabled = false;
         btn.textContent = `${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}`;
-        addMessage(t('pet.duplicate', { name }), 'bot');
+        addMessage(t('pet.duplicate', { name: curName }), 'bot');
         return;
       }
       // Captura recorrência ANTES de zerar o ditado.
@@ -1389,10 +1426,10 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       // Recorrência mensal+ (incl. 1×/mês) nasce alfinetada (lembrete) pra fixar
       // no calendário — evento raro que não pode escapar.
       const lembreteFinal = !!(ditado.lembrete || (rec && rec.freq === 'monthly'));
-      const cat = await executeRegistro(name, done, date, time, descAtual, lembreteFinal, grpId);
+      const cat = await executeRegistro(curName, done, date, time, descAtual, lembreteFinal, grpId);
       if (rec) {
         await salvarRegra({
-          groupId: grpId, title: name, desc: descAtual,
+          groupId: grpId, title: curName, desc: descAtual,
           kind: done ? 'task' : 'commitment', startTime: time || '',
           categoryId: cat?.id || null, icon: cat?.icon || '',
           reminderEnabled: lembreteFinal, ...rec,
@@ -1403,12 +1440,12 @@ function showRegistroPreview(name, done, date = new Date(), time = '') {
       ditado = { titulo: null, descricao: null, lembrete: false, recorrencia: null };
       if (done) { setPetState('excited'); setTimeout(() => setPetState('idle'), 1800); }
       showCenterToast(t(done ? 'pet.registered.activity' : 'pet.registered.commitment'));
-      if (rec) setTimeout(() => addMessage(`🔁 Vou repetir <b>${name}</b> ${ruleLabel(rec)}.`, 'bot'), 300);
+      if (rec) setTimeout(() => addMessage(`🔁 Vou repetir <b>${_esc(curName)}</b> ${ruleLabel(rec)}.`, 'bot'), 300);
       if (time) {
         const [h, mi]  = time.split(':').map(Number);
         const ts       = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi).getTime();
-        const tag      = notifTag(dayId(date), name);
-        const result   = await scheduleNotif({ title: name, body: done ? t('notif.body.activity', { title: name }) : t('notif.body.commitment', { title: name }), tag, timestamp: ts });
+        const tag      = notifTag(dayId(date), curName);
+        const result   = await scheduleNotif({ title: curName, body: done ? t('notif.body.activity', { title: curName }) : t('notif.body.commitment', { title: curName }), tag, timestamp: ts });
         if (result === 'scheduled') {
           setTimeout(() => addMessage(t('pet.notif.scheduled', { time }), 'bot'), 350);
         } else if (result === 'denied') {
@@ -1483,6 +1520,63 @@ function _acharCategoria(cats, texto) {
 function _limpoTxt(v) {
   return String(v || '').trim().toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function _esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// Cores pra atividade nova criada pelo pet (mesma vibe da paleta da Home).
+const _CATCOLORS = ['#a78bfa', '#34d399', '#f472b6', '#60a5fa', '#fbbf24', '#f87171', '#fb923c', '#22d3ee', '#818cf8', '#4ade80'];
+
+// Escolhe um emoji COERENTE pelo nome da atividade (a pessoa troca na Home se não
+// gostar). Casa por palavra-chave; cai num 🏷️ genérico se não reconhecer.
+const _EMOJI_ATIVIDADE = [
+  [/academia|muscula|treino|malha|hipertrofia|gym/, '🏋️'],
+  [/corr(er|ida)|cardio|cooper/, '🏃'],
+  [/caminh|pedestr/, '🚶'],
+  [/pilates|yoga|along|mobilidade|medit(a|ar)/, '🧘'],
+  [/nata|nadar|piscina|hidro/, '🏊'],
+  [/bike|bicicl|ciclis|pedal|spinning/, '🚴'],
+  [/futebol|fute|society/, '⚽'],
+  [/basquete|basket/, '🏀'],
+  [/v[ôo]lei/, '🏐'],
+  [/t[êe]nis/, '🎾'],
+  [/luta|boxe|muay|jiu|jitsu|karat|jud[ôo]|taekwon|mma|krav|capoeira/, '🥋'],
+  [/dan[çc]a|dan[çc]ar|ballet|zumba/, '💃'],
+  [/skate/, '🛹'],
+  [/patins|roller|rolimã/, '🛼'],
+  [/escalada|escalar|boulder/, '🧗'],
+  [/l(er|eitura)|livro|estud(ar|o)|curso|aula|faculdade|prova/, '📚'],
+  [/trabalh|escrit[óo]rio|expediente|servi[çc]o/, '💼'],
+  [/reuni[ãa]o|meeting|call|c[óo]digo|programa|dev/, '💻'],
+  [/dentist/, '🦷'],
+  [/m[ée]dic|consult|sa[úu]de|exame|terapia|psic[óo]log|fisio/, '🩺'],
+  [/rem[ée]dio|medica|comprimido|farm[áa]cia/, '💊'],
+  [/[áa]gua|hidrata|beber/, '💧'],
+  [/sono|dormir|soneca|descan/, '😴'],
+  [/comida|comer|almo[çc]|jant|caf[ée]|refei|dieta|cozinh/, '🍽️'],
+  [/mercado|compras|feira|super/, '🛒'],
+  [/limpeza|faxina|arruma|casa|louça|lavar/, '🧹'],
+  [/viag|viaj|trip|f[ée]rias/, '✈️'],
+  [/trilha|acamp|camping|montanha/, '⛺'],
+  [/praia|mar|sol/, '🏖️'],
+  [/fam[íi]lia|filho|filha|beb[êe]|esposa|marido|namora/, '👨‍👩‍👧'],
+  [/amig|visit|encontr|social/, '🧑‍🤝‍🧑'],
+  [/igreja|missa|culto|ora[çc]|f[ée]|deus|b[íi]blia|deus/, '🙏'],
+  [/m[úu]sica|violã|guitarr|tocar|banda|cantar/, '🎸'],
+  [/jogo|game|videogame|joga/, '🎮'],
+  [/foto|fotografia|c[âa]mera/, '📷'],
+  [/pintar|desenh|arte|pintura/, '🎨'],
+  [/pet|cachorr|c[ãa]o|gato|dog/, '🐕'],
+  [/dinheiro|finan[çc]|conta|pagar|banco|boleto/, '💰'],
+  [/festa|anivers|comemora/, '🎉'],
+  [/beleza|cabelo|sal[ãa]o|unha|maquia/, '💇🏻‍♀️'],
+];
+function _emojiAtividade(name) {
+  const s = _limpoTxt(name);
+  for (const [re, emoji] of _EMOJI_ATIVIDADE) if (re.test(s)) return emoji;
+  return '🏷️';
 }
 
 // Escolhe o turno pelo horário — compara contra nomes armazenados em PT no Firestore

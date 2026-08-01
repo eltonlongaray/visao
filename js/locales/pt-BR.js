@@ -330,7 +330,7 @@ export default {
   'pet.duplicate':          '⚠️ <strong>{name}</strong> já está registrado nesse dia e horário. Se quiser mesmo repetir, edite direto no Ritual.',
   'pet.unknown':            `Não entendi. Pra agendar, me diga tudo de uma vez:<br><br>
     <em>"agendar compromisso domingo às 10 horas, título Academia, descrição Treino de perna"</em><br><br>
-    O <strong>título</strong> é o que liga com as suas atividades — é ele que faz contar pro objetivo.<br>
+    O <strong>título</strong> tem que ser uma <strong>atividade da sua Home</strong> — é ela que faz contar pro objetivo (se não existir, eu ofereço criar).<br>
     Digite <strong>ajuda</strong> pra ver o resto.`,
 
   'pet.streak.perfect':     '✅ Semana perfeita até agora!',

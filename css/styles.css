@@ -6003,6 +6003,19 @@ body.tour-active { overflow: hidden; }
 .pet-reco-bell.sel { background: var(--gold, #e0b341); border-color: var(--gold, #e0b341); color: #1a1a2e; }
 .pet-reco-chip.pet-reco-locked { opacity: 0.75; cursor: default; }
 
+/* Linha de atividades (chips das categorias da Home) + aviso "não tá na Home" */
+.pet-atv-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pet-atv-create { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pet-atv-create:hover { opacity: 0.9; }
+
 /* Botão Google Agenda no chat do Pet */
 .pet-gcal-link {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
