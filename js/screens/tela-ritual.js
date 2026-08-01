@@ -1428,7 +1428,8 @@ async function checkOverdueReminders(app) {
   for (const t of today.tasks) {
     if (t.kind !== 'commitment') continue;  // modal só para compromissos
     if (t.recurrenceGroupId) continue;      // atividades recorrentes do ritual não cobram status
-    if (t.done || t.cancelled || t.rescheduled) continue;
+    if (t.done || t.cancelled) continue;   // reagendado NÃO pula: o novo horário
+                                            // também vence e deve cobrar/notificar de novo.
     if (!t.startTime) continue;
     if (overdueShownThisSession.has(t.id)) continue;
     if (overdueDismissed.has(t.id)) continue;
@@ -1886,6 +1887,7 @@ async function showOverdueReminderModal(app, day, t) {
         t.rescheduleCount = newCount;
         t.rescheduled = true;
         await updateDayTask(day.id, t.id, { startTime: newTime, rescheduleCount: newCount, rescheduled: true });
+        await autoScheduleNotif(day.id, t, { silent: true });   // reprograma o push pro novo horário
       } else {
         // Dia diferente → MOVE: apaga do dia antigo, cria no novo
         await deleteDayTask(day.id, t.id);
@@ -1909,6 +1911,7 @@ async function showOverdueReminderModal(app, day, t) {
           ...(t.recurrenceGroupId ? { recurrenceGroupId: t.recurrenceGroupId } : {})
         };
         await addDayTask(newDayId, newTask);
+        await autoScheduleNotif(newDayId, newTask, { silent: true });   // push no novo dia/horário
         // Se o dia destino estava em weekData, adiciona localmente também
         const destInWeek = weekData.find(d => d.id === newDayId);
         if (destInWeek) {
