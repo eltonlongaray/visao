@@ -486,6 +486,7 @@ function ensinarEditar() {
     '✏️ <strong>Pra mudar uma atividade que já existe</strong>, me diga o que trocar:<br><br>' +
     '• <em>"editar nome da tarefa academia para musculação"</em><br>' +
     '• <em>"editar horário do compromisso reunião para 15h"</em><br>' +
+    '• <em>"editar descrição do compromisso reunião para pauta trimestral"</em><br>' +
     '• <em>"reagendar tarefa mercado para sexta"</em><br><br>' +
     'Eu acho a atividade pelo nome e aplico a mudança. 🦅', 'bot');
 }
@@ -898,6 +899,9 @@ async function routeCommand(text) {
 
   const mHora = text.match(/^editar?\s+(?:hor[aá]rio|hora|time)\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
   if (mHora) { await cmdEditarHorario(mHora[2].trim(), mHora[3].trim().replace(/[.,;:!?]+$/, ''), mHora[1].toLowerCase()); return null; }
+
+  const mDesc = text.match(/^editar?\s+(?:descri[çc][ãa]o|nota|detalhe)\s+(?:d[oa]s?\s+)?(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
+  if (mDesc) { await cmdEditarDescricao(mDesc[2].trim(), mDesc[3].trim().replace(/[.,;:!?]+$/, ''), mDesc[1].toLowerCase()); return null; }
 
   const mResched = text.match(/^(?:reagend[ae]r?|reschedule|mover?)\s+(compromisso|tarefa|atividade|commitment|task)\s+(.+?)\s+para\s+(.+)/i);
   if (mResched) { await cmdReatgendar(mResched[2].trim(), mResched[3].trim().replace(/[.,;:!?]+$/, ''), mResched[1].toLowerCase()); return null; }
@@ -1501,7 +1505,11 @@ async function searchTasksByName(hint, tipo) {
         if (isComp && task.kind !== 'commitment') continue;
         if (!isComp && task.kind === 'commitment') continue;
       }
-      if (task.title.toLowerCase().includes(q)) {
+      // Acha por título OU descrição: a pessoa lembra da atividade tanto pelo
+      // nome quanto pelo detalhe ("o compromisso Startup" = o de descrição
+      // Startup). O card de confirmação evita edição errada em falso positivo.
+      const alvo = `${task.title || ''} ${task.desc || ''}`.toLowerCase();
+      if (alvo.includes(q)) {
         const [y, m, d] = day.id.split('-').map(Number);
         results.push({ task, dayDocId: day.id, date: new Date(y, m - 1, d) });
       }
@@ -1522,6 +1530,12 @@ async function cmdEditarHorario(nameHint, afterPara, tipo) {
   const matches = await searchTasksByName(nameHint, tipo);
   if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
   showEditCard(matches, 'time', { newTime });
+}
+
+async function cmdEditarDescricao(nameHint, newDesc, tipo) {
+  const matches = await searchTasksByName(nameHint, tipo);
+  if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  showEditCard(matches, 'desc', { newDesc });
 }
 
 async function cmdReatgendar(nameHint, afterPara, tipo) {
@@ -1552,6 +1566,8 @@ function showEditCard(matches, action, payload) {
     let p;
     if (action === 'rename') {
       p = updateDayTask(dayDocId, task.id, { title: payload.newName });
+    } else if (action === 'desc') {
+      p = updateDayTask(dayDocId, task.id, { desc: payload.newDesc });
     } else if (action === 'time') {
       p = updateDayTask(dayDocId, task.id, { startTime: payload.newTime, rescheduled: true, rescheduleCount: reschedCount });
     } else {
@@ -1594,6 +1610,9 @@ function showEditCard(matches, action, payload) {
     if (action === 'rename') {
       title.textContent = `✏️ ${task.title}`;
       sub.textContent   = `→ "${payload.newName}" · ${fmtDate(date)}`;
+    } else if (action === 'desc') {
+      title.textContent = `📝 ${task.title}`;
+      sub.textContent   = `descrição → "${payload.newDesc}" · ${fmtDate(date)}`;
     } else if (action === 'time') {
       title.textContent = `⏰ ${task.title}`;
       sub.textContent   = `${fmtDate(date)} · ${task.startTime || '—'} → ${payload.newTime}`;
