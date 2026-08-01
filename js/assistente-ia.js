@@ -807,7 +807,13 @@ async function routeCommand(text) {
   const continuandoConversa = !!convState;
   if (!continuandoConversa) ditado = { titulo: null, descricao: null };
 
-  if (campos.titulo || campos.descricao) {
+  // Num comando de EDIÇÃO ("editar descrição do compromisso X para Y") a palavra
+  // "descrição" é o NOME do campo a mudar, não um valor. Sem esta guarda, o
+  // extrairCampos engolia "descrição do compromisso X para Y" e sobrava só
+  // "Editar" — o parser de edição nunca via o comando inteiro.
+  const ehEdicao = /^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(String(text).trim());
+
+  if (!ehEdicao && (campos.titulo || campos.descricao)) {
     ditado = {
       titulo: campos.titulo || (continuandoConversa ? ditado.titulo : null),
       descricao: campos.descricao || (continuandoConversa ? ditado.descricao : null),
