@@ -505,8 +505,7 @@ function ensinarAgendar() {
     '• <strong>o dia e a hora</strong><br>' +
     '• <strong>o título</strong> — tem que ser uma <strong>atividade que você registrou lá na Home</strong> (é ela que faz contar pro objetivo). Se não existir, eu te ofereço criar na hora 😉<br>' +
     '• <strong>a descrição</strong> — um detalhe, se quiser<br>' +
-    '• <strong>"com lembrete"</strong> — se quiser o 🔔 sininho na Home<br>' +
-    '• <strong>repetição</strong> — "toda semana", "todo mês", "de 2 em 2 semanas", "a cada 3 meses", "último domingo do mês", "último dia do mês"<br><br>' +
+    '• <strong>a repetição e o lembrete</strong> — você escolhe no card, com um toque (🔁 Repetir / 🔔 Lembrete)<br><br>' +
     'Depois é só tocar em <strong>registrar</strong> na prévia que eu monto. 🦅', 'bot');
 }
 
@@ -923,16 +922,10 @@ async function routeCommand(text) {
     if (ditado.lembrete && ditado.descricao)
       ditado.descricao = ditado.descricao.replace(/\s*\bcom\s+(?:um\s+)?(?:lembrete|sininho|sino)\b/i, '').trim() || null;
     const targetDate    = extractDate(text);
-    // Recorrência: "toda semana", "todo mês", "último domingo do mês", "a cada 3
-    // meses"… A data do comando vira a ÂNCORA (e o dia-do-mês / dia-da-semana).
-    const recFrag = parseRecorrencia(textoBruto);
+    // Recorrência NÃO é interpretada por voz/texto na CRIAÇÃO — a pessoa escolhe
+    // nos chips do card (🔁 Repetir). Voz/texto de repetição só vale na EDIÇÃO
+    // ("repetir tarefa X toda semana"), tratada lá em cima.
     ditado.recorrencia = null;
-    if (recFrag) {
-      ditado.recorrencia = { ...recFrag, anchor: dayId(targetDate) };
-      if (recFrag.freq === 'weekly') ditado.recorrencia.weekday = targetDate.getDay();
-      if (recFrag.freq === 'monthly' && !recFrag.lastDayOfMonth && recFrag.lastWeekday == null)
-        ditado.recorrencia.dayOfMonth = targetDate.getDate();
-    }
     const tipoExplicito = /\bcompromisso\b|commitment/i.test(tl)             ? 'compromisso'
                         : /\batividade\b|\btarefa\b|activity|task/i.test(tl)  ? 'atividade'
                         : null;
