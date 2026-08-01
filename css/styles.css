@@ -6033,6 +6033,7 @@ body.tour-active { overflow: hidden; }
   transition: opacity 0.12s, transform 0.1s;
 }
 .pet-atv-create:hover { opacity: 0.9; transform: scale(1.03); }
+.pet-atv-create-full { width: 100%; margin-top: 8px; padding: 9px; font-size: 12px; }
 /* Atividades em grade de 2–3 colunas (adapta à largura), chips uniformes */
 .pet-atv-grid {
   display: grid;
@@ -6088,9 +6089,9 @@ body.tour-active { overflow: hidden; }
   transition: background 0.12s, border-color 0.12s;
 }
 .pet-rep-head.has-sel { background: var(--accent); border-color: var(--accent); color: #fff; }
-.pet-rep-caret { font-size: 10px; opacity: 0.8; transition: transform 0.15s; }
-.pet-rep-caret.open { transform: rotate(180deg); }
-.pet-rep-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.pet-rep-head { justify-content: flex-start; }
+.pet-rep-list { display: none; flex-direction: column; gap: 4px; margin-top: 4px; }
+.pet-rep-list.open { display: flex; }
 .pet-rep-opt {
   text-align: left;
   background: rgba(255, 255, 255, 0.05);

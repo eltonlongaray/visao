@@ -1317,6 +1317,60 @@ function _recToKey(rec) {
 }
 
 async function showRegistroPreview(name, done, date = new Date(), time = '') {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const cats = await getCategories().catch(() => []);
+  const registrada = cats.some(c => _limpoTxt(c.name) === _limpoTxt(name));
+  // Duas etapas: se o título ainda NÃO é atividade registrada, primeiro resolve
+  // isso (escolher uma ou criar); só depois vem o card de marcação limpo.
+  if (registrada) _showMarcacao(name, done, date, time);
+  else _showGateAtividade(name, done, date, time, cats);
+}
+
+// Etapa 1 — a atividade não existe: avisa e deixa escolher uma das suas ou criar.
+function _showGateAtividade(name, done, date, time, cats) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  addMessage(`Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Escolha uma das suas ou crie essa:`, 'bot');
+
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `
+    <span class="pet-preview-card pet-preview-tight">
+      <span class="pet-reco-lbl pet-atv-lbl">🎯 Suas atividades:</span>
+      <div class="pet-atv-grid" data-atv-grid></div>
+      <button type="button" class="pet-atv-create pet-atv-create-full" data-create>➕ Criar “${_esc(name)}”</button>
+    </span>`;
+  const atvGrid = div.querySelector('[data-atv-grid]');
+  atvGrid.innerHTML = cats.length
+    ? cats.map(c => `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`).join('')
+    : '<span style="font-size:11px;opacity:.7">Você ainda não tem atividades — crie a primeira 👇</span>';
+
+  const resolver = (nome) => {
+    div.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    div.style.opacity = '0.55';
+    _showMarcacao(nome, done, date, time);
+  };
+  atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => resolver(chip.dataset.atv)));
+  const cbtn = div.querySelector('[data-create]');
+  cbtn.addEventListener('click', async () => {
+    cbtn.disabled = true; cbtn.textContent = 'Criando…';
+    try {
+      const icon  = _emojiAtividade(name);
+      const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
+      const color = _CATCOLORS[cats.length % _CATCOLORS.length];
+      await saveCategory(null, { name, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+      showCenterToast(`${icon} Atividade criada!`);
+      resolver(name);
+    } catch (e) { cbtn.disabled = false; cbtn.textContent = `➕ Criar “${_esc(name)}”`; console.error('[pet] criar atividade', e); }
+  });
+
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Etapa 2 — marcação limpa: título grande, data, repetir (retrátil) e lembrete.
+function _showMarcacao(curName, done, date = new Date(), time = '') {
   const dd        = date.getDate().toString().padStart(2, '0');
   const mm        = (date.getMonth() + 1).toString().padStart(2, '0');
   const dow       = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(date);
@@ -1333,8 +1387,6 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const box = document.getElementById('pet-messages');
   if (!box) return;
 
-  let curName = name;                                   // título ativo (chips trocam)
-  let cats = await getCategories().catch(() => []);     // atividades da Home
   const _typedRec = ditado.recorrencia;                 // regra digitada (pode ser "custom")
   const repOpts = _repeatOptions(date);
 
@@ -1342,52 +1394,19 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card pet-preview-tight">
-      <span data-warn-slot></span>
-      <span class="pet-reco-lbl pet-atv-lbl">🎯 Atividade:</span>
-      <div class="pet-atv-grid" data-atv-grid></div>
-      <span class="pet-preview-title pet-preview-title-big">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
+      <span class="pet-preview-title pet-preview-title-big">${tipoIcon} <strong>${_esc(curName)}</strong></span>
       ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
-      <span class="pet-preview-sub" data-sub>${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
+      <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <div class="pet-rep" data-rep-wrap></div>
       <label class="pet-check-row"><input type="checkbox" data-bell><span>🔔 Lembrete</span></label>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
-  const titleEl  = div.querySelector('[data-title]');
-  const warnSlot = div.querySelector('[data-warn-slot]');
-  const atvGrid  = div.querySelector('[data-atv-grid]');
   const repWrap  = div.querySelector('[data-rep-wrap]');
   const bellEl   = div.querySelector('[data-bell]');
 
-  // 🎯 Atividade: aviso "não registrada" (no TOPO) + grade de atividades da Home.
-  function renderAtv() {
-    const combina = cats.some(c => _limpoTxt(c.name) === _limpoTxt(curName));
-    warnSlot.innerHTML = combina ? '' :
-      `<div class="pet-atv-warn"><span>Ops, <b>“${_esc(curName)}”</b> ainda não é uma atividade registrada 😅</span><button type="button" class="pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
-    atvGrid.innerHTML = cats.map(c =>
-      `<button type="button" class="pet-reco-chip pet-atv-chip ${_limpoTxt(c.name) === _limpoTxt(curName) ? 'sel' : ''}" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
-    ).join('');
-    atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
-      curName = chip.dataset.atv; titleEl.textContent = curName; renderAtv();
-    }));
-    const cbtn = warnSlot.querySelector('[data-create]');
-    if (cbtn) cbtn.addEventListener('click', async () => {
-      cbtn.disabled = true; cbtn.textContent = 'Criando…';
-      try {
-        const icon  = _emojiAtividade(curName);
-        const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
-        const color = _CATCOLORS[cats.length % _CATCOLORS.length];
-        const newId = await saveCategory(null, { name: curName, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
-        cats.push({ id: newId, name: curName, icon, color, order });
-        showCenterToast(`${icon} Atividade criada!`);
-        renderAtv();
-      } catch (e) { cbtn.disabled = false; cbtn.textContent = '➕ Criar Nova Atividade'; console.error('[pet] criar atividade', e); }
-    });
-  }
-
-  // 🔁 Repetir: botão retrátil. Fechado mostra a escolha (ou "Repetir?"); aberto,
-  // as opções empilhadas. Sem "Não" — não escolher = não repete; clicar na
-  // escolhida desmarca. Regra digitada fora das opções aparece como "custom".
+  // 🔁 Repetir: botão retrátil. Fechado = só o botão; toca e abre as opções
+  // empilhadas. Sem "Não" — não escolher = não repete; clicar na escolhida desmarca.
   let repOpen = false;
   function renderRep() {
     const selKey = _recToKey(ditado.recorrencia);
@@ -1395,11 +1414,8 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
     const customOpt = selKey === 'custom'
       ? `<button type="button" class="pet-rep-opt sel" data-rep="custom">${_esc(curLabel)} ✓</button>` : '';
     repWrap.innerHTML = `
-      <button type="button" class="pet-rep-head ${curLabel ? 'has-sel' : ''}" data-rep-head>
-        <span>🔁 ${curLabel ? _esc(curLabel) : 'Repetir?'}</span>
-        <span class="pet-rep-caret ${repOpen ? 'open' : ''}">▾</span>
-      </button>
-      <div class="pet-rep-list"${repOpen ? '' : ' hidden'}>${customOpt}${repOpts.map(o =>
+      <button type="button" class="pet-rep-head ${curLabel ? 'has-sel' : ''}" data-rep-head>🔁 ${curLabel ? _esc(curLabel) : 'Repetir?'}</button>
+      <div class="pet-rep-list${repOpen ? ' open' : ''}">${customOpt}${repOpts.map(o =>
         `<button type="button" class="pet-rep-opt ${o.key === selKey ? 'sel' : ''}" data-rep="${o.key}">${o.label}${o.key === selKey ? ' ✓' : ''}</button>`
       ).join('')}</div>`;
     repWrap.querySelector('[data-rep-head]').addEventListener('click', () => { repOpen = !repOpen; renderRep(); });
@@ -1421,7 +1437,6 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   }
   bellEl.addEventListener('change', () => { if (!bellEl.disabled) ditado.lembrete = bellEl.checked; });
 
-  renderAtv();
   renderRep();
   syncBell();
 
