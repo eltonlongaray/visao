@@ -1360,8 +1360,8 @@ function _showGateAtividade(name, done, date, time, cats) {
   }
 
   const resolver = (nome) => {
-    div.querySelectorAll('button').forEach(b => { b.disabled = true; });
-    div.style.opacity = '0.55';
+    aviso.remove();   // resolvido: o aviso e o card de escolha somem da tela,
+    div.remove();     // deixando só o card de marcação que vem a seguir.
     _showMarcacao(nome, done, date, time);
   };
   if (atvGrid) atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => resolver(chip.dataset.atv)));
