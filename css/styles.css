@@ -6003,18 +6003,48 @@ body.tour-active { overflow: hidden; }
 .pet-reco-bell.sel { background: var(--gold, #e0b341); border-color: var(--gold, #e0b341); color: #1a1a2e; }
 .pet-reco-chip.pet-reco-locked { opacity: 0.75; cursor: default; }
 
-/* Linha de atividades (chips das categorias da Home) + aviso "não tá na Home" */
+/* Bloco de atividades (chips das categorias da Home) + aviso "não é atividade" */
+.pet-atv-lbl { display: block; margin: 6px 0 4px; }
 .pet-atv-warn {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-  font-size: 11px;
-  color: var(--muted);
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  color: #f6c453;
+  background: rgba(224, 179, 65, 0.14);
+  border: 1px solid rgba(224, 179, 65, 0.55);
+  border-radius: 10px;
 }
-.pet-atv-create { background: var(--accent); border-color: var(--accent); color: #fff; }
-.pet-atv-create:hover { opacity: 0.9; }
+.pet-atv-warn b { color: #ffd77a; }
+.pet-atv-create {
+  flex-shrink: 0;
+  background: var(--gold, #e0b341);
+  color: #1a1a2e;
+  border: none;
+  border-radius: 14px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.1s;
+}
+.pet-atv-create:hover { opacity: 0.9; transform: scale(1.03); }
+/* Atividades em grade de 2–3 colunas (adapta à largura), chips uniformes */
+.pet-atv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 5px;
+}
+.pet-atv-grid .pet-atv-chip {
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Botão Google Agenda no chat do Pet */
 .pet-gcal-link {

@@ -1354,8 +1354,9 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
       `<button type="button" class="pet-reco-chip pet-atv-chip ${_limpoTxt(c.name) === _limpoTxt(curName) ? 'sel' : ''}" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
     ).join('');
     const warn = combina ? '' :
-      `<div class="pet-atv-warn">Ops, <b>“${_esc(curName)}”</b> não tá na Home 😅 <button type="button" class="pet-reco-chip pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
-    atvWrap.innerHTML = `<span class="pet-reco-row"><span class="pet-reco-lbl">🎯 Atividade:</span>${chips}</span>${warn}`;
+      `<div class="pet-atv-warn"><span>Ops, <b>“${_esc(curName)}”</b> ainda não é uma atividade sua 😅</span><button type="button" class="pet-atv-create" data-create>➕ Criar Nova Atividade</button></div>`;
+    // Ordem: rótulo → aviso+criar (ACIMA) → grade de atividades em colunas.
+    atvWrap.innerHTML = `<span class="pet-reco-lbl pet-atv-lbl">🎯 Atividade:</span>${warn}<div class="pet-atv-grid">${chips}</div>`;
 
     atvWrap.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
       curName = chip.dataset.atv;
