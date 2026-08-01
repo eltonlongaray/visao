@@ -1349,9 +1349,15 @@ function _showGateAtividade(name, done, date, time, cats) {
       ${cats.length ? '<span class="pet-reco-lbl pet-atv-lbl">ou escolha uma existente:</span><div class="pet-atv-grid" data-atv-grid></div>' : ''}
     </span>`;
   const atvGrid = div.querySelector('[data-atv-grid]');
-  if (atvGrid) atvGrid.innerHTML = cats.map(c =>
-    `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
-  ).join('');
+  if (atvGrid) {
+    atvGrid.innerHTML = cats.map(c =>
+      `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
+    ).join('');
+    // Colunas conforme a quantidade: 3 só quando há MUITAS (evita lista comprida),
+    // 2 pro caso comum, 1 se houver só uma (não fica esparso).
+    const nCols = cats.length >= 7 ? 3 : (cats.length >= 2 ? 2 : 1);
+    atvGrid.style.gridTemplateColumns = `repeat(${nCols}, minmax(0, 1fr))`;
+  }
 
   const resolver = (nome) => {
     div.querySelectorAll('button').forEach(b => { b.disabled = true; });
