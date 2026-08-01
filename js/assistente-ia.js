@@ -485,12 +485,12 @@ function menuAjuda() {
 function ensinarEditar() {
   addMessage(
     '✏️ <strong>Pra mudar uma atividade que já existe</strong>, me diga o que trocar:<br><br>' +
-    '• <em>"editar nome da tarefa academia para musculação"</em><br>' +
-    '• <em>"editar horário do compromisso reunião para 15h"</em><br>' +
-    '• <em>"editar descrição do compromisso reunião para pauta trimestral"</em><br>' +
-    '• <em>"adicionar lembrete à tarefa academia"</em> (🔔 sininho na Home)<br>' +
-    '• <em>"repetir tarefa academia toda semana"</em> (🔁 repetição)<br>' +
-    '• <em>"reagendar tarefa mercado para sexta"</em><br><br>' +
+    '• <em>"editar nome da tarefa Academia para Musculação"</em><br>' +
+    '• <em>"editar horário do compromisso Reunião para 15h"</em><br>' +
+    '• <em>"editar descrição do compromisso Reunião para Pauta trimestral"</em><br>' +
+    '• <em>"adicionar lembrete à tarefa Academia"</em> (🔔 sininho na Home)<br>' +
+    '• <em>"repetir tarefa Academia toda semana"</em> (🔁 repetição)<br>' +
+    '• <em>"reagendar tarefa Mercado para sexta"</em><br><br>' +
     'Eu acho a atividade pelo nome e aplico a mudança. 🦅', 'bot');
 }
 
@@ -499,7 +499,7 @@ function ensinarEditar() {
 function ensinarAgendar() {
   addMessage(
     '📅 <strong>Pra agendar, me diga tudo de uma vez</strong> — por texto ou voz:<br><br>' +
-    '<em>"agendar compromisso sábado às 8 horas, título academia, descrição treino de perna"</em><br><br>' +
+    '<em>"agendar compromisso sábado às 8 horas, título Academia, descrição Treino de perna"</em><br><br>' +
     'Eu separo sozinho:<br>' +
     '• <strong>o tipo</strong> — compromisso (com hora) ou tarefa<br>' +
     '• <strong>o dia e a hora</strong><br>' +
@@ -887,13 +887,13 @@ async function routeCommand(text) {
   const mRep = text.match(/^(?:repetir|repete|editar?\s+(?:a\s+)?(?:repeti[çc][ãa]o|recorr[êe]ncia))\s+(.+)/i);
   if (mRep) {
     const recFrag = parseRecorrencia(mRep[1]);
-    if (!recFrag) { addMessage('Não entendi a repetição. Ex.: <em>"repetir tarefa academia toda semana"</em>.', 'bot'); return null; }
+    if (!recFrag) { addMessage('Não entendi a repetição. Ex.: <em>"repetir tarefa Academia toda semana"</em>.', 'bot'); return null; }
     let resto = mRep[1].replace(/\bpara\b/gi, ' ').replace(RECUR_STRIP, ' ');
     let tipoR = null;
     const mt = resto.match(/\b(compromisso|tarefa|atividade|commitment|task)\b/i);
     if (mt) { tipoR = mt[1].toLowerCase(); resto = resto.replace(mt[0], ' '); }
     const nomeR = resto.replace(/\bd[oa]s?\b/gi, ' ').replace(/\s+/g, ' ').trim();
-    if (!nomeR) { addMessage('Qual atividade? Ex.: <em>"repetir tarefa academia toda semana"</em>.', 'bot'); return null; }
+    if (!nomeR) { addMessage('Qual atividade? Ex.: <em>"repetir tarefa Academia toda semana"</em>.', 'bot'); return null; }
     await cmdEditarRepeticao(nomeR, tipoR, recFrag);
     return null;
   }

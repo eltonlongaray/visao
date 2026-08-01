@@ -320,7 +320,7 @@ export default {
     • <strong>the type</strong> — commitment or task<br>
     • <strong>the day and time</strong><br>
     • <strong>the title and description</strong>, like this:<br><br>
-    <em>"schedule commitment sunday at 10, title gym, description leg day"</em>`,
+    <em>"schedule commitment sunday at 10, title Gym, description Leg day"</em>`,
   'pet.ask.time':           'Commitment needs a time. What time? (e.g. 15:30 or 15h)',
   'pet.ask.time.invalid':   'Enter a valid time (e.g. 15:30 or 15h).',
   'pet.ask.for':            'for',
@@ -329,7 +329,7 @@ export default {
 
   'pet.duplicate':          '⚠️ <strong>{name}</strong> is already registered for that day and time. To repeat it anyway, edit it directly in the Ritual.',
   'pet.unknown':            `I didn't understand. To schedule, tell me all at once:<br><br>
-    <em>"schedule commitment sunday at 10, title gym, description leg day"</em><br><br>
+    <em>"schedule commitment sunday at 10, title Gym, description Leg day"</em><br><br>
     The <strong>title</strong> is what links to your activities — it's what makes it count toward the goal.<br>
     Type <strong>help</strong> for the rest.`,
 
@@ -386,19 +386,19 @@ export default {
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbs: schedule · register</small>
 <em style="color:var(--muted);font-size:0.85em">Tasks</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>schedule task do workout tomorrow at 7am</em></li>
-  <li><em>register task read 30 minutes today</em></li>
+  <li><em>schedule task Do workout tomorrow at 7am</em></li>
+  <li><em>register task Read 30 minutes today</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Commitments</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>schedule commitment dentist tomorrow at 10am</em></li>
-  <li><em>schedule meeting monday at 2pm</em></li>
+  <li><em>schedule commitment Dentist tomorrow at 10am</em></li>
+  <li><em>schedule commitment Meeting monday at 2pm</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Edit · Reschedule</em>
 <ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>edit name of commitment dentist to medical consultation</em></li>
-  <li><em>edit time of task workout to 3pm</em></li>
-  <li><em>reschedule commitment dentist to friday at 3pm</em></li>
+  <li><em>edit name of commitment Dentist to Medical consultation</em></li>
+  <li><em>edit time of task Workout to 3pm</em></li>
+  <li><em>reschedule commitment Dentist to friday at 3pm</em></li>
 </ul>`,
 
   'notif.body.activity':    "Time for {title}! 🎯",

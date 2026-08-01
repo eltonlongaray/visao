@@ -320,7 +320,7 @@ export default {
     • <strong>o tipo</strong> — compromisso ou tarefa<br>
     • <strong>o dia e a hora</strong><br>
     • <strong>o título e a descrição</strong>, assim:<br><br>
-    <em>"agendar compromisso domingo às 10 horas, título academia, descrição treino de perna"</em>`,
+    <em>"agendar compromisso domingo às 10 horas, título Academia, descrição Treino de perna"</em>`,
   'pet.ask.time':           'Compromisso precisa de horário. Qual horário? (ex: 15:30 ou 15h)',
   'pet.ask.time.invalid':   'Informe um horário válido (ex: 15:30 ou 15h).',
   'pet.ask.for':            'para',
@@ -329,7 +329,7 @@ export default {
 
   'pet.duplicate':          '⚠️ <strong>{name}</strong> já está registrado nesse dia e horário. Se quiser mesmo repetir, edite direto no Ritual.',
   'pet.unknown':            `Não entendi. Pra agendar, me diga tudo de uma vez:<br><br>
-    <em>"agendar compromisso domingo às 10 horas, título academia, descrição treino de perna"</em><br><br>
+    <em>"agendar compromisso domingo às 10 horas, título Academia, descrição Treino de perna"</em><br><br>
     O <strong>título</strong> é o que liga com as suas atividades — é ele que faz contar pro objetivo.<br>
     Digite <strong>ajuda</strong> pra ver o resto.`,
 
@@ -386,23 +386,23 @@ export default {
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
 <em style="color:var(--muted);font-size:0.85em">Ditando título e descrição</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>agendar compromisso pra domingo às 10h. Título lazer. Descrição aniversário</em></li>
+  <li><em>agendar compromisso pra domingo às 10h. Título Lazer. Descrição Aniversário</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Tarefas</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>marcar tarefa fazer academia amanhã às 7h</em></li>
-  <li><em>registrar tarefa ler 30 minutos hoje</em></li>
+  <li><em>marcar tarefa Fazer academia amanhã às 7h</em></li>
+  <li><em>registrar tarefa Ler 30 minutos hoje</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Compromissos</em>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
-  <li><em>marcar compromisso dentista amanhã às 10h</em></li>
-  <li><em>agendar reunião segunda às 14h</em></li>
+  <li><em>marcar compromisso Dentista amanhã às 10h</em></li>
+  <li><em>agendar compromisso Reunião segunda às 14h</em></li>
 </ul>
 <em style="color:var(--muted);font-size:0.85em">Editar · Reagendar</em>
 <ul style="margin:2px 0 0 0;padding-left:18px;line-height:1.9">
-  <li><em>editar nome do compromisso dentista para consulta médica</em></li>
-  <li><em>editar horário da tarefa academia para 15h</em></li>
-  <li><em>reagendar compromisso dentista para sexta às 15h</em></li>
+  <li><em>editar nome do compromisso Dentista para Consulta médica</em></li>
+  <li><em>editar horário da tarefa Academia para 15h</em></li>
+  <li><em>reagendar compromisso Dentista para sexta às 15h</em></li>
 </ul>`,
 
   'notif.body.activity':    'Hora de {title}! 🎯',

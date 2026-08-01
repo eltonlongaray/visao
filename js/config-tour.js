@@ -386,7 +386,7 @@ export const ONBOARDING_STEPS = [
     petHome: true,      // não reposicionar o pet: o alvo é ele mesmo
     holePad: 12,
     title: 'E esse aqui é o meu canto 🦅',
-    message: 'Fico sempre por aqui. Toque em mim e <strong>fale</strong>: "agendar compromisso sábado às 8 horas, título academia, descrição treino de perna" — eu monto pra você. Também respondo sobre seu sono, água e constância. E me arraste pro canto que preferir.',
+    message: 'Fico sempre por aqui. Toque em mim e <strong>fale</strong>: "agendar compromisso sábado às 8 horas, título Academia, descrição Treino de perna" — eu monto pra você. Também respondo sobre seu sono, água e constância. E me arraste pro canto que preferir.',
     primaryBtn: 'Próximo →'
   },
 
