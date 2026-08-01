@@ -1036,6 +1036,21 @@ function extractDate(text) {
     return d;
   }
 
+  // "dia 12" — dia do mês sem barra nem mês. Assume o mês atual; se o dia já
+  // passou, joga pro mês seguinte. Sem isto, "dia 12" não casava com nada e
+  // caía no fallback (hoje). Vem depois do dd/mm pra "dia 12/08" usar aquele.
+  const diaMatch = tl.match(/\bdia\s+(\d{1,2})\b/);
+  if (diaMatch) {
+    const day = parseInt(diaMatch[1], 10);
+    if (day >= 1 && day <= 31) {
+      const now   = new Date();
+      const d     = new Date(now.getFullYear(), now.getMonth(), day);
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (d < today) d.setMonth(d.getMonth() + 1);
+      return d;
+    }
+  }
+
   if (/depois\s+de\s+aman(h[ãa]|ha)|day after tomorrow/i.test(tl)) return dateOffset(2);
   if (/aman(h[ãa]|ha)|tomorrow/i.test(tl))                          return dateOffset(1);
   if (/\bhoje\b|\btoday\b/i.test(tl))                               return new Date();
