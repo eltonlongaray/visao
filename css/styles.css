@@ -6033,11 +6033,11 @@ body.tour-active { overflow: hidden; }
   transition: opacity 0.12s, transform 0.1s;
 }
 .pet-atv-create:hover { opacity: 0.9; transform: scale(1.03); }
-.pet-atv-create-full { width: 100%; margin-top: 8px; padding: 9px; font-size: 12px; }
+.pet-atv-create-full { width: 100%; margin: 2px 0 6px; padding: 9px; font-size: 12px; }
 /* Atividades em grade de 2–3 colunas (adapta à largura), chips uniformes */
 .pet-atv-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
   gap: 5px;
 }
 .pet-atv-grid .pet-atv-chip {

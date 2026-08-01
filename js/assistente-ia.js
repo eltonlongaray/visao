@@ -1331,27 +1331,34 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
 function _showGateAtividade(name, done, date, time, cats) {
   const box = document.getElementById('pet-messages');
   if (!box) return;
-  addMessage(`Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Escolha uma das suas ou crie essa:`, 'bot');
 
+  // Aviso como mensagem própria (guardo a referência pra fixar ela no TOPO).
+  const aviso = document.createElement('div');
+  aviso.className = 'pet-msg pet-msg-bot';
+  const asp = document.createElement('span');
+  asp.innerHTML = `Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Crie essa ou escolha uma das suas:`;
+  aviso.appendChild(asp);
+  box.appendChild(aviso);
+
+  // Criar = PRIMEIRA opção (topo); depois a grade das existentes em colunas.
   const div = document.createElement('div');
   div.className = 'pet-msg pet-msg-bot';
   div.innerHTML = `
     <span class="pet-preview-card pet-preview-tight">
-      <span class="pet-reco-lbl pet-atv-lbl">🎯 Suas atividades:</span>
-      <div class="pet-atv-grid" data-atv-grid></div>
       <button type="button" class="pet-atv-create pet-atv-create-full" data-create>➕ Criar “${_esc(name)}”</button>
+      ${cats.length ? '<span class="pet-reco-lbl pet-atv-lbl">ou escolha uma existente:</span><div class="pet-atv-grid" data-atv-grid></div>' : ''}
     </span>`;
   const atvGrid = div.querySelector('[data-atv-grid]');
-  atvGrid.innerHTML = cats.length
-    ? cats.map(c => `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`).join('')
-    : '<span style="font-size:11px;opacity:.7">Você ainda não tem atividades — crie a primeira 👇</span>';
+  if (atvGrid) atvGrid.innerHTML = cats.map(c =>
+    `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
+  ).join('');
 
   const resolver = (nome) => {
     div.querySelectorAll('button').forEach(b => { b.disabled = true; });
     div.style.opacity = '0.55';
     _showMarcacao(nome, done, date, time);
   };
-  atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => resolver(chip.dataset.atv)));
+  if (atvGrid) atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => resolver(chip.dataset.atv)));
   const cbtn = div.querySelector('[data-create]');
   cbtn.addEventListener('click', async () => {
     cbtn.disabled = true; cbtn.textContent = 'Criando…';
@@ -1366,7 +1373,11 @@ function _showGateAtividade(name, done, date, time, cats) {
   });
 
   box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
+  // Rola pra deixar o AVISO no topo da área visível (sem o usuário precisar subir).
+  requestAnimationFrame(() => {
+    const delta = aviso.getBoundingClientRect().top - box.getBoundingClientRect().top;
+    box.scrollTop += delta - 8;
+  });
 }
 
 // Etapa 2 — marcação limpa: título grande, data, repetir (retrátil) e lembrete.
