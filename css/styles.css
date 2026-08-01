@@ -6033,7 +6033,7 @@ body.tour-active { overflow: hidden; }
   transition: opacity 0.12s, transform 0.1s;
 }
 .pet-atv-create:hover { opacity: 0.9; transform: scale(1.03); }
-.pet-atv-create-full { width: 100%; margin: 2px 0 6px; padding: 9px; font-size: 12px; }
+.pet-atv-create-full { align-self: flex-start; margin: 4px 0 8px; padding: 9px 18px; font-size: 12.5px; }
 /* Atividades: flex que envolve (mostra o NOME COMPLETO, sem reticências).
    Nomes curtos empacotam vários por linha; nomes longos ocupam a largura que
    precisam — a mensagem alarga (pet-msg-wide) pra caber. */
@@ -6062,35 +6062,13 @@ body.tour-active { overflow: hidden; }
 .pet-check-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-top: 8px;
   font-size: 12.5px;
   font-weight: 600;
-  cursor: pointer;
   user-select: none;
   align-self: flex-start;
-  background: none;
-  border: none;
-  color: inherit;
-  padding: 3px 0;
 }
-.pet-check-box {
-  width: 19px;
-  height: 19px;
-  flex-shrink: 0;
-  border-radius: 5px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 900;
-  color: #1a1a2e;
-  line-height: 1;
-  transition: background 0.12s, border-color 0.12s;
-}
-.pet-check-row.checked .pet-check-box { background: var(--gold, #e0b341); border-color: var(--gold, #e0b341); }
-.pet-check-row.checked .pet-check-box::after { content: '✓'; }
 
 /* Repetir: botão retrátil + lista de opções empilhadas */
 .pet-rep { margin-top: 6px; }

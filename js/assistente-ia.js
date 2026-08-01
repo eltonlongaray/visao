@@ -1415,7 +1415,7 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
       ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
       <span class="pet-preview-sub">${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
       <div class="pet-rep" data-rep-wrap></div>
-      <button type="button" class="pet-check-row" data-bell><span class="pet-check-box"></span><span>🔔 Lembrete</span></button>
+      <div class="pet-check-row"><span>🔔 Lembrete</span><label class="ajustes-toggle"><input type="checkbox" data-bell><span class="ajustes-toggle-slider"></span></label></div>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
 
@@ -1446,18 +1446,17 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
     }));
   }
 
-  // 🔔 Lembrete = toggle próprio (botão), não checkbox nativo — o nativo dava
-  // quirk de toque no mobile e ficava "travado". Mensal+ mantém marcado (alfinete).
+  // 🔔 Lembrete = switch ligado/desligado (mesmo do Ajustes). Mensal+ mantém
+  // ligado (nasce alfinetado) e ignora a tentativa de desligar.
   let bellLocked = false;
   function syncBell() {
     const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
     bellLocked = monthlyPinned;
-    bellEl.classList.toggle('checked', monthlyPinned ? true : !!ditado.lembrete);
+    bellEl.checked = monthlyPinned ? true : !!ditado.lembrete;
   }
-  bellEl.addEventListener('click', () => {
-    if (bellLocked) return;
-    ditado.lembrete = !ditado.lembrete;
-    syncBell();
+  bellEl.addEventListener('change', () => {
+    if (bellLocked) { bellEl.checked = true; return; }
+    ditado.lembrete = bellEl.checked;
   });
 
   renderRep();
