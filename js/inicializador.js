@@ -10,7 +10,7 @@ import { auth, onAuthStateChanged, onPasswordRecovery } from './autenticacao.js'
 import { showSetPasswordModal } from './recuperar-senha.js';
 import { registerRoute, navigate, forceRender } from './roteador.js';
 import { initI18n } from './idioma.js';
-import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio } from './notificacoes.js';
+import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio, consumeNotifTarget } from './notificacoes.js';
 import { renderLogin } from './screens/tela-login.js';
 import { renderSignup } from './screens/tela-cadastro.js';
 import { renderWelcome } from './screens/tela-boas-vindas.js';
@@ -117,6 +117,22 @@ navigator.serviceWorker?.addEventListener('message', (e) => {
   else navigate(target);
 });
 
+// Rede de segurança do deep-link: o SW gravou o alvo do clique num IndexedDB.
+// Consome ao abrir/retomar o app — cobre o cold-start em que o Android perde o
+// hash do openWindow. Só age se estiver logado (senão o alvo espera o login).
+async function _irParaAlvoNotif() {
+  if (!lastUid) return;
+  const tgt = await consumeNotifTarget().catch(() => null);
+  if (!tgt || !tgt.day) return;
+  const qs = `?day=${tgt.day}${tgt.tag ? `&tag=${encodeURIComponent(tgt.tag)}` : ''}`;
+  const target = `/ritual${qs}`;
+  if (location.hash === '#' + target) forceRender();
+  else navigate(target);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _irParaAlvoNotif();
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: AUTH STATE
@@ -172,6 +188,8 @@ onAuthStateChanged(auth, async (user) => {
   navigate(deepLink || '/modalidade');
   showPet();
   subscribeToPush(); // registra push subscription no Worker (se configurado)
+  // Deep-link via IndexedDB (cold-start que perdeu o hash) — navega pro Ritual.
+  if (!deepLink) _irParaAlvoNotif();
 
   // Cold-open: trava se bio configurada
   if (biometric.isEnabledForUser(user.uid)) {

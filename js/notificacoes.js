@@ -527,6 +527,36 @@ export function notifTag(dayDocId, title) {
   return `visao-${dayDocId}-${title.slice(0, 30).replace(/\s+/g, '-')}`;
 }
 
+// Lê E APAGA o alvo gravado pelo SW ao clicar numa notificação. Rede de segurança
+// pro deep-link quando o hash se perde no cold-start. Retorna {day, tag} ou null
+// (ignora alvo velho, > 2 min, pra não sequestrar uma abertura normal do app).
+export function consumeNotifTarget() {
+  return new Promise((resolve) => {
+    let done = false; const fin = (v) => { if (!done) { done = true; resolve(v); } };
+    try {
+      const req = indexedDB.open('falcon-notif', 1);
+      req.onupgradeneeded = () => { try { req.result.createObjectStore('kv'); } catch {} };
+      req.onsuccess = () => {
+        try {
+          const db = req.result;
+          const tx = db.transaction('kv', 'readwrite');
+          const store = tx.objectStore('kv');
+          const g = store.get('clickTarget');
+          g.onsuccess = () => {
+            const v = g.result;
+            store.delete('clickTarget');
+            const ok = v && v.day && (Date.now() - (v.ts || 0) < 120000);
+            tx.oncomplete = () => { db.close(); fin(ok ? { day: v.day, tag: v.tag } : null); };
+          };
+          g.onerror = () => { try { db.close(); } catch {} fin(null); };
+        } catch { fin(null); }
+      };
+      req.onerror = () => fin(null);
+      setTimeout(() => fin(null), 600);
+    } catch { fin(null); }
+  });
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8: GUIA DE NOTIFICAÇÃO (platform-aware: iOS x Android)

@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v495';
+const CACHE_NAME = 'visao-v496';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;
@@ -176,6 +176,30 @@ function _dayFromTag(tag) {
   return m ? m[1] : null;
 }
 
+// Grava o alvo do clique num IndexedDB. É a rede de segurança: no cold-start
+// alguns Android IGNORAM a URL do openWindow e abrem no start_url, perdendo o
+// hash — aí o app lê este alvo ao abrir e navega mesmo assim.
+function _saveClickTarget(day, tag) {
+  return new Promise((resolve) => {
+    let done = false; const fin = () => { if (!done) { done = true; resolve(); } };
+    try {
+      const req = indexedDB.open('falcon-notif', 1);
+      req.onupgradeneeded = () => { try { req.result.createObjectStore('kv'); } catch {} };
+      req.onsuccess = () => {
+        try {
+          const db = req.result;
+          const tx = db.transaction('kv', 'readwrite');
+          tx.objectStore('kv').put({ day, tag, ts: Date.now() }, 'clickTarget');
+          tx.oncomplete = () => { db.close(); fin(); };
+          tx.onerror = () => { try { db.close(); } catch {} fin(); };
+        } catch { fin(); }
+      };
+      req.onerror = () => fin();
+      setTimeout(fin, 500);
+    } catch { fin(); }
+  });
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const tag  = event.notification.tag || '';
@@ -188,6 +212,7 @@ self.addEventListener('notificationclick', (event) => {
   const alvo = new URL('./' + hash, self.location.href).href;
 
   event.waitUntil((async () => {
+    await _saveClickTarget(day, tag);   // rede de segurança contra hash perdido
     const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of list) {
       if (!client.url.includes(self.location.origin)) continue;
