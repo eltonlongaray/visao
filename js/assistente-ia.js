@@ -1452,13 +1452,19 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
     }));
   }
 
-  // 🔔 Lembrete = checkbox. Recorrência mensal+ trava marcado (nasce alfinetado).
+  // 🔔 Lembrete = checkbox. Recorrência mensal+ mantém marcado (nasce alfinetado).
+  // Sem usar o atributo `disabled` — ele deixava a caixa travada e sem resposta;
+  // aqui só o caso mensal ignora o clique, o resto marca/desmarca livre.
   function syncBell() {
     const monthlyPinned = !!(ditado.recorrencia && ditado.recorrencia.freq === 'monthly');
-    if (monthlyPinned) { bellEl.checked = true; bellEl.disabled = true; }
-    else { bellEl.disabled = false; bellEl.checked = !!ditado.lembrete; }
+    bellEl.dataset.locked = monthlyPinned ? '1' : '';
+    bellEl.checked = monthlyPinned ? true : !!ditado.lembrete;
   }
-  bellEl.addEventListener('change', () => { if (!bellEl.disabled) ditado.lembrete = bellEl.checked; });
+  bellEl.addEventListener('click', (e) => { if (bellEl.dataset.locked === '1') e.preventDefault(); });
+  bellEl.addEventListener('change', () => {
+    if (bellEl.dataset.locked === '1') { bellEl.checked = true; return; }
+    ditado.lembrete = bellEl.checked;
+  });
 
   renderRep();
   syncBell();
