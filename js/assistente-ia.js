@@ -1343,12 +1343,12 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   div.innerHTML = `
     <span class="pet-preview-card pet-preview-tight">
       <span data-warn-slot></span>
-      <span class="pet-preview-title pet-preview-title-big">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
-      ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
       <span class="pet-reco-lbl pet-atv-lbl">🎯 Atividade:</span>
       <div class="pet-atv-grid" data-atv-grid></div>
+      <span class="pet-preview-title pet-preview-title-big">${tipoIcon} <strong data-title>${_esc(curName)}</strong></span>
+      ${ditado.descricao ? `<span class="pet-preview-desc">(${_esc(ditado.descricao)})</span>` : ''}
       <span class="pet-preview-sub" data-sub>${quandoLabel}${time ? ` · ${time}` : ''} · ${tipoLabel}</span>
-      <span class="pet-reco-row" data-rep-row></span>
+      <div class="pet-rep" data-rep-wrap></div>
       <label class="pet-check-row"><input type="checkbox" data-bell><span>🔔 Lembrete</span></label>
       <button class="pet-reg-btn">${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}</button>
     </span>`;
@@ -1356,7 +1356,7 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const titleEl  = div.querySelector('[data-title]');
   const warnSlot = div.querySelector('[data-warn-slot]');
   const atvGrid  = div.querySelector('[data-atv-grid]');
-  const repRow   = div.querySelector('[data-rep-row]');
+  const repWrap  = div.querySelector('[data-rep-wrap]');
   const bellEl   = div.querySelector('[data-bell]');
 
   // 🎯 Atividade: aviso "não registrada" (no TOPO) + grade de atividades da Home.
@@ -1385,19 +1385,30 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
     });
   }
 
-  // 🔁 Repetir: chips contextuais. Sem "Não" — não marcar = não repete; clicar no
-  // marcado desmarca. Regra digitada fora das opções vira um chip "custom".
+  // 🔁 Repetir: botão retrátil. Fechado mostra a escolha (ou "Repetir?"); aberto,
+  // as opções empilhadas. Sem "Não" — não escolher = não repete; clicar na
+  // escolhida desmarca. Regra digitada fora das opções aparece como "custom".
+  let repOpen = false;
   function renderRep() {
     const selKey = _recToKey(ditado.recorrencia);
-    const customChip = selKey === 'custom'
-      ? `<button type="button" class="pet-reco-chip sel" data-rep="custom">${ruleLabel(ditado.recorrencia)}</button>` : '';
-    repRow.innerHTML = `<span class="pet-reco-lbl">🔁 Repetir?</span>${customChip}`
-      + repOpts.map(o => `<button type="button" class="pet-reco-chip ${o.key === selKey ? 'sel' : ''}" data-rep="${o.key}">${o.label}</button>`).join('');
-    repRow.querySelectorAll('[data-rep]').forEach(chip => chip.addEventListener('click', () => {
-      const k = chip.dataset.rep;
-      if (k === 'custom') ditado.recorrencia = _typedRec;
-      else if (_recToKey(ditado.recorrencia) === k) ditado.recorrencia = null;   // desmarca
+    const curLabel = ditado.recorrencia ? ruleLabel(ditado.recorrencia) : '';
+    const customOpt = selKey === 'custom'
+      ? `<button type="button" class="pet-rep-opt sel" data-rep="custom">${_esc(curLabel)} ✓</button>` : '';
+    repWrap.innerHTML = `
+      <button type="button" class="pet-rep-head ${curLabel ? 'has-sel' : ''}" data-rep-head>
+        <span>🔁 ${curLabel ? _esc(curLabel) : 'Repetir?'}</span>
+        <span class="pet-rep-caret ${repOpen ? 'open' : ''}">▾</span>
+      </button>
+      <div class="pet-rep-list"${repOpen ? '' : ' hidden'}>${customOpt}${repOpts.map(o =>
+        `<button type="button" class="pet-rep-opt ${o.key === selKey ? 'sel' : ''}" data-rep="${o.key}">${o.label}${o.key === selKey ? ' ✓' : ''}</button>`
+      ).join('')}</div>`;
+    repWrap.querySelector('[data-rep-head]').addEventListener('click', () => { repOpen = !repOpen; renderRep(); });
+    repWrap.querySelectorAll('[data-rep]').forEach(opt => opt.addEventListener('click', () => {
+      const k = opt.dataset.rep, cur = _recToKey(ditado.recorrencia);
+      if (k === 'custom') ditado.recorrencia = cur === 'custom' ? null : _typedRec;
+      else if (cur === k) ditado.recorrencia = null;                 // desmarca a escolhida
       else ditado.recorrencia = { ...repOpts.find(x => x.key === k).rule, anchor: dayId(date) };
+      repOpen = false;                                               // colapsa ao escolher
       renderRep(); syncBell();
     }));
   }

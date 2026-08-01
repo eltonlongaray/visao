@@ -6069,6 +6069,42 @@ body.tour-active { overflow: hidden; }
 .pet-check-row input { width: 16px; height: 16px; accent-color: var(--gold, #e0b341); cursor: pointer; }
 .pet-check-row input:disabled { cursor: default; }
 
+/* Repetir: botão retrátil + lista de opções empilhadas */
+.pet-rep { margin-top: 6px; }
+.pet-rep-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #e8e8f0);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pet-rep-head.has-sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pet-rep-caret { font-size: 10px; opacity: 0.8; transition: transform 0.15s; }
+.pet-rep-caret.open { transform: rotate(180deg); }
+.pet-rep-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.pet-rep-opt {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text, #e8e8f0);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.pet-rep-opt:hover { background: rgba(255, 255, 255, 0.1); }
+.pet-rep-opt.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 /* Botão Google Agenda no chat do Pet */
 .pet-gcal-link {
   display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
