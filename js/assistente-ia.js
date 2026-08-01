@@ -533,6 +533,12 @@ function ajustarChatAoTeclado() {
     return;
   }
 
+  // PINCH-ZOOM: o zoom também dispara resize/scroll do visualViewport (a altura
+  // visível encolhe). Se recalcular aqui, o painel se redimensiona e o TOPO foge
+  // enquanto a pessoa dá zoom. Com scale > 1 (ampliado), deixa tudo imóvel.
+  const vvZoom = window.visualViewport;
+  if (vvZoom && vvZoom.scale > 1.01) return;
+
   const vv      = window.visualViewport;
   const visivel = vv ? vv.height : window.innerHeight;
 
