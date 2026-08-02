@@ -581,6 +581,18 @@ html, body {
 /* Separadores + títulos das leituras (Proporção agora / Corpo ideal) */
 .cp-pump-hr { border-top: 1px solid rgba(255,255,255,0.2); margin: 10px 0 8px; }
 .cp-pump-tit { font-size: 14px; font-weight: 800; margin-bottom: 5px; }
+.cp-pump-escada { font-size: 13px; }
+.cp-pump-escada > div { padding: 2px 0; }
+/* Tabelinha (Proporção atual / Corpo ideal) */
+.cp-tab { width: 100%; border-collapse: collapse; margin-top: 3px; font-size: 13px; }
+.cp-tab th {
+  text-align: center; font-weight: 700; opacity: 0.65; font-size: 11.5px;
+  padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.18);
+}
+.cp-tab th:first-child { text-align: left; }
+.cp-tab td { text-align: center; padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.cp-tab td:first-child { text-align: left; font-weight: 600; }
+.cp-tab tr:last-child td { border-bottom: none; }
 .cp-an-hint { opacity: 0.85; }
 
 /* Título de seção da análise (Corpo saudável / Corpo acima da média) */

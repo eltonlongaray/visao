@@ -238,14 +238,16 @@ function _blocoPump(r, ant) {
   else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   txt += ` <small style="opacity:.55">— ${isF ? 'a curva (silhueta)' : 'o V (formato do tronco)'}</small>`;
 
-  // Escada dos 3 níveis: ✅ alcançado · 🎯 próximo · cinza = futuro.
-  const escada = niveis.map((n, i) => {
+  // Escada dos 3 níveis, um abaixo do outro: ✅ alcançado · 🎯 próximo · a caminho.
+  const escadaLinhas = niveis.map((n, i) => {
     const nome = `Nível ${i + 1}${i === 2 ? ' (áurea)' : ''}`;
-    if (ratio >= n)  return `✅ ${nome} <span style="opacity:.6">${_1(n)}</span>`;
-    if (i === nivel) return `🎯 <b>${nome}</b> <span style="opacity:.6">${_1(n)}</span>`;
-    return `<span style="opacity:.5">${nome} ${_1(n)}</span>`;
-  }).join(' · ');
-  const escadaHtml = `<br><small><b>Escada:</b> ${escada}</small>`;
+    let st;
+    if (ratio >= n)       st = '✅ alcançado';
+    else if (i === nivel) st = '🎯 <b>próximo</b>';
+    else                  st = '<span style="opacity:.55">a caminho</span>';
+    return `<div>${nome} <span style="opacity:.6">(${_1(n)})</span>: ${st}</div>`;
+  }).join('');
+  const escadaHtml = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">Escada dos níveis</div><div class="cp-pump-escada">${escadaLinhas}</div>`;
 
   // Ganho real de músculo: variação do membro-âncora (glúteo/ombro) desde a 1ª
   // medição, com a cintura do mesmo período ao lado — assim dá pra separar músculo
@@ -297,22 +299,22 @@ function _blocoPump(r, ant) {
                                   // apoio; mantém o V, quadril < ombro). Mulher já tem
                                   // o glúteo como âncora, não repete aqui.
 
-  // ── Leitura 1: proporção AGORA (pernas ancoradas no membro atual) ──
+  // ── Leitura 1: proporção ATUAL (pernas ancoradas no membro atual) — tabelinha ──
   let agora = '';
   {
-    const l = [];
-    const add = (nome, val, prev, ratio) => {
+    const rows = [];
+    const add = (nome, val, ratio) => {
       if (!val) return;
       const alvo = Math.round(membro * ratio);
       const d = alvo - val;
-      const evo = prev != null && prev !== val ? ` <small>(${_sinal(val - prev)} cm)</small>` : '';
-      const st = d > 1 ? `<b>faltam ${_1(d)} cm</b>` : '✓';
-      l.push(`${nome} ${val} cm${evo} → alvo ~${alvo} cm ${st}`);
+      const acao = d > 1 ? `<b>+${_1(d)} cm</b>` : '✓';
+      rows.push(`<tr><td>${nome}</td><td>${val} cm</td><td>${alvo} cm</td><td>${acao}</td></tr>`);
     };
-    if (!isF) add('Glúteo', r.quadril, ant?.quadril, RG);   // homem: glúteo de apoio
-    add('Coxa', r.coxa, ant?.coxa, RC);
-    add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
-    if (l.length) agora = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">⚖️ Proporção agora <span style="opacity:.6;font-weight:600">(c/ o ${membroNome} atual)</span></div><small>${l.join(' · ')}</small>`;
+    if (!isF) add('Glúteo', r.quadril, RG);   // homem: glúteo de apoio
+    add('Coxa', r.coxa, RC);
+    add('Panturrilha', r.panturrilha, RP);
+    if (rows.length) agora = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">⚖️ Proporção atual do seu corpo <span style="opacity:.6;font-weight:600">(c/ o ${membroNome})</span></div>`
+      + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Falta</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
 
   // ── Leitura 2: corpo IDEAL no próximo Pump (cintura saudável + tudo proporcional) ──
@@ -324,19 +326,20 @@ function _blocoPump(r, ant) {
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
-    const l = [];
+    const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
       if (atual == null) return;
       const d = cresce ? alvo - atual : atual - alvo;
-      const st = d > 1 ? `<b>${cresce ? '+' : '−'}${_1(d)} cm</b>` : '<b>✓</b>';
-      l.push(`${nome} ${atual} cm → ${alvo} cm ${st}`);
+      const acao = d > 1 ? `<b>${cresce ? '+' : '−'}${_1(d)} cm</b>` : '✓';
+      rows.push(`<tr><td>${nome}</td><td>${atual} cm</td><td>${alvo} cm</td><td>${acao}</td></tr>`);
     };
     linha('Cintura', r.cintura, cintAlvo, false);
     linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
     if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
-    meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Pump Nível ${nivel + 1}</div><small>${l.join('<br>')}</small>`;
+    meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal para subir no Pump Nível ${nivel + 1}</div>`
+      + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Ajuste</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   return `<div class="cp-an cp-an-pump">${txt}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
 }
