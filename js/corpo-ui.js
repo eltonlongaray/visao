@@ -96,7 +96,7 @@ function statusHtml() {
   const proxMedida = new Date(ultima.getTime() + 30 * 86400000);
   const comFoto = registros.find(r => r.foto_frente || r.foto_lado || r.foto_costas);
   const linhaFoto = comFoto
-    ? `<div><span>Próximas fotos:</span> <b>${dataTxt(new Date(new Date(comFoto.data + 'T00:00:00').getTime() + 90 * 86400000))}</b></div>`
+    ? `<div><span>Próximas fotos:</span> <b>${dataTxt(proxMedida)}</b> <small>(junto com a medição)</small></div>`
     : `<div><span>Fotos:</span> <b>tire as primeiras</b></div>`;
   return `<div class="cp-status">
     <div><span>Última medição:</span> <b>${fmt(ultima)}</b></div>
@@ -131,7 +131,7 @@ function faltaBase() { return !dados.sexo || !dados.alturaCm; }
 
 function telaPrincipal(pode) {
   return `
-    <div class="cp-intro">Meça <b>uma vez por mês</b> pra acompanhar os números e receber dicas. As <b>fotos</b> você tira a cada <b>3 meses</b>.</div>
+    <div class="cp-intro">Meça <b>uma vez por mês</b> pra acompanhar os números e receber dicas. Tire as <b>fotos junto</b>, todo mês, pra ver a evolução de perto.</div>
     <div class="cp-dicas">
       <b>Pra medir certo:</b>
       <span>① Sempre de <b>manhã</b>, em jejum, depois do banheiro.</span>
@@ -353,7 +353,7 @@ function formHtml() {
     <div class="cp-gordura" id="cp-gordura"></div>
 
     <div class="cp-secao-tit">Fotos de progresso</div>
-    <div class="cp-secao-sub">A cada 3 meses.</div>
+    <div class="cp-secao-sub">Todo mês, junto com a medição.</div>
     <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
     ${fotosGridHtml()}
 
@@ -390,7 +390,7 @@ function bloqueadoHtml() {
   const dias = diasParaLiberar();
   const ultima = registros.length ? new Date(registros[0].data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : '';
   const d = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
-  // Fotos NÃO seguem a trava da medição (são a cada 3 meses): dá pra tirar/anexar
+  // Fotos NÃO seguem a trava da medição (mês a mês, junto): dá pra tirar/anexar
   // a qualquer momento. Anexam na última medição. Se ela ainda não tem foto, avisa.
   const ult = registros[0];
   const temFotoUlt = ult && (ult.foto_frente || ult.foto_lado || ult.foto_costas);
