@@ -454,7 +454,7 @@ export function ligarComposicao() {
       const blob = await reduzir(f);
       novo.fotos[ladoAtivo] = { blob, previa: URL.createObjectURL(blob) };
       desenhar();
-    } catch (err) { showToast('Não deu pra abrir a foto.', 'error'); }
+    } catch (err) { showToast('Não consegui processar essa foto. Tente outra (ou reduza a resolução da câmera).', 'error'); }
   });
 }
 
@@ -512,12 +512,43 @@ function escolherFoto() {
   });
 }
 
-// Reduz a foto antes de subir (fotos são permanentes; economiza espaço/banda).
-async function reduzir(file, max = 1280) {
-  const img = await createImageBitmap(file);
-  const escala = Math.min(1, max / Math.max(img.width, img.height));
+// Reduz a foto antes de subir. Decodifica JÁ no tamanho final (createImageBitmap
+// com resize) — o modo antigo decodificava a foto INTEIRA em resolução máxima e
+// estourava a memória em fotos gigantes de celular ("memória insuficiente").
+async function reduzir(file, max = 1080) {
+  // 1) Dimensões sem segurar o bitmap full-res (via <img>, barato).
+  const url = URL.createObjectURL(file);
+  let dims;
+  try {
+    dims = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload  = () => resolve({ w: im.naturalWidth || im.width, h: im.naturalHeight || im.height });
+      im.onerror = () => reject(new Error('img'));
+      im.src = url;
+    });
+  } catch { URL.revokeObjectURL(url); throw new Error('falha'); }
+
+  const maior = Math.max(dims.w, dims.h) || max;
+  const escala = Math.min(1, max / maior);
+  const w = Math.max(1, Math.round(dims.w * escala));
+  const h = Math.max(1, Math.round(dims.h * escala));
+
+  // 2) Decodifica JÁ reduzido (memória de pico baixa); fallback pro modo antigo.
+  let bmp;
+  try {
+    bmp = await createImageBitmap(file, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+  } catch {
+    bmp = await createImageBitmap(file);
+  }
+  URL.revokeObjectURL(url);
+
+  // 3) Canvas no tamanho final e libera tudo depois.
   const cv = document.createElement('canvas');
-  cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
-  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-  return new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('falha')), 'image/jpeg', 0.85));
+  cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  if (bmp.close) bmp.close();
+  const blob = await new Promise((res, rej) =>
+    cv.toBlob(b => b ? res(b) : rej(new Error('falha')), 'image/jpeg', 0.82));
+  cv.width = 0; cv.height = 0;   // libera o buffer do canvas
+  return blob;
 }
