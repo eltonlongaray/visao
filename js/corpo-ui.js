@@ -326,6 +326,8 @@ function _blocoPump(r, ant) {
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
+    const bracoAlvo = Math.round(membroAlvo * RP);   // braço ≈ panturrilha (ideal clássico)
+    const peitoAlvo = Math.round(membroAlvo * 0.90); // peito ~90% do ombro (um tico menor)
     const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
       if (atual == null) return;
@@ -335,6 +337,8 @@ function _blocoPump(r, ant) {
     };
     linha('Cintura', r.cintura, cintAlvo, false);
     linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
+    linha('Peitoral', r.peitoral, peitoAlvo, true);
+    linha('Braço', r.braco, bracoAlvo, true);
     if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
