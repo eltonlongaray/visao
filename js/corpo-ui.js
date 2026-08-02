@@ -16,7 +16,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 
 const MEDIDAS = [
   { k: 'peso',        lbl: 'Peso',        un: 'kg' },
-  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm', hint: 'remede sempre (muda com músculo)' },
+  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm' },
   { k: 'ombro',       lbl: 'Ombro',       un: 'cm' },
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
@@ -303,7 +303,7 @@ function _blocoPump(r, ant) {
     if (!isF) add('Glúteo', r.quadril, ant?.quadril, RG);   // homem: glúteo de apoio
     add('Coxa', r.coxa, ant?.coxa, RC);
     add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
-    if (l.length) agora = `<br><small><b>⚖️ Proporção agora</b> <span style="opacity:.65">(c/ o ${membroNome} atual)</span>: ${l.join(' · ')}</small>`;
+    if (l.length) agora = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">⚖️ Proporção agora <span style="opacity:.6;font-weight:600">(c/ o ${membroNome} atual)</span></div><small>${l.join(' · ')}</small>`;
   }
 
   // ── Leitura 2: corpo IDEAL no próximo Pump (cintura saudável + tudo proporcional) ──
@@ -327,7 +327,7 @@ function _blocoPump(r, ant) {
     if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
-    meta = `<br><small><b>🎯 Corpo ideal no Pump Nível ${nivel + 1}</b>:<br>${l.join('<br>')}</small>`;
+    meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Pump Nível ${nivel + 1}</div><small>${l.join('<br>')}</small>`;
   }
   return `<div class="cp-an cp-an-pump">${txt}${ganho}${falta}${agora}${meta}</div>`;
 }

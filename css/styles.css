@@ -578,6 +578,9 @@ html, body {
 .cp-an-pump { background: rgba(167,139,250,0.16); color: var(--text, #e8e8f0); font-size: 13.5px; line-height: 1.62; }
 .cp-an-pump b { color: #cbbdff; }
 .cp-an-pump small { opacity: 0.92; }
+/* Separadores + títulos das leituras (Proporção agora / Corpo ideal) */
+.cp-pump-hr { border-top: 1px solid rgba(255,255,255,0.2); margin: 10px 0 8px; }
+.cp-pump-tit { font-size: 14px; font-weight: 800; margin-bottom: 5px; }
 .cp-an-hint { opacity: 0.85; }
 
 /* Título de seção da análise (Corpo saudável / Corpo acima da média) */
