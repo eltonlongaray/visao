@@ -109,6 +109,18 @@ export async function apagarRegistro(id) {
   if (error) throw new Error(error.message);
 }
 
+// Anexa/troca fotos num registro que já existe (permite tirar as fotos a qualquer
+// momento, sem depender da trava mensal da medição). Só atualiza os lados enviados.
+export async function atualizarFotosRegistro(id, fotos) {
+  const patch = {};
+  if (fotos?.frente !== undefined) patch.foto_frente = fotos.frente;
+  if (fotos?.lado   !== undefined) patch.foto_lado   = fotos.lado;
+  if (fotos?.costas !== undefined) patch.foto_costas = fotos.costas;
+  if (!Object.keys(patch).length) return;
+  const { error } = await supabase.from('corpo_registros').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 5: FOTOS (bucket privado permanente + URLs assinadas)
 // ═══════════════════════════════════════════════════════════════

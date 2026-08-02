@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 import {
   getDadosCorpo, gorduraNavy, carregarRegistros, salvarRegistro,
-  apagarRegistro, subirFotoCorpo, assinarFotos,
+  apagarRegistro, subirFotoCorpo, assinarFotos, atualizarFotosRegistro,
 } from './corpo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 
@@ -119,7 +119,7 @@ function desenhar() {
       const ult = registros.find(r => r.pescoco != null);
       if (ult) novo.medidas.pescoco = ult.pescoco;
     }
-  } else { novo = null; }
+  } else if (!novo) { novo = { medidas: {}, fotos: {} }; }   // travado: mantém p/ anexar fotos
   c.innerHTML = telaPrincipal(pode);
   if (pode) atualizarGordura();
 }
@@ -177,8 +177,23 @@ function _blocoSaude(r) {
   if (r.gordura_pct != null && dados.sexo) {
     const lim = dados.sexo === 'F' ? 28 : 20;
     const ok = r.gordura_pct <= lim;
-    const falta = ok ? '' : ` — falta baixar <b>${_1(r.gordura_pct - lim)}%</b>`;
-    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Gordura <b>${r.gordura_pct}%</b> — ${ok ? 'na faixa saudável' : `ideal até ${lim}%${falta}`}.</div>`;
+    // Quanto em GRAMAS/kg falta perder de gordura pra chegar no ideal, mantendo o
+    // músculo (massa magra fixa) — deixa o "0,8%" concreto.
+    let gramas = '';
+    if (!ok && r.peso) {
+      const magra   = r.peso * (1 - r.gordura_pct / 100);
+      const gordAgora = r.peso - magra;
+      const gordAlvo  = magra * (lim / 100) / (1 - lim / 100);   // gordura no % ideal
+      const perder    = Math.max(0, gordAgora - gordAlvo);
+      const perderTxt = perder >= 1 ? `${_1(perder)} kg` : `${Math.round(perder * 1000)} g`;
+      gramas = ` <span style="opacity:.85">(≈ <b>${perderTxt}</b> de gordura)</span>`;
+    }
+    const falta = ok ? '' : ` — falta baixar <b>${_1(r.gordura_pct - lim)}%</b>${gramas}`;
+    // Só pouco acima do ideal (até 5%): se está em bulk, não é hora de secar.
+    const notaBulk = (!ok && (r.gordura_pct - lim) <= 5)
+      ? `<br><small style="opacity:.82">(Se você está em <b>fase de crescimento muscular</b>, não se preocupe em perder essa gordura agora — só mantenha moderada, fortalecendo o abdômen e fazendo cardio semanalmente sem exageros.)</small>`
+      : '';
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Gordura <b>${r.gordura_pct}%</b> — ${ok ? 'na faixa saudável' : `ideal até ${lim}%${falta}`}.${notaBulk}</div>`;
   }
   if (r.cintura && dados.alturaCm) {
     const razao = r.cintura / dados.alturaCm;
@@ -340,19 +355,26 @@ function formHtml() {
     <div class="cp-secao-tit">Fotos de progresso</div>
     <div class="cp-secao-sub">A cada 3 meses.</div>
     <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
+    ${fotosGridHtml()}
+
+    <button class="cp-salvar" data-salvar>Salvar medição</button>`;
+}
+
+// Grade dos 3 slots de foto (frente/lado/costas) + inputs de câmera/galeria.
+// Usada tanto na nova medição quanto no bloco de "fotos a qualquer momento".
+function fotosGridHtml() {
+  return `
     <div class="cp-fotos">
       ${LADOS.map(l => `
         <button type="button" class="cp-foto-slot" data-foto="${l.k}">
-          ${novo.fotos[l.k]?.previa
+          ${novo?.fotos[l.k]?.previa
             ? `<img src="${esc(novo.fotos[l.k].previa)}" alt="${l.lbl}" />`
             : `<span class="cp-foto-mais">＋</span>`}
           <span class="cp-foto-lbl">${l.lbl}</span>
         </button>`).join('')}
     </div>
     <input type="file" id="cp-foto-cam" accept="image/*" capture="environment" hidden />
-    <input type="file" id="cp-foto-gal" accept="image/*" hidden />
-
-    <button class="cp-salvar" data-salvar>Salvar medição</button>`;
+    <input type="file" id="cp-foto-gal" accept="image/*" hidden />`;
 }
 
 // Avatar: as ilustrações reais (frente + lado), conforme o sexo do perfil.
@@ -368,12 +390,24 @@ function bloqueadoHtml() {
   const dias = diasParaLiberar();
   const ultima = registros.length ? new Date(registros[0].data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : '';
   const d = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  // Fotos NÃO seguem a trava da medição (são a cada 3 meses): dá pra tirar/anexar
+  // a qualquer momento. Anexam na última medição. Se ela ainda não tem foto, avisa.
+  const ult = registros[0];
+  const temFotoUlt = ult && (ult.foto_frente || ult.foto_lado || ult.foto_costas);
+  const fotoSec = ult ? `
+    <div class="cp-secao-tit" style="margin-top:16px">📸 Fotos ${temFotoUlt ? 'da última medição' : '— pendentes'}</div>
+    <div class="cp-secao-sub">${temFotoUlt
+      ? 'Pode trocar/completar quando quiser (não espera a trava da medição).'
+      : 'Você ainda não tirou as fotos — pode adicionar a qualquer momento, sem esperar liberar a medição.'}</div>
+    ${fotosGridHtml()}
+    <button class="cp-salvar" data-salvar-fotos>Salvar fotos</button>` : '';
   return `
     <div class="cp-bloqueado">
       <span class="cp-bloq-ic">⏳</span>
       <span>Você registrou em <b>${ultima}</b>. A próxima medição libera em <b>${d}</b> — 1x por mês pra acompanhar de perto.</span>
     </div>
-    <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>`;
+    <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>
+    ${fotoSec}`;
 }
 
 function historicoHtml() {
@@ -436,6 +470,7 @@ export function ligarComposicao() {
     }
 
     if (e.target.closest('[data-salvar]')) { await salvar(); return; }
+    if (e.target.closest('[data-salvar-fotos]')) { await salvarFotos(); return; }
   });
 
   document.addEventListener('input', (e) => {
@@ -456,6 +491,31 @@ export function ligarComposicao() {
       desenhar();
     } catch (err) { showToast('Não consegui processar essa foto. Tente outra (ou reduza a resolução da câmera).', 'error'); }
   });
+}
+
+// Salva SÓ as fotos, anexando na última medição — sem depender da trava mensal.
+async function salvarFotos() {
+  const ult = registros[0];
+  if (!ult) return;
+  const pend = LADOS.filter(l => novo?.fotos[l.k]?.blob);
+  if (!pend.length) { showToast('Toque num slot pra adicionar uma foto primeiro.', 'info'); return; }
+  const btn = document.querySelector('#cp-inline [data-salvar-fotos]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  try {
+    const fotos = {};
+    for (const l of pend) fotos[l.k] = await subirFotoCorpo(novo.fotos[l.k].blob, l.k);
+    await atualizarFotosRegistro(ult.id, fotos);
+    if (fotos.frente !== undefined) ult.foto_frente = fotos.frente;
+    if (fotos.lado   !== undefined) ult.foto_lado   = fotos.lado;
+    if (fotos.costas !== undefined) ult.foto_costas = fotos.costas;
+    novo = { medidas: {}, fotos: {} };
+    await assinar();
+    desenhar();
+    showToast('📸 Fotos salvas!', 'success');
+  } catch (e) {
+    showToast('Erro ao salvar fotos: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar fotos'; }
+  }
 }
 
 async function apagarUI(id) {
