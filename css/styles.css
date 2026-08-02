@@ -583,16 +583,15 @@ html, body {
 .cp-pump-tit { font-size: 14px; font-weight: 800; margin-bottom: 5px; }
 .cp-pump-escada { font-size: 13px; }
 .cp-pump-escada > div { padding: 2px 0; }
-/* Tabelinha (Proporção atual / Corpo ideal) */
-.cp-tab { width: 100%; border-collapse: collapse; margin-top: 3px; font-size: 13px; }
-.cp-tab th {
-  text-align: center; font-weight: 700; opacity: 0.65; font-size: 11.5px;
-  padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.18);
+/* Tabelinha (Proporção atual / Corpo ideal) — grade COMPLETA (linhas h + v) */
+.cp-tab { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 13px; }
+.cp-tab th, .cp-tab td {
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 6px 7px; text-align: center;
 }
-.cp-tab th:first-child { text-align: left; }
-.cp-tab td { text-align: center; padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.cp-tab td:first-child { text-align: left; font-weight: 600; }
-.cp-tab tr:last-child td { border-bottom: none; }
+.cp-tab th { font-weight: 700; opacity: 0.8; font-size: 11.5px; background: rgba(255,255,255,0.05); }
+.cp-tab th:first-child, .cp-tab td:first-child { text-align: left; }
+.cp-tab td:first-child { font-weight: 600; }
 .cp-an-hint { opacity: 0.85; }
 
 /* Título de seção da análise (Corpo saudável / Corpo acima da média) */
