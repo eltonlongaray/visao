@@ -9,6 +9,7 @@ import {
   apagarRegistro, subirFotoCorpo, assinarFotos,
 } from './corpo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
+import { getProfile } from './banco-dados.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -36,6 +37,7 @@ const LADOS = [
 ];
 
 let dados = { sexo: null, alturaCm: null, pesoKg: null };
+let ehAdmin = false;   // admin ignora a trava de 30 dias (pra testar à vontade)
 let registros = [];
 let urls = new Map();       // path -> signed url
 let novo = null;            // { medidas:{}, fotos:{frente,lado,costas} }
@@ -71,6 +73,7 @@ export async function montarComposicao() {
   c.innerHTML = `<div class="cp-carregando">Carregando…</div>`;
   try {
     dados = await getDadosCorpo();
+    try { ehAdmin = !!(await getProfile())?.isAdmin; } catch {}
     registros = await carregarRegistros();
     await assinar();
     carregado = true;
@@ -85,6 +88,7 @@ export async function montarComposicao() {
 // trimestral) pra pegar mudança cedo e dar dica antes de sair do controle.
 const DIAS_TRAVA = 30;
 function podeNovaMedicao() {
+  if (ehAdmin) return true;   // admin sem trava (testes)
   if (!registros.length) return true;
   const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
   return Math.floor((Date.now() - ultima) / 86400000) >= DIAS_TRAVA;

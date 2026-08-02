@@ -567,15 +567,15 @@ html, body {
 /* Análise: bloco com o resumo (músculo×gordura, saúde, pump) */
 .cp-analise { margin-bottom: 14px; }
 .cp-analise-tit { font-size: 14px; font-weight: 800; color: var(--text); margin: 2px 2px 8px; }
-.cp-an { font-size: 12.5px; line-height: 1.5; border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; }
+.cp-an { font-size: 13.5px; line-height: 1.58; border-radius: 10px; padding: 10px 13px; margin-bottom: 6px; }
 .cp-an b { color: var(--text); }
-.cp-an small { opacity: 0.85; }
+.cp-an small { opacity: 0.88; font-size: 0.94em; }
 .cp-an-bom { background: rgba(52,211,153,0.14); color: var(--green); }
 .cp-an-alerta { background: rgba(245,158,11,0.14); color: var(--orange); }
 .cp-an-neutro { background: var(--card-2); color: var(--muted); }
 /* Pump: texto CLARO (era roxo sobre fundo roxo = ilegível). Só o destaque em
    lavanda, fonte um tico maior e mais respiro entre linhas. */
-.cp-an-pump { background: rgba(167,139,250,0.16); color: var(--text, #e8e8f0); font-size: 13px; line-height: 1.6; }
+.cp-an-pump { background: rgba(167,139,250,0.16); color: var(--text, #e8e8f0); font-size: 13.5px; line-height: 1.62; }
 .cp-an-pump b { color: #cbbdff; }
 .cp-an-pump small { opacity: 0.92; }
 .cp-an-hint { opacity: 0.85; }
