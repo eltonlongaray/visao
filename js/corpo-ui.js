@@ -223,7 +223,7 @@ function _blocoPump(r, ant) {
   if (acima) txt = `🏆 <b>Nível fisiculturismo</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump Nível 1 = ${_1(niveis[0])})</small>`;
   else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
-  txt += ` <small style="opacity:.55">— silhueta (formato)</small>`;
+  txt += ` <small style="opacity:.55">— ${isF ? 'a curva (silhueta)' : 'o V (formato do tronco)'}</small>`;
 
   // Ganho real de músculo: variação do membro-âncora (glúteo/ombro) desde a 1ª
   // medição, com a cintura do mesmo período ao lado — assim dá pra separar músculo
@@ -325,9 +325,9 @@ function analiseHtml() {
 // BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
 function formHtml() {
-  const roupa = dados.sexo === 'F' ? 'Fique de <b>top e short</b>'
+  const roupa = dados.sexo === 'F' ? 'Fique <b>sem camisa e sem sutiã</b>, com uma <b>fita em X</b> (esparadrapo) sobre os mamilos, e de <b>calcinha/short</b> — o top esconde as dobrinhas e atrapalha a comparação'
     : dados.sexo === 'M' ? 'Fique <b>sem camisa e de calção curto</b>'
-    : 'Homens <b>sem camisa e de calção</b>, mulheres de <b>top e short</b>';
+    : 'Homens <b>sem camisa e de calção</b>; mulheres <b>sem camisa/sutiã</b> com fita em X no mamilo e calcinha (o top esconde as dobrinhas)';
   // Pescoço: some depois de preenchido, a não ser que a pessoa esteja bem acima
   // do peso (IMC ≥ 30) — aí o pescoço muda com a perda e vale remedir.
   const h = (Number(dados.alturaCm) || 0) / 100;
