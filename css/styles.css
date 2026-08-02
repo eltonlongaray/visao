@@ -650,6 +650,43 @@ html, body {
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 800; font-family: inherit;
 }
 .cp-salvar:disabled { background: var(--card-2); color: var(--muted); cursor: default; border: 1px solid var(--border); }
+
+/* ── Câmera com molde (guia de enquadramento) ── */
+.cam-guia-ov { position: fixed; inset: 0; z-index: 100000; background: #000; overflow: hidden; }
+.cam-guia-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cam-guia-molde {
+  position: absolute; top: 7%; left: 50%; transform: translateX(-50%);
+  height: 78%; opacity: 0.32; pointer-events: none;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.7));
+}
+.cam-guia-cintura {
+  position: absolute; left: 10%; right: 10%; top: 51%;
+  border-top: 2px dashed rgba(255,255,255,0.55); pointer-events: none;
+}
+.cam-guia-msg {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+  background: rgba(0,0,0,0.55); color: #fff; text-align: center;
+  font-size: 12px; line-height: 1.45; padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+}
+.cam-guia-barra {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 26px calc(20px + env(safe-area-inset-bottom));
+}
+.cam-guia-btn {
+  background: rgba(255,255,255,0.16); color: #fff; border: none;
+  border-radius: 20px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.cam-guia-flip {
+  background: rgba(255,255,255,0.16); color: #fff; border: none;
+  border-radius: 50%; width: 46px; height: 46px; font-size: 18px; cursor: pointer;
+}
+.cam-guia-shot {
+  width: 68px; height: 68px; border-radius: 50%; padding: 0; cursor: pointer;
+  background: #fff; border: 4px solid rgba(255,255,255,0.5);
+  transition: transform 0.1s;
+}
+.cam-guia-shot:active { transform: scale(0.93); }
 /* escolha câmera x galeria (folha no rodapé) */
 .cp-escolha-ov { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,0.5);
   display: flex; align-items: flex-end; justify-content: center; padding: 14px; }

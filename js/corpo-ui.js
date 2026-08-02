@@ -325,9 +325,9 @@ function analiseHtml() {
 // BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
 function formHtml() {
-  const roupa = dados.sexo === 'F' ? 'Fique <b>sem camisa e sem sutiã</b>, com uma <b>fita em X</b> (esparadrapo) sobre os mamilos, e de <b>calcinha/short</b> — o top esconde as dobrinhas e atrapalha a comparação'
-    : dados.sexo === 'M' ? 'Fique <b>sem camisa e de calção curto</b>'
-    : 'Homens <b>sem camisa e de calção</b>; mulheres <b>sem camisa/sutiã</b> com fita em X no mamilo e calcinha (o top esconde as dobrinhas)';
+  const roupa = dados.sexo === 'F' ? 'Fique de <b>calcinha</b> e, em cima, <b>sem sutiã com uma fita em X</b> (esparadrapo) no mamilo <b>ou um biquíni bem justo</b> que não esconda o contorno — o top/roupa larga esconde as dobrinhas e atrapalha comparar'
+    : dados.sexo === 'M' ? 'Fique só de <b>cueca ou sunga</b> (nada de bermuda larga — atrapalha ver o contorno)'
+    : 'Homens só de <b>cueca/sunga</b>; mulheres de calcinha + fita em X no mamilo ou biquíni justo (roupa larga esconde as dobrinhas)';
   // Pescoço: some depois de preenchido, a não ser que a pessoa esteja bem acima
   // do peso (IMC ≥ 30) — aí o pescoço muda com a perda e vale remedir.
   const h = (Number(dados.alturaCm) || 0) / 100;
@@ -464,8 +464,10 @@ export function ligarComposicao() {
     if (slot) {
       ladoAtivo = slot.dataset.foto;
       const op = await escolherFoto();
-      if (op === 'camera') document.getElementById('cp-foto-cam')?.click();
-      else if (op === 'galeria') document.getElementById('cp-foto-gal')?.click();
+      if (op === 'camera') {
+        const blob = await abrirCameraGuia(ladoAtivo);   // câmera com molde (já sai reduzida)
+        if (blob) { novo.fotos[ladoAtivo] = { blob, previa: URL.createObjectURL(blob) }; desenhar(); }
+      } else if (op === 'galeria') document.getElementById('cp-foto-gal')?.click();
       return;
     }
 
@@ -569,6 +571,71 @@ function escolherFoto() {
       const b = e.target.closest('[data-op]');
       if (b) fim(b.dataset.op || null);
     });
+  });
+}
+
+// Câmera com MOLDE: vídeo ao vivo + silhueta-guia (avatar) + linha da cintura. A
+// pessoa encaixa o corpo no molde → enquadramento igual todo mês (base do
+// comparativo). Resolve com um blob JÁ reduzido (~1080px) ou null (cancelou).
+function abrirCameraGuia(lado) {
+  return new Promise((resolve) => {
+    const sexoDir = dados.sexo === 'F' ? 'mulher' : 'homem';
+    const guiaImg = lado === 'lado' ? `${sexoDir}-lado.png` : `${sexoDir}-frente.png`;
+    const ov = document.createElement('div');
+    ov.className = 'cam-guia-ov';
+    ov.innerHTML = `
+      <div class="cam-guia-msg">💡 Pra <b>precisão maior</b>: fotos e medidas <b>em jejum, antes do café</b>. Encaixe seu corpo no molde e mantenha a mesma distância todo mês.</div>
+      <video class="cam-guia-video" autoplay playsinline muted></video>
+      <img class="cam-guia-molde" src="img/corpo/${guiaImg}" alt="molde" />
+      <div class="cam-guia-cintura"></div>
+      <div class="cam-guia-barra">
+        <button type="button" class="cam-guia-btn" data-cam="cancel">Cancelar</button>
+        <button type="button" class="cam-guia-shot" data-cam="shot" aria-label="Tirar foto"></button>
+        <button type="button" class="cam-guia-flip" data-cam="flip" title="Virar câmera">🔄</button>
+      </div>`;
+    document.body.appendChild(ov);
+    const video = ov.querySelector('video');
+    let stream = null, facing = 'user';   // 'user' = frontal (mira no espelho); 🔄 troca
+
+    async function start() {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 1080 }, height: { ideal: 1440 } }, audio: false,
+        });
+        video.srcObject = stream;
+        video.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';   // espelho natural na frontal
+      } catch (e) {
+        showToast('Não consegui abrir a câmera. Use a galeria.', 'error');
+        fim(null);
+      }
+    }
+    function fim(v) {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      ov.remove();
+      resolve(v);
+    }
+    ov.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-cam]'); if (!b) return;
+      const act = b.dataset.cam;
+      if (act === 'cancel') return fim(null);
+      if (act === 'flip')   { facing = facing === 'user' ? 'environment' : 'user'; return start(); }
+      if (act === 'shot') {
+        if (!video.videoWidth) return;
+        const max = 1080;
+        const escala = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(video.videoWidth * escala);
+        cv.height = Math.round(video.videoHeight * escala);
+        const ctx = cv.getContext('2d');
+        if (facing === 'user') { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }   // captura bate com o preview
+        ctx.drawImage(video, 0, 0, cv.width, cv.height);
+        const blob = await new Promise(r => cv.toBlob(b2 => r(b2), 'image/jpeg', 0.82));
+        cv.width = 0; cv.height = 0;
+        fim(blob);
+      }
+    });
+    start();
   });
 }
 
