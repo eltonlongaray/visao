@@ -323,7 +323,7 @@ function analiseHtml() {
   const pump  = _blocoPump(r, ant);
   let blocos = comp;
   if (saude.trim()) blocos += `<div class="cp-secao-analise">🩺 Para ter um corpo saudável</div>${saude}`;
-  if (pump.trim())  blocos += `<div class="cp-secao-analise">🏆 Para um corpo acima da média</div>${pump}`;
+  if (pump.trim())  blocos += `<div class="cp-secao-analise">🏆 Para um corpo acima da média</div><div class="cp-secao-analise-sub">Baseado na <b>proporção áurea</b> — o shape "estátua grega".</div>${pump}`;
   if (!blocos.trim()) return '';
   return `<div class="cp-analise"><div class="cp-analise-tit">📊 Sua análise</div>${blocos}</div>`;
 }
