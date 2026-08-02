@@ -573,9 +573,18 @@ html, body {
 .cp-an-bom { background: rgba(52,211,153,0.14); color: var(--green); }
 .cp-an-alerta { background: rgba(245,158,11,0.14); color: var(--orange); }
 .cp-an-neutro { background: var(--card-2); color: var(--muted); }
-.cp-an-pump { background: rgba(167,139,250,0.16); color: var(--accent); }
-.cp-an-pump b { color: var(--accent); }
+/* Pump: texto CLARO (era roxo sobre fundo roxo = ilegível). Só o destaque em
+   lavanda, fonte um tico maior e mais respiro entre linhas. */
+.cp-an-pump { background: rgba(167,139,250,0.16); color: var(--text, #e8e8f0); font-size: 13px; line-height: 1.6; }
+.cp-an-pump b { color: #cbbdff; }
+.cp-an-pump small { opacity: 0.92; }
 .cp-an-hint { opacity: 0.85; }
+
+/* Título de seção da análise (Corpo saudável / Corpo acima da média) */
+.cp-secao-analise {
+  font-size: 13.5px; font-weight: 800; color: var(--text);
+  margin: 14px 2px 7px; display: flex; align-items: center; gap: 6px;
+}
 
 /* Evolução da composição no Desempenho */
 .ce-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 16px; }

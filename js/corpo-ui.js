@@ -316,7 +316,14 @@ function _blocoPump(r, ant) {
 function analiseHtml() {
   if (!registros.length) return '';
   const r = registros[0], ant = registros[1];
-  const blocos = _blocoMusculo(r, ant) + _blocoSaude(r) + _blocoPump(r, ant);
+  // Composição = neutra (fica no topo). Depois DUAS seções separadas:
+  // SAÚDE (gordura + cintura) e ESTÉTICA / acima da média (os Pumps).
+  const comp  = _blocoMusculo(r, ant);
+  const saude = _blocoSaude(r);
+  const pump  = _blocoPump(r, ant);
+  let blocos = comp;
+  if (saude.trim()) blocos += `<div class="cp-secao-analise">🩺 Para ter um corpo saudável</div>${saude}`;
+  if (pump.trim())  blocos += `<div class="cp-secao-analise">🏆 Para um corpo acima da média</div>${pump}`;
   if (!blocos.trim()) return '';
   return `<div class="cp-analise"><div class="cp-analise-tit">📊 Sua análise</div>${blocos}</div>`;
 }
