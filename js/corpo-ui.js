@@ -16,7 +16,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 
 const MEDIDAS = [
   { k: 'peso',        lbl: 'Peso',        un: 'kg' },
-  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm' },
+  { k: 'pescoco',     lbl: 'Pescoço',     un: 'cm', hint: 'remede sempre (muda com músculo)' },
   { k: 'ombro',       lbl: 'Ombro',       un: 'cm' },
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
@@ -354,12 +354,10 @@ function formHtml() {
   const roupa = dados.sexo === 'F' ? 'Fique de <b>calcinha</b> e, em cima, <b>sem sutiã com uma fita em X</b> (esparadrapo) no mamilo <b>ou um biquíni bem justo</b> que não esconda o contorno — o top/roupa larga esconde as dobrinhas e atrapalha comparar'
     : dados.sexo === 'M' ? 'Fique só de <b>cueca ou sunga</b> (nada de bermuda larga — atrapalha ver o contorno)'
     : 'Homens só de <b>cueca/sunga</b>; mulheres de calcinha + fita em X no mamilo ou biquíni justo (roupa larga esconde as dobrinhas)';
-  // Pescoço: some depois de preenchido, a não ser que a pessoa esteja bem acima
-  // do peso (IMC ≥ 30) — aí o pescoço muda com a perda e vale remedir.
-  const h = (Number(dados.alturaCm) || 0) / 100;
-  const imc = (Number(dados.pesoKg) && h) ? Number(dados.pesoKg) / (h * h) : 0;
-  const acimaPeso = imc >= 30;
-  const medidasVis = MEDIDAS.filter(m => !(m.k === 'pescoco' && novo.medidas.pescoco != null && !acimaPeso));
+  // Pescoço: SEMPRE pedir. Ele entra na fórmula (cintura − pescoço) e muda por
+  // MÚSCULO também (nadador/trapézio), não só por gordura — reaproveitar o valor
+  // antigo distorcia o % de gordura. Vem pré-preenchido com o último como sugestão.
+  const medidasVis = MEDIDAS;
   return `
     <div class="cp-form-corpo">
       <div class="cp-medidas">
