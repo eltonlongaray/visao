@@ -238,6 +238,15 @@ function _blocoPump(r, ant) {
   else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   txt += ` <small style="opacity:.55">— ${isF ? 'a curva (silhueta)' : 'o V (formato do tronco)'}</small>`;
 
+  // Escada dos 3 níveis: ✅ alcançado · 🎯 próximo · cinza = futuro.
+  const escada = niveis.map((n, i) => {
+    const nome = `Nível ${i + 1}${i === 2 ? ' (áurea)' : ''}`;
+    if (ratio >= n)  return `✅ ${nome} <span style="opacity:.6">${_1(n)}</span>`;
+    if (i === nivel) return `🎯 <b>${nome}</b> <span style="opacity:.6">${_1(n)}</span>`;
+    return `<span style="opacity:.5">${nome} ${_1(n)}</span>`;
+  }).join(' · ');
+  const escadaHtml = `<br><small><b>Escada:</b> ${escada}</small>`;
+
   // Ganho real de músculo: variação do membro-âncora (glúteo/ombro) desde a 1ª
   // medição, com a cintura do mesmo período ao lado — assim dá pra separar músculo
   // de gordura. A fita não separa osso de músculo num retrato só; o movimento no
@@ -329,7 +338,7 @@ function _blocoPump(r, ant) {
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
     meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Pump Nível ${nivel + 1}</div><small>${l.join('<br>')}</small>`;
   }
-  return `<div class="cp-an cp-an-pump">${txt}${ganho}${falta}${agora}${meta}</div>`;
+  return `<div class="cp-an cp-an-pump">${txt}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
 }
 
 function analiseHtml() {
