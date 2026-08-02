@@ -284,6 +284,9 @@ function _blocoPump(r, ant) {
   // Proporções das pernas em relação ao membro-âncora (glúteo/ombro).
   const RC = isF ? 0.60 : 0.50;   // coxa como fração do glúteo (F) / ombro (M)
   const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
+  const RG = 0.85;                // glúteo do HOMEM como fração do ombro (músculo de
+                                  // apoio; mantém o V, quadril < ombro). Mulher já tem
+                                  // o glúteo como âncora, não repete aqui.
 
   // ── Leitura 1: proporção AGORA (pernas ancoradas no membro atual) ──
   let agora = '';
@@ -297,6 +300,7 @@ function _blocoPump(r, ant) {
       const st = d > 1 ? `<b>faltam ${_1(d)} cm</b>` : '✓';
       l.push(`${nome} ${val} cm${evo} → alvo ~${alvo} cm ${st}`);
     };
+    if (!isF) add('Glúteo', r.quadril, ant?.quadril, RG);   // homem: glúteo de apoio
     add('Coxa', r.coxa, ant?.coxa, RC);
     add('Panturrilha', r.panturrilha, ant?.panturrilha, RP);
     if (l.length) agora = `<br><small><b>⚖️ Proporção agora</b> <span style="opacity:.65">(c/ o ${membroNome} atual)</span>: ${l.join(' · ')}</small>`;
@@ -310,6 +314,7 @@ function _blocoPump(r, ant) {
     const membroAlvo = Math.round(cintAlvo * metaRatio);
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
+    const gluteoAlvo = Math.round(membroAlvo * RG);
     const l = [];
     const linha = (nome, atual, alvo, cresce) => {
       if (atual == null) return;
@@ -319,6 +324,7 @@ function _blocoPump(r, ant) {
     };
     linha('Cintura', r.cintura, cintAlvo, false);
     linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
+    if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
     meta = `<br><small><b>🎯 Corpo ideal no Pump Nível ${nivel + 1}</b>:<br>${l.join('<br>')}</small>`;
