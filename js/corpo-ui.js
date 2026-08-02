@@ -598,20 +598,19 @@ function abrirCameraGuia(lado) {
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-cam="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot" data-cam="shot" aria-label="Tirar foto"></button>
-        <button type="button" class="cam-guia-flip" data-cam="flip" title="Virar câmera">🔄</button>
+        <span class="cam-guia-espaco"></span>
       </div>`;
     document.body.appendChild(ov);
     const video = ov.querySelector('video');
-    let stream = null, facing = 'user';   // 'user' = frontal (mira no espelho); 🔄 troca
+    let stream = null;   // sempre câmera TRASEIRA (frontal distorce e afasta) — sem virar
 
     async function start() {
       if (stream) stream.getTracks().forEach(t => t.stop());
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 1080 }, height: { ideal: 1440 } }, audio: false,
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1080 }, height: { ideal: 1440 } }, audio: false,
         });
         video.srcObject = stream;
-        video.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';   // espelho natural na frontal
       } catch (e) {
         showToast('Não consegui abrir a câmera. Use a galeria.', 'error');
         fim(null);
@@ -626,7 +625,6 @@ function abrirCameraGuia(lado) {
       const b = e.target.closest('[data-cam]'); if (!b) return;
       const act = b.dataset.cam;
       if (act === 'cancel') return fim(null);
-      if (act === 'flip')   { facing = facing === 'user' ? 'environment' : 'user'; return start(); }
       if (act === 'shot') {
         if (!video.videoWidth) return;
         const max = 1080;
@@ -634,9 +632,7 @@ function abrirCameraGuia(lado) {
         const cv = document.createElement('canvas');
         cv.width = Math.round(video.videoWidth * escala);
         cv.height = Math.round(video.videoHeight * escala);
-        const ctx = cv.getContext('2d');
-        if (facing === 'user') { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }   // captura bate com o preview
-        ctx.drawImage(video, 0, 0, cv.width, cv.height);
+        cv.getContext('2d').drawImage(video, 0, 0, cv.width, cv.height);
         const blob = await new Promise(r => cv.toBlob(b2 => r(b2), 'image/jpeg', 0.82));
         cv.width = 0; cv.height = 0;
         fim(blob);

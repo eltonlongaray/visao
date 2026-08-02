@@ -666,14 +666,15 @@ html, body {
 .cam-guia-ov { position: fixed; inset: 0; z-index: 100000; background: #000; overflow: hidden; }
 .cam-guia-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cam-guia-molde {
-  position: absolute; top: 7%; left: 50%; transform: translateX(-50%);
-  height: 78%; opacity: 0.32; pointer-events: none;
-  filter: drop-shadow(0 0 2px rgba(255,255,255,0.7));
+  position: absolute; top: 4%; left: 50%; transform: translateX(-50%);
+  height: 92%; opacity: 0.34; pointer-events: none;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.75));
 }
 .cam-guia-cintura {
-  position: absolute; left: 10%; right: 10%; top: 51%;
+  position: absolute; left: 8%; right: 8%; top: 55%;
   border-top: 2px dashed rgba(255,255,255,0.55); pointer-events: none;
 }
+.cam-guia-espaco { width: 92px; }   /* equilibra o botão Cancelar (obturador central) */
 .cam-guia-msg {
   position: absolute; top: 0; left: 0; right: 0; z-index: 2;
   background: rgba(0,0,0,0.55); color: #fff; text-align: center;
