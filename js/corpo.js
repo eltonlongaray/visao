@@ -79,25 +79,26 @@ export async function salvarDadosCorpo({ sexo, alturaCm, pesoKg }) {
 // ═══════════════════════════════════════════════════════════════
 const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha'];
 
+const _SEL = 'id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, fotos';
+
 export async function carregarRegistros() {
   const { data, error } = await supabase
     .from('corpo_registros')
-    .select('id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
+    .select(_SEL)
     .order('data', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-// Salva uma medição. `medidas` = { peso, pescoco, ... }, `fotos` = { frente, lado, costas }
-// (paths já subidos). gorduraPct calculado no cliente.
+// Salva uma medição. `medidas` = { peso, pescoco, ... }, `fotos` = objeto com as 6
+// fotos { frente_cima, lado_cima, costas_cima, frente_baixo, lado_baixo, costas_baixo }
+// (paths já subidos), guardado na coluna jsonb `fotos`. gorduraPct calculado no cliente.
 export async function salvarRegistro({ medidas, gorduraPct, fotos, data }) {
-  const linha = { user_id: _uid(), data: data || undefined, gordura_pct: gorduraPct ?? null,
-    foto_frente: fotos?.frente || null, foto_lado: fotos?.lado || null, foto_costas: fotos?.costas || null };
+  const limpo = fotos && Object.keys(fotos).length ? fotos : null;
+  const linha = { user_id: _uid(), data: data || undefined, gordura_pct: gorduraPct ?? null, fotos: limpo };
   for (const c of CAMPOS) linha[c] = _num(medidas?.[c]);
   const { data: row, error } = await supabase
-    .from('corpo_registros').insert(linha)
-    .select('id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, foto_frente, foto_lado, foto_costas')
-    .single();
+    .from('corpo_registros').insert(linha).select(_SEL).single();
   if (error) throw new Error(error.message);
   // peso mais recente vira o peso do perfil (pra meta de água acompanhar)
   if (_num(medidas?.peso)) { try { await setProfile({ pesoKg: _num(medidas.peso) }); } catch {} }
@@ -109,15 +110,10 @@ export async function apagarRegistro(id) {
   if (error) throw new Error(error.message);
 }
 
-// Anexa/troca fotos num registro que já existe (permite tirar as fotos a qualquer
-// momento, sem depender da trava mensal da medição). Só atualiza os lados enviados.
+// Substitui o conjunto de fotos de um registro (jsonb). Reservado; o fluxo normal
+// agora salva as 6 de uma vez junto com a medição.
 export async function atualizarFotosRegistro(id, fotos) {
-  const patch = {};
-  if (fotos?.frente !== undefined) patch.foto_frente = fotos.frente;
-  if (fotos?.lado   !== undefined) patch.foto_lado   = fotos.lado;
-  if (fotos?.costas !== undefined) patch.foto_costas = fotos.costas;
-  if (!Object.keys(patch).length) return;
-  const { error } = await supabase.from('corpo_registros').update(patch).eq('id', id);
+  const { error } = await supabase.from('corpo_registros').update({ fotos: fotos || null }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 

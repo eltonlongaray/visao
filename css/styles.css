@@ -674,6 +674,12 @@ html, body {
   position: absolute; left: 8%; right: 8%; top: 55%;
   border-top: 2px dashed rgba(255,255,255,0.55); pointer-events: none;
 }
+/* Enquadra o molde: CIMA = tronco (cabeça→quadril) grande, pernas cortadas
+   embaixo; BAIXO = quadril→pés grande, tronco cortado em cima. */
+.cam-guia-molde.cam-crop-cima  { height: 168%; top: 2%; bottom: auto; }
+.cam-guia-molde.cam-crop-baixo { height: 168%; top: auto; bottom: 2%; }
+.cam-guia-cintura.cam-crop-cima  { top: 84%; }   /* cintura perto do rodapé */
+.cam-guia-cintura.cam-crop-baixo { top: 13%; }   /* cintura perto do topo */
 .cam-guia-espaco { width: 92px; }   /* equilibra o botão Cancelar (obturador central) */
 .cam-guia-msg {
   position: absolute; top: 0; left: 0; right: 0; z-index: 2;
