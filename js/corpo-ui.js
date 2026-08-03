@@ -344,7 +344,8 @@ function _blocoPump(r, ant) {
     if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
-    meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal para subir no Pump Nível ${nivel + 1}</div>`
+    meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Nível ${nivel + 1}</div>`
+      + `<div class="cp-pump-sub"><b>Ombro e cintura</b> fecham o nível (o V). Peito, braço, glúteo e pernas são <b>harmonia</b> — meta de longo prazo, não exigência pra subir.</div>`
       + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Ajuste</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
   return `<div class="cp-an cp-an-pump">${txt}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
