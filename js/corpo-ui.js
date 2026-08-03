@@ -314,7 +314,7 @@ function _blocoPump(r, ant) {
     add('Coxa', r.coxa, RC);
     add('Panturrilha', r.panturrilha, RP);
     if (rows.length) agora = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">⚖️ Proporção atual do seu corpo</div>`
-      + `<div class="cp-pump-sub">(comparada com o ${membroNome}, pro formato em "${isF ? 'ampulheta' : 'V'}")</div>`
+      + `<div class="cp-pump-sub">(c/ o ${membroNome}, pro formato em "${isF ? 'ampulheta' : 'V'}")</div>`
       + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Falta</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
 
