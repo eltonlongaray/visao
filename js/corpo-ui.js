@@ -328,8 +328,8 @@ function _blocoPump(r, ant) {
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
     const bracoAlvo = Math.round(membroAlvo * 0.30); // braço ~30% do ombro (natural, sem exagero)
-    const peitoAlvo = Math.round(membroAlvo * 0.80); // peito ~80% do ombro (a medida pega peito+costas,
-                                                     // já nasce grande — não precisa crescer muito)
+    const peitoAlvo = Math.round(membroAlvo * 0.79); // peito ~79% do ombro (a medida pega peito+costas,
+                                                     // já nasce grande — alvo realista de natural)
     const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
       if (atual == null) return;
