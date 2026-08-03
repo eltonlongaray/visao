@@ -223,24 +223,28 @@ function _blocoPump(r, ant) {
   const isF = dados.sexo === 'F';
   let ratio, membro, membroNome, niveis;
   if (isF) {
+    // Glúteo ÷ cintura — ladder feminino sobe até o palco (bikini/wellness).
+    // A mulher carrega mais quadril que o homem, então os níveis são mais altos.
     if (!r.quadril || !r.cintura) return '';
-    membro = r.quadril; membroNome = 'glúteo'; ratio = r.quadril / r.cintura; niveis = [1.3, 1.4, 1.5];
+    membro = r.quadril; membroNome = 'glúteo'; ratio = r.quadril / r.cintura; niveis = [1.4, 1.5, 1.6];
   } else {
     if (!r.ombro || !r.cintura) return '';
-    membro = r.ombro; membroNome = 'ombro'; ratio = r.ombro / r.cintura; niveis = [1.4, 1.5, 1.618];
+    membro = r.ombro; membroNome = 'ombro'; ratio = r.ombro / r.cintura; niveis = [1.33, 1.45, 1.618];
   }
+  const topoNome = isF ? 'palco' : 'áurea';                 // rótulo do 3º nível por sexo
+  const topoLabel = isF ? 'palco (categoria feminina)' : 'fisiculturismo';
   const rotulo = `${membroNome.charAt(0).toUpperCase() + membroNome.slice(1)} ÷ cintura`;
   let nivel = 0; niveis.forEach((n, i) => { if (ratio >= n) nivel = i + 1; });
   const acima = ratio >= niveis[2];
   let txt;
-  if (acima) txt = `🏆 <b>Nível fisiculturismo</b> · ${rotulo} = ${ratio.toFixed(2)}`;
+  if (acima) txt = `🏆 <b>Nível ${topoLabel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   else if (nivel === 0) txt = `Shape em construção · ${rotulo} = ${ratio.toFixed(2)} <small>(Pump Nível 1 = ${_1(niveis[0])})</small>`;
   else txt = `🏆 <b>Pump Nível ${nivel}</b> · ${rotulo} = ${ratio.toFixed(2)}`;
   txt += ` <small style="opacity:.55">— ${isF ? 'a curva (silhueta)' : 'o V (formato do tronco)'}</small>`;
 
   // Escada dos 3 níveis, um abaixo do outro: ✅ alcançado · 🎯 próximo · a caminho.
   const escadaLinhas = niveis.map((n, i) => {
-    const nome = `Nível ${i + 1}${i === 2 ? ' (áurea)' : ''}`;
+    const nome = `Nível ${i + 1}${i === 2 ? ` (${topoNome})` : ''}`;
     let st;
     if (ratio >= n)       st = '✅ alcançado';
     else if (i === nivel) st = '🎯 <b>próximo</b>';
@@ -248,6 +252,18 @@ function _blocoPump(r, ant) {
     return `<div>${nome} <span style="opacity:.6">(${_1(n)})</span>: ${st}</div>`;
   }).join('');
   const escadaHtml = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">Escada dos níveis</div><div class="cp-pump-escada">${escadaLinhas}</div>`;
+
+  // Barra de progresso até o PRÓXIMO nível — cada cm conta, mesmo sem "subir".
+  let progHtml;
+  if (acima) {
+    progHtml = `<div class="cp-pump-prog-lbl">🏆 <b>Nível máximo (${topoNome})</b> atingido!</div>`;
+  } else {
+    const nextT = niveis[nivel];
+    const prevT = nivel > 0 ? niveis[nivel - 1] : niveis[0] - (niveis[1] - niveis[0]);
+    const pct = Math.max(0, Math.min(100, Math.round((ratio - prevT) / (nextT - prevT) * 100)));
+    progHtml = `<div class="cp-pump-prog-lbl"><b>${pct}%</b> até o Nível ${nivel + 1} <span style="opacity:.6">(${_1(nextT)})</span></div>`
+      + `<div class="cp-pump-prog"><div class="cp-pump-prog-bar" style="width:${pct}%"></div></div>`;
+  }
 
   // Ganho real de músculo: variação do membro-âncora (glúteo/ombro) desde a 1ª
   // medição, com a cintura do mesmo período ao lado — assim dá pra separar músculo
@@ -292,12 +308,34 @@ function _blocoPump(r, ant) {
     const dCintMix = r.cintura - membroMix / prox;
     falta = `<br><small>Pro <b>Pump Nível ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} cm de ${membroNome} e −${_1(dCintMix)} cm de cintura).</small>`;
   }
-  // Proporções das pernas em relação ao membro-âncora (glúteo/ombro).
+  // Proporções em relação ao membro-âncora (glúteo/ombro).
   const RC = isF ? 0.60 : 0.48;   // coxa como fração do glúteo (F) / ombro (M)
   const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
   const RG = 0.85;                // glúteo do HOMEM como fração do ombro (músculo de
                                   // apoio; mantém o V, quadril < ombro). Mulher já tem
                                   // o glúteo como âncora, não repete aqui.
+  const RB = 0.30;                // braço ~30% do ombro (homem, natural sem exagero)
+  const RPe = 0.77;               // peitoral ~77% do ombro (pega peito+costas, já nasce grande)
+
+  // ── Excelência do nível ATUAL: o V do nível já fechou, mas a harmonia (outros
+  // músculos) ainda pode faltar. O nível é a silhueta; isto é o polimento do nível. ──
+  let excelencia = '';
+  if (!acima && nivel >= 1) {
+    const faltas = [];
+    const chk = (nome, val, ratio) => {
+      if (!val) return;
+      const d = Math.round(membro * ratio) - val;
+      if (d > 1) faltas.push(`+${_1(d)} cm de ${nome}`);
+    };
+    if (!isF) { chk('peito', r.peitoral, RPe); chk('braço', r.braco, RB); chk('glúteo', r.quadril, RG); }
+    chk('coxa', r.coxa, RC);
+    chk('panturrilha', r.panturrilha, RP);
+    if (faltas.length) {
+      excelencia = `<br><small>✅ Você fechou o <b>V do Nível ${nivel}</b>! Pra a <b>excelência completa</b> do nível (harmonia dos outros músculos), ainda falta: ${faltas.join(', ')}. <span style="opacity:.7">Isso é polimento — não trava sua subida de nível.</span></small>`;
+    } else {
+      excelencia = `<br><small>🏆 Você fechou o <b>V do Nível ${nivel}</b> <b>e</b> toda a harmonia dele — excelência completa nesse nível!</small>`;
+    }
+  }
 
   // ── Leitura 1: proporção ATUAL (pernas ancoradas no membro atual) — tabelinha ──
   let agora = '';
@@ -310,7 +348,7 @@ function _blocoPump(r, ant) {
       const acao = d > 1 ? `<b>+${_1(d)} cm</b>` : '✓';
       rows.push(`<tr><td>${nome}</td><td>${val} cm</td><td>${alvo} cm</td><td>${acao}</td></tr>`);
     };
-    if (!isF) add('Glúteo', r.quadril, RG);   // homem: glúteo de apoio
+    if (!isF) { add('Peitoral', r.peitoral, RPe); add('Braço', r.braco, RB); add('Glúteo', r.quadril, RG); }
     add('Coxa', r.coxa, RC);
     add('Panturrilha', r.panturrilha, RP);
     if (rows.length) agora = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">⚖️ Proporção atual do seu corpo</div>`
@@ -327,8 +365,8 @@ function _blocoPump(r, ant) {
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
-    const bracoAlvo = Math.round(membroAlvo * 0.30); // braço ~30% do ombro (natural, sem exagero)
-    const peitoAlvo = Math.round(membroAlvo * 0.77); // peito ~77% do ombro (a medida pega peito+costas,
+    const bracoAlvo = Math.round(membroAlvo * RB); // braço ~30% do ombro (natural, sem exagero)
+    const peitoAlvo = Math.round(membroAlvo * RPe); // peito ~77% do ombro (a medida pega peito+costas,
                                                      // já nasce grande — alvo realista de natural)
     const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
@@ -345,10 +383,10 @@ function _blocoPump(r, ant) {
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
     meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Nível ${nivel + 1}</div>`
-      + `<div class="cp-pump-sub"><b>Ombro e cintura</b> fecham o nível (o V). Peito, braço, glúteo e pernas são <b>harmonia</b> — meta de longo prazo, não exigência pra subir.</div>`
+      + `<div class="cp-pump-sub">${isF ? '<b>Glúteo e cintura</b> fecham o nível (a curva). Coxa e panturrilha são <b>harmonia</b>' : '<b>Ombro e cintura</b> fecham o nível (o V). Peito, braço, glúteo e pernas são <b>harmonia</b>'} — meta de longo prazo, não exigência pra subir.</div>`
       + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Ajuste</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
-  return `<div class="cp-an cp-an-pump">${txt}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
+  return `<div class="cp-an cp-an-pump">${txt}${excelencia}${progHtml}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
 }
 
 function analiseHtml() {
@@ -361,7 +399,7 @@ function analiseHtml() {
   const pump  = _blocoPump(r, ant);
   let blocos = comp;
   if (saude.trim()) blocos += `<div class="cp-secao-analise">🩺 Para ter um corpo saudável</div>${saude}`;
-  if (pump.trim())  blocos += `<div class="cp-secao-analise">🏆 Para um corpo acima da média</div><div class="cp-secao-analise-sub">Baseado na <b>proporção áurea</b> — o shape "estátua grega".</div>${pump}`;
+  if (pump.trim())  blocos += `<div class="cp-secao-analise">🏆 Para um corpo acima da média</div><div class="cp-secao-analise-sub">${dados.sexo === 'F' ? 'Baseado na <b>proporção da ampulheta</b> — a curva rumo ao palco.' : 'Baseado na <b>proporção áurea</b> — o shape "estátua grega".'}</div>${pump}`;
   if (!blocos.trim()) return '';
   return `<div class="cp-analise"><div class="cp-analise-tit">📊 Sua análise</div>${blocos}</div>`;
 }
