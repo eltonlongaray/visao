@@ -327,8 +327,9 @@ function _blocoPump(r, ant) {
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
-    const bracoAlvo = Math.round(membroAlvo * RP);   // braço ≈ panturrilha (ideal clássico)
-    const peitoAlvo = Math.round(membroAlvo * 0.90); // peito ~90% do ombro (um tico menor)
+    const bracoAlvo = Math.round(membroAlvo * 0.30); // braço ~30% do ombro (natural, sem exagero)
+    const peitoAlvo = Math.round(membroAlvo * 0.80); // peito ~80% do ombro (a medida pega peito+costas,
+                                                     // já nasce grande — não precisa crescer muito)
     const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
       if (atual == null) return;
