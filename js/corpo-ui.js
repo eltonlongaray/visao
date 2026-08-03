@@ -293,7 +293,7 @@ function _blocoPump(r, ant) {
     falta = `<br><small>Pro <b>Pump Nível ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} cm de ${membroNome} e −${_1(dCintMix)} cm de cintura).</small>`;
   }
   // Proporções das pernas em relação ao membro-âncora (glúteo/ombro).
-  const RC = isF ? 0.60 : 0.50;   // coxa como fração do glúteo (F) / ombro (M)
+  const RC = isF ? 0.60 : 0.48;   // coxa como fração do glúteo (F) / ombro (M)
   const RP = isF ? 0.38 : 0.33;   // panturrilha, idem
   const RG = 0.85;                // glúteo do HOMEM como fração do ombro (músculo de
                                   // apoio; mantém o V, quadril < ombro). Mulher já tem
@@ -328,7 +328,7 @@ function _blocoPump(r, ant) {
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
     const bracoAlvo = Math.round(membroAlvo * 0.30); // braço ~30% do ombro (natural, sem exagero)
-    const peitoAlvo = Math.round(membroAlvo * 0.79); // peito ~79% do ombro (a medida pega peito+costas,
+    const peitoAlvo = Math.round(membroAlvo * 0.77); // peito ~77% do ombro (a medida pega peito+costas,
                                                      // já nasce grande — alvo realista de natural)
     const rows = [];
     const linha = (nome, atual, alvo, cresce) => {
@@ -339,9 +339,9 @@ function _blocoPump(r, ant) {
     };
     linha('Cintura', r.cintura, cintAlvo, false);
     linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
-    linha('Peitoral', r.peitoral, peitoAlvo, true);
-    linha('Braço', r.braco, bracoAlvo, true);
-    if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);   // homem: glúteo de apoio
+    if (!isF) linha('Peitoral', r.peitoral, peitoAlvo, true);   // tronco de apoio — só homem
+    if (!isF) linha('Braço', r.braco, bracoAlvo, true);         // (mulher foca curva + pernas)
+    if (!isF) linha('Glúteo', r.quadril, gluteoAlvo, true);     // homem: glúteo de apoio
     linha('Coxa', r.coxa, coxaAlvo, true);
     linha('Panturrilha', r.panturrilha, pantAlvo, true);
     meta = `<div class="cp-pump-hr"></div><div class="cp-pump-tit">🎯 Corpo ideal no Nível ${nivel + 1}</div>`
