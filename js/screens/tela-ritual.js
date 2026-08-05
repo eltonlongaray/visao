@@ -344,11 +344,13 @@ async function loadWeek(promessaSemana) {
   // caía no default (2000). Aqui o perfil já está pronto — recalcula pelo peso.
   const metaP = _metaAguaDoPeso();
   if (metaP > 0) weekData.forEach(d => { if (d.meta) d.meta.hydrationGoal = metaP; });
-  await dedupTemplates();   // limpa a FONTE das repetições antes de gerar
-  // Garante tarefas recorrentes na semana atual — essa precisa ficar aqui,
-  // é o que o usuário vai ver agora.
+  // ⚠️ REMOVIDO (v522): dedupTemplates() e dedupTasksNaSemana() rodavam a cada
+  // load e APAGAVAM cópias de mesma identidade (categoria|título|turno|horário),
+  // destruindo repetições intencionais (ex.: 3 águas de manhã) — delete DEFINITIVO
+  // no banco. A geração (autoGenerateMissingTasks) já evita duplicar na hora de
+  // criar, com chave group-aware; não precisa de faxineiro destrutivo depois.
+  // Garante tarefas recorrentes na semana atual — o usuário vê agora.
   await autoGenerateMissingTasks(weekData);
-  await dedupTasksNaSemana(weekData);   // limpa repetições já existentes nos dias
 
   // A próxima semana é geração PREVENTIVA: ninguém está olhando pra ela.
   // Segurava a pintura da tela por mais uma busca inteira + escritas.
