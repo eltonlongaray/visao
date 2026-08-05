@@ -416,8 +416,10 @@ async function autoGenerateMissingTasks(days = weekData) {
       continue;
     }
 
-    // Dia já gerado: sincroniza apenas tarefas FALTANTES do template (hoje em diante)
-    if (day.meta.generated && Array.isArray(template) && template.length > 0 && day.id >= todayId) {
+    // Dia com tarefas (gerado OU não): sincroniza as FALTANTES do template (hoje em
+    // diante). O `|| day.tasks.length > 0` cobre dias que ganharam tarefas sem passar
+    // pela geração virgem (gen=false) — antes ficavam órfãos, sem puxar o molde.
+    if ((day.meta.generated || day.tasks.length > 0) && Array.isArray(template) && template.length > 0 && day.id >= todayId) {
       const existing = new Set(day.tasks.map(t => keyOf(t)));
       const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)) && !isExcluded(tmpl));
       if (missing.length > 0) {
@@ -620,7 +622,7 @@ async function syncTemplateForDay(dayDocId) {
   // Usa o id do dia (YYYY-MM-DD) — evita bug de timezone com day.date.getDay()
   const [_sy, _sm, _sd] = dayDocId.split('-').map(Number);
   const dow = new Date(_sy, _sm - 1, _sd).getDay();
-  const templates = day.tasks
+  const doDia = day.tasks
     .filter(t => t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
     .slice()
     .sort(taskSort)
@@ -646,6 +648,16 @@ async function syncTemplateForDay(dayDocId) {
         ...(t.recurrenceType ? { recurrenceType: t.recurrenceType } : {})
       };
     });
+  // MERGE (não REPLACE): atualiza/adiciona as entradas deste dia, mas PRESERVA as
+  // do molde que não estão neste dia. Antes era REPLACE — um dia incompleto (tarefa
+  // apagada só nele, ou dia ainda não gerado) zerava o molde inteiro (bug 13→4).
+  // Remoção real do molde é feita pelo fluxo "apagar em todos os dias" (escopo=all).
+  const _chave = e => (e.recurrenceGroupId ? 'g:' + e.recurrenceGroupId : 'c:' + _contentKey(e));
+  const existentes = Array.isArray(profile.weekdayTemplates?.[String(dow)]) ? profile.weekdayTemplates[String(dow)] : [];
+  const porChave = new Map();
+  for (const e of existentes) porChave.set(_chave(e), e);   // base: o molde de hoje
+  for (const e of doDia)      porChave.set(_chave(e), e);   // o dia manda na sua versão
+  const templates = [...porChave.values()].sort(taskSort);
   try {
     await setWeekdayTemplate(dow, templates);
     if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
@@ -682,100 +694,90 @@ async function _migrateTemplateGroupIds() {
 }
 
 
-// ─── AUTO-CONSERTO ÚNICO (v523) ────────────────────────────────
-// Entre 31/07 e 05/08/2026 uma faxina destrutiva (dedupTasksNaSemana/dedupTemplates,
-// já removidas na v522) DELETAVA do banco cópias de tarefas de mesma identidade
-// (categoria|título|turno|horário), destruindo repetições intencionais — ex.: 3
-// águas de manhã viravam 1. Aqui devolvemos a multiplicidade perdida usando o
-// histórico INTACTO (dias ANTERIORES ao bug, que a faxina nunca tocou).
+// ─── AUTO-CONSERTO ÚNICO (v525) ────────────────────────────────
+// Entre 31/07 e 05/08/2026, dois defeitos combinados destruíram os moldes de
+// recorrência: (a) uma faxina deletava tarefas do banco (removida v522) e (b) o
+// syncTemplateForDay RECONSTRUÍA o molde inteiro a partir de um único dia (agora
+// merge, v525). Resultado: moldes encolheram (ex.: quarta de 13 → 4 cards).
+// Aqui RESTAURAMOS cada molde a partir do dia INTACTO mais rico daquele
+// dia-da-semana (id < 31/07, que os defeitos nunca tocaram).
 //
-// CONSERVADOR de propósito:
-//   • Só conta multiplicidade de dias com id < 31/07 (garantidamente intactos).
-//   • Só RE-MULTIPLICA identidades que JÁ existem no molde — nunca ressuscita um
-//     card que sumiu por inteiro (zero risco de "voltou algo que apaguei").
-//   • Idempotente: leva o molde ATÉ o máximo histórico, nunca além. Rodar de novo
-//     não acrescenta nada.
-// Roda 1x por usuário (flag repeatHealV522 no perfil) e some.
-const _BUG_START = '2026-07-31';   // dia em que a faxina destrutiva entrou (v434)
+// Restaura CARDS INTEIROS que sumiram + multiplicidade perdida. Conservador:
+//   • Fonte = só dias com id < 31/07 (garantidamente intactos).
+//   • Só entradas RECORRENTES do dia (com groupId / recurrenceType!='today') —
+//     compromissos únicos ("today") ficam de fora, não poluem o molde.
+//   • MERGE: nunca remove o que já está no molde; só completa o que falta.
+//   • Idempotente: leva o molde ATÉ o dia mais rico, nunca além.
+// Roda 1x por usuário (flag tmplHealV525) e some.
+const _BUG_START = '2026-07-31';   // dia em que os defeitos entraram (v434)
 function _contentKey(t) {
   return `${t.categoryId || ''}|${(t.title || '').trim().toLowerCase()}|${t.shiftId || ''}|${t.startTime || ''}`;
 }
-async function _healRepeatMultiplicity() {
-  if (!profile || profile.repeatHealV522) return;   // já rodou pra este usuário
+function _isRecorrente(t) {
+  return !!(t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'));
+}
+function _tmplEntry(t) {   // tarefa de um dia → entrada de molde (groupId novo)
+  return {
+    activityId: t.activityId || null, title: t.title, desc: t.desc || '',
+    kind: t.kind || 'task', startTime: t.startTime || '', shiftId: t.shiftId || null,
+    categoryId: t.categoryId || null, icon: t.icon || '',
+    reminderEnabled: t.reminderEnabled || false, recurrenceGroupId: genRecurId(),
+    ...(t.recurrenceType && t.recurrenceType !== 'today' ? { recurrenceType: t.recurrenceType } : {}),
+  };
+}
+async function _healTemplatesFromHistory() {
+  if (!profile || profile.tmplHealV525) return;   // já rodou pra este usuário
   try {
     // 1) Histórico dos últimos ~45 dias (cobre o intacto de julho).
     const hoje = new Date();
     const ini = new Date(hoje); ini.setDate(hoje.getDate() - 45);
     const dias = await fetchDaysRange(ini, hoje);
 
-    // 2) Contagem diária de cada identidade por dia-da-semana — SÓ de dias intactos
-    //    (antes do bug). dow -> Map(contentKey -> [contagem em cada dia]).
-    const contagens = {};
+    // 2) Por dia-da-semana, guarda o dia INTACTO com MAIS tarefas recorrentes — é
+    //    o retrato mais fiel da rotina daquele dow antes do estrago.
+    const maisRico = {};   // dow -> array de tarefas recorrentes do melhor dia
     for (const d of dias) {
-      if (!d.id || d.id >= _BUG_START) continue;      // pula dias colapsados/muddy
+      if (!d.id || d.id >= _BUG_START) continue;      // só dias intactos
       const [y, m, dd] = d.id.split('-').map(Number);
       const dow = new Date(y, m - 1, dd).getDay();
-      const cont = new Map();
-      for (const tk of (d.tasks || [])) {
-        const k = _contentKey(tk); cont.set(k, (cont.get(k) || 0) + 1);
-      }
-      const acc = contagens[dow] || (contagens[dow] = new Map());
-      for (const [k, n] of cont) { if (!acc.has(k)) acc.set(k, []); acc.get(k).push(n); }
+      const rec = (d.tasks || []).filter(_isRecorrente);
+      if (!maisRico[dow] || rec.length > maisRico[dow].length) maisRico[dow] = rec;
     }
 
-    // Alvo = multiplicidade CORROBORADA: a 2ª maior contagem diária. Isso filtra
-    // uma triplicata acidental que apareceu num único dia (ex.: bug do Almoço 3×),
-    // mas mantém um padrão estável (3 águas em vários dias). Se só há 1 dia intacto
-    // pra aquela identidade, usa a contagem dele (melhor palpite disponível).
-    const alvoPorDow = {};
-    for (const [dow, mapa] of Object.entries(contagens)) {
-      const out = new Map();
-      for (const [k, lista] of mapa) {
-        lista.sort((a, b) => b - a);
-        out.set(k, lista.length >= 2 ? lista[1] : lista[0]);
-      }
-      alvoPorDow[dow] = out;
-    }
-
-    // 3) Pra cada template, clona as cópias que faltam (groupId novo e distinto).
+    // 3) Pra cada dow, completa o molde com o que falta (por content-identity),
+    //    respeitando a multiplicidade do dia mais rico. MERGE — nunca remove.
     const tpls = profile.weekdayTemplates || {};
     let mudou = false;
-    const novo = {};
-    for (const [dow, arr] of Object.entries(tpls)) {
-      if (!Array.isArray(arr)) { novo[dow] = arr; continue; }
-      const acc = alvoPorDow[dow];
-      if (!acc) { novo[dow] = arr; continue; }
-      const atual = new Map();     // contentKey -> quantas já existem no molde
-      const baseDe = new Map();    // contentKey -> 1ª entrada (molde pra clonar)
-      for (const tk of arr) {
-        const k = _contentKey(tk);
-        atual.set(k, (atual.get(k) || 0) + 1);
-        if (!baseDe.has(k)) baseDe.set(k, tk);
+    const novo = { ...tpls };
+    for (const [dow, rec] of Object.entries(maisRico)) {
+      const atualArr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
+      const atual = new Map();          // contentKey -> quantas já há no molde
+      for (const e of atualArr) atual.set(_contentKey(e), (atual.get(_contentKey(e)) || 0) + 1);
+      const alvo = new Map(), baseDe = new Map();   // contentKey -> contagem alvo / base
+      for (const t of rec) {
+        const k = _contentKey(t);
+        alvo.set(k, (alvo.get(k) || 0) + 1);
+        if (!baseDe.has(k)) baseDe.set(k, t);
       }
       const extra = [];
-      for (const [k, alvo] of acc) {
+      for (const [k, n] of alvo) {
         const tem = atual.get(k) || 0;
-        if (alvo > tem && baseDe.has(k)) {
-          for (let i = 0; i < alvo - tem; i++) {
-            extra.push({ ...baseDe.get(k), recurrenceGroupId: genRecurId() });
-            mudou = true;
-          }
-        }
+        for (let i = 0; i < n - tem; i++) { extra.push(_tmplEntry(baseDe.get(k))); mudou = true; }
       }
-      novo[dow] = extra.length ? [...arr, ...extra] : arr;
+      if (extra.length) novo[dow] = [...atualArr, ...extra];
     }
 
     if (mudou) {
       profile.weekdayTemplates = novo;
-      await setProfile({ weekdayTemplates: novo });
+      for (const [dow, arr] of Object.entries(novo)) {
+        if (Array.isArray(arr)) await setWeekdayTemplate(parseInt(dow, 10), arr);
+      }
     }
-    // marca como feito (mesmo sem mudança — não precisa reprocessar/refetch).
-    profile.repeatHealV522 = true;
-    await setProfile({ repeatHealV522: true });
+    profile.tmplHealV525 = true;
+    await setProfile({ tmplHealV525: true });
   } catch (e) {
-    // Falha transitória → NÃO marca a flag; tenta de novo no próximo load (é
-    // idempotente, então retentar é seguro).
-    console.warn('[Falcon] auto-conserto de repetições falhou (tentará de novo):', e);
+    // Falha transitória → NÃO marca a flag; retenta no próximo load (idempotente).
+    console.warn('[Falcon] restauração dos moldes falhou (tentará de novo):', e);
   }
 }
 
@@ -872,7 +874,7 @@ export async function renderRitual(app) {
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
-  await _healRepeatMultiplicity();   // 1x/usuário: devolve repetições apagadas pela faxina (v522)
+  await _healTemplatesFromHistory();   // 1x/usuário: restaura moldes encolhidos pelo bug (v525)
   await loadWeek(pSemana);
   renderUI(app);
   _diagRepeats();   // TEMP v524: diagnóstico do bug de recorrência (só admin)
