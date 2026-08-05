@@ -682,6 +682,104 @@ async function _migrateTemplateGroupIds() {
 }
 
 
+// ─── AUTO-CONSERTO ÚNICO (v523) ────────────────────────────────
+// Entre 31/07 e 05/08/2026 uma faxina destrutiva (dedupTasksNaSemana/dedupTemplates,
+// já removidas na v522) DELETAVA do banco cópias de tarefas de mesma identidade
+// (categoria|título|turno|horário), destruindo repetições intencionais — ex.: 3
+// águas de manhã viravam 1. Aqui devolvemos a multiplicidade perdida usando o
+// histórico INTACTO (dias ANTERIORES ao bug, que a faxina nunca tocou).
+//
+// CONSERVADOR de propósito:
+//   • Só conta multiplicidade de dias com id < 31/07 (garantidamente intactos).
+//   • Só RE-MULTIPLICA identidades que JÁ existem no molde — nunca ressuscita um
+//     card que sumiu por inteiro (zero risco de "voltou algo que apaguei").
+//   • Idempotente: leva o molde ATÉ o máximo histórico, nunca além. Rodar de novo
+//     não acrescenta nada.
+// Roda 1x por usuário (flag repeatHealV522 no perfil) e some.
+const _BUG_START = '2026-07-31';   // dia em que a faxina destrutiva entrou (v434)
+function _contentKey(t) {
+  return `${t.categoryId || ''}|${(t.title || '').trim().toLowerCase()}|${t.shiftId || ''}|${t.startTime || ''}`;
+}
+async function _healRepeatMultiplicity() {
+  if (!profile || profile.repeatHealV522) return;   // já rodou pra este usuário
+  try {
+    // 1) Histórico dos últimos ~45 dias (cobre o intacto de julho).
+    const hoje = new Date();
+    const ini = new Date(hoje); ini.setDate(hoje.getDate() - 45);
+    const dias = await fetchDaysRange(ini, hoje);
+
+    // 2) Contagem diária de cada identidade por dia-da-semana — SÓ de dias intactos
+    //    (antes do bug). dow -> Map(contentKey -> [contagem em cada dia]).
+    const contagens = {};
+    for (const d of dias) {
+      if (!d.id || d.id >= _BUG_START) continue;      // pula dias colapsados/muddy
+      const [y, m, dd] = d.id.split('-').map(Number);
+      const dow = new Date(y, m - 1, dd).getDay();
+      const cont = new Map();
+      for (const tk of (d.tasks || [])) {
+        const k = _contentKey(tk); cont.set(k, (cont.get(k) || 0) + 1);
+      }
+      const acc = contagens[dow] || (contagens[dow] = new Map());
+      for (const [k, n] of cont) { if (!acc.has(k)) acc.set(k, []); acc.get(k).push(n); }
+    }
+
+    // Alvo = multiplicidade CORROBORADA: a 2ª maior contagem diária. Isso filtra
+    // uma triplicata acidental que apareceu num único dia (ex.: bug do Almoço 3×),
+    // mas mantém um padrão estável (3 águas em vários dias). Se só há 1 dia intacto
+    // pra aquela identidade, usa a contagem dele (melhor palpite disponível).
+    const alvoPorDow = {};
+    for (const [dow, mapa] of Object.entries(contagens)) {
+      const out = new Map();
+      for (const [k, lista] of mapa) {
+        lista.sort((a, b) => b - a);
+        out.set(k, lista.length >= 2 ? lista[1] : lista[0]);
+      }
+      alvoPorDow[dow] = out;
+    }
+
+    // 3) Pra cada template, clona as cópias que faltam (groupId novo e distinto).
+    const tpls = profile.weekdayTemplates || {};
+    let mudou = false;
+    const novo = {};
+    for (const [dow, arr] of Object.entries(tpls)) {
+      if (!Array.isArray(arr)) { novo[dow] = arr; continue; }
+      const acc = alvoPorDow[dow];
+      if (!acc) { novo[dow] = arr; continue; }
+      const atual = new Map();     // contentKey -> quantas já existem no molde
+      const baseDe = new Map();    // contentKey -> 1ª entrada (molde pra clonar)
+      for (const tk of arr) {
+        const k = _contentKey(tk);
+        atual.set(k, (atual.get(k) || 0) + 1);
+        if (!baseDe.has(k)) baseDe.set(k, tk);
+      }
+      const extra = [];
+      for (const [k, alvo] of acc) {
+        const tem = atual.get(k) || 0;
+        if (alvo > tem && baseDe.has(k)) {
+          for (let i = 0; i < alvo - tem; i++) {
+            extra.push({ ...baseDe.get(k), recurrenceGroupId: genRecurId() });
+            mudou = true;
+          }
+        }
+      }
+      novo[dow] = extra.length ? [...arr, ...extra] : arr;
+    }
+
+    if (mudou) {
+      profile.weekdayTemplates = novo;
+      await setProfile({ weekdayTemplates: novo });
+    }
+    // marca como feito (mesmo sem mudança — não precisa reprocessar/refetch).
+    profile.repeatHealV522 = true;
+    await setProfile({ repeatHealV522: true });
+  } catch (e) {
+    // Falha transitória → NÃO marca a flag; tenta de novo no próximo load (é
+    // idempotente, então retentar é seguro).
+    console.warn('[Falcon] auto-conserto de repetições falhou (tentará de novo):', e);
+  }
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -741,6 +839,7 @@ export async function renderRitual(app) {
   // Migração: garante recurrenceGroupId em todas as tasks dos templates salvos.
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
+  await _healRepeatMultiplicity();   // 1x/usuário: devolve repetições apagadas pela faxina (v522)
   await loadWeek(pSemana);
   renderUI(app);
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
