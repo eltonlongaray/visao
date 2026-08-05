@@ -780,6 +780,39 @@ async function _healRepeatMultiplicity() {
 }
 
 
+// ─── DIAGNÓSTICO TEMPORÁRIO (v524, só admin) ───────────────────
+// Mostra num alert o molde do dia-da-semana de hoje, as tarefas de hoje, as
+// regras de recorrência e o dia da semana passada (mesmo dow) pra comparar o
+// que sumiu. Remover depois de diagnosticar o bug da recorrência.
+async function _diagRepeats() {
+  if (!profile?.isAdmin) return;
+  try {
+    const dow = new Date().getDay();
+    const tpl = profile.weekdayTemplates?.[String(dow)] || [];
+    const rules = profile.recurrenceRules || [];
+    const monthly = profile.monthlyCommitments || [];
+    const hojeId = dayId(new Date());
+    const hoje = weekData?.find(d => d.id === hojeId);
+    // dia da semana passada com o mesmo dow (pra comparar o que sumiu)
+    const ini = new Date(); ini.setDate(ini.getDate() - 14);
+    const hist = await fetchDaysRange(ini, new Date());
+    const passados = hist.filter(d => {
+      if (!d.id || d.id >= hojeId) return false;
+      const [y, m, dd] = d.id.split('-').map(Number);
+      return new Date(y, m - 1, dd).getDay() === dow;
+    });
+    const ultimoDow = passados[passados.length - 1];
+    const L = arr => (arr || []).map(t => `• ${t.title || '?'}${t.startTime ? ' ' + t.startTime : ''} [${String(t.shiftId || '').slice(0, 5)}]${t.recurrenceGroupId ? ' g' : ''}`).join('\n') || '(vazio)';
+    let msg = `dow=${dow} healFlag=${profile.repeatHealV522}\n`;
+    msg += `\n=MOLDE dow${dow} (${tpl.length})=\n${L(tpl)}\n`;
+    msg += `\n=HOJE ${hojeId} (${hoje?.tasks?.length || 0}) gen=${!!hoje?.meta?.generated} exclG=${(hoje?.meta?.excludedRecurrenceGroups || []).length} exclT=${(hoje?.meta?.excludedRecurrenceTitles || []).length}=\n${L(hoje?.tasks)}\n`;
+    msg += `\n=DOW PASSADO ${ultimoDow?.id || '?'} (${ultimoDow?.tasks?.length || 0})=\n${L(ultimoDow?.tasks)}\n`;
+    msg += `\nregras=${rules.length} mensais=${monthly.length}`;
+    alert(msg);
+  } catch (e) { alert('diag err: ' + (e.message || e)); }
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -842,6 +875,7 @@ export async function renderRitual(app) {
   await _healRepeatMultiplicity();   // 1x/usuário: devolve repetições apagadas pela faxina (v522)
   await loadWeek(pSemana);
   renderUI(app);
+  _diagRepeats();   // TEMP v524: diagnóstico do bug de recorrência (só admin)
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
