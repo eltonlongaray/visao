@@ -526,6 +526,11 @@ async function addTemplateTasksToDay(day, templateTasks, startOrder) {
 // cópias escapavam — a mesma tarefa com groupIds diferentes contava como
 // distinta e triplicava. Pra limpar/deduplicar, o que vale é o que a pessoa vê.
 function visKey(t) {
+  // Espelha keyOf: instâncias com recurrenceGroupId DISTINTO são repetições
+  // legítimas (ex.: 3 águas de manhã) e NÃO podem colapsar. Sem isso, os dedups
+  // (dedupTemplates/dedupTasksNaSemana) apagavam as cópias intencionais todo load.
+  // Só cai no fallback categoria|título|turno|horário pra tarefas legadas sem grupo.
+  if (t.recurrenceGroupId) return `grp:${t.recurrenceGroupId}`;
   return `${t.categoryId || ''}|${(t.title || '').trim().toLowerCase()}|${t.shiftId || ''}|${t.startTime || ''}`;
 }
 
