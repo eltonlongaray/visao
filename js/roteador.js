@@ -7,6 +7,12 @@
 const routes = {};
 let currentCleanup = null;
 
+// Rolagem manual: sem isto o navegador RESTAURA a posição anterior ao voltar pro
+// app (bfcache/segundo plano). Depois de virar o dia, isso devolvia a tela rolada
+// no dia de ONTEM (ex.: abria "no topo da quarta" numa quinta). Cada tela passa a
+// controlar a própria rolagem.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 export function registerRoute(path, renderFn) {
   routes[path] = renderFn;
 }

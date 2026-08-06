@@ -848,8 +848,11 @@ export async function renderRitual(app) {
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
   if (!_hasTarget) {
-    const rol = document.scrollingElement || document.documentElement;
-    rol.scrollTop = 0;
+    // Reset imediato + depois do layout (rAF duplo). O imediato pode rodar antes
+    // do navegador terminar de restaurar/assentar a rolagem; o adiado garante o topo.
+    const aoTopo = () => { (document.scrollingElement || document.documentElement).scrollTop = 0; };
+    aoTopo();
+    requestAnimationFrame(() => { aoTopo(); requestAnimationFrame(aoTopo); });
   }
   // Veio de clique em notificação → rola e pisca a tarefa específica (ou o dia)
   if (_hasTarget) {
