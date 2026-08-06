@@ -622,8 +622,10 @@ async function syncTemplateForDay(dayDocId) {
   // Usa o id do dia (YYYY-MM-DD) — evita bug de timezone com day.date.getDay()
   const [_sy, _sm, _sd] = dayDocId.split('-').map(Number);
   const dow = new Date(_sy, _sm - 1, _sd).getDay();
+  const _mensais = _mensalTds();
   const doDia = day.tasks
-    .filter(t => t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
+    .filter(t => (t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'))
+              && !_mensais.has(_tdKey(t)))   // mensal não entra em molde semanal
     .slice()
     .sort(taskSort)
     .map(t => {
@@ -713,6 +715,18 @@ const _BUG_START = '2026-07-31';   // dia em que os defeitos entraram (v434)
 function _contentKey(t) {
   return `${t.categoryId || ''}|${(t.title || '').trim().toLowerCase()}|${t.shiftId || ''}|${t.startTime || ''}`;
 }
+// Identidade por título+descrição (é como as regras mensais se distinguem).
+function _tdKey(t) { return `${(t.title || '').trim().toLowerCase()}|${(t.desc || '').trim().toLowerCase()}`; }
+// Conjunto (título|descrição) das recorrências MENSAIS. Compromisso mensal dispara
+// pelas regras (ensurePinnedRecurrences, 1×/mês) e NUNCA deve entrar num molde
+// semanal — senão se repete toda semana. Usado pra barrar isso na origem.
+function _mensalTds() {
+  const s = new Set();
+  for (const r of (profile?.recurrenceRules || [])) {
+    if (r.freq === 'monthly') s.add(`${(r.title || '').trim().toLowerCase()}|${(r.desc || '').trim().toLowerCase()}`);
+  }
+  return s;
+}
 function _isRecorrente(t) {
   return !!(t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'));
 }
@@ -735,12 +749,13 @@ async function _healTemplatesFromHistory() {
 
     // 2) Por dia-da-semana, guarda o dia INTACTO com MAIS tarefas recorrentes — é
     //    o retrato mais fiel da rotina daquele dow antes do estrago.
+    const _mensais = _mensalTds();   // não promove compromisso mensal a molde semanal
     const maisRico = {};   // dow -> array de tarefas recorrentes do melhor dia
     for (const d of dias) {
       if (!d.id || d.id >= _BUG_START) continue;      // só dias intactos
       const [y, m, dd] = d.id.split('-').map(Number);
       const dow = new Date(y, m - 1, dd).getDay();
-      const rec = (d.tasks || []).filter(_isRecorrente);
+      const rec = (d.tasks || []).filter(t => _isRecorrente(t) && !_mensais.has(_tdKey(t)));
       if (!maisRico[dow] || rec.length > maisRico[dow].length) maisRico[dow] = rec;
     }
 
@@ -831,24 +846,64 @@ async function _dedupRecurrenceRules() {
 }
 
 
-// ─── DIAG TEMP (v531, só admin): de onde vêm os FIAP duplicados ──
-async function _diagFiap() {
-  if (!profile?.isAdmin) return;
+// ─── LIMPEZA ÚNICA (v532): compromisso mensal que vazou pros moldes ──
+// syncTemplateForDay/heal jogaram instâncias de recorrências MENSAIS (ex.: "Contas
+// a pagar / FIAP", dia 5) dentro de moldes SEMANAIS — aí elas passaram a se repetir
+// toda semana, multiplicando. Aqui (a) tiramos os mensais dos moldes e (b) apagamos
+// as instâncias já geradas FORA do dia-alvo da regra. Mantém 1 no dia certo.
+// SEGURO: só mexe no que casa (título+descrição) com uma regra MENSAL — não toca
+// nas aulas "FIAP" (título só "FIAP", sem descrição) nem em nada semanal.
+async function _cleanMonthlyLeaks() {
+  if (!profile || profile.monthlyLeakCleanV532) return;
   try {
-    const rules = profile.recurrenceRules || [];
-    const R = rules.map(r => `• "${r.title}" | ${r.freq} dom:${r.dayOfMonth ?? '-'} wd:${r.weekday ?? '-'} nth:${r.nthWeekday ?? '-'} | ${r.startTime || '--'} | desc:"${r.desc || ''}" | g:${String(r.groupId || '-').slice(0, 8)}`).join('\n') || '(nenhuma)';
-    const hoje = new Date();
-    const fim = new Date(hoje); fim.setDate(hoje.getDate() + 70);
-    const dias = await fetchDaysRange(hoje, fim);
-    const fiap = [];
-    for (const d of dias) for (const tk of (d.tasks || [])) {
-      if (/contas a pagar|fiap/i.test((tk.title || '') + ' ' + (tk.desc || '')))
-        fiap.push(`• ${d.id} ${tk.startTime || '--'} "${tk.title}"/"${tk.desc || ''}" g:${String(tk.recurrenceGroupId || '-').slice(0, 8)}`);
+    const monthly = (profile.recurrenceRules || []).filter(r => r.freq === 'monthly');
+    if (monthly.length) {
+      const porTd = new Map();   // título|desc -> regra mensal (pra saber o dia-alvo)
+      for (const r of monthly) porTd.set(`${(r.title || '').trim().toLowerCase()}|${(r.desc || '').trim().toLowerCase()}`, r);
+
+      // (a) tira os mensais dos moldes semanais
+      const tpls = profile.weekdayTemplates || {};
+      let mudou = false;
+      const novo = {};
+      for (const [dow, arr] of Object.entries(tpls)) {
+        if (!Array.isArray(arr)) { novo[dow] = arr; continue; }
+        const limpo = arr.filter(e => !porTd.has(_tdKey(e)));
+        if (limpo.length !== arr.length) mudou = true;
+        novo[dow] = limpo;
+      }
+      if (mudou) {
+        profile.weekdayTemplates = novo;
+        for (const [dow, arr] of Object.entries(novo)) {
+          if (Array.isArray(arr)) await setWeekdayTemplate(parseInt(dow, 10), arr);
+        }
+      }
+
+      // (b) apaga as instâncias geradas fora do dia-alvo; no dia certo mantém 1
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      const fim = new Date(hoje); fim.setDate(hoje.getDate() + 400);
+      const dias = await fetchDaysRange(hoje, fim);
+      for (const d of dias) {
+        if (!d.id) continue;
+        const [yy, mm, dd] = d.id.split('-').map(Number);
+        const ultimoDoMes = new Date(yy, mm, 0).getDate();
+        const mantidoNoAlvo = new Set();
+        for (const tk of (d.tasks || [])) {
+          const r = porTd.get(_tdKey(tk));
+          if (!r) continue;                                   // não é mensal → intocado
+          const alvo = r.dayOfMonth ? Math.min(r.dayOfMonth, ultimoDoMes) : null;
+          if (alvo && dd === alvo) {                          // dia certo: mantém 1
+            const k = _tdKey(tk);
+            if (mantidoNoAlvo.has(k)) { try { await deleteDayTask(d.id, tk.id); } catch {} }
+            else mantidoNoAlvo.add(k);
+          } else {                                            // dia errado: vazamento
+            try { await deleteDayTask(d.id, tk.id); } catch {}
+          }
+        }
+      }
     }
-    const sat = profile.weekdayTemplates?.['6'] || [];
-    const satF = sat.filter(t => /contas|fiap/i.test((t.title || '') + (t.desc || ''))).map(t => `• "${t.title}"/"${t.desc || ''}" g:${String(t.recurrenceGroupId || '-').slice(0, 8)}`).join('\n') || '(nenhum)';
-    alert(`REGRAS (${rules.length}):\n${R}\n\nTAREFAS contas/fiap (${fiap.length}):\n${fiap.join('\n')}\n\nMOLDE SAB contas/fiap:\n${satF}\n\ndedupFlag=${profile.rulesDedupV530}`);
-  } catch (e) { alert('diagfiap err: ' + (e.message || e)); }
+    profile.monthlyLeakCleanV532 = true;
+    await setProfile({ monthlyLeakCleanV532: true });
+  } catch (e) { console.warn('[Falcon] limpeza de vazamento mensal falhou (tentará de novo):', e); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -912,9 +967,9 @@ export async function renderRitual(app) {
   await _migrateTemplateGroupIds();
   await _healTemplatesFromHistory();   // 1x/usuário: restaura moldes encolhidos pelo bug (v525)
   await _dedupRecurrenceRules();        // 1x/usuário: remove regras de recorrência duplicadas (v530)
+  await _cleanMonthlyLeaks();           // 1x/usuário: tira mensal que vazou pros moldes semanais (v532)
   await loadWeek(pSemana);
   renderUI(app);
-  _diagFiap();   // TEMP v531: diagnóstico dos FIAP duplicados (só admin)
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
