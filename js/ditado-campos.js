@@ -19,19 +19,20 @@
 // comer a barra pra o padrão virar a letra "s" e falhar em silêncio.
 
 // O campo termina no ponto, no próximo rótulo, OU quando começa um token de
-// DATA/HORA (dia N, às N, N:NN, Nh, N horas, N/N). Sem o corte por data/hora,
-// "descrição Startup dia 12 às 9:00" engolia a data e a hora dentro da descrição
-// — e o compromisso perdia dia e horário. Só tokens NUMÉRICOS: palavras como
-// "amanhã"/dia-da-semana podem ser parte legítima da descrição, então não cortam.
-const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
-const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
-const RE_DESC   = /descri[çc][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)/i;
+// DATA/HORA — numérico (dia N, às N, N:NN, Nh, N horas, N/N) OU por palavra
+// (amanhã, depois de amanhã, hoje, dia-da-semana). Sem o corte, "descrição
+// Academia amanhã as 9h" engolia "amanhã as" na descrição E removia "amanhã" do
+// comando, então a data caía em HOJE. Cortar em palavra de data resolve os dois:
+// descrição fica "Academia" e "amanhã" volta pro comando pra virar a data certa.
+const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
+const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
+const RE_DESC   = /descri[çc][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
 
 // Versões pra REMOVER do comando, engolindo o separador junto
 const CORTA = [
-  /t[ií]tulo\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
-  /descri[çc][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
-  /\bnome\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2})|\s*[.;]|$)[.;]?/i,
+  /t[ií]tulo\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
+  /descri[çc][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
+  /\bnome\s*:?\s+.+?(?=\s+descri[çc][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
 ];
 
 function _limpaPontas(s) {
