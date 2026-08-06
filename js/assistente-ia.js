@@ -1452,13 +1452,14 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
     btn.disabled = true;
     btn.textContent = t('pet.preview.registering');
     try {
-      // Já existe igual nesse dia? Registrar de novo cria duas linhas na
-      // agenda e, pior, conta duas vezes pro objetivo quando o alvo é "x
-      // vezes no mesmo dia". Melhor avisar do que deixar a pessoa descobrir
-      // depois, olhando um número que não bate.
+      // Já existe IGUAL nesse dia? Só é duplicata de verdade quando título, horário
+      // E DESCRIÇÃO batem. Mesmo título com descrição diferente é outro compromisso
+      // legítimo — ex.: "Contas a pagar / FIAP" e "Contas a pagar / Seguro do carro"
+      // no mesmo dia 5. Antes olhava só título+horário e bloqueava esse caso.
       const jaTem = (await getDayTasks(dayId(date)))
         .some(tk => _limpoTxt(tk.title) === _limpoTxt(curName)
-                 && (!time || (tk.startTime || '') === time));
+                 && (!time || (tk.startTime || '') === time)
+                 && _limpoTxt(tk.desc || '') === _limpoTxt(ditado.descricao || ''));
       if (jaTem) {
         btn.disabled = false;
         btn.textContent = `${tipoIcon} ${t('pet.preview.register', { type: tipoLabel })}`;
