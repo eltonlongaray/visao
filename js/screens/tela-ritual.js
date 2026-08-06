@@ -831,6 +831,26 @@ async function _dedupRecurrenceRules() {
 }
 
 
+// ─── DIAG TEMP (v531, só admin): de onde vêm os FIAP duplicados ──
+async function _diagFiap() {
+  if (!profile?.isAdmin) return;
+  try {
+    const rules = profile.recurrenceRules || [];
+    const R = rules.map(r => `• "${r.title}" | ${r.freq} dom:${r.dayOfMonth ?? '-'} wd:${r.weekday ?? '-'} nth:${r.nthWeekday ?? '-'} | ${r.startTime || '--'} | desc:"${r.desc || ''}" | g:${String(r.groupId || '-').slice(0, 8)}`).join('\n') || '(nenhuma)';
+    const hoje = new Date();
+    const fim = new Date(hoje); fim.setDate(hoje.getDate() + 70);
+    const dias = await fetchDaysRange(hoje, fim);
+    const fiap = [];
+    for (const d of dias) for (const tk of (d.tasks || [])) {
+      if (/contas a pagar|fiap/i.test((tk.title || '') + ' ' + (tk.desc || '')))
+        fiap.push(`• ${d.id} ${tk.startTime || '--'} "${tk.title}"/"${tk.desc || ''}" g:${String(tk.recurrenceGroupId || '-').slice(0, 8)}`);
+    }
+    const sat = profile.weekdayTemplates?.['6'] || [];
+    const satF = sat.filter(t => /contas|fiap/i.test((t.title || '') + (t.desc || ''))).map(t => `• "${t.title}"/"${t.desc || ''}" g:${String(t.recurrenceGroupId || '-').slice(0, 8)}`).join('\n') || '(nenhum)';
+    alert(`REGRAS (${rules.length}):\n${R}\n\nTAREFAS contas/fiap (${fiap.length}):\n${fiap.join('\n')}\n\nMOLDE SAB contas/fiap:\n${satF}\n\ndedupFlag=${profile.rulesDedupV530}`);
+  } catch (e) { alert('diagfiap err: ' + (e.message || e)); }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -894,6 +914,7 @@ export async function renderRitual(app) {
   await _dedupRecurrenceRules();        // 1x/usuário: remove regras de recorrência duplicadas (v530)
   await loadWeek(pSemana);
   renderUI(app);
+  _diagFiap();   // TEMP v531: diagnóstico dos FIAP duplicados (só admin)
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
