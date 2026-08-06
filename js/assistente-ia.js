@@ -1510,11 +1510,27 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
   box.scrollTop = box.scrollHeight;
 }
 
+// Identidade de uma regra de recorrência (ignora groupId/anchor). Duas regras com
+// esta mesma identidade são a MESMA recorrência — não devem coexistir.
+function _regraId(r) {
+  return [
+    (r.title || '').trim().toLowerCase(), r.freq || '', r.interval || 1,
+    r.dayOfMonth ?? '', r.weekday ?? '', r.lastDayOfMonth ? 1 : 0,
+    r.lastWeekday ?? '', r.nthWeekday ?? '', r.startTime || '',
+    (r.desc || '').trim().toLowerCase(),
+  ].join('|');
+}
+
 // Salva uma regra de recorrência no profile (o motor do Ritual a lê e gera/fixa).
 async function salvarRegra(rule) {
   try {
     const prof = await getProfile().catch(() => null);
     const list = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules.slice() : [];
+    // NÃO empilha regra idêntica (mesmo título+freq+dia+horário+descrição). Sem
+    // isto, cada re-registro (ou clique repetido) criava outra recorrência e o dia
+    // enchia de cópias — ex.: 3× "Contas a pagar / FIAP" no dia 5.
+    const novoId = _regraId(rule);
+    if (list.some(r => _regraId(r) === novoId)) return;
     list.push(rule);
     await setProfile({ recurrenceRules: list });
   } catch (e) { console.error('[pet] salvar regra recorrência:', e); }

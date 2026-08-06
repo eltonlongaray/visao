@@ -782,6 +782,55 @@ async function _healTemplatesFromHistory() {
 }
 
 
+// ─── LIMPEZA ÚNICA (v530): regras de recorrência duplicadas ────
+// salvarRegra empilhava regra idêntica a cada re-registro (corrigido no pet).
+// Aqui removemos as duplicatas JÁ acumuladas (ex.: 3× "Contas a pagar / FIAP" no
+// dia 5) e apagamos os pins órfãos das regras removidas — por groupId EXATO, então
+// é seguro (não toca em tarefa de outra recorrência). Roda 1x/usuário e some.
+function _regraId(r) {
+  return [
+    (r.title || '').trim().toLowerCase(), r.freq || '', r.interval || 1,
+    r.dayOfMonth ?? '', r.weekday ?? '', r.lastDayOfMonth ? 1 : 0,
+    r.lastWeekday ?? '', r.nthWeekday ?? '', r.startTime || '',
+    (r.desc || '').trim().toLowerCase(),
+  ].join('|');
+}
+async function _dedupRecurrenceRules() {
+  if (!profile || profile.rulesDedupV530) return;
+  try {
+    const rules = Array.isArray(profile.recurrenceRules) ? profile.recurrenceRules : [];
+    if (rules.length > 1) {
+      const vistos = new Set();
+      const mantidas = [];
+      const removidos = [];   // groupIds das regras duplicadas descartadas
+      for (const r of rules) {
+        const k = _regraId(r);
+        if (vistos.has(k)) { if (r.groupId) removidos.push(r.groupId); }
+        else { vistos.add(k); mantidas.push(r); }
+      }
+      if (removidos.length) {
+        profile.recurrenceRules = mantidas;
+        await setProfile({ recurrenceRules: mantidas });
+        // Apaga os pins órfãos das regras removidas (groupId exato — seguro).
+        const hoje = new Date();
+        const fim = new Date(hoje); fim.setDate(hoje.getDate() + 400);
+        const dias = await fetchDaysRange(hoje, fim);
+        const rem = new Set(removidos);
+        for (const d of dias) {
+          for (const tk of (d.tasks || [])) {
+            if (tk.recurrenceGroupId && rem.has(tk.recurrenceGroupId)) {
+              try { await deleteDayTask(d.id, tk.id); } catch {}
+            }
+          }
+        }
+      }
+    }
+    profile.rulesDedupV530 = true;
+    await setProfile({ rulesDedupV530: true });
+  } catch (e) { console.warn('[Falcon] dedup de regras falhou (tentará de novo):', e); }
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -842,6 +891,7 @@ export async function renderRitual(app) {
   // Sem isso, tasks periódicas sem groupId ficam presas em excludedRecurrenceTitles para sempre.
   await _migrateTemplateGroupIds();
   await _healTemplatesFromHistory();   // 1x/usuário: restaura moldes encolhidos pelo bug (v525)
+  await _dedupRecurrenceRules();        // 1x/usuário: remove regras de recorrência duplicadas (v530)
   await loadWeek(pSemana);
   renderUI(app);
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
