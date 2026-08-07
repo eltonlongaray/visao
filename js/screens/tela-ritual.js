@@ -4112,6 +4112,13 @@ function openTaskEditor(app, dayDocId, taskId) {
         <span class="tp-trigger-edit">›</span>
       </button>
 
+      <button type="button" class="recur-btn" id="m-reagendar-btn" style="margin-top:8px">
+        <span class="recur-btn-ic">📅</span>
+        <span class="recur-btn-text">Reagendar</span>
+        <span class="recur-btn-label">${_wdShort(day.date)} ${String(day.date.getDate()).padStart(2, '0')}/${String(day.date.getMonth() + 1).padStart(2, '0')}</span>
+        <span class="recur-btn-edit">›</span>
+      </button>
+
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" ${t.reminderEnabled ? 'checked' : ''} />
         <span class="reminder-bell"></span>
@@ -4198,6 +4205,80 @@ function openTaskEditor(app, dayDocId, taskId) {
     if (result) {
       btn.dataset.time = result;
       btn.querySelector('.tp-trigger-time').textContent = result;
+    }
+  });
+
+  // Reagendar: reusa o seletor data+hora (openReschedulePicker) e move a tarefa
+  // entre dias. Carrega os valores ATUAIS do form (não perde edição). Se a tarefa
+  // é recorrente, EXCLUI a ocorrência no dia de origem (senão a próxima geração a
+  // traz de volta e ela aparece nos dois dias) e move como cópia avulsa.
+  modal.querySelector('#m-reagendar-btn')?.addEventListener('click', async () => {
+    const curTime = modal.querySelector('#m-time-trigger')?.dataset.time || toHHMM(t.startTime) || '';
+    const result = await openReschedulePicker(day.date, curTime);
+    if (!result) return;
+    const { date: newDate, time: newTime } = result;
+    const newDayId = dayId(newDate);
+    // valores atuais do form + auto-turno pelo horário (igual ao Salvar)
+    let shiftFinal = modal.querySelector('#m-shift').value || null;
+    const autoName = newTime ? shiftNameFromTime(newTime) : null;
+    if (autoName) {
+      const ms = shifts.find(s => (s.name || '').toLowerCase() === autoName.toLowerCase());
+      if (ms) shiftFinal = ms.id;
+    }
+    const campos = {
+      title: modal.querySelector('#m-title').value.trim() || 'Sem título',
+      desc: modal.querySelector('#m-desc').value.trim(),
+      kind: modal.querySelector('.kind-chip.active')?.dataset.kind || 'task',
+      shiftId: shiftFinal,
+      icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
+      reminderEnabled: modal.querySelector('#m-reminder').checked,
+      startTime: newTime,
+    };
+    try {
+      if (newDayId === dayDocId) {
+        // Mesmo dia → só aplica os campos + horário
+        Object.assign(t, campos);
+        await updateDayTask(dayDocId, t.id, campos);
+        await autoScheduleNotif(dayDocId, t, { silent: true });
+      } else {
+        // Dia diferente → move esta ocorrência
+        if (t.recurrenceGroupId) {
+          const ex = Array.isArray(day.meta.excludedRecurrenceGroups) ? day.meta.excludedRecurrenceGroups.slice() : [];
+          if (!ex.includes(t.recurrenceGroupId)) {
+            ex.push(t.recurrenceGroupId);
+            day.meta.excludedRecurrenceGroups = ex;
+            await setDayMeta(dayDocId, { excludedRecurrenceGroups: ex });
+          }
+        }
+        await deleteDayTask(dayDocId, t.id);
+        day.tasks = day.tasks.filter(x => x.id !== t.id);
+        const novo = {
+          activityId: t.activityId || null,
+          categoryId: t.categoryId || null,
+          ...campos,
+          done: false, cancelled: false, rescheduled: true,
+          rescheduleCount: (t.rescheduleCount || 0) + 1, order: 0,
+        };
+        await addDayTask(newDayId, novo);
+        await autoScheduleNotif(newDayId, novo, { silent: true });
+        const dest = weekData.find(d => d.id === newDayId);
+        if (dest) { novo.order = dest.tasks.length; dest.tasks.push({ ...novo }); }
+      }
+      close();
+      const srcEl = document.querySelector(`.day-card[data-day-id="${dayDocId}"]`);
+      if (srcEl) { srcEl.querySelector('.day-card-content').innerHTML = renderDayContent(day); updateDayCardStats(dayDocId, false); }
+      if (newDayId !== dayDocId) {
+        const destDay = weekData.find(d => d.id === newDayId);
+        if (destDay) {
+          const de = document.querySelector(`.day-card[data-day-id="${newDayId}"]`);
+          if (de) { de.querySelector('.day-card-content').innerHTML = renderDayContent(destDay); updateDayCardStats(newDayId, false); }
+        }
+      }
+      const dl = `${String(newDate.getDate()).padStart(2, '0')}/${String(newDate.getMonth() + 1).padStart(2, '0')}`;
+      showToast(newDayId === dayDocId ? `Atualizado (${newTime})` : `Reagendado pra ${dl} às ${newTime}`, 'success');
+    } catch (err) {
+      console.error('[edit-reagendar] erro:', err);
+      showToast('Erro ao reagendar', 'error');
     }
   });
 
