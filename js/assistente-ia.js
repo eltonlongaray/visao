@@ -1972,7 +1972,9 @@ function showEditCard(matches, action, payload) {
   }
 
   const div = document.createElement('div');
-  div.className = 'pet-msg pet-msg-bot';
+  // pet-msg-stack: empilha os cards na VERTICAL. Sem isso, .pet-msg (flex row)
+  // punha um card ao lado do outro, estourando a largura e deslocando a tela.
+  div.className = 'pet-msg pet-msg-bot pet-msg-stack';
 
   if (matches.length > 1) {
     const intro = document.createElement('span');

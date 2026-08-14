@@ -5882,6 +5882,7 @@ body.tour-active { overflow: hidden; }
 .pet-chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;        /* nada escapa pros lados → a tela não desloca ao rolar */
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -5889,6 +5890,7 @@ body.tour-active { overflow: hidden; }
   min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain;   /* rolar aqui não empurra a página atrás */
 }
 .pet-msg { display: flex; max-width: 88%; }
 .pet-msg span {
@@ -6029,6 +6031,17 @@ body.tour-active { overflow: hidden; }
 }
 .pet-preview-title { font-size: 13px; }
 .pet-preview-sub   { font-size: 11px; color: var(--muted); }
+
+/* Vários cards (desambiguação de reagendar/editar) empilham na VERTICAL, um
+   embaixo do outro, e cada um ocupa a largura toda — antes ficavam lado a lado. */
+.pet-msg-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  max-width: 92%;
+}
+.pet-msg-stack .pet-preview-card { width: 100%; }
+.pet-msg span, .pet-preview-title, .pet-preview-sub { overflow-wrap: anywhere; }
 
 /* Botão de confirmar registro */
 .pet-reg-btn {
