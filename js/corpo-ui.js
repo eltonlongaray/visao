@@ -21,7 +21,7 @@ const MEDIDAS = [
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
   { k: 'quadril',     lbl: 'Quadril',     un: 'cm' },
-  { k: 'braco',       lbl: 'Braço',       un: 'cm' },
+  { k: 'braco',       lbl: 'Braço (músculo flexionado)', un: 'cm' },
   { k: 'coxa',        lbl: 'Coxa',        un: 'cm' },
   { k: 'panturrilha', lbl: 'Panturrilha', un: 'cm' },
 ];
