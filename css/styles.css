@@ -607,6 +607,13 @@ html, body {
 .cp-secao-analise-sub { font-size: 11.5px; color: var(--muted); margin: -4px 2px 7px; }
 .cp-secao-analise-sub b { color: #cbbdff; }
 
+/* CONTRASTE NO DIA: os roxos claros (#cbbdff, #c4b5fd, #a78bfa) foram feitos pro
+   fundo escuro da noite; no tema claro somem. Aqui trocamos por roxo escuro legível. */
+[data-theme="light"] .cp-an-pump b,
+[data-theme="light"] .cp-secao-analise-sub b { color: #6d28d9; }
+[data-theme="light"] .pet-qa-btn { color: #5b21b6; background: rgba(124,58,237,0.10); border-color: rgba(91,33,182,0.35); }
+[data-theme="light"] .pet-zzz span { color: #6d28d9; }
+
 /* Evolução da composição no Desempenho */
 .ce-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 16px; }
 .ce-tit { font-size: 14px; font-weight: 800; color: var(--text); }
