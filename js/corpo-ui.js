@@ -414,13 +414,19 @@ function formHtml() {
   // Pescoço: SEMPRE pedir. Ele entra na fórmula (cintura − pescoço) e muda por
   // MÚSCULO também (nadador/trapézio), não só por gordura — reaproveitar o valor
   // antigo distorcia o % de gordura. Vem pré-preenchido com o último como sugestão.
+  // Cintura muda de ponto por sexo (fórmula da Marinha): homem no umbigo,
+  // mulher acima do umbigo na parte mais fina. Hint no campo + linha no avatar.
+  const cinturaHint = dados.sexo === 'F' ? '(acima do umbigo, parte mais fina)'
+    : dados.sexo === 'M' ? '(na altura do umbigo)'
+    : '(H: no umbigo · M: acima, parte fina)';
+  const hintDe = (m) => (m.k === 'cintura' ? cinturaHint : (m.hint || ''));
   const medidasVis = MEDIDAS;
   return `
     <div class="cp-form-corpo">
       <div class="cp-medidas">
         ${medidasVis.map(m => `
           <label class="cp-campo">
-            <span class="cp-campo-lbl">${m.lbl} ${m.hint ? `<small>${m.hint}</small>` : ''}</span>
+            <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
             <span class="cp-campo-in">
               <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
                 value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
@@ -461,9 +467,18 @@ function fotosGridHtml() {
 // Avatar: as ilustrações reais (frente + lado), conforme o sexo do perfil.
 // Mulher no perfil feminino, homem no masculino (padrão homem se não definido).
 function avatarHtml() {
-  const dir = dados.sexo === 'F' ? 'mulher' : 'homem';
+  const isF = dados.sexo === 'F';
+  const dir = isF ? 'mulher' : 'homem';
+  // Linha-guia da cintura: onde encostar a fita. Mulher mede um pouco mais alto
+  // (acima do umbigo, parte mais fina) → linha mais alta que a do homem.
+  // % do topo da figura é APROXIMADO — afinar depois de ver no avatar real.
+  const cintTxt = isF ? 'na parte mais fina (acima do umbigo)' : 'na altura do umbigo';
+  const cintTop = isF ? '45%' : '50%';
   return `
-    <div class="cp-fig"><img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" /></div>
+    <div class="cp-fig">
+      <img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" />
+      <div class="cp-fig-cintura" style="top:${cintTop}"><span>Cintura: ${cintTxt}</span></div>
+    </div>
     <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /></div>`;
 }
 

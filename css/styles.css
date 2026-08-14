@@ -658,9 +658,23 @@ html, body {
 .cp-campo-in input { font-size: 14px; }
 /* avatares grandes: tomam todo o espaço restante; imagem = largura da coluna */
 .cp-avatar { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--text); }
-.cp-fig { display: flex; flex-direction: column; align-items: center; }
+.cp-fig { display: flex; flex-direction: column; align-items: center; position: relative; }
 .cp-fig img, .cp-fig svg { width: 100%; height: auto; display: block; }
 .cp-fig-lbl { font-size: 10px; font-weight: 700; color: var(--muted); margin-top: 2px; }
+/* Linha-guia da cintura sobre o avatar (onde encostar a fita) + texto */
+.cp-fig-cintura {
+  position: absolute; left: 4%; right: 4%;
+  border-top: 2px dashed var(--accent-2, #a78bfa);
+  pointer-events: none; text-align: center;
+}
+.cp-fig-cintura span {
+  display: inline-block; margin-top: 2px;
+  background: var(--card); color: var(--text);
+  font-size: 8px; font-weight: 700; line-height: 1.15;
+  padding: 1px 4px; border-radius: 6px;
+  border: 1px solid var(--accent-2, #a78bfa);
+  max-width: 108%;
+}
 .cp-campo-in:focus-within { border-color: var(--accent); }
 .cp-campo-in input { flex: 1; min-width: 0; background: none; border: none; outline: none;
   color: var(--text); font-size: 15px; font-weight: 700; font-family: inherit; }
