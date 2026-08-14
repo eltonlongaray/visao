@@ -40,6 +40,7 @@ import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
+import { abrirPreparoFisico } from '../preparo-fisico-ui.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -144,6 +145,15 @@ export async function renderHome(app) {
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
+      <!-- PREPARO FÍSICO: atividade física/esporte + composição corporal -->
+      <button class="reminders-card" id="preparo-card" type="button">
+        <div class="reminders-icon">💪</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Preparo Físico</div>
+          <div class="reminders-sub">Atividade física, esporte e composição corporal</div>
+        </div>
+      </button>
+
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
       <!-- ATIVIDADES: daqui pra baixo é atividade -->
       <div class="home-section home-bloco">
@@ -185,6 +195,7 @@ export async function renderHome(app) {
   ligarFerramentas();
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
+  document.getElementById('preparo-card')?.addEventListener('click', abrirPreparoFisico);
 
   if (!tour.isCompleted()) {
     tour.markDone();

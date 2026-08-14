@@ -19,7 +19,6 @@ import { submitFeedback } from '../feedback.js';
 import { recordConsent } from '../lgpd-consentimentos.js';
 import { markPerfilDone, isPerfilDone } from '../contato-perfil.js';
 import { metaAgua } from '../corpo.js';
-import { montarComposicao, ligarComposicao } from '../corpo-ui.js';
 import { trocarMinhaFoto, removerMinhaFoto } from '../chat.js';
 import { isAdminPreview, setAdminPreview, resetAvisosRead } from '../avisos.js';
 import { resetDesafiosSeen } from '../desafios.js';
@@ -160,13 +159,6 @@ export async function renderAjustes(app) {
           </div>
         `, { open: !isPerfilDone(), id: 'accPerfil' })}
 
-        ${acc('🧮 Cálculo de massa corporal', `
-          <div class="ajustes-row-sub" style="padding:12px 12px 4px;font-size:15.5px;line-height:1.4;color:var(--text);font-weight:600">
-            Descubra seu percentual de gordura e de massa magra!
-          </div>
-          <div id="cp-inline" class="cp-inline"></div>
-        `, { id: 'accCorpo' })}
-
         ${acc('💬 Sugerir melhoria', `
           <div class="ajustes-row-sub" style="padding:10px 12px 6px">
             Tem uma ideia pra deixar o Falcon melhor? Escreva aqui — sua opinião é o que nos guia. 🦅
@@ -250,7 +242,6 @@ async function wire(app) {
       const open = !sec.classList.contains('open');
       sec.classList.toggle('open', open);
       body.hidden = !open;
-      if (open && sec.id === 'accCorpo') montarComposicao();   // carrega ao abrir
     });
   });
 
@@ -433,9 +424,6 @@ async function wire(app) {
       showToast('Dados removidos.', 'info');
     } catch (e) { showToast('Erro ao remover: ' + e.message, 'error'); }
   });
-
-  // ── Cálculo de Massa Corporal (inline) ──
-  ligarComposicao();
 
   // ── Sugerir melhoria ──
   app.querySelector('#fbSend')?.addEventListener('click', async () => {

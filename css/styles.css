@@ -7031,6 +7031,39 @@ body.sem-rolagem { overflow: hidden; }
 }
 .fr-modal { max-width: 460px; padding: 0; overflow: hidden; }
 .fr-corpo { display: flex; flex-direction: column; max-height: 84vh; }
+
+/* ── Preparo Físico (hub: Atividade Física + Composição Corporal) ── */
+.pf-modal { max-width: 480px; padding: 0; overflow: hidden; }
+.pf-corpo { display: flex; flex-direction: column; max-height: 86vh; overflow-y: auto; overflow-x: hidden; }
+.pf-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 16px 12px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--card); z-index: 2;
+}
+.pf-title { flex: 1; font-size: 17px; font-weight: 800; color: var(--text); }
+.pf-fechar {
+  background: rgba(234,179,8,0.14); border: 1px solid rgba(234,179,8,0.6);
+  border-radius: 999px; font-size: 13px; font-weight: 700; color: #eab308;
+  cursor: pointer; padding: 7px 16px; line-height: 1;
+}
+.pf-back {
+  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card-2); border: 1px solid var(--border); color: var(--text);
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.pf-sub { padding: 12px 16px 4px; color: var(--muted); font-size: 13px; }
+.pf-grupos { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 20px; }
+.pf-grupo {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 16px; border-radius: 16px; cursor: pointer; text-align: left;
+  background: var(--card-2); border: 1px solid var(--border); color: var(--text);
+}
+.pf-grupo:active { transform: scale(0.99); }
+.pf-grupo-ic { font-size: 26px; flex: 0 0 auto; }
+.pf-grupo-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.pf-grupo-txt b { font-size: 15px; font-weight: 700; }
+.pf-grupo-txt small { font-size: 12px; color: var(--muted); }
+.pf-grupo-seta { font-size: 22px; color: var(--muted); flex: 0 0 auto; }
 .fr-carregando, .fr-vazio { padding: 30px 18px; text-align: center; color: var(--muted); }
 
 .fr-cab {
