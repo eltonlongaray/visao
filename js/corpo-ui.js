@@ -472,12 +472,12 @@ function avatarHtml() {
   // Linha-guia da cintura: onde encostar a fita. Mulher mede um pouco mais alto
   // (acima do umbigo, parte mais fina) → linha mais alta que a do homem.
   // % do topo da figura é APROXIMADO — afinar depois de ver no avatar real.
-  const cintTxt = isF ? 'na parte mais fina (acima do umbigo)' : 'na altura do umbigo';
-  const cintTop = isF ? '45%' : '50%';
+  const cintTxt = isF ? 'Parte mais fina' : 'Altura do umbigo';
+  const cintTop = isF ? '42%' : '45%';
   return `
     <div class="cp-fig">
       <img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" />
-      <div class="cp-fig-cintura" style="top:${cintTop}"><span>Cintura: ${cintTxt}</span></div>
+      <div class="cp-fig-cintura" style="top:${cintTop}"><span>${cintTxt}</span></div>
     </div>
     <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /></div>`;
 }

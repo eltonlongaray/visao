@@ -667,13 +667,14 @@ html, body {
   border-top: 2px dashed var(--accent-2, #a78bfa);
   pointer-events: none; text-align: center;
 }
+/* Texto no LADO DIREITO, ancorado na ponta direita da linha (não sobre o corpo) */
 .cp-fig-cintura span {
-  display: inline-block; margin-top: 2px;
+  position: absolute; right: -2px; bottom: 3px;
   background: var(--card); color: var(--text);
-  font-size: 8px; font-weight: 700; line-height: 1.15;
+  font-size: 8px; font-weight: 700; line-height: 1.1;
   padding: 1px 4px; border-radius: 6px;
   border: 1px solid var(--accent-2, #a78bfa);
-  max-width: 108%;
+  white-space: nowrap;
 }
 .cp-campo-in:focus-within { border-color: var(--accent); }
 .cp-campo-in input { flex: 1; min-width: 0; background: none; border: none; outline: none;
