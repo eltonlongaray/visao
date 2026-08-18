@@ -473,7 +473,7 @@ function avatarHtml() {
   // (acima do umbigo, parte mais fina) → linha mais alta que a do homem.
   // % do topo da figura é APROXIMADO — afinar depois de ver no avatar real.
   const cintTxt = isF ? 'Parte mais fina' : 'Altura do umbigo';
-  const cintTop = isF ? '42%' : '45%';
+  const cintTop = isF ? '40%' : '45%';
   return `
     <div class="cp-fig">
       <img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" />
