@@ -49,6 +49,38 @@ registerRoute('/privacidade', renderPrivacidade);
 registerRoute('/aceite', renderLegalConsent);
 registerRoute('/ajustes', renderAjustes);
 
+
+// ── AVISO DE MIGRAÇÃO DE ENDEREÇO ──────────────────────────────
+// O Falcon passou a morar em estilo-falcon.web.app (rápido e estável). Quem abrir
+// por um endereço ANTIGO (github.io ou o mirror visao-719c3) vê este aviso pra
+// migrar. Some no endereço novo e em localhost. Os dados são os mesmos (Supabase),
+// então reinstalar não perde nada — é só logar com a mesma conta.
+const _HOST_NOVO = 'estilo-falcon.web.app';
+function _avisoMigracaoHost() {
+  const h = location.hostname;
+  if (h === _HOST_NOVO || h === 'localhost' || h === '127.0.0.1') return;
+  if (sessionStorage.getItem('mig_host_visto') === '1') return;   // 1x por sessão
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.style.zIndex = '99999';
+  ov.innerHTML = `
+    <div class="modal" style="max-width:400px;text-align:center;padding:22px 20px">
+      <div style="font-size:42px;line-height:1">📢🦅</div>
+      <h2 style="margin:10px 0 6px;font-size:20px;color:var(--text)">O Falcon mudou de casa!</h2>
+      <p style="color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 16px">
+        Agora ele tem um endereço <b>novo, mais rápido e estável</b>. Reinstale por lá —
+        <b>seus dados continuam TODOS salvos</b> (é só entrar com a mesma conta). Nada se perde. 💜
+      </p>
+      <div style="background:var(--card-2);border:1px solid var(--border);border-radius:10px;padding:8px;margin-bottom:14px;font-weight:700;color:var(--text);font-size:13.5px">estilo-falcon.web.app</div>
+      <button class="btn-primary" id="mig-ir" style="width:100%">Ir pro endereço novo</button>
+      <button class="btn-secondary" id="mig-depois" style="width:100%;margin-top:8px">Continuar aqui por enquanto</button>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#mig-ir').onclick = () => { location.href = 'https://' + _HOST_NOVO + '/'; };
+  ov.querySelector('#mig-depois').onclick = () => { ov.remove(); sessionStorage.setItem('mig_host_visto', '1'); };
+}
+setTimeout(_avisoMigracaoHost, 1200);
+
 await initI18n();
 
 // ── Guard de armazenamento ──────────────────────────────────────
