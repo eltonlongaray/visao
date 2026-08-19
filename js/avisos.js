@@ -88,9 +88,22 @@ function _fmtDate(iso) {
       .format(new Date(iso));
   } catch { return ''; }
 }
+// Transforma URLs em links clicáveis. Recebe texto JÁ ESCAPADO (_esc), então é
+// seguro — só embrulha o que parece URL num <a>. Pega https://… e domínios crus
+// como "estilo-falcon.web.app". Prepende https:// quando não tem protocolo.
+function _linkify(escaped) {
+  const re = /(https?:\/\/[^\s<]+)|((?:[a-z0-9][a-z0-9-]*\.)+(?:app|com|net|org|io|dev|me|co|br)(?:\.[a-z]{2})?(?:\/[^\s<]*)?)/gi;
+  return escaped.replace(re, (m) => {
+    const trail = (m.match(/[.,)\]!?:;]+$/) || [''])[0];   // pontuação final não entra no link
+    const url = m.slice(0, m.length - trail.length);
+    if (!url) return m;
+    const href = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="aviso-link">${url}</a>${trail}`;
+  });
+}
 function _avisoItemHtml(a, isAdmin) {
-  // Quebras de linha do texto viram <br> (conteúdo é escapado antes)
-  const bodyHtml = _esc(a.body).replace(/\n/g, '<br>');
+  // Escapa (anti-XSS) → vira link clicável → quebras de linha viram <br>.
+  const bodyHtml = _linkify(_esc(a.body)).replace(/\n/g, '<br>');
   return `<div class="aviso-item" data-id="${_esc(a.id)}">
     <div class="aviso-item-head">
       <div class="aviso-item-title">${_esc(a.title)}</div>

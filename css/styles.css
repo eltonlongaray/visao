@@ -2313,6 +2313,7 @@ body.time-picker-open { overflow: hidden; }
 .aviso-item-title { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.25; }
 .aviso-item-date { font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
 .aviso-item-body { font-size: 14px; color: var(--text); line-height: 1.55; opacity: 0.92; }
+.aviso-link { color: var(--accent-2); font-weight: 700; text-decoration: underline; word-break: break-all; }
 .aviso-actions { display: flex; gap: 2px; flex-shrink: 0; }
 .aviso-edit, .aviso-del {
   background: none; border: none; cursor: pointer;
