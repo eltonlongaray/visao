@@ -7424,7 +7424,7 @@ body.sem-rolagem { overflow: hidden; }
   flex: 1; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
   color: var(--accent-2); font-size: 12px; padding: 9px 10px; font-weight: 600;
 }
-.ag-link-box .btn-secondary { flex: none; padding: 9px 16px; }
+.ag-link-box .btn-secondary { flex: none; width: auto; padding: 9px 16px; }
 
 /* lista de agendamentos */
 .ag-lista { display: flex; flex-direction: column; gap: 6px; }
