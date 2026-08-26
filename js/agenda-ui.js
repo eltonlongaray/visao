@@ -22,6 +22,12 @@ const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${
 const _linkPublico = () => `${location.origin}${location.pathname}#/agenda/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
+// true quando TODOS os dias têm exatamente os mesmos horários do dia atual (e não vazio)
+function _todosIguais() {
+  const cur = _horasDoDia(_diaSel).join(',');
+  if (!cur) return false;
+  return DOWS.every(d => _horasDoDia(d.k).join(',') === cur);
+}
 
 export async function abrirAgenda() {
   _diaSel = new Date().getDay(); // começa no dia de hoje
@@ -149,7 +155,10 @@ function pintarDiaEditor() {
       <button class="btn-secondary" id="ag-add-btn" type="button">+ Adicionar horário</button>
     </div>
     <div class="ag-dia-acoes">
-      <button class="ag-linkbtn" id="ag-repetir" type="button">🔁 Repetir na semana toda</button>
+      <label class="ag-repetir-chk">
+        <input type="checkbox" id="ag-repetir" ${_todosIguais() ? 'checked' : ''}>
+        <span>🔁 Repetir esses horários na semana toda</span>
+      </label>
       ${times.length ? '<button class="ag-linkbtn danger" id="ag-limpar" type="button">Limpar dia</button>' : ''}
     </div>`;
   wireEditor(box);
@@ -176,12 +185,17 @@ function wireEditor(box) {
     };
   });
   const rep = box.querySelector('#ag-repetir');
-  if (rep) rep.onclick = () => {
-    const arr = _horasDoDia(_diaSel);
-    if (!arr.length) { showToast('Adicione horários neste dia primeiro', 'info'); return; }
-    for (const d of DOWS) _cfg.disponibilidade[String(d.k)] = arr.slice();
+  if (rep) rep.onchange = () => {
+    if (rep.checked) {
+      const arr = _horasDoDia(_diaSel);
+      if (!arr.length) { showToast('Adicione horários neste dia primeiro', 'info'); rep.checked = false; return; }
+      for (const d of DOWS) _cfg.disponibilidade[String(d.k)] = arr.slice();
+      showToast('🔁 Horários repetidos na semana toda', 'success');
+    } else {
+      for (const d of DOWS) if (d.k !== _diaSel) delete _cfg.disponibilidade[String(d.k)];
+      showToast('Repetição desligada — outros dias limpos', 'info');
+    }
     pintarTabs(); pintarDiaEditor();
-    showToast('🔁 Horários repetidos na semana toda', 'success');
   };
   const lim = box.querySelector('#ag-limpar');
   if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };

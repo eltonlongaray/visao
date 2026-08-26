@@ -7404,7 +7404,9 @@ body.sem-rolagem { overflow: hidden; }
 .ag-vazio-dia { color: var(--muted); font-size: 13px; padding: 6px 0 10px; }
 .ag-add { display: flex; margin-top: 6px; }
 .ag-add .btn-secondary { flex: 1; padding: 9px 10px; }
-.ag-dia-acoes { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.ag-dia-acoes { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.ag-repetir-chk { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.ag-repetir-chk input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .ag-linkbtn { background: none; border: none; color: var(--accent-2); font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; }
 .ag-linkbtn.danger { color: #ef4444; }
 
