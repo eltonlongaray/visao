@@ -40,7 +40,15 @@ export function forceRender() {
 }
 
 async function render() {
-  const path = (location.hash || '#/login').slice(1).split('?')[0];
+  // Link público LIMPO (sem #): estilo-falcon.web.app/agenda/<slug>.
+  // O rewrite ** do Firebase serve o index; aqui roteamos pelo pathname
+  // quando não há hash (se houver hash, ele manda — navegação interna).
+  let path;
+  if (!location.hash && location.pathname.startsWith('/agenda/')) {
+    path = location.pathname.replace(/\/+$/, '');
+  } else {
+    path = (location.hash || '#/login').slice(1).split('?')[0];
+  }
   const app = document.getElementById('app');
   if (currentCleanup) { try { currentCleanup(); } catch {} currentCleanup = null; }
   // PATCH: remove modais persistentes na troca de rota

@@ -19,7 +19,8 @@ let _cfg = null, _ags = [], _close = null, _diaSel = 1;
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
-const _linkPublico = () => `${location.origin}${location.pathname}#/agenda/${_cfg.slug}`;
+const _linkPublico = () => `${location.origin}/agenda/${_cfg.slug}`;
+const _slugify = s => (s || '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
 // true quando TODOS os dias têm exatamente os mesmos horários do dia atual (e não vazio)
@@ -90,6 +91,11 @@ function desenhar() {
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
       </div>
+      <div class="ag-slug-edit">
+        <span class="ag-slug-pre">/agenda/</span>
+        <input id="ag-slug" value="${_esc(_cfg.slug)}" maxlength="30" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="seu-nome">
+      </div>
+      <div class="ag-slug-hint">Escolha o final do link (letras, números e hífen). Ex.: <b>seu-nome</b> vira <b>.../agenda/seu-nome</b></div>
 
       <div class="input-field-label" style="margin-top:14px">Agendamentos recebidos</div>
       <div class="ag-lista">${agsHtml}</div>
@@ -207,6 +213,8 @@ async function salvar() {
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
   const ativo = corpo.querySelector('#ag-ativo').checked;
+  const slug = _slugify(corpo.querySelector('#ag-slug')?.value || '');
+  if (slug.length < 3) { showToast('O final do link precisa de ao menos 3 letras', 'info'); return; }
   // limpa dias vazios
   const disp = {};
   for (const k of Object.keys(_cfg.disponibilidade)) {
@@ -218,11 +226,14 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, duracao_min, disponibilidade: disp, ativo });
-    _cfg = { ..._cfg, titulo, duracao_min, disponibilidade: disp, ativo };
+    await salvarAgendaConfig({ titulo, duracao_min, disponibilidade: disp, ativo, slug });
+    _cfg = { ..._cfg, titulo, duracao_min, disponibilidade: disp, ativo, slug };
+    const li = corpo.querySelector('#ag-link'); if (li) li.value = _linkPublico();
+    const si = corpo.querySelector('#ag-slug'); if (si) si.value = slug;
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
-    showToast('Erro ao salvar: ' + e.message, 'error');
+    const dup = /duplicate|unique|already exists|23505/i.test(e.message || '');
+    showToast(dup ? 'Esse final de link já está em uso — escolhe outro' : ('Erro ao salvar: ' + e.message), 'error');
   }
   if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Salvar'; }
 }

@@ -7,10 +7,16 @@
 <meta name="description" content="Mentor Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.">
 <title>Falcon — Mentor Pessoal de Planejamento Estratégico</title>
 
+<!-- Link público /agenda/<slug>: fixa a base em "/" pra os assets relativos
+     carregarem da RAIZ (senão o navegador pede /agenda/js/... e recebe HTML). -->
+<script>
+  if (location.pathname.indexOf('/agenda/') === 0) document.write('<base href="/">');
+</script>
+
 <!-- Force-update: unregister → re-register → SW ready → reload -->
 <script>
   (function() {
-    var V = '552';
+    var V = '553';
     window.__BUILD = V;   // exibido em Ajustes: encerra a dúvida de 'a atualização chegou?'
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
@@ -44,7 +50,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20260826f">
+<link rel="stylesheet" href="css/styles.css?v=20260826g">
 <style>.onboarding-logo,.ajustes-avatar{background:#4f46e5!important}</style>
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado

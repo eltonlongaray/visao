@@ -172,7 +172,7 @@ document.addEventListener('visibilitychange', () => {
 // BLOCO 3: AUTH STATE
 // ═══════════════════════════════════════════════════════════════
 setTimeout(() => {
-  if (location.hash === '' || location.hash === '#') {
+  if ((location.hash === '' || location.hash === '#') && !location.pathname.startsWith('/agenda/')) {
     navigate('/login');
   }
 }, 3000);
@@ -182,9 +182,12 @@ const PUBLIC_ROUTES = ['#/login', '#/signup', '#/termos', '#/privacidade'];
 
 let lastUid = null;
 onAuthStateChanged(auth, async (user) => {
-  // Rota pública de agendamento: o roteador renderiza sozinho; o gate não interfere
-  // (nem manda pro login sem sessão, nem tira o dono logado da própria página).
-  if (location.hash.startsWith('#/agenda/')) { lastUid = user?.uid ?? null; return; }
+  // Rota pública de agendamento (hash #/agenda/ OU path limpo /agenda/): o roteador
+  // renderiza sozinho; o gate não interfere (nem manda pro login sem sessão, nem
+  // tira o dono logado da própria página).
+  const naAgenda = location.hash.startsWith('#/agenda/')
+    || (!location.hash && location.pathname.startsWith('/agenda/'));
+  if (naAgenda) { lastUid = user?.uid ?? null; return; }
 
   const isPublic = PUBLIC_ROUTES.includes(location.hash);
 
