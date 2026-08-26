@@ -7,10 +7,23 @@ import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
-function _novoSlug() {
-  const a = 'abcdefghijkmnpqrstuvwxyz23456789';
-  let s = ''; for (let i = 0; i < 8; i++) s += a[Math.floor(Math.random() * a.length)];
-  return s;
+// Código curto do link: 1 letra + 2 dígitos (ex.: A01). Sem I/O pra não confundir.
+function _codigoCurto() {
+  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const l = L[Math.floor(Math.random() * L.length)];
+  const n = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+  return l + n;
+}
+const _ehCodigoCurto = s => /^[A-Z]\d{2}$/.test(s || '');
+// Troca o slug do dono por um código curto livre (retry em colisão). Retorna o novo.
+async function _slugCurtoLivre(uid) {
+  for (let i = 0; i < 24; i++) {
+    const code = _codigoCurto();
+    const { error } = await supabase.from('agenda_config').update({ slug: code }).eq('user_id', uid);
+    if (!error) return code;
+    if (!/duplicate|unique|23505/i.test(error.message || '')) throw new Error(error.message);
+  }
+  throw new Error('sem código curto livre');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -21,17 +34,23 @@ export async function getAgendaConfig() {
   const uid = _uid(); if (!uid) return null;
   const { data, error } = await supabase.from('agenda_config').select('*').eq('user_id', uid).maybeSingle();
   if (error) throw new Error(error.message);
-  if (data) return data;
-  // primeira vez: cria desativada, sem disponibilidade
-  const novo = { user_id: uid, slug: _novoSlug(), titulo: 'Agende comigo', duracao_min: 60, disponibilidade: {}, ativo: false };
-  const ins = await supabase.from('agenda_config').insert(novo).select('*').single();
-  if (ins.error) {
-    // corrida (2 abas criaram junto) → lê a que ficou
+  if (data) {
+    // migra códigos no formato antigo (aleatório) pro curto A01
+    if (!_ehCodigoCurto(data.slug)) { try { data.slug = await _slugCurtoLivre(uid); } catch {} }
+    return data;
+  }
+  // primeira vez: cria desativada, com código curto livre (retry em colisão)
+  for (let i = 0; i < 24; i++) {
+    const novo = { user_id: uid, slug: _codigoCurto(), titulo: 'Agende comigo', duracao_min: 60, disponibilidade: {}, ativo: false };
+    const ins = await supabase.from('agenda_config').insert(novo).select('*').single();
+    if (!ins.error) return ins.data;
+    // corrida no user_id (2 abas) → lê a que ficou
     const re = await supabase.from('agenda_config').select('*').eq('user_id', uid).maybeSingle();
     if (re.data) return re.data;
-    throw new Error(ins.error.message);
+    // senão foi colisão de slug → tenta outro código
+    if (!/duplicate|unique|23505/i.test(ins.error.message || '')) throw new Error(ins.error.message);
   }
-  return ins.data;
+  throw new Error('sem código curto livre');
 }
 
 // Salva parcial (titulo, duracao_min, disponibilidade, ativo).

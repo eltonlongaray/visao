@@ -36,7 +36,7 @@ import { initPet, showPet, hidePet } from './assistente-ia.js?v=20260705o';
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: REGISTRO DE ROTAS
 // ═══════════════════════════════════════════════════════════════
-registerPrefixRoute('/agenda/', renderAgendaPublica);   // página pública (sem login)
+registerPrefixRoute('/agenda-online/', renderAgendaPublica);   // página pública (sem login)
 registerRoute('/login', renderLogin);
 registerRoute('/signup', renderSignup);
 registerRoute('/welcome', renderWelcome);
@@ -172,8 +172,7 @@ document.addEventListener('visibilitychange', () => {
 // BLOCO 3: AUTH STATE
 // ═══════════════════════════════════════════════════════════════
 setTimeout(() => {
-  const rotaPublica = location.pathname !== '/' && location.pathname !== '/index.html';
-  if ((location.hash === '' || location.hash === '#') && !rotaPublica) {
+  if ((location.hash === '' || location.hash === '#') && !location.pathname.startsWith('/agenda-online/')) {
     navigate('/login');
   }
 }, 3000);
@@ -183,11 +182,11 @@ const PUBLIC_ROUTES = ['#/login', '#/signup', '#/termos', '#/privacidade'];
 
 let lastUid = null;
 onAuthStateChanged(auth, async (user) => {
-  // Rota pública de agendamento (hash #/agenda/ OU path limpo /<slug>): o roteador
+  // Rota pública de agendamento (hash #/agenda/ OU path limpo /agenda/): o roteador
   // renderiza sozinho; o gate não interfere (nem manda pro login sem sessão, nem
-  // tira o dono logado da própria página). Qualquer path fora da home é agenda pública.
-  const naAgenda = location.hash.startsWith('#/agenda/')
-    || (!location.hash && location.pathname !== '/' && location.pathname !== '/index.html');
+  // tira o dono logado da própria página).
+  const naAgenda = location.hash.startsWith('#/agenda-online/')
+    || (!location.hash && location.pathname.startsWith('/agenda-online/'));
   if (naAgenda) { lastUid = user?.uid ?? null; return; }
 
   const isPublic = PUBLIC_ROUTES.includes(location.hash);

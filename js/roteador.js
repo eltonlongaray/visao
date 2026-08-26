@@ -40,14 +40,12 @@ export function forceRender() {
 }
 
 async function render() {
-  // Link público LIMPO (sem #): estilo-falcon.web.app/<slug> (raiz) ou /agenda/<slug>.
-  // O rewrite ** do Firebase serve o index; aqui roteamos pelo pathname quando não há
-  // hash. Qualquer path fora da home vira slug de agenda (roteado pro handler público).
+  // Link público LIMPO (sem #): estilo-falcon.web.app/agenda/<codigoID>.
+  // O rewrite ** do Firebase serve o index; aqui roteamos pelo pathname
+  // quando não há hash (se houver hash, ele manda — navegação interna).
   let path;
-  if (!location.hash && location.pathname !== '/' && location.pathname !== '/index.html') {
-    const pn = location.pathname.replace(/\/+$/, '');
-    const slug = pn.startsWith('/agenda/') ? pn.slice(8) : pn.slice(1);
-    path = '/agenda/' + slug;   // normaliza pro prefixo interno (URL continua limpa)
+  if (!location.hash && location.pathname.startsWith('/agenda-online/')) {
+    path = location.pathname.replace(/\/+$/, '');
   } else {
     path = (location.hash || '#/login').slice(1).split('?')[0];
   }
