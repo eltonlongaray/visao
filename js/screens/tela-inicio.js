@@ -41,6 +41,7 @@ import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 import { abrirPreparoFisico } from '../preparo-fisico-ui.js';
+import { abrirAgenda } from '../agenda-ui.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -154,6 +155,15 @@ export async function renderHome(app) {
         </div>
       </button>
 
+      <!-- AGENDA ONLINE: link público de agendamento (tipo Calendly) -->
+      <button class="reminders-card" id="agenda-card" type="button">
+        <div class="reminders-icon">📅</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Agenda Online</div>
+          <div class="reminders-sub">Seu link de agendamento pra bio do Instagram</div>
+        </div>
+      </button>
+
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
       <!-- ATIVIDADES: daqui pra baixo é atividade -->
       <div class="home-section home-bloco">
@@ -196,6 +206,7 @@ export async function renderHome(app) {
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
   document.getElementById('preparo-card')?.addEventListener('click', abrirPreparoFisico);
+  document.getElementById('agenda-card')?.addEventListener('click', abrirAgenda);
 
   if (!tour.isCompleted()) {
     tour.markDone();

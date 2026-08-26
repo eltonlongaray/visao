@@ -7347,3 +7347,76 @@ body.sem-rolagem { overflow: hidden; }
 .grava-enviar-audio { background: var(--accent); color: #fff; font-size: 17px; }
 /* o mic não pode rolar a tela durante o gesto de segurar-e-arrastar */
 #chat-mic-btn { touch-action: none; }
+
+/* ===== AGENDA ONLINE (modal do dono) ===== */
+.ag-modal { max-width: 480px; padding: 0; overflow: hidden; }
+.ag-corpo { display: flex; flex-direction: column; max-height: 88vh; }
+.ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
+.ag-erro small { color: var(--muted); }
+.ag-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.ag-title { flex: 1; font-size: 17px; font-weight: 800; color: var(--text); }
+.ag-fechar {
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--text);
+  padding: 6px 14px; cursor: pointer;
+}
+.ag-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 18px; }
+.ag-rodape {
+  padding: 12px 18px; border-top: 1px solid var(--border); background: var(--card);
+}
+.ag-rodape .btn-primary { width: 100%; }
+.ag-scroll .input-field { margin-bottom: 12px; }
+.ag-scroll select { width: 100%; }
+
+/* grade de dias */
+.ag-dias { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 4px; }
+.ag-dia {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card-2);
+}
+.ag-dia.off { opacity: 0.55; }
+.ag-dia-chk { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; cursor: pointer; }
+.ag-dia-chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+.ag-dia-horas { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.ag-dia-horas input[type=time] {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 4px 6px; font-size: 13px;
+}
+.ag-dia-horas input[type=time]:disabled { opacity: 0.4; }
+
+/* ativar */
+.ag-ativar {
+  display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 4px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card-2); font-size: 13px; line-height: 1.4; cursor: pointer;
+}
+.ag-ativar input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex: none; }
+
+/* link */
+.ag-link-box { display: flex; gap: 8px; }
+.ag-link-box input {
+  flex: 1; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--accent-2); font-size: 12px; padding: 9px 10px; font-weight: 600;
+}
+.ag-link-box .btn-secondary { flex: none; padding: 9px 16px; }
+
+/* lista de agendamentos */
+.ag-lista { display: flex; flex-direction: column; gap: 6px; }
+.ag-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2);
+}
+.ag-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ag-item-info b { font-size: 14px; color: var(--text); }
+.ag-item-info small { font-size: 12px; color: var(--muted); }
+.ag-item-x {
+  background: transparent; border: none; color: #ef4444; font-size: 15px; cursor: pointer;
+  padding: 4px 8px; border-radius: 8px;
+}
+.ag-item-x:hover { background: rgba(239,68,68,0.12); }
+.ag-vazio { padding: 14px; text-align: center; color: var(--muted); font-size: 13px; }
