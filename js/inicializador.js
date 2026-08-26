@@ -172,7 +172,8 @@ document.addEventListener('visibilitychange', () => {
 // BLOCO 3: AUTH STATE
 // ═══════════════════════════════════════════════════════════════
 setTimeout(() => {
-  if ((location.hash === '' || location.hash === '#') && !location.pathname.startsWith('/agenda/')) {
+  const rotaPublica = location.pathname !== '/' && location.pathname !== '/index.html';
+  if ((location.hash === '' || location.hash === '#') && !rotaPublica) {
     navigate('/login');
   }
 }, 3000);
@@ -182,11 +183,11 @@ const PUBLIC_ROUTES = ['#/login', '#/signup', '#/termos', '#/privacidade'];
 
 let lastUid = null;
 onAuthStateChanged(auth, async (user) => {
-  // Rota pública de agendamento (hash #/agenda/ OU path limpo /agenda/): o roteador
+  // Rota pública de agendamento (hash #/agenda/ OU path limpo /<slug>): o roteador
   // renderiza sozinho; o gate não interfere (nem manda pro login sem sessão, nem
-  // tira o dono logado da própria página).
+  // tira o dono logado da própria página). Qualquer path fora da home é agenda pública.
   const naAgenda = location.hash.startsWith('#/agenda/')
-    || (!location.hash && location.pathname.startsWith('/agenda/'));
+    || (!location.hash && location.pathname !== '/' && location.pathname !== '/index.html');
   if (naAgenda) { lastUid = user?.uid ?? null; return; }
 
   const isPublic = PUBLIC_ROUTES.includes(location.hash);
