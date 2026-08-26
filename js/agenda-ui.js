@@ -7,6 +7,7 @@
 import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { openTimePicker } from './seletor-horario.js';
 
 const DOWS = [
   { k: 1, lbl: 'Seg', full: 'Segunda' }, { k: 2, lbl: 'Ter', full: 'Terça' },
@@ -20,7 +21,6 @@ const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<':
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
 const _linkPublico = () => `${location.origin}${location.pathname}#/agenda/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
-function _norm(h) { const m = /^(\d{1,2}):?(\d{2})$/.exec((h || '').trim()); if (!m) return null; const hh = String(Math.min(23, +m[1])).padStart(2, '0'); const mm = String(Math.min(59, +m[2])).padStart(2, '0'); return `${hh}:${mm}`; }
 const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
 
 export async function abrirAgenda() {
@@ -146,7 +146,6 @@ function pintarDiaEditor() {
       ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
       : '<div class="ag-vazio-dia">Nenhum horário neste dia ainda.</div>'}
     <div class="ag-add">
-      <input type="time" id="ag-add-hora" value="09:00">
       <button class="btn-secondary" id="ag-add-btn" type="button">+ Adicionar horário</button>
     </div>
     <div class="ag-dia-acoes">
@@ -157,9 +156,10 @@ function pintarDiaEditor() {
 }
 
 function wireEditor(box) {
-  box.querySelector('#ag-add-btn').onclick = () => {
-    const h = _norm(box.querySelector('#ag-add-hora').value);
-    if (!h) { showToast('Horário inválido', 'info'); return; }
+  box.querySelector('#ag-add-btn').onclick = async () => {
+    const nome = DOWS.find(d => d.k === _diaSel)?.full || '';
+    const h = await openTimePicker('09:00', { title: `Novo horário — ${nome}` });
+    if (!h) return;
     const dia = String(_diaSel);
     const arr = _cfg.disponibilidade[dia] || [];
     if (arr.includes(h)) { showToast('Esse horário já está no dia', 'info'); return; }
