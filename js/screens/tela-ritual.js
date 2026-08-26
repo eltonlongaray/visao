@@ -351,6 +351,7 @@ async function loadWeek(promessaSemana) {
   // criar, com chave group-aware; não precisa de faxineiro destrutivo depois.
   // Garante tarefas recorrentes na semana atual — o usuário vê agora.
   await autoGenerateMissingTasks(weekData);
+  await _dedupPorGrupoNoDia(weekData);   // limpa duplicata de MESMO groupId no dia (seguro)
 
   // A próxima semana é geração PREVENTIVA: ninguém está olhando pra ela.
   // Segurava a pintura da tela por mais uma busca inteira + escritas.
@@ -906,28 +907,32 @@ async function _cleanMonthlyLeaks() {
   } catch (e) { console.warn('[Falcon] limpeza de vazamento mensal falhou (tentará de novo):', e); }
 }
 
-// ─── DIAG TEMP (v543, só admin): padrão dos cards duplicados no Ritual ──
-async function _diagDup() {
-  if (!profile?.isAdmin) return;
-  try {
-    const hojeId = dayId(new Date());
-    const [y, m, d] = hojeId.split('-').map(Number);
-    const dow = new Date(y, m - 1, d).getDay();
-    const tpl = profile.weekdayTemplates?.[String(dow)] || [];
-    const hoje = weekData?.find(x => x.id === hojeId);
-    const tasks = hoje?.tasks || [];
-    const gid = t => String(t.recurrenceGroupId || '-').slice(0, 6);
-    const ck = t => `${(t.title || '').trim().toLowerCase()}|${t.startTime || ''}|${String(t.shiftId || '').slice(0, 4)}`;
-    const cont = new Map();
-    for (const t of tasks) { const k = ck(t); if (!cont.has(k)) cont.set(k, []); cont.get(k).push(gid(t)); }
-    const dups = [...cont.entries()].filter(([, g]) => g.length > 1)
-      .map(([k, g]) => `• ${k.split('|')[0]} ×${g.length} [${g.join(', ')}]`).join('\n') || '(nenhum)';
-    const tplByCk = new Map();
-    for (const e of tpl) { const k = ck(e); if (!tplByCk.has(k)) tplByCk.set(k, []); tplByCk.get(k).push(gid(e)); }
-    const tplDup = [...tplByCk.entries()].filter(([, g]) => g.length > 1)
-      .map(([k, g]) => `• ${k.split('|')[0]} ×${g.length} [${g.join(', ')}]`).join('\n') || '(nenhum)';
-    alert(`dow=${dow} · molde=${tpl.length} cards · hoje=${tasks.length} tarefas\n\n=DUPLICADOS HOJE (conteudo ×qtd [6 primeiros do groupId])=\n${dups}\n\n=MOLDE com repetido=\n${tplDup}`);
-  } catch (e) { alert('diagdup err: ' + (e.message || e)); }
+// ─── LIMPEZA por groupId no dia (SEGURA) ───────────────────────
+// Um mesmo recurrenceGroupId NUNCA deve aparecer 2x no mesmo dia — cada recorrência
+// gera 1 instância por dia. Duplicatas de MESMO groupId (ex.: geração concorrente
+// quando o app abriu em 2 endereços na migração, que triplicou tudo) são apagadas,
+// mantendo 1 (prefere a marcada como feita). SEGURO ≠ do desastre do FIAP: aquele
+// deduplicava por CONTEÚDO (matava as 3 águas, que têm groupIds DISTINTOS). Aqui é
+// por groupId — repetição intencional (groupIds diferentes) NÃO é tocada.
+async function _dedupPorGrupoNoDia(days) {
+  for (const day of days) {
+    if (!Array.isArray(day.tasks)) continue;
+    const porGrp = new Map();   // groupId -> tarefa mantida no dia
+    const remover = [];
+    for (const t of day.tasks) {
+      if (!t.recurrenceGroupId) continue;   // sem grupo: avulso, não mexe
+      const g = t.recurrenceGroupId;
+      const mantida = porGrp.get(g);
+      if (!mantida) { porGrp.set(g, t); continue; }
+      if (t.done && !mantida.done) { remover.push(mantida); porGrp.set(g, t); }  // mantém a feita
+      else remover.push(t);
+    }
+    if (remover.length) {
+      const ids = new Set(remover.map(t => t.id));
+      day.tasks = day.tasks.filter(t => !ids.has(t.id));
+      for (const t of remover) { try { await deleteDayTask(day.id, t.id); } catch {} }
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -994,7 +999,6 @@ export async function renderRitual(app) {
   await _cleanMonthlyLeaks();           // 1x/usuário: tira mensal que vazou pros moldes semanais (v532)
   await loadWeek(pSemana);
   renderUI(app);
-  _diagDup();   // TEMP v543: diagnóstico dos duplicados (só admin)
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
