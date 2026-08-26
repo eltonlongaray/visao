@@ -1,23 +1,30 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// Modal "Agenda disponível" (lado do DONO): define dias/horários livres +
-// duração, copia o link público e vê/cancela os agendamentos recebidos.
-// A página pública (onde o cliente agenda) é outro fluxo (Fase B).
+// Modal "Agenda Online" (lado do DONO): escolhe UM dia por vez (abas),
+// adiciona horários específicos (agrupados por turno: manhã/tarde/noite),
+// pode repetir o dia na semana toda, copia o link público e vê/cancela
+// os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
 import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
 const DOWS = [
-  { k: 1, lbl: 'Segunda' }, { k: 2, lbl: 'Terça' }, { k: 3, lbl: 'Quarta' },
-  { k: 4, lbl: 'Quinta' }, { k: 5, lbl: 'Sexta' }, { k: 6, lbl: 'Sábado' }, { k: 0, lbl: 'Domingo' },
+  { k: 1, lbl: 'Seg', full: 'Segunda' }, { k: 2, lbl: 'Ter', full: 'Terça' },
+  { k: 3, lbl: 'Qua', full: 'Quarta' }, { k: 4, lbl: 'Qui', full: 'Quinta' },
+  { k: 5, lbl: 'Sex', full: 'Sexta' }, { k: 6, lbl: 'Sáb', full: 'Sábado' },
+  { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
-let _cfg = null, _ags = [], _close = null;
+let _cfg = null, _ags = [], _close = null, _diaSel = 1;
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
 const _linkPublico = () => `${location.origin}${location.pathname}#/agenda/${_cfg.slug}`;
+const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
+function _norm(h) { const m = /^(\d{1,2}):?(\d{2})$/.exec((h || '').trim()); if (!m) return null; const hh = String(Math.min(23, +m[1])).padStart(2, '0'); const mm = String(Math.min(59, +m[2])).padStart(2, '0'); return `${hh}:${mm}`; }
+const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
 
 export async function abrirAgenda() {
+  _diaSel = new Date().getDay(); // começa no dia de hoje
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.id = 'agenda-ov';
@@ -27,9 +34,10 @@ export async function abrirAgenda() {
   _close = trapModalBack(() => ov.remove());
   try {
     [_cfg, _ags] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => [])]);
+    if (!_cfg.disponibilidade || typeof _cfg.disponibilidade !== 'object') _cfg.disponibilidade = {};
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
-    if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
+    if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
     return;
   }
   desenhar();
@@ -38,20 +46,6 @@ export async function abrirAgenda() {
 function desenhar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
-  const disp = _cfg.disponibilidade || {};
-  const linhasDias = DOWS.map(d => {
-    const on = !!disp[d.k];
-    const ini = disp[d.k]?.inicio || '09:00';
-    const fim = disp[d.k]?.fim || '18:00';
-    return `<div class="ag-dia ${on ? '' : 'off'}" data-dow="${d.k}">
-      <label class="ag-dia-chk"><input type="checkbox" ${on ? 'checked' : ''} data-dia-on="${d.k}"><span>${d.lbl}</span></label>
-      <div class="ag-dia-horas">
-        <input type="time" value="${ini}" data-dia-ini="${d.k}" ${on ? '' : 'disabled'}>
-        <span>às</span>
-        <input type="time" value="${fim}" data-dia-fim="${d.k}" ${on ? '' : 'disabled'}>
-      </div>
-    </div>`;
-  }).join('');
   const agsHtml = _ags.length ? _ags.map(a => `
     <div class="ag-item">
       <div class="ag-item-info">
@@ -74,8 +68,11 @@ function desenhar() {
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
         </select></label>
 
-      <div class="input-field-label" style="margin-top:10px">Seus dias e horários disponíveis</div>
-      <div class="ag-dias">${linhasDias}</div>
+      <div class="input-field-label" style="margin-top:12px">Horários disponíveis — escolha o dia e adicione os horários</div>
+      <div class="ag-tabs" id="ag-tabs">
+        ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span>${d.lbl}</span><i class="ag-tab-dot"></i></button>`).join('')}
+      </div>
+      <div class="ag-dia-editor" id="ag-dia-editor"></div>
 
       <label class="ag-ativar">
         <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
@@ -94,18 +91,16 @@ function desenhar() {
     <div class="ag-rodape">
       <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
     </div>`;
-  wire(corpo);
+  wireFixos(corpo);
+  pintarTabs();
+  pintarDiaEditor();
 }
 
-function wire(corpo) {
+// Handlers que existem uma vez só (tabs, fechar, copiar, salvar, cancelar).
+function wireFixos(corpo) {
   corpo.querySelector('#ag-close').onclick = () => _close?.();
-  corpo.querySelectorAll('[data-dia-on]').forEach(chk => {
-    chk.addEventListener('change', () => {
-      const dow = chk.dataset.diaOn;
-      const row = corpo.querySelector(`.ag-dia[data-dow="${dow}"]`);
-      row.classList.toggle('off', !chk.checked);
-      row.querySelectorAll('input[type=time]').forEach(i => { i.disabled = !chk.checked; });
-    });
+  corpo.querySelectorAll('.ag-tab').forEach(t => {
+    t.addEventListener('click', () => { _diaSel = parseInt(t.dataset.tab, 10); pintarTabs(); pintarDiaEditor(); });
   });
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
@@ -125,21 +120,87 @@ function wire(corpo) {
   corpo.querySelector('#ag-salvar').onclick = salvar;
 }
 
+function pintarTabs() {
+  document.querySelectorAll('#agenda-ov .ag-tab').forEach(t => {
+    const k = parseInt(t.dataset.tab, 10);
+    t.classList.toggle('ativo', k === _diaSel);
+    t.querySelector('.ag-tab-dot').style.opacity = _horasDoDia(k).length ? '1' : '0';
+  });
+}
+
+function pintarDiaEditor() {
+  const box = document.querySelector('#ag-dia-editor');
+  if (!box) return;
+  const times = _horasDoDia(_diaSel);
+  const g = { manha: [], tarde: [], noite: [] };
+  times.forEach(h => g[_turno(h)].push(h));
+  const bloco = (lbl, icon, arr) => arr.length ? `
+    <div class="ag-turno">
+      <div class="ag-turno-lbl">${icon} ${lbl}</div>
+      <div class="ag-chips">${arr.map(h => `<span class="ag-chip">${h}<button data-rm="${h}" type="button" aria-label="remover">✕</button></span>`).join('')}</div>
+    </div>` : '';
+  const nome = DOWS.find(d => d.k === _diaSel)?.full || '';
+  box.innerHTML = `
+    <div class="ag-dia-nome">${nome}</div>
+    ${times.length
+      ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
+      : '<div class="ag-vazio-dia">Nenhum horário neste dia ainda.</div>'}
+    <div class="ag-add">
+      <input type="time" id="ag-add-hora" value="09:00">
+      <button class="btn-secondary" id="ag-add-btn" type="button">+ Adicionar horário</button>
+    </div>
+    <div class="ag-dia-acoes">
+      <button class="ag-linkbtn" id="ag-repetir" type="button">🔁 Repetir na semana toda</button>
+      ${times.length ? '<button class="ag-linkbtn danger" id="ag-limpar" type="button">Limpar dia</button>' : ''}
+    </div>`;
+  wireEditor(box);
+}
+
+function wireEditor(box) {
+  box.querySelector('#ag-add-btn').onclick = () => {
+    const h = _norm(box.querySelector('#ag-add-hora').value);
+    if (!h) { showToast('Horário inválido', 'info'); return; }
+    const dia = String(_diaSel);
+    const arr = _cfg.disponibilidade[dia] || [];
+    if (arr.includes(h)) { showToast('Esse horário já está no dia', 'info'); return; }
+    arr.push(h); arr.sort();
+    _cfg.disponibilidade[dia] = arr;
+    pintarTabs(); pintarDiaEditor();
+  };
+  box.querySelectorAll('[data-rm]').forEach(b => {
+    b.onclick = () => {
+      const dia = String(_diaSel);
+      _cfg.disponibilidade[dia] = (_cfg.disponibilidade[dia] || []).filter(h => h !== b.dataset.rm);
+      if (!_cfg.disponibilidade[dia].length) delete _cfg.disponibilidade[dia];
+      pintarTabs(); pintarDiaEditor();
+    };
+  });
+  const rep = box.querySelector('#ag-repetir');
+  if (rep) rep.onclick = () => {
+    const arr = _horasDoDia(_diaSel);
+    if (!arr.length) { showToast('Adicione horários neste dia primeiro', 'info'); return; }
+    for (const d of DOWS) _cfg.disponibilidade[String(d.k)] = arr.slice();
+    pintarTabs(); pintarDiaEditor();
+    showToast('🔁 Horários repetidos na semana toda', 'success');
+  };
+  const lim = box.querySelector('#ag-limpar');
+  if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
+}
+
 async function salvar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
   const ativo = corpo.querySelector('#ag-ativo').checked;
+  // limpa dias vazios
   const disp = {};
-  for (const d of DOWS) {
-    if (!corpo.querySelector(`[data-dia-on="${d.k}"]`).checked) continue;
-    const ini = corpo.querySelector(`[data-dia-ini="${d.k}"]`).value;
-    const fim = corpo.querySelector(`[data-dia-fim="${d.k}"]`).value;
-    if (ini && fim && ini < fim) disp[d.k] = { inicio: ini, fim };
+  for (const k of Object.keys(_cfg.disponibilidade)) {
+    const arr = (_cfg.disponibilidade[k] || []).slice().sort();
+    if (arr.length) disp[k] = arr;
   }
   if (ativo && Object.keys(disp).length === 0) {
-    showToast('Marque ao menos um dia com horário pra ativar', 'info'); return;
+    showToast('Adicione horários em ao menos um dia pra ativar', 'info'); return;
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
