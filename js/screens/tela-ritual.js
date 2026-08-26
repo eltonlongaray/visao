@@ -906,6 +906,30 @@ async function _cleanMonthlyLeaks() {
   } catch (e) { console.warn('[Falcon] limpeza de vazamento mensal falhou (tentará de novo):', e); }
 }
 
+// ─── DIAG TEMP (v543, só admin): padrão dos cards duplicados no Ritual ──
+async function _diagDup() {
+  if (!profile?.isAdmin) return;
+  try {
+    const hojeId = dayId(new Date());
+    const [y, m, d] = hojeId.split('-').map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    const tpl = profile.weekdayTemplates?.[String(dow)] || [];
+    const hoje = weekData?.find(x => x.id === hojeId);
+    const tasks = hoje?.tasks || [];
+    const gid = t => String(t.recurrenceGroupId || '-').slice(0, 6);
+    const ck = t => `${(t.title || '').trim().toLowerCase()}|${t.startTime || ''}|${String(t.shiftId || '').slice(0, 4)}`;
+    const cont = new Map();
+    for (const t of tasks) { const k = ck(t); if (!cont.has(k)) cont.set(k, []); cont.get(k).push(gid(t)); }
+    const dups = [...cont.entries()].filter(([, g]) => g.length > 1)
+      .map(([k, g]) => `• ${k.split('|')[0]} ×${g.length} [${g.join(', ')}]`).join('\n') || '(nenhum)';
+    const tplByCk = new Map();
+    for (const e of tpl) { const k = ck(e); if (!tplByCk.has(k)) tplByCk.set(k, []); tplByCk.get(k).push(gid(e)); }
+    const tplDup = [...tplByCk.entries()].filter(([, g]) => g.length > 1)
+      .map(([k, g]) => `• ${k.split('|')[0]} ×${g.length} [${g.join(', ')}]`).join('\n') || '(nenhum)';
+    alert(`dow=${dow} · molde=${tpl.length} cards · hoje=${tasks.length} tarefas\n\n=DUPLICADOS HOJE (conteudo ×qtd [6 primeiros do groupId])=\n${dups}\n\n=MOLDE com repetido=\n${tplDup}`);
+  } catch (e) { alert('diagdup err: ' + (e.message || e)); }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -970,6 +994,7 @@ export async function renderRitual(app) {
   await _cleanMonthlyLeaks();           // 1x/usuário: tira mensal que vazou pros moldes semanais (v532)
   await loadWeek(pSemana);
   renderUI(app);
+  _diagDup();   // TEMP v543: diagnóstico dos duplicados (só admin)
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
   // devolve a rolagem de onde a pessoa parou — que depois de virar o dia é
   // o fim do dia anterior.
