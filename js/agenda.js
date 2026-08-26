@@ -7,9 +7,9 @@ import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
-// Código curto do link: 1 letra + 2 dígitos (ex.: A01). Sem I/O pra não confundir.
+// Código curto do link: 1 letra (A–Z) + 2 dígitos (ex.: A01) = 2600 combinações.
 function _codigoCurto() {
-  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const l = L[Math.floor(Math.random() * L.length)];
   const n = String(Math.floor(Math.random() * 100)).padStart(2, '0');
   return l + n;
