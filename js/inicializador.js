@@ -8,7 +8,8 @@
 // ═══════════════════════════════════════════════════════════════
 import { auth, onAuthStateChanged, onPasswordRecovery } from './autenticacao.js';
 import { showSetPasswordModal } from './recuperar-senha.js';
-import { registerRoute, navigate, forceRender } from './roteador.js';
+import { registerRoute, registerPrefixRoute, navigate, forceRender } from './roteador.js';
+import { renderAgendaPublica } from './agenda-publica.js';
 import { initI18n } from './idioma.js';
 import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio, consumeNotifTarget } from './notificacoes.js';
 import { renderLogin } from './screens/tela-login.js';
@@ -35,6 +36,7 @@ import { initPet, showPet, hidePet } from './assistente-ia.js?v=20260705o';
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: REGISTRO DE ROTAS
 // ═══════════════════════════════════════════════════════════════
+registerPrefixRoute('/agenda/', renderAgendaPublica);   // página pública (sem login)
 registerRoute('/login', renderLogin);
 registerRoute('/signup', renderSignup);
 registerRoute('/welcome', renderWelcome);
@@ -180,6 +182,10 @@ const PUBLIC_ROUTES = ['#/login', '#/signup', '#/termos', '#/privacidade'];
 
 let lastUid = null;
 onAuthStateChanged(auth, async (user) => {
+  // Rota pública de agendamento: o roteador renderiza sozinho; o gate não interfere
+  // (nem manda pro login sem sessão, nem tira o dono logado da própria página).
+  if (location.hash.startsWith('#/agenda/')) { lastUid = user?.uid ?? null; return; }
+
   const isPublic = PUBLIC_ROUTES.includes(location.hash);
 
   if (!user) {
