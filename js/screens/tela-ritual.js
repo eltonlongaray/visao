@@ -940,6 +940,53 @@ async function _dedupPorGrupoNoDia(days) {
   }
 }
 
+// ─── RE-RESTAURAÇÃO dos moldes do histórico (v546, ADMIN por ora) ──
+// A migração/concorrência derrubou cards do molde (rotina ficou magra). Pega o dia
+// com MAIS atividades recorrentes distintas de cada dia-da-semana nos últimos 90
+// dias e devolve pro molde as que faltam. Só ADICIONA (por content-key): não remove,
+// não mexe em multiplicidade que já existe (as 5 águas ficam), não traz mensal.
+// Admin-only pra testar sem risco pros outros; se ficar bom, tira o gate depois.
+async function _restaurarMoldesDoHistorico() {
+  if (!profile?.isAdmin || profile.tmplRestoreV546) return;
+  try {
+    const mensais = _mensalTds();
+    const hoje = new Date();
+    const ini = new Date(hoje); ini.setDate(hoje.getDate() - 90);
+    const dias = await fetchDaysRange(ini, hoje);
+    const richest = {};   // dow -> Map(contentKey -> tarefa) do dia com mais distintas
+    for (const d of dias) {
+      if (!d.id) continue;
+      const [y, m, dd] = d.id.split('-').map(Number);
+      const dow = new Date(y, m - 1, dd).getDay();
+      const keys = new Map();
+      for (const t of (d.tasks || [])) {
+        if (!_isRecorrente(t) || mensais.has(_tdKey(t))) continue;
+        const k = _contentKey(t);
+        if (!keys.has(k)) keys.set(k, t);
+      }
+      if (!richest[dow] || keys.size > richest[dow].size) richest[dow] = keys;
+    }
+    const tpls = profile.weekdayTemplates || {};
+    let mudou = false;
+    const novo = { ...tpls };
+    for (const [dow, keys] of Object.entries(richest)) {
+      const arr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
+      const atual = new Set(arr.map(_contentKey));
+      const extra = [];
+      for (const [k, t] of keys) if (!atual.has(k)) { extra.push(_tmplEntry(t)); mudou = true; }
+      if (extra.length) novo[dow] = [...arr, ...extra];
+    }
+    if (mudou) {
+      profile.weekdayTemplates = novo;
+      for (const [dow, arr] of Object.entries(novo)) {
+        if (Array.isArray(arr)) await setWeekdayTemplate(parseInt(dow, 10), arr);
+      }
+    }
+    profile.tmplRestoreV546 = true;
+    await setProfile({ tmplRestoreV546: true });
+  } catch (e) { console.warn('[Falcon] re-restauração de moldes:', e); }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -1002,6 +1049,7 @@ export async function renderRitual(app) {
   await _healTemplatesFromHistory();   // 1x/usuário: restaura moldes encolhidos pelo bug (v525)
   await _dedupRecurrenceRules();        // 1x/usuário: remove regras de recorrência duplicadas (v530)
   await _cleanMonthlyLeaks();           // 1x/usuário: tira mensal que vazou pros moldes semanais (v532)
+  await _restaurarMoldesDoHistorico();  // 1x/admin: devolve cards que sumiram do molde (v546)
   await loadWeek(pSemana);
   renderUI(app);
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
