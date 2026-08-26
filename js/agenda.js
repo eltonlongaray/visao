@@ -7,18 +7,21 @@ import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
-// Código curto do link: 1 letra (A–Z) + 2 dígitos (ex.: A01) = 2600 combinações.
-function _codigoCurto() {
+// Código curto do link: 1 letra (A–Z) + N dígitos (ex.: A01). Começa com 2 dígitos
+// (2600 combos) e o número CRESCE sozinho conforme o espaço enche (3, 4, 5 dígitos…).
+function _codigoCurto(digitos = 2) {
   const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const l = L[Math.floor(Math.random() * L.length)];
-  const n = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+  const n = String(Math.floor(Math.random() * 10 ** digitos)).padStart(digitos, '0');
   return l + n;
 }
-const _ehCodigoCurto = s => /^[A-Z]\d{2}$/.test(s || '');
+// mais colisões → mais dígitos (a cada 6 tentativas, +1 dígito)
+const _codigoNaTentativa = i => _codigoCurto(2 + Math.floor(i / 6));
+const _ehCodigoCurto = s => /^[A-Z]\d{2,}$/.test(s || '');
 // Troca o slug do dono por um código curto livre (retry em colisão). Retorna o novo.
 async function _slugCurtoLivre(uid) {
-  for (let i = 0; i < 24; i++) {
-    const code = _codigoCurto();
+  for (let i = 0; i < 40; i++) {
+    const code = _codigoNaTentativa(i);
     const { error } = await supabase.from('agenda_config').update({ slug: code }).eq('user_id', uid);
     if (!error) return code;
     if (!/duplicate|unique|23505/i.test(error.message || '')) throw new Error(error.message);
@@ -39,9 +42,9 @@ export async function getAgendaConfig() {
     if (!_ehCodigoCurto(data.slug)) { try { data.slug = await _slugCurtoLivre(uid); } catch {} }
     return data;
   }
-  // primeira vez: cria desativada, com código curto livre (retry em colisão)
-  for (let i = 0; i < 24; i++) {
-    const novo = { user_id: uid, slug: _codigoCurto(), titulo: 'Agende comigo', duracao_min: 60, disponibilidade: {}, ativo: false };
+  // primeira vez: cria desativada, com código curto livre (retry em colisão, dígitos crescem)
+  for (let i = 0; i < 40; i++) {
+    const novo = { user_id: uid, slug: _codigoNaTentativa(i), titulo: 'Agende comigo', duracao_min: 60, disponibilidade: {}, ativo: false };
     const ins = await supabase.from('agenda_config').insert(novo).select('*').single();
     if (!ins.error) return ins.data;
     // corrida no user_id (2 abas) → lê a que ficou
