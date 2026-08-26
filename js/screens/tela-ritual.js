@@ -24,7 +24,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getShifts, getCategories, getActivities,
-  getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, dayId,
+  getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, deleteDayTasksBatch, dayId,
   getProfile, setProfile, parseTime,
   getWeekdayTemplate, setWeekdayTemplate,
   saveCategory, fetchDaysRange
@@ -915,6 +915,7 @@ async function _cleanMonthlyLeaks() {
 // deduplicava por CONTEÚDO (matava as 3 águas, que têm groupIds DISTINTOS). Aqui é
 // por groupId — repetição intencional (groupIds diferentes) NÃO é tocada.
 async function _dedupPorGrupoNoDia(days) {
+  const removerIds = [];   // junta de todos os dias e apaga em LOTE (aguenta milhares)
   for (const day of days) {
     if (!Array.isArray(day.tasks)) continue;
     const porGrp = new Map();   // groupId -> tarefa mantida no dia
@@ -930,8 +931,12 @@ async function _dedupPorGrupoNoDia(days) {
     if (remover.length) {
       const ids = new Set(remover.map(t => t.id));
       day.tasks = day.tasks.filter(t => !ids.has(t.id));
-      for (const t of remover) { try { await deleteDayTask(day.id, t.id); } catch {} }
+      removerIds.push(...ids);
     }
+  }
+  if (removerIds.length) {
+    try { await deleteDayTasksBatch(removerIds); }
+    catch (e) { console.warn('[Falcon] dedup por groupId (lote):', e); }
   }
 }
 

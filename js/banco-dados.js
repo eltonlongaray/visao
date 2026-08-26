@@ -293,6 +293,17 @@ export async function deleteDayTask(dayDocId, taskId) {
   _fail(error);
 }
 
+// Apaga várias tarefas de uma vez (por id). Pra limpezas em massa (ex.: remover
+// centenas de duplicatas) sem centenas de idas ao banco. Fatia em lotes de 200.
+export async function deleteDayTasksBatch(ids) {
+  const lista = [...new Set((ids || []).filter(Boolean))];
+  for (let i = 0; i < lista.length; i += 200) {
+    const fatia = lista.slice(i, i + 200);
+    const { error } = await supabase.from('tasks').delete().in('id', fatia);
+    _fail(error);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8: HELPERS DE TEMPO (puros — sem banco)
 // ═══════════════════════════════════════════════════════════════
