@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -41,6 +41,7 @@ export async function abrirAgenda() {
   try {
     [_cfg, _ags] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => [])]);
     if (!_cfg.disponibilidade || typeof _cfg.disponibilidade !== 'object') _cfg.disponibilidade = {};
+    sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;

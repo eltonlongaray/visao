@@ -10,6 +10,7 @@ import { auth, onAuthStateChanged, onPasswordRecovery } from './autenticacao.js'
 import { showSetPasswordModal } from './recuperar-senha.js';
 import { registerRoute, registerPrefixRoute, navigate, forceRender } from './roteador.js';
 import { renderAgendaPublica } from './agenda-publica.js';
+import { sincronizarCompromissos } from './agenda.js';
 import { initI18n } from './idioma.js';
 import { startNotifChecker, subscribeToPush, startForegroundPushListener, getNotifMuted, unlockAudio, consumeNotifTarget } from './notificacoes.js';
 import { renderLogin } from './screens/tela-login.js';
@@ -229,6 +230,7 @@ onAuthStateChanged(auth, async (user) => {
   navigate(deepLink || '/modalidade');
   showPet();
   subscribeToPush(); // registra push subscription no Worker (se configurado)
+  sincronizarCompromissos().catch(() => {}); // agendamentos recebidos → compromissos no Ritual
   // Deep-link via IndexedDB (cold-start que perdeu o hash) — navega pro Ritual.
   if (!deepLink) _irParaAlvoNotif();
 

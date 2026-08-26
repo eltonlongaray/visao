@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
+import { getShifts, getDayTasks, addDayTask } from './banco-dados.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
 // Código curto do link: 1 letra (A–Z) + N dígitos (ex.: A01). Começa com 2 dígitos
@@ -79,6 +80,50 @@ export async function getAgendamentos() {
 export async function cancelarAgendamento(id) {
   const { error } = await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+// Turno pelo horário (mesma lógica do pet), pra encaixar no card certo do Ritual.
+function _pickShift(shifts, time) {
+  if (!shifts.length) return null;
+  if (!time) return shifts[0].id;
+  const [h] = time.split(':').map(Number);
+  const name = h >= 5 && h < 12 ? 'Manhã' : h >= 12 && h < 19 ? 'Tarde' : 'Noite';
+  return (shifts.find(s => s.name === name) || shifts[0]).id;
+}
+
+// FASE C: cada agendamento confirmado vira um COMPROMISSO "Agenda Online" no Ritual
+// do dono, com lembrete (bolinha vermelha). Idempotente via extra.agendamentoId —
+// pode rodar quantas vezes quiser que não duplica. Retorna quantos criou.
+export async function sincronizarCompromissos() {
+  const ags = await getAgendamentos().catch(() => []);
+  if (!ags.length) return 0;
+  const shifts = await getShifts().catch(() => []);
+  const porDia = {};
+  for (const a of ags) (porDia[a.data] ||= []).push(a);
+  let criados = 0;
+  for (const dia of Object.keys(porDia)) {
+    const existentes = await getDayTasks(dia).catch(() => []);
+    const jaSync = new Set(existentes.filter(t => t.agendamentoId).map(t => t.agendamentoId));
+    for (const a of porDia[dia]) {
+      if (jaSync.has(a.id)) continue;
+      const desc = a.cliente_contato ? `${a.cliente_nome} · ${a.cliente_contato}` : a.cliente_nome;
+      await addDayTask(dia, {
+        title: 'Agenda Online',
+        desc,
+        kind: 'commitment',
+        startTime: a.hora,
+        order: existentes.length + criados,
+        icon: '📅',
+        categoryId: null,
+        shiftId: _pickShift(shifts, a.hora),
+        reminderEnabled: true,   // bolinha vermelha
+        done: false,
+        agendamentoId: a.id,     // vai pro extra → idempotência
+      });
+      criados++;
+    }
+  }
+  return criados;
 }
 
 // ═══════════════════════════════════════════════════════════════
