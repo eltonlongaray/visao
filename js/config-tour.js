@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Tour de Boas-vindas — COMPLETO (18 passos) + AUTOMATIZADO
-// Ordem por tela (Home → Ritual → Desempenho → Desafios → Ajustes).
+// VISÃO · Tour de Boas-vindas — COMPLETO + AUTOMATIZADO
+// Ordem por tela (Home → Ritual → Desempenho → Preparo → Comunidade[+Desafios] → Ajustes).
 // VOZ: é o próprio FALCON falando, em 1ª pessoa. Nunca citar "o Falcon"
 // em terceira pessoa aqui dentro.
 // O tour assume o controle do app, abre o que precisa e mostra.
@@ -81,6 +81,18 @@ export const ONBOARDING_STEPS = [
     noCollapse: true,
     title: '📢 Avisos',
     message: 'É por aqui que eu te conto as novidades e comunicados. Quando tiver algo novo, você vê uma bolinha vermelha.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 5. HOME: Agenda Online (pra quem atende) ──
+  {
+    id: 'home-agenda',
+    route: '/home',
+    target: '#agenda-card',
+    holePad: 8,
+    noCollapse: true,
+    title: '📅 Agenda Online',
+    message: 'Se você <strong>atende clientes</strong> (personal, terapeuta, consultoria…), aqui você monta seus horários e ganha um <strong>link pra bio do Instagram</strong>. Quem clicar agenda sozinho, e o horário já cai como compromisso no seu Ritual. Se não for o seu caso, é só ignorar. 😉',
     primaryBtn: 'Próximo →'
   },
 
@@ -253,37 +265,24 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 14. DESAFIOS: a aba ──
+  // ── 14. PREPARO FÍSICO (nova aba do menu) ──
   {
-    id: 'go-desafios',
-    route: '/desafios',
+    id: 'go-preparo',
+    route: '/preparo',
     noCollapse: true,
-    prepare: async () => { await wait(500); window.scrollTo({ top: 0 }); await wait(150); },
-    target: '.screen-title',
+    prepare: async () => { await esperarEl('.pf-grupos', 3000); window.scrollTo({ top: 0 }); await wait(150); },
+    target: '.pf-grupos',
     noScroll: true,
     holePad: 8,
-    title: '🏆 Desafios — hábito em comunidade',
-    message: 'Encare um desafio <strong>sozinho, com amigos ou com a comunidade toda</strong>: beber água, treinar, ler... Junto com alguém é bem mais fácil manter o hábito — e eu acompanho você.',
+    title: '💪 Preparo Físico',
+    message: 'Aqui você cuida do corpo: <strong>Composição Corporal</strong> (% de gordura, massa magra, medidas e fotos) e <strong>Atividade Física</strong> (chegando já já). É a sua evolução física, medida de verdade.',
     primaryBtn: 'Próximo →'
   },
 
-  // ── 15. DESAFIOS: modalidades + prenda ──
-  {
-    id: 'desafios-prenda',
-    route: '/desafios',
-    noCollapse: true,
-    prepare: async () => { await wait(300); },
-    target: '.ds-topo',
-    holePad: 8,
-    title: 'Crie ou entre num desafio',
-    message: 'Toque em <strong>＋ Novo desafio</strong> pra criar um (você escolhe o tipo e a meta), ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não manter a constância, perde o jogo e paga uma prenda!',
-    primaryBtn: 'Próximo →'
-  },
-
-  // ── 15.5. O cinturão (navegação) ──
+  // ── 15. O cinturão (navegação) ──
   {
     id: 'cinturao',
-    route: '/desafios',
+    route: '/preparo',
     noCollapse: true,
     prepare: async () => { await wait(300); },
     target: '.bottom-nav',
@@ -294,21 +293,40 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 15.6. COMUNIDADE: Falcon Hunters ──
+  // ── 16. COMUNIDADE: Falcon Hunters (com Desafios dentro) ──
   {
     id: 'comunidade',
     route: '/chat',
     noCollapse: true,
     prepare: async () => {
-      await esperarEl('#chat-corpo', 3000);
+      await esperarEl('#chat-abas', 3000);
       window.scrollTo({ top: 0 });
       await wait(250);
     },
-    target: '.screen-title',
+    target: '#chat-abas',
     noScroll: true,
     holePad: 8,
     title: '🦅 Comunidade Falcon Hunters',
-    message: 'Aqui é a nossa roda. Fale com todo mundo na <strong>Comunidade</strong> ou no <strong>Privado</strong>, mande foto, responda e reaja. As mensagens somem sozinhas em 7 dias — o que importa é a conversa de agora.',
+    message: 'Aqui é a nossa roda, com três abas: <strong>📣 Comunidade</strong> (fala com todo mundo), <strong>🏆 Desafios</strong> e <strong>🔒 Privado</strong>. Mande foto, responda e reaja — as mensagens somem sozinhas em 7 dias.',
+    primaryBtn: 'Próximo →'
+  },
+
+  // ── 17. DESAFIOS (dentro da Comunidade) ──
+  {
+    id: 'go-desafios',
+    route: '/chat',
+    noCollapse: true,
+    prepare: async () => {
+      const btn = await esperarEl('[data-aba="desafios"]', 3000);
+      if (btn && !btn.classList.contains('active')) { btn.click(); await wait(500); }
+      await esperarEl('.ds-topo', 2500);
+      window.scrollTo({ top: 0 }); await wait(150);
+    },
+    target: '.ds-topo',
+    noScroll: true,
+    holePad: 8,
+    title: '🏆 Desafios — hábito em comunidade',
+    message: 'Ainda na Comunidade, a aba <strong>Desafios</strong>: encare um <strong>sozinho, com amigos ou com todo mundo</strong> — beber água, treinar, ler… Toque em <strong>＋ Novo desafio</strong> pra criar, ou <strong>🔑 Entrar com código</strong> pra entrar no de um amigo. Quem não mantém a constância paga uma prenda!',
     primaryBtn: 'Próximo →'
   },
 
