@@ -22,12 +22,15 @@ import {
   resumoReacoes, reagir, encaminhar, quemReagiu,
 } from '../chat.js';
 import { bottomNav } from '../components/menu-inferior.js';
+import { renderDesafios } from './tela-desafios.js';
 import { auth } from '../autenticacao.js';
 import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 
-let aba = 'mural';        // 'mural' | 'privado'
+let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
+// Permite a rota /desafios abrir a Comunidade já na aba Desafios.
+export function setAbaChat(a) { aba = a; }
 let conversaCom = null;   // { id, nome } quando aberta
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
@@ -195,7 +198,7 @@ export async function renderChat(app) {
   // apagaria o destaque e a barra ficaria apontando pra um elemento que não
   // existe mais.
   recarga = setInterval(() => {
-    if (selecionados.size) return;
+    if (selecionados.size || aba === 'desafios') return;   // não redesenha os desafios a cada 12s
     if (document.getElementById('chat-corpo')) recarregar();
   }, 12000);
   return () => {
@@ -222,6 +225,7 @@ function desenharCasca(app) {
 
       <div class="tab-switch" id="chat-abas">
         <button class="tab-btn ${aba === 'mural' ? 'active' : ''}" data-aba="mural">📣 Comunidade</button>
+        <button class="tab-btn ${aba === 'desafios' ? 'active' : ''}" data-aba="desafios">🏆 Desafios</button>
         <button class="tab-btn ${aba === 'privado' ? 'active' : ''}" data-aba="privado">🔒 Privado</button>
       </div>
 
@@ -260,6 +264,9 @@ function desenharCasca(app) {
 async function recarregar() {
   const corpo = document.getElementById('chat-corpo');
   if (!corpo) return;
+  // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
+  // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
+  if (aba === 'desafios') return renderDesafios(corpo, true);
   // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
   // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
   perfis = await fetchPerfis();

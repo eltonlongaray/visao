@@ -7,6 +7,7 @@
 import { montarComposicao, ligarComposicao } from './corpo-ui.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { bottomNav } from './components/menu-inferior.js';
 
 let _view = 'menu';        // 'menu' | 'corpo'
 let _corpoLigado = false;  // ligarComposicao só uma vez por sessão (listener delegado)
@@ -42,11 +43,11 @@ function desenhar() {
   }
 }
 
-function telaMenu() {
+function telaMenu(comFechar = true) {
   return `
     <div class="pf-header">
       <div class="pf-title">💪 Preparo Físico</div>
-      <button class="pf-fechar" id="pf-close" type="button">Fechar</button>
+      ${comFechar ? '<button class="pf-fechar" id="pf-close" type="button">Fechar</button>' : ''}
     </div>
     <div class="pf-sub">Cuide do corpo por dentro e por fora.</div>
     <div class="pf-grupos">
@@ -73,4 +74,27 @@ function telaCorpo() {
     </div>
     <div id="cp-inline" class="cp-inline"></div>
   `;
+}
+
+// ─── VERSÃO TELA (aba do menu) ────────────────────────────────
+// Mesmo conteúdo do modal, mas como tela cheia com o cinturão embaixo.
+export function renderPreparo(app) {
+  _view = 'menu';
+  app.innerHTML = `<div class="screen-pad pf-screen"><div id="pf-conteudo"></div></div>${bottomNav('preparo')}`;
+  pintarConteudo(app);
+}
+
+function pintarConteudo(app) {
+  const c = app.querySelector('#pf-conteudo');
+  if (!c) return;
+  c.innerHTML = _view === 'menu' ? telaMenu(false) : telaCorpo();
+  if (_view === 'menu') {
+    c.querySelector('#pf-corpo-btn').onclick = () => { _view = 'corpo'; pintarConteudo(app); };
+    c.querySelector('#pf-atividade-btn').onclick = () =>
+      showToast('🏃 Atividade Física / Esporte — em breve! 🚧', 'info');
+  } else {
+    c.querySelector('#pf-voltar').onclick = () => { _view = 'menu'; pintarConteudo(app); };
+    montarComposicao();
+    if (!_corpoLigado) { ligarComposicao(); _corpoLigado = true; }
+  }
 }

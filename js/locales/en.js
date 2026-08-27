@@ -21,6 +21,7 @@ export default {
   'nav.ritual':     'Ritual',
   'nav.desempenho': 'Performance',
   'nav.desafios':   'Challenges',
+  'nav.preparo':    'Fitness',
   'nav.chat':      'Falcon Hunters',
   'nav.ajustes':    'Settings',
   'desafios.sub':   'Take on a challenge with the community 🦅',

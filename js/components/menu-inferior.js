@@ -28,7 +28,7 @@ const TABS = [
   // a URL o arquivo antigo fica servido pra sempre.
   { id: 'chat',       route: '#/chat',
     ic: '<img src="img/falcao.png?v=20260720y" alt="" class="belt-ic-img">', lbl: () => t('nav.chat') },
-  { id: 'desafios',   route: '#/desafios',   ic: '🏆', lbl: () => t('nav.desafios') },
+  { id: 'preparo',    route: '#/preparo',    ic: '💪', lbl: () => t('nav.preparo') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 

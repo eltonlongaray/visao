@@ -46,8 +46,15 @@ function _ranking(desafio, parts, checks) {
 }
 
 // ── Entry point ──────────────────────────────────────────────
-export async function renderDesafios(app) {
+// embedded=true → renderiza SÓ o conteúdo (sem screen-pad/título/cinturão),
+// pra viver dentro da aba Desafios da Comunidade (tela-chat.js).
+export async function renderDesafios(app, embedded = false) {
   app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('home.reminders.loading')}</div>`;
+
+  const _wrapO = embedded ? '' : '<div class="screen-pad">';
+  const _wrapC = embedded ? '' : '</div>';
+  const _tit = embedded ? '' : `<div class="screen-title"><h1>🏆 ${t('nav.desafios')}</h1><div class="sub">${t('desafios.sub')}</div></div>`;
+  const _nav = () => (embedded ? '' : bottomNav('desafios'));
 
   const myUid = auth.currentUser?.uid;
   const myEmail = auth.currentUser?.email;
@@ -63,7 +70,7 @@ export async function renderDesafios(app) {
         fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(),
       ]);
     } catch (e) {
-      app.innerHTML = `<div class="screen-pad"><div class="ds-empty">${_esc(e.message)}</div></div>${bottomNav('desafios')}`;
+      app.innerHTML = `${_wrapO}<div class="ds-empty">${_esc(e.message)}</div>${_wrapC}${_nav()}`;
       return;
     }
     markDesafiosSeen(desafios.map(d => d.id));
@@ -185,16 +192,7 @@ export async function renderDesafios(app) {
           <div class="ds-grupo-title">${g.titulo}</div>
           ${g.lista.map(cardHtml).join('')}`).join('');
 
-    app.innerHTML = `
-      <div class="screen-pad">
-        <div class="screen-title">
-          <h1>🏆 ${t('nav.desafios')}</h1>
-          <div class="sub">${t('desafios.sub')}</div>
-        </div>
-        ${topo}
-        ${corpo}
-      </div>
-      ${bottomNav('desafios')}`;
+    app.innerHTML = `${_wrapO}${_tit}${topo}${corpo}${_wrapC}${_nav()}`;
 
     wire(desafios);
   }

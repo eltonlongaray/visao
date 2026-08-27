@@ -40,7 +40,6 @@ import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
-import { abrirPreparoFisico } from '../preparo-fisico-ui.js';
 import { abrirAgenda } from '../agenda-ui.js';
 
 
@@ -146,15 +145,6 @@ export async function renderHome(app) {
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
-      <!-- PREPARO FÍSICO: atividade física/esporte + composição corporal -->
-      <button class="reminders-card" id="preparo-card" type="button">
-        <div class="reminders-icon">💪</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Preparo Físico</div>
-          <div class="reminders-sub">Atividade física, esporte e composição corporal</div>
-        </div>
-      </button>
-
       <!-- AGENDA ONLINE: link público de agendamento (tipo Calendly) -->
       <button class="reminders-card" id="agenda-card" type="button">
         <div class="reminders-icon">📅</div>
@@ -205,7 +195,6 @@ export async function renderHome(app) {
   ligarFerramentas();
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
-  document.getElementById('preparo-card')?.addEventListener('click', abrirPreparoFisico);
   document.getElementById('agenda-card')?.addEventListener('click', abrirAgenda);
 
   if (!tour.isCompleted()) {
