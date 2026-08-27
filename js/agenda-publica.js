@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, criarAgendamento } from './agenda.js';
+import { getAgendaPublica, getSlotsOcupados, criarAgendamento } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

@@ -128,33 +128,6 @@ export async function sincronizarCompromissos() {
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: PÚBLICO (página do link — sem login)
+// Mora em agenda-publica-dados.js pra a página leve não arrastar o app.
 // ═══════════════════════════════════════════════════════════════
-// Lê a agenda de um dono pelo slug (só o que é público: título, duração, dias).
-export async function getAgendaPublica(slug) {
-  const { data, error } = await supabase.from('agenda_config')
-    .select('slug, titulo, duracao_min, disponibilidade, ativo')
-    .eq('slug', slug).eq('ativo', true).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data || null;
-}
-
-// Slots já ocupados (data+hora), via RPC que NÃO expõe nome/contato do cliente.
-export async function getSlotsOcupados(slug, deISO, ateISO) {
-  const { data, error } = await supabase.rpc('slots_ocupados', { p_slug: slug, p_from: deISO, p_to: ateISO });
-  if (error) throw new Error(error.message);
-  const set = new Set();
-  for (const r of data || []) set.add(`${r.data}|${r.hora}`);
-  return set;
-}
-
-// Cria um agendamento via RPC (valida disponibilidade + não estar ocupado).
-// Retorna { ok } ou lança com a mensagem (ex.: horário já foi pego).
-export async function criarAgendamento(slug, dataISO, hora, nome, contato) {
-  const { data, error } = await supabase.rpc('criar_agendamento', {
-    p_slug: slug, p_data: dataISO, p_hora: hora,
-    p_nome: (nome || '').trim().slice(0, 120),
-    p_contato: (contato || '').trim().slice(0, 60),
-  });
-  if (error) throw new Error(error.message);
-  return data;
-}
+export { getAgendaPublica, getSlotsOcupados, criarAgendamento } from './agenda-publica-dados.js';
