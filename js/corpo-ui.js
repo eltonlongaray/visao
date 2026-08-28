@@ -314,7 +314,7 @@ function _blocoPump(r, ant) {
   const RG = 0.85;                // glúteo do HOMEM como fração do ombro (músculo de
                                   // apoio; mantém o V, quadril < ombro). Mulher já tem
                                   // o glúteo como âncora, não repete aqui.
-  const RB = 0.30;                // braço ~30% do ombro (homem, natural sem exagero)
+  const RB = 0.33;                // braço ~33% do ombro (alvo estético, braço forte)
   const RPe = 0.77;               // peitoral ~77% do ombro (pega peito+costas, já nasce grande)
 
   // ── Excelência do nível ATUAL: o V do nível já fechou, mas a harmonia (outros
@@ -365,7 +365,7 @@ function _blocoPump(r, ant) {
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
     const gluteoAlvo = Math.round(membroAlvo * RG);
-    const bracoAlvo = Math.round(membroAlvo * RB); // braço ~30% do ombro (natural, sem exagero)
+    const bracoAlvo = Math.round(membroAlvo * RB); // braço ~33% do ombro (alvo estético)
     const peitoAlvo = Math.round(membroAlvo * RPe); // peito ~77% do ombro (a medida pega peito+costas,
                                                      // já nasce grande — alvo realista de natural)
     const rows = [];
