@@ -8,6 +8,7 @@ import { montarComposicao, ligarComposicao } from './corpo-ui.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { bottomNav } from './components/menu-inferior.js';
+import { abrirPerfilTreino } from './perfil-treino-ui.js';
 
 let _view = 'menu';        // 'menu' | 'corpo'
 let _corpoLigado = false;  // ligarComposicao só uma vez por sessão (listener delegado)
@@ -33,6 +34,7 @@ function desenhar() {
   if (_view === 'menu') {
     corpo.querySelector('#pf-close').onclick = () => _close?.();
     corpo.querySelector('#pf-corpo-btn').onclick = () => { _view = 'corpo'; desenhar(); };
+    corpo.querySelector('#pf-perfil-btn').onclick = () => abrirPerfilTreino();
     corpo.querySelector('#pf-atividade-btn').onclick = () =>
       showToast('🏃 Atividade Física / Esporte — em breve! 🚧', 'info');
   } else {
@@ -59,6 +61,11 @@ function telaMenu(comFechar = true) {
       <button class="pf-grupo" id="pf-corpo-btn" type="button">
         <span class="pf-grupo-ic">🧮</span>
         <span class="pf-grupo-txt"><b>Composição Corporal</b><small>% de gordura, massa magra, medidas e fotos</small></span>
+        <span class="pf-grupo-seta">›</span>
+      </button>
+      <button class="pf-grupo" id="pf-perfil-btn" type="button">
+        <span class="pf-grupo-ic">📋</span>
+        <span class="pf-grupo-txt"><b>Perfil de treino</b><small>Seu objetivo e frequência — personaliza suas metas</small></span>
         <span class="pf-grupo-seta">›</span>
       </button>
     </div>
@@ -90,6 +97,7 @@ function pintarConteudo(app) {
   c.innerHTML = _view === 'menu' ? telaMenu(false) : telaCorpo();
   if (_view === 'menu') {
     c.querySelector('#pf-corpo-btn').onclick = () => { _view = 'corpo'; pintarConteudo(app); };
+    c.querySelector('#pf-perfil-btn').onclick = () => abrirPerfilTreino();
     c.querySelector('#pf-atividade-btn').onclick = () =>
       showToast('🏃 Atividade Física / Esporte — em breve! 🚧', 'info');
   } else {
