@@ -5,7 +5,6 @@
 // Modal com 2 estados: 'menu' (os grupos) e 'corpo' (a composição).
 // ─────────────────────────────────────────────────────────────
 import { montarComposicao, ligarComposicao } from './corpo-ui.js';
-import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { bottomNav } from './components/menu-inferior.js';
 import { abrirPerfilTreino } from './perfil-treino-ui.js';
@@ -30,13 +29,14 @@ export function abrirPreparoFisico() {
 function desenhar() {
   const corpo = document.querySelector('#preparo-ov .pf-corpo');
   if (!corpo) return;
-  corpo.innerHTML = _view === 'menu' ? telaMenu() : telaCorpo();
+  corpo.innerHTML = _view === 'menu' ? telaMenu() : _view === 'atividade' ? telaAtividade() : telaCorpo();
   if (_view === 'menu') {
     corpo.querySelector('#pf-close').onclick = () => _close?.();
     corpo.querySelector('#pf-corpo-btn').onclick = () => { _view = 'corpo'; desenhar(); };
+    corpo.querySelector('#pf-atividade-btn').onclick = () => { _view = 'atividade'; desenhar(); };
+  } else if (_view === 'atividade') {
+    corpo.querySelector('#pf-voltar-ativ').onclick = () => { _view = 'menu'; desenhar(); };
     corpo.querySelector('#pf-perfil-btn').onclick = () => abrirPerfilTreino();
-    corpo.querySelector('#pf-atividade-btn').onclick = () =>
-      showToast('🏃 Atividade Física / Esporte — em breve! 🚧', 'info');
   } else {
     corpo.querySelector('#pf-voltar').onclick = () => { _view = 'menu'; desenhar(); };
     // Renderiza a composição no #cp-inline (mesmo alvo que o Ajustes usava)
@@ -63,12 +63,27 @@ function telaMenu(comFechar = true) {
         <span class="pf-grupo-txt"><b>Composição Corporal</b><small>% de gordura, massa magra, medidas e fotos</small></span>
         <span class="pf-grupo-seta">›</span>
       </button>
+    </div>
+  `;
+}
+
+// Sub-tela Atividade Física — por ora guarda o Perfil de treino; o resto (catálogo
+// de modalidades/esportes + montador de treino) chega nas próximas fases.
+function telaAtividade() {
+  return `
+    <div class="pf-header">
+      <button class="pf-back" id="pf-voltar-ativ" type="button" aria-label="Voltar">‹</button>
+      <div class="pf-title">🏃 Atividade Física</div>
+      <span style="width:40px"></span>
+    </div>
+    <div class="pf-grupos">
       <button class="pf-grupo" id="pf-perfil-btn" type="button">
         <span class="pf-grupo-ic">📋</span>
-        <span class="pf-grupo-txt"><b>Perfil de treino</b><small>Seu objetivo e frequência — personaliza suas metas</small></span>
+        <span class="pf-grupo-txt"><b>Perfil de treino</b><small>Objetivo, frequência e experiência — personaliza suas metas</small></span>
         <span class="pf-grupo-seta">›</span>
       </button>
     </div>
+    <div class="pf-embreve">🏗️ <b>Modalidades, esportes e montador de treino</b> — chegando já já.</div>
   `;
 }
 
@@ -94,12 +109,13 @@ export function renderPreparo(app) {
 function pintarConteudo(app) {
   const c = app.querySelector('#pf-conteudo');
   if (!c) return;
-  c.innerHTML = _view === 'menu' ? telaMenu(false) : telaCorpo();
+  c.innerHTML = _view === 'menu' ? telaMenu(false) : _view === 'atividade' ? telaAtividade() : telaCorpo();
   if (_view === 'menu') {
     c.querySelector('#pf-corpo-btn').onclick = () => { _view = 'corpo'; pintarConteudo(app); };
+    c.querySelector('#pf-atividade-btn').onclick = () => { _view = 'atividade'; pintarConteudo(app); };
+  } else if (_view === 'atividade') {
+    c.querySelector('#pf-voltar-ativ').onclick = () => { _view = 'menu'; pintarConteudo(app); };
     c.querySelector('#pf-perfil-btn').onclick = () => abrirPerfilTreino();
-    c.querySelector('#pf-atividade-btn').onclick = () =>
-      showToast('🏃 Atividade Física / Esporte — em breve! 🚧', 'info');
   } else {
     c.querySelector('#pf-voltar').onclick = () => { _view = 'menu'; pintarConteudo(app); };
     montarComposicao();

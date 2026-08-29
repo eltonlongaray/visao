@@ -7536,3 +7536,5 @@ body.rota-publica .bottom-nav { display: none !important; }
 .pt-chip { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--card-2); color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
 .pt-chip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pt-hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+.pf-embreve { margin: 16px 4px 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: center; }
