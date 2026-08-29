@@ -57,7 +57,7 @@ function desenhar(ov, pt, close, aoSalvar) {
 
       <label class="pt-forca">
         <input type="checkbox" id="pt-forca" ${pt.forca ? 'checked' : ''}>
-        <span>💥 <b>Também quero ganhar força</b> — acompanho tua carga subindo (sobrecarga progressiva).</span>
+        <span>💥 <b>+ Força</b> — quero ganhar força também. Acompanho tua <b>carga subindo</b> (1RM), pra você ver o progresso mesmo sem mudar de tamanho.</span>
       </label>
 
       <div class="pt-q" style="margin-top:14px">Quantas vezes por semana você treina?</div>
@@ -71,10 +71,11 @@ function desenhar(ov, pt, close, aoSalvar) {
       </div>
       <div class="pt-hint">2× por semana costuma ser o ritmo que mais rende pra crescer.</div>
 
-      <div class="pt-q" style="margin-top:14px">Há quanto tempo você treina?</div>
+      <div class="pt-q" style="margin-top:14px">Há quanto tempo você treina (no total)?</div>
       <div class="pt-chips" id="pt-tempo">
         ${TEMPOS.map(t => `<button class="pt-chip ${pt.tempoTreino === t.k ? 'sel' : ''}" data-tempo="${t.k}" type="button">${t.lbl}</button>`).join('')}
       </div>
+      <div class="pt-hint">Sua <b>constância atual</b> (sem falhar) eu acompanho sozinho pelo Ritual — é diferente de experiência.</div>
     </div>
     <div class="pt-rodape"><button class="btn-primary" id="pt-salvar" type="button">Salvar perfil</button></div>
   `;
