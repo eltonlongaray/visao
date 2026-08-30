@@ -302,13 +302,23 @@ function wireEditor(box) {
   if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
 }
 
+// Abre o form de agendamento a partir de FORA (ex.: do Ritual), carregando a
+// config/clientes se preciso. dataISO pré-preenche o dia; onSaved roda após salvar.
+export async function abrirAgendamentoCliente({ dataISO, onSaved } = {}) {
+  try {
+    if (!_cfg) [_cfg, _todos] = await Promise.all([getAgendaConfig(), getAgendamentosTodos().catch(() => [])]);
+    if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
+  } catch (e) { showToast('Não deu pra abrir a agenda: ' + e.message, 'error'); return; }
+  _formAgendamento(null, { dataISO, onSaved });
+}
+
 // Form do PROFISSIONAL pra criar (ag=null) ou editar um agendamento.
-async function _formAgendamento(ag) {
+async function _formAgendamento(ag, opts = {}) {
   const isEdit = !!ag;
   const servs = _cfg.servicos || [];
   const st = {
     id: ag?.id || null,
-    data: ag?.data || _hojeISO(),
+    data: ag?.data || opts.dataISO || _hojeISO(),
     hora: ag?.hora || '09:00',
     servicoId: (ag?.servico && (servs.find(s => s.nome === ag.servico)?.id)) || '',
   };
@@ -373,10 +383,10 @@ async function _formAgendamento(ag) {
         id: st.id, data, hora: st.hora, cliente_nome: nome, cliente_contato: zap,
         servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: serv?.duracaoMin || null,
       });
-      sincronizarCompromissos().catch(() => {});
+      await sincronizarCompromissos().catch(() => {});
       [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
       close();
-      desenhar();
+      if (opts.onSaved) { try { await opts.onSaved(); } catch {} } else { desenhar(); }
       showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');

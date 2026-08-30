@@ -38,6 +38,7 @@ import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
+import { abrirAgendamentoCliente } from '../agenda-ui.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
@@ -3811,6 +3812,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
       ${_getClip() ? `<button type="button" class="btn-secondary" id="m-paste" style="width:100%;margin-bottom:12px">📑 Colar "${escape(_getClip().title)}"</button>` : ''}
 
+      <button type="button" class="btn-secondary" id="m-cliente" style="width:100%;margin-bottom:12px">📅 É um atendimento de cliente?</button>
+
       <div class="input-field-label">Tipo</div>
       <div class="kind-chips" id="kind-chips">
         <button type="button" class="kind-chip active" data-kind="task">📋 Tarefa</button>
@@ -3902,6 +3905,23 @@ function openActivityPicker(app, dayDocId, shiftId) {
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
+
+  // Atendimento de cliente: reusa o form da Agenda (cliente + serviço), pré-preenchido
+  // com este dia. Cria o agendamento → sincroniza → o compromisso aparece aqui.
+  modal.querySelector('#m-cliente').onclick = () => {
+    close();
+    abrirAgendamentoCliente({
+      dataISO: dayDocId,
+      onSaved: async () => {
+        const fresh = await getDayTasks(dayDocId).catch(() => null);
+        if (!fresh) return;
+        day.tasks = fresh;
+        const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
+        if (el) el.innerHTML = renderDayContent(day);
+        updateDayCardStats(dayDocId);
+      },
+    });
+  };
 
   // Estado de recorrência (escolhido via sub-modal)
   let recurState = { recur: 'today' };
