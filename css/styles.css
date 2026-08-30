@@ -7426,6 +7426,19 @@ body.sem-rolagem { overflow: hidden; }
 }
 .ag-link-box .btn-secondary { flex: none; width: auto; padding: 9px 16px; }
 
+/* serviços */
+.ag-lbl-opt { font-weight: 400; opacity: .6; text-transform: none; letter-spacing: 0; }
+.ag-servs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.ag-serv { border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); padding: 10px; }
+.ag-serv-nome { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.ag-serv-linha { display: flex; align-items: center; gap: 6px; }
+.ag-serv-lb { font-size: 13px; color: var(--muted); font-weight: 700; }
+.ag-serv-un { font-size: 12px; color: var(--muted); margin-right: 4px; }
+.ag-serv-dur { width: 62px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; }
+.ag-serv-preco { flex: 1; min-width: 60px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; }
+.ag-serv-x { background: rgba(239,68,68,.14); border: none; color: #ef4444; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 13px; flex: none; }
+.ag-serv-vazio { font-size: 12px; color: var(--muted); padding: 4px 2px; line-height: 1.4; }
+
 /* lista de agendamentos */
 .ag-lista { display: flex; flex-direction: column; gap: 6px; }
 .ag-item {

@@ -21,6 +21,8 @@ const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<':
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
+const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
+const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
 const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
 // true quando TODOS os dias têm exatamente os mesmos horários do dia atual (e não vazio)
 function _todosIguais() {
@@ -41,6 +43,7 @@ export async function abrirAgenda() {
   try {
     [_cfg, _ags] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => [])]);
     if (!_cfg.disponibilidade || typeof _cfg.disponibilidade !== 'object') _cfg.disponibilidade = {};
+    if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
@@ -70,12 +73,16 @@ function desenhar() {
     <div class="ag-scroll">
       <label class="input-field"><div class="input-field-label">Título (o que o cliente vê)</div>
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
-      <label class="input-field"><div class="input-field-label">Duração de cada atendimento</div>
+      <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
         </select></label>
 
-      <div class="input-field-label" style="margin-top:12px">Horários disponíveis — escolha o dia e adicione os horários</div>
+      <div class="input-field-label" style="margin-top:12px">Serviços que você oferece <span class="ag-lbl-opt">— o cliente escolhe e a duração vem daqui</span></div>
+      <div class="ag-servs" id="ag-servs"></div>
+      <button class="ag-linkbtn" id="ag-serv-add" type="button">+ Adicionar serviço</button>
+
+      <div class="input-field-label" style="margin-top:14px">Horários disponíveis — escolha o dia e adicione os horários</div>
       <div class="ag-tabs" id="ag-tabs">
         ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span>${d.lbl}</span><i class="ag-tab-dot"></i></button>`).join('')}
       </div>
@@ -101,6 +108,7 @@ function desenhar() {
   wireFixos(corpo);
   pintarTabs();
   pintarDiaEditor();
+  pintarServicos();
 }
 
 // Handlers que existem uma vez só (tabs, fechar, copiar, salvar, cancelar).
@@ -124,7 +132,47 @@ function wireFixos(corpo) {
       } catch (e) { showToast('Erro: ' + e.message, 'error'); }
     });
   });
+  corpo.querySelector('#ag-serv-add').onclick = () => {
+    _syncServicos();
+    _cfg.servicos.push({ id: _sid(), nome: '', duracaoMin: 60, preco: null });
+    pintarServicos();
+  };
   corpo.querySelector('#ag-salvar').onclick = salvar;
+}
+
+// Lê os inputs das linhas de serviço de volta pro _cfg.servicos (antes de re-render/salvar).
+function _syncServicos() {
+  const box = document.querySelector('#ag-servs');
+  if (!box) return;
+  box.querySelectorAll('.ag-serv').forEach(row => {
+    const s = _cfg.servicos.find(x => x.id === row.dataset.sid);
+    if (!s) return;
+    s.nome = row.querySelector('.ag-serv-nome').value;
+    s.duracaoMin = parseInt(row.querySelector('.ag-serv-dur').value, 10) || 60;
+    const p = row.querySelector('.ag-serv-preco').value.replace(',', '.').trim();
+    s.preco = p === '' ? null : Number(p);
+  });
+}
+
+function pintarServicos() {
+  const box = document.querySelector('#ag-servs');
+  if (!box) return;
+  box.innerHTML = _cfg.servicos.length ? _cfg.servicos.map(s => `
+    <div class="ag-serv" data-sid="${s.id}">
+      <input class="ag-serv-nome" value="${_esc(s.nome || '')}" placeholder="Nome do serviço (ex: Massagem relaxante)">
+      <div class="ag-serv-linha">
+        <span class="ag-serv-lb">⏱️</span>
+        <input class="ag-serv-dur" type="number" inputmode="numeric" min="10" step="5" value="${s.duracaoMin || 60}"><span class="ag-serv-un">min</span>
+        <span class="ag-serv-lb">R$</span>
+        <input class="ag-serv-preco" type="text" inputmode="decimal" value="${_preco(s.preco)}" placeholder="0,00">
+        <button class="ag-serv-x" data-rm-serv="${s.id}" type="button" aria-label="Remover">✕</button>
+      </div>
+    </div>`).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
+  box.querySelectorAll('[data-rm-serv]').forEach(b => b.onclick = () => {
+    _syncServicos();
+    _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ);
+    pintarServicos();
+  });
 }
 
 function pintarTabs() {
@@ -208,6 +256,11 @@ async function salvar() {
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
   const ativo = corpo.querySelector('#ag-ativo').checked;
+  // serviços: sincroniza inputs e mantém só os com nome
+  _syncServicos();
+  const servicos = _cfg.servicos
+    .filter(s => (s.nome || '').trim())
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco) }));
   // limpa dias vazios
   const disp = {};
   for (const k of Object.keys(_cfg.disponibilidade)) {
@@ -219,8 +272,8 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, duracao_min, disponibilidade: disp, ativo });
-    _cfg = { ..._cfg, titulo, duracao_min, disponibilidade: disp, ativo };
+    await salvarAgendaConfig({ titulo, duracao_min, disponibilidade: disp, ativo, servicos });
+    _cfg = { ..._cfg, titulo, duracao_min, disponibilidade: disp, ativo, servicos };
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
