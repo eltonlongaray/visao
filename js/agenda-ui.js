@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -15,7 +15,50 @@ const DOWS = [
   { k: 5, lbl: 'Sex', full: 'Sexta' }, { k: 6, lbl: 'Sáb', full: 'Sábado' },
   { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
-let _cfg = null, _ags = [], _close = null, _diaSel = 1;
+let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1;
+
+// Link do WhatsApp (Brasil): tira não-dígitos e garante o 55.
+function _waLink(zap) {
+  let d = String(zap || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (!d.startsWith('55') && d.length <= 11) d = '55' + d;
+  return `https://wa.me/${d}`;
+}
+// Agrupa os atendimentos por cliente (chave = WhatsApp, ou nome se não tiver).
+function _clientes() {
+  const map = new Map();
+  for (const a of _todos) {
+    const key = (a.cliente_contato || '').replace(/\D/g, '') || (a.cliente_nome || '').trim().toLowerCase();
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, { key, nome: a.cliente_nome, contato: a.cliente_contato, ags: [] });
+    const c = map.get(key);
+    c.ags.push(a);
+    if (!c.contato && a.cliente_contato) c.contato = a.cliente_contato;   // completa o zap se algum tiver
+  }
+  return [...map.values()].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+}
+
+function _clientesHtml() {
+  const cs = _clientes();
+  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Toque em + Agendamento pra começar.</div>';
+  return cs.map(c => {
+    const wa = _waLink(c.contato);
+    return `<div class="ag-cli" data-clikey="${_esc(c.key)}">
+      <div class="ag-cli-top" data-cli-toggle>
+        <div class="ag-cli-info"><b>${_esc(c.nome)}</b>
+          <small>${c.ags.length} atend.${c.contato ? ` · ${_esc(c.contato)}` : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}</small></div>
+        ${wa ? `<a class="ag-cli-zap" href="${wa}" target="_blank" rel="noopener" title="Chamar no WhatsApp">💬</a>` : ''}
+        <span class="ag-cli-ch">▾</span>
+      </div>
+      <div class="ag-cli-hist" hidden>
+        ${c.ags.map(a => `<div class="ag-cli-h">
+          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.preco != null ? ` · R$ ${_preco(a.preco)}` : ''}</span>
+          <button class="ag-item-ed" data-edit="${_esc(a.id)}" title="Editar">✏️</button>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
@@ -42,7 +85,7 @@ export async function abrirAgenda() {
   ov.addEventListener('click', (e) => { if (e.target === ov) _close?.(); });
   _close = trapModalBack(() => ov.remove());
   try {
-    [_cfg, _ags] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => [])]);
+    [_cfg, _ags, _todos] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => []), getAgendamentosTodos().catch(() => [])]);
     if (!_cfg.disponibilidade || typeof _cfg.disponibilidade !== 'object') _cfg.disponibilidade = {};
     if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
@@ -57,15 +100,7 @@ export async function abrirAgenda() {
 function desenhar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
-  const agsHtml = _ags.length ? _ags.map(a => `
-    <div class="ag-item">
-      <div class="ag-item-info">
-        <b>${_esc(a.cliente_nome)}</b>
-        <small>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.cliente_contato ? ` · ${_esc(a.cliente_contato)}` : '<span class="ag-sem-zap"> · sem WhatsApp</span>'}</small>
-      </div>
-      <button class="ag-item-ed" data-edit="${_esc(a.id)}" title="Editar" aria-label="Editar">✏️</button>
-      <button class="ag-item-x" data-cancel="${_esc(a.id)}" title="Cancelar" aria-label="Cancelar">✕</button>
-    </div>`).join('') : '<div class="ag-vazio">Nenhum agendamento ainda.</div>';
+  const clientesHtml = _clientesHtml();
 
   corpo.innerHTML = `
     <div class="ag-header">
@@ -102,10 +137,10 @@ function desenhar() {
       </div>
 
       <div class="ag-ags-top">
-        <div class="input-field-label" style="margin:0">Agendamentos recebidos</div>
-        <button class="ag-add-ag" id="ag-add-ag" type="button">+ Adicionar</button>
+        <div class="input-field-label" style="margin:0">👥 Clientes</div>
+        <button class="ag-add-ag" id="ag-add-ag" type="button">+ Agendamento</button>
       </div>
-      <div class="ag-lista">${agsHtml}</div>
+      <div class="ag-lista">${clientesHtml}</div>
     </div>
     <div class="ag-rodape">
       <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
@@ -139,7 +174,15 @@ function wireFixos(corpo) {
   });
   corpo.querySelector('#ag-add-ag')?.addEventListener('click', () => _formAgendamento(null));
   corpo.querySelectorAll('[data-edit]').forEach(b => {
-    b.addEventListener('click', () => _formAgendamento(_ags.find(a => a.id === b.dataset.edit)));
+    b.addEventListener('click', (e) => { e.stopPropagation(); _formAgendamento(_todos.find(a => a.id === b.dataset.edit)); });
+  });
+  corpo.querySelectorAll('[data-cli-toggle]').forEach(top => {
+    top.addEventListener('click', (e) => {
+      if (e.target.closest('.ag-cli-zap')) return;   // clicou no WhatsApp: deixa abrir o link
+      const cli = top.closest('.ag-cli');
+      const hist = cli?.querySelector('.ag-cli-hist');
+      if (hist) { hist.hidden = !hist.hidden; cli.classList.toggle('aberto', !hist.hidden); }
+    });
   });
   corpo.querySelector('#ag-serv-add').onclick = () => {
     _syncServicos();
@@ -273,6 +316,10 @@ async function _formAgendamento(ag) {
   ov.className = 'modal-overlay'; ov.id = 'ag-form-ov';
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
     <div class="ag-fhead">${isEdit ? '✏️ Editar agendamento' : '➕ Novo agendamento'}</div>
+    ${!isEdit && _clientes().length ? `<label class="input-field"><div class="input-field-label">Cliente já cadastrado?</div>
+      <select id="agf-cli"><option value="">— novo cliente —</option>
+        ${_clientes().map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ` · ${_esc(c.contato)}` : ''}</option>`).join('')}
+      </select></label>` : ''}
     <label class="input-field"><div class="input-field-label">Nome do cliente</div>
       <input id="agf-nome" value="${_esc(ag?.cliente_nome || '')}" placeholder="Nome"></label>
     <label class="input-field"><div class="input-field-label">WhatsApp</div>
@@ -287,15 +334,27 @@ async function _formAgendamento(ag) {
       <div class="input-field" style="flex:1"><div class="input-field-label">Hora</div>
         <button class="ag-hora-btn" id="agf-hora" type="button">${st.hora}</button></div>
     </div>
+    ${isEdit ? '<button class="ag-linkbtn danger" id="agf-cancelar-atend" type="button" style="margin:2px 0 10px">🗑 Cancelar este atendimento</button>' : ''}
     <div class="ag-fbtns">
-      <button class="btn-secondary" id="agf-cancelar" type="button">Cancelar</button>
+      <button class="btn-secondary" id="agf-cancelar" type="button">Fechar</button>
       <button class="btn-primary" id="agf-salvar" type="button">${isEdit ? 'Salvar' : 'Adicionar'}</button>
     </div>
   </div></div>`;
   document.body.appendChild(ov);
   const close = trapModalBack(() => ov.remove());
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('#agf-cli')?.addEventListener('change', (e) => {
+    const c = _clientes().find(x => x.key === e.target.value);
+    if (c) { ov.querySelector('#agf-nome').value = c.nome || ''; ov.querySelector('#agf-zap').value = c.contato || ''; }
+  });
   ov.querySelector('#agf-cancelar').onclick = () => close();
+  ov.querySelector('#agf-cancelar-atend')?.addEventListener('click', async () => {
+    try {
+      await cancelarAgendamento(st.id);
+      [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
+      close(); desenhar(); showToast('Atendimento cancelado', 'info');
+    } catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  });
   ov.querySelector('#agf-hora').onclick = async () => {
     const h = await openTimePicker(st.hora, { title: 'Horário' });
     if (h) { st.hora = h; ov.querySelector('#agf-hora').textContent = h; }
@@ -315,7 +374,7 @@ async function _formAgendamento(ag) {
         servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: serv?.duracaoMin || null,
       });
       sincronizarCompromissos().catch(() => {});
-      _ags = await getAgendamentos().catch(() => _ags);
+      [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
       close();
       desenhar();
       showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');

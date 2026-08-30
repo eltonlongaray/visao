@@ -82,6 +82,18 @@ export async function cancelarAgendamento(id) {
   if (error) throw new Error(error.message);
 }
 
+// TODOS os agendamentos confirmados do dono (passado + futuro) — pra montar
+// a lista de Clientes e o histórico de cada um.
+export async function getAgendamentosTodos() {
+  const uid = _uid(); if (!uid) return [];
+  const { data, error } = await supabase.from('agendamentos')
+    .select('id, data, hora, cliente_nome, cliente_contato, servico, preco, duracao_min, status, created_at')
+    .eq('owner_id', uid).eq('status', 'confirmado')
+    .order('data', { ascending: false }).order('hora', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
 // O PROFISSIONAL cria (sem id) ou edita (com id) um agendamento — migração, encaixe,
 // ou completar dados (ex.: cadastrar o WhatsApp do cliente da migração).
 export async function salvarAgendamentoManual(p) {

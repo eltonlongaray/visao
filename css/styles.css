@@ -7460,6 +7460,19 @@ body.sem-rolagem { overflow: hidden; }
 .ag-ags-top { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; }
 .ag-add-ag { background: rgba(124,58,237,.14); border: 1px solid var(--accent); color: var(--accent-2); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; cursor: pointer; }
 
+/* clientes */
+.ag-cli { border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); margin-bottom: 6px; overflow: hidden; }
+.ag-cli-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.ag-cli-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ag-cli-info b { font-size: 14px; color: var(--text); }
+.ag-cli-info small { font-size: 12px; color: var(--muted); }
+.ag-cli-zap { text-decoration: none; font-size: 18px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: rgba(37,211,102,.14); flex: none; }
+.ag-cli-ch { color: var(--muted); font-size: 12px; transition: transform .15s; flex: none; }
+.ag-cli.aberto .ag-cli-ch { transform: rotate(180deg); }
+.ag-cli-hist { border-top: 1px solid var(--border); padding: 6px 12px 8px; }
+.ag-cli-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text); padding: 5px 0; }
+.ag-cli-h span { color: var(--muted); }
+
 /* form de agendamento (profissional) */
 .ag-fmodal { max-width: 400px; padding: 0; overflow: hidden; }
 .ag-fcorpo { padding: 18px; max-height: 88vh; overflow-y: auto; }
