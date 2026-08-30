@@ -82,6 +82,13 @@ export async function cancelarAgendamento(id) {
   if (error) throw new Error(error.message);
 }
 
+// Soma minutos a "HH:MM" → "HH:MM" (fim do atendimento).
+function _addMin(hora, min) {
+  const [h, m] = (hora || '00:00').split(':').map(Number);
+  const t = h * 60 + m + (min || 0);
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
 // Turno pelo horário (mesma lógica do pet), pra encaixar no card certo do Ritual.
 function _pickShift(shifts, time) {
   if (!shifts.length) return null;
@@ -115,6 +122,7 @@ export async function sincronizarCompromissos() {
         desc,
         kind: 'commitment',
         startTime: a.hora,
+        ...(a.duracao_min ? { horaFim: _addMin(a.hora, a.duracao_min) } : {}),
         order: existentes.length + criados,
         icon: '📅',
         categoryId: null,

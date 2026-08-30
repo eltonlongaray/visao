@@ -2381,7 +2381,7 @@ function taskCard(t, dayDocId) {
       <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? tr('ritual.task.cancelled') : (t.done ? tr('ritual.task.done') : tr('ritual.task.mark'))}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
-          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}</span>` : ''}${escape(t.title)}${rescheduleBadge}
+          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}${t.horaFim ? '–' + escape(t.horaFim) : ''}</span>` : ''}${escape(t.title)}${rescheduleBadge}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         <div class="task-footer">
