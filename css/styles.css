@@ -7471,7 +7471,28 @@ body.sem-rolagem { overflow: hidden; }
 .ag-cli.aberto .ag-cli-ch { transform: rotate(180deg); }
 .ag-cli-hist { border-top: 1px solid var(--border); padding: 6px 12px 8px; }
 .ag-cli-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text); padding: 5px 0; }
-.ag-cli-h span { color: var(--muted); }
+.ag-cli-h { cursor: pointer; }
+.ag-cli-h span:first-child { color: var(--muted); flex: 1; }
+.ag-cli-h-seta { color: var(--muted); opacity: .5; }
+
+/* detalhe do atendimento */
+.ag-det { max-width: 400px; padding: 0; overflow: hidden; }
+.ag-det-corpo { padding: 18px; max-height: 88vh; overflow-y: auto; }
+.ag-det-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ag-det-t { flex: 1; font-size: 17px; font-weight: 800; color: var(--text); }
+.ag-det-dt { font-size: 15px; color: var(--text); }
+.ag-det-status { display: inline-block; margin: 8px 0 12px; padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--card-2); color: var(--text); }
+.ag-det-status.st-finalizado { background: rgba(34,197,94,.15); color: #22c55e; }
+.ag-det-status.st-faltou { background: rgba(239,68,68,.15); color: #ef4444; }
+.ag-det-cli { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); }
+.ag-det-cli-nome { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ag-det-cli-nome b { font-size: 15px; }
+.ag-det-cli-nome small { font-size: 12px; color: var(--muted); }
+.ag-det-serv { margin-top: 10px; font-size: 14px; color: var(--text); }
+.ag-det-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+.ag-det-btn { display: flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none; padding: 11px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
+.ag-det-btn.ok { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.1); }
+.ag-det-btn.danger { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,.08); }
 
 /* form de agendamento (profissional) */
 .ag-fmodal { max-width: 400px; padding: 0; overflow: hidden; }

@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -51,9 +51,9 @@ function _clientesHtml() {
         <span class="ag-cli-ch">▾</span>
       </div>
       <div class="ag-cli-hist" hidden>
-        ${c.ags.map(a => `<div class="ag-cli-h">
-          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.preco != null ? ` · R$ ${_preco(a.preco)}` : ''}</span>
-          <button class="ag-item-ed" data-edit="${_esc(a.id)}" title="Editar">✏️</button>
+        ${c.ags.map(a => `<div class="ag-cli-h" data-detalhe="${_esc(a.id)}">
+          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
+          <span class="ag-cli-h-seta">›</span>
         </div>`).join('')}
       </div>
     </div>`;
@@ -63,6 +63,14 @@ function _clientesHtml() {
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
 const _hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const _SEML = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const _fmtDataLonga = iso => { try { const [y, m, d] = iso.split('-').map(Number); const dt = new Date(y, m - 1, d); return `${_SEML[dt.getDay()]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`; } catch { return iso; } };
+const _fimHora = (hora, dur) => { if (!dur) return null; const [h, m] = hora.split(':').map(Number); const t = h * 60 + m + dur; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+function _waLembrete(ag) {
+  const wa = _waLink(ag.cliente_contato); if (!wa) return null;
+  const msg = `Oi ${ag.cliente_nome || ''}! Passando pra lembrar do seu atendimento em ${_fmtData(ag.data)} às ${ag.hora}${ag.servico ? ` (${ag.servico})` : ''}. Até lá! 🦅`;
+  return `${wa}?text=${encodeURIComponent(msg)}`;
+}
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
@@ -175,6 +183,9 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-add-ag')?.addEventListener('click', () => _formAgendamento(null));
   corpo.querySelectorAll('[data-edit]').forEach(b => {
     b.addEventListener('click', (e) => { e.stopPropagation(); _formAgendamento(_todos.find(a => a.id === b.dataset.edit)); });
+  });
+  corpo.querySelectorAll('[data-detalhe]').forEach(row => {
+    row.addEventListener('click', () => { const a = _todos.find(x => x.id === row.dataset.detalhe); if (a) abrirDetalheAtendimento(a); });
   });
   corpo.querySelectorAll('[data-cli-toggle]').forEach(top => {
     top.addEventListener('click', (e) => {
@@ -310,6 +321,63 @@ export async function abrirAgendamentoCliente({ dataISO, onSaved } = {}) {
     if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
   } catch (e) { showToast('Não deu pra abrir a agenda: ' + e.message, 'error'); return; }
   _formAgendamento(null, { dataISO, onSaved });
+}
+
+// Tela de detalhe de um atendimento (tipo o print): status, WhatsApp, lembrete,
+// editar, finalizar/faltou, excluir. Chamável do card Clientes e do Ritual.
+export async function abrirDetalheAtendimento(agOrId) {
+  let ag = agOrId;
+  if (typeof agOrId === 'string') {
+    ag = _todos.find(a => a.id === agOrId) || await getAgendamentoById(agOrId).catch(() => null);
+    if (!ag) { showToast('Atendimento não encontrado', 'error'); return; }
+  }
+  if (!_cfg) { try { [_cfg, _todos] = await Promise.all([getAgendaConfig(), getAgendamentosTodos().catch(() => [])]); } catch {} }
+  if (!Array.isArray(_cfg?.servicos)) { if (_cfg) _cfg.servicos = []; }
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-det-ov';
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+
+  async function recarregar() {
+    [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
+    if (document.querySelector('#agenda-ov .ag-corpo')) desenhar();
+  }
+  function draw() {
+    const wa = _waLink(ag.cliente_contato);
+    const fim = _fimHora(ag.hora, ag.duracao_min);
+    const stLbl = { confirmado: '🕐 Agendado', finalizado: '✅ Finalizado', faltou: '🚫 Faltou' }[ag.status] || ag.status;
+    ov.innerHTML = `<div class="modal ag-det"><div class="ag-det-corpo">
+      <div class="ag-det-head"><div class="ag-det-t">📅 Atendimento</div><button class="ag-fechar" id="agd-close" type="button">Fechar</button></div>
+      <div class="ag-det-dt">${_fmtDataLonga(ag.data)} · <b>${_esc(ag.hora)}${fim ? `–${fim}` : ''}</b></div>
+      <span class="ag-det-status st-${ag.status}">${stLbl}</span>
+      <div class="ag-det-cli">
+        <div class="ag-det-cli-nome"><b>${_esc(ag.cliente_nome)}</b>${ag.cliente_contato ? `<small>${_esc(ag.cliente_contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}</div>
+        ${wa ? `<a class="ag-cli-zap" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
+      </div>
+      ${ag.servico ? `<div class="ag-det-serv">💆 ${_esc(ag.servico)}${ag.preco != null ? ` · <b>R$ ${_preco(ag.preco)}</b>` : ''}</div>` : ''}
+      <div class="ag-det-acoes">
+        ${wa ? `<a class="ag-det-btn" href="${_waLembrete(ag)}" target="_blank" rel="noopener">🔔 Lembrete</a>` : ''}
+        <button class="ag-det-btn" id="agd-editar" type="button">✏️ Editar</button>
+        ${ag.status !== 'finalizado' ? '<button class="ag-det-btn ok" id="agd-finalizar" type="button">✅ Finalizar</button>' : ''}
+        ${ag.status !== 'faltou' ? '<button class="ag-det-btn" id="agd-faltou" type="button">🚫 Faltou</button>' : ''}
+        <button class="ag-det-btn danger" id="agd-excluir" type="button">🗑 Excluir</button>
+      </div>
+    </div></div>`;
+    ov.querySelector('#agd-close').onclick = () => close();
+    ov.querySelector('#agd-editar').onclick = () => { close(); _formAgendamento(ag, { onSaved: recarregar }); };
+    ov.querySelector('#agd-finalizar')?.addEventListener('click', () => _setStatus('finalizado'));
+    ov.querySelector('#agd-faltou')?.addEventListener('click', () => _setStatus('faltou'));
+    ov.querySelector('#agd-excluir').onclick = async () => {
+      try { await cancelarAgendamento(ag.id); await recarregar(); close(); showToast('Atendimento excluído', 'info'); }
+      catch (e) { showToast('Erro: ' + e.message, 'error'); }
+    };
+  }
+  async function _setStatus(s) {
+    try { await atualizarStatusAgendamento(ag.id, s); ag.status = s; await recarregar(); draw(); showToast(s === 'finalizado' ? '✅ Finalizado!' : 'Marcado como falta', 'success'); }
+    catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  }
+  draw();
 }
 
 // Form do PROFISSIONAL pra criar (ag=null) ou editar um agendamento.

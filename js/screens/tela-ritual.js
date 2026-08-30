@@ -38,7 +38,7 @@ import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
-import { abrirAgendamentoCliente } from '../agenda-ui.js';
+import { abrirAgendamentoCliente, abrirDetalheAtendimento } from '../agenda-ui.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
@@ -2440,6 +2440,7 @@ function openTaskMenu(triggerEl) {
     <button class="task-menu-item" data-menu-action="restore">${tr('ritual.task.restore')}</button>
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   ` : `
+    ${t?.agendamentoId ? '<button class="task-menu-item" data-menu-action="ver-atendimento">📅 Ver atendimento</button>' : ''}
     <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
     <button class="task-menu-item" data-menu-action="copy">📋 Copiar</button>
     ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📑 Colar abaixo</button>` : ''}
@@ -2474,6 +2475,8 @@ function openTaskMenu(triggerEl) {
     if (!item) return;
     const action = item.dataset.menuAction;
     close();
+    // Atendimento da Agenda Online: abre a tela de detalhe (não é ação de tarefa)
+    if (action === 'ver-atendimento') { if (t?.agendamentoId) abrirDetalheAtendimento(t.agendamentoId); return; }
     const synth = document.createElement('button');
     synth.dataset.action = action;
     synth.style.display = 'none';
