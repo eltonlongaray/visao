@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -19,6 +19,7 @@ let _cfg = null, _ags = [], _close = null, _diaSel = 1;
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _fmtData = iso => { try { const [, m, d] = iso.split('-'); return `${d}/${m}`; } catch { return iso; } };
+const _hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
@@ -60,8 +61,9 @@ function desenhar() {
     <div class="ag-item">
       <div class="ag-item-info">
         <b>${_esc(a.cliente_nome)}</b>
-        <small>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.cliente_contato ? ` · ${_esc(a.cliente_contato)}` : ''}</small>
+        <small>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.cliente_contato ? ` · ${_esc(a.cliente_contato)}` : '<span class="ag-sem-zap"> · sem WhatsApp</span>'}</small>
       </div>
+      <button class="ag-item-ed" data-edit="${_esc(a.id)}" title="Editar" aria-label="Editar">✏️</button>
       <button class="ag-item-x" data-cancel="${_esc(a.id)}" title="Cancelar" aria-label="Cancelar">✕</button>
     </div>`).join('') : '<div class="ag-vazio">Nenhum agendamento ainda.</div>';
 
@@ -99,7 +101,10 @@ function desenhar() {
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
       </div>
 
-      <div class="input-field-label" style="margin-top:14px">Agendamentos recebidos</div>
+      <div class="ag-ags-top">
+        <div class="input-field-label" style="margin:0">Agendamentos recebidos</div>
+        <button class="ag-add-ag" id="ag-add-ag" type="button">+ Adicionar</button>
+      </div>
       <div class="ag-lista">${agsHtml}</div>
     </div>
     <div class="ag-rodape">
@@ -131,6 +136,10 @@ function wireFixos(corpo) {
         showToast('Agendamento cancelado', 'info');
       } catch (e) { showToast('Erro: ' + e.message, 'error'); }
     });
+  });
+  corpo.querySelector('#ag-add-ag')?.addEventListener('click', () => _formAgendamento(null));
+  corpo.querySelectorAll('[data-edit]').forEach(b => {
+    b.addEventListener('click', () => _formAgendamento(_ags.find(a => a.id === b.dataset.edit)));
   });
   corpo.querySelector('#ag-serv-add').onclick = () => {
     _syncServicos();
@@ -248,6 +257,73 @@ function wireEditor(box) {
   };
   const lim = box.querySelector('#ag-limpar');
   if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
+}
+
+// Form do PROFISSIONAL pra criar (ag=null) ou editar um agendamento.
+async function _formAgendamento(ag) {
+  const isEdit = !!ag;
+  const servs = _cfg.servicos || [];
+  const st = {
+    id: ag?.id || null,
+    data: ag?.data || _hojeISO(),
+    hora: ag?.hora || '09:00',
+    servicoId: (ag?.servico && (servs.find(s => s.nome === ag.servico)?.id)) || '',
+  };
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-form-ov';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">${isEdit ? '✏️ Editar agendamento' : '➕ Novo agendamento'}</div>
+    <label class="input-field"><div class="input-field-label">Nome do cliente</div>
+      <input id="agf-nome" value="${_esc(ag?.cliente_nome || '')}" placeholder="Nome"></label>
+    <label class="input-field"><div class="input-field-label">WhatsApp</div>
+      <input id="agf-zap" inputmode="tel" value="${_esc(ag?.cliente_contato || '')}" placeholder="(DDD) 9 9999-9999"></label>
+    ${servs.length ? `<label class="input-field"><div class="input-field-label">Serviço</div>
+      <select id="agf-serv"><option value="">— sem serviço —</option>
+        ${servs.map(s => `<option value="${_esc(s.id)}" ${st.servicoId === s.id ? 'selected' : ''}>${_esc(s.nome)} · ${s.duracaoMin || 60}min${s.preco != null ? ` · R$ ${_preco(s.preco)}` : ''}</option>`).join('')}
+      </select></label>` : ''}
+    <div class="ag-frow">
+      <label class="input-field" style="flex:1"><div class="input-field-label">Data</div>
+        <input id="agf-data" type="date" value="${st.data}"></label>
+      <div class="input-field" style="flex:1"><div class="input-field-label">Hora</div>
+        <button class="ag-hora-btn" id="agf-hora" type="button">${st.hora}</button></div>
+    </div>
+    <div class="ag-fbtns">
+      <button class="btn-secondary" id="agf-cancelar" type="button">Cancelar</button>
+      <button class="btn-primary" id="agf-salvar" type="button">${isEdit ? 'Salvar' : 'Adicionar'}</button>
+    </div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('#agf-cancelar').onclick = () => close();
+  ov.querySelector('#agf-hora').onclick = async () => {
+    const h = await openTimePicker(st.hora, { title: 'Horário' });
+    if (h) { st.hora = h; ov.querySelector('#agf-hora').textContent = h; }
+  };
+  ov.querySelector('#agf-salvar').onclick = async () => {
+    const nome = ov.querySelector('#agf-nome').value.trim();
+    const zap = ov.querySelector('#agf-zap').value.trim();
+    const data = ov.querySelector('#agf-data').value;
+    const servId = ov.querySelector('#agf-serv')?.value || '';
+    if (nome.length < 2) { showToast('Escreva o nome do cliente', 'info'); return; }
+    if (!data) { showToast('Escolha a data', 'info'); return; }
+    const serv = servs.find(s => s.id === servId) || null;
+    const btn = ov.querySelector('#agf-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      await salvarAgendamentoManual({
+        id: st.id, data, hora: st.hora, cliente_nome: nome, cliente_contato: zap,
+        servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: serv?.duracaoMin || null,
+      });
+      sincronizarCompromissos().catch(() => {});
+      _ags = await getAgendamentos().catch(() => _ags);
+      close();
+      desenhar();
+      showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');
+    } catch (e) {
+      showToast('Erro: ' + e.message, 'error');
+      if (btn.isConnected) { btn.disabled = false; btn.textContent = st.id ? 'Salvar' : 'Adicionar'; }
+    }
+  };
 }
 
 async function salvar() {

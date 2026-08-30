@@ -82,6 +82,30 @@ export async function cancelarAgendamento(id) {
   if (error) throw new Error(error.message);
 }
 
+// O PROFISSIONAL cria (sem id) ou edita (com id) um agendamento — migração, encaixe,
+// ou completar dados (ex.: cadastrar o WhatsApp do cliente da migração).
+export async function salvarAgendamentoManual(p) {
+  const uid = _uid(); if (!uid) throw new Error('Sessão expirada');
+  const row = {
+    data: p.data, hora: p.hora,
+    cliente_nome: (p.cliente_nome || '').trim(),
+    cliente_contato: (p.cliente_contato || '').trim() || null,
+    servico: p.servico || null,
+    preco: (p.preco == null || p.preco === '') ? null : Number(p.preco),
+    duracao_min: p.duracao_min || null,
+    status: 'confirmado',
+  };
+  if (p.id) {
+    const { error } = await supabase.from('agendamentos').update(row).eq('id', p.id);
+    if (error) throw new Error(error.message);
+    return p.id;
+  }
+  row.owner_id = uid;
+  const { data, error } = await supabase.from('agendamentos').insert(row).select('id').single();
+  if (error) throw new Error(/duplicate|unique|23505/i.test(error.message) ? 'Já existe um agendamento nesse dia e horário' : error.message);
+  return data.id;
+}
+
 // Soma minutos a "HH:MM" → "HH:MM" (fim do atendimento).
 function _addMin(hora, min) {
   const [h, m] = (hora || '00:00').split(':').map(Number);

@@ -7453,7 +7453,22 @@ body.sem-rolagem { overflow: hidden; }
   padding: 4px 8px; border-radius: 8px;
 }
 .ag-item-x:hover { background: rgba(239,68,68,0.12); }
+.ag-item-ed { background: transparent; border: none; cursor: pointer; padding: 4px 6px; border-radius: 8px; font-size: 14px; }
+.ag-item-ed:hover { background: rgba(255,255,255,.06); }
+.ag-sem-zap { color: #ef8f8f; }
 .ag-vazio { padding: 14px; text-align: center; color: var(--muted); font-size: 13px; }
+.ag-ags-top { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; }
+.ag-add-ag { background: rgba(124,58,237,.14); border: 1px solid var(--accent); color: var(--accent-2); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; cursor: pointer; }
+
+/* form de agendamento (profissional) */
+.ag-fmodal { max-width: 400px; padding: 0; overflow: hidden; }
+.ag-fcorpo { padding: 18px; max-height: 88vh; overflow-y: auto; }
+.ag-fhead { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
+.ag-fcorpo .input-field { margin-bottom: 12px; }
+.ag-frow { display: flex; gap: 10px; }
+.ag-hora-btn { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
+.ag-fbtns { display: flex; gap: 10px; margin-top: 6px; }
+.ag-fbtns .btn-secondary, .ag-fbtns .btn-primary { flex: 1; }
 
 /* ===== AGENDA ONLINE — página PÚBLICA (Fase B) ===== */
 body.rota-publica #visao-pet,
