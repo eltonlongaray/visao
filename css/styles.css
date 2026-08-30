@@ -7468,6 +7468,15 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-hist { border: 1px solid var(--border); border-radius: 14px; background: var(--card-2); padding: 12px 14px; margin-bottom: 16px; }
 .ap-hist-t { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
 .ap-hist-item { font-size: 14px; color: var(--text); padding: 4px 0; }
+
+/* seletor de serviço (público) */
+.ap-serv-wrap { margin-bottom: 16px; }
+.ap-serv-tit { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.ap-serv-op { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 11px 14px; margin-bottom: 7px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); color: var(--text); cursor: pointer; }
+.ap-serv-op.sel { border-color: var(--accent); background: rgba(124,58,237,.12); }
+.ap-serv-nm { font-size: 14px; font-weight: 700; }
+.ap-serv-mt { font-size: 12px; color: var(--muted); }
+.ap-form-serv { font-size: 13px; color: var(--text); margin-bottom: 12px; }
 .ap-ok-btn { margin-top: 20px; }
 
 /* fita de dias */

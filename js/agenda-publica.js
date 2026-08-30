@@ -12,6 +12,8 @@ const SEM3 = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _fromIso = s => { const [y, m, d] = (s || '').split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+const _precoTxt = p => (p == null ? '' : Number(p).toFixed(2).replace('.', ','));
+const _fim = (hora, dur) => { if (!dur) return null; const [h, m] = hora.split(':').map(Number); const t = h * 60 + m + dur; return `${pad(Math.floor(t / 60) % 24)}:${pad(t % 60)}`; };
 
 // Histórico do cliente NO APARELHO dele (localStorage por slug). Sem conta, sem servidor.
 const _histKey = slug => `falcon_ag_${slug}`;
@@ -55,8 +57,12 @@ export async function renderAgendaPublica(app, slug) {
     dias.push({ iso: iso(d), date: d, horarios });
   }
 
+  const servicos = Array.isArray(cfg.servicos) ? cfg.servicos : [];
   let selDia = dias[0]?.iso || null;
   let selHora = null;
+  let selServ = servicos.length ? servicos[0].id : null;
+  const _servSel = () => servicos.find(s => s.id === selServ) || null;
+  const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
 
   desenhar();
   return cleanup;
@@ -69,7 +75,19 @@ export async function renderAgendaPublica(app, slug) {
     if (!hist.length) return '';
     return `<div class="ap-hist">
       <div class="ap-hist-t">📋 Seus agendamentos</div>
-      ${hist.map(h => { const d = _fromIso(h.data); return `<div class="ap-hist-item">✅ ${SEM[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(h.hora)}</b></div>`; }).join('')}
+      ${hist.map(h => { const d = _fromIso(h.data); return `<div class="ap-hist-item">✅ ${SEM[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(h.hora)}</b>${h.servico ? ` · ${_esc(h.servico)}` : ''}</div>`; }).join('')}
+    </div>`;
+  }
+
+  // Seletor de serviço (só se o profissional cadastrou serviços)
+  function _servHtml() {
+    if (!servicos.length) return '';
+    return `<div class="ap-serv-wrap">
+      <div class="ap-serv-tit">Escolha o serviço</div>
+      ${servicos.map(s => `<button class="ap-serv-op ${selServ === s.id ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
+        <span class="ap-serv-nm">${_esc(s.nome)}</span>
+        <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+      </button>`).join('')}
     </div>`;
   }
 
@@ -94,9 +112,10 @@ export async function renderAgendaPublica(app, slug) {
     app.innerHTML = _tela(`
       <div class="ap-head">
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
-        <div class="ap-sub">Escolha um horário · ${cfg.duracao_min} min</div>
+        <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : `Escolha um horário · ${_durSel()} min`}</div>
       </div>
       ${_histHtml()}
+      ${_servHtml()}
       <div class="ap-dias">
         ${dias.map(x => `<button class="ap-diachip ${x.iso === dia.iso ? 'sel' : ''}" data-dia="${x.iso}" type="button">
           <span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span>
@@ -114,6 +133,9 @@ export async function renderAgendaPublica(app, slug) {
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
       selDia = b.dataset.dia; selHora = null; desenhar();
     }));
+    app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
+      selServ = b.dataset.serv; desenhar();
+    }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -123,9 +145,15 @@ export async function renderAgendaPublica(app, slug) {
   }
 
   function _formHtml(dia, hora) {
+    const serv = _servSel();
+    const fim = _fim(hora, _durSel());
+    const servLinha = serv
+      ? `<div class="ap-form-serv">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · <b>R$ ${_precoTxt(serv.preco)}</b>` : ''}</div>`
+      : '';
     return `
       <div class="ap-form">
-        <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}</b></div>
+        <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
+        ${servLinha}
         <label class="input-field"><div class="input-field-label">Seu nome</div>
           <input id="ap-nome" placeholder="Como você se chama?" autocomplete="name"></label>
         <label class="input-field"><div class="input-field-label">Seu WhatsApp</div>
@@ -142,9 +170,11 @@ export async function renderAgendaPublica(app, slug) {
     const btn = app.querySelector('#ap-confirmar'); btn.disabled = true; btn.textContent = 'Agendando…';
     try {
       const hora = selHora;
-      await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap);
+      const serv = _servSel();
+      const fim = _fim(hora, _durSel());
+      await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho e tira o horário dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome });
+      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null });
       ocupados.add(`${dia.iso}|${hora}`);
       const slot = dia.horarios.find(s => s.hora === hora); if (slot) slot.ocupado = true;
       selHora = null;
@@ -152,7 +182,8 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
           <div class="ap-ok-t">Agendamento confirmado!</div>
-          <div class="ap-ok-d">${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} às <b>${hora}</b></div>
+          <div class="ap-ok-d">${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
+          ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);

@@ -70,7 +70,7 @@ export async function getAgendamentos() {
   const uid = _uid(); if (!uid) return [];
   const hoje = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase.from('agendamentos')
-    .select('id, data, hora, cliente_nome, cliente_contato, status, created_at')
+    .select('id, data, hora, cliente_nome, cliente_contato, servico, preco, duracao_min, status, created_at')
     .eq('owner_id', uid).eq('status', 'confirmado').gte('data', hoje)
     .order('data', { ascending: true }).order('hora', { ascending: true });
   if (error) throw new Error(error.message);
@@ -106,7 +106,10 @@ export async function sincronizarCompromissos() {
     const jaSync = new Set(existentes.filter(t => t.agendamentoId).map(t => t.agendamentoId));
     for (const a of porDia[dia]) {
       if (jaSync.has(a.id)) continue;
-      const desc = a.cliente_contato ? `${a.cliente_nome} · ${a.cliente_contato}` : a.cliente_nome;
+      const partes = [a.cliente_nome];
+      if (a.servico) partes.push(a.servico);
+      if (a.cliente_contato) partes.push(a.cliente_contato);
+      const desc = partes.join(' · ');
       await addDayTask(dia, {
         title: 'Agenda Online',
         desc,

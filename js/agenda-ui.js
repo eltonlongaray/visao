@@ -60,7 +60,7 @@ function desenhar() {
     <div class="ag-item">
       <div class="ag-item-info">
         <b>${_esc(a.cliente_nome)}</b>
-        <small>${_fmtData(a.data)} · ${_esc(a.hora)}${a.cliente_contato ? ` · ${_esc(a.cliente_contato)}` : ''}</small>
+        <small>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.cliente_contato ? ` · ${_esc(a.cliente_contato)}` : ''}</small>
       </div>
       <button class="ag-item-x" data-cancel="${_esc(a.id)}" title="Cancelar" aria-label="Cancelar">✕</button>
     </div>`).join('') : '<div class="ag-vazio">Nenhum agendamento ainda.</div>';
