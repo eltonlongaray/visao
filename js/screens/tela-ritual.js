@@ -3831,6 +3831,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <label class="input-field"><div class="input-field-label">Atividade</div>
         <select id="m-cat">
           <option value="">— sem atividade —</option>
+          <option value="__agenda__">📅 Agenda Online — atendimento de cliente</option>
           ${catOpts}
         </select></label>
 
@@ -3932,9 +3933,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
 
-  // Atendimento de cliente: reusa o form da Agenda (cliente + serviço), pré-preenchido
-  // com este dia. Cria o agendamento → sincroniza → o compromisso aparece aqui.
-  modal.querySelector('#m-cliente').onclick = () => {
+  // Atendimento de cliente (via botão OU escolhendo "Agenda Online" na Atividade):
+  // reusa o form da Agenda (cliente + serviço), pré-preenchido com este dia. Cria o
+  // agendamento → sincroniza → o compromisso aparece aqui.
+  const _abrirAgendaCliente = () => {
     close();
     abrirAgendamentoCliente({
       dataISO: dayDocId,
@@ -3948,6 +3950,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
       },
     });
   };
+  modal.querySelector('#m-cliente')?.addEventListener('click', _abrirAgendaCliente);
+  modal.querySelector('#m-cat')?.addEventListener('change', (e) => {
+    if (e.target.value === '__agenda__') _abrirAgendaCliente();
+  });
 
   // Estado de recorrência (escolhido via sub-modal)
   let recurState = { recur: 'today' };

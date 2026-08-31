@@ -7438,6 +7438,7 @@ body.sem-rolagem { overflow: hidden; }
 .ag-serv-preco { flex: 1; min-width: 60px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; }
 .ag-serv-x { background: rgba(239,68,68,.14); border: none; color: #ef4444; cursor: pointer; width: 30px; height: 30px; border-radius: 8px; font-size: 13px; flex: none; }
 .ag-serv-vazio { font-size: 12px; color: var(--muted); padding: 4px 2px; line-height: 1.4; }
+.ag-serv-add-btn { width: 100%; background: rgba(124,58,237,.12); border: 1px solid var(--accent); color: var(--accent-2); border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer; }
 
 /* lista de agendamentos */
 .ag-lista { display: flex; flex-direction: column; gap: 6px; }
@@ -7462,18 +7463,19 @@ body.sem-rolagem { overflow: hidden; }
 
 /* clientes */
 .ag-cli { border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); margin-bottom: 6px; overflow: hidden; }
-.ag-cli-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.ag-cli-top { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; }
+.ag-cli-top:active { background: rgba(255,255,255,.04); }
+.ag-cli.aberto .ag-cli-top { border-bottom: 1px solid var(--border); }
 .ag-cli-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ag-cli-info b { font-size: 14px; color: var(--text); }
 .ag-cli-info small { font-size: 12px; color: var(--muted); }
 .ag-cli-zap { text-decoration: none; font-size: 18px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: rgba(37,211,102,.14); flex: none; }
-.ag-cli-ch { color: var(--muted); font-size: 12px; transition: transform .15s; flex: none; }
+.ag-cli-ch { color: var(--accent-2); font-size: 12px; transition: transform .15s; flex: none; width: 26px; height: 26px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
 .ag-cli.aberto .ag-cli-ch { transform: rotate(180deg); }
 .ag-cli-hist { border-top: 1px solid var(--border); padding: 6px 12px 8px; }
 .ag-cli-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text); padding: 5px 0; }
-.ag-cli-h { cursor: pointer; }
 .ag-cli-h span:first-child { color: var(--muted); flex: 1; }
-.ag-cli-h-seta { color: var(--muted); opacity: .5; }
+.ag-cli-h.div { border-top: 1px solid var(--border); }
 
 /* próximos atendimentos */
 .ag-prox { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); margin-bottom: 6px; cursor: pointer; }

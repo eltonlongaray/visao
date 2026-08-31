@@ -103,9 +103,8 @@ function _clientesHtml() {
           <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ ${c.contato ? 'Editar' : 'Adicionar'} WhatsApp</button>
         </div>
         <div class="ag-cli-hist-tit">Histórico</div>
-        ${c.ags.map(a => `<div class="ag-cli-h" data-detalhe="${_esc(a.id)}">
+        ${c.ags.map((a, i) => `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
           <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
-          <span class="ag-cli-h-seta">›</span>
         </div>`).join('')}
       </div>
     </div>`;
@@ -179,7 +178,7 @@ function desenhar() {
 
       <div class="input-field-label" style="margin-top:12px">Serviços que você oferece <span class="ag-lbl-opt">— o cliente escolhe e a duração vem daqui</span></div>
       <div class="ag-servs" id="ag-servs"></div>
-      <button class="ag-linkbtn" id="ag-serv-add" type="button">+ Adicionar serviço</button>
+      <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
 
       <div class="input-field-label" style="margin-top:14px">Horários disponíveis — escolha o dia e adicione os horários</div>
       <div class="ag-tabs" id="ag-tabs">
@@ -326,10 +325,6 @@ function pintarDiaEditor() {
       <button class="btn-secondary" id="ag-add-btn" type="button">+ Adicionar horário</button>
     </div>
     <div class="ag-dia-acoes">
-      <label class="ag-repetir-chk">
-        <input type="checkbox" id="ag-repetir" ${_todosIguais() ? 'checked' : ''}>
-        <span>🔁 Repetir esses horários na semana toda</span>
-      </label>
       ${times.length ? '<button class="ag-linkbtn danger" id="ag-limpar" type="button">Limpar dia</button>' : ''}
     </div>`;
   wireEditor(box);
@@ -355,19 +350,6 @@ function wireEditor(box) {
       pintarTabs(); pintarDiaEditor();
     };
   });
-  const rep = box.querySelector('#ag-repetir');
-  if (rep) rep.onchange = () => {
-    if (rep.checked) {
-      const arr = _horasDoDia(_diaSel);
-      if (!arr.length) { showToast('Adicione horários neste dia primeiro', 'info'); rep.checked = false; return; }
-      for (const d of DOWS) _cfg.disponibilidade[String(d.k)] = arr.slice();
-      showToast('🔁 Horários repetidos na semana toda', 'success');
-    } else {
-      for (const d of DOWS) if (d.k !== _diaSel) delete _cfg.disponibilidade[String(d.k)];
-      showToast('Repetição desligada — outros dias limpos', 'info');
-    }
-    pintarTabs(); pintarDiaEditor();
-  };
   const lim = box.querySelector('#ag-limpar');
   if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
 }
