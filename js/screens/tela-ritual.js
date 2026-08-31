@@ -4391,7 +4391,8 @@ function openTaskEditor(app, dayDocId, taskId) {
   if (isAg) {
     const agId = t.agendamentoId;
     // Some com o que não faz sentido pro atendimento (data+hora vão no Reagendar).
-    ['#m-time-wrap', '#m-desc-field', '#m-icon-wrap', '#m-recur-wrap'].forEach(sel => {
+    // A DESCRIÇÃO fica (mostra nome + serviço).
+    ['#m-time-wrap', '#m-icon-wrap', '#m-recur-wrap'].forEach(sel => {
       const el = modal.querySelector(sel); if (el) el.style.display = 'none';
     });
     // Rótulo do Reagendar já mostra o agendamento inteiro: "DD/MM · HH:MM–HH:MM".
@@ -4403,6 +4404,9 @@ function openTaskEditor(app, dayDocId, taskId) {
       const setTxt = (sel, v) => { const e = modal.querySelector(sel); if (e) e.textContent = v || '—'; };
       setTxt('#mag-nome', ag.cliente_nome);
       setTxt('#mag-serv', ag.servico);
+      // Descrição = nome + serviço (mantém fresco no modal)
+      const descInp = modal.querySelector('#m-desc');
+      if (descInp) descInp.value = [ag.cliente_nome, ag.servico].filter(Boolean).join(' · ');
       const zapInp = modal.querySelector('#mag-zap');
       if (zapInp && !zapInp.value) zapInp.value = ag.cliente_contato || '';
       const link = _waLembreteLink(ag);
