@@ -38,7 +38,7 @@ import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
-import { abrirAgendamentoCliente, abrirDetalheAtendimento } from '../agenda-ui.js';
+import { abrirDetalheAtendimento, abrirEdicaoAtendimento, montarAgendaInline } from '../agenda-ui.js';
 import { cancelarAgendamentoDaTask } from '../agenda.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
@@ -2478,8 +2478,8 @@ function openTaskMenu(triggerEl) {
     close();
     // Atendimento da Agenda Online: abre a tela de detalhe (não é ação de tarefa)
     if (action === 'ver-atendimento') { if (t?.agendamentoId) abrirDetalheAtendimento(t.agendamentoId); return; }
-    // Editar um atendimento da Agenda: vai pro detalhe (edita via a agenda, sem recorrência)
-    if (action === 'edit' && t?.agendamentoId) { abrirDetalheAtendimento(t.agendamentoId); return; }
+    // Editar um atendimento da Agenda: abre DIRETO o form (reagendar/serviço/nome+WhatsApp/cancelar)
+    if (action === 'edit' && t?.agendamentoId) { abrirEdicaoAtendimento(t.agendamentoId); return; }
     const synth = document.createElement('button');
     synth.dataset.action = action;
     synth.style.display = 'none';
@@ -3833,7 +3833,10 @@ function openActivityPicker(app, dayDocId, shiftId) {
           ${catOpts}
         </select></label>
 
-      <label class="input-field"><div class="input-field-label">O que fazer</div>
+      <!-- Campos da Agenda Online (cliente + serviço) — aparecem inline aqui mesmo -->
+      <div id="m-agenda-wrap" hidden></div>
+
+      <label class="input-field" id="m-title-field"><div class="input-field-label">O que fazer</div>
         <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
 
       <div class="input-field-label">Horário de início <small style="color:var(--muted);font-weight:500" id="m-time-hint">(opcional)</small></div>
@@ -3851,7 +3854,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
         </button>
       </div>
 
-      <label class="reminder-toggle">
+      <label class="reminder-toggle" id="m-reminder-field">
         <input type="checkbox" id="m-reminder" />
         <span class="reminder-bell"></span>
         <div class="reminder-text">
@@ -3860,13 +3863,15 @@ function openActivityPicker(app, dayDocId, shiftId) {
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
-      <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
-        <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">${tr('recur.btn.title')}</span>
-        <span class="recur-btn-label">${tr('recur.only.today')}</span>
-        <span class="recur-btn-edit">›</span>
-      </button>
+      <div id="m-recur-wrap">
+        <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
+        <button type="button" class="recur-btn" id="m-recur-btn" data-recur="today">
+          <span class="recur-btn-ic">🔁</span>
+          <span class="recur-btn-text">${tr('recur.btn.title')}</span>
+          <span class="recur-btn-label">${tr('recur.only.today')}</span>
+          <span class="recur-btn-edit">›</span>
+        </button>
+      </div>
 
       ${categories.length === 0 ? `<div style="padding:8px 0;color:var(--muted);font-size:11px;text-align:center">
         ${tr('ritual.no.activities')}
@@ -3901,10 +3906,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
     }
   });
 
-  // Não auto-foca o título quando o tour está rodando (evita abrir teclado mobile)
-  if (!tourIsActive()) {
-    setTimeout(() => modal.querySelector('#m-title').focus(), 50);
-  }
+  // Abre o pop-up sem focar o título — evita o teclado do celular subir sozinho.
 
   // Botão de horário → abre time picker
   modal.querySelector('#m-time-trigger')?.addEventListener('click', async (e) => {
@@ -3931,25 +3933,43 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
 
-  // Atendimento de cliente (escolhendo "Agenda Online" na Atividade):
-  // reusa o form da Agenda (cliente + serviço), pré-preenchido com este dia. Cria o
-  // agendamento → sincroniza → o compromisso aparece aqui.
-  const _abrirAgendaCliente = () => {
-    close();
-    abrirAgendamentoCliente({
-      dataISO: dayDocId,
-      onSaved: async () => {
-        const fresh = await getDayTasks(dayDocId).catch(() => null);
-        if (!fresh) return;
-        day.tasks = fresh;
-        const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
-        if (el) el.innerHTML = renderDayContent(day);
-        updateDayCardStats(dayDocId);
-      },
-    });
-  };
+  // Atendimento de cliente (Agenda Online): quando escolhido na Atividade, os campos
+  // de cliente + serviço aparecem AQUI DENTRO (não abre pop-up novo). O compromisso é
+  // um agendamento — vira compromisso via sincronizarCompromissos ao salvar.
+  const _addMin = (hhmm, min) => { const [h, m] = hhmm.split(':').map(Number); const t = h * 60 + m + min; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+  let _agInline = null;
+  const _agWrap = modal.querySelector('#m-agenda-wrap');
+  const _titleField = modal.querySelector('#m-title-field');
+  const _recurWrap = modal.querySelector('#m-recur-wrap');
+  const _reminderField = modal.querySelector('#m-reminder-field');
+  async function _setAgendaMode(on) {
+    if (on) {
+      // Agendamento tem hora → força "Compromisso" (revela hora início/fim obrigatórios)
+      const commitChip = modal.querySelector('.kind-chip[data-kind="commitment"]');
+      if (commitChip && !commitChip.classList.contains('active')) commitChip.click();
+      if (_titleField) _titleField.hidden = true;
+      if (_recurWrap) _recurWrap.hidden = true;         // cliente não repete (horários variados)
+      if (_reminderField) _reminderField.hidden = true; // agendamento já vem com lembrete
+      _agWrap.hidden = false;
+      _agInline = await montarAgendaInline(_agWrap, { dataISO: dayDocId });
+      // Ao escolher um serviço, pré-preenche o horário de término pela duração
+      _agInline.onServico((dur) => {
+        const start = modal.querySelector('#m-time-trigger')?.dataset.time || '';
+        if (dur && start) {
+          const fim = _addMin(start, dur);
+          const endBtn = modal.querySelector('#m-time-end-trigger');
+          if (endBtn) { endBtn.dataset.time = fim; endBtn.querySelector('.tp-trigger-time').textContent = fim; }
+        }
+      });
+    } else {
+      _agWrap.hidden = true; _agWrap.innerHTML = ''; _agInline = null;
+      if (_titleField) _titleField.hidden = false;
+      if (_recurWrap) _recurWrap.hidden = false;
+      if (_reminderField) _reminderField.hidden = false;
+    }
+  }
   modal.querySelector('#m-cat')?.addEventListener('change', (e) => {
-    if (e.target.value === '__agenda__') _abrirAgendaCliente();
+    _setAgendaMode(e.target.value === '__agenda__');
   });
 
   // Estado de recorrência (escolhido via sub-modal)
@@ -3998,6 +4018,32 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-save').onclick = async () => {
     const saveBtn = modal.querySelector('#m-save');
     if (saveBtn?.disabled) return;
+
+    // MODO AGENDA ONLINE: cria um agendamento (que vira compromisso) — não é tarefa comum.
+    if (modal.querySelector('#m-cat').value === '__agenda__' && _agInline) {
+      const hora = modal.querySelector('#m-time-trigger')?.dataset.time || '';
+      const horaFim = modal.querySelector('#m-time-end-trigger')?.dataset.time || '';
+      if (!hora) { showToast('Compromisso precisa de horário de início', 'info'); return; }
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
+      try {
+        const ok = await _agInline.salvar({ hora, horaFim });
+        if (!ok) { if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; } return; }
+        const fresh = await getDayTasks(dayDocId).catch(() => null);
+        if (fresh) {
+          day.tasks = fresh;
+          const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
+          if (el) el.innerHTML = renderDayContent(day);
+          updateDayCardStats(dayDocId);
+        }
+        close();
+        showToast('✅ Atendimento agendado', 'success');
+      } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
+      }
+      return;
+    }
+
     if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
     const categoryId = modal.querySelector('#m-cat').value || null;
     const cat = categoryId ? categories.find(c => c.id === categoryId) : null;

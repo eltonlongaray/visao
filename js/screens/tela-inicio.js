@@ -409,13 +409,12 @@ function attachPrefHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function renderCats() {
   const box = document.getElementById('cats-list');
-  // Atividade FIXA "Agenda Online" (pra todos) — abre o hub da Agenda.
+  // Atividade FIXA "Agenda Online" (pra todos) — igual às outras, abre o hub da Agenda.
   const agendaCard = `
     <div class="cat-config-card ag-cat-card" id="agenda-cat" role="button">
       <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">📅</div>
       <div class="cat-config-name-display">Agenda Online</div>
-      <div class="ag-cat-tag">PRO</div>
-      <div class="ag-cat-seta">›</div>
+      <div class="cat-config-swatch" style="background:#7c3aed"></div>
     </div>`;
   box.innerHTML = agendaCard + categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">

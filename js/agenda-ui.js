@@ -103,9 +103,9 @@ function _clientesHtml() {
           <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ ${c.contato ? 'Editar' : 'Adicionar'} WhatsApp</button>
         </div>
         <div class="ag-cli-hist-tit">Histórico</div>
-        ${c.ags.map((a, i) => `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
-          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
-        </div>`).join('')}
+        ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
+          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
+        </div>`; }).join('')}
       </div>
     </div>`;
   }).join('');
@@ -117,6 +117,53 @@ const _hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${Stri
 const _SEML = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const _fmtDataLonga = iso => { try { const [y, m, d] = iso.split('-').map(Number); const dt = new Date(y, m - 1, d); return `${_SEML[dt.getDay()]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`; } catch { return iso; } };
 const _fimHora = (hora, dur) => { if (!dur) return null; const [h, m] = hora.split(':').map(Number); const t = h * 60 + m + dur; return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+const _difMin = (a, b) => { try { const [h1, m1] = a.split(':').map(Number); const [h2, m2] = b.split(':').map(Number); return (h2 * 60 + m2) - (h1 * 60 + m1); } catch { return 0; } };
+
+// Renderiza os campos de agendamento DENTRO de um container (inline no modal de
+// compromisso do Ritual) — NÃO abre pop-up novo. Devolve helpers pra ler/salvar.
+export async function montarAgendaInline(container, { dataISO } = {}) {
+  try {
+    if (!_cfg) [_cfg, _todos] = await Promise.all([getAgendaConfig(), getAgendamentosTodos().catch(() => [])]);
+    if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
+  } catch (e) { showToast('Não deu pra carregar a agenda: ' + e.message, 'error'); }
+  const servs = _cfg?.servicos || [];
+  const cls = _clientes();
+  container.innerHTML = `
+    ${cls.length ? `<label class="input-field"><div class="input-field-label">Cliente já cadastrado?</div>
+      <select id="mi-cli"><option value="">— novo cliente —</option>
+        ${cls.map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ` · ${_esc(c.contato)}` : ''}</option>`).join('')}
+      </select></label>` : ''}
+    <label class="input-field"><div class="input-field-label">Nome do cliente</div>
+      <input id="mi-nome" placeholder="Nome"></label>
+    <label class="input-field"><div class="input-field-label">WhatsApp <span style="color:var(--muted);font-weight:500">(opcional)</span></div>
+      <input id="mi-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999"></label>
+    ${servs.length ? `<label class="input-field"><div class="input-field-label">Serviço</div>
+      <select id="mi-serv"><option value="">— sem serviço —</option>
+        ${servs.map(s => `<option value="${_esc(s.id)}" data-dur="${s.duracaoMin || 60}">${_esc(s.nome)} · ${s.duracaoMin || 60}min${s.preco != null ? ` · R$ ${_preco(s.preco)}` : ''}</option>`).join('')}
+      </select></label>` : ''}`;
+  container.querySelector('#mi-cli')?.addEventListener('change', (e) => {
+    const c = cls.find(x => x.key === e.target.value);
+    if (c) { container.querySelector('#mi-nome').value = c.nome || ''; container.querySelector('#mi-zap').value = c.contato || ''; }
+  });
+  return {
+    onServico(cb) { container.querySelector('#mi-serv')?.addEventListener('change', () => cb(this.duracaoServico())); },
+    duracaoServico() { const o = container.querySelector('#mi-serv')?.selectedOptions?.[0]; return o && o.value ? (parseInt(o.dataset.dur, 10) || null) : null; },
+    async salvar({ hora, horaFim }) {
+      const nome = (container.querySelector('#mi-nome')?.value || '').trim();
+      const zap = (container.querySelector('#mi-zap')?.value || '').trim();
+      const servId = container.querySelector('#mi-serv')?.value || '';
+      if (nome.length < 2) { showToast('Escreva o nome do cliente', 'info'); return null; }
+      if (!hora) { showToast('Escolha o horário de início', 'info'); return null; }
+      const serv = servs.find(s => s.id === servId) || null;
+      let dur = serv?.duracaoMin || null;
+      if (horaFim) { const d = _difMin(hora, horaFim); if (d > 0) dur = d; }
+      const patch = { id: null, data: dataISO, hora, cliente_nome: nome, cliente_contato: zap, servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: dur };
+      await salvarAgendamentoManual(patch);
+      await sincronizarCompromissos().catch(() => {});
+      return patch;
+    },
+  };
+}
 function _waLembrete(ag) {
   const wa = _waLink(ag.cliente_contato); if (!wa) return null;
   const msg = `Oi ${ag.cliente_nome || ''}! Passando pra lembrar do seu atendimento em ${_fmtData(ag.data)} às ${ag.hora}${ag.servico ? ` (${ag.servico})` : ''}. Até lá! 🦅`;
@@ -400,7 +447,7 @@ export async function abrirDetalheAtendimento(agOrId) {
       ${_cfg?.endereco ? `<div class="ag-det-serv">📍 ${_esc(_cfg.endereco)}</div>` : ''}
       <div class="ag-det-acoes">
         ${wa ? `<a class="ag-det-btn" href="${_waLembrete(ag)}" target="_blank" rel="noopener">🔔 Lembrete</a>` : ''}
-        <button class="ag-det-btn" id="agd-editar" type="button">✏️ Editar</button>
+        <button class="ag-det-btn" id="agd-editar" type="button">✏️ Reagendar / Editar</button>
         ${ag.status !== 'finalizado' ? '<button class="ag-det-btn ok" id="agd-finalizar" type="button">✅ Finalizar</button>' : ''}
         ${ag.status !== 'faltou' ? '<button class="ag-det-btn" id="agd-faltou" type="button">🚫 Faltou</button>' : ''}
         <button class="ag-det-btn danger" id="agd-excluir" type="button">🗑 Excluir</button>
@@ -420,6 +467,25 @@ export async function abrirDetalheAtendimento(agOrId) {
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   }
   draw();
+}
+
+// Abre DIRETO o form de edição de um atendimento (reagendar/serviço/nome+WhatsApp/
+// cancelar) — sem passar pela tela de detalhe. Usado pelo "Editar" do Ritual.
+export async function abrirEdicaoAtendimento(agOrId) {
+  let ag = agOrId;
+  try {
+    if (!_cfg) [_cfg, _todos] = await Promise.all([getAgendaConfig(), getAgendamentosTodos().catch(() => [])]);
+    if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
+  } catch (e) { showToast('Não deu pra abrir a agenda: ' + e.message, 'error'); return; }
+  if (typeof agOrId === 'string') {
+    ag = _todos.find(a => a.id === agOrId) || await getAgendamentoById(agOrId).catch(() => null);
+    if (!ag) { showToast('Atendimento não encontrado', 'error'); return; }
+  }
+  _formAgendamento(ag, { onSaved: async () => {
+    [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
+    if (document.querySelector('#agenda-ov .ag-corpo')) desenhar();
+    else if (location.hash.startsWith('#/ritual')) { try { forceRender(); } catch {} }
+  } });
 }
 
 // Form do PROFISSIONAL pra criar (ag=null) ou editar um agendamento.

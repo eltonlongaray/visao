@@ -2242,18 +2242,9 @@ body.time-picker-open { overflow: hidden; }
   background: transparent; border: none; outline: none; color: var(--text); font-family: inherit;
 }
 .cat-config-name-display { flex: 1; font-size: 13px; font-weight: 600; }
-/* Atividade FIXA "Agenda Online" na lista de atividades */
-.ag-cat-card {
-  cursor: pointer;
-  border-color: color-mix(in srgb, #7c3aed 45%, var(--border));
-  background: linear-gradient(90deg, color-mix(in srgb, #7c3aed 10%, var(--card)), var(--card));
-}
+/* Atividade FIXA "Agenda Online" na lista de atividades (igual às outras, clicável) */
+.ag-cat-card { cursor: pointer; }
 .ag-cat-card:active { transform: scale(.99); }
-.ag-cat-tag {
-  font-size: 9px; font-weight: 800; letter-spacing: .5px;
-  color: #fff; background: #7c3aed; border-radius: 6px; padding: 2px 6px;
-}
-.ag-cat-seta { font-size: 18px; color: var(--muted); font-weight: 700; margin-left: 2px; }
 /* === Card de Lembretes da Semana === */
 .reminders-card {
   width: 100%;
@@ -7362,7 +7353,7 @@ body.sem-rolagem { overflow: hidden; }
 
 /* ===== AGENDA ONLINE (modal do dono) ===== */
 .ag-modal { max-width: 480px; padding: 0; overflow: hidden; }
-.ag-corpo { display: flex; flex-direction: column; max-height: 88vh; }
+.ag-corpo { display: flex; flex-direction: column; max-height: 88vh; max-height: 88dvh; }
 .ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
 .ag-erro small { color: var(--muted); }
 .ag-header {
@@ -7378,7 +7369,8 @@ body.sem-rolagem { overflow: hidden; }
 }
 .ag-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 18px; }
 .ag-rodape {
-  padding: 12px 18px; border-top: 1px solid var(--border); background: var(--card);
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border); background: var(--card);
 }
 .ag-rodape .btn-primary { width: 100%; }
 .ag-scroll .input-field { margin-bottom: 12px; }
