@@ -415,6 +415,7 @@ function renderCats() {
       <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">📅</div>
       <div class="cat-config-name-display">Agenda Online</div>
       <div class="cat-config-swatch" style="background:#7c3aed"></div>
+      <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
     </div>`;
   box.innerHTML = agendaCard + categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
