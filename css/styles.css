@@ -2242,6 +2242,18 @@ body.time-picker-open { overflow: hidden; }
   background: transparent; border: none; outline: none; color: var(--text); font-family: inherit;
 }
 .cat-config-name-display { flex: 1; font-size: 13px; font-weight: 600; }
+/* Atividade FIXA "Agenda Online" na lista de atividades */
+.ag-cat-card {
+  cursor: pointer;
+  border-color: color-mix(in srgb, #7c3aed 45%, var(--border));
+  background: linear-gradient(90deg, color-mix(in srgb, #7c3aed 10%, var(--card)), var(--card));
+}
+.ag-cat-card:active { transform: scale(.99); }
+.ag-cat-tag {
+  font-size: 9px; font-weight: 800; letter-spacing: .5px;
+  color: #fff; background: #7c3aed; border-radius: 6px; padding: 2px 6px;
+}
+.ag-cat-seta { font-size: 18px; color: var(--muted); font-weight: 700; margin-left: 2px; }
 /* === Card de Lembretes da Semana === */
 .reminders-card {
   width: 100%;

@@ -409,7 +409,15 @@ function attachPrefHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function renderCats() {
   const box = document.getElementById('cats-list');
-  box.innerHTML = categories.map(c => `
+  // Atividade FIXA "Agenda Online" (pra todos) — abre o hub da Agenda.
+  const agendaCard = `
+    <div class="cat-config-card ag-cat-card" id="agenda-cat" role="button">
+      <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">📅</div>
+      <div class="cat-config-name-display">Agenda Online</div>
+      <div class="ag-cat-tag">PRO</div>
+      <div class="ag-cat-seta">›</div>
+    </div>`;
+  box.innerHTML = agendaCard + categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
@@ -422,6 +430,7 @@ function renderCats() {
       </div>
     </div>
   `).join('');
+  box.querySelector('#agenda-cat')?.addEventListener('click', abrirAgenda);
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).

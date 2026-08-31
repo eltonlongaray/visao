@@ -3820,8 +3820,6 @@ function openActivityPicker(app, dayDocId, shiftId) {
 
       ${_getClip() ? `<button type="button" class="btn-secondary" id="m-paste" style="width:100%;margin-bottom:12px">📑 Colar "${escape(_getClip().title)}"</button>` : ''}
 
-      <button type="button" class="btn-secondary" id="m-cliente" style="width:100%;margin-bottom:12px">📅 É um atendimento de cliente?</button>
-
       <div class="input-field-label">Tipo</div>
       <div class="kind-chips" id="kind-chips">
         <button type="button" class="kind-chip active" data-kind="task">📋 Tarefa</button>
@@ -3933,7 +3931,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
   modal.querySelector('#m-cancel').onclick = close;
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder dados sem querer)
 
-  // Atendimento de cliente (via botão OU escolhendo "Agenda Online" na Atividade):
+  // Atendimento de cliente (escolhendo "Agenda Online" na Atividade):
   // reusa o form da Agenda (cliente + serviço), pré-preenchido com este dia. Cria o
   // agendamento → sincroniza → o compromisso aparece aqui.
   const _abrirAgendaCliente = () => {
@@ -3950,7 +3948,6 @@ function openActivityPicker(app, dayDocId, shiftId) {
       },
     });
   };
-  modal.querySelector('#m-cliente')?.addEventListener('click', _abrirAgendaCliente);
   modal.querySelector('#m-cat')?.addEventListener('change', (e) => {
     if (e.target.value === '__agenda__') _abrirAgendaCliente();
   });
