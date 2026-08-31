@@ -4,10 +4,11 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
+import { forceRender } from './roteador.js';
 
 const DOWS = [
   { k: 1, lbl: 'Seg', full: 'Segunda' }, { k: 2, lbl: 'Ter', full: 'Terça' },
@@ -342,6 +343,7 @@ export async function abrirDetalheAtendimento(agOrId) {
   async function recarregar() {
     [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
     if (document.querySelector('#agenda-ov .ag-corpo')) desenhar();
+    else if (location.hash.startsWith('#/ritual')) { try { forceRender(); } catch {} }   // reflete no Ritual aberto
   }
   function draw() {
     const wa = _waLink(ag.cliente_contato);
@@ -369,7 +371,7 @@ export async function abrirDetalheAtendimento(agOrId) {
     ov.querySelector('#agd-finalizar')?.addEventListener('click', () => _setStatus('finalizado'));
     ov.querySelector('#agd-faltou')?.addEventListener('click', () => _setStatus('faltou'));
     ov.querySelector('#agd-excluir').onclick = async () => {
-      try { await cancelarAgendamento(ag.id); await recarregar(); close(); showToast('Atendimento excluído', 'info'); }
+      try { await excluirAtendimento(ag); await recarregar(); close(); showToast('Atendimento excluído', 'info'); }
       catch (e) { showToast('Erro: ' + e.message, 'error'); }
     };
   }
@@ -447,11 +449,13 @@ async function _formAgendamento(ag, opts = {}) {
     const serv = servs.find(s => s.id === servId) || null;
     const btn = ov.querySelector('#agf-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
     try {
-      await salvarAgendamentoManual({
+      const patch = {
         id: st.id, data, hora: st.hora, cliente_nome: nome, cliente_contato: zap,
         servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: serv?.duracaoMin || null,
-      });
-      await sincronizarCompromissos().catch(() => {});
+      };
+      await salvarAgendamentoManual(patch);
+      if (st.id) await sincronizarTaskDoAgendamento(patch, ag?.data).catch(() => {});
+      else await sincronizarCompromissos().catch(() => {});
       [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
       close();
       if (opts.onSaved) { try { await opts.onSaved(); } catch {} } else { desenhar(); }

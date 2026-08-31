@@ -39,6 +39,7 @@ import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
 import { abrirAgendamentoCliente, abrirDetalheAtendimento } from '../agenda-ui.js';
+import { cancelarAgendamentoDaTask } from '../agenda.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
@@ -2992,6 +2993,8 @@ function attachHandlers(app) {
       setTimeout(async () => {
         await deleteDayTask(dayDocId, tid);
         day.tasks = day.tasks.filter(x => x.id !== tid);
+        // Espelho: se era um atendimento da Agenda, cancela o agendamento ligado
+        if (t.agendamentoId) cancelarAgendamentoDaTask(t.agendamentoId).catch(() => {});
 
         // ESCOPO 'one' em recorrente: marca o dia pra não regenerar essa recorrência
         // (Senão, o autoGen do template traz a tarefa de volta a cada load.)

@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
-import { getShifts, getDayTasks, addDayTask } from './banco-dados.js';
+import { getShifts, getDayTasks, addDayTask, updateDayTask, deleteDayTask } from './banco-dados.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
 // Código curto do link: 1 letra (A–Z) + N dígitos (ex.: A01). Começa com 2 dígitos
@@ -184,6 +184,58 @@ export async function sincronizarCompromissos() {
     }
   }
   return criados;
+}
+
+// ── ESPELHO agendamento ↔ compromisso (Ritual) ────────────────────────────
+// Acha o compromisso ligado a um agendamento, procurando nos dias candidatos.
+async function _taskDoAgendamento(agId, datas) {
+  for (const dia of datas) {
+    if (!dia) continue;
+    const tasks = await getDayTasks(dia).catch(() => []);
+    const t = tasks.find(x => x.agendamentoId === agId);
+    if (t) return { dia, task: t };
+  }
+  return null;
+}
+
+function _descAg(ag) {
+  const p = [ag.cliente_nome];
+  if (ag.servico) p.push(ag.servico);
+  if (ag.cliente_contato) p.push(ag.cliente_contato);
+  return p.join(' · ');
+}
+
+// EXCLUIR atendimento: cancela o agendamento E apaga o compromisso ligado no Ritual.
+export async function excluirAtendimento(ag) {
+  await cancelarAgendamento(ag.id);
+  const found = await _taskDoAgendamento(ag.id, [ag.data]);
+  if (found) await deleteDayTask(found.dia, found.task.id).catch(() => {});
+}
+
+// Apagou o compromisso no Ritual → cancela o agendamento ligado.
+export async function cancelarAgendamentoDaTask(agId) {
+  if (agId) await cancelarAgendamento(agId).catch(() => {});
+}
+
+// EDITOU o agendamento → deixa o compromisso igual (desc, hora, fim; move de dia se mudou).
+export async function sincronizarTaskDoAgendamento(ag, oldData) {
+  const found = await _taskDoAgendamento(ag.id, [oldData, ag.data]);
+  if (!found) return;   // sem task ligada ainda — o sync normal cria depois
+  const desc = _descAg(ag);
+  const horaFim = ag.duracao_min ? _addMin(ag.hora, ag.duracao_min) : null;
+  if (found.dia === ag.data) {
+    await updateDayTask(ag.data, found.task.id, { desc, startTime: ag.hora, horaFim: horaFim || null }).catch(() => {});
+  } else {
+    // mudou de dia: recria no novo dia (mantém agendamentoId e o done)
+    await deleteDayTask(found.dia, found.task.id).catch(() => {});
+    const shifts = await getShifts().catch(() => []);
+    await addDayTask(ag.data, {
+      title: 'Agenda Online', desc, kind: 'commitment', startTime: ag.hora,
+      ...(horaFim ? { horaFim } : {}), icon: '📅', categoryId: null,
+      shiftId: _pickShift(shifts, ag.hora), reminderEnabled: true, done: !!found.task.done,
+      agendamentoId: ag.id,
+    }).catch(() => {});
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
