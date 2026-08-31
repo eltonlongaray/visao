@@ -232,19 +232,30 @@ export async function cancelarAgendamentoDaTask(agId) {
 }
 
 // EDITOU o agendamento → deixa o compromisso igual (desc, hora, fim; move de dia se mudou).
-// Robustez: no MESMO dia atualiza; se MUDOU de dia, apaga a task do dia antigo e deixa
-// o sincronizarCompromissos recriar no dia certo (idempotente) — assim o compromisso
-// NUNCA some por uma falha no meio de um delete+add.
+// Autossuficiente: recria a task DIRETO com os dados do atendimento (funciona pra
+// atendimento passado OU futuro — não depende do sincronizarCompromissos, que só
+// olha os futuros). No MESMO dia atualiza no lugar; se MUDOU de dia, cria no dia
+// novo ANTES de apagar o antigo, pra o compromisso NUNCA sumir por uma falha.
 export async function sincronizarTaskDoAgendamento(ag, oldData) {
   const found = await _taskDoAgendamento(ag.id, [oldData, ag.data]);
+  const desc = _descAg(ag);
   const horaFim = ag.duracao_min ? _addMin(ag.hora, ag.duracao_min) : null;
   if (found && found.dia === ag.data) {
-    await updateDayTask(ag.data, found.task.id, { desc: _descAg(ag), startTime: ag.hora, horaFim: horaFim || null }).catch(() => {});
+    await updateDayTask(ag.data, found.task.id, { desc, startTime: ag.hora, horaFim: horaFim || null }).catch(() => {});
     return;
   }
-  // Mudou de dia (ou task ainda não existe): limpa a antiga e recria no dia certo.
-  if (found) await deleteDayTask(found.dia, found.task.id).catch(() => {});
-  await sincronizarCompromissos().catch(() => {});
+  const doneAntigo = !!found?.task?.done;
+  const shifts = await getShifts().catch(() => []);
+  let criou = true;
+  try {
+    await addDayTask(ag.data, {
+      title: 'Agenda Online', desc, kind: 'commitment', startTime: ag.hora,
+      ...(horaFim ? { horaFim } : {}), icon: '📅', categoryId: null,
+      shiftId: _pickShift(shifts, ag.hora), reminderEnabled: true, done: doneAntigo,
+      agendamentoId: ag.id,
+    });
+  } catch (e) { criou = false; console.warn('[agenda] recriar task falhou:', e); }
+  if (criou && found) await deleteDayTask(found.dia, found.task.id).catch(() => {});
 }
 
 // ═══════════════════════════════════════════════════════════════
