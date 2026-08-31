@@ -429,7 +429,10 @@ function renderCats() {
       </div>
     </div>
   `).join('');
-  box.querySelector('#agenda-cat')?.addEventListener('click', abrirAgenda);
+  // Atividade fixa: NÃO abre a configuração (evita duplicar). Só avisa que ela vive no card do topo.
+  box.querySelector('#agenda-cat')?.addEventListener('click', () => {
+    showToast('📅 Atividade fixa. Configure seu link e clientes no card "Agenda Online" no topo da Home.', 'info');
+  });
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
