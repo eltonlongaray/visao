@@ -7581,8 +7581,8 @@ body.sem-rolagem { overflow: hidden; }
 .ag-frow { display: flex; gap: 10px; }
 .ag-hora-btn { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
 .ag-fim-view { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); color: var(--accent-2); font-size: 15px; font-weight: 700; }
-/* Botões colados no fim do pop-up (fundo sólido, não deixa conteúdo passar por baixo) */
-.ag-fbtns { display: flex; gap: 10px; position: sticky; bottom: 0; margin: 6px -18px 0; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--border); }
+/* Botões no FIM da rolagem (aparecem ao rolar até o final — sem flutuar/sobrepor) */
+.ag-fbtns { display: flex; gap: 10px; margin-top: 10px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
 .ag-fbtns .btn-secondary, .ag-fbtns .btn-primary { flex: 1; }
 
 /* ===== AGENDA ONLINE — página PÚBLICA (Fase B) ===== */
