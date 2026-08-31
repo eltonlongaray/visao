@@ -114,7 +114,16 @@ export async function renderHome(app) {
         <div class="msgs-dot" id="avisos-dot" style="display:none"></div>
       </button>
 
-      <!-- DESAFIOS (engajamento em grupo) -->
+      <!-- AGENDA ONLINE: fixo/destacado no topo (link público + clientes) -->
+      <button class="reminders-card ag-home-card" id="agenda-card" type="button">
+        <div class="reminders-icon">📅</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Agenda Online</div>
+          <div class="reminders-sub">Seu link de agendamento + seus clientes</div>
+        </div>
+        <div class="ag-home-tag">PRO</div>
+      </button>
+
       <!-- LEMBRETES DA SEMANA -->
       <button class="reminders-card" id="reminders-card" type="button">
         <div class="reminders-icon">🔔</div>
@@ -145,14 +154,6 @@ export async function renderHome(app) {
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
-      <!-- AGENDA ONLINE: link público de agendamento (tipo Calendly) -->
-      <button class="reminders-card" id="agenda-card" type="button">
-        <div class="reminders-icon">📅</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Agenda Online</div>
-          <div class="reminders-sub">Seu link de agendamento pra bio do Instagram</div>
-        </div>
-      </button>
 
       <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
       <!-- ATIVIDADES: daqui pra baixo é atividade -->
