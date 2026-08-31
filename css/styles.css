@@ -3634,15 +3634,11 @@ input, textarea, [contenteditable="true"], .selectable {
 .modal-actions {
   display: flex;
   gap: 8px;
-  margin: 14px -20px 0;
-  padding: 14px 20px 6px;
-  position: sticky;
-  bottom: 0;
+  /* No FIM do conteúdo (não flutua): só aparecem ao rolar até o final do pop-up. */
+  margin: 16px -20px 0;
+  padding: 14px 20px calc(6px + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--border);
-  z-index: 2;
-  /* sombra suave indica que há conteúdo acima */
-  box-shadow: 0 -8px 12px -8px rgba(0,0,0,0.25);
 }
 .modal-actions .btn-primary, .modal-actions .btn-secondary { margin: 0; flex: 1; }
 
