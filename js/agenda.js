@@ -145,6 +145,23 @@ export async function salvarAgendamentoManual(p) {
   return data.id;
 }
 
+// Reagendou/editou a TASK no Ritual (openTaskEditor) → reflete no agendamento
+// (data/hora/duração), pra o link público liberar/ocupar o slot certo e o
+// histórico do cliente bater. Silencioso: falha aqui não trava a edição da task.
+export async function moverAgendamento(agId, { data, hora, duracao_min, cliente_nome, cliente_contato } = {}) {
+  const uid = _uid(); if (!uid || !agId) return { ok: false };
+  const patch = {};
+  if (data) patch.data = data;
+  if (hora) patch.hora = hora;
+  if (duracao_min != null) patch.duracao_min = duracao_min;
+  if (cliente_nome != null) patch.cliente_nome = cliente_nome;
+  if (cliente_contato != null) patch.cliente_contato = cliente_contato || null;
+  if (!Object.keys(patch).length) return { ok: true };
+  const { error } = await supabase.from('agendamentos').update(patch).eq('id', agId).eq('owner_id', uid);
+  if (error) return { ok: false, error: /duplicate|unique|23505/i.test(error.message) ? 'Já existe um atendimento nesse dia e horário' : error.message };
+  return { ok: true };
+}
+
 // Soma minutos a "HH:MM" → "HH:MM" (fim do atendimento).
 function _addMin(hora, min) {
   const [h, m] = (hora || '00:00').split(':').map(Number);

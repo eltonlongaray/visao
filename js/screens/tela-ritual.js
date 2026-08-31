@@ -38,8 +38,8 @@ import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
-import { abrirDetalheAtendimento, montarAgendaInline } from '../agenda-ui.js';
-import { cancelarAgendamentoDaTask } from '../agenda.js';
+import { montarAgendaInline } from '../agenda-ui.js';
+import { cancelarAgendamentoDaTask, atualizarStatusAgendamento, getAgendamentoById, moverAgendamento } from '../agenda.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
@@ -2441,9 +2441,7 @@ function openTaskMenu(triggerEl) {
     <button class="task-menu-item" data-menu-action="restore">${tr('ritual.task.restore')}</button>
     <button class="task-menu-item danger" data-menu-action="del">${tr('ritual.task.delete')}</button>
   ` : `
-    ${t?.agendamentoId
-      ? '<button class="task-menu-item" data-menu-action="ver-atendimento">📅 Ver atendimento</button>'
-      : `<button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>`}
+    <button class="task-menu-item" data-menu-action="edit">${tr('ritual.task.edit')}</button>
     <button class="task-menu-item" data-menu-action="copy">📋 Copiar</button>
     ${_getClip() ? `<button class="task-menu-item" data-menu-action="paste">📑 Colar abaixo</button>` : ''}
     <button class="task-menu-item" data-menu-action="dup">${tr('ritual.task.dup')}</button>
@@ -2477,8 +2475,6 @@ function openTaskMenu(triggerEl) {
     if (!item) return;
     const action = item.dataset.menuAction;
     close();
-    // Atendimento da Agenda Online: abre a tela de detalhe (não é ação de tarefa)
-    if (action === 'ver-atendimento') { if (t?.agendamentoId) abrirDetalheAtendimento(t.agendamentoId); return; }
     const synth = document.createElement('button');
     synth.dataset.action = action;
     synth.style.display = 'none';
@@ -4219,6 +4215,17 @@ function openActivityPicker(app, dayDocId, shiftId) {
   };
 }
 
+// Link wa.me com mensagem pronta pra lembrar o cliente do atendimento.
+function _waLembreteLink(ag) {
+  let d = String(ag.cliente_contato || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.length <= 11) d = '55' + d;               // adiciona DDI Brasil se faltar
+  const [y, m, dd] = (ag.data || '').split('-');
+  const dataBr = (y && m && dd) ? `${dd}/${m}` : (ag.data || '');
+  const msg = `Oi ${ag.cliente_nome || ''}! Passando pra lembrar do seu atendimento em ${dataBr} às ${ag.hora}${ag.servico ? ` (${ag.servico})` : ''}. Até lá! 🦅`;
+  return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`;
+}
+
 function openTaskEditor(app, dayDocId, taskId) {
   const day = weekData.find(d => d.id === dayDocId);
   const t = day?.tasks.find(x => x.id === taskId);
@@ -4260,6 +4267,7 @@ function openTaskEditor(app, dayDocId, taskId) {
   const isActive = (mode) => currentRecur === mode ? 'active' : '';
   const kind = t.kind || 'task';
   const isCommitment = kind === 'commitment';
+  const isAg = !!t.agendamentoId;   // é um atendimento da Agenda Online
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -4317,6 +4325,18 @@ function openTaskEditor(app, dayDocId, taskId) {
         <span class="recur-btn-edit">›</span>
       </button>
 
+      ${isAg ? `
+      <div class="ag-edit-extra">
+        <div class="ag-edit-tit">📅 Atendimento de cliente</div>
+        <label class="input-field" style="margin:0 0 10px"><div class="input-field-label">WhatsApp do cliente</div>
+          <input id="mag-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999"></label>
+        <div class="ag-edit-acoes">
+          <a class="ag-edit-btn wa" id="mag-wa" target="_blank" rel="noopener" style="display:none">💬 Lembrar cliente no WhatsApp</a>
+          <button type="button" class="ag-edit-btn ok" id="mag-fin">✅ Marcar como atendido</button>
+          <button type="button" class="ag-edit-btn" id="mag-faltou">🚫 Cliente faltou</button>
+        </div>
+      </div>` : ''}
+
       <div class="modal-actions">
         <button class="btn-secondary" id="m-cancel">${tr('ritual.edit.cancel')}</button>
         <button class="btn-primary" id="m-save">${tr('ritual.edit.save')}</button>
@@ -4326,6 +4346,30 @@ function openTaskEditor(app, dayDocId, taskId) {
   document.body.appendChild(modal);
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
+
+  // Atendimento da Agenda Online: ações extras (atendido/faltou/lembrar no WhatsApp).
+  let agData = null;
+  if (isAg) {
+    const agId = t.agendamentoId;
+    modal.querySelector('#mag-fin')?.addEventListener('click', async () => {
+      try { await atualizarStatusAgendamento(agId, 'finalizado'); showToast('✅ Marcado como atendido', 'success'); }
+      catch (e) { showToast('Erro: ' + e.message, 'error'); }
+    });
+    modal.querySelector('#mag-faltou')?.addEventListener('click', async () => {
+      try { await atualizarStatusAgendamento(agId, 'faltou'); showToast('Marcado: cliente faltou', 'info'); }
+      catch (e) { showToast('Erro: ' + e.message, 'error'); }
+    });
+    // Busca o agendamento → preenche o WhatsApp e revela o botão de lembrete se tiver.
+    getAgendamentoById(agId).then(ag => {
+      if (!ag) return;
+      agData = ag;
+      const zapInp = modal.querySelector('#mag-zap');
+      if (zapInp && !zapInp.value) zapInp.value = ag.cliente_contato || '';
+      const link = _waLembreteLink(ag);
+      const a = modal.querySelector('#mag-wa');
+      if (link && a) { a.href = link; a.style.display = ''; }
+    }).catch(() => {});
+  }
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder edições)
 
   // Estado de recorrência iniciado com o atual da tarefa
@@ -4414,6 +4458,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked,
       startTime: newTime,
+      ...(isAg ? { agendamentoId: t.agendamentoId } : {}),   // mantém o vínculo ao mover
     };
     try {
       if (newDayId === dayDocId) {
@@ -4454,6 +4499,11 @@ function openTaskEditor(app, dayDocId, taskId) {
           const de = document.querySelector(`.day-card[data-day-id="${newDayId}"]`);
           if (de) { de.querySelector('.day-card-content').innerHTML = renderDayContent(destDay); updateDayCardStats(newDayId, false); }
         }
+      }
+      // Atendimento: reflete a nova data/hora no agendamento (link público + histórico).
+      if (isAg) {
+        const r = await moverAgendamento(t.agendamentoId, { data: newDayId, hora: newTime });
+        if (!r.ok && r.error) showToast('Atenção: ' + r.error, 'info');
       }
       const dl = `${String(newDate.getDate()).padStart(2, '0')}/${String(newDate.getMonth() + 1).padStart(2, '0')}`;
       showToast(newDayId === dayDocId ? `Atualizado (${newTime})` : `Reagendado pra ${dl} às ${newTime}`, 'success');
@@ -4502,10 +4552,24 @@ function openTaskEditor(app, dayDocId, taskId) {
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
     const prevRecurType = t.recurrenceType || 'today';
 
+    // Atendimento: se mexeu no WhatsApp, reconstrói a desc do card (nome · serviço · zap).
+    const novoZap = isAg ? (modal.querySelector('#mag-zap')?.value || '').trim() : null;
+    if (isAg && agData) {
+      data.desc = [agData.cliente_nome, agData.servico, novoZap].filter(Boolean).join(' · ');
+    }
+
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
     await autoScheduleNotif(dayDocId, t);
+    // Atendimento: reflete hora + WhatsApp no agendamento (a data muda pelo Reagendar).
+    if (isAg) {
+      const patch = {};
+      if (newTime) patch.hora = newTime;
+      if (agData) patch.cliente_contato = novoZap;
+      const r = await moverAgendamento(t.agendamentoId, patch);
+      if (!r.ok && r.error) showToast('Atenção: ' + r.error, 'info');
+    }
 
     // RECORRÊNCIA: replica a edição nos outros 6 dias da semana
     // Identificação por recurrenceGroupId (essa instancia especifica)
