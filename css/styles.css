@@ -3571,6 +3571,7 @@ input, textarea, [contenteditable="true"], .selectable {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 20px; padding: 20px; width: 100%; max-width: 360px;
   max-height: 85vh; overflow-y: auto;
+  overscroll-behavior: contain;   /* rolar até o fim NÃO empurra a página atrás */
   box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
 .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
@@ -7573,14 +7574,15 @@ body.sem-rolagem { overflow: hidden; }
 .ag-home-tag { position: absolute; top: 8px; right: 10px; font-size: 9px; font-weight: 800; letter-spacing: .5px; color: #fff; background: var(--accent); padding: 2px 7px; border-radius: 999px; }
 
 /* form de agendamento (profissional) */
-.ag-fmodal { max-width: 400px; padding: 0; overflow: hidden; }
-.ag-fcorpo { padding: 18px; max-height: 88vh; overflow-y: auto; }
+.ag-fmodal { max-width: 400px; padding: 0; overflow: hidden; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }
+.ag-fcorpo { padding: 18px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; }
 .ag-fhead { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
 .ag-fcorpo .input-field { margin-bottom: 12px; }
 .ag-frow { display: flex; gap: 10px; }
 .ag-hora-btn { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
 .ag-fim-view { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); color: var(--accent-2); font-size: 15px; font-weight: 700; }
-.ag-fbtns { display: flex; gap: 10px; margin-top: 6px; }
+/* Botões colados no fim do pop-up (fundo sólido, não deixa conteúdo passar por baixo) */
+.ag-fbtns { display: flex; gap: 10px; position: sticky; bottom: 0; margin: 6px -18px 0; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--border); }
 .ag-fbtns .btn-secondary, .ag-fbtns .btn-primary { flex: 1; }
 
 /* ===== AGENDA ONLINE — página PÚBLICA (Fase B) ===== */
