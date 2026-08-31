@@ -2478,6 +2478,8 @@ function openTaskMenu(triggerEl) {
     close();
     // Atendimento da Agenda Online: abre a tela de detalhe (não é ação de tarefa)
     if (action === 'ver-atendimento') { if (t?.agendamentoId) abrirDetalheAtendimento(t.agendamentoId); return; }
+    // Editar um atendimento da Agenda: vai pro detalhe (edita via a agenda, sem recorrência)
+    if (action === 'edit' && t?.agendamentoId) { abrirDetalheAtendimento(t.agendamentoId); return; }
     const synth = document.createElement('button');
     synth.dataset.action = action;
     synth.style.display = 'none';
