@@ -101,6 +101,13 @@ export async function getAgendamentoById(id) {
   return data;
 }
 
+// Atualiza o WhatsApp de um cliente em TODOS os atendimentos dele.
+export async function atualizarContatoCliente(ids, contato) {
+  if (!ids?.length) return;
+  const { error } = await supabase.from('agendamentos').update({ cliente_contato: (contato || '').trim() || null }).in('id', ids);
+  if (error) throw new Error(error.message);
+}
+
 // Muda o status de um atendimento: 'confirmado' | 'finalizado' | 'faltou' | 'cancelado'.
 export async function atualizarStatusAgendamento(id, status) {
   const { error } = await supabase.from('agendamentos').update({ status }).eq('id', id);

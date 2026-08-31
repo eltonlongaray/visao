@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -17,6 +17,9 @@ const DOWS = [
   { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
 let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1;
+
+// Ícone oficial do WhatsApp (SVG inline).
+const WA_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
 // Link do WhatsApp (Brasil): tira não-dígitos e garante o 55.
 function _waLink(zap) {
@@ -39,6 +42,50 @@ function _clientes() {
   return [...map.values()].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
 }
 
+// Lista corrida dos atendimentos marcados daqui pra frente (todas as semanas).
+function _proximosHtml() {
+  const hoje = _hojeISO();
+  const prox = _todos.filter(a => a.data >= hoje && a.status === 'confirmado')
+    .sort((a, b) => (a.data + a.hora < b.data + b.hora ? -1 : 1));
+  if (!prox.length) return '<div class="ag-vazio">Nenhum atendimento marcado. Crie um pelo Ritual.</div>';
+  return prox.map(a => {
+    const fim = _fimHora(a.hora, a.duracao_min);
+    return `<div class="ag-prox" data-detalhe="${_esc(a.id)}">
+      <div class="ag-prox-info"><b>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}</b>
+        <small>${_esc(a.cliente_nome)}${a.servico ? ` · ${_esc(a.servico)}` : ''}</small></div>
+      <span class="ag-cli-h-seta">›</span>
+    </div>`;
+  }).join('');
+}
+
+// Editar/adicionar o WhatsApp de um cliente (atualiza TODOS os atendimentos dele).
+async function _editarZapCliente(c) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-zap-ov';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">💬 WhatsApp de ${_esc(c.nome)}</div>
+    <label class="input-field"><div class="input-field-label">Número</div>
+      <input id="agz-num" inputmode="tel" value="${_esc(c.contato || '')}" placeholder="(DDD) 9 9999-9999"></label>
+    <div class="ag-fbtns">
+      <button class="btn-secondary" id="agz-cancelar" type="button">Fechar</button>
+      <button class="btn-primary" id="agz-salvar" type="button">Salvar</button>
+    </div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('#agz-cancelar').onclick = () => close();
+  ov.querySelector('#agz-salvar').onclick = async () => {
+    const num = ov.querySelector('#agz-num').value.trim();
+    const btn = ov.querySelector('#agz-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      await atualizarContatoCliente(c.ags.map(a => a.id), num);
+      _todos = await getAgendamentosTodos().catch(() => _todos);
+      close(); desenhar(); showToast('✅ WhatsApp atualizado', 'success');
+    } catch (e) { showToast('Erro: ' + e.message, 'error'); if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Salvar'; } }
+  };
+}
+
 function _clientesHtml() {
   const cs = _clientes();
   if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link).</div>';
@@ -48,10 +95,14 @@ function _clientesHtml() {
       <div class="ag-cli-top" data-cli-toggle>
         <div class="ag-cli-info"><b>${_esc(c.nome)}</b>
           <small>${c.ags.length} atend.${c.contato ? ` · ${_esc(c.contato)}` : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}</small></div>
-        ${wa ? `<a class="ag-cli-zap" href="${wa}" target="_blank" rel="noopener" title="Chamar no WhatsApp">💬</a>` : ''}
         <span class="ag-cli-ch">▾</span>
       </div>
       <div class="ag-cli-hist" hidden>
+        <div class="ag-cli-acoes">
+          ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
+          <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ ${c.contato ? 'Editar' : 'Adicionar'} WhatsApp</button>
+        </div>
+        <div class="ag-cli-hist-tit">Histórico</div>
         ${c.ags.map(a => `<div class="ag-cli-h" data-detalhe="${_esc(a.id)}">
           <span>${_fmtData(a.data)} · ${_esc(a.hora)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
           <span class="ag-cli-h-seta">›</span>
@@ -147,6 +198,9 @@ function desenhar() {
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
       </div>
 
+      <div class="input-field-label" style="margin-top:14px">📅 Próximos atendimentos</div>
+      <div class="ag-lista">${_proximosHtml()}</div>
+
       <div class="ag-ags-top">
         <div class="input-field-label" style="margin:0">👥 Clientes</div>
       </div>
@@ -188,6 +242,9 @@ function wireFixos(corpo) {
   });
   corpo.querySelectorAll('[data-detalhe]').forEach(row => {
     row.addEventListener('click', () => { const a = _todos.find(x => x.id === row.dataset.detalhe); if (a) abrirDetalheAtendimento(a); });
+  });
+  corpo.querySelectorAll('[data-edit-zap]').forEach(b => {
+    b.addEventListener('click', (e) => { e.stopPropagation(); const c = _clientes().find(x => x.key === b.dataset.editZap); if (c) _editarZapCliente(c); });
   });
   corpo.querySelectorAll('[data-cli-toggle]').forEach(top => {
     top.addEventListener('click', (e) => {
@@ -356,11 +413,11 @@ export async function abrirDetalheAtendimento(agOrId) {
       <span class="ag-det-status st-${ag.status}">${stLbl}</span>
       <div class="ag-det-cli">
         <div class="ag-det-cli-nome"><b>${_esc(ag.cliente_nome)}</b>${ag.cliente_contato ? `<small>${_esc(ag.cliente_contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}</div>
-        ${wa ? `<a class="ag-cli-zap" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
       </div>
       ${ag.servico ? `<div class="ag-det-serv">💆 ${_esc(ag.servico)}${ag.preco != null ? ` · <b>R$ ${_preco(ag.preco)}</b>` : ''}</div>` : ''}
       ${_cfg?.endereco ? `<div class="ag-det-serv">📍 ${_esc(_cfg.endereco)}</div>` : ''}
       <div class="ag-det-acoes">
+        ${wa ? `<a class="ag-det-btn wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
         ${wa ? `<a class="ag-det-btn" href="${_waLembrete(ag)}" target="_blank" rel="noopener">🔔 Lembrete</a>` : ''}
         <button class="ag-det-btn" id="agd-editar" type="button">✏️ Editar</button>
         ${ag.status !== 'finalizado' ? '<button class="ag-det-btn ok" id="agd-finalizar" type="button">✅ Finalizar</button>' : ''}
