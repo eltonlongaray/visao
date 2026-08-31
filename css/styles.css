@@ -3809,6 +3809,19 @@ input, textarea, [contenteditable="true"], .selectable {
   line-height: 1;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
+/* Mais contraste nos números de data e hora do Reagendar/calendário (fundo escuro) */
+:root[data-theme="dark"] .cal-modal .cal-cell:not(.today):not(.empty) {
+  background: #26305a;
+  border-color: rgba(255,255,255,0.16);
+  color: #ffffff;
+}
+:root[data-theme="dark"] .cal-modal .tp-trigger {
+  background: #26305a;
+  border-color: rgba(255,255,255,0.16);
+}
+:root[data-theme="dark"] .cal-modal .tp-trigger-time { color: #ffffff; }
+:root[data-theme="dark"] .cal-modal .cal-hint,
+:root[data-theme="dark"] .cal-modal .cal-weekdays span { color: #c3cbe6; }
 .cal-hint {
   font-size: 11px;
   color: var(--muted);
