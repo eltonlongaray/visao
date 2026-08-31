@@ -14,6 +14,15 @@ const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _fromIso = s => { const [y, m, d] = (s || '').split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
 const _precoTxt = p => (p == null ? '' : Number(p).toFixed(2).replace('.', ','));
 const _fim = (hora, dur) => { if (!dur) return null; const [h, m] = hora.split(':').map(Number); const t = h * 60 + m + dur; return `${pad(Math.floor(t / 60) % 24)}:${pad(t % 60)}`; };
+// Segunda-feira (ISO) da semana de uma data — bate com date_trunc('week') do Postgres.
+const _segISO = (d) => { const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return iso(x); };
+// Horários efetivos de um dia: se a SEMANA tem exceção (cfg.semanas[segunda]),
+// usa ela (mesmo vazia = dia fechado); senão cai no padrão (disponibilidade[dow]).
+const _horariosDoDia = (cfg, d) => {
+  const wk = cfg.semanas && cfg.semanas[_segISO(d)];
+  const base = wk != null ? wk : (cfg.disponibilidade || {});
+  return (base[String(d.getDay())] || []).slice().sort();
+};
 
 // Histórico do cliente NO APARELHO dele (localStorage por slug). Sem conta, sem servidor.
 const _histKey = slug => `falcon_ag_${slug}`;
@@ -41,17 +50,17 @@ export async function renderAgendaPublica(app, slug) {
   catch { app.innerHTML = _tela(`<div class="ap-erro">Não foi possível carregar esta agenda agora.</div>`); return cleanup; }
   if (!cfg) { app.innerHTML = _tela(`<div class="ap-erro">Esta agenda não existe ou está desativada. 🔒</div>`); return cleanup; }
 
-  // janela de 30 dias
+  // janela de 90 dias (o dono pode abrir disponibilidade 2-3 meses à frente)
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const ate = new Date(hoje); ate.setDate(ate.getDate() + 30);
+  const ate = new Date(hoje); ate.setDate(ate.getDate() + 90);
   let ocupados = new Set();
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
   // monta os dias com TODOS os horários (livres + ocupados, pra mostrar "ocupado")
   const dias = [];
-  for (let i = 0; i < 31; i++) {
+  for (let i = 0; i < 91; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
-    const times = (cfg.disponibilidade?.[String(d.getDay())] || []).slice().sort();
+    const times = _horariosDoDia(cfg, d);
     if (!times.length) continue;
     const horarios = times.map(h => ({ hora: h, ocupado: ocupados.has(`${iso(d)}|${h}`) }));
     dias.push({ iso: iso(d), date: d, horarios });

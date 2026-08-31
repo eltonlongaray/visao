@@ -16,7 +16,7 @@ const DOWS = [
   { k: 5, lbl: 'Sex', full: 'Sexta' }, { k: 6, lbl: 'Sáb', full: 'Sábado' },
   { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
-let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1;
+let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1, _semanaOffset = 0;
 
 // Ícone oficial do WhatsApp (SVG inline).
 const WA_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
@@ -173,16 +173,58 @@ const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
 const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
-const _horasDoDia = k => (_cfg.disponibilidade?.[String(k)] || []).slice().sort();
-// true quando TODOS os dias têm exatamente os mesmos horários do dia atual (e não vazio)
-function _todosIguais() {
-  const cur = _horasDoDia(_diaSel).join(',');
-  if (!cur) return false;
-  return DOWS.every(d => _horasDoDia(d.k).join(',') === cur);
+// ─── DISPONIBILIDADE POR SEMANA ──────────────────────────────
+// offset 0 = semana atual = PADRÃO (`disponibilidade`), que se repete pra frente.
+// offset ≥1 = semana específica: exceção guardada em `semanas[<segunda ISO>]`
+// (materializada a partir do padrão no 1º ajuste). Semana sem exceção segue o padrão.
+const _pad2 = n => String(n).padStart(2, '0');
+const _isoDe = d => `${d.getFullYear()}-${_pad2(d.getMonth() + 1)}-${_pad2(d.getDate())}`;
+// Segunda-feira da semana (offset em semanas a partir de hoje) — bate com date_trunc('week') do Postgres.
+function _segundaDaSemana(offset = 0) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7;            // 0=segunda .. 6=domingo
+  d.setDate(d.getDate() - dow + offset * 7);
+  return d;
+}
+const _segundaISO = (offset = 0) => _isoDe(_segundaDaSemana(offset));
+// Data real de um dia-da-semana (k: 0=dom..6=sáb) dentro da semana do offset atual.
+function _dataDoDia(k, offset = _semanaOffset) {
+  const seg = _segundaDaSemana(offset);
+  const delta = (k + 6) % 7;                   // segunda=0 .. domingo=6
+  const d = new Date(seg); d.setDate(seg.getDate() + delta);
+  return d;
+}
+// Objeto de disponibilidade EFETIVO da semana atual (só leitura): exceção ou padrão.
+function _dispRead() {
+  if (_semanaOffset === 0) return _cfg.disponibilidade || {};
+  const wk = _cfg.semanas?.[_segundaISO(_semanaOffset)];
+  return wk != null ? wk : (_cfg.disponibilidade || {});
+}
+// Objeto pra ESCREVER (materializa a exceção da semana a partir do padrão).
+function _dispWrite() {
+  if (_semanaOffset === 0) return (_cfg.disponibilidade ||= {});
+  if (!_cfg.semanas) _cfg.semanas = {};
+  const key = _segundaISO(_semanaOffset);
+  if (_cfg.semanas[key] == null) _cfg.semanas[key] = JSON.parse(JSON.stringify(_cfg.disponibilidade || {}));
+  return _cfg.semanas[key];
+}
+const _temExcecao = () => _semanaOffset > 0 && _cfg.semanas?.[_segundaISO(_semanaOffset)] != null;
+const _horasDoDia = k => (_dispRead()?.[String(k)] || []).slice().sort();
+// Rótulo da semana: "Toda semana (padrão)" no offset 0, senão "01–07 set".
+const _MESES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function _labelSemana() {
+  if (_semanaOffset === 0) return 'Toda semana (padrão)';
+  const seg = _segundaDaSemana(_semanaOffset);
+  const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+  const mA = _MESES3[seg.getMonth()], mB = _MESES3[dom.getMonth()];
+  return mA === mB
+    ? `${_pad2(seg.getDate())}–${_pad2(dom.getDate())} ${mB}`
+    : `${_pad2(seg.getDate())} ${mA} – ${_pad2(dom.getDate())} ${mB}`;
 }
 
 export async function abrirAgenda() {
   _diaSel = new Date().getDay(); // começa no dia de hoje
+  _semanaOffset = 0;             // começa na semana atual (padrão)
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.id = 'agenda-ov';
@@ -193,6 +235,7 @@ export async function abrirAgenda() {
   try {
     [_cfg, _ags, _todos] = await Promise.all([getAgendaConfig(), getAgendamentos().catch(() => []), getAgendamentosTodos().catch(() => [])]);
     if (!_cfg.disponibilidade || typeof _cfg.disponibilidade !== 'object') _cfg.disponibilidade = {};
+    if (!_cfg.semanas || typeof _cfg.semanas !== 'object') _cfg.semanas = {};
     if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
   } catch (e) {
@@ -227,9 +270,15 @@ function desenhar() {
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
 
-      <div class="input-field-label" style="margin-top:14px">Horários disponíveis — escolha o dia e adicione os horários</div>
+      <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
+      <div class="ag-sem-nav">
+        <button class="ag-sem-arrow" id="ag-sem-prev" type="button" aria-label="Semana anterior">‹</button>
+        <div class="ag-sem-label" id="ag-sem-label">Toda semana (padrão)</div>
+        <button class="ag-sem-arrow" id="ag-sem-next" type="button" aria-label="Próxima semana">›</button>
+      </div>
+      <div class="ag-sem-hint" id="ag-sem-hint"></div>
       <div class="ag-tabs" id="ag-tabs">
-        ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span>${d.lbl}</span><i class="ag-tab-dot"></i></button>`).join('')}
+        ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span class="ag-tab-dow">${d.lbl}</span><span class="ag-tab-data"></span><i class="ag-tab-dot"></i></button>`).join('')}
       </div>
       <div class="ag-dia-editor" id="ag-dia-editor"></div>
 
@@ -267,6 +316,9 @@ function wireFixos(corpo) {
   corpo.querySelectorAll('.ag-tab').forEach(t => {
     t.addEventListener('click', () => { _diaSel = parseInt(t.dataset.tab, 10); pintarTabs(); pintarDiaEditor(); });
   });
+  // Setas de navegação de semana (‹ ›): offset 0 = padrão; ≥1 = semana específica.
+  corpo.querySelector('#ag-sem-prev').onclick = () => { if (_semanaOffset > 0) { _semanaOffset--; pintarTabs(); pintarDiaEditor(); } };
+  corpo.querySelector('#ag-sem-next').onclick = () => { if (_semanaOffset < 13) { _semanaOffset++; pintarTabs(); pintarDiaEditor(); } };
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
@@ -344,10 +396,24 @@ function pintarServicos() {
 }
 
 function pintarTabs() {
-  document.querySelectorAll('#agenda-ov .ag-tab').forEach(t => {
+  const root = document.querySelector('#agenda-ov');
+  if (!root) return;
+  // Cabeçalho da semana
+  const lab = root.querySelector('#ag-sem-label'); if (lab) lab.textContent = _labelSemana();
+  const prev = root.querySelector('#ag-sem-prev'); if (prev) prev.disabled = _semanaOffset === 0;
+  const hint = root.querySelector('#ag-sem-hint');
+  if (hint) {
+    if (_semanaOffset === 0) hint.textContent = 'Estes horários se repetem em todas as semanas — salvo nas que você ajustar aqui do lado.';
+    else if (_temExcecao()) hint.textContent = 'Semana personalizada — vale só pra esta semana.';
+    else hint.textContent = 'Seguindo o padrão. Edite pra deixar horários diferentes só nesta semana.';
+  }
+  // Abas com o dia + a data real da semana selecionada
+  root.querySelectorAll('.ag-tab').forEach(t => {
     const k = parseInt(t.dataset.tab, 10);
     t.classList.toggle('ativo', k === _diaSel);
     t.querySelector('.ag-tab-dot').style.opacity = _horasDoDia(k).length ? '1' : '0';
+    const dataEl = t.querySelector('.ag-tab-data');
+    if (dataEl) dataEl.textContent = _semanaOffset === 0 ? '' : _pad2(_dataDoDia(k).getDate());
   });
 }
 
@@ -362,7 +428,8 @@ function pintarDiaEditor() {
       <div class="ag-turno-lbl">${icon} ${lbl}</div>
       <div class="ag-chips">${arr.map(h => `<span class="ag-chip">${h}<button data-rm="${h}" type="button" aria-label="remover">✕</button></span>`).join('')}</div>
     </div>` : '';
-  const nome = DOWS.find(d => d.k === _diaSel)?.full || '';
+  const diaFull = DOWS.find(d => d.k === _diaSel)?.full || '';
+  const nome = _semanaOffset === 0 ? diaFull : `${diaFull} ${_pad2(_dataDoDia(_diaSel).getDate())}/${_pad2(_dataDoDia(_diaSel).getMonth() + 1)}`;
   box.innerHTML = `
     <div class="ag-dia-nome">${nome}</div>
     ${times.length
@@ -373,6 +440,8 @@ function pintarDiaEditor() {
     </div>
     <div class="ag-dia-acoes">
       ${times.length ? '<button class="ag-linkbtn danger" id="ag-limpar" type="button">Limpar dia</button>' : ''}
+      ${_semanaOffset > 0 ? '<button class="ag-linkbtn" id="ag-copiar-sem" type="button">📋 Copiar da semana anterior</button>' : ''}
+      ${_temExcecao() ? '<button class="ag-linkbtn" id="ag-voltar-padrao" type="button">↩️ Voltar ao padrão nesta semana</button>' : ''}
     </div>`;
   wireEditor(box);
 }
@@ -383,22 +452,38 @@ function wireEditor(box) {
     const h = await openTimePicker('09:00', { title: `Novo horário — ${nome}` });
     if (!h) return;
     const dia = String(_diaSel);
-    const arr = _cfg.disponibilidade[dia] || [];
+    const disp = _dispWrite();
+    const arr = disp[dia] || [];
     if (arr.includes(h)) { showToast('Esse horário já está no dia', 'info'); return; }
     arr.push(h); arr.sort();
-    _cfg.disponibilidade[dia] = arr;
+    disp[dia] = arr;
     pintarTabs(); pintarDiaEditor();
   };
   box.querySelectorAll('[data-rm]').forEach(b => {
     b.onclick = () => {
       const dia = String(_diaSel);
-      _cfg.disponibilidade[dia] = (_cfg.disponibilidade[dia] || []).filter(h => h !== b.dataset.rm);
-      if (!_cfg.disponibilidade[dia].length) delete _cfg.disponibilidade[dia];
+      const disp = _dispWrite();
+      disp[dia] = (disp[dia] || []).filter(h => h !== b.dataset.rm);
+      if (!disp[dia].length) delete disp[dia];
       pintarTabs(); pintarDiaEditor();
     };
   });
   const lim = box.querySelector('#ag-limpar');
-  if (lim) lim.onclick = () => { delete _cfg.disponibilidade[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
+  if (lim) lim.onclick = () => { const disp = _dispWrite(); delete disp[String(_diaSel)]; pintarTabs(); pintarDiaEditor(); };
+  // Copiar os horários da semana ANTERIOR (exceção dela, ou o padrão) pra esta semana
+  const cop = box.querySelector('#ag-copiar-sem');
+  if (cop) cop.onclick = () => {
+    const antKey = _segundaISO(_semanaOffset - 1);
+    const fonte = _semanaOffset - 1 === 0
+      ? (_cfg.disponibilidade || {})
+      : (_cfg.semanas?.[antKey] != null ? _cfg.semanas[antKey] : (_cfg.disponibilidade || {}));
+    _cfg.semanas[_segundaISO(_semanaOffset)] = JSON.parse(JSON.stringify(fonte));
+    pintarTabs(); pintarDiaEditor();
+    showToast('Horários copiados da semana anterior', 'success');
+  };
+  // Descartar a exceção → esta semana volta a seguir o padrão
+  const volta = box.querySelector('#ag-voltar-padrao');
+  if (volta) volta.onclick = () => { delete _cfg.semanas[_segundaISO(_semanaOffset)]; pintarTabs(); pintarDiaEditor(); showToast('Semana voltou ao padrão', 'info'); };
 }
 
 // Abre o form de agendamento a partir de FORA (ex.: do Ritual), carregando a
@@ -600,19 +685,33 @@ async function salvar() {
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
     .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco) }));
-  // limpa dias vazios
+  // limpa dias vazios do PADRÃO
   const disp = {};
   for (const k of Object.keys(_cfg.disponibilidade)) {
     const arr = (_cfg.disponibilidade[k] || []).slice().sort();
     if (arr.length) disp[k] = arr;
+  }
+  // exceções por SEMANA: descarta semanas passadas; mantém a semana mesmo vazia
+  // (semana vazia = fechada de propósito, NÃO pode cair no padrão).
+  const currentMon = _segundaISO(0);
+  const semanas = {};
+  for (const wk of Object.keys(_cfg.semanas || {})) {
+    if (wk < currentMon) continue;
+    const src = _cfg.semanas[wk] || {};
+    const clean = {};
+    for (const k of Object.keys(src)) {
+      const arr = (src[k] || []).slice().sort();
+      if (arr.length) clean[k] = arr;
+    }
+    semanas[wk] = clean;
   }
   if (ativo && Object.keys(disp).length === 0) {
     showToast('Adicione horários em ao menos um dia pra ativar', 'info'); return;
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, endereco, duracao_min, disponibilidade: disp, ativo, servicos });
-    _cfg = { ..._cfg, titulo, endereco, duracao_min, disponibilidade: disp, ativo, servicos };
+    await salvarAgendaConfig({ titulo, endereco, duracao_min, disponibilidade: disp, semanas, ativo, servicos });
+    _cfg = { ..._cfg, titulo, endereco, duracao_min, disponibilidade: disp, semanas, ativo, servicos };
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');

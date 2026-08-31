@@ -6,12 +6,20 @@
 import { supabase } from './config-supabase.js';
 
 // Lê a agenda de um dono pelo slug (só o que é público: título, duração, dias).
+// `semanas` (exceções por semana) é opcional: se a coluna ainda não existir no
+// banco, cai no select sem ela pra NÃO derrubar o link público.
 export async function getAgendaPublica(slug) {
-  const { data, error } = await supabase.from('agenda_config')
-    .select('slug, titulo, endereco, duracao_min, disponibilidade, ativo, servicos')
-    .eq('slug', (slug || '').trim()).eq('ativo', true).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data || null;
+  const s = (slug || '').trim();
+  let res = await supabase.from('agenda_config')
+    .select('slug, titulo, endereco, duracao_min, disponibilidade, semanas, ativo, servicos')
+    .eq('slug', s).eq('ativo', true).maybeSingle();
+  if (res.error && /semanas/i.test(res.error.message || '')) {
+    res = await supabase.from('agenda_config')
+      .select('slug, titulo, endereco, duracao_min, disponibilidade, ativo, servicos')
+      .eq('slug', s).eq('ativo', true).maybeSingle();
+  }
+  if (res.error) throw new Error(res.error.message);
+  return res.data || null;
 }
 
 // Slots já ocupados (data+hora), via RPC que NÃO expõe nome/contato do cliente.
