@@ -9,7 +9,7 @@
 import { montarComposicao, ligarComposicao } from './corpo-ui.js';
 import { trapModalBack } from './modal-voltar.js';
 import { bottomNav } from './components/menu-inferior.js';
-import { abrirPerfilTreino } from './perfil-treino-ui.js';
+import { montarPerfilTreino } from './perfil-treino-ui.js';
 
 let _aba = 'perfil';       // 'perfil' | 'corpo' | 'atividade'
 let _corpoLigado = false;  // ligarComposicao só uma vez por sessão (listener delegado)
@@ -19,9 +19,9 @@ let _close = null;
 function tabsHtml() {
   return `
     <div class="tab-switch pf-abas" id="pf-abas">
-      <button class="tab-btn ${_aba === 'perfil' ? 'active' : ''}" data-aba="perfil" type="button">📋 Perfil</button>
-      <button class="tab-btn ${_aba === 'corpo' ? 'active' : ''}" data-aba="corpo" type="button">🧮 Composição</button>
-      <button class="tab-btn ${_aba === 'atividade' ? 'active' : ''}" data-aba="atividade" type="button">🏃 Atividade</button>
+      <button class="tab-btn ${_aba === 'perfil' ? 'active' : ''}" data-aba="perfil" type="button">📋 Perfil de treino</button>
+      <button class="tab-btn ${_aba === 'corpo' ? 'active' : ''}" data-aba="corpo" type="button">🧮 Composição corporal</button>
+      <button class="tab-btn ${_aba === 'atividade' ? 'active' : ''}" data-aba="atividade" type="button">🏃 Atividade física</button>
     </div>`;
 }
 
@@ -29,15 +29,8 @@ function conteudoHtml() {
   if (_aba === 'corpo') return `<div id="cp-inline" class="cp-inline"></div>`;
   if (_aba === 'atividade') return `
     <div class="pf-embreve">🏗️ <b>Modalidades, esportes e montador de treino</b> — chegando já já.</div>`;
-  // perfil (padrão): Perfil de treino, como está
-  return `
-    <div class="pf-grupos">
-      <button class="pf-grupo" id="pf-perfil-btn" type="button">
-        <span class="pf-grupo-ic">📋</span>
-        <span class="pf-grupo-txt"><b>Perfil de treino</b><small>Objetivo, frequência e experiência — personaliza suas metas</small></span>
-        <span class="pf-grupo-seta">›</span>
-      </button>
-    </div>`;
+  // perfil (padrão): o questionário aberto INLINE (como a Composição)
+  return `<div id="pt-inline-wrap"></div>`;
 }
 
 // Redesenha abas + conteúdo dentro de um wrapper e religa os handlers.
@@ -48,7 +41,7 @@ function pintarWrap(wrap) {
     b.onclick = () => { _aba = b.dataset.aba; pintarWrap(wrap); };
   });
   if (_aba === 'perfil') {
-    wrap.querySelector('#pf-perfil-btn').onclick = () => abrirPerfilTreino();
+    montarPerfilTreino(wrap.querySelector('#pt-inline-wrap'));
   } else if (_aba === 'corpo') {
     montarComposicao();
     if (!_corpoLigado) { ligarComposicao(); _corpoLigado = true; }

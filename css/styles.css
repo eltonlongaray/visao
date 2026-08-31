@@ -7069,8 +7069,12 @@ body.sem-rolagem { overflow: hidden; }
 .fr-corpo { display: flex; flex-direction: column; max-height: 84vh; }
 
 /* ── Preparo Físico (hub: Atividade Física + Composição Corporal) ── */
-.pf-modal { max-width: 480px; padding: 0; overflow: hidden; }
-.pf-corpo { display: flex; flex-direction: column; max-height: 86vh; overflow-y: auto; overflow-x: hidden; }
+/* Cabe no viewport menos o padding do overlay (40px) — não corta o Salvar. */
+.pf-modal { max-width: 480px; padding: 0; overflow: hidden; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }
+.pf-corpo { display: flex; flex-direction: column; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow-y: auto; overflow-x: hidden; }
+/* Abas do Preparo com os nomes completos (podem quebrar em 2 linhas pra caber) */
+.pf-abas .tab-btn { font-size: 11px; line-height: 1.15; padding: 8px 3px; white-space: normal; }
+.pt-inline { padding: 4px 14px 16px; }
 .pf-header {
   display: flex; align-items: center; gap: 10px;
   padding: 16px 16px 12px; border-bottom: 1px solid var(--border);
