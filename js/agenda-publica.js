@@ -113,6 +113,7 @@ export async function renderAgendaPublica(app, slug) {
       <div class="ap-head">
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : `Escolha um horário · ${_durSel()} min`}</div>
+        ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
       </div>
       ${_histHtml()}
       ${_servHtml()}
@@ -184,6 +185,7 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
+          ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);

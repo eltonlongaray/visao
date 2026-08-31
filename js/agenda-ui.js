@@ -41,7 +41,7 @@ function _clientes() {
 
 function _clientesHtml() {
   const cs = _clientes();
-  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Toque em + Agendamento pra começar.</div>';
+  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link).</div>';
   return cs.map(c => {
     const wa = _waLink(c.contato);
     return `<div class="ag-cli" data-clikey="${_esc(c.key)}">
@@ -119,6 +119,8 @@ function desenhar() {
     <div class="ag-scroll">
       <label class="input-field"><div class="input-field-label">Título (o que o cliente vê)</div>
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
+      <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
+        <input id="ag-endereco" value="${_esc(_cfg.endereco || '')}" placeholder="Ex: Rua das Flores, 123 — Centro, Porto Alegre"></label>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
@@ -147,7 +149,6 @@ function desenhar() {
 
       <div class="ag-ags-top">
         <div class="input-field-label" style="margin:0">👥 Clientes</div>
-        <button class="ag-add-ag" id="ag-add-ag" type="button">+ Agendamento</button>
       </div>
       <div class="ag-lista">${clientesHtml}</div>
     </div>
@@ -358,6 +359,7 @@ export async function abrirDetalheAtendimento(agOrId) {
         ${wa ? `<a class="ag-cli-zap" href="${wa}" target="_blank" rel="noopener" title="WhatsApp">💬</a>` : ''}
       </div>
       ${ag.servico ? `<div class="ag-det-serv">💆 ${_esc(ag.servico)}${ag.preco != null ? ` · <b>R$ ${_preco(ag.preco)}</b>` : ''}</div>` : ''}
+      ${_cfg?.endereco ? `<div class="ag-det-serv">📍 ${_esc(_cfg.endereco)}</div>` : ''}
       <div class="ag-det-acoes">
         ${wa ? `<a class="ag-det-btn" href="${_waLembrete(ag)}" target="_blank" rel="noopener">🔔 Lembrete</a>` : ''}
         <button class="ag-det-btn" id="agd-editar" type="button">✏️ Editar</button>
@@ -386,11 +388,13 @@ export async function abrirDetalheAtendimento(agOrId) {
 async function _formAgendamento(ag, opts = {}) {
   const isEdit = !!ag;
   const servs = _cfg.servicos || [];
+  const _sidIni = (ag?.servico && (servs.find(s => s.nome === ag.servico)?.id)) || '';
   const st = {
     id: ag?.id || null,
     data: ag?.data || opts.dataISO || _hojeISO(),
     hora: ag?.hora || '09:00',
-    servicoId: (ag?.servico && (servs.find(s => s.nome === ag.servico)?.id)) || '',
+    servicoId: _sidIni,
+    dur: ag?.duracao_min || (servs.find(s => s.id === _sidIni)?.duracaoMin) || 60,
   };
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'ag-form-ov';
@@ -411,8 +415,14 @@ async function _formAgendamento(ag, opts = {}) {
     <div class="ag-frow">
       <label class="input-field" style="flex:1"><div class="input-field-label">Data</div>
         <input id="agf-data" type="date" value="${st.data}"></label>
-      <div class="input-field" style="flex:1"><div class="input-field-label">Hora</div>
+      <div class="input-field" style="flex:1"><div class="input-field-label">Hora início</div>
         <button class="ag-hora-btn" id="agf-hora" type="button">${st.hora}</button></div>
+    </div>
+    <div class="ag-frow">
+      <label class="input-field" style="flex:1"><div class="input-field-label">Duração (min)</div>
+        <input id="agf-dur" type="number" inputmode="numeric" min="10" step="5" value="${st.dur}"></label>
+      <div class="input-field" style="flex:1"><div class="input-field-label">Termina</div>
+        <div class="ag-fim-view" id="agf-fim">${_fimHora(st.hora, st.dur) || '—'}</div></div>
     </div>
     ${isEdit ? '<button class="ag-linkbtn danger" id="agf-cancelar-atend" type="button" style="margin:2px 0 10px">🗑 Cancelar este atendimento</button>' : ''}
     <div class="ag-fbtns">
@@ -435,10 +445,16 @@ async function _formAgendamento(ag, opts = {}) {
       close(); desenhar(); showToast('Atendimento cancelado', 'info');
     } catch (e) { showToast('Erro: ' + e.message, 'error'); }
   });
+  const upFim = () => { const el = ov.querySelector('#agf-fim'); if (el) el.textContent = _fimHora(st.hora, st.dur) || '—'; };
   ov.querySelector('#agf-hora').onclick = async () => {
-    const h = await openTimePicker(st.hora, { title: 'Horário' });
-    if (h) { st.hora = h; ov.querySelector('#agf-hora').textContent = h; }
+    const h = await openTimePicker(st.hora, { title: 'Horário de início' });
+    if (h) { st.hora = h; ov.querySelector('#agf-hora').textContent = h; upFim(); }
   };
+  ov.querySelector('#agf-dur')?.addEventListener('input', (e) => { st.dur = parseInt(e.target.value, 10) || 0; upFim(); });
+  ov.querySelector('#agf-serv')?.addEventListener('change', (e) => {
+    const s = servs.find(x => x.id === e.target.value);
+    if (s && s.duracaoMin) { st.dur = s.duracaoMin; const di = ov.querySelector('#agf-dur'); if (di) di.value = s.duracaoMin; upFim(); }
+  });
   ov.querySelector('#agf-salvar').onclick = async () => {
     const nome = ov.querySelector('#agf-nome').value.trim();
     const zap = ov.querySelector('#agf-zap').value.trim();
@@ -447,11 +463,12 @@ async function _formAgendamento(ag, opts = {}) {
     if (nome.length < 2) { showToast('Escreva o nome do cliente', 'info'); return; }
     if (!data) { showToast('Escolha a data', 'info'); return; }
     const serv = servs.find(s => s.id === servId) || null;
+    const dur = parseInt(ov.querySelector('#agf-dur')?.value, 10) || serv?.duracaoMin || null;
     const btn = ov.querySelector('#agf-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
     try {
       const patch = {
         id: st.id, data, hora: st.hora, cliente_nome: nome, cliente_contato: zap,
-        servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: serv?.duracaoMin || null,
+        servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: dur,
       };
       await salvarAgendamentoManual(patch);
       if (st.id) await sincronizarTaskDoAgendamento(patch, ag?.data).catch(() => {});
@@ -471,6 +488,7 @@ async function salvar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
+  const endereco = corpo.querySelector('#ag-endereco').value.trim() || null;
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
   const ativo = corpo.querySelector('#ag-ativo').checked;
   // serviços: sincroniza inputs e mantém só os com nome
@@ -489,8 +507,8 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, duracao_min, disponibilidade: disp, ativo, servicos });
-    _cfg = { ..._cfg, titulo, duracao_min, disponibilidade: disp, ativo, servicos };
+    await salvarAgendaConfig({ titulo, endereco, duracao_min, disponibilidade: disp, ativo, servicos });
+    _cfg = { ..._cfg, titulo, endereco, duracao_min, disponibilidade: disp, ativo, servicos };
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');

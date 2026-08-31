@@ -8,7 +8,7 @@ import { supabase } from './config-supabase.js';
 // Lê a agenda de um dono pelo slug (só o que é público: título, duração, dias).
 export async function getAgendaPublica(slug) {
   const { data, error } = await supabase.from('agenda_config')
-    .select('slug, titulo, duracao_min, disponibilidade, ativo, servicos')
+    .select('slug, titulo, endereco, duracao_min, disponibilidade, ativo, servicos')
     .eq('slug', (slug || '').trim()).eq('ativo', true).maybeSingle();
   if (error) throw new Error(error.message);
   return data || null;

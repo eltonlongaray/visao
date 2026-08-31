@@ -7505,6 +7505,7 @@ body.sem-rolagem { overflow: hidden; }
 .ag-fcorpo .input-field { margin-bottom: 12px; }
 .ag-frow { display: flex; gap: 10px; }
 .ag-hora-btn { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; }
+.ag-fim-view { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); color: var(--accent-2); font-size: 15px; font-weight: 700; }
 .ag-fbtns { display: flex; gap: 10px; margin-top: 6px; }
 .ag-fbtns .btn-secondary, .ag-fbtns .btn-primary { flex: 1; }
 
@@ -7516,6 +7517,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-head { margin-bottom: 16px; }
 .ap-titulo { font-size: 22px; font-weight: 800; color: var(--text); }
 .ap-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.ap-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
+.ap-ok-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
 
 /* histórico do cliente (no aparelho dele) */
 .ap-hist { border: 1px solid var(--border); border-radius: 14px; background: var(--card-2); padding: 12px 14px; margin-bottom: 16px; }
