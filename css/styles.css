@@ -7548,6 +7548,9 @@ body.sem-rolagem { overflow: hidden; }
 .ag-edit-extra { margin-top: 14px; padding: 12px; border: 1px solid color-mix(in srgb, #7c3aed 40%, var(--border)); border-radius: 14px; background: color-mix(in srgb, #7c3aed 7%, var(--card)); }
 .ag-edit-tit { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
 .ag-edit-acoes { display: flex; flex-direction: column; gap: 8px; }
+.ag-edit-linha { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.ag-edit-lbl { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 58px; }
+.ag-edit-val { flex: 1; font-size: 13px; font-weight: 700; color: var(--text); }
 .ag-edit-btn { display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; padding: 11px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
 .ag-edit-btn.ok { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.1); }
 .ag-edit-btn.wa { border-color: #25d366; color: #25d366; background: rgba(37,211,102,.1); }

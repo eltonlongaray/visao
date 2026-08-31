@@ -195,8 +195,7 @@ export async function sincronizarCompromissos() {
       if (jaSync.has(a.id)) continue;
       const partes = [a.cliente_nome];
       if (a.servico) partes.push(a.servico);
-      if (a.cliente_contato) partes.push(a.cliente_contato);
-      const desc = partes.join(' · ');
+      const desc = partes.join(' · ');   // só nome + serviço (o WhatsApp fica no atendimento)
       await addDayTask(dia, {
         title: 'Agenda Online',
         desc,
@@ -232,8 +231,7 @@ async function _taskDoAgendamento(agId, datas) {
 function _descAg(ag) {
   const p = [ag.cliente_nome];
   if (ag.servico) p.push(ag.servico);
-  if (ag.cliente_contato) p.push(ag.cliente_contato);
-  return p.join(' · ');
+  return p.join(' · ');   // só nome + serviço (WhatsApp fica no bloco de atendimento)
 }
 
 // EXCLUIR atendimento: cancela o agendamento E apaga o compromisso ligado no Ritual.

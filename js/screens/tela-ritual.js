@@ -39,7 +39,7 @@ import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
 import { montarAgendaInline } from '../agenda-ui.js';
-import { cancelarAgendamentoDaTask, atualizarStatusAgendamento, getAgendamentoById, moverAgendamento } from '../agenda.js';
+import { cancelarAgendamentoDaTask, getAgendamentoById, moverAgendamento } from '../agenda.js';
 import { scheduleNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
@@ -2026,13 +2026,15 @@ function openDatePicker(initialDate = new Date(), options = {}) {
 
 // Modal combinado data + hora no estilo cal-modal — evita chain de dois modais separados
 // Retorna { date: Date, time: "HH:MM" } ou null se cancelar.
-function openReschedulePicker(initialDate = new Date(), initialTime = '') {
+function openReschedulePicker(initialDate = new Date(), initialTime = '', opts = {}) {
   return new Promise((resolve) => {
     const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const DAY_NAMES   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const withEnd = !!opts.withEnd;   // mostra também "Horário de término" (atendimento)
 
     let selDate   = new Date(initialDate);
     let selTime   = initialTime || '';
+    let selEnd    = opts.initialEnd || '';
     let viewYear  = selDate.getFullYear();
     let viewMonth = selDate.getMonth();
 
@@ -2071,12 +2073,19 @@ function openReschedulePicker(initialDate = new Date(), initialTime = '') {
         </div>
         <div class="cal-grid" id="rp-grid"></div>
         <div class="cal-hint" id="rp-hint"></div>
-        <div class="input-field-label" style="margin-top:4px">Horário</div>
+        <div class="input-field-label" style="margin-top:4px">${withEnd ? 'Início' : 'Horário'}</div>
         <button type="button" class="tp-trigger" id="rp-time">
           <span class="tp-trigger-icon">🕐</span>
           <span class="tp-trigger-time" id="rp-time-label">${selTime || '— : —'}</span>
           <span class="tp-trigger-edit">›</span>
         </button>
+        ${withEnd ? `
+        <div class="input-field-label" style="margin-top:6px">Término</div>
+        <button type="button" class="tp-trigger" id="rp-time-end">
+          <span class="tp-trigger-icon">🕐</span>
+          <span class="tp-trigger-time" id="rp-time-end-label">${selEnd || '— : —'}</span>
+          <span class="tp-trigger-edit">›</span>
+        </button>` : ''}
         <div class="modal-actions">
           <button class="btn-secondary" id="rp-cancel">Cancelar</button>
           <button class="btn-primary" id="rp-save">Confirmar</button>
@@ -2129,11 +2138,18 @@ function openReschedulePicker(initialDate = new Date(), initialTime = '') {
         overlay.querySelector('#rp-time-label').textContent = selTime;
       }
     };
+    overlay.querySelector('#rp-time-end')?.addEventListener('click', async () => {
+      const result = await openTimePicker(selEnd || selTime, { embedded: true, title: 'Horário de término' });
+      if (result) {
+        selEnd = result;
+        overlay.querySelector('#rp-time-end-label').textContent = selEnd;
+      }
+    });
 
     overlay.querySelector('#rp-cancel').onclick = () => finish(null);
     overlay.querySelector('#rp-save').onclick = () => {
       if (!selTime) { showToast('Escolha um horário', 'info'); return; }
-      finish({ date: selDate, time: selTime });
+      finish({ date: selDate, time: selTime, endTime: withEnd ? selEnd : undefined });
     };
 
     overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
@@ -4226,6 +4242,23 @@ function _waLembreteLink(ag) {
   return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`;
 }
 
+// Minutos entre "HH:MM" e "HH:MM" (duração do atendimento). 0 se inválido.
+function _difMinutos(a, b) {
+  if (!a || !b) return 0;
+  const [h1, m1] = a.split(':').map(Number);
+  const [h2, m2] = b.split(':').map(Number);
+  return (h2 * 60 + m2) - (h1 * 60 + m1);
+}
+
+// Rótulo do botão Reagendar de um atendimento: "DD/MM · HH:MM–HH:MM".
+function _pintarReagendarLabel(modal, date, start, end) {
+  const el = modal.querySelector('#m-reagendar-label');
+  if (!el) return;
+  const dd = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const hrs = start ? `${start}${end ? '–' + end : ''}` : '';
+  el.textContent = hrs ? `${dd} · ${hrs}` : dd;
+}
+
 function openTaskEditor(app, dayDocId, taskId) {
   const day = weekData.find(d => d.id === dayDocId);
   const t = day?.tasks.find(x => x.id === taskId);
@@ -4284,27 +4317,31 @@ function openTaskEditor(app, dayDocId, taskId) {
 
       <label class="input-field"><div class="input-field-label">${tr('ritual.edit.title.field')}</div>
         <input id="m-title" value="${escape(t.title)}" /></label>
-      <label class="input-field"><div class="input-field-label">${tr('ritual.edit.desc')}</div>
+      <label class="input-field" id="m-desc-field"><div class="input-field-label">${tr('ritual.edit.desc')}</div>
         <input id="m-desc" value="${escape(t.desc || '')}" placeholder="${tr('ritual.edit.desc.placeholder')}" /></label>
 
-      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.icon')} <small style="color:var(--muted);font-weight:500">${tr('ritual.edit.icon.hint')}</small></div>
-      <div class="task-icon-picker" id="m-icon-picker">
-        <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="${tr('ritual.edit.icon.none')}">∅</button>
-        ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}
+      <div id="m-icon-wrap">
+        <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.icon')} <small style="color:var(--muted);font-weight:500">${tr('ritual.edit.icon.hint')}</small></div>
+        <div class="task-icon-picker" id="m-icon-picker">
+          <button type="button" class="task-icon-opt ${!t.icon ? 'sel' : ''}" data-icon="" title="${tr('ritual.edit.icon.none')}">∅</button>
+          ${TASK_ICONS.map(ic => `<button type="button" class="task-icon-opt ${ic === t.icon ? 'sel' : ''}" data-icon="${ic}">${ic}</button>`).join('')}
+        </div>
       </div>
       <label class="input-field"><div class="input-field-label">${tr('ritual.edit.shift')}</div>
         <select id="m-shift">${shiftOpts}</select></label>
-      <div class="input-field-label">${tr('ritual.edit.time')}</div>
-      <button type="button" class="tp-trigger" id="m-time-trigger" data-time="${toHHMM(t.startTime) || ''}">
-        <span class="tp-trigger-icon">🕐</span>
-        <span class="tp-trigger-time">${toHHMM(t.startTime) || '— : —'}</span>
-        <span class="tp-trigger-edit">›</span>
-      </button>
+      <div id="m-time-wrap">
+        <div class="input-field-label">${tr('ritual.edit.time')}</div>
+        <button type="button" class="tp-trigger" id="m-time-trigger" data-time="${toHHMM(t.startTime) || ''}">
+          <span class="tp-trigger-icon">🕐</span>
+          <span class="tp-trigger-time">${toHHMM(t.startTime) || '— : —'}</span>
+          <span class="tp-trigger-edit">›</span>
+        </button>
+      </div>
 
       <button type="button" class="recur-btn" id="m-reagendar-btn" style="margin-top:8px">
         <span class="recur-btn-ic">📅</span>
         <span class="recur-btn-text">Reagendar</span>
-        <span class="recur-btn-label">${_wdShort(day.date)} ${String(day.date.getDate()).padStart(2, '0')}/${String(day.date.getMonth() + 1).padStart(2, '0')}</span>
+        <span class="recur-btn-label" id="m-reagendar-label">${_wdShort(day.date)} ${String(day.date.getDate()).padStart(2, '0')}/${String(day.date.getMonth() + 1).padStart(2, '0')}</span>
         <span class="recur-btn-edit">›</span>
       </button>
 
@@ -4317,24 +4354,24 @@ function openTaskEditor(app, dayDocId, taskId) {
         </div>
       </label>
 
-      <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
-      <button type="button" class="recur-btn" id="m-recur-btn">
-        <span class="recur-btn-ic">🔁</span>
-        <span class="recur-btn-text">${tr('recur.btn.title')}</span>
-        <span class="recur-btn-label" id="m-recur-label">—</span>
-        <span class="recur-btn-edit">›</span>
-      </button>
+      <div id="m-recur-wrap">
+        <div class="input-field-label" style="margin-top:8px">${tr('ritual.edit.recur')}</div>
+        <button type="button" class="recur-btn" id="m-recur-btn">
+          <span class="recur-btn-ic">🔁</span>
+          <span class="recur-btn-text">${tr('recur.btn.title')}</span>
+          <span class="recur-btn-label" id="m-recur-label">—</span>
+          <span class="recur-btn-edit">›</span>
+        </button>
+      </div>
 
       ${isAg ? `
       <div class="ag-edit-extra">
         <div class="ag-edit-tit">📅 Atendimento de cliente</div>
-        <label class="input-field" style="margin:0 0 10px"><div class="input-field-label">WhatsApp do cliente</div>
+        <div class="ag-edit-linha"><span class="ag-edit-lbl">Cliente</span><span class="ag-edit-val" id="mag-nome">—</span></div>
+        <div class="ag-edit-linha"><span class="ag-edit-lbl">Serviço</span><span class="ag-edit-val" id="mag-serv">—</span></div>
+        <label class="input-field" style="margin:10px 0"><div class="input-field-label">WhatsApp do cliente</div>
           <input id="mag-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999"></label>
-        <div class="ag-edit-acoes">
-          <a class="ag-edit-btn wa" id="mag-wa" target="_blank" rel="noopener" style="display:none">💬 Lembrar cliente no WhatsApp</a>
-          <button type="button" class="ag-edit-btn ok" id="mag-fin">✅ Marcar como atendido</button>
-          <button type="button" class="ag-edit-btn" id="mag-faltou">🚫 Cliente faltou</button>
-        </div>
+        <a class="ag-edit-btn wa" id="mag-wa" target="_blank" rel="noopener" style="display:none">💬 Lembrar cliente no WhatsApp</a>
       </div>` : ''}
 
       <div class="modal-actions">
@@ -4347,22 +4384,25 @@ function openTaskEditor(app, dayDocId, taskId) {
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
 
-  // Atendimento da Agenda Online: ações extras (atendido/faltou/lembrar no WhatsApp).
+  // Atendimento da Agenda Online: esconde o que vira o bloco de atendimento e o
+  // Reagendar; mostra cliente/serviço/WhatsApp + lembrete.
   let agData = null;
+  let agEnd = isAg ? (toHHMM(t.horaFim) || '') : '';   // horário de término do atendimento
   if (isAg) {
     const agId = t.agendamentoId;
-    modal.querySelector('#mag-fin')?.addEventListener('click', async () => {
-      try { await atualizarStatusAgendamento(agId, 'finalizado'); showToast('✅ Marcado como atendido', 'success'); }
-      catch (e) { showToast('Erro: ' + e.message, 'error'); }
+    // Some com o que não faz sentido pro atendimento (data+hora vão no Reagendar).
+    ['#m-time-wrap', '#m-desc-field', '#m-icon-wrap', '#m-recur-wrap'].forEach(sel => {
+      const el = modal.querySelector(sel); if (el) el.style.display = 'none';
     });
-    modal.querySelector('#mag-faltou')?.addEventListener('click', async () => {
-      try { await atualizarStatusAgendamento(agId, 'faltou'); showToast('Marcado: cliente faltou', 'info'); }
-      catch (e) { showToast('Erro: ' + e.message, 'error'); }
-    });
-    // Busca o agendamento → preenche o WhatsApp e revela o botão de lembrete se tiver.
+    // Rótulo do Reagendar já mostra o agendamento inteiro: "DD/MM · HH:MM–HH:MM".
+    _pintarReagendarLabel(modal, day.date, toHHMM(t.startTime), agEnd);
+    // Busca o agendamento → nome, serviço, WhatsApp e botão de lembrete.
     getAgendamentoById(agId).then(ag => {
       if (!ag) return;
       agData = ag;
+      const setTxt = (sel, v) => { const e = modal.querySelector(sel); if (e) e.textContent = v || '—'; };
+      setTxt('#mag-nome', ag.cliente_nome);
+      setTxt('#mag-serv', ag.servico);
       const zapInp = modal.querySelector('#mag-zap');
       if (zapInp && !zapInp.value) zapInp.value = ag.cliente_contato || '';
       const link = _waLembreteLink(ag);
@@ -4439,9 +4479,10 @@ function openTaskEditor(app, dayDocId, taskId) {
   // traz de volta e ela aparece nos dois dias) e move como cópia avulsa.
   modal.querySelector('#m-reagendar-btn')?.addEventListener('click', async () => {
     const curTime = modal.querySelector('#m-time-trigger')?.dataset.time || toHHMM(t.startTime) || '';
-    const result = await openReschedulePicker(day.date, curTime);
+    const result = await openReschedulePicker(day.date, curTime, isAg ? { withEnd: true, initialEnd: agEnd } : {});
     if (!result) return;
-    const { date: newDate, time: newTime } = result;
+    const { date: newDate, time: newTime, endTime } = result;
+    if (isAg) agEnd = endTime || '';
     const newDayId = dayId(newDate);
     // valores atuais do form + auto-turno pelo horário (igual ao Salvar)
     let shiftFinal = modal.querySelector('#m-shift').value || null;
@@ -4458,7 +4499,7 @@ function openTaskEditor(app, dayDocId, taskId) {
       icon: modal.querySelector('#m-icon-picker .task-icon-opt.sel')?.dataset.icon || '',
       reminderEnabled: modal.querySelector('#m-reminder').checked,
       startTime: newTime,
-      ...(isAg ? { agendamentoId: t.agendamentoId } : {}),   // mantém o vínculo ao mover
+      ...(isAg ? { agendamentoId: t.agendamentoId, horaFim: agEnd || null } : {}),   // vínculo + término
     };
     try {
       if (newDayId === dayDocId) {
@@ -4500,9 +4541,15 @@ function openTaskEditor(app, dayDocId, taskId) {
           if (de) { de.querySelector('.day-card-content').innerHTML = renderDayContent(destDay); updateDayCardStats(newDayId, false); }
         }
       }
-      // Atendimento: reflete a nova data/hora no agendamento (link público + histórico).
+      // Atendimento: reflete a nova data/hora/duração no agendamento (link + histórico).
       if (isAg) {
-        const r = await moverAgendamento(t.agendamentoId, { data: newDayId, hora: newTime });
+        const dur = _difMinutos(newTime, agEnd);
+        const zap = (modal.querySelector('#mag-zap')?.value || '').trim();
+        const r = await moverAgendamento(t.agendamentoId, {
+          data: newDayId, hora: newTime,
+          ...(dur > 0 ? { duracao_min: dur } : {}),
+          ...(agData ? { cliente_contato: zap } : {}),
+        });
         if (!r.ok && r.error) showToast('Atenção: ' + r.error, 'info');
       }
       const dl = `${String(newDate.getDate()).padStart(2, '0')}/${String(newDate.getMonth() + 1).padStart(2, '0')}`;
@@ -4552,20 +4599,23 @@ function openTaskEditor(app, dayDocId, taskId) {
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
     const prevRecurType = t.recurrenceType || 'today';
 
-    // Atendimento: se mexeu no WhatsApp, reconstrói a desc do card (nome · serviço · zap).
+    // Atendimento: desc do card = só nome + serviço; mantém término; WhatsApp no bloco.
     const novoZap = isAg ? (modal.querySelector('#mag-zap')?.value || '').trim() : null;
-    if (isAg && agData) {
-      data.desc = [agData.cliente_nome, agData.servico, novoZap].filter(Boolean).join(' · ');
+    if (isAg) {
+      if (agData) data.desc = [agData.cliente_nome, agData.servico].filter(Boolean).join(' · ');
+      if (agEnd) data.horaFim = agEnd; else data.horaFim = null;
     }
 
     Object.assign(t, data);
     await updateDayTask(dayDocId, taskId, data);
     await propagateReminderToCategory(t.categoryId, t.reminderEnabled);
     await autoScheduleNotif(dayDocId, t);
-    // Atendimento: reflete hora + WhatsApp no agendamento (a data muda pelo Reagendar).
+    // Atendimento: reflete hora + duração + WhatsApp no agendamento.
     if (isAg) {
+      const dur = _difMinutos(newTime, agEnd);
       const patch = {};
       if (newTime) patch.hora = newTime;
+      if (dur > 0) patch.duracao_min = dur;
       if (agData) patch.cliente_contato = novoZap;
       const r = await moverAgendamento(t.agendamentoId, patch);
       if (!r.ok && r.error) showToast('Atenção: ' + r.error, 'info');
