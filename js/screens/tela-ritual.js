@@ -3835,12 +3835,20 @@ function openActivityPicker(app, dayDocId, shiftId) {
       <label class="input-field"><div class="input-field-label">O que fazer</div>
         <input id="m-title" placeholder="Ex: Tomar chá de gengibre, treino de pernas, ler 30min..." /></label>
 
-      <div class="input-field-label">Horário <small style="color:var(--muted);font-weight:500" id="m-time-hint">(opcional)</small></div>
+      <div class="input-field-label">Horário de início <small style="color:var(--muted);font-weight:500" id="m-time-hint">(opcional)</small></div>
       <button type="button" class="tp-trigger" id="m-time-trigger" data-time="">
         <span class="tp-trigger-icon">🕐</span>
         <span class="tp-trigger-time">— : —</span>
         <span class="tp-trigger-edit">›</span>
       </button>
+      <div id="m-time-end-wrap" hidden>
+        <div class="input-field-label" style="margin-top:8px">Horário de término <small style="color:var(--muted);font-weight:500">(opcional)</small></div>
+        <button type="button" class="tp-trigger" id="m-time-end-trigger" data-time="">
+          <span class="tp-trigger-icon">🕐</span>
+          <span class="tp-trigger-time">— : —</span>
+          <span class="tp-trigger-edit">›</span>
+        </button>
+      </div>
 
       <label class="reminder-toggle">
         <input type="checkbox" id="m-reminder" />
@@ -3907,6 +3915,16 @@ function openActivityPicker(app, dayDocId, shiftId) {
       btn.querySelector('.tp-trigger-time').textContent = result;
     }
   });
+  modal.querySelector('#m-time-end-trigger')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const start = modal.querySelector('#m-time-trigger')?.dataset.time || '';
+    const result = await openTimePicker(btn.dataset.time || start || '', { title: 'Horário de término' });
+    if (result) {
+      btn.dataset.time = result;
+      btn.querySelector('.tp-trigger-time').textContent = result;
+    }
+  });
 
   const close = trapModalBack(() => modal.remove());
   modal.querySelector('#m-cancel').onclick = close;
@@ -3962,6 +3980,8 @@ function openActivityPicker(app, dayDocId, shiftId) {
       chip.classList.add('active');
       const isCommitment = chip.dataset.kind === 'commitment';
       modal.querySelector('#m-time-hint').textContent = isCommitment ? '(obrigatório pra compromissos)' : '(opcional)';
+      const endWrap = modal.querySelector('#m-time-end-wrap');
+      if (endWrap) endWrap.hidden = !isCommitment;   // hora de término só pra compromisso
       // Se sair do compromisso e estava monthly, volta pra today
       if (!isCommitment && recurState.recur === 'monthly') {
         recurState = { recur: 'today' };
@@ -3985,9 +4005,11 @@ function openActivityPicker(app, dayDocId, shiftId) {
     const startTime = modal.querySelector('#m-time-trigger')?.dataset.time || '';
     // Compromisso exige horário (sem isso não dá pra ordenar nem agendar)
     if (kind === 'commitment' && !startTime) {
-      showToast('Compromisso precisa de horário', 'info');
+      showToast('Compromisso precisa de horário de início', 'info');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
       return;
     }
+    const endTime = (kind === 'commitment') ? (modal.querySelector('#m-time-end-trigger')?.dataset.time || '') : '';
     const reminderEnabled = modal.querySelector('#m-reminder').checked;
     const recur = recurState.recur || 'today'; // ← estava faltando, quebrava o save inteiro
     const monthlyDays = recurState.daysOfMonth || (recur === 'monthly' ? [day.date.getDate()] : []);
@@ -4001,6 +4023,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       startTime, shiftId, categoryId,
       done: false, reminderEnabled,
       recurrenceType: recur, // FONTE DA VERDADE pra detecção (não inferir do template depois)
+      ...(endTime ? { horaFim: endTime } : {}),
       ...(recurrenceGroupId ? { recurrenceGroupId } : {})
     };
 
