@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -58,13 +58,15 @@ function _proximosHtml() {
   }).join('');
 }
 
-// Editar/adicionar o WhatsApp de um cliente (atualiza TODOS os atendimentos dele).
+// Editar CONTATO de um cliente: nome + WhatsApp (atualiza TODOS os atendimentos dele).
 async function _editarZapCliente(c) {
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'ag-zap-ov';
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
-    <div class="ag-fhead">💬 WhatsApp de ${_esc(c.nome)}</div>
-    <label class="input-field"><div class="input-field-label">Número</div>
+    <div class="ag-fhead">✏️ Editar contato</div>
+    <label class="input-field"><div class="input-field-label">Nome do cliente</div>
+      <input id="agz-nome" value="${_esc(c.nome || '')}" placeholder="Nome"></label>
+    <label class="input-field"><div class="input-field-label">WhatsApp</div>
       <input id="agz-num" inputmode="tel" value="${_esc(c.contato || '')}" placeholder="(DDD) 9 9999-9999"></label>
     <div class="ag-fbtns">
       <button class="btn-secondary" id="agz-cancelar" type="button">Fechar</button>
@@ -76,14 +78,36 @@ async function _editarZapCliente(c) {
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
   ov.querySelector('#agz-cancelar').onclick = () => close();
   ov.querySelector('#agz-salvar').onclick = async () => {
+    const nome = ov.querySelector('#agz-nome').value.trim();
     const num = ov.querySelector('#agz-num').value.trim();
+    if (nome.length < 2) { showToast('Escreva o nome do cliente', 'info'); return; }
     const btn = ov.querySelector('#agz-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
     try {
-      await atualizarContatoCliente(c.ags.map(a => a.id), num);
+      await atualizarCliente(c.ags.map(a => a.id), { nome, contato: num });
       _todos = await getAgendamentosTodos().catch(() => _todos);
-      close(); desenhar(); showToast('✅ WhatsApp atualizado', 'success');
+      close(); desenhar(); showToast('✅ Contato atualizado', 'success');
     } catch (e) { showToast('Erro: ' + e.message, 'error'); if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Salvar'; } }
   };
+}
+
+// Popup com o histórico de atendimentos de um cliente.
+function _popupHistoricoCliente(c) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-hist-ov';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">📋 Histórico de ${_esc(c.nome)}</div>
+    <div class="ag-cli-hist-tit">${c.ags.length} atendimento${c.ags.length > 1 ? 's' : ''}</div>
+    <div class="ag-hist-lista">
+      ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
+        <span>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
+      </div>`; }).join('')}
+    </div>
+    <div class="ag-fbtns"><button class="btn-primary" id="agh-ok" type="button">Fechar</button></div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('#agh-ok').onclick = () => close();
 }
 
 function _clientesHtml() {
@@ -100,12 +124,9 @@ function _clientesHtml() {
       <div class="ag-cli-hist" hidden>
         <div class="ag-cli-acoes">
           ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
-          <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ ${c.contato ? 'Editar' : 'Adicionar'} WhatsApp</button>
+          <button class="ag-cli-wa-ed" data-hist-cli="${_esc(c.key)}" type="button">📋 Histórico</button>
+          <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ Editar contato</button>
         </div>
-        <div class="ag-cli-hist-tit">Histórico</div>
-        ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
-          <span>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
-        </div>`; }).join('')}
       </div>
     </div>`;
   }).join('');
@@ -396,6 +417,9 @@ function wireFixos(corpo) {
   });
   corpo.querySelectorAll('[data-edit-zap]').forEach(b => {
     b.addEventListener('click', (e) => { e.stopPropagation(); const c = _clientes().find(x => x.key === b.dataset.editZap); if (c) _editarZapCliente(c); });
+  });
+  corpo.querySelectorAll('[data-hist-cli]').forEach(b => {
+    b.addEventListener('click', (e) => { e.stopPropagation(); const c = _clientes().find(x => x.key === b.dataset.histCli); if (c) _popupHistoricoCliente(c); });
   });
   corpo.querySelectorAll('[data-cli-toggle]').forEach(top => {
     top.addEventListener('click', (e) => {

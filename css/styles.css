@@ -7533,6 +7533,7 @@ body.sem-rolagem { overflow: hidden; }
 .ag-cli-wa { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; padding: 10px; border-radius: 10px; background: #25D366; color: #fff; font-size: 14px; font-weight: 700; }
 .ag-cli-wa-ed { background: var(--card); border: 1px solid var(--border); color: var(--accent-2); border-radius: 10px; padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
 .ag-cli-hist-tit { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+.ag-hist-lista { max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; margin: 6px 0 12px; }
 .ag-det-btn.wa { grid-column: 1 / -1; background: #25D366; border-color: #25D366; color: #fff; }
 
 /* detalhe do atendimento */

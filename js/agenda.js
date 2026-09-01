@@ -115,6 +115,17 @@ export async function atualizarContatoCliente(ids, contato) {
   if (error) throw new Error(error.message);
 }
 
+// Atualiza NOME e/ou WhatsApp de um cliente em TODOS os atendimentos dele.
+export async function atualizarCliente(ids, { nome, contato } = {}) {
+  if (!ids?.length) return;
+  const patch = {};
+  if (nome != null) patch.cliente_nome = (nome || '').trim();
+  if (contato != null) patch.cliente_contato = (contato || '').trim() || null;
+  if (!Object.keys(patch).length) return;
+  const { error } = await supabase.from('agendamentos').update(patch).in('id', ids);
+  if (error) throw new Error(error.message);
+}
+
 // Muda o status de um atendimento: 'confirmado' | 'finalizado' | 'faltou' | 'cancelado'.
 export async function atualizarStatusAgendamento(id, status) {
   const { error } = await supabase.from('agendamentos').update({ status }).eq('id', id);
