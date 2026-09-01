@@ -45,6 +45,15 @@ export async function criarAgendamento(slug, dataISO, hora, nome, contato, servi
   return data;
 }
 
+// Cliente cancela o PRÓPRIO agendamento (id + token que ficaram no aparelho dele).
+// Libera a vaga (status=cancelado) e avisa o dono por push.
+export async function cancelarAgendamentoPublico(id, token) {
+  const { data, error } = await supabase.rpc('cancelar_agendamento_publico', { p_id: id, p_token: token });
+  if (error) throw new Error(error.message);
+  try { _avisarDonoCancelou(data?.owner_id, { nome: data?.cliente_nome, dataISO: data?.data, hora: data?.hora }); } catch {}
+  return data;
+}
+
 // ── Push pro dono quando um cliente agenda ────────────────────
 // Reusa o Worker de push (mesma infra dos lembretes). A chave já é pública
 // (vai no bundle do app). Dispara um /schedule quase imediato pro userId do dono.
@@ -63,6 +72,25 @@ async function _avisarDono(ownerId, { nome, dataISO, hora }) {
         title: '📅 Novo agendamento!',
         body: `${(nome || 'Um cliente').trim()} marcou pra ${dataBr} às ${hora}`,
         tag: `visao-${dataISO}-ag-${(hora || '').replace(':', '')}`,
+        timestamp: Date.now() + 2000,
+      }),
+    });
+  } catch {}
+}
+
+async function _avisarDonoCancelou(ownerId, { nome, dataISO, hora }) {
+  if (!ownerId) return;
+  try {
+    const [y, m, d] = (dataISO || '').split('-');
+    const dataBr = (d && m) ? `${d}/${m}` : dataISO;
+    await fetch(`${_WORKER_URL}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': _WORKER_API_KEY },
+      body: JSON.stringify({
+        userId: ownerId,
+        title: '❌ Atendimento cancelado',
+        body: `${(nome || 'Um cliente').trim()} cancelou o horário de ${dataBr} às ${hora}`,
+        tag: `visao-${dataISO}-agcancel-${(hora || '').replace(':', '')}`,
         timestamp: Date.now() + 2000,
       }),
     });

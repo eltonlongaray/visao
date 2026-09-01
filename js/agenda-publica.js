@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, criarAgendamento } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, criarAgendamento, cancelarAgendamentoPublico } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -35,6 +35,12 @@ function _salvarHist(slug, item) {
     const a = _lerHist(slug);
     if (!a.some(x => x.data === item.data && x.hora === item.hora)) a.push(item);
     localStorage.setItem(_histKey(slug), JSON.stringify(a.slice(-30)));
+  } catch {}
+}
+function _removerHist(slug, id) {
+  try {
+    const a = _lerHist(slug).filter(x => x.id !== id);
+    localStorage.setItem(_histKey(slug), JSON.stringify(a));
   } catch {}
 }
 
@@ -84,7 +90,10 @@ export async function renderAgendaPublica(app, slug) {
     if (!hist.length) return '';
     return `<div class="ap-hist">
       <div class="ap-hist-t">📋 Seus agendamentos</div>
-      ${hist.map(h => { const d = _fromIso(h.data); return `<div class="ap-hist-item">✅ ${SEM[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(h.hora)}</b>${h.servico ? ` · ${_esc(h.servico)}` : ''}</div>`; }).join('')}
+      ${hist.map(h => { const d = _fromIso(h.data); return `<div class="ap-hist-item">
+        <span>✅ ${SEM[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(h.hora)}</b>${h.servico ? ` · ${_esc(h.servico)}` : ''}</span>
+        ${h.id && h.token ? `<button class="ap-hist-cancel" data-cancel-id="${_esc(h.id)}" data-cancel-token="${_esc(h.token)}" data-cancel-data="${_esc(h.data)}" data-cancel-hora="${_esc(h.hora)}" type="button">Cancelar</button>` : ''}
+      </div>`; }).join('')}
     </div>`;
   }
 
@@ -152,6 +161,26 @@ export async function renderAgendaPublica(app, slug) {
     }));
     const btn = app.querySelector('#ap-confirmar');
     if (btn) btn.addEventListener('click', () => confirmar(dia));
+
+    // Cancelar um agendamento do próprio cliente (libera a vaga na hora).
+    app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Cancelar este agendamento e liberar o horário?')) return;
+      const id = b.dataset.cancelId, token = b.dataset.cancelToken;
+      const dataC = b.dataset.cancelData, horaC = b.dataset.cancelHora;
+      b.disabled = true; b.textContent = 'Cancelando…';
+      try {
+        await cancelarAgendamentoPublico(id, token);
+        _removerHist(cfg.slug, id);
+        // libera o slot: tira dos ocupados e re-marca os dias
+        ocupados.delete(`${dataC}|${horaC}`);
+        for (const dd of dias) for (const s of dd.horarios) if (dd.iso === dataC && s.hora === horaC) s.ocupado = false;
+        _aviso('✅ Agendamento cancelado. Horário liberado.');
+        desenhar();
+      } catch (e) {
+        _aviso(e.message || 'Não deu pra cancelar');
+        b.disabled = false; b.textContent = 'Cancelar';
+      }
+    }));
   }
 
   function _formHtml(dia, hora) {
@@ -182,9 +211,9 @@ export async function renderAgendaPublica(app, slug) {
       const hora = selHora;
       const serv = _servSel();
       const fim = _fim(hora, _durSel());
-      await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
-      // guarda no histórico do aparelho e tira o horário dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null });
+      const res = await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
+      // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
+      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null, id: res?.id, token: res?.token });
       ocupados.add(`${dia.iso}|${hora}`);
       const slot = dia.horarios.find(s => s.hora === hora); if (slot) slot.ocupado = true;
       selHora = null;

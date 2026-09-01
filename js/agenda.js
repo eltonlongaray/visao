@@ -210,12 +210,19 @@ export async function sincronizarCompromissos() {
   const ags = await getAgendamentos().catch(() => []);
   if (!ags.length) return 0;
   const shifts = await getShifts().catch(() => []);
+  // Ids ainda ATIVOS (não cancelados) — pra remover compromisso de agendamento cancelado.
+  const todos = await getAgendamentosTodos().catch(() => []);
+  const ativos = new Set(todos.map(a => a.id));
   const porDia = {};
   for (const a of ags) (porDia[a.data] ||= []).push(a);
   let criados = 0;
   for (const dia of Object.keys(porDia)) {
     const existentes = await getDayTasks(dia).catch(() => []);
-    const jaSync = new Set(existentes.filter(t => t.agendamentoId).map(t => t.agendamentoId));
+    // Limpa fantasmas: compromisso ligado a um agendamento que foi CANCELADO.
+    for (const t of existentes) {
+      if (t.agendamentoId && !ativos.has(t.agendamentoId)) await deleteDayTask(dia, t.id).catch(() => {});
+    }
+    const jaSync = new Set(existentes.filter(t => t.agendamentoId && ativos.has(t.agendamentoId)).map(t => t.agendamentoId));
     for (const a of porDia[dia]) {
       _agendarLembreteAtendimento(a);   // garante o lembrete da hora (novos E antigos)
       if (jaSync.has(a.id)) continue;
