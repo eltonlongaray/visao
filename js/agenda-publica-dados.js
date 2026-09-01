@@ -45,6 +45,21 @@ export async function criarAgendamento(slug, dataISO, hora, nome, contato, servi
   return data;
 }
 
+// Lista os agendamentos do cliente (identificado pelo WhatsApp) — passados e futuros.
+export async function getMeusAgendamentos(slug, contato) {
+  const { data, error } = await supabase.rpc('meus_agendamentos_publico', { p_slug: slug, p_contato: contato || '' });
+  if (error) throw new Error(error.message);
+  return Array.isArray(data) ? data : [];
+}
+
+// Cliente cancela pelo WhatsApp (id + slug + contato). Libera a vaga e avisa o dono.
+export async function cancelarMeuAgendamento(slug, contato, id) {
+  const { data, error } = await supabase.rpc('cancelar_meu_agendamento', { p_slug: slug, p_contato: contato || '', p_id: id });
+  if (error) throw new Error(error.message);
+  try { _avisarDonoCancelou(data?.owner_id, { nome: data?.cliente_nome, dataISO: data?.data, hora: data?.hora }); } catch {}
+  return data;
+}
+
 // Cliente cancela o PRÓPRIO agendamento (id + token que ficaram no aparelho dele).
 // Libera a vaga (status=cancelado) e avisa o dono por push.
 export async function cancelarAgendamentoPublico(id, token) {

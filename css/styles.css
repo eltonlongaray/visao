@@ -7628,7 +7628,15 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-titulo { font-size: 22px; font-weight: 800; color: var(--text); }
 .ap-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .ap-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
-.ap-aviso24 { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; background: color-mix(in srgb, #f59e0b 12%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--border)); border-radius: 10px; padding: 8px 10px; }
+.ap-ola { font-size: 15px; color: var(--text); margin-top: 6px; }
+.ap-ola b { color: var(--accent-2); }
+.ap-aviso24 { font-size: 13px; color: var(--text); margin-top: 10px; line-height: 1.45; background: color-mix(in srgb, #f59e0b 22%, var(--card)); border: 1.5px solid #f59e0b; border-radius: 12px; padding: 11px 12px; font-weight: 600; }
+/* Retráteis "Meus agendamentos" / "Histórico" */
+.ap-accord { margin-top: 10px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--card-2); }
+.ap-accord-btn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: var(--text); font-family: inherit; font-size: 14px; font-weight: 700; padding: 12px 14px; cursor: pointer; }
+.ap-accord-n { background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
+.ap-accord-seta { margin-left: auto; color: var(--muted); }
+.ap-accord-body { padding: 4px 14px 12px; }
 /* Botão "Falar no WhatsApp" (do profissional) */
 .ap-wa-pro { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: #25D366; color: #fff; font-size: 14px; font-weight: 700; }
 /* Tela de identificação */

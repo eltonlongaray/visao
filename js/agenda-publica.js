@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, criarAgendamento, cancelarAgendamentoPublico } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -118,11 +118,18 @@ export async function renderAgendaPublica(app, slug) {
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
+  let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
   const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
 
+  // Busca os agendamentos do cliente (pelo WhatsApp) e re-renderiza quando chegam.
+  async function _carregarMeusAgs() {
+    if (!ident?.contato) return;
+    try { meusAgs = await getMeusAgendamentos(cfg.slug, ident.contato); if (ident) desenhar(); } catch {}
+  }
+
   // Identidade primeiro (tipo login). Depois de identificado, mostra a agenda.
-  const mostrar = () => { if (!ident) desenharIdentidade(); else desenhar(); };
+  const mostrar = () => { if (!ident) desenharIdentidade(); else { desenhar(); _carregarMeusAgs(); } };
   mostrar();
 
   // Re-checa os horários ocupados quando o cliente volta pra aba (auto-atualiza
@@ -131,6 +138,7 @@ export async function renderAgendaPublica(app, slug) {
     try {
       ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate));
       for (const dd of dias) for (const s of dd.horarios) s.ocupado = ocupados.has(`${dd.iso}|${s.hora}`);
+      if (ident?.contato) { try { meusAgs = await getMeusAgendamentos(cfg.slug, ident.contato); } catch {} }
       if (ident) desenhar();
     } catch {}
   };
@@ -140,18 +148,29 @@ export async function renderAgendaPublica(app, slug) {
   return _cleanupFull;
 
   // Banner com os agendamentos que ESTE cliente já fez (guardados no aparelho dele)
+  // Meus agendamentos (do servidor, pelo WhatsApp): 2 retráteis — próximos (com
+  // cancelar) e histórico (passados). Status vem do servidor (feito/faltou).
   function _histHtml() {
     const hojeIso = iso(hoje);
-    const hist = _lerHist(cfg.slug).filter(h => h.data >= hojeIso)
-      .sort((a, b) => (a.data + a.hora < b.data + b.hora ? -1 : 1));
-    if (!hist.length) return '';
-    return `<div class="ap-hist">
-      <div class="ap-hist-t">📋 Seus agendamentos</div>
-      ${hist.map(h => { const d = _fromIso(h.data); return `<div class="ap-hist-item">
-        <span>✅ ${SEM[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(h.hora)}</b>${h.servico ? ` · ${_esc(h.servico)}` : ''}</span>
-        ${h.id && h.token ? `<button class="ap-hist-cancel" data-cancel-id="${_esc(h.id)}" data-cancel-token="${_esc(h.token)}" data-cancel-data="${_esc(h.data)}" data-cancel-hora="${_esc(h.hora)}" type="button">Cancelar</button>` : ''}
-      </div>`; }).join('')}
-    </div>`;
+    const ags = (meusAgs || []).slice().sort((a, b) => (a.data + a.hora < b.data + b.hora ? -1 : 1));
+    const futuros = ags.filter(a => a.data >= hojeIso);
+    const passados = ags.filter(a => a.data < hojeIso).reverse();   // mais recentes primeiro
+    if (!futuros.length && !passados.length) return '';
+    const linha = (a, comCancel) => { const d = _fromIso(a.data); const fim = _fim(a.hora, a.duracao_min);
+      const st = a.status === 'finalizado' ? ' · ✅ feito' : a.status === 'faltou' ? ' · 🚫 faltou' : '';
+      return `<div class="ap-hist-item">
+        <span>${SEM3[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às <b>${_esc(a.hora)}${fim ? `–${fim}` : ''}</b>${a.servico ? ` · ${_esc(a.servico)}` : ''}${st}</span>
+        ${comCancel ? `<button class="ap-hist-cancel" data-cancel-id="${_esc(a.id)}" data-cancel-data="${_esc(a.data)}" data-cancel-hora="${_esc(a.hora)}" type="button">Cancelar</button>` : ''}
+      </div>`; };
+    return `
+      ${futuros.length ? `<div class="ap-accord">
+        <button class="ap-accord-btn" type="button" data-accord="fut">📅 Meus agendamentos <span class="ap-accord-n">${futuros.length}</span><span class="ap-accord-seta">▾</span></button>
+        <div class="ap-accord-body" hidden>${futuros.map(a => linha(a, true)).join('')}</div>
+      </div>` : ''}
+      ${passados.length ? `<div class="ap-accord">
+        <button class="ap-accord-btn" type="button" data-accord="hist">📋 Histórico <span class="ap-accord-n">${passados.length}</span><span class="ap-accord-seta">▾</span></button>
+        <div class="ap-accord-body" hidden>${passados.map(a => linha(a, false)).join('')}</div>
+      </div>` : ''}`;
   }
 
   // Seletor de serviço (só se o profissional cadastrou serviços)
@@ -188,9 +207,10 @@ export async function renderAgendaPublica(app, slug) {
     app.innerHTML = _tela(`
       <div class="ap-head">
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
+        ${ident?.nome ? `<div class="ap-ola">👋 Olá, <b>${_esc(ident.nome.split(' ')[0])}</b>!</div>` : ''}
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
-        <div class="ap-aviso24">⏰ Precisa cancelar? Por favor, avise com <b>24h de antecedência</b>.</div>
+        <div class="ap-aviso24">⚠️ <b>Precisa cancelar?</b> Avise com <b>24h de antecedência</b>, por favor.</div>
         ${_waProHtml()}
       </div>
       ${_histHtml()}
@@ -268,16 +288,21 @@ export async function renderAgendaPublica(app, slug) {
     const btn = app.querySelector('#ap-confirmar');
     if (btn) btn.addEventListener('click', () => confirmar(dia));
 
-    // Cancelar um agendamento do próprio cliente (libera a vaga na hora).
+    // Retráteis (Meus agendamentos / Histórico)
+    app.querySelectorAll('.ap-accord-btn').forEach(b => b.addEventListener('click', () => {
+      const body = b.nextElementSibling; const seta = b.querySelector('.ap-accord-seta');
+      const abrir = body.hidden; body.hidden = !abrir; if (seta) seta.textContent = abrir ? '▴' : '▾';
+    }));
+
+    // Cancelar um agendamento do próprio cliente (identificado pelo WhatsApp).
     app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('Cancelar este agendamento e liberar o horário?')) return;
-      const id = b.dataset.cancelId, token = b.dataset.cancelToken;
-      const dataC = b.dataset.cancelData, horaC = b.dataset.cancelHora;
+      const id = b.dataset.cancelId, dataC = b.dataset.cancelData, horaC = b.dataset.cancelHora;
       b.disabled = true; b.textContent = 'Cancelando…';
       try {
-        await cancelarAgendamentoPublico(id, token);
+        await cancelarMeuAgendamento(cfg.slug, ident?.contato, id);
+        meusAgs = meusAgs.filter(a => a.id !== id);
         _removerHist(cfg.slug, id);
-        // libera o slot: tira dos ocupados e re-marca os dias
         ocupados.delete(`${dataC}|${horaC}`);
         for (const dd of dias) for (const s of dd.horarios) if (dd.iso === dataC && s.hora === horaC) s.ocupado = false;
         _aviso('✅ Agendamento cancelado. Horário liberado.');
@@ -329,7 +354,7 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
-      app.querySelector('#ap-voltar')?.addEventListener('click', () => desenhar());
+      app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
