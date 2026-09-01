@@ -11,9 +11,9 @@ import { supabase } from './config-supabase.js';
 export async function getAgendaPublica(slug) {
   const s = (slug || '').trim();
   let res = await supabase.from('agenda_config')
-    .select('slug, titulo, endereco, duracao_min, disponibilidade, semanas, horizonte_meses, ativo, servicos')
+    .select('slug, titulo, endereco, whatsapp, duracao_min, disponibilidade, semanas, horizonte_meses, ativo, servicos')
     .eq('slug', s).eq('ativo', true).maybeSingle();
-  if (res.error && /semanas|horizonte_meses/i.test(res.error.message || '')) {
+  if (res.error && /semanas|horizonte_meses|whatsapp/i.test(res.error.message || '')) {
     res = await supabase.from('agenda_config')
       .select('slug, titulo, endereco, duracao_min, disponibilidade, ativo, servicos')
       .eq('slug', s).eq('ativo', true).maybeSingle();

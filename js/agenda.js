@@ -80,10 +80,10 @@ export async function salvarAgendaConfig(patch) {
   let { error } = await supabase.from('agenda_config').update(full).eq('user_id', uid);
   // Colunas novas (semanas, horizonte_meses) são opcionais: se ainda não existem
   // no banco, tenta de novo sem elas pra não travar o resto da config.
-  if (error && /semanas|horizonte_meses/i.test(error.message || '')) {
-    const { semanas, horizonte_meses, ...resto } = full;
+  if (error && /semanas|horizonte_meses|whatsapp/i.test(error.message || '')) {
+    const { semanas, horizonte_meses, whatsapp, ...resto } = full;
     ({ error } = await supabase.from('agenda_config').update(resto).eq('user_id', uid));
-    if (!error) throw new Error('Recurso novo precisa do SQL (colunas "semanas"/"horizonte_meses"). O resto foi salvo.');
+    if (!error) throw new Error('Recurso novo precisa do SQL (colunas novas). O resto foi salvo.');
   }
   if (error) throw new Error(error.message);
 }

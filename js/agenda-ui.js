@@ -342,6 +342,8 @@ function desenhar() {
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
       <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
         <input id="ag-endereco" value="${_esc(_cfg.endereco || '')}" placeholder="Ex: Rua das Flores, 123 — Centro, Porto Alegre"></label>
+      <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— botão "Falar no WhatsApp" no link do cliente</span></div>
+        <input id="ag-whatsapp" inputmode="tel" value="${_esc(_cfg.whatsapp || '')}" placeholder="(DDD) 9 9999-9999"></label>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
@@ -814,6 +816,7 @@ async function salvar() {
   if (!corpo) return;
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
   const endereco = corpo.querySelector('#ag-endereco').value.trim() || null;
+  const whatsapp = corpo.querySelector('#ag-whatsapp')?.value.trim() || null;
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
   const horizonte_meses = parseInt(corpo.querySelector('#ag-horizonte')?.value, 10) || 3;
   const ativo = corpo.querySelector('#ag-ativo').checked;
@@ -847,8 +850,8 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, endereco, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
-    _cfg = { ..._cfg, titulo, endereco, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
+    await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
+    _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');

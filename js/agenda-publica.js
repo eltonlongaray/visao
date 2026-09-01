@@ -43,6 +43,18 @@ function _removerHist(slug, id) {
     localStorage.setItem(_histKey(slug), JSON.stringify(a));
   } catch {}
 }
+// Identidade do cliente NO APARELHO (nome + WhatsApp) — tipo um "login" leve.
+const _identKey = slug => `falcon_cliente_${slug}`;
+function _lerIdent(slug) { try { return JSON.parse(localStorage.getItem(_identKey(slug)) || 'null'); } catch { return null; } }
+function _salvarIdent(slug, obj) { try { localStorage.setItem(_identKey(slug), JSON.stringify(obj)); } catch {} }
+// Link do WhatsApp do PROFISSIONAL (pro cliente falar). null se não configurado.
+function _waProLink(cfg) {
+  let d = String(cfg?.whatsapp || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.length <= 11) d = '55' + d;
+  return `https://wa.me/${d}`;
+}
+const WA_SVG_PUB = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
 export async function renderAgendaPublica(app, slug) {
   // esconde nav/pet caso o dono abra o link logado dentro do app
@@ -104,10 +116,13 @@ export async function renderAgendaPublica(app, slug) {
   let selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
+  let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
   const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
 
-  desenhar();
+  // Identidade primeiro (tipo login). Depois de identificado, mostra a agenda.
+  const mostrar = () => { if (!ident) desenharIdentidade(); else desenhar(); };
+  mostrar();
 
   // Re-checa os horários ocupados quando o cliente volta pra aba (auto-atualiza
   // se algo foi cancelado/marcado enquanto a página estava aberta).
@@ -115,7 +130,7 @@ export async function renderAgendaPublica(app, slug) {
     try {
       ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate));
       for (const dd of dias) for (const s of dd.horarios) s.ocupado = ocupados.has(`${dd.iso}|${s.hora}`);
-      desenhar();
+      if (ident) desenhar();
     } catch {}
   };
   const _onVis = () => { if (document.visibilityState === 'visible') _refreshOcupados(); };
@@ -175,6 +190,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
         <div class="ap-aviso24">⏰ Precisa cancelar? Por favor, avise com <b>24h de antecedência</b>.</div>
+        ${_waProHtml()}
       </div>
       ${_histHtml()}
       ${_servHtml()}
@@ -197,6 +213,39 @@ export async function renderAgendaPublica(app, slug) {
     wire(dia);
   }
 
+  // Botão "Falar no WhatsApp" (do profissional), se ele configurou o número.
+  function _waProHtml() {
+    const wa = _waProLink(cfg);
+    return wa ? `<a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_PUB} Falar no WhatsApp</a>` : '';
+  }
+
+  // Tela de identificação (nome + WhatsApp) — aparece antes de agendar, 1x por aparelho.
+  function desenharIdentidade() {
+    app.innerHTML = _tela(`
+      <div class="ap-head">
+        <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
+        ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
+      </div>
+      <div class="ap-ident">
+        <div class="ap-ident-t">👋 Bem-vindo! Antes de agendar, se identifique:</div>
+        <label class="input-field"><div class="input-field-label">Seu nome</div>
+          <input id="ap-ident-nome" placeholder="Nome completo" autocomplete="name" value="${_esc(ident?.nome || '')}"></label>
+        <label class="input-field"><div class="input-field-label">Seu WhatsApp</div>
+          <input id="ap-ident-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999" autocomplete="tel" value="${_esc(ident?.contato || '')}"></label>
+        <button class="btn-primary ap-ident-btn" id="ap-ident-ok" type="button">Continuar →</button>
+        ${_waProHtml()}
+      </div>`);
+    app.querySelector('#ap-ident-ok').onclick = () => {
+      const nome = app.querySelector('#ap-ident-nome').value.trim();
+      const zap = app.querySelector('#ap-ident-zap').value.trim();
+      if (nome.length < 2) { _aviso('Escreva seu nome'); return; }
+      if (zap.replace(/\D/g, '').length < 8) { _aviso('Escreva um WhatsApp válido'); return; }
+      ident = { nome, contato: zap };
+      _salvarIdent(cfg.slug, ident);
+      desenhar();
+    };
+  }
+
   function wire(dia) {
     const _irSemana = (novo) => {
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
@@ -217,6 +266,7 @@ export async function renderAgendaPublica(app, slug) {
     }));
     const btn = app.querySelector('#ap-confirmar');
     if (btn) btn.addEventListener('click', () => confirmar(dia));
+    app.querySelector('#ap-trocar')?.addEventListener('click', () => { ident = null; _salvarIdent(cfg.slug, null); selHora = null; mostrar(); });
 
     // Cancelar um agendamento do próprio cliente (libera a vaga na hora).
     app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
@@ -249,19 +299,15 @@ export async function renderAgendaPublica(app, slug) {
       <div class="ap-form">
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
-        <label class="input-field"><div class="input-field-label">Seu nome</div>
-          <input id="ap-nome" placeholder="Como você se chama?" autocomplete="name"></label>
-        <label class="input-field"><div class="input-field-label">Seu WhatsApp</div>
-          <input id="ap-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999" autocomplete="tel"></label>
+        <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b> · ${_esc(ident?.contato || '')} <button class="ap-trocar" id="ap-trocar" type="button">trocar</button></div>
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
       </div>`;
   }
 
   async function confirmar(dia) {
-    const nome = app.querySelector('#ap-nome')?.value.trim() || '';
-    const zap = app.querySelector('#ap-zap')?.value.trim() || '';
-    if (nome.length < 2) { _aviso('Escreva seu nome'); return; }
-    if (zap.replace(/\D/g, '').length < 8) { _aviso('Escreva um WhatsApp válido'); return; }
+    const nome = ident?.nome || '';
+    const zap = ident?.contato || '';
+    if (nome.length < 2 || zap.replace(/\D/g, '').length < 8) { ident = null; mostrar(); return; }
     const btn = app.querySelector('#ap-confirmar'); btn.disabled = true; btn.textContent = 'Agendando…';
     try {
       const hora = selHora;
