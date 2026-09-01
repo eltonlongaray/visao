@@ -172,7 +172,7 @@ export async function renderAgendaPublica(app, slug) {
     app.innerHTML = _tela(`
       <div class="ap-head">
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
-        <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : `Escolha um horário · ${_durSel()} min`}</div>
+        <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
       </div>
       ${_histHtml()}
