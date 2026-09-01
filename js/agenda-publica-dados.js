@@ -40,5 +40,31 @@ export async function criarAgendamento(slug, dataISO, hora, nome, contato, servi
     p_servico_id: servicoId || null,
   });
   if (error) throw new Error(error.message);
+  // Avisa o DONO por push (notificação no celular, mesmo com o app fechado).
+  try { _avisarDono(data?.owner_id, { nome, dataISO, hora }); } catch {}
   return data;
+}
+
+// ── Push pro dono quando um cliente agenda ────────────────────
+// Reusa o Worker de push (mesma infra dos lembretes). A chave já é pública
+// (vai no bundle do app). Dispara um /schedule quase imediato pro userId do dono.
+const _WORKER_URL = 'https://visao-push-worker.eltonvisao.workers.dev';
+const _WORKER_API_KEY = 'yL1qvOpajATNWrhB2l8ZutoRPU6MJ4QmCeIFY9n0';
+async function _avisarDono(ownerId, { nome, dataISO, hora }) {
+  if (!ownerId) return;
+  try {
+    const [y, m, d] = (dataISO || '').split('-');
+    const dataBr = (d && m) ? `${d}/${m}` : dataISO;
+    await fetch(`${_WORKER_URL}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': _WORKER_API_KEY },
+      body: JSON.stringify({
+        userId: ownerId,
+        title: '📅 Novo agendamento!',
+        body: `${(nome || 'Um cliente').trim()} marcou pra ${dataBr} às ${hora}`,
+        tag: `visao-${dataISO}-ag-${(hora || '').replace(':', '')}`,
+        timestamp: Date.now() + 2000,
+      }),
+    });
+  } catch {}
 }

@@ -81,7 +81,8 @@ begin
     v_dur
   );
 
-  return json_build_object('ok', true);
+  -- devolve o dono pra página pública avisar ele por push (novo agendamento)
+  return json_build_object('ok', true, 'owner_id', v_owner);
 exception
   when unique_violation then
     raise exception 'Esse horário já foi reservado. Escolha outro.';
