@@ -174,6 +174,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
+        <div class="ap-aviso24">⏰ Precisa cancelar? Por favor, avise com <b>24h de antecedência</b>.</div>
       </div>
       ${_histHtml()}
       ${_servHtml()}

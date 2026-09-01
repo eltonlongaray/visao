@@ -7627,6 +7627,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-titulo { font-size: 22px; font-weight: 800; color: var(--text); }
 .ap-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .ap-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
+.ap-aviso24 { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; background: color-mix(in srgb, #f59e0b 12%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--border)); border-radius: 10px; padding: 8px 10px; }
 .ap-ok-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
 
 /* histórico do cliente (no aparelho dele) */
