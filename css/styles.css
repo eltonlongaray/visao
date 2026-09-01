@@ -7638,20 +7638,21 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ok-btn { margin-top: 20px; }
 
 /* fita de dias */
-/* Navegador de semana (‹ 07–13 Set ›) */
+/* Navegador de semana (‹ 07–13 Set ›) — mesmo formato do lado profissional */
 .ap-semnav { display: flex; align-items: center; gap: 8px; margin: 6px 0 8px; }
 .ap-semarrow { flex: none; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; }
 .ap-semarrow:disabled { opacity: .3; cursor: default; }
 .ap-semlabel { flex: 1; text-align: center; font-size: 15px; font-weight: 800; color: var(--text); background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px; }
-.ap-semvazio { font-size: 13px; color: var(--muted); padding: 8px 2px; }
-.ap-dias { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
+.ap-semvazio { flex: 1; font-size: 13px; color: var(--muted); padding: 8px 2px; }
+/* dias da semana: todos numa linha só, sem barra de rolagem */
+.ap-dias { display: flex; gap: 6px; padding: 2px 0 10px; }
 .ap-diachip {
-  flex: 1 1 60px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  min-width: 60px; padding: 9px 6px; border: 1px solid var(--border); border-radius: 14px;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 3px; border: 1px solid var(--border); border-radius: 12px;
   background: var(--card-2); color: var(--text); cursor: pointer;
 }
 .ap-diachip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
-.ap-diachip-dow { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; opacity: .8; font-weight: 700; }
+.ap-diachip-dow { font-size: 10px; text-transform: uppercase; letter-spacing: .2px; opacity: .8; font-weight: 700; }
 .ap-diachip-num { font-size: 15px; font-weight: 800; }
 
 /* horários */

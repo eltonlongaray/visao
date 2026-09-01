@@ -165,7 +165,7 @@ export async function renderAgendaPublica(app, slug) {
       <div class="ap-dias">
         ${diasSem.map(x => `<button class="ap-diachip ${x.iso === dia?.iso ? 'sel' : ''}" data-dia="${x.iso}" type="button">
           <span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span>
-          <span class="ap-diachip-num">${pad(x.date.getDate())}/${pad(x.date.getMonth() + 1)}</span></button>`).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
+          <span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
       </div>
       <div class="ap-slots-wrap">
         ${bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)}
