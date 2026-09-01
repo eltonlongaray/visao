@@ -4417,14 +4417,21 @@ function openTaskEditor(app, dayDocId, taskId) {
       const a = modal.querySelector('#mag-wa');
       if (link && a) { a.href = link; a.style.display = ''; }
     }).catch(() => {});
-    // Cancelar atendimento: cancela o agendamento (libera a vaga no link) e tira o compromisso.
+    // Cancelar atendimento: libera a vaga no link E marca o compromisso como CANCELADO
+    // (🚫 + riscado), sem excluir — igual ao compromisso cancelado do Ritual.
     modal.querySelector('#mag-cancelar')?.addEventListener('click', async () => {
-      if (!confirm('Cancelar este atendimento? A vaga será liberada no seu link.')) return;
+      const ok = await confirmModal({
+        title: 'Cancelar atendimento',
+        message: 'A vaga será liberada no seu link e o compromisso fica marcado como cancelado. Confirmar?',
+        confirmText: 'Cancelar atendimento',
+        danger: true,
+      });
+      if (!ok) return;
       const cb = modal.querySelector('#mag-cancelar'); cb.disabled = true; cb.textContent = 'Cancelando…';
       try {
-        await cancelarAgendamentoDaTask(agId);        // status=cancelado → slots_ocupados libera
-        await deleteDayTask(dayDocId, t.id).catch(() => {});
-        day.tasks = day.tasks.filter(x => x.id !== t.id);
+        await cancelarAgendamentoDaTask(agId);        // status=cancelado → slots_ocupados libera a vaga
+        t.cancelled = true;
+        await updateDayTask(dayDocId, t.id, { cancelled: true });   // marca (não exclui)
         close();
         const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
         if (el) el.innerHTML = renderDayContent(day);
@@ -4432,7 +4439,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         showToast('Atendimento cancelado — vaga liberada', 'info');
       } catch (e) {
         showToast('Erro: ' + e.message, 'error');
-        cb.disabled = false; cb.textContent = '🗑 Cancelar atendimento';
+        cb.disabled = false; cb.textContent = '🚫 Cancelar atendimento';
       }
     });
   }

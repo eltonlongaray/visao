@@ -220,9 +220,12 @@ export async function sincronizarCompromissos() {
   let criados = 0;
   for (const dia of Object.keys(porDia)) {
     const existentes = await getDayTasks(dia).catch(() => []);
-    // Limpa fantasmas: compromisso ligado a um agendamento que foi CANCELADO.
+    // Agendamento CANCELADO (ex.: cliente cancelou pelo link) → marca o compromisso
+    // como cancelado (🚫 + riscado), sem excluir, pra o dono ver o que aconteceu.
     for (const t of existentes) {
-      if (t.agendamentoId && !ativos.has(t.agendamentoId)) await deleteDayTask(dia, t.id).catch(() => {});
+      if (t.agendamentoId && !ativos.has(t.agendamentoId) && !t.cancelled) {
+        await updateDayTask(dia, t.id, { cancelled: true }).catch(() => {});
+      }
     }
     const jaSync = new Set(existentes.filter(t => t.agendamentoId && ativos.has(t.agendamentoId)).map(t => t.agendamentoId));
     for (const a of porDia[dia]) {
