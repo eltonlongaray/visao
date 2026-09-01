@@ -6,6 +6,20 @@
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 import { getShifts, getDayTasks, addDayTask, updateDayTask, deleteDayTask } from './banco-dados.js';
+import { scheduleNotif, notifTag } from './notificacoes.js';
+
+// Agenda a notificação da HORA do atendimento (lembrete "tá na hora de atender").
+// Dedup por tag no próprio scheduleNotif — rodar de novo não duplica.
+function _agendarLembreteAtendimento(a) {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
+    const ts = new Date(`${a.data}T${(a.hora || '00:00')}:00`).getTime();
+    if (!ts || ts <= Date.now()) return;
+    if (ts - Date.now() > 30 * 86400000) return;   // só os próximos 30 dias (os distantes vêm depois)
+    const corpo = `${a.cliente_nome || 'Cliente'}${a.servico ? ` · ${a.servico}` : ''} às ${a.hora}`;
+    scheduleNotif({ title: 'Atendimento agora', body: corpo, tag: notifTag(a.data, 'atendimento-' + a.id), timestamp: ts }).catch(() => {});
+  } catch {}
+}
 
 function _uid() { return auth.currentUser?.uid || null; }
 // Código curto do link: 1 letra (A–Z) + N dígitos (ex.: A01). Começa com 2 dígitos
@@ -203,6 +217,7 @@ export async function sincronizarCompromissos() {
     const existentes = await getDayTasks(dia).catch(() => []);
     const jaSync = new Set(existentes.filter(t => t.agendamentoId).map(t => t.agendamentoId));
     for (const a of porDia[dia]) {
+      _agendarLembreteAtendimento(a);   // garante o lembrete da hora (novos E antigos)
       if (jaSync.has(a.id)) continue;
       const partes = [a.cliente_nome];
       if (a.servico) partes.push(a.servico);
