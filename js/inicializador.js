@@ -233,7 +233,10 @@ onAuthStateChanged(auth, async (user) => {
   navigate(deepLink || '/modalidade');
   showPet();
   subscribeToPush(); // registra push subscription no Worker (se configurado)
-  sincronizarCompromissos().catch(() => {}); // agendamentos recebidos → compromissos no Ritual
+  // agendamentos recebidos → compromissos no Ritual; depois, avisa se chegou algo novo
+  sincronizarCompromissos()
+    .then(() => import('./agenda-ui.js').then(m => m.checarNovosAgendamentos()))
+    .catch(() => {});
   // Deep-link via IndexedDB (cold-start que perdeu o hash) — navega pro Ritual.
   if (!deepLink) _irParaAlvoNotif();
 

@@ -158,7 +158,8 @@ export async function montarAgendaInline(container, { dataISO } = {}) {
       let dur = serv?.duracaoMin || null;
       if (horaFim) { const d = _difMin(hora, horaFim); if (d > 0) dur = d; }
       const patch = { id: null, data: dataISO, hora, cliente_nome: nome, cliente_contato: zap, servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: dur };
-      await salvarAgendamentoManual(patch);
+      const novoId = await salvarAgendamentoManual(patch);
+      marcarAgendamentoVisto(novoId);   // o dono criou → não é "novo" pra ele
       await sincronizarCompromissos().catch(() => {});
       return patch;
     },
@@ -222,6 +223,57 @@ function _labelSemana() {
     : `${_pad2(seg.getDate())} ${mA} – ${_pad2(dom.getDate())} ${mB}`;
 }
 
+// ─── NOVOS AGENDAMENTOS (feitos pelos clientes) ──────────────
+// Marca quais agendamentos o dono já viu (localStorage por aparelho). Quando
+// chega um novo pelo link, mostra um popup na abertura do app.
+const _VISTOS_KEY = 'falcon_ag_vistos';
+function _vistosSet() { try { return new Set(JSON.parse(localStorage.getItem(_VISTOS_KEY) || '[]')); } catch { return new Set(); } }
+export function marcarAgendamentoVisto(id) {
+  if (!id) return;
+  const s = _vistosSet(); s.add(id);
+  try { localStorage.setItem(_VISTOS_KEY, JSON.stringify([...s].slice(-800))); } catch {}
+}
+function _marcarVistos(ids) { const s = _vistosSet(); ids.forEach(i => s.add(i)); try { localStorage.setItem(_VISTOS_KEY, JSON.stringify([...s].slice(-800))); } catch {} }
+
+// Checa se há agendamentos novos (do cliente, ainda não vistos) e mostra o popup.
+// Na PRIMEIRA vez cria a linha de base (marca tudo como visto, sem popup).
+export async function checarNovosAgendamentos() {
+  let todos = [];
+  try { todos = await getAgendamentosTodos(); } catch { return; }
+  const hoje = _hojeISO();
+  const relevantes = todos.filter(a => a.status === 'confirmado' && a.data >= hoje);
+  const primeiraVez = localStorage.getItem(_VISTOS_KEY) == null;
+  if (primeiraVez) { _marcarVistos(relevantes.map(a => a.id)); return; }
+  const seen = _vistosSet();
+  const novos = relevantes.filter(a => !seen.has(a.id))
+    .sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+  if (!novos.length) return;
+  _popupNovosAgendamentos(novos);
+}
+
+function _popupNovosAgendamentos(novos) {
+  if (document.getElementById('ag-novos-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-novos-ov';
+  ov.innerHTML = `<div class="modal ag-novos">
+    <div class="ag-novos-head">📅 ${novos.length === 1 ? 'Novo agendamento!' : `${novos.length} novos agendamentos!`}</div>
+    <div class="ag-novos-sub">Um cliente marcou pelo seu link da Agenda:</div>
+    <div class="ag-novos-lista">
+      ${novos.map(a => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-novos-item">
+        <div class="ag-novos-nome">${_esc(a.cliente_nome)}</div>
+        ${a.servico ? `<div class="ag-novos-serv">💆 ${_esc(a.servico)}</div>` : ''}
+        <div class="ag-novos-quando">${_fmtDataLonga(a.data)} · <b>${_esc(a.hora)}${fim ? `–${fim}` : ''}</b></div>
+      </div>`; }).join('')}
+    </div>
+    <div class="modal-actions"><button class="btn-primary" id="ag-novos-ok" type="button">Entendi</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const fechar = () => { _marcarVistos(novos.map(a => a.id)); close(); };
+  const close = trapModalBack(() => ov.remove());
+  ov.querySelector('#ag-novos-ok').onclick = fechar;
+  ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
+}
+
 export async function abrirAgenda() {
   _diaSel = new Date().getDay(); // começa no dia de hoje
   _semanaOffset = 0;             // começa na semana atual (padrão)
@@ -238,6 +290,7 @@ export async function abrirAgenda() {
     if (!_cfg.semanas || typeof _cfg.semanas !== 'object') _cfg.semanas = {};
     if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
+    _marcarVistos((_todos || []).map(a => a.id));   // abriu a agenda = viu os agendamentos
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
@@ -659,7 +712,8 @@ async function _formAgendamento(ag, opts = {}) {
         id: st.id, data, hora: st.hora, cliente_nome: nome, cliente_contato: zap,
         servico: serv?.nome || null, preco: serv?.preco ?? null, duracao_min: dur,
       };
-      await salvarAgendamentoManual(patch);
+      const savedId = await salvarAgendamentoManual(patch);
+      marcarAgendamentoVisto(st.id || savedId);   // o dono criou/editou → não é "novo"
       if (st.id) await sincronizarTaskDoAgendamento(patch, ag?.data).catch(() => {});
       else await sincronizarCompromissos().catch(() => {});
       [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
