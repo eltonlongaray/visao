@@ -108,7 +108,20 @@ export async function renderAgendaPublica(app, slug) {
   const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
 
   desenhar();
-  return cleanup;
+
+  // Re-checa os horários ocupados quando o cliente volta pra aba (auto-atualiza
+  // se algo foi cancelado/marcado enquanto a página estava aberta).
+  const _refreshOcupados = async () => {
+    try {
+      ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate));
+      for (const dd of dias) for (const s of dd.horarios) s.ocupado = ocupados.has(`${dd.iso}|${s.hora}`);
+      desenhar();
+    } catch {}
+  };
+  const _onVis = () => { if (document.visibilityState === 'visible') _refreshOcupados(); };
+  document.addEventListener('visibilitychange', _onVis);
+  const _cleanupFull = () => { document.removeEventListener('visibilitychange', _onVis); cleanup(); };
+  return _cleanupFull;
 
   // Banner com os agendamentos que ESTE cliente já fez (guardados no aparelho dele)
   function _histHtml() {
