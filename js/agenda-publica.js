@@ -32,8 +32,9 @@ function _lerHist(slug) {
 }
 function _salvarHist(slug, item) {
   try {
-    const a = _lerHist(slug);
-    if (!a.some(x => x.data === item.data && x.hora === item.hora)) a.push(item);
+    // Substitui qualquer registro do MESMO dia/horário (pega o token novo em rebooking).
+    const a = _lerHist(slug).filter(x => !(x.data === item.data && x.hora === item.hora));
+    a.push(item);
     localStorage.setItem(_histKey(slug), JSON.stringify(a.slice(-30)));
   } catch {}
 }
