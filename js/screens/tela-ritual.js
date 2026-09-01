@@ -4375,7 +4375,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         <label class="input-field" style="margin:10px 0"><div class="input-field-label">WhatsApp do cliente</div>
           <input id="mag-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999"></label>
         <a class="ag-edit-btn wa" id="mag-wa" target="_blank" rel="noopener" style="display:none">${WA_SVG} Lembrar cliente no WhatsApp</a>
-        <button type="button" class="ag-edit-btn danger" id="mag-cancelar">🗑 Cancelar atendimento</button>
+        <button type="button" class="ag-edit-btn danger" id="mag-cancelar">🚫 Cancelar atendimento</button>
       </div>` : ''}
 
       <div class="modal-actions">
