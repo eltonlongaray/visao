@@ -266,7 +266,6 @@ export async function renderAgendaPublica(app, slug) {
     }));
     const btn = app.querySelector('#ap-confirmar');
     if (btn) btn.addEventListener('click', () => confirmar(dia));
-    app.querySelector('#ap-trocar')?.addEventListener('click', () => { ident = null; _salvarIdent(cfg.slug, null); selHora = null; mostrar(); });
 
     // Cancelar um agendamento do próprio cliente (libera a vaga na hora).
     app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
@@ -299,7 +298,7 @@ export async function renderAgendaPublica(app, slug) {
       <div class="ap-form">
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
-        <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b> · ${_esc(ident?.contato || '')} <button class="ap-trocar" id="ap-trocar" type="button">trocar</button></div>
+        <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
       </div>`;
   }
