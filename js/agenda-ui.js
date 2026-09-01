@@ -90,46 +90,53 @@ async function _editarZapCliente(c) {
   };
 }
 
-// Popup com o histórico de atendimentos de um cliente.
-function _popupHistoricoCliente(c) {
+function _clientesHtml() {
+  const cs = _clientes().slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt', { sensitivity: 'base' }));
+  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link).</div>';
+  return `
+    <div class="ag-cli-busca">
+      <span class="ag-cli-lupa">🔍</span>
+      <input id="ag-cli-search" placeholder="Buscar cliente…" autocomplete="off">
+    </div>
+    <div class="ag-cli-lista" id="ag-cli-lista">
+      ${cs.map(c => `<button class="ag-cli-row" data-cli-open="${_esc(c.key)}" data-nome="${_esc((c.nome || '').toLowerCase())}" type="button">
+        <div class="ag-cli-row-info"><b>${_esc(c.nome)}</b>
+          <small>${c.ags.length} atend.${c.contato ? '' : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}</small></div>
+        <span class="ag-cli-row-ch">›</span>
+      </button>`).join('')}
+      <div class="ag-cli-vazio-busca" id="ag-cli-nada" hidden>Nenhum cliente com esse nome.</div>
+    </div>`;
+}
+
+// Perfil do cliente (popup): contato + ações + histórico retrátil.
+function _popupCliente(c) {
+  const wa = _waLink(c.contato);
   const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'ag-hist-ov';
+  ov.className = 'modal-overlay'; ov.id = 'ag-cliperfil-ov';
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
-    <div class="ag-fhead">📋 Histórico de ${_esc(c.nome)}</div>
-    <div class="ag-cli-hist-tit">${c.ags.length} atendimento${c.ags.length > 1 ? 's' : ''}</div>
-    <div class="ag-hist-lista">
+    <div class="ag-fhead">${_esc(c.nome)}</div>
+    <div class="ag-cli-perfil-sub">${c.ags.length} atendimento${c.ags.length > 1 ? 's' : ''}${c.contato ? ` · ${_esc(c.contato)}` : ' · sem WhatsApp'}</div>
+    <div class="ag-cli-acoes" style="margin:14px 0 8px">
+      ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
+      <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
+    </div>
+    <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
+    <div class="ag-hist-lista" id="agp-hist" hidden>
       ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
         <span>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.status === 'finalizado' ? ' · ✅' : a.status === 'faltou' ? ' · 🚫' : ''}</span>
       </div>`; }).join('')}
     </div>
-    <div class="ag-fbtns"><button class="btn-primary" id="agh-ok" type="button">Fechar</button></div>
+    <div class="ag-fbtns"><button class="btn-primary" id="agp-ok" type="button">Fechar</button></div>
   </div></div>`;
   document.body.appendChild(ov);
   const close = trapModalBack(() => ov.remove());
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
-  ov.querySelector('#agh-ok').onclick = () => close();
-}
-
-function _clientesHtml() {
-  const cs = _clientes();
-  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link).</div>';
-  return cs.map(c => {
-    const wa = _waLink(c.contato);
-    return `<div class="ag-cli" data-clikey="${_esc(c.key)}">
-      <div class="ag-cli-top" data-cli-toggle>
-        <div class="ag-cli-info"><b>${_esc(c.nome)}</b>
-          <small>${c.ags.length} atend.${c.contato ? ` · ${_esc(c.contato)}` : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}</small></div>
-        <span class="ag-cli-ch">▾</span>
-      </div>
-      <div class="ag-cli-hist" hidden>
-        <div class="ag-cli-acoes">
-          ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
-          <button class="ag-cli-wa-ed" data-hist-cli="${_esc(c.key)}" type="button">📋 Histórico</button>
-          <button class="ag-cli-wa-ed" data-edit-zap="${_esc(c.key)}" type="button">✏️ Editar contato</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  ov.querySelector('#agp-ok').onclick = () => close();
+  ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
+  ov.querySelector('#agp-hist-btn').onclick = () => {
+    const h = ov.querySelector('#agp-hist'); const s = ov.querySelector('#agp-hist-seta');
+    const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
+  };
 }
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -415,19 +422,22 @@ function wireFixos(corpo) {
   corpo.querySelectorAll('[data-detalhe]').forEach(row => {
     row.addEventListener('click', () => { const a = _todos.find(x => x.id === row.dataset.detalhe); if (a) abrirDetalheAtendimento(a); });
   });
-  corpo.querySelectorAll('[data-edit-zap]').forEach(b => {
-    b.addEventListener('click', (e) => { e.stopPropagation(); const c = _clientes().find(x => x.key === b.dataset.editZap); if (c) _editarZapCliente(c); });
+  // Clicar num cliente abre o perfil (popup).
+  corpo.querySelectorAll('[data-cli-open]').forEach(b => {
+    b.addEventListener('click', () => { const c = _clientes().find(x => x.key === b.dataset.cliOpen); if (c) _popupCliente(c); });
   });
-  corpo.querySelectorAll('[data-hist-cli]').forEach(b => {
-    b.addEventListener('click', (e) => { e.stopPropagation(); const c = _clientes().find(x => x.key === b.dataset.histCli); if (c) _popupHistoricoCliente(c); });
-  });
-  corpo.querySelectorAll('[data-cli-toggle]').forEach(top => {
-    top.addEventListener('click', (e) => {
-      if (e.target.closest('.ag-cli-zap')) return;   // clicou no WhatsApp: deixa abrir o link
-      const cli = top.closest('.ag-cli');
-      const hist = cli?.querySelector('.ag-cli-hist');
-      if (hist) { hist.hidden = !hist.hidden; cli.classList.toggle('aberto', !hist.hidden); }
+  // Busca de clientes (filtra a lista por nome).
+  const busca = corpo.querySelector('#ag-cli-search');
+  if (busca) busca.addEventListener('input', () => {
+    const q = busca.value.trim().toLowerCase();
+    let visiveis = 0;
+    corpo.querySelectorAll('#ag-cli-lista .ag-cli-row').forEach(row => {
+      const ok = !q || (row.dataset.nome || '').includes(q);
+      row.style.display = ok ? '' : 'none';
+      if (ok) visiveis++;
     });
+    const nada = corpo.querySelector('#ag-cli-nada');
+    if (nada) nada.hidden = visiveis > 0;
   });
   corpo.querySelector('#ag-serv-add').onclick = () => {
     _syncServicos();
