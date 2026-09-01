@@ -347,6 +347,11 @@ function desenhar() {
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
         </select></label>
 
+      <label class="input-field"><div class="input-field-label">Até quando o cliente pode marcar? <span class="ag-lbl-opt">— quanto tempo pra frente o link mostra</span></div>
+        <select id="ag-horizonte">
+          ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
+        </select></label>
+
       <div class="input-field-label" style="margin-top:12px">Serviços que você oferece <span class="ag-lbl-opt">— o cliente escolhe e a duração vem daqui</span></div>
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
@@ -767,6 +772,7 @@ async function salvar() {
   const titulo = corpo.querySelector('#ag-titulo').value.trim() || 'Agende comigo';
   const endereco = corpo.querySelector('#ag-endereco').value.trim() || null;
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
+  const horizonte_meses = parseInt(corpo.querySelector('#ag-horizonte')?.value, 10) || 3;
   const ativo = corpo.querySelector('#ag-ativo').checked;
   // serviços: sincroniza inputs e mantém só os com nome
   _syncServicos();
@@ -798,8 +804,8 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, endereco, duracao_min, disponibilidade: disp, semanas, ativo, servicos });
-    _cfg = { ..._cfg, titulo, endereco, duracao_min, disponibilidade: disp, semanas, ativo, servicos };
+    await salvarAgendaConfig({ titulo, endereco, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
+    _cfg = { ..._cfg, titulo, endereco, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');

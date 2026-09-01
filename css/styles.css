@@ -7638,10 +7638,16 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ok-btn { margin-top: 20px; }
 
 /* fita de dias */
-.ap-dias { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; -webkit-overflow-scrolling: touch; }
+/* Navegador de semana (‹ 07–13 Set ›) */
+.ap-semnav { display: flex; align-items: center; gap: 8px; margin: 6px 0 8px; }
+.ap-semarrow { flex: none; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; }
+.ap-semarrow:disabled { opacity: .3; cursor: default; }
+.ap-semlabel { flex: 1; text-align: center; font-size: 15px; font-weight: 800; color: var(--text); background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px; }
+.ap-semvazio { font-size: 13px; color: var(--muted); padding: 8px 2px; }
+.ap-dias { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
 .ap-diachip {
-  flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  min-width: 62px; padding: 9px 6px; border: 1px solid var(--border); border-radius: 14px;
+  flex: 1 1 60px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 60px; padding: 9px 6px; border: 1px solid var(--border); border-radius: 14px;
   background: var(--card-2); color: var(--text); cursor: pointer;
 }
 .ap-diachip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }

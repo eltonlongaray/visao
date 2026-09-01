@@ -59,7 +59,7 @@ export async function getAgendaConfig() {
   }
   // primeira vez: cria desativada, com código curto livre (retry em colisão, dígitos crescem)
   for (let i = 0; i < 40; i++) {
-    const novo = { user_id: uid, slug: _codigoNaTentativa(i), titulo: 'Agende comigo', duracao_min: 60, disponibilidade: {}, semanas: {}, ativo: false };
+    const novo = { user_id: uid, slug: _codigoNaTentativa(i), titulo: 'Agende comigo', duracao_min: 60, horizonte_meses: 3, disponibilidade: {}, semanas: {}, ativo: false };
     const ins = await supabase.from('agenda_config').insert(novo).select('*').single();
     if (!ins.error) return ins.data;
     // corrida no user_id (2 abas) → lê a que ficou
@@ -78,10 +78,12 @@ export async function salvarAgendaConfig(patch) {
   const uid = _uid(); if (!uid) throw new Error('Sessão expirada');
   const full = { ...patch, updated_at: new Date().toISOString() };
   let { error } = await supabase.from('agenda_config').update(full).eq('user_id', uid);
-  if (error && /semanas/i.test(error.message || '') && ('semanas' in full)) {
-    const { semanas, ...semSemanas } = full;
-    ({ error } = await supabase.from('agenda_config').update(semSemanas).eq('user_id', uid));
-    if (!error) throw new Error('Disponibilidade por semana precisa do SQL novo (coluna "semanas"). O resto foi salvo.');
+  // Colunas novas (semanas, horizonte_meses) são opcionais: se ainda não existem
+  // no banco, tenta de novo sem elas pra não travar o resto da config.
+  if (error && /semanas|horizonte_meses/i.test(error.message || '')) {
+    const { semanas, horizonte_meses, ...resto } = full;
+    ({ error } = await supabase.from('agenda_config').update(resto).eq('user_id', uid));
+    if (!error) throw new Error('Recurso novo precisa do SQL (colunas "semanas"/"horizonte_meses"). O resto foi salvo.');
   }
   if (error) throw new Error(error.message);
 }

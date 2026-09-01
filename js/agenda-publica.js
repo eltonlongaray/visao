@@ -56,15 +56,17 @@ export async function renderAgendaPublica(app, slug) {
   catch { app.innerHTML = _tela(`<div class="ap-erro">Não foi possível carregar esta agenda agora.</div>`); return cleanup; }
   if (!cfg) { app.innerHTML = _tela(`<div class="ap-erro">Esta agenda não existe ou está desativada. 🔒</div>`); return cleanup; }
 
-  // janela de 90 dias (o dono pode abrir disponibilidade 2-3 meses à frente)
+  // Horizonte que o dono liberou pro cliente (1/2/3/6 meses; padrão 3).
+  const horizonteMeses = [1, 2, 3, 6].includes(cfg.horizonte_meses) ? cfg.horizonte_meses : 3;
+  const JANELA = horizonteMeses * 31;
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const ate = new Date(hoje); ate.setDate(ate.getDate() + 90);
+  const ate = new Date(hoje); ate.setDate(ate.getDate() + JANELA);
   let ocupados = new Set();
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
   // monta os dias com TODOS os horários (livres + ocupados, pra mostrar "ocupado")
   const dias = [];
-  for (let i = 0; i < 91; i++) {
+  for (let i = 0; i <= JANELA; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
     const times = _horariosDoDia(cfg, d);
     if (!times.length) continue;
@@ -73,7 +75,26 @@ export async function renderAgendaPublica(app, slug) {
   }
 
   const servicos = Array.isArray(cfg.servicos) ? cfg.servicos : [];
-  let selDia = dias[0]?.iso || null;
+
+  // ── Navegação por SEMANA (‹ 07–13 Set ›), igual ao lado do profissional ──
+  const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const _segPub = (off) => { const d = new Date(hoje); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow + off * 7); return d; };
+  function _labelSem(off) {
+    const seg = _segPub(off); const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+    const mA = MES3[seg.getMonth()], mB = MES3[dom.getMonth()];
+    return mA === mB ? `${pad(seg.getDate())}–${pad(dom.getDate())} ${mB}` : `${pad(seg.getDate())} ${mA} – ${pad(dom.getDate())} ${mB}`;
+  }
+  function _diasDaSemana(off) {
+    const seg = _segPub(off); const fim = new Date(seg); fim.setDate(seg.getDate() + 6);
+    const segIso = iso(seg), fimIso = iso(fim);
+    return dias.filter(x => x.iso >= segIso && x.iso <= fimIso);
+  }
+  const _ultimoIso = dias.length ? dias[dias.length - 1].iso : iso(hoje);
+  const _maxOffset = Math.max(0, Math.round((_fromIso(_ultimoIso) - _segPub(0)) / (7 * 86400000)));
+  // começa na 1ª semana que tem algum horário
+  let semOffset = 0;
+  while (semOffset < _maxOffset && !_diasDaSemana(semOffset).length) semOffset++;
+  let selDia = _diasDaSemana(semOffset)[0]?.iso || dias[0]?.iso || null;
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
@@ -118,9 +139,10 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-vazio">Sem horários disponíveis no momento. 😕<br><small>Volte mais tarde.</small></div>`);
       return;
     }
-    const dia = dias.find(x => x.iso === selDia) || dias[0];
+    const diasSem = _diasDaSemana(semOffset);
+    const dia = diasSem.find(x => x.iso === selDia) || diasSem[0] || null;
     const g = { manha: [], tarde: [], noite: [] };
-    dia.horarios.forEach(s => g[_turno(s.hora)].push(s));
+    if (dia) dia.horarios.forEach(s => g[_turno(s.hora)].push(s));
     const bloco = (lbl, icon, arr) => arr.length ? `
       <div class="ap-turno"><div class="ap-turno-lbl">${icon} ${lbl}</div>
       <div class="ap-slots">${arr.map(s => s.ocupado
@@ -135,20 +157,32 @@ export async function renderAgendaPublica(app, slug) {
       </div>
       ${_histHtml()}
       ${_servHtml()}
+      <div class="ap-semnav">
+        <button class="ap-semarrow" id="ap-sem-prev" type="button" ${semOffset <= 0 ? 'disabled' : ''} aria-label="Semana anterior">‹</button>
+        <div class="ap-semlabel">${_labelSem(semOffset)}</div>
+        <button class="ap-semarrow" id="ap-sem-next" type="button" ${semOffset >= _maxOffset ? 'disabled' : ''} aria-label="Próxima semana">›</button>
+      </div>
       <div class="ap-dias">
-        ${dias.map(x => `<button class="ap-diachip ${x.iso === dia.iso ? 'sel' : ''}" data-dia="${x.iso}" type="button">
+        ${diasSem.map(x => `<button class="ap-diachip ${x.iso === dia?.iso ? 'sel' : ''}" data-dia="${x.iso}" type="button">
           <span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span>
-          <span class="ap-diachip-num">${pad(x.date.getDate())}/${pad(x.date.getMonth() + 1)}</span></button>`).join('')}
+          <span class="ap-diachip-num">${pad(x.date.getDate())}/${pad(x.date.getMonth() + 1)}</span></button>`).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
       </div>
       <div class="ap-slots-wrap">
         ${bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)}
       </div>
-      ${selHora ? _formHtml(dia, selHora) : ''}
+      ${selHora && dia ? _formHtml(dia, selHora) : ''}
     `);
     wire(dia);
   }
 
   function wire(dia) {
+    const _irSemana = (novo) => {
+      semOffset = Math.max(0, Math.min(_maxOffset, novo));
+      selDia = _diasDaSemana(semOffset)[0]?.iso || null;
+      selHora = null; desenhar();
+    };
+    app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
+    app.querySelector('#ap-sem-next')?.addEventListener('click', () => { if (semOffset < _maxOffset) _irSemana(semOffset + 1); });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
       selDia = b.dataset.dia; selHora = null; desenhar();
     }));
