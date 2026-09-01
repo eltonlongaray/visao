@@ -7403,6 +7403,14 @@ body.sem-rolagem { overflow: hidden; }
 .ag-scroll select { width: 100%; }
 
 /* abas de dia da semana */
+/* Card "Dias que você atende" — liga/desliga dias da semana no padrão */
+.ag-diassem { display: flex; gap: 5px; margin: 6px 0 4px; }
+.ag-diasem {
+  flex: 1; min-width: 0; padding: 9px 2px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--card-2); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.ag-diasem.on { background: color-mix(in srgb, #22c55e 18%, var(--card-2)); border-color: #22c55e; color: #22c55e; }
+
 /* Navegador de semanas (‹ Toda semana / 01–07 set ›) */
 .ag-sem-nav { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
 .ag-sem-arrow {

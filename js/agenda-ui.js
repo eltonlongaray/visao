@@ -356,6 +356,12 @@ function desenhar() {
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
 
+      <div class="input-field-label" style="margin-top:14px">Dias que você atende <span class="ag-lbl-opt">— dia desligado não aparece pro cliente</span></div>
+      <div class="ag-diassem" id="ag-diassem">
+        ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
+      </div>
+      <button class="ag-linkbtn" id="ag-segsex" type="button" style="margin:2px 0 4px">Atendo de Seg a Sex</button>
+
       <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
       <div class="ag-sem-nav">
         <button class="ag-sem-arrow" id="ag-sem-prev" type="button" aria-label="Semana anterior">‹</button>
@@ -392,8 +398,24 @@ function desenhar() {
     </div>`;
   wireFixos(corpo);
   pintarTabs();
+  pintarDiasSemana();
   pintarDiaEditor();
   pintarServicos();
+}
+
+// Marca no card "Dias que você atende" os dias que têm horário no PADRÃO.
+function pintarDiasSemana() {
+  const base = _cfg.disponibilidade || {};
+  document.querySelectorAll('#agenda-ov .ag-diasem').forEach(b => {
+    const k = b.dataset.diasem;
+    b.classList.toggle('on', (base[String(k)] || []).length > 0);
+  });
+}
+// Horários "de referência" pra ligar um dia novo (primeiro dia do padrão que tem horário).
+function _refTimes() {
+  const base = _cfg.disponibilidade || {};
+  for (const d of DOWS) { const arr = base[String(d.k)]; if (arr && arr.length) return arr.slice(); }
+  return null;
 }
 
 // Handlers que existem uma vez só (tabs, fechar, copiar, salvar, cancelar).
@@ -405,6 +427,27 @@ function wireFixos(corpo) {
   // Setas de navegação de semana (‹ ›): offset 0 = padrão; ≥1 = semana específica.
   corpo.querySelector('#ag-sem-prev').onclick = () => { if (_semanaOffset > 0) { _semanaOffset--; pintarTabs(); pintarDiaEditor(); } };
   corpo.querySelector('#ag-sem-next').onclick = () => { if (_semanaOffset < 13) { _semanaOffset++; pintarTabs(); pintarDiaEditor(); } };
+  // Card "Dias que você atende" (mexe no PADRÃO): liga/desliga um dia da semana.
+  corpo.querySelectorAll('.ag-diasem').forEach(b => b.addEventListener('click', () => {
+    const k = String(b.dataset.diasem);
+    const base = (_cfg.disponibilidade ||= {});
+    if ((base[k] || []).length > 0) { delete base[k]; }        // desliga
+    else {
+      const ref = _refTimes();
+      if (!ref) { showToast('Adicione horários em um dia primeiro', 'info'); return; }
+      base[k] = ref.slice();                                    // liga com os horários de referência
+    }
+    pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
+  }));
+  corpo.querySelector('#ag-segsex')?.addEventListener('click', () => {
+    const ref = _refTimes();
+    if (!ref) { showToast('Adicione horários em um dia primeiro', 'info'); return; }
+    const base = (_cfg.disponibilidade ||= {});
+    ['1', '2', '3', '4', '5'].forEach(k => { if (!(base[k] || []).length) base[k] = ref.slice(); });
+    delete base['6']; delete base['0'];
+    pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
+    showToast('Seg a Sex ligados', 'success');
+  });
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
