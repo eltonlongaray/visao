@@ -4375,6 +4375,7 @@ function openTaskEditor(app, dayDocId, taskId) {
         <label class="input-field" style="margin:10px 0"><div class="input-field-label">WhatsApp do cliente</div>
           <input id="mag-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999"></label>
         <a class="ag-edit-btn wa" id="mag-wa" target="_blank" rel="noopener" style="display:none">${WA_SVG} Lembrar cliente no WhatsApp</a>
+        <button type="button" class="ag-edit-btn danger" id="mag-cancelar">🗑 Cancelar atendimento</button>
       </div>` : ''}
 
       <div class="modal-actions">
@@ -4416,6 +4417,24 @@ function openTaskEditor(app, dayDocId, taskId) {
       const a = modal.querySelector('#mag-wa');
       if (link && a) { a.href = link; a.style.display = ''; }
     }).catch(() => {});
+    // Cancelar atendimento: cancela o agendamento (libera a vaga no link) e tira o compromisso.
+    modal.querySelector('#mag-cancelar')?.addEventListener('click', async () => {
+      if (!confirm('Cancelar este atendimento? A vaga será liberada no seu link.')) return;
+      const cb = modal.querySelector('#mag-cancelar'); cb.disabled = true; cb.textContent = 'Cancelando…';
+      try {
+        await cancelarAgendamentoDaTask(agId);        // status=cancelado → slots_ocupados libera
+        await deleteDayTask(dayDocId, t.id).catch(() => {});
+        day.tasks = day.tasks.filter(x => x.id !== t.id);
+        close();
+        const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
+        if (el) el.innerHTML = renderDayContent(day);
+        updateDayCardStats(dayDocId);
+        showToast('Atendimento cancelado — vaga liberada', 'info');
+      } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+        cb.disabled = false; cb.textContent = '🗑 Cancelar atendimento';
+      }
+    });
   }
   // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder edições)
 
