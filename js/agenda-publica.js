@@ -85,16 +85,23 @@ export async function renderAgendaPublica(app, slug) {
     return mA === mB ? `${pad(seg.getDate())}–${pad(dom.getDate())} ${mB}` : `${pad(seg.getDate())} ${mA} – ${pad(dom.getDate())} ${mB}`;
   }
   function _diasDaSemana(off) {
-    const seg = _segPub(off); const fim = new Date(seg); fim.setDate(seg.getDate() + 6);
-    const segIso = iso(seg), fimIso = iso(fim);
-    return dias.filter(x => x.iso >= segIso && x.iso <= fimIso);
+    const seg = _segPub(off);
+    const hojeIso = iso(hoje);
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(seg); d.setDate(seg.getDate() + i);
+      if (!_horariosDoDia(cfg, d).length) continue;   // dia sem disponibilidade não aparece
+      const isoD = iso(d);
+      out.push({ iso: isoD, date: d, past: isoD < hojeIso });   // past = já passou (só estética)
+    }
+    return out;
   }
   const _ultimoIso = dias.length ? dias[dias.length - 1].iso : iso(hoje);
   const _maxOffset = Math.max(0, Math.round((_fromIso(_ultimoIso) - _segPub(0)) / (7 * 86400000)));
   // começa na 1ª semana que tem algum horário
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_diasDaSemana(semOffset).length) semOffset++;
-  let selDia = _diasDaSemana(semOffset)[0]?.iso || dias[0]?.iso || null;
+  while (semOffset < _maxOffset && !_diasDaSemana(semOffset).some(x => !x.past)) semOffset++;
+  let selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
@@ -140,7 +147,7 @@ export async function renderAgendaPublica(app, slug) {
       return;
     }
     const diasSem = _diasDaSemana(semOffset);
-    const dia = diasSem.find(x => x.iso === selDia) || diasSem[0] || null;
+    const dia = dias.find(x => x.iso === selDia) || null;   // dias[] tem os horários
     const g = { manha: [], tarde: [], noite: [] };
     if (dia) dia.horarios.forEach(s => g[_turno(s.hora)].push(s));
     const bloco = (lbl, icon, arr) => arr.length ? `
@@ -163,9 +170,10 @@ export async function renderAgendaPublica(app, slug) {
         <button class="ap-semarrow" id="ap-sem-next" type="button" ${semOffset >= _maxOffset ? 'disabled' : ''} aria-label="Próxima semana">›</button>
       </div>
       <div class="ap-dias">
-        ${diasSem.map(x => `<button class="ap-diachip ${x.iso === dia?.iso ? 'sel' : ''}" data-dia="${x.iso}" type="button">
-          <span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span>
-          <span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
+        ${diasSem.map(x => x.past
+          ? `<div class="ap-diachip past" aria-disabled="true"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></div>`
+          : `<button class="ap-diachip ${x.iso === selDia ? 'sel' : ''}" data-dia="${x.iso}" type="button"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`
+        ).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
       </div>
       <div class="ap-slots-wrap">
         ${bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)}
@@ -178,7 +186,7 @@ export async function renderAgendaPublica(app, slug) {
   function wire(dia) {
     const _irSemana = (novo) => {
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _diasDaSemana(semOffset)[0]?.iso || null;
+      selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
       selHora = null; desenhar();
     };
     app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });

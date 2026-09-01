@@ -7652,6 +7652,7 @@ body.rota-publica .bottom-nav { display: none !important; }
   background: var(--card-2); color: var(--text); cursor: pointer;
 }
 .ap-diachip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ap-diachip.past { opacity: .35; cursor: default; pointer-events: none; }
 .ap-diachip-dow { font-size: 10px; text-transform: uppercase; letter-spacing: .2px; opacity: .8; font-weight: 700; }
 .ap-diachip-num { font-size: 15px; font-weight: 800; }
 
