@@ -7668,6 +7668,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rf-num.sel { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 4px 14px -4px rgba(124,58,237,.6); }
 .rf-num.ocupado { opacity: .32; cursor: default; text-decoration: line-through; background: transparent; }
 .rf-dica { font-size: 13px; color: var(--muted); text-align: center; padding: 8px; }
+.rf-meus { font-size: 13px; color: var(--text); background: color-mix(in srgb, #22c55e 14%, var(--card)); border: 1px solid color-mix(in srgb, #22c55e 40%, var(--border)); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; line-height: 1.4; }
+.rf-meus-sorteio { color: var(--muted); }
+.rf-pix-sorteio { font-size: 13px; color: var(--text); margin-top: 2px; }
+.rf-pix-sorteio b { color: var(--accent-2); }
 .rf-form { border: 1px solid var(--accent); border-radius: 16px; padding: 16px; background: color-mix(in srgb, #7c3aed 8%, var(--card)); margin-top: 8px; }
 .rf-form-res { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
 .rf-form .input-field { margin-bottom: 12px; }

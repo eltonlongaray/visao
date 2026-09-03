@@ -43,6 +43,10 @@ function _pixPayload({ chave, nome, cidade, valor, txid }) {
 }
 
 function cleanup() { document.body.classList.remove('rota-publica'); }
+// Números que ESTE aparelho já reservou (registro local por rifa).
+const _meusKey = slug => `falcon_rifa_${slug}`;
+function _lerMeus(slug) { try { const a = JSON.parse(localStorage.getItem(_meusKey(slug)) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
+function _salvarMeus(slug, nums) { try { const s = new Set([..._lerMeus(slug), ...nums]); localStorage.setItem(_meusKey(slug), JSON.stringify([...s].sort((a, b) => a - b))); } catch {} }
 let _avisoT = null;
 function _aviso(msg) {
   let el = document.querySelector('.ap-toast');
@@ -89,6 +93,7 @@ export async function renderRifaPublica(app, slug) {
         </div>` : ''}
         <div class="rf-info"><b>${livres}</b> disponíveis · ${ocupados.size} escolhidos</div>
       </div>
+      ${_lerMeus(slug).length ? `<div class="rf-meus">🎟️ <b>Seus números:</b> ${_lerMeus(slug).join(', ')}${rifa.data_sorteio ? ` <span class="rf-meus-sorteio">· 📅 Sorteio ${_dataBr(rifa.data_sorteio)}</span>` : ''}</div>` : ''}
       <div class="rf-grid">
         ${Array.from({ length: total }, (_, i) => {
           const n = i + 1;
@@ -145,6 +150,7 @@ export async function renderRifaPublica(app, slug) {
     try {
       await escolherNumeros(slug, nums, nome, zap);
       nums.forEach(n => ocupados.add(n));
+      _salvarMeus(slug, nums);   // registra os números neste aparelho
       _telaPix(nums, _totalReais());
     } catch (e) {
       _aviso(e.message || 'Não deu pra reservar');
@@ -161,6 +167,7 @@ export async function renderRifaPublica(app, slug) {
     app.innerHTML = _tela(`
       <div class="rf-pix">
         <div class="rf-pix-t">✅ Número${nums.length > 1 ? 's' : ''} ${nums.join(', ')} reservado${nums.length > 1 ? 's' : ''}!</div>
+        ${rifa.data_sorteio ? `<div class="rf-pix-sorteio">📅 Sorteio: <b>${_dataBr(rifa.data_sorteio)}</b></div>` : ''}
         <div class="rf-pix-valor">Pague <b>R$ ${_preco(valor)}</b> no Pix pra confirmar</div>
         ${payload ? `<div class="rf-pix-doacao">💛 No app do banco, na <b>descrição/mensagem</b> do Pix, escreva: <b>Doação — ${_esc(rifa.titulo || 'rifa')}</b></div>` : ''}
         ${payload ? `<div class="rf-qr" id="rf-qr"></div>
