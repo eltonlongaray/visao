@@ -7636,7 +7636,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-accord-btn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: var(--text); font-family: inherit; font-size: 14px; font-weight: 700; padding: 12px 14px; cursor: pointer; }
 .ap-accord-n { background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 8px; }
 .ap-accord-seta { margin-left: auto; color: var(--muted); }
-.ap-accord-body { padding: 4px 14px 12px; }
+.ap-accord-body { padding: 10px 14px 12px; border-top: 1px solid var(--border); }
+/* Botão "Falar no WhatsApp" centralizado no rodapé da agenda */
+.ap-wa-pro-wrap { display: flex; justify-content: center; margin-top: 18px; }
+.ap-wa-pro-wrap .ap-wa-pro { margin-top: 0; }
 /* Botão "Falar no WhatsApp" (do profissional) */
 .ap-wa-pro { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: #25D366; color: #fff; font-size: 14px; font-weight: 700; }
 /* Tela de identificação */

@@ -53,7 +53,8 @@ function _waProLink(cfg) {
   let d = String(cfg?.whatsapp || '').replace(/\D/g, '');
   if (!d) return null;
   if (d.length <= 11) d = '55' + d;
-  return `https://wa.me/${d}`;
+  const msg = encodeURIComponent('Olá, vim através do Falcon Agenda e tenho dúvidas');
+  return `https://wa.me/${d}?text=${msg}`;
 }
 const WA_SVG_PUB = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
@@ -211,7 +212,6 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
         <div class="ap-aviso24">⚠️ <b>Precisa cancelar?</b> Avise com <b>24h de antecedência</b>, por favor.</div>
-        ${_waProHtml()}
       </div>
       ${_histHtml()}
       ${_servHtml()}
@@ -230,6 +230,7 @@ export async function renderAgendaPublica(app, slug) {
         ${bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)}
       </div>
       ${selHora && dia ? _formHtml(dia, selHora) : ''}
+      <div class="ap-wa-pro-wrap">${_waProHtml()}</div>
     `);
     wire(dia);
   }
