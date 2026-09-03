@@ -7672,6 +7672,20 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rf-form-res { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
 .rf-form .input-field { margin-bottom: 12px; }
 .rf-form .btn-primary { width: 100%; }
+.rf-total { font-size: 15px; color: var(--text); margin: 4px 0 12px; }
+.rf-total b { color: #22c55e; font-size: 18px; }
+.rf-total small { color: var(--muted); font-weight: 500; }
+/* Tela do Pix (QR + copia e cola) */
+.rf-pix { text-align: center; padding: 8px 0; }
+.rf-pix-t { font-size: 18px; font-weight: 800; color: var(--text); }
+.rf-pix-valor { font-size: 14px; color: var(--muted); margin: 6px 0 16px; }
+.rf-pix-valor b { color: #22c55e; font-size: 17px; }
+.rf-pix-doacao { font-size: 12px; color: var(--text); background: color-mix(in srgb, #f59e0b 16%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border)); border-radius: 10px; padding: 9px 11px; margin-bottom: 14px; line-height: 1.4; }
+.rf-qr { display: inline-block; padding: 12px; background: #fff; border-radius: 14px; }
+.rf-qr img, .rf-qr canvas { display: block; }
+.rf-pix-lbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin: 16px 0 6px; }
+.rf-pix-code { font-size: 11px; color: var(--text); background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; word-break: break-all; line-height: 1.4; margin-bottom: 12px; font-family: ui-monospace, monospace; }
+.rf-pix .btn-primary, .rf-pix .btn-secondary, .rf-pix .ap-wa-pro { width: 100%; display: flex; align-items: center; justify-content: center; }
 /* Botão "Falar no WhatsApp" (do profissional) */
 .ap-wa-pro { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: #25D366; color: #fff; font-size: 14px; font-weight: 700; }
 /* Tela de identificação */

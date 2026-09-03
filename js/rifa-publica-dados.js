@@ -18,10 +18,10 @@ export async function getNumerosOcupados(slug) {
   return new Set(Array.isArray(data) ? data : []);
 }
 
-// Escolhe um número (nome + WhatsApp). Falha se já estiver ocupado.
-export async function escolherNumero(slug, numero, nome, contato) {
-  const { data, error } = await supabase.rpc('escolher_numero', {
-    p_slug: (slug || '').trim(), p_numero: numero,
+// Reserva 1+ números de uma vez (nome + WhatsApp). Falha tudo se algum já estiver ocupado.
+export async function escolherNumeros(slug, numeros, nome, contato) {
+  const { data, error } = await supabase.rpc('escolher_numeros', {
+    p_slug: (slug || '').trim(), p_numeros: numeros,
     p_nome: (nome || '').trim().slice(0, 120),
     p_contato: (contato || '').trim().slice(0, 60),
   });
