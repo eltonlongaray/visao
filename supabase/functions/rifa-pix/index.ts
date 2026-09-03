@@ -60,7 +60,7 @@ async function criar(body: any) {
 
   // cria o Pix no Mercado Pago
   const descricao = `Rifa: ${rifa.titulo || 'Falcon Rifa'} — nº ${numeros.join(', ')}`;
-  const emailPagador = `rifa_${String(contato || '').replace(/\D/g, '') || Date.now()}@falcon.rifa`;
+  const emailPagador = `rifa_${String(contato || '').replace(/\D/g, '') || Date.now()}@estilo-falcon.web.app`;
   const { ok, data: pay } = await mp('/v1/payments', {
     method: 'POST',
     headers: { 'X-Idempotency-Key': `rifa-${rifa.id}-${numeros.join('-')}-${Date.now()}` },

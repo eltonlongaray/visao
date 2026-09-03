@@ -42,6 +42,26 @@ function _pixPayload({ chave, nome, cidade, valor, txid }) {
   return p + _crc16(p);
 }
 
+// ── Pix DINÂMICO via Mercado Pago (Edge Function) ─────────────
+// Reserva os números + gera o Pix no MP; o webhook confirma sozinho.
+const FN_URL = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/quick-service';
+async function _criarPix({ slug, numeros, nome, contato, valor }) {
+  const r = await fetch(FN_URL + '?action=criar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, numeros, nome, contato, valor }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.ok) throw new Error(d.error || 'Falha ao gerar o Pix');
+  return d; // { payment_id, qr_code, qr_code_base64, status }
+}
+async function _statusPix(paymentId) {
+  try {
+    const r = await fetch(FN_URL + '?action=status&payment_id=' + encodeURIComponent(paymentId));
+    const d = await r.json().catch(() => ({}));
+    return d.status || 'pending';
+  } catch { return 'pending'; }
+}
+
 function cleanup() { document.body.classList.remove('rota-publica'); }
 // Números que ESTE aparelho já reservou (registro local por rifa).
 const _meusKey = slug => `falcon_rifa_${slug}`;
@@ -71,6 +91,8 @@ export async function renderRifaPublica(app, slug) {
   try { ocupados = await getNumerosOcupados(slug); } catch {}
   const sel = new Set();   // números selecionados (multi)
   let extra = 0;           // doação a mais (R$)
+  let _pollT = null;       // polling do status do Pix
+  const _pararPoll = () => { if (_pollT) { clearInterval(_pollT); _pollT = null; } };
 
   const _totalReais = () => sel.size * valorNum + (extra || 0);
 
@@ -146,46 +168,84 @@ export async function renderRifaPublica(app, slug) {
     if (nome.length < 2) { _aviso('Escreva seu nome'); return; }
     if (zap.replace(/\D/g, '').length < 8) { _aviso('Escreva um WhatsApp válido'); return; }
     const nums = [...sel].sort((a, b) => a - b);
-    const btn = app.querySelector('#rf-confirmar'); btn.disabled = true; btn.textContent = 'Reservando…';
+    const valor = _totalReais();
+    const btn = app.querySelector('#rf-confirmar'); btn.disabled = true; btn.textContent = 'Gerando Pix…';
     try {
-      await escolherNumeros(slug, nums, nome, zap);
+      // Fluxo dinâmico: reserva + gera o Pix no Mercado Pago (confirma sozinho)
+      const pix = await _criarPix({ slug, numeros: nums, nome, contato: zap, valor });
       nums.forEach(n => ocupados.add(n));
       _salvarMeus(slug, nums);   // registra os números neste aparelho
-      _telaPix(nums, _totalReais());
+      _telaPix(nums, valor, pix);
     } catch (e) {
-      _aviso(e.message || 'Não deu pra reservar');
+      // fallback: se a integração falhar mas houver chave Pix, mostra o Pix estático
+      if (rifa.pix_chave) {
+        try {
+          await escolherNumeros(slug, nums, nome, zap);
+          nums.forEach(n => ocupados.add(n));
+          _salvarMeus(slug, nums);
+          _telaPix(nums, valor, null);
+          return;
+        } catch {}
+      }
+      _aviso(e.message || 'Não deu pra gerar o Pix');
       try { ocupados = await getNumerosOcupados(slug); } catch {}
       sel.clear(); desenhar();
     }
   }
 
-  // Tela final com o Pix (QR + copia e cola) do total.
-  function _telaPix(nums, valor) {
-    const chave = rifa.pix_chave || '';
-    const payload = chave ? _pixPayload({ chave, nome: rifa.pix_nome, cidade: rifa.pix_cidade, valor, txid: 'RIFA' + slug }) : '';
+  // Tela final com o Pix. `pix` = resposta do Mercado Pago (auto-confirma) OU
+  // null (fallback estático — a pessoa envia o comprovante no WhatsApp).
+  function _telaPix(nums, valor, pix) {
+    _pararPoll();
+    const dinamico = !!(pix && (pix.qr_code || pix.qr_code_base64));
+    const codigo = dinamico ? (pix.qr_code || '') : (rifa.pix_chave
+      ? _pixPayload({ chave: rifa.pix_chave, nome: rifa.pix_nome, cidade: rifa.pix_cidade, valor, txid: 'RIFA' + slug }) : '');
+    const qrImg = dinamico && pix.qr_code_base64 ? `data:image/png;base64,${pix.qr_code_base64}` : '';
     const wa = _waRifaLink(rifa, `Oi! Reservei o(s) número(s) ${nums.join(', ')} da ${rifa.titulo || 'rifa'} e já fiz o Pix 🎟️`);
     app.innerHTML = _tela(`
       <div class="rf-pix">
-        <div class="rf-pix-t">✅ Número${nums.length > 1 ? 's' : ''} ${nums.join(', ')} reservado${nums.length > 1 ? 's' : ''}!</div>
+        <div class="rf-pix-t">🎟️ Número${nums.length > 1 ? 's' : ''} ${nums.join(', ')} reservado${nums.length > 1 ? 's' : ''}!</div>
         ${rifa.data_sorteio ? `<div class="rf-pix-sorteio">📅 Sorteio: <b>${_dataBr(rifa.data_sorteio)}</b></div>` : ''}
-        <div class="rf-pix-valor">Pague <b>R$ ${_preco(valor)}</b> no Pix pra confirmar</div>
-        ${payload ? `<div class="rf-pix-doacao">💛 No app do banco, na <b>descrição/mensagem</b> do Pix, escreva: <b>Doação — ${_esc(rifa.titulo || 'rifa')}</b></div>` : ''}
-        ${payload ? `<div class="rf-qr" id="rf-qr"></div>
+        <div class="rf-pix-valor">Pague <b>R$ ${_preco(valor)}</b> no Pix</div>
+        ${dinamico ? `<div class="rf-pix-status" id="rf-status">⏳ Aguardando o pagamento cair…</div>` : ''}
+        ${!dinamico && codigo ? `<div class="rf-pix-doacao">💛 Na <b>descrição/mensagem</b> do Pix escreva: <b>Doação — ${_esc(rifa.titulo || 'rifa')}</b></div>` : ''}
+        ${codigo ? `${qrImg ? `<div class="rf-qr"><img src="${qrImg}" alt="QR Code Pix" width="220" height="220" style="border-radius:12px;background:#fff;padding:8px"></div>` : '<div class="rf-qr" id="rf-qr"></div>'}
         <div class="rf-pix-lbl">Pix copia e cola</div>
-        <div class="rf-pix-code" id="rf-code">${_esc(payload)}</div>
+        <div class="rf-pix-code" id="rf-code">${_esc(codigo)}</div>
         <button class="btn-primary" id="rf-copiar" type="button">📋 Copiar código Pix</button>`
-        : `<div class="rf-dica">Chave Pix não configurada — combine o pagamento pelo WhatsApp.</div>`}
-        ${wa ? `<a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener" style="margin-top:12px">${WA_SVG_RF} Enviar comprovante no WhatsApp</a>` : ''}
+        : `<div class="rf-dica">Pix indisponível agora — combine o pagamento pelo WhatsApp.</div>`}
+        ${wa ? `<a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener" style="margin-top:12px">${WA_SVG_RF} ${dinamico ? 'Me chama no WhatsApp' : 'Enviar comprovante no WhatsApp'}</a>` : ''}
         <button class="btn-secondary" id="rf-voltar" type="button" style="margin-top:10px">Ver a rifa</button>
       </div>`);
-    if (payload && window.QRCode) {
-      try { new window.QRCode(document.getElementById('rf-qr'), { text: payload, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M }); } catch {}
+    // QR estático (fallback) desenhado via lib
+    if (!qrImg && codigo && window.QRCode) {
+      try { new window.QRCode(document.getElementById('rf-qr'), { text: codigo, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.M }); } catch {}
     }
     app.querySelector('#rf-copiar')?.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(payload); _aviso('✅ Código Pix copiado!'); }
+      try { await navigator.clipboard.writeText(codigo); _aviso('✅ Código Pix copiado!'); }
       catch { _aviso('Selecione o código e copie'); }
     });
-    app.querySelector('#rf-voltar')?.addEventListener('click', () => { sel.clear(); extra = 0; desenhar(); });
+    app.querySelector('#rf-voltar')?.addEventListener('click', () => { _pararPoll(); sel.clear(); extra = 0; desenhar(); });
+
+    // Confirmação automática: pergunta o status ao MP a cada 4s.
+    if (dinamico && pix.payment_id) {
+      let tentativas = 0;
+      _pollT = setInterval(async () => {
+        tentativas++;
+        const st = await _statusPix(pix.payment_id);
+        if (st === 'approved') {
+          _pararPoll();
+          const el = app.querySelector('#rf-status');
+          if (el) { el.textContent = '✅ Pagamento confirmado! Obrigado 💛'; el.classList.add('ok'); }
+          const t = app.querySelector('.rf-pix-t');
+          if (t) t.textContent = `✅ Número${nums.length > 1 ? 's' : ''} ${nums.join(', ')} confirmado${nums.length > 1 ? 's' : ''}!`;
+          const c = app.querySelector('#rf-copiar'); if (c) c.style.display = 'none';
+          _aviso('✅ Pagamento confirmado!');
+        } else if (['rejected', 'cancelled', 'refunded'].includes(st) || tentativas > 225) {
+          _pararPoll();  // ~15 min de espera no máximo
+        }
+      }, 4000);
+    }
   }
 
   desenhar();
@@ -195,5 +255,5 @@ export async function renderRifaPublica(app, slug) {
     try { ocupados = await getNumerosOcupados(slug); if (!document.querySelector('.rf-pix')) desenhar(); } catch {}
   };
   document.addEventListener('visibilitychange', _onVis);
-  return () => { document.removeEventListener('visibilitychange', _onVis); cleanup(); };
+  return () => { _pararPoll(); document.removeEventListener('visibilitychange', _onVis); cleanup(); };
 }
