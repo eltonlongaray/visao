@@ -7646,6 +7646,15 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rf-head { margin-bottom: 14px; }
 .rf-titulo { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -.5px; }
 .rf-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.rf-subt { font-size: 15px; font-weight: 700; color: var(--accent-2); margin-top: 4px; }
+.rf-desc { font-size: 13px; color: var(--text); line-height: 1.5; margin-top: 10px; white-space: pre-line; }
+.rf-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rf-badge { font-size: 12px; font-weight: 700; color: var(--text); background: var(--card-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; }
+.rf-premios { margin-top: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--card-2); padding: 12px 14px; }
+.rf-premios-t { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.rf-premio { font-size: 13px; color: var(--text); padding: 3px 0; }
+.rf-premio b { color: var(--accent-2); margin-right: 4px; }
+.rf-pgto { font-size: 12px; color: var(--muted); line-height: 1.4; margin-top: 10px; text-align: center; }
 .rf-info { font-size: 13px; color: var(--text); margin-top: 8px; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; display: inline-block; }
 .rf-info b { color: #22c55e; }
 .rf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 7px; margin: 6px 0 14px; }
