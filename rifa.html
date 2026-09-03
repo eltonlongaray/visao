@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#7c3aed">
+<title>Falcon Rifa</title>
+<base href="/">
+<script>
+  (function () {
+    try {
+      var s = localStorage.getItem('visao_theme');
+      var t = (s === 'dark' || s === 'light')
+        ? s
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css?v=20260901i">
+<style>
+  html, body { margin: 0; }
+  #rf-splash {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: #0a0e1a; background: var(--bg-gradient);
+    transition: opacity .45s ease;
+  }
+  #rf-splash.rf-splash-hide { opacity: 0; pointer-events: none; }
+  #rf-splash img {
+    width: 100px; height: 100px; border-radius: 28px; object-fit: cover; display: block;
+    box-shadow: 0 16px 44px rgba(124, 58, 237, .5), inset 0 2px 0 rgba(255, 255, 255, .18);
+    animation: rfpulse 1.6s ease-in-out infinite;
+  }
+  #rf-splash .rf-splash-nome {
+    font-size: 27px; font-weight: 800; letter-spacing: -.5px;
+    background: linear-gradient(135deg, var(--accent-2, #a78bfa), var(--blue, #60a5fa));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  @keyframes rfpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+</style>
+</head>
+<body>
+  <div id="rf-splash">
+    <img src="icons/icon-512.png" alt="Falcon">
+    <div class="rf-splash-nome">Falcon Rifa</div>
+  </div>
+  <div id="rf-app"></div>
+  <script type="module" src="js/rifa-lite.js"></script>
+</body>
+</html>

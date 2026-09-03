@@ -14,6 +14,10 @@
         "destination": "/agenda.html"
       },
       {
+        "source": "/rifa/**",
+        "destination": "/rifa.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
