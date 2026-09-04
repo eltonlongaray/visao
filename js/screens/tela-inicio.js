@@ -210,6 +210,16 @@ export async function renderHome(app) {
   document.getElementById('agenda-card')?.addEventListener('click', abrirAgenda);
   document.getElementById('rifa-card')?.addEventListener('click', abrirRifas);
 
+  // Retorno do OAuth do Mercado Pago (Rifa) → avisa e reabre o hub.
+  try {
+    const mp = new URLSearchParams(location.search).get('mp');
+    if (mp) {
+      history.replaceState(null, '', location.pathname + location.hash);
+      if (mp === 'ok') { showToast('✅ Mercado Pago conectado!', 'success'); setTimeout(abrirRifas, 400); }
+      else showToast('Não deu pra conectar o Mercado Pago. Tente de novo.', 'error');
+    }
+  } catch {}
+
   if (!tour.isCompleted()) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);

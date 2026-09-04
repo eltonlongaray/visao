@@ -7,13 +7,14 @@
 import {
   getMinhasRifas, criarRifa, atualizarRifa, excluirRifa,
   getParticipantes, marcarPago, removerParticipante, sortearPremio, definirStatusSorteio,
+  getMpConta, iniciarConexaoMp, desconectarMp,
 } from './rifas.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
 const WA_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
-let _rifas = [], _sel = null, _parts = [], _premios = [], _close = null;
+let _rifas = [], _sel = null, _parts = [], _premios = [], _close = null, _mpConta = null;
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
@@ -48,7 +49,7 @@ export async function abrirRifas() {
   document.body.appendChild(ov);
   ov.addEventListener('click', (e) => { if (e.target === ov) _close?.(); });
   _close = trapModalBack(() => ov.remove());
-  try { _rifas = await getMinhasRifas(); }
+  try { [_rifas, _mpConta] = await Promise.all([getMinhasRifas(), getMpConta().catch(() => ({ connected: false }))]); }
   catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar suas rifas.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/coluna, falta rodar o SQL <b>rifa-self-service.sql</b> no Supabase.</small></div>`;
@@ -137,16 +138,8 @@ function desenharEditor() {
       <div class="rf-premios-ed" id="rf-premios"></div>
       <button class="ag-serv-add-btn" id="rf-premio-add" type="button">➕ Adicionar prêmio</button>
 
-      <div class="rf-sec-lbl">💳 Pagamento (sua chave Pix)</div>
-      <div class="rf-dica-box">O dinheiro cai <b>direto na sua conta</b>. Você confirma quem pagou aqui embaixo, em "Participantes".</div>
-      <label class="input-field"><div class="input-field-label">Sua chave Pix *</div>
-        <input id="rf-pix" value="${_esc(r.pix_chave || '')}" placeholder="Telefone, e-mail, CPF ou chave aleatória"></label>
-      <div class="ag-frow">
-        <label class="input-field" style="flex:1"><div class="input-field-label">Nome no Pix</div>
-          <input id="rf-pixnome" value="${_esc(r.pix_nome || '')}" placeholder="Seu nome"></label>
-        <label class="input-field" style="flex:1"><div class="input-field-label">Cidade</div>
-          <input id="rf-pixcidade" value="${_esc(r.pix_cidade || '')}" placeholder="Ex: Porto Alegre"></label>
-      </div>
+      <div class="rf-sec-lbl">💳 Como você recebe</div>
+      ${_pagamentoHtml(r)}
 
       <div class="rf-sec-lbl">📅 Sorteio ao vivo</div>
       <label class="input-field"><div class="input-field-label">Data e hora do sorteio</div>
@@ -174,6 +167,41 @@ function desenharEditor() {
     </div>`;
   pintarPremios();
   wireEditor(corpo);
+}
+
+// ── Pagamento: Mercado Pago automático × chave Pix do criador ──
+function _pagamentoHtml(r) {
+  const modo = r.pix_modo === 'mp_connect' ? 'mp_connect' : 'estatico';
+  const conectado = !!_mpConta?.connected;
+  return `
+    <div class="rf-modo">
+      <label class="rf-modo-op ${modo === 'mp_connect' ? 'on' : ''}">
+        <input type="radio" name="rf-modo" value="mp_connect" ${modo === 'mp_connect' ? 'checked' : ''}>
+        <span><b>⚡ Mercado Pago</b><small>Confirma sozinho — cai direto na sua conta MP</small></span>
+      </label>
+      <label class="rf-modo-op ${modo === 'estatico' ? 'on' : ''}">
+        <input type="radio" name="rf-modo" value="estatico" ${modo === 'estatico' ? 'checked' : ''}>
+        <span><b>🔑 Minha chave Pix</b><small>Você confere e marca quem pagou</small></span>
+      </label>
+    </div>
+    <div id="rf-modo-mp" ${modo === 'mp_connect' ? '' : 'hidden'}>
+      ${conectado
+        ? `<div class="rf-dica-box">✅ <b>Mercado Pago conectado.</b> Os pagamentos caem direto na sua conta e o app confirma automático.</div>
+           <button class="ag-linkbtn danger" id="rf-mp-desc" type="button">Desconectar Mercado Pago</button>`
+        : `<div class="rf-dica-box">Conecte sua conta do Mercado Pago <b>uma vez</b>. Depois toda rifa sua pode receber e confirmar sozinha.</div>
+           <button class="btn-primary" id="rf-mp-conectar" type="button">⚡ Conectar meu Mercado Pago</button>`}
+    </div>
+    <div id="rf-modo-est" ${modo === 'estatico' ? '' : 'hidden'}>
+      <div class="rf-dica-box">O dinheiro cai direto na sua chave Pix. Você confirma quem pagou em "Participantes".</div>
+      <label class="input-field"><div class="input-field-label">Sua chave Pix *</div>
+        <input id="rf-pix" value="${_esc(r.pix_chave || '')}" placeholder="Telefone, e-mail, CPF ou chave aleatória"></label>
+      <div class="ag-frow">
+        <label class="input-field" style="flex:1"><div class="input-field-label">Nome no Pix</div>
+          <input id="rf-pixnome" value="${_esc(r.pix_nome || '')}" placeholder="Seu nome"></label>
+        <label class="input-field" style="flex:1"><div class="input-field-label">Cidade</div>
+          <input id="rf-pixcidade" value="${_esc(r.pix_cidade || '')}" placeholder="Ex: Porto Alegre"></label>
+      </div>
+    </div>`;
 }
 
 // ── Prêmios (lista dinâmica) ───────────────────────────────────
@@ -256,6 +284,24 @@ function wireEditor(corpo) {
   corpo.querySelector('#rf-close').onclick = () => _close?.();
   corpo.querySelector('#rf-back').onclick = () => desenharLista();
   corpo.querySelector('#rf-premio-add').onclick = () => { _syncPremios(); _premios.push(''); pintarPremios(); };
+  // Modo de recebimento (Mercado Pago × chave Pix)
+  corpo.querySelectorAll('input[name="rf-modo"]').forEach(rb => rb.addEventListener('change', () => {
+    const v = corpo.querySelector('input[name="rf-modo"]:checked')?.value || 'estatico';
+    _sel.pix_modo = v;
+    const mp = corpo.querySelector('#rf-modo-mp'), es = corpo.querySelector('#rf-modo-est');
+    if (mp) mp.hidden = v !== 'mp_connect';
+    if (es) es.hidden = v !== 'estatico';
+    corpo.querySelectorAll('.rf-modo-op').forEach(op => op.classList.toggle('on', !!op.querySelector('input')?.checked));
+  }));
+  corpo.querySelector('#rf-mp-conectar')?.addEventListener('click', async () => {
+    try { _snapshotForm(); const url = await iniciarConexaoMp(); showToast('Abrindo o Mercado Pago…', 'info'); location.href = url; }
+    catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  });
+  corpo.querySelector('#rf-mp-desc')?.addEventListener('click', async () => {
+    if (!confirm('Desconectar o Mercado Pago? As rifas no automático deixam de confirmar sozinhas.')) return;
+    try { await desconectarMp(); _mpConta = { connected: false }; _snapshotForm(); desenharEditor(); showToast('Mercado Pago desconectado', 'info'); }
+    catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  });
   corpo.querySelector('#rf-salvar').onclick = salvar;
   corpo.querySelector('#rf-excluir')?.addEventListener('click', excluir);
   corpo.querySelector('#rf-copiar')?.addEventListener('click', async () => {
@@ -366,6 +412,7 @@ function _lerForm() {
     pix_chave: q('#rf-pix')?.value || '',
     pix_nome: q('#rf-pixnome')?.value || '',
     pix_cidade: q('#rf-pixcidade')?.value || '',
+    pix_modo: q('input[name="rf-modo"]:checked')?.value === 'mp_connect' ? 'mp_connect' : 'estatico',
     ativo: !!q('#rf-ativo')?.checked,
   };
 }
@@ -373,7 +420,11 @@ function _lerForm() {
 async function salvar() {
   const dados = _lerForm();
   if (dados.titulo.length < 3) { showToast('Dê um título pra rifa', 'info'); return; }
-  if (dados.ativo && !String(dados.pix_chave).trim()) { showToast('Coloque sua chave Pix pra ativar', 'info'); return; }
+  if (dados.pix_modo === 'mp_connect') {
+    if (!_mpConta?.connected) { showToast('Conecte o Mercado Pago primeiro, ou escolha "Minha chave Pix".', 'info'); return; }
+  } else if (dados.ativo && !String(dados.pix_chave).trim()) {
+    showToast('Coloque sua chave Pix pra ativar (ou use o Mercado Pago)', 'info'); return;
+  }
   const btn = document.querySelector('#rf-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
     if (_sel.id) {

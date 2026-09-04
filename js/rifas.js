@@ -37,7 +37,8 @@ export async function getRifaById(id) {
 export async function criarRifa(dados) {
   const uid = _uid(); if (!uid) throw new Error('Sessão expirada');
   const base = _slugify(dados.titulo);
-  const linha = { ..._normalizar(dados), owner_id: uid, pix_modo: 'estatico', ativo: dados.ativo !== false };
+  const modo = dados.pix_modo === 'mp_connect' ? 'mp_connect' : 'estatico';
+  const linha = { ..._normalizar(dados), owner_id: uid, pix_modo: modo, ativo: dados.ativo !== false };
   for (let i = 0; i < 30; i++) {
     linha.slug = i === 0 ? base : `${base}-${_code(2 + Math.floor(i / 8))}`;
     const { data, error } = await supabase.from('rifas').insert(linha).select('*').single();
@@ -75,6 +76,8 @@ function _normalizar(d) {
   put('pix_chave', d.pix_chave != null ? (String(d.pix_chave).trim() || null) : undefined);
   put('pix_nome', d.pix_nome != null ? (String(d.pix_nome).trim() || null) : undefined);
   put('pix_cidade', d.pix_cidade != null ? (String(d.pix_cidade).trim() || null) : undefined);
+  // pix_modo do app só pode ser 'estatico' ou 'mp_connect' ('mp' é do Pitter, setado por SQL)
+  if (d.pix_modo === 'estatico' || d.pix_modo === 'mp_connect') out.pix_modo = d.pix_modo;
   if (d.ativo !== undefined) out.ativo = !!d.ativo;
   return out;
 }
@@ -117,4 +120,34 @@ export async function definirStatusSorteio(slug, status) {
   const { data, error } = await supabase.rpc('definir_status_sorteio', { p_slug: slug, p_status: status });
   if (error) throw new Error(error.message);
   return data;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: MERCADO PAGO CONNECT (recebimento automático por criador)
+// ═══════════════════════════════════════════════════════════════
+const FN_URL = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/quick-service';
+
+// O criador está com o Mercado Pago conectado? (nunca expõe o token)
+export async function getMpConta() {
+  const { data, error } = await supabase.rpc('minha_mp_conta');
+  if (error) throw new Error(error.message);
+  return data || { connected: false };
+}
+
+// Começa o OAuth: devolve a URL do Mercado Pago pra redirecionar o criador.
+export async function iniciarConexaoMp() {
+  const { data: s } = await supabase.auth.getSession();
+  const jwt = s?.session?.access_token;
+  if (!jwt) throw new Error('Sessão expirada');
+  const r = await fetch(FN_URL + '?action=oauth_start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!j.url) throw new Error(j.error || 'Não deu pra iniciar a conexão');
+  return j.url;
+}
+
+export async function desconectarMp() {
+  const { error } = await supabase.rpc('desconectar_mp');
+  if (error) throw new Error(error.message);
 }
