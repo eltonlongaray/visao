@@ -41,6 +41,7 @@ import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 import { abrirAgenda } from '../agenda-ui.js';
+import { abrirRifas } from '../rifas-ui.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -124,6 +125,16 @@ export async function renderHome(app) {
         <div class="ag-home-tag">PRO</div>
       </button>
 
+      <!-- RIFA SOLIDÁRIA: fixo/destacado no topo (criar rifa + link público) -->
+      <button class="reminders-card ag-home-card rf-home-card" id="rifa-card" type="button">
+        <div class="reminders-icon">🎟️</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Rifa Solidária</div>
+          <div class="reminders-sub">Crie sua rifa e compartilhe o link</div>
+        </div>
+        <div class="ag-home-tag">PRO</div>
+      </button>
+
       <!-- LEMBRETES DA SEMANA -->
       <button class="reminders-card" id="reminders-card" type="button">
         <div class="reminders-icon">🔔</div>
@@ -197,6 +208,7 @@ export async function renderHome(app) {
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
   document.getElementById('agenda-card')?.addEventListener('click', abrirAgenda);
+  document.getElementById('rifa-card')?.addEventListener('click', abrirRifas);
 
   if (!tour.isCompleted()) {
     tour.markDone();
@@ -417,7 +429,14 @@ function renderCats() {
       <div class="cat-config-swatch" style="background:#7c3aed"></div>
       <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
     </div>`;
-  box.innerHTML = agendaCard + categories.map(c => `
+  const rifaCard = `
+    <div class="cat-config-card ag-cat-card" id="rifa-cat" role="button">
+      <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">🎟️</div>
+      <div class="cat-config-name-display">Rifa Solidária</div>
+      <div class="cat-config-swatch" style="background:#7c3aed"></div>
+      <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
+    </div>`;
+  box.innerHTML = agendaCard + rifaCard + categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
@@ -433,6 +452,9 @@ function renderCats() {
   // Atividade fixa: NÃO abre a configuração (evita duplicar). Só avisa que ela vive no card do topo.
   box.querySelector('#agenda-cat')?.addEventListener('click', () => {
     showToast('📅 Atividade fixa. Configure seu link e clientes no card "Agenda Online" no topo da Home.', 'info');
+  });
+  box.querySelector('#rifa-cat')?.addEventListener('click', () => {
+    showToast('🎟️ Atividade fixa. Crie e gerencie suas rifas no card "Rifa Solidária" no topo da Home.', 'info');
   });
 }
 
