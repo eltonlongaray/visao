@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -17,6 +17,17 @@ const DOWS = [
   { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
 let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1, _semanaOffset = 0;
+let _ocupados = new Set();   // slots ocupados (agendamentos + compromissos), chave "YYYY-MM-DD|HH:MM"
+
+// Carrega os slots ocupados do próximo horizonte (pra marcar no editor de semana).
+async function _carregarOcupados() {
+  try {
+    if (!_cfg?.slug) return;
+    const hoje = new Date();
+    const ate = new Date(hoje); ate.setMonth(ate.getMonth() + (_cfg.horizonte_meses || 3));
+    _ocupados = await getSlotsOcupados(_cfg.slug, _isoDe(hoje), _isoDe(ate));
+  } catch { /* silencioso: não bloqueia o painel */ }
+}
 
 // Ícone oficial do WhatsApp (SVG inline).
 const WA_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
@@ -319,6 +330,7 @@ export async function abrirAgenda() {
     if (!Array.isArray(_cfg.servicos)) _cfg.servicos = [];
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
     _marcarVistos((_todos || []).map(a => a.id));   // abriu a agenda = viu os agendamentos
+    await _carregarOcupados();   // slots já tomados (agendamentos + compromissos) pra marcar no editor
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
@@ -560,10 +572,15 @@ function pintarDiaEditor() {
   const times = _horasDoDia(_diaSel);
   const g = { manha: [], tarde: [], noite: [] };
   times.forEach(h => g[_turno(h)].push(h));
+  // Numa semana específica (offset>0) sabemos a data real → marca o que já está ocupado.
+  const dataISO = _semanaOffset > 0 ? _isoDe(_dataDoDia(_diaSel)) : null;
+  const chip = h => (dataISO && _ocupados.has(`${dataISO}|${h}`))
+    ? `<span class="ag-chip ocupado" title="Ocupado — já tem agendamento ou compromisso">${h} 🔒</span>`
+    : `<span class="ag-chip">${h}<button data-rm="${h}" type="button" aria-label="remover">✕</button></span>`;
   const bloco = (lbl, icon, arr) => arr.length ? `
     <div class="ag-turno">
       <div class="ag-turno-lbl">${icon} ${lbl}</div>
-      <div class="ag-chips">${arr.map(h => `<span class="ag-chip">${h}<button data-rm="${h}" type="button" aria-label="remover">✕</button></span>`).join('')}</div>
+      <div class="ag-chips">${arr.map(chip).join('')}</div>
     </div>` : '';
   const diaFull = DOWS.find(d => d.k === _diaSel)?.full || '';
   const nome = _semanaOffset === 0 ? diaFull : `${diaFull} ${_pad2(_dataDoDia(_diaSel).getDate())}/${_pad2(_dataDoDia(_diaSel).getMonth() + 1)}`;

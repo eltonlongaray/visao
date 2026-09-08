@@ -7454,6 +7454,11 @@ body.sem-rolagem { overflow: hidden; }
   background: rgba(239,68,68,0.14); border: none; color: #ef4444; cursor: pointer;
   width: 18px; height: 18px; border-radius: 50%; font-size: 11px; line-height: 1; display: grid; place-items: center;
 }
+.ag-chip.ocupado {
+  padding: 5px 12px; color: var(--muted); opacity: .85;
+  background: color-mix(in srgb, var(--muted) 12%, var(--card));
+  border-style: dashed;
+}
 .ag-vazio-dia { color: var(--muted); font-size: 13px; padding: 6px 0 10px; }
 .ag-add { display: flex; margin-top: 6px; }
 .ag-add .btn-secondary { flex: 1; padding: 9px 10px; }
