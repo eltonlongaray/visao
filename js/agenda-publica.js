@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -14,6 +14,7 @@ const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _fromIso = s => { const [y, m, d] = (s || '').split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
 const _precoTxt = p => (p == null ? '' : Number(p).toFixed(2).replace('.', ','));
 const _fim = (hora, dur) => { if (!dur) return null; const [h, m] = hora.split(':').map(Number); const t = h * 60 + m + dur; return `${pad(Math.floor(t / 60) % 24)}:${pad(t % 60)}`; };
+const _hm = t => { const p = String(t || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
 // Segunda-feira (ISO) da semana de uma data — bate com date_trunc('week') do Postgres.
 const _segISO = (d) => { const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return iso(x); };
 // Horários efetivos de um dia: se a SEMANA tem exceção (cfg.semanas[segunda]),
@@ -75,7 +76,8 @@ export async function renderAgendaPublica(app, slug) {
   const JANELA = horizonteMeses * 31;
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const ate = new Date(hoje); ate.setDate(ate.getDate() + JANELA);
-  let ocupados = new Set();
+  const DUR = cfg.duracao_min || 60;   // duração-padrão do slot (pra checar sobreposição)
+  let ocupados = new Map();
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
   // monta os dias com TODOS os horários (livres + ocupados, pra mostrar "ocupado")
@@ -84,7 +86,7 @@ export async function renderAgendaPublica(app, slug) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
     const times = _horariosDoDia(cfg, d);
     if (!times.length) continue;
-    const horarios = times.map(h => ({ hora: h, ocupado: ocupados.has(`${iso(d)}|${h}`) }));
+    const horarios = times.map(h => ({ hora: h, ocupado: estaOcupado(ocupados, iso(d), h, DUR) }));
     dias.push({ iso: iso(d), date: d, horarios });
   }
 
@@ -138,7 +140,7 @@ export async function renderAgendaPublica(app, slug) {
   const _refreshOcupados = async () => {
     try {
       ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate));
-      for (const dd of dias) for (const s of dd.horarios) s.ocupado = ocupados.has(`${dd.iso}|${s.hora}`);
+      for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
       if (ident?.contato) { try { meusAgs = await getMeusAgendamentos(cfg.slug, ident.contato); } catch {} }
       if (ident) desenhar();
     } catch {}
@@ -304,8 +306,8 @@ export async function renderAgendaPublica(app, slug) {
         await cancelarMeuAgendamento(cfg.slug, ident?.contato, id);
         meusAgs = meusAgs.filter(a => a.id !== id);
         _removerHist(cfg.slug, id);
-        ocupados.delete(`${dataC}|${horaC}`);
-        for (const dd of dias) for (const s of dd.horarios) if (dd.iso === dataC && s.hora === horaC) s.ocupado = false;
+        try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
+        for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
         _aviso('✅ Agendamento cancelado. Horário liberado.');
         desenhar();
       } catch (e) {
@@ -342,8 +344,11 @@ export async function renderAgendaPublica(app, slug) {
       const res = await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
       _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null, id: res?.id, token: res?.token });
-      ocupados.add(`${dia.iso}|${hora}`);
-      const slot = dia.horarios.find(s => s.hora === hora); if (slot) slot.ocupado = true;
+      // marca o intervalo recém-agendado (início→fim do serviço/duração) como ocupado
+      const iniB = _hm(hora); const durB = _durSel() || DUR;
+      if (!ocupados.has(dia.iso)) ocupados.set(dia.iso, []);
+      ocupados.get(dia.iso).push({ ini: iniB, fim: iniB + durB });
+      for (const s of dia.horarios) s.ocupado = estaOcupado(ocupados, dia.iso, s.hora, DUR);
       selHora = null;
       app.innerHTML = _tela(`
         <div class="ap-ok">
@@ -360,7 +365,7 @@ export async function renderAgendaPublica(app, slug) {
       _aviso(e.message || 'Não deu pra agendar');
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
       try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
-      for (const dd of dias) for (const s of dd.horarios) s.ocupado = ocupados.has(`${dd.iso}|${s.hora}`);
+      for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
       selHora = null; desenhar();
     }
   }

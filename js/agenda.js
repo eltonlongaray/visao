@@ -315,4 +315,4 @@ export async function sincronizarTaskDoAgendamento(ag, oldData) {
 // BLOCO 2: PÚBLICO (página do link — sem login)
 // Mora em agenda-publica-dados.js pra a página leve não arrastar o app.
 // ═══════════════════════════════════════════════════════════════
-export { getAgendaPublica, getSlotsOcupados, criarAgendamento } from './agenda-publica-dados.js';
+export { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento } from './agenda-publica-dados.js';

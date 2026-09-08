@@ -22,13 +22,31 @@ export async function getAgendaPublica(slug) {
   return res.data || null;
 }
 
-// Slots já ocupados (data+hora), via RPC que NÃO expõe nome/contato do cliente.
+// Intervalos ocupados por dia (via RPC que NÃO expõe nome/contato do cliente).
+// Devolve Map<"YYYY-MM-DD", [{ini, fim}]> em MINUTOS — pra bloquear por SOBREPOSIÇÃO
+// (um atendimento 15:20–16:20 bloqueia os slots 15:00 e 16:00, não só "15:20").
+const _hm = t => { const p = String(t || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); };
 export async function getSlotsOcupados(slug, deISO, ateISO) {
   const { data, error } = await supabase.rpc('slots_ocupados', { p_slug: slug, p_from: deISO, p_to: ateISO });
   if (error) throw new Error(error.message);
-  const set = new Set();
-  for (const r of data || []) set.add(`${r.data}|${r.hora}`);
-  return set;
+  const mapa = new Map();
+  for (const r of data || []) {
+    if (!r?.data || !r?.hora) continue;
+    const ini = _hm(r.hora);
+    let fim = r.fim ? _hm(r.fim) : ini + 60;
+    if (!(fim > ini)) fim = ini + 60;   // segurança: fim inválido/vira o dia → 60min
+    if (!mapa.has(r.data)) mapa.set(r.data, []);
+    mapa.get(r.data).push({ ini, fim });
+  }
+  return mapa;
+}
+
+// Um slot [hora, hora+dur] está ocupado se sobrepõe QUALQUER intervalo daquele dia.
+export function estaOcupado(mapa, dateISO, hora, durMin = 60) {
+  const arr = mapa && typeof mapa.get === 'function' ? mapa.get(dateISO) : null;
+  if (!arr || !arr.length) return false;
+  const ini = _hm(hora), fim = ini + (durMin || 60);
+  return arr.some(iv => ini < iv.fim && iv.ini < fim);
 }
 
 // Cria um agendamento via RPC (valida disponibilidade + não estar ocupado).

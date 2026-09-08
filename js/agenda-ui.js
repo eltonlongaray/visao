@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -17,7 +17,7 @@ const DOWS = [
   { k: 0, lbl: 'Dom', full: 'Domingo' },
 ];
 let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1, _semanaOffset = 0;
-let _ocupados = new Set();   // slots ocupados (agendamentos + compromissos), chave "YYYY-MM-DD|HH:MM"
+let _ocupados = new Map();   // intervalos ocupados por dia (agendamentos + compromissos)
 
 // Carrega os slots ocupados do próximo horizonte (pra marcar no editor de semana).
 async function _carregarOcupados() {
@@ -574,7 +574,7 @@ function pintarDiaEditor() {
   times.forEach(h => g[_turno(h)].push(h));
   // Numa semana específica (offset>0) sabemos a data real → marca o que já está ocupado.
   const dataISO = _semanaOffset > 0 ? _isoDe(_dataDoDia(_diaSel)) : null;
-  const chip = h => (dataISO && _ocupados.has(`${dataISO}|${h}`))
+  const chip = h => (dataISO && estaOcupado(_ocupados, dataISO, h, _cfg.duracao_min || 60))
     ? `<span class="ag-chip ocupado" title="Ocupado — já tem agendamento ou compromisso">${h} 🔒</span>`
     : `<span class="ag-chip">${h}<button data-rm="${h}" type="button" aria-label="remover">✕</button></span>`;
   const bloco = (lbl, icon, arr) => arr.length ? `
