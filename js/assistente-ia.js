@@ -1320,7 +1320,17 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   if (!box) return;
   const cats = await getCategories().catch(() => []);
   // "Agenda Online" (atendimento) é aceito direto, sem precisar ser atividade.
-  if (_ehAgendaOnline(name)) { _showMarcacao('Agenda Online', done, date, time); return; }
+  if (_ehAgendaOnline(name)) {
+    // Se sobrou texto colado no título (parser não separou a descrição por causa de
+    // typo tipo "discrição"), manda esse resto pro campo descrição.
+    const resto = String(name).trim()
+      .replace(/^agenda\s*online\b[\s:·.-]*/i, '')
+      .replace(/^(d[ei]scri[çcs][ãa]o\w*|descr\w*|nome|t[ií]tulo)\b[\s:·.-]*/i, '')
+      .trim();
+    if (resto && !ditado.descricao) ditado.descricao = resto;
+    _showMarcacao('Agenda Online', done, date, time);
+    return;
+  }
   const registrada = cats.some(c => _limpoTxt(c.name) === _limpoTxt(name));
   // Duas etapas: se o título ainda NÃO é atividade registrada, primeiro resolve
   // isso (escolher uma ou criar); só depois vem o card de marcação limpo.
@@ -1590,7 +1600,7 @@ function _limpoTxt(v) {
 // atividade/categoria registrada, então o Pet aceita direto (sem o gate "criar").
 function _ehAgendaOnline(v) {
   const s = _limpoTxt(v);
-  return s === 'agenda online' || s === 'agendaonline';
+  return s === 'agenda online' || s === 'agendaonline' || s.startsWith('agenda online ');
 }
 
 function _esc(s) {
