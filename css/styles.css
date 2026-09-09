@@ -7075,8 +7075,21 @@ body.sem-rolagem { overflow: hidden; }
   padding: 0 5px; border-radius: 10px; background: var(--accent);
   color: #fff; font-size: 11px; font-weight: 700; position: static;
 }
-.fr-modal { max-width: 460px; padding: 0; overflow: hidden; }
-.fr-corpo { display: flex; flex-direction: column; max-height: 84vh; }
+/* Caixa de Ferramentas agora é TELA INTEIRA (hub). */
+.fr-overlay { padding: 0; align-items: stretch; justify-content: stretch; }
+.fr-modal { width: 100%; max-width: 100%; height: 100vh; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; overflow: hidden; border-radius: 0; }
+.fr-corpo { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-height: 100dvh; }
+/* Hub: cards Listas / Agenda Online / Rifa Solidária */
+.fr-hub { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); overflow-y: auto; }
+.fr-hubcard { display: flex; align-items: center; gap: 14px; text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; cursor: pointer; transition: border-color .15s, transform .1s; }
+.fr-hubcard:active { transform: scale(.99); }
+.fr-hubcard:hover { border-color: var(--accent-2); }
+.fr-hub-ic { font-size: 30px; flex: none; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 14px; background: color-mix(in srgb, var(--accent-2) 16%, var(--card)); }
+.fr-hub-tx { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fr-hub-tx b { font-size: 16px; color: var(--text); }
+.fr-hub-tx small { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.fr-hub-badge { flex: none; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+.fr-hub-tag { flex: none; font-size: 10px; font-weight: 800; letter-spacing: .5px; color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--border)); padding: 3px 8px; border-radius: 999px; }
 
 /* ── Preparo Físico (hub: Atividade Física + Composição Corporal) ── */
 /* Cabe no viewport menos o padding do overlay (40px) — não corta o Salvar. */

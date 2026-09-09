@@ -12,6 +12,8 @@ import {
   adicionarSecao, renomearSecao, apagarSecao, criarGrupo, apagarGrupo,
 } from './ferramentas.js';
 import { showToast, confirmModal } from './aviso-tela.js';
+import { abrirAgenda } from './agenda-ui.js';
+import { abrirRifas } from './rifas-ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -20,6 +22,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>`;
 
 let grupos = [];
+let vista = 'hub';        // 'hub' (cards) | 'listas' (grupos)
 let grupoAberto = null;   // nome do grupo aberto; null = lista de grupos
 let _hist = 0;            // camadas empurradas no histórico (pro voltar do aparelho)
 
@@ -41,31 +44,60 @@ const _pendGrupo = (g) =>
 // BLOCO 2: POPUP
 // ═══════════════════════════════════════════════════════════════
 export async function abrirFerramentas() {
+  if (document.getElementById('ferramentas-ov')) return;   // já aberto
   const ov = document.createElement('div');
-  ov.className = 'modal-overlay';
+  ov.className = 'modal-overlay fr-overlay';   // fr-overlay = tela inteira
   ov.id = 'ferramentas-ov';
   ov.innerHTML = `<div class="modal fr-modal"><div class="fr-corpo"><div class="fr-carregando">Carregando…</div></div></div>`;
   document.body.appendChild(ov);
-  ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
   history.pushState({ fr: 1 }, ''); _hist = 1;   // voltar do aparelho fecha a camada
+  vista = 'hub'; grupoAberto = null;
+  desenhar();   // mostra o hub na hora (não espera as listas)
 
   try { grupos = await carregarFerramentas(); }
-  catch (e) { ov.querySelector('.fr-corpo').innerHTML = `<div class="fr-vazio">Não deu pra carregar: ${esc(e.message)}</div>`; return; }
-  grupoAberto = null;
-  desenhar();
+  catch (e) { grupos = []; }
+  if (vista === 'hub') desenhar();   // repinta o badge de Listas quando carregar
 }
 
 function fechar() {
   const ov = document.getElementById('ferramentas-ov');
   if (ov) ov.remove();
-  const n = _hist; _hist = 0; grupoAberto = null;
+  const n = _hist; _hist = 0; vista = 'hub'; grupoAberto = null;
   if (n > 0) history.go(-n);   // consome as camadas que empurramos
 }
 
 function desenhar() {
   const corpo = document.querySelector('#ferramentas-ov .fr-corpo');
   if (!corpo) return;
-  corpo.innerHTML = grupoAberto ? telaItens() : telaGrupos();
+  corpo.innerHTML = vista === 'hub' ? telaHub() : (grupoAberto ? telaItens() : telaGrupos());
+}
+
+// ── Hub: cards Listas / Agenda Online / Rifa Solidária ──
+function telaHub() {
+  const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
+  return `
+    <div class="fr-cab">
+      <span class="fr-titulo">🛠️ Caixa de Ferramentas</span>
+      <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
+    </div>
+    <div class="fr-sub">Tudo num lugar só. Toque num card.</div>
+    <div class="fr-hub">
+      <button class="fr-hubcard" data-hub-listas type="button">
+        <span class="fr-hub-ic">📋</span>
+        <span class="fr-hub-tx"><b>Listas</b><small>Recados e tarefas por grupo, sem data nem hora</small></span>
+        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
+      </button>
+      <button class="fr-hubcard" data-hub-agenda type="button">
+        <span class="fr-hub-ic">📅</span>
+        <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
+        <span class="fr-hub-tag">PRO</span>
+      </button>
+      <button class="fr-hubcard" data-hub-rifa type="button">
+        <span class="fr-hub-ic">🎟️</span>
+        <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
+        <span class="fr-hub-tag">PRO</span>
+      </button>
+    </div>`;
 }
 
 // ── ícone do grupo num círculo colorido ──
@@ -81,7 +113,8 @@ function icone(g) {
 function telaGrupos() {
   return `
     <div class="fr-cab">
-      <span class="fr-titulo">🛠️ Caixa de Ferramentas</span>
+      <button class="fr-voltar" data-voltar aria-label="Voltar">${SVG_VOLTAR}</button>
+      <span class="fr-titulo">📋 Listas</span>
       <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
     </div>
     <div class="fr-sub">Coisas que você precisa fazer, sem data nem hora. Toque num grupo.</div>
@@ -182,16 +215,25 @@ export function ligarFerramentas() {
   window.addEventListener('popstate', () => {
     const ov = document.getElementById('ferramentas-ov');
     if (!ov || _hist === 0) return;
+    // Agenda/Rifa aberta POR CIMA do hub → deixa o modal dela tratar o back (ela fecha,
+    // o hub reaparece). Sem isso, o back fechava o hub junto.
+    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov')) return;
     _hist--;
-    if (grupoAberto) { grupoAberto = null; desenhar(); }
-    else { ov.remove(); _hist = 0; }
+    if (grupoAberto) { grupoAberto = null; desenhar(); }        // grupo → Listas
+    else if (vista === 'listas') { vista = 'hub'; desenhar(); } // Listas → hub
+    else { ov.remove(); _hist = 0; vista = 'hub'; }             // hub → fecha
   });
 
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#ferramentas-ov')) return;
 
     if (e.target.closest('[data-fechar]')) { fechar(); return; }
-    if (e.target.closest('[data-voltar]')) { history.back(); return; }  // popstate volta pra lista
+    if (e.target.closest('[data-voltar]')) { history.back(); return; }  // popstate volta um nível
+
+    // Hub → cards
+    if (e.target.closest('[data-hub-listas]')) { history.pushState({ fr: 1 }, ''); _hist++; vista = 'listas'; grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
+    if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
 
     const abrir = e.target.closest('[data-grupo]');
     if (abrir) { history.pushState({ fr: 1 }, ''); _hist++; grupoAberto = abrir.dataset.grupo; desenhar(); return; }

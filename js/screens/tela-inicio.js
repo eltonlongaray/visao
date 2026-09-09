@@ -115,25 +115,7 @@ export async function renderHome(app) {
         <div class="msgs-dot" id="avisos-dot" style="display:none"></div>
       </button>
 
-      <!-- AGENDA ONLINE: fixo/destacado no topo (link público + clientes) -->
-      <button class="reminders-card ag-home-card" id="agenda-card" type="button">
-        <div class="reminders-icon">📅</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Agenda Online</div>
-          <div class="reminders-sub">Seu link de agendamento + seus clientes</div>
-        </div>
-        <div class="ag-home-tag">PRO</div>
-      </button>
-
-      <!-- RIFA SOLIDÁRIA: fixo/destacado no topo (criar rifa + link público) -->
-      <button class="reminders-card ag-home-card rf-home-card" id="rifa-card" type="button">
-        <div class="reminders-icon">🎟️</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Rifa Solidária</div>
-          <div class="reminders-sub">Crie sua rifa e compartilhe o link</div>
-        </div>
-        <div class="ag-home-tag">PRO</div>
-      </button>
+      <!-- Agenda Online e Rifa Solidária agora vivem na Caixa de Ferramentas (hub). -->
 
       <!-- LEMBRETES DA SEMANA -->
       <button class="reminders-card" id="reminders-card" type="button">
@@ -155,12 +137,12 @@ export async function renderHome(app) {
         <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
       </button>
 
-      <!-- CAIXA DE FERRAMENTAS: listas de recados sem data -->
+      <!-- CAIXA DE FERRAMENTAS: hub (Listas, Agenda Online, Rifa Solidária) -->
       <button class="reminders-card" id="ferramentas-card" type="button">
         <div class="reminders-icon">🛠️</div>
         <div class="reminders-text">
           <div class="reminders-title">Caixa de Ferramentas</div>
-          <div class="reminders-sub">Coisas que você precisa fazer, por grupo</div>
+          <div class="reminders-sub">Listas, Agenda Online e Rifa Solidária</div>
         </div>
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
@@ -207,8 +189,6 @@ export async function renderHome(app) {
   ligarFerramentas();
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
-  document.getElementById('agenda-card')?.addEventListener('click', abrirAgenda);
-  document.getElementById('rifa-card')?.addEventListener('click', abrirRifas);
 
   // Retorno do OAuth do Mercado Pago (Rifa) → avisa e reabre o hub.
   try {
@@ -459,13 +439,9 @@ function renderCats() {
       </div>
     </div>
   `).join('');
-  // Atividade fixa: NÃO abre a configuração (evita duplicar). Só avisa que ela vive no card do topo.
-  box.querySelector('#agenda-cat')?.addEventListener('click', () => {
-    showToast('📅 Atividade fixa. Configure seu link e clientes no card "Agenda Online" no topo da Home.', 'info');
-  });
-  box.querySelector('#rifa-cat')?.addEventListener('click', () => {
-    showToast('🎟️ Atividade fixa. Crie e gerencie suas rifas no card "Rifa Solidária" no topo da Home.', 'info');
-  });
+  // Atividade fixa: abre a Caixa de Ferramentas (onde Agenda Online e Rifa Solidária vivem agora).
+  box.querySelector('#agenda-cat')?.addEventListener('click', () => abrirFerramentas());
+  box.querySelector('#rifa-cat')?.addEventListener('click', () => abrirFerramentas());
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
