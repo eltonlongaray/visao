@@ -1779,6 +1779,7 @@ function openRecurrenceChooser(options = {}) {
     const dow = currentDate.getDay();
     const dowLabel = recurWeeklyLabel(dow);
     const isCommitment = !!options.isCommitment;
+    const onlyWeekly = !!options.onlyWeekly;   // atendimento: só "toda semana" (cliente fixo)
     const initialRecur = options.currentRecur || 'today';
     const initialDays = Array.isArray(options.currentDaysOfMonth) ? options.currentDaysOfMonth.slice() : [];
 
@@ -1820,15 +1821,15 @@ function openRecurrenceChooser(options = {}) {
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
-          <button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
+          ${onlyWeekly ? '' : `<button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
               <strong>${tr('recur.daily.label')}</strong>
               <small>${tr('recur.daily.sub')}</small>
             </span>
             <span class="recur-opt-check">✓</span>
-          </button>
-          ${isCommitment ? `
+          </button>`}
+          ${isCommitment && !onlyWeekly ? `
             <button type="button" class="recur-opt ${selectedKey === 'monthly' ? 'sel' : ''}" data-recur="monthly">
               <span class="recur-opt-ic">📆</span>
               <span class="recur-opt-text">
@@ -1838,14 +1839,14 @@ function openRecurrenceChooser(options = {}) {
               <span class="recur-opt-check">✓</span>
             </button>
           ` : ''}
-          <button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
+          ${onlyWeekly ? '' : `<button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
             <span class="recur-opt-ic">🗓️</span>
             <span class="recur-opt-text">
               <strong>${tr('recur.specific.label')}</strong>
               <small>${escape(renderSpecificLabel())}</small>
             </span>
             <span class="recur-opt-check">✓</span>
-          </button>
+          </button>`}
         </div>
 
         <div class="modal-actions">
@@ -3959,7 +3960,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       const commitChip = modal.querySelector('.kind-chip[data-kind="commitment"]');
       if (commitChip && !commitChip.classList.contains('active')) commitChip.click();
       if (_titleField) _titleField.hidden = true;
-      if (_recurWrap) _recurWrap.hidden = true;         // cliente não repete (horários variados)
+      if (_recurWrap) _recurWrap.hidden = false;        // atendimento PODE repetir (cliente fixo semanal)
       if (_reminderField) _reminderField.hidden = true; // agendamento já vem com lembrete
       _agWrap.hidden = false;
       _agInline = await montarAgendaInline(_agWrap, { dataISO: dayDocId });
@@ -3998,11 +3999,13 @@ function openActivityPicker(app, dayDocId, shiftId) {
   };
   recurBtn.addEventListener('click', async () => {
     const isCommit = modal.querySelector('.kind-chip.active')?.dataset.kind === 'commitment';
+    const emAgenda = modal.querySelector('#m-cat')?.value === '__agenda__';
     const result = await openRecurrenceChooser({
       currentDate: day.date,
       currentRecur: recurState.recur,
       currentDaysOfMonth: recurState.daysOfMonth,
-      isCommitment: isCommit
+      isCommitment: isCommit,
+      onlyWeekly: emAgenda,   // atendimento: só "toda semana" (o resto fica no editar)
     });
     if (!result) return;
     recurState = result;
@@ -4040,14 +4043,23 @@ function openActivityPicker(app, dayDocId, shiftId) {
         const ok = await _agInline.salvar({ hora, horaFim });
         if (!ok) { if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; } return; }
         const fresh = await getDayTasks(dayDocId).catch(() => null);
-        if (fresh) {
-          day.tasks = fresh;
-          const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
-          if (el) el.innerHTML = renderDayContent(day);
-          updateDayCardStats(dayDocId);
+        if (fresh) day.tasks = fresh;
+        // Cliente fixo: "toda semana" → marca o compromisso como semanal e alimenta o
+        // molde do dia (as próximas semanas geram um compromisso "Agenda Online" que
+        // bloqueia o slot — sem copiar o vínculo do agendamento). Só weekly no add.
+        if (recurState.recur === 'weekly' && Array.isArray(day.tasks)) {
+          const comp = day.tasks.find(x => x.title === 'Agenda Online' && (x.startTime || '') === hora && !x.recurrenceGroupId);
+          if (comp) {
+            const grp = genRecurId();
+            comp.recurrenceType = 'weekly'; comp.recurrenceGroupId = grp;
+            await updateDayTask(dayDocId, comp.id, { recurrenceType: 'weekly', recurrenceGroupId: grp });
+            await syncTemplateForDay(dayDocId).catch(() => {});
+          }
         }
+        const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
+        if (el) { el.innerHTML = renderDayContent(day); updateDayCardStats(dayDocId); }
         close();
-        showToast('✅ Atendimento agendado', 'success');
+        showToast(recurState.recur === 'weekly' ? '✅ Atendimento agendado (toda semana)' : '✅ Atendimento agendado', 'success');
       } catch (e) {
         showToast('Erro: ' + e.message, 'error');
         if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
