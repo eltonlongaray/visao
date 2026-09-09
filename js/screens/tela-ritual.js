@@ -4395,8 +4395,10 @@ function openTaskEditor(app, dayDocId, taskId) {
   if (isAg) {
     const agId = t.agendamentoId;
     // Some com o que não faz sentido pro atendimento (data+hora vão no Reagendar).
-    // A DESCRIÇÃO fica (mostra nome + serviço).
-    ['#m-time-wrap', '#m-icon-wrap', '#m-recur-wrap'].forEach(sel => {
+    // A DESCRIÇÃO fica (mostra nome + serviço). A RECORRÊNCIA fica visível: dá pra
+    // repetir um cliente fixo (ex.: toda terça 15h). As instâncias futuras viram
+    // compromissos normais (bloqueiam o slot; não copiam o vínculo do agendamento).
+    ['#m-time-wrap', '#m-icon-wrap'].forEach(sel => {
       const el = modal.querySelector(sel); if (el) el.style.display = 'none';
     });
     // Rótulo do Reagendar já mostra o agendamento inteiro: "DD/MM · HH:MM–HH:MM".

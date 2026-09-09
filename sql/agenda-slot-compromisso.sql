@@ -8,6 +8,10 @@
 -- Rodar no Supabase → SQL Editor (idempotente).
 -- ═══════════════════════════════════════════════════════════════
 
+-- A função ganhou a coluna `fim` no retorno → precisa DROPAR antes (o Postgres não
+-- deixa CREATE OR REPLACE mudar o tipo de retorno).
+drop function if exists slots_ocupados(text, date, date);
+
 create or replace function slots_ocupados(p_slug text, p_from date, p_to date)
 returns table (data date, hora text, fim text)
 language sql security definer stable
