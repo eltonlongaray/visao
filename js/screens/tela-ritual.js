@@ -1779,7 +1779,7 @@ function openRecurrenceChooser(options = {}) {
     const dow = currentDate.getDay();
     const dowLabel = recurWeeklyLabel(dow);
     const isCommitment = !!options.isCommitment;
-    const onlyWeekly = !!options.onlyWeekly;   // atendimento: só "toda semana" (cliente fixo)
+    const agendaMode = !!options.agendaMode;   // atendimento: hoje + toda semana + todo mês (esconde diário/específico)
     const initialRecur = options.currentRecur || 'today';
     const initialDays = Array.isArray(options.currentDaysOfMonth) ? options.currentDaysOfMonth.slice() : [];
 
@@ -1821,7 +1821,7 @@ function openRecurrenceChooser(options = {}) {
             </span>
             <span class="recur-opt-check">✓</span>
           </button>
-          ${onlyWeekly ? '' : `<button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
+          ${agendaMode ? '' : `<button type="button" class="recur-opt ${selectedKey === 'daily' ? 'sel' : ''}" data-recur="daily">
             <span class="recur-opt-ic">📅</span>
             <span class="recur-opt-text">
               <strong>${tr('recur.daily.label')}</strong>
@@ -1829,7 +1829,7 @@ function openRecurrenceChooser(options = {}) {
             </span>
             <span class="recur-opt-check">✓</span>
           </button>`}
-          ${isCommitment && !onlyWeekly ? `
+          ${isCommitment ? `
             <button type="button" class="recur-opt ${selectedKey === 'monthly' ? 'sel' : ''}" data-recur="monthly">
               <span class="recur-opt-ic">📆</span>
               <span class="recur-opt-text">
@@ -1839,7 +1839,7 @@ function openRecurrenceChooser(options = {}) {
               <span class="recur-opt-check">✓</span>
             </button>
           ` : ''}
-          ${onlyWeekly ? '' : `<button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
+          ${agendaMode ? '' : `<button type="button" class="recur-opt ${selectedKey === 'specific' ? 'sel' : ''}" data-recur="specific">
             <span class="recur-opt-ic">🗓️</span>
             <span class="recur-opt-text">
               <strong>${tr('recur.specific.label')}</strong>
@@ -4005,7 +4005,7 @@ function openActivityPicker(app, dayDocId, shiftId) {
       currentRecur: recurState.recur,
       currentDaysOfMonth: recurState.daysOfMonth,
       isCommitment: isCommit,
-      onlyWeekly: emAgenda,   // atendimento: só "toda semana" (o resto fica no editar)
+      agendaMode: emAgenda,   // atendimento: hoje + toda semana + todo mês (diário/específico ficam no editar)
     });
     if (!result) return;
     recurState = result;
@@ -4044,22 +4044,40 @@ function openActivityPicker(app, dayDocId, shiftId) {
         if (!ok) { if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; } return; }
         const fresh = await getDayTasks(dayDocId).catch(() => null);
         if (fresh) day.tasks = fresh;
-        // Cliente fixo: "toda semana" → marca o compromisso como semanal e alimenta o
-        // molde do dia (as próximas semanas geram um compromisso "Agenda Online" que
-        // bloqueia o slot — sem copiar o vínculo do agendamento). Só weekly no add.
-        if (recurState.recur === 'weekly' && Array.isArray(day.tasks)) {
+        // Cliente fixo: repetir toda semana OU todo mês. Marca o compromisso e alimenta
+        // o molde/regra (as próximas ocorrências geram um compromisso "Agenda Online"
+        // que bloqueia o slot — sem copiar o vínculo do agendamento). Add só weekly/monthly.
+        const _rec = recurState.recur;
+        if ((_rec === 'weekly' || _rec === 'monthly') && Array.isArray(day.tasks)) {
           const comp = day.tasks.find(x => x.title === 'Agenda Online' && (x.startTime || '') === hora && !x.recurrenceGroupId);
           if (comp) {
             const grp = genRecurId();
-            comp.recurrenceType = 'weekly'; comp.recurrenceGroupId = grp;
-            await updateDayTask(dayDocId, comp.id, { recurrenceType: 'weekly', recurrenceGroupId: grp });
-            await syncTemplateForDay(dayDocId).catch(() => {});
+            comp.recurrenceType = _rec; comp.recurrenceGroupId = grp;
+            await updateDayTask(dayDocId, comp.id, { recurrenceType: _rec, recurrenceGroupId: grp });
+            if (_rec === 'weekly') {
+              await syncTemplateForDay(dayDocId).catch(() => {});
+            } else {
+              // Mensal: entra em profile.monthlyCommitments (dia do mês do atendimento).
+              const dias = recurState.daysOfMonth?.length ? recurState.daysOfMonth : [day.date.getDate()];
+              const base = Array.isArray(profile?.monthlyCommitments) ? profile.monthlyCommitments : [];
+              const filtrado = base.filter(x => x.recurrenceGroupId !== grp);
+              for (const dom of dias) filtrado.push({
+                activityId: null, title: 'Agenda Online', desc: comp.desc || '',
+                kind: 'commitment', startTime: hora, shiftId: comp.shiftId || null,
+                categoryId: null, icon: comp.icon || '📅', reminderEnabled: !!comp.reminderEnabled,
+                dayOfMonth: dom, recurrenceGroupId: grp,
+              });
+              await setProfile({ monthlyCommitments: filtrado });
+              profile.monthlyCommitments = filtrado;
+            }
           }
         }
         const el = document.querySelector(`.day-card[data-day-id="${dayDocId}"] .day-card-content`);
         if (el) { el.innerHTML = renderDayContent(day); updateDayCardStats(dayDocId); }
         close();
-        showToast(recurState.recur === 'weekly' ? '✅ Atendimento agendado (toda semana)' : '✅ Atendimento agendado', 'success');
+        showToast(_rec === 'weekly' ? '✅ Atendimento agendado (toda semana)'
+                : _rec === 'monthly' ? '✅ Atendimento agendado (todo mês)'
+                : '✅ Atendimento agendado', 'success');
       } catch (e) {
         showToast('Erro: ' + e.message, 'error');
         if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; }
