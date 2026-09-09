@@ -1319,6 +1319,8 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const box = document.getElementById('pet-messages');
   if (!box) return;
   const cats = await getCategories().catch(() => []);
+  // "Agenda Online" (atendimento) é aceito direto, sem precisar ser atividade.
+  if (_ehAgendaOnline(name)) { _showMarcacao('Agenda Online', done, date, time); return; }
   const registrada = cats.some(c => _limpoTxt(c.name) === _limpoTxt(name));
   // Duas etapas: se o título ainda NÃO é atividade registrada, primeiro resolve
   // isso (escolher uma ou criar); só depois vem o card de marcação limpo.
@@ -1555,7 +1557,7 @@ async function executeRegistro(name, done, date, time = '', descricao = '', lemb
     startTime: time,
     order: tasks.length,
     desc: descricao || '',
-    icon: cat?.icon || '',
+    icon: cat?.icon || (_ehAgendaOnline(name) ? '📅' : ''),
     categoryId: cat?.id || null,
     shiftId: pickShift(shifts, time),
     reminderEnabled: !!lembrete,
@@ -1582,6 +1584,13 @@ function _acharCategoria(cats, texto) {
 function _limpoTxt(v) {
   return String(v || '').trim().toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// "Agenda Online" é um título ESPECIAL (atendimento de cliente) — não é uma
+// atividade/categoria registrada, então o Pet aceita direto (sem o gate "criar").
+function _ehAgendaOnline(v) {
+  const s = _limpoTxt(v);
+  return s === 'agenda online' || s === 'agendaonline';
 }
 
 function _esc(s) {
