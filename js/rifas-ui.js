@@ -64,6 +64,7 @@ function desenharLista() {
   const corpo = _corpo(); if (!corpo) return;
   corpo.innerHTML = `
     <div class="ag-header">
+      <button class="rf-voltar" id="rf-hub-back" type="button">‹ Ferramentas</button>
       <div class="ag-title">🎟️ Rifa Solidária</div>
       <button class="ag-fechar" id="rf-close" type="button">Fechar</button>
     </div>
@@ -82,6 +83,7 @@ function desenharLista() {
       </div>
     </div>`;
   corpo.querySelector('#rf-close').onclick = () => _close?.();
+  corpo.querySelector('#rf-hub-back')?.addEventListener('click', () => _close?.());   // volta pro hub Ferramentas
   corpo.querySelector('#rf-nova').onclick = () => abrirEditor(null);
   corpo.querySelectorAll('[data-rifa]').forEach(b => b.onclick = () => {
     abrirEditor(_rifas.find(r => r.id === b.dataset.rifa));
@@ -171,6 +173,11 @@ function desenharEditor() {
 
 // ── Pagamento: Mercado Pago automático × chave Pix do criador ──
 function _pagamentoHtml(r) {
+  // Modo especial 'mp' (rifa do Pitter): recebe pela conta do app (token do servidor)
+  // e confirma automático. Não é editável aqui — travado pra não virar estático sem querer.
+  if (r.pix_modo === 'mp') {
+    return `<div class="rf-dica-box">⚡ <b>Mercado Pago (conta do app).</b> Esta rifa recebe pela conta configurada no servidor e confirma o pagamento automaticamente. Modo especial — não editável por aqui.</div>`;
+  }
   const modo = r.pix_modo === 'mp_connect' ? 'mp_connect' : 'estatico';
   const conectado = !!_mpConta?.connected;
   return `
@@ -412,7 +419,8 @@ function _lerForm() {
     pix_chave: q('#rf-pix')?.value || '',
     pix_nome: q('#rf-pixnome')?.value || '',
     pix_cidade: q('#rf-pixcidade')?.value || '',
-    pix_modo: q('input[name="rf-modo"]:checked')?.value === 'mp_connect' ? 'mp_connect' : 'estatico',
+    pix_modo: _sel?.pix_modo === 'mp' ? 'mp'
+      : (q('input[name="rf-modo"]:checked')?.value === 'mp_connect' ? 'mp_connect' : 'estatico'),
     ativo: !!q('#rf-ativo')?.checked,
   };
 }
@@ -420,7 +428,9 @@ function _lerForm() {
 async function salvar() {
   const dados = _lerForm();
   if (dados.titulo.length < 3) { showToast('Dê um título pra rifa', 'info'); return; }
-  if (dados.pix_modo === 'mp_connect') {
+  if (dados.pix_modo === 'mp') {
+    // conta do app (Pitter) — não exige chave nem conexão
+  } else if (dados.pix_modo === 'mp_connect') {
     if (!_mpConta?.connected) { showToast('Conecte o Mercado Pago primeiro, ou escolha "Minha chave Pix".', 'info'); return; }
   } else if (dados.ativo && !String(dados.pix_chave).trim()) {
     showToast('Coloque sua chave Pix pra ativar (ou use o Mercado Pago)', 'info'); return;

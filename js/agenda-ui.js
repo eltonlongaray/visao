@@ -346,6 +346,7 @@ function desenhar() {
 
   corpo.innerHTML = `
     <div class="ag-header">
+      <button class="rf-voltar" id="ag-back" type="button">‹ Ferramentas</button>
       <div class="ag-title">📅 Agenda Online</div>
       <button class="ag-fechar" id="ag-close" type="button">Fechar</button>
     </div>
@@ -435,6 +436,7 @@ function _refTimes() {
 // Handlers que existem uma vez só (tabs, fechar, copiar, salvar, cancelar).
 function wireFixos(corpo) {
   corpo.querySelector('#ag-close').onclick = () => _close?.();
+  corpo.querySelector('#ag-back')?.addEventListener('click', () => _close?.());   // volta pro hub Ferramentas
   corpo.querySelectorAll('.ag-tab').forEach(t => {
     t.addEventListener('click', () => { _diaSel = parseInt(t.dataset.tab, 10); pintarTabs(); pintarDiaEditor(); });
   });
