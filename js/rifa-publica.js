@@ -134,7 +134,6 @@ export async function renderRifaPublica(app, slug) {
       </div>
       ${_lerMeus(slug).length ? `<div class="rf-meus">🎟️ <b>Seus números:</b> ${_lerMeus(slug).join(', ')}${rifa.data_sorteio ? ` <span class="rf-meus-sorteio">· 📅 Sorteio ${_dataBr(rifa.data_sorteio)}</span>` : ''}</div>` : ''}
       <div id="rf-sorteio-sec"></div>
-      ${wa ? `<div class="ap-wa-pro-wrap"><a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_RF} Me chama no WhatsApp</a></div>` : ''}
       ${sel.size ? _painelHtml() : '<div class="rf-dica">Toque nos números que quer reservar (pode escolher vários).</div>'}
       <div class="rf-grid">
         ${Array.from({ length: total }, (_, i) => {
@@ -360,10 +359,24 @@ export async function renderRifaPublica(app, slug) {
 
   desenhar();
 
+  // Botão flutuante do WhatsApp (canto inferior direito, acompanha a rolagem).
+  // Fica FORA do conteúdo re-renderizado (senão piscava a cada toque num número).
+  let _waFloat = null;
+  const _waFloatLink = _waRifaLink(rifa);
+  if (_waFloatLink) {
+    _waFloat = document.createElement('a');
+    _waFloat.className = 'rf-wa-float';
+    _waFloat.href = _waFloatLink;
+    _waFloat.target = '_blank'; _waFloat.rel = 'noopener';
+    _waFloat.setAttribute('aria-label', 'Falar no WhatsApp');
+    _waFloat.innerHTML = WA_SVG_RF;
+    document.body.appendChild(_waFloat);
+  }
+
   const _onVis = async () => {
     if (document.visibilityState !== 'visible') return;
     try { ocupados = await getNumerosOcupados(slug); if (!document.querySelector('.rf-pix')) desenhar(); } catch {}
   };
   document.addEventListener('visibilitychange', _onVis);
-  return () => { _pararPoll(); _pararSorteioTimers(); document.removeEventListener('visibilitychange', _onVis); cleanup(); };
+  return () => { _pararPoll(); _pararSorteioTimers(); _waFloat?.remove(); document.removeEventListener('visibilitychange', _onVis); cleanup(); };
 }
