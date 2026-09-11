@@ -233,8 +233,9 @@ function _syncPremios() {
 function _participantesHtml() {
   const pagos = _parts.filter(p => p.pago).length;
   const arrec = _sel.valor_numero ? pagos * Number(_sel.valor_numero) : null;
+  const disp = Math.max(0, (parseInt(_sel.total_numeros, 10) || 0) - _parts.length);
   return `
-    <div class="rf-sec-lbl">👥 Participantes <span class="ag-lbl-opt">— ${_parts.length} escolhidos · ${pagos} pagos${arrec != null ? ` · R$ ${_preco(arrec)}` : ''}</span></div>
+    <div class="rf-sec-lbl">👥 Participantes <span class="ag-lbl-opt">— ${disp} disponíveis · ${_parts.length} escolhidos · ${pagos} pagos${arrec != null ? ` · R$ ${_preco(arrec)}` : ''}</span></div>
     <div class="rf-parts">
       ${_parts.length ? _parts.map(p => {
         const wa = _waLink(p.contato, `Oi ${p.nome || ''}! Sobre a ${_sel.titulo || 'rifa'} — número ${p.numero} 🎟️`);

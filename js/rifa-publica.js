@@ -115,7 +115,6 @@ export async function renderRifaPublica(app, slug) {
 
   function desenhar() {
     _pararSorteioTimers();
-    const livres = total - ocupados.size;
     const premios = Array.isArray(rifa.premios) ? rifa.premios : [];
     const wa = _waRifaLink(rifa);
     app.innerHTML = _tela(`
@@ -131,7 +130,6 @@ export async function renderRifaPublica(app, slug) {
           <div class="rf-premios-t">🏆 Prêmios</div>
           ${premios.map((p, i) => `<div class="rf-premio"><b>${i + 1}º</b> ${_esc(p)}</div>`).join('')}
         </div>` : ''}
-        <div class="rf-info"><b>${livres}</b> disponíveis · ${ocupados.size} escolhidos</div>
       </div>
       ${_lerMeus(slug).length ? `<div class="rf-meus">🎟️ <b>Seus números:</b> ${_lerMeus(slug).join(', ')}${rifa.data_sorteio ? ` <span class="rf-meus-sorteio">· 📅 Sorteio ${_dataBr(rifa.data_sorteio)}</span>` : ''}</div>` : ''}
       <div id="rf-sorteio-sec"></div>
