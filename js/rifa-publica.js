@@ -134,8 +134,8 @@ export async function renderRifaPublica(app, slug) {
         <div class="rf-info"><b>${livres}</b> disponíveis · ${ocupados.size} escolhidos</div>
       </div>
       ${_lerMeus(slug).length ? `<div class="rf-meus">🎟️ <b>Seus números:</b> ${_lerMeus(slug).join(', ')}${rifa.data_sorteio ? ` <span class="rf-meus-sorteio">· 📅 Sorteio ${_dataBr(rifa.data_sorteio)}</span>` : ''}</div>` : ''}
-      ${wa ? `<div class="ap-wa-pro-wrap"><a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_RF} Me chama no WhatsApp</a></div>` : ''}
       <div id="rf-sorteio-sec"></div>
+      ${wa ? `<div class="ap-wa-pro-wrap"><a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_RF} Me chama no WhatsApp</a></div>` : ''}
       ${sel.size ? _painelHtml() : '<div class="rf-dica">Toque nos números que quer reservar (pode escolher vários).</div>'}
       <div class="rf-grid">
         ${Array.from({ length: total }, (_, i) => {
