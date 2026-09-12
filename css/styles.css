@@ -70,6 +70,19 @@ html, body {
    nav, na barra de gestos do Android) mostrava o BRANCO padrão — a "linha
    branca". Uma cor sólida no <html> pinta essa faixa com o fundo do tema. */
 html { background-color: var(--bg); }
+/* Blindagem contra a "linha branca" no rodapé: barra fixa escura colada no
+   fundo REAL da tela (viewport-fit=cover leva o bottom:0 até a borda física).
+   Cobre a costura de ~1-2px entre o conteúdo web e a barra de navegação do
+   Android (aparece em aparelho com botões, onde não há safe-area pra pintar).
+   Cobre também toda a faixa de safe-area em quem usa gestos. */
+body::after {
+  content: '';
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: calc(env(safe-area-inset-bottom, 0px) + 3px);
+  background: var(--bg);
+  z-index: 2147483647;
+  pointer-events: none;
+}
 
 #app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; }
 

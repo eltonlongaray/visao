@@ -434,7 +434,10 @@ function _refTimes() {
 
 // Handlers que existem uma vez só (tabs, fechar, copiar, salvar, cancelar).
 function wireFixos(corpo) {
-  corpo.querySelector('#ag-back')?.addEventListener('click', () => _close?.());   // volta pro hub Ferramentas
+  // history.back() (não _close direto): assim o popstate chega ANTES da remoção
+  // do overlay, e a guarda do hub Ferramentas (if #agenda-ov return) funciona —
+  // senão o hub fechava junto e caía na Home. Igual ao back físico do Android.
+  corpo.querySelector('#ag-back')?.addEventListener('click', () => history.back());
   corpo.querySelectorAll('.ag-tab').forEach(t => {
     t.addEventListener('click', () => { _diaSel = parseInt(t.dataset.tab, 10); pintarTabs(); pintarDiaEditor(); });
   });

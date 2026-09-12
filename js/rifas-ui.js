@@ -88,7 +88,10 @@ function desenharLista() {
           </div>`).join('') : '<div class="ag-vazio">Você ainda não tem rifas. Crie a primeira! 🎟️</div>'}
       </div>
     </div>`;
-  corpo.querySelector('#rf-hub-back')?.addEventListener('click', () => _close?.());   // volta pro hub Ferramentas
+  // history.back() (não _close direto): deixa o popstate chegar antes da remoção
+  // do overlay pra guarda do hub Ferramentas funcionar (senão fecha o hub junto
+  // e cai na Home). Igual ao back físico do Android.
+  corpo.querySelector('#rf-hub-back')?.addEventListener('click', () => history.back());   // volta pro hub Ferramentas
   corpo.querySelector('#rf-nova').onclick = () => abrirEditor(null);
   corpo.querySelectorAll('[data-rifa]').forEach(b => b.onclick = () => {
     abrirEditor(_rifas.find(r => r.id === b.dataset.rifa));
