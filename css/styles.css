@@ -2958,6 +2958,11 @@ body.time-picker-open { overflow: hidden; }
   content: ''; position: absolute; left: 0; right: 0; top: 26px; bottom: 0; z-index: 0;
   background:
     linear-gradient(180deg, #3d2b1a 0%, #2a1d11 52%, #1a1209 100%) left 0 top -26px / 100% 84px no-repeat;
+  /* O gradiente é no-repeat de 84px; num celular com barra de gestos o
+     viewport-fit=cover adiciona padding-bottom = safe-area e a faixa ABAIXO
+     do gradiente ficava transparente (o canvas branco vazava = "linha
+     branca"). Esta cor sólida = fim do couro, preenche o safe-area sem costura. */
+  background-color: #1a1209;
   border-top: 1px solid rgba(214,175,55,0.55);
   /* sem sombra externa pra cima: o clip-path da nav recortava ela num
      retângulo de 160px e o resultado era um bloco quadrado de sombra em
@@ -7754,15 +7759,30 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rf-intro { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
 .rf-nova-btn { width: 100%; margin-bottom: 16px; }
 .rf-minhas { display: flex; flex-direction: column; gap: 10px; }
-.rf-card-mini { text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 13px 15px; cursor: pointer; transition: border-color .15s, transform .1s; }
-.rf-card-mini:active { transform: scale(.99); }
-.rf-card-mini:hover { border-color: var(--accent-2); }
-.rf-card-mini-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.rf-card-mini-nome { font-weight: 700; font-size: 15px; color: var(--text); }
-.rf-card-mini-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 3px 8px; border-radius: 999px; }
-.rf-card-mini-tag.on { color: #22c55e; background: color-mix(in srgb, #22c55e 16%, var(--card)); }
-.rf-card-mini-tag.off { color: var(--muted); background: color-mix(in srgb, var(--muted) 16%, var(--card)); }
-.rf-card-mini-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+/* Card da rifa (estilo Ritual): corpo tocável + kebab de 3 pontinhos.
+   O "ativa" fica logo ao lado do nome (esquerda), não jogado pra direita. */
+.rf-card2 { position: relative; display: flex; align-items: stretch; background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color .15s; }
+.rf-card2:hover { border-color: var(--accent-2); }
+.rf-card2-main { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 13px 6px 13px 15px; cursor: pointer; color: inherit; font-family: inherit; }
+.rf-card2-main:active { transform: scale(.995); }
+.rf-card2-top { display: flex; align-items: center; gap: 8px; }
+.rf-card2-nome { min-width: 0; font-weight: 700; font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-card2-tag { flex: none; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 3px 8px; border-radius: 999px; }
+.rf-card2-tag.on { color: #22c55e; background: color-mix(in srgb, #22c55e 16%, var(--card)); }
+.rf-card2-tag.off { color: var(--muted); background: color-mix(in srgb, var(--muted) 16%, var(--card)); }
+.rf-card2-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.rf-card2-kebab { flex: none; width: 46px; display: grid; place-items: center; background: none; border: none; border-left: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+.rf-card2-kebab:active { color: var(--text); background: var(--card-2); }
+
+/* Action-sheet do kebab (Editar / Excluir) — sobe de baixo */
+.rf-menu-ov { align-items: end; padding: 0; }
+.rf-menu-sheet { width: 100%; max-width: 480px; margin: 0 auto; background: var(--card); border: 1px solid var(--border); border-bottom: 0; border-radius: 18px 18px 0 0; padding: 8px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 4px; animation: rfSheetUp .18s ease; }
+@keyframes rfSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.rf-menu-title { font-size: 13px; font-weight: 700; color: var(--muted); padding: 8px 10px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-menu-item { text-align: left; background: none; border: none; color: var(--text); font-size: 16px; font-weight: 600; font-family: inherit; padding: 15px 12px; border-radius: 12px; cursor: pointer; }
+.rf-menu-item:active { background: var(--card-2); }
+.rf-menu-item.danger { color: #ef4444; }
+.rf-menu-item.cancel { color: var(--muted); font-weight: 500; margin-top: 2px; text-align: center; }
 .rf-voltar { background: none; border: none; color: var(--accent-2); font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 0; }
 .rf-sec-lbl { font-size: 13px; font-weight: 800; color: var(--text); margin: 20px 0 8px; letter-spacing: -.2px; }
 .rf-dica-box { font-size: 12px; color: var(--text); background: color-mix(in srgb, var(--accent-2) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--border)); border-radius: 10px; padding: 9px 11px; margin-bottom: 12px; line-height: 1.45; }

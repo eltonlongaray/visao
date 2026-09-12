@@ -9,10 +9,14 @@ import {
   getParticipantes, marcarPago, removerParticipante, sortearPremio, definirStatusSorteio,
   getMpConta, iniciarConexaoMp, desconectarMp,
 } from './rifas.js';
-import { showToast } from './aviso-tela.js';
+import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
 const WA_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
+// Seta de voltar (mesmo desenho da Caixa de Ferramentas / comunidade)
+const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
+// Menu de 3 pontinhos (kebab) do card da rifa
+const SVG_KEBAB = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
 
 let _rifas = [], _sel = null, _parts = [], _premios = [], _close = null, _mpConta = null;
 
@@ -64,30 +68,71 @@ function desenharLista() {
   const corpo = _corpo(); if (!corpo) return;
   corpo.innerHTML = `
     <div class="ag-header">
-      <button class="rf-voltar" id="rf-hub-back" type="button">‹ Ferramentas</button>
+      <button class="fr-voltar" id="rf-hub-back" type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
       <div class="ag-title">🎟️ Rifa Solidária</div>
-      <button class="ag-fechar" id="rf-close" type="button">Fechar</button>
     </div>
     <div class="ag-scroll">
-      <div class="rf-intro">Crie sua rifa, compartilhe o link e acompanhe quem escolheu cada número. O pagamento cai direto na <b>sua chave Pix</b>.</div>
+      <div class="rf-intro">Crie sua rifa, compartilhe o link e acompanhe quem escolheu cada número. O dinheiro cai direto na <b>sua conta</b>.</div>
       <button class="btn-primary rf-nova-btn" id="rf-nova" type="button">➕ Criar nova rifa</button>
       <div class="rf-minhas" id="rf-minhas">
         ${_rifas.length ? _rifas.map(r => `
-          <button class="rf-card-mini" data-rifa="${_esc(r.id)}" type="button">
-            <div class="rf-card-mini-top">
-              <span class="rf-card-mini-nome">${_esc(r.titulo || 'Rifa')}</span>
-              <span class="rf-card-mini-tag ${r.ativo ? 'on' : 'off'}">${r.ativo ? 'ativa' : 'pausada'}</span>
-            </div>
-            <div class="rf-card-mini-sub">${r.total_numeros || 0} números${r.valor_numero ? ` · R$ ${_preco(r.valor_numero)} cada` : ''}${r.sorteio_status === 'encerrado' ? ' · ✅ sorteada' : ''}</div>
-          </button>`).join('') : '<div class="ag-vazio">Você ainda não tem rifas. Crie a primeira! 🎟️</div>'}
+          <div class="rf-card2" data-card="${_esc(r.id)}">
+            <button class="rf-card2-main" data-rifa="${_esc(r.id)}" type="button">
+              <div class="rf-card2-top">
+                <span class="rf-card2-nome">${_esc(r.titulo || 'Rifa')}</span>
+                <span class="rf-card2-tag ${r.ativo ? 'on' : 'off'}">${r.ativo ? 'ativa' : 'pausada'}</span>
+              </div>
+              <div class="rf-card2-sub">${r.total_numeros || 0} números${r.valor_numero ? ` · R$ ${_preco(r.valor_numero)} cada` : ''}${r.sorteio_status === 'encerrado' ? ' · ✅ sorteada' : ''}</div>
+            </button>
+            <button class="rf-card2-kebab" data-kebab="${_esc(r.id)}" type="button" aria-label="Opções">${SVG_KEBAB}</button>
+          </div>`).join('') : '<div class="ag-vazio">Você ainda não tem rifas. Crie a primeira! 🎟️</div>'}
       </div>
     </div>`;
-  corpo.querySelector('#rf-close').onclick = () => _close?.();
   corpo.querySelector('#rf-hub-back')?.addEventListener('click', () => _close?.());   // volta pro hub Ferramentas
   corpo.querySelector('#rf-nova').onclick = () => abrirEditor(null);
   corpo.querySelectorAll('[data-rifa]').forEach(b => b.onclick = () => {
     abrirEditor(_rifas.find(r => r.id === b.dataset.rifa));
   });
+  corpo.querySelectorAll('[data-kebab]').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    _abrirMenuRifa(_rifas.find(r => r.id === b.dataset.kebab));
+  });
+}
+
+// ── Menu de 3 pontinhos do card: Editar / Excluir ──
+function _abrirMenuRifa(rifa) {
+  if (!rifa) return;
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay rf-menu-ov';
+  ov.innerHTML = `
+    <div class="rf-menu-sheet">
+      <div class="rf-menu-title">${_esc(rifa.titulo || 'Rifa')}</div>
+      <button class="rf-menu-item" data-act="editar" type="button">✏️ Editar</button>
+      <button class="rf-menu-item danger" data-act="excluir" type="button">🗑 Excluir</button>
+      <button class="rf-menu-item cancel" data-act="cancel" type="button">Cancelar</button>
+    </div>`;
+  document.body.appendChild(ov);
+  const fechar = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
+  ov.querySelector('[data-act="editar"]').onclick = () => { fechar(); abrirEditor(rifa); };
+  ov.querySelector('[data-act="excluir"]').onclick = () => { fechar(); _excluirRifa(rifa); };
+  ov.querySelector('[data-act="cancel"]').onclick = () => fechar();
+}
+
+async function _excluirRifa(rifa) {
+  if (!rifa?.id) return;
+  const ok = await confirmModal({
+    title: 'Excluir esta rifa?',
+    message: `A rifa "${rifa.titulo || 'Rifa'}" e todos os números já escolhidos vão ser apagados. Isso não tem volta.`,
+    confirmText: 'Excluir', cancelText: 'Cancelar', danger: true,
+  });
+  if (!ok) return;
+  try {
+    await excluirRifa(rifa.id);
+    _rifas = _rifas.filter(r => r.id !== rifa.id);
+    showToast('Rifa excluída', 'info');
+    desenharLista();
+  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -112,8 +157,8 @@ function desenharEditor() {
   const r = _sel, novo = !r.id;
   corpo.innerHTML = `
     <div class="ag-header">
-      <button class="rf-voltar" id="rf-back" type="button">‹ Minhas rifas</button>
-      <button class="ag-fechar" id="rf-close" type="button">Fechar</button>
+      <button class="fr-voltar" id="rf-back" type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
+      <div class="ag-title">${novo ? '🎟️ Nova rifa' : 'Minhas rifas'}</div>
     </div>
     <div class="ag-scroll">
       <div class="ag-title" style="margin:2px 0 12px">${novo ? '🎟️ Nova rifa' : '✏️ ' + _esc(r.titulo || 'Rifa')}</div>
@@ -164,7 +209,6 @@ function desenharEditor() {
       ${_sorteioHtml()}`}
     </div>
     <div class="ag-rodape">
-      ${novo ? '' : '<button class="rf-excluir-btn" id="rf-excluir" type="button">🗑</button>'}
       <button class="btn-primary" id="rf-salvar" type="button" style="flex:1">${novo ? 'Criar rifa' : 'Salvar'}</button>
     </div>`;
   pintarPremios();
@@ -178,8 +222,13 @@ function _pagamentoHtml(r) {
   if (r.pix_modo === 'mp') {
     return `<div class="rf-dica-box">⚡ <b>Mercado Pago (conta do app).</b> Esta rifa recebe pela conta configurada no servidor e confirma o pagamento automaticamente. Modo especial — não editável por aqui.</div>`;
   }
-  const modo = r.pix_modo === 'mp_connect' ? 'mp_connect' : 'estatico';
   const conectado = !!_mpConta?.connected;
+  // Modo salvo manda; se a rifa é NOVA (sem pix_modo) e o Mercado Pago já está
+  // conectado, o padrão é MP — é o que o Elton espera (o dinheiro já cai na
+  // conta MP e confirma sozinho). Sem MP conectado, cai no Pix estático.
+  const modo = r.pix_modo === 'mp_connect' ? 'mp_connect'
+             : r.pix_modo === 'estatico'   ? 'estatico'
+             : (conectado ? 'mp_connect' : 'estatico');
   return `
     <div class="rf-modo">
       <label class="rf-modo-op ${modo === 'mp_connect' ? 'on' : ''}">
@@ -289,7 +338,6 @@ function _sorteioHtml() {
 
 // ── Wiring do editor ───────────────────────────────────────────
 function wireEditor(corpo) {
-  corpo.querySelector('#rf-close').onclick = () => _close?.();
   corpo.querySelector('#rf-back').onclick = () => desenharLista();
   corpo.querySelector('#rf-premio-add').onclick = () => { _syncPremios(); _premios.push(''); pintarPremios(); };
   // Modo de recebimento (Mercado Pago × chave Pix)
@@ -311,7 +359,6 @@ function wireEditor(corpo) {
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   });
   corpo.querySelector('#rf-salvar').onclick = salvar;
-  corpo.querySelector('#rf-excluir')?.addEventListener('click', excluir);
   corpo.querySelector('#rf-copiar')?.addEventListener('click', async () => {
     const inp = corpo.querySelector('#rf-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
@@ -459,13 +506,3 @@ async function salvar() {
   }
 }
 
-async function excluir() {
-  if (!_sel?.id) return;
-  if (!confirm(`Excluir a rifa "${_sel.titulo}"? Isso apaga os números escolhidos também.`)) return;
-  try {
-    await excluirRifa(_sel.id);
-    _rifas = _rifas.filter(r => r.id !== _sel.id);
-    showToast('Rifa excluída', 'info');
-    desenharLista();
-  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
-}
