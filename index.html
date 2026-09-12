@@ -16,7 +16,7 @@
 <!-- Force-update: unregister → re-register → SW ready → reload -->
 <script>
   (function() {
-    var V = '653';
+    var V = '654';
     window.__BUILD = V;   // exibido em Ajustes: encerra a dúvida de 'a atualização chegou?'
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
@@ -56,9 +56,9 @@
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
   (function() {
     var saved = localStorage.getItem('visao_theme');
-    var theme = (saved === 'dark' || saved === 'light')
-      ? saved
-      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    // Dark-first: sem escolha salva, abre no ESCURO (não segue o modo claro do
+    // sistema). Reinstalar limpa o localStorage e caía no claro sem querer.
+    var theme = (saved === 'dark' || saved === 'light') ? saved : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>

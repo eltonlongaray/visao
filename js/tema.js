@@ -12,10 +12,8 @@ const STORAGE_KEY = 'visao_theme';
 export function getStoredTheme() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === 'dark' || saved === 'light') return saved;
-  // Respeita preferência do sistema operacional
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-    return 'light';
-  }
+  // Dark-first: sem escolha salva, abre no ESCURO (não segue o modo claro do
+  // sistema). O usuário troca pra claro no toggle se quiser.
   return 'dark';
 }
 
