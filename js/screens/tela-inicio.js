@@ -419,14 +419,8 @@ function renderCats() {
       <div class="cat-config-swatch" style="background:#7c3aed"></div>
       <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
     </div>`;
-  const rifaCard = `
-    <div class="cat-config-card ag-cat-card" id="rifa-cat" role="button">
-      <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">🎟️</div>
-      <div class="cat-config-name-display">Rifa Solidária</div>
-      <div class="cat-config-swatch" style="background:#7c3aed"></div>
-      <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
-    </div>`;
-  box.innerHTML = agendaCard + rifaCard + categories.map(c => `
+  // Rifa Solidária saiu daqui — vive só na Caixa de Ferramentas (pedido do Elton).
+  box.innerHTML = agendaCard + categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
@@ -441,7 +435,6 @@ function renderCats() {
   `).join('');
   // Atividade fixa: abre a Caixa de Ferramentas (onde Agenda Online e Rifa Solidária vivem agora).
   box.querySelector('#agenda-cat')?.addEventListener('click', () => abrirFerramentas());
-  box.querySelector('#rifa-cat')?.addEventListener('click', () => abrirFerramentas());
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
