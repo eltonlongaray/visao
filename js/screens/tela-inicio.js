@@ -412,11 +412,12 @@ function attachPrefHandlers() {
 function renderCats() {
   const box = document.getElementById('cats-list');
   // Atividade FIXA "Agenda Online" (pra todos) — igual às outras, abre o hub da Agenda.
+  // Agenda Online = só um item informativo na lista (NÃO é botão, sem bolinha de
+  // cor). O gerenciamento vive na Caixa de Ferramentas.
   const agendaCard = `
-    <div class="cat-config-card ag-cat-card" id="agenda-cat" role="button">
+    <div class="cat-config-card ag-cat-card" id="agenda-cat">
       <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">📅</div>
       <div class="cat-config-name-display">Agenda Online</div>
-      <div class="cat-config-swatch" style="background:#7c3aed"></div>
       <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
     </div>`;
   // Rifa Solidária saiu daqui — vive só na Caixa de Ferramentas (pedido do Elton).
@@ -433,8 +434,7 @@ function renderCats() {
       </div>
     </div>
   `).join('');
-  // Atividade fixa: abre a Caixa de Ferramentas (onde Agenda Online e Rifa Solidária vivem agora).
-  box.querySelector('#agenda-cat')?.addEventListener('click', () => abrirFerramentas());
+  // Agenda Online não é clicável (item informativo). Gestão fica na Caixa de Ferramentas.
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
