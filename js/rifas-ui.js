@@ -168,9 +168,9 @@ function desenharEditor() {
 
       <div class="rf-sec-lbl">📝 Sobre a rifa</div>
       <label class="input-field"><div class="input-field-label">Título *</div>
-        <input id="rf-titulo" value="${_esc(r.titulo || '')}" placeholder="Ex: Rifa Solidária pelo Pitter"></label>
+        <input id="rf-titulo" value="${_esc(r.titulo || '')}" placeholder="Ex: Rifa Solidária pela saúde do meu pet"></label>
       <label class="input-field"><div class="input-field-label">Subtítulo <span class="ag-lbl-opt">— uma linha de chamada</span></div>
-        <input id="rf-subtitulo" value="${_esc(r.subtitulo || '')}" placeholder="Ex: Ajude o Pitter a voltar a andar"></label>
+        <input id="rf-subtitulo" value="${_esc(r.subtitulo || '')}" placeholder="Ex: Toda ajuda aproxima a gente da meta"></label>
       <label class="input-field"><div class="input-field-label">História / descrição <span class="ag-lbl-opt">— explique a causa</span></div>
         <textarea id="rf-descricao" rows="4" placeholder="Conte a história e por que a rifa está sendo feita.">${_esc(r.descricao || '')}</textarea></label>
 
@@ -182,7 +182,7 @@ function desenharEditor() {
           <input id="rf-valor" type="text" inputmode="decimal" value="${_preco(r.valor_numero)}" placeholder="10,00"></label>
       </div>
       <label class="input-field"><div class="input-field-label">Meta de arrecadação (R$) <span class="ag-lbl-opt">— opcional</span></div>
-        <input id="rf-meta" type="text" inputmode="decimal" value="${_preco(r.valor_meta)}" placeholder="Ex: 3420,00"></label>
+        <input id="rf-meta" type="text" inputmode="decimal" value="${_preco(r.valor_meta)}" placeholder="Ex: 2000,00"></label>
 
       <div class="rf-sec-lbl">🏆 Prêmios</div>
       <div class="rf-premios-ed" id="rf-premios"></div>
@@ -269,7 +269,7 @@ function pintarPremios() {
   box.innerHTML = _premios.length ? _premios.map((p, i) => `
     <div class="rf-premio-row" data-i="${i}">
       <span class="rf-premio-n">${i + 1}º</span>
-      <input class="rf-premio-in" value="${_esc(p)}" placeholder="Ex: Massagem relaxante">
+      <input class="rf-premio-in" value="${_esc(p)}" placeholder="Ex: 1 vale-presente de R$ 100">
       <button class="ag-serv-x" data-rm-premio="${i}" type="button" aria-label="Remover">✕</button>
     </div>`).join('') : '<div class="ag-serv-vazio">Sem prêmios ainda (opcional).</div>';
   box.querySelectorAll('[data-rm-premio]').forEach(b => b.onclick = () => {
