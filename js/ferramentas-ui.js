@@ -84,7 +84,7 @@ function telaHub() {
     <div class="fr-hub">
       <button class="fr-hubcard" data-hub-listas type="button">
         <span class="fr-hub-ic">📋</span>
-        <span class="fr-hub-tx"><b>Listas</b><small>Recados e tarefas por grupo, sem data nem hora</small></span>
+        <span class="fr-hub-tx"><b>Listas</b><small>Coisas que você precisa fazer ou comprar, sem data nem hora</small></span>
         ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
       </button>
       <button class="fr-hubcard" data-hub-agenda type="button">

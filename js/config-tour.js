@@ -84,15 +84,15 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 5. HOME: Agenda Online (pra quem atende) ──
+  // ── 5. HOME: Caixa de Ferramentas (hub: Listas, Agenda Online, Rifa) ──
   {
-    id: 'home-agenda',
+    id: 'home-ferramentas',
     route: '/home',
-    target: '#agenda-card',
+    target: '#ferramentas-card',
     holePad: 8,
     noCollapse: true,
-    title: '📅 Agenda Online',
-    message: 'Se você <strong>atende clientes</strong> (personal, terapeuta, consultoria…), aqui você monta seus horários e ganha um <strong>link pra bio do Instagram</strong>. Quem clicar agenda sozinho, e o horário já cai como compromisso no seu Ritual. Se não for o seu caso, é só ignorar. 😉',
+    title: '🛠️ Caixa de Ferramentas',
+    message: 'Aqui dentro tem três coisas boas: <strong>Listas</strong> (recados e tarefas sem data), <strong>Agenda Online</strong> — se você <strong>atende clientes</strong> (personal, terapeuta…), monta seus horários e ganha um link pra bio; quem clicar agenda sozinho e já cai como compromisso no seu Ritual — e a <strong>Rifa Solidária</strong>, pra criar uma rifa e compartilhar o link. É só tocar pra abrir. 😉',
     primaryBtn: 'Próximo →'
   },
 
