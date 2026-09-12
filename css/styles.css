@@ -69,7 +69,12 @@ html, body {
    então o canvas do navegador (a faixa de overscroll / safe-area embaixo da
    nav, na barra de gestos do Android) mostrava o BRANCO padrão — a "linha
    branca". Uma cor sólida no <html> pinta essa faixa com o fundo do tema. */
-html { background-color: var(--bg); }
+/* O Chrome, num PWA instalado, pinta a BARRA DE NAVEGAÇÃO do Android com a
+   cor de fundo SÓLIDA do body/html. Como `background: gradiente` zera o
+   background-color pra transparente, o Chrome não achava cor e caía no BRANCO
+   (a "linha branca" que só aparece no app instalado, não no navegador).
+   Cor sólida escura em AMBOS resolve — o gradiente continua por cima. */
+html, body { background-color: var(--bg); }
 /* Blindagem contra a "linha branca" no rodapé: barra fixa escura colada no
    fundo REAL da tela (viewport-fit=cover leva o bottom:0 até a borda física).
    Cobre a costura de ~1-2px entre o conteúdo web e a barra de navegação do
