@@ -219,6 +219,7 @@ async function openMessageDetail(n) {
       </button>
       <div class="mm-notes-body" id="mm-notes-body" hidden>
         <textarea id="mm-notes-textarea" placeholder="${msg.notesPlaceholder.replace(/"/g, '&quot;')}" rows="6">${initialNote.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+        <div class="mm-notes-grip" id="mm-notes-grip" role="separator" aria-label="Segure e arraste para aumentar"><span></span></div>
         <div class="mm-notes-hint">${t('mm.notes.hint')}</div>
       </div>
     </div>
@@ -282,6 +283,39 @@ async function openMessageDetail(n) {
     // Quando textarea recebe foco, rola pra mantê-lo visível acima do teclado
     textarea.addEventListener('focus', () => {
       setTimeout(() => textarea.scrollIntoView({ behavior: 'smooth', block: 'center' }), 280);
+    });
+  }
+
+  // ── Alça de arrastar: segure e puxe pra cima/baixo pra crescer a caixa ──
+  // O grip nativo (resize:vertical) é minúsculo e não responde bem ao dedo;
+  // esta alça larga captura o ponteiro e ajusta a altura manualmente.
+  const grip = overlay.querySelector('#mm-notes-grip');
+  if (grip && textarea) {
+    let startY = 0, startH = 0, dragging = false;
+    const maxH = () => Math.round(window.innerHeight * 0.6);
+    const onMove = (e) => {
+      if (!dragging) return;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY);
+      const h = Math.max(100, Math.min(maxH(), startH + (y - startY)));
+      textarea.style.height = h + 'px';
+      e.preventDefault();
+    };
+    const onUp = () => {
+      dragging = false;
+      grip.classList.remove('dragging');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    grip.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      startY = e.clientY;
+      startH = textarea.getBoundingClientRect().height;
+      grip.classList.add('dragging');
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+      e.preventDefault();
     });
   }
 

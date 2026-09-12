@@ -65,6 +65,11 @@ html, body {
   overflow-x: hidden;
   transition: background 0.25s ease, color 0.25s ease;
 }
+/* O shorthand `background:` acima zera o background-color pra transparente,
+   então o canvas do navegador (a faixa de overscroll / safe-area embaixo da
+   nav, na barra de gestos do Android) mostrava o BRANCO padrão — a "linha
+   branca". Uma cor sólida no <html> pinta essa faixa com o fundo do tema. */
+html { background-color: var(--bg); }
 
 #app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; }
 
@@ -2657,6 +2662,18 @@ body.time-picker-open { overflow: hidden; }
 .mm-notes-body textarea:focus {
   border-color: var(--accent, #a78bfa);
 }
+/* Alça de arrastar (touch-friendly) — segure e puxe pra crescer a caixa. */
+.mm-notes-grip {
+  display: flex; align-items: center; justify-content: center;
+  height: 26px; margin-top: -3px; cursor: ns-resize;
+  touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.mm-notes-grip span {
+  width: 44px; height: 5px; border-radius: 999px;
+  background: var(--border); transition: background .15s, width .15s;
+}
+.mm-notes-grip.dragging span,
+.mm-notes-grip:active span { background: var(--accent, #a78bfa); width: 60px; }
 .mm-notes-hint {
   font-size: 11px;
   color: var(--muted);
