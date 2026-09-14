@@ -65,29 +65,13 @@ html, body {
   overflow-x: hidden;
   transition: background 0.25s ease, color 0.25s ease;
 }
-/* O shorthand `background:` acima zera o background-color pra transparente,
-   então o canvas do navegador (a faixa de overscroll / safe-area embaixo da
-   nav, na barra de gestos do Android) mostrava o BRANCO padrão — a "linha
-   branca". Uma cor sólida no <html> pinta essa faixa com o fundo do tema. */
 /* O Chrome, num PWA instalado, pinta a BARRA DE NAVEGAÇÃO do Android com a
-   cor de fundo SÓLIDA do body/html. Como `background: gradiente` zera o
-   background-color pra transparente, o Chrome não achava cor e caía no BRANCO
-   (a "linha branca" que só aparece no app instalado, não no navegador).
-   Cor sólida escura em AMBOS resolve — o gradiente continua por cima. */
-html, body { background-color: var(--bg); }
-/* Blindagem contra a "linha branca" no rodapé: barra fixa escura colada no
-   fundo REAL da tela (viewport-fit=cover leva o bottom:0 até a borda física).
-   Cobre a costura de ~1-2px entre o conteúdo web e a barra de navegação do
-   Android (aparece em aparelho com botões, onde não há safe-area pra pintar).
-   Cobre também toda a faixa de safe-area em quem usa gestos. */
-body::after {
-  content: '';
-  position: fixed; left: 0; right: 0; bottom: 0;
-  height: calc(env(safe-area-inset-bottom, 0px) + 3px);
-  background: var(--bg);
-  z-index: 2147483647;
-  pointer-events: none;
-}
+   cor de fundo SÓLIDA do body/html (o gradiente é imagem e não conta). Sem
+   cor sólida, caía no BRANCO — a "linha branca" que só aparecia no instalado.
+   Usamos a cor do FUNDO DO COURO do cinturão (#1a1209) nos DOIS temas: assim a
+   barra do Android encosta no cinturão SEM costura (o cinturão é sempre escuro,
+   em claro e escuro). O gradiente da página fica por cima, opaco, intacto. */
+html, body { background-color: #1a1209; }
 
 #app { min-height: 100vh; max-width: 480px; margin: 0 auto; position: relative; }
 
