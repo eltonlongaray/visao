@@ -7423,13 +7423,13 @@ body.sem-rolagem { overflow: hidden; }
 /* Agenda Online e Rifa Solidária abrem em TELA CHEIA, igual à Caixa de
    Ferramentas — não como popup centralizado. Sobrescreve o .modal-overlay
    (grid/place-items:center + 20px padding) e o .ag-modal (max-width 480). */
-#agenda-ov, #rifas-ov { padding: 0; place-items: stretch; }
-#agenda-ov .ag-modal, #rifas-ov .ag-modal {
+#agenda-ov, #rifas-ov, #objetivos-ov { padding: 0; place-items: stretch; }
+#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal {
   width: 100%; max-width: 100%;
   height: 100vh; height: 100dvh; max-height: 100dvh;
   border: 0; border-radius: 0;
 }
-#agenda-ov .ag-corpo, #rifas-ov .ag-corpo {
+#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo {
   height: 100vh; height: 100dvh; max-height: 100dvh;
 }
 .ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }

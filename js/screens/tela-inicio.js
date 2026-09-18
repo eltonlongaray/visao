@@ -38,7 +38,6 @@ import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
-import { montarObjetivos, ligarObjetivos } from '../objetivos-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 import { abrirAgenda } from '../agenda-ui.js';
 import { abrirRifas } from '../rifas-ui.js';
@@ -159,18 +158,8 @@ export async function renderHome(app) {
         <div class="bloco-sub bloco-sub-fim">${t('home.activities.hint')}</div>
       </div>
 
-      <!-- OBJETIVOS: o alvo declarado da constância. Vem DEPOIS das
-           atividades porque é delas que ele puxa a contagem. -->
-      <div class="home-section home-bloco" id="obj-secao">
-        <div class="home-section-title home-bloco-titulo">
-          <span>🎯 Meus objetivos</span>
-          <button class="home-add-btn" id="obj-novo" title="Novo objetivo">+</button>
-        </div>
-        <div class="bloco-sub">
-          Quais atividades que se repetem você gostaria de manter a constância?
-        </div>
-        <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
-      </div>
+      <!-- "Meus Objetivos" (com o Foco e Disciplina dentro) mudou-se pra Caixa
+           de Ferramentas. Aqui na Home ficam só as Atividades que ele gera. -->
 
     </div>
     ${bottomNav('home')}
@@ -184,8 +173,6 @@ export async function renderHome(app) {
 
   // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
-  ligarObjetivos();
-  montarObjetivos();   // sem await: a Home não espera os objetivos pra aparecer
   ligarFerramentas();
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);

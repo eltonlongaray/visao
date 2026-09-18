@@ -120,22 +120,8 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 7.5. HOME: Objetivos (o alvo da constância) ──
-  {
-    id: 'home-objetivos',
-    route: '/home',
-    noCollapse: true,
-    prepare: async () => {
-      const el = await esperarEl('#obj-secao');
-      if (el) { el.scrollIntoView({ block: 'center' }); await wait(200); }
-    },
-    target: '#obj-secao',
-    noScroll: true,
-    holePad: 10,
-    title: '🎯 Seus objetivos',
-    message: 'Declare o que você quer manter: <strong>academia 4× por semana</strong>, jejum 1× por semana. Eu conto sozinho quando você marca a atividade no Ritual — e mostro há quanto tempo você está constante.',
-    primaryBtn: 'Próximo →'
-  },
+  // (O passo de Objetivos saiu daqui: "Meus Objetivos" / Foco e Disciplina
+  //  agora vive dentro da Caixa de Ferramentas — coberto pelo passo do hub.)
 
   // ── 8. RITUAL: estrutura geral + marcar feito ──
   {

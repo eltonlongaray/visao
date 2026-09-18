@@ -12,9 +12,46 @@ import {
 } from './objetivos.js';
 import { getCategories } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
+import { trapModalBack } from './modal-voltar.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+
+// Seta de voltar — mesmo desenho da Caixa de Ferramentas
+const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
+
+let _objClose = null;
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 0: TELA CHEIA (card "Meus Objetivos" dentro da Caixa de Ferramentas)
+// Por cima vem (Fase 2) a definição das 6 áreas; por baixo o "Foco e
+// Disciplina" = o tracker de constância que já existia na Home.
+// ═══════════════════════════════════════════════════════════════
+export async function abrirObjetivos() {
+  if (document.getElementById('objetivos-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.id = 'objetivos-ov';
+  ov.innerHTML = `
+    <div class="modal ag-modal"><div class="ag-corpo">
+      <div class="ag-header">
+        <button class="fr-voltar" id="obj-back" type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
+        <div class="ag-title">🎯 Meus Objetivos</div>
+      </div>
+      <div class="ag-scroll">
+        <div class="rf-sec-lbl">🔥 Foco e Disciplina</div>
+        <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. O que entrar aqui vira atividade na sua Home — e eu conto sozinho a partir do Ritual.</div>
+        <button class="btn-primary" id="obj-novo" type="button" style="width:100%;margin-bottom:14px">➕ Novo foco</button>
+        <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
+  _objClose = trapModalBack(() => ov.remove());
+  ov.querySelector('#obj-back').addEventListener('click', () => history.back());
+  ligarObjetivos();
+  await montarObjetivos();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: CARD DA HOME

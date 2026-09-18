@@ -14,6 +14,7 @@ import {
 import { showToast, confirmModal } from './aviso-tela.js';
 import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
+import { abrirObjetivos } from './objetivos-ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -86,6 +87,10 @@ function telaHub() {
         <span class="fr-hub-ic">📋</span>
         <span class="fr-hub-tx"><b>Listas</b><small>Coisas que você precisa fazer ou comprar, sem data nem hora</small></span>
         ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
+      </button>
+      <button class="fr-hubcard" data-hub-objetivos type="button">
+        <span class="fr-hub-ic">🎯</span>
+        <span class="fr-hub-tx"><b>Meus Objetivos</b><small>Defina suas áreas e escolha o que manter com constância</small></span>
       </button>
       <button class="fr-hubcard" data-hub-agenda type="button">
         <span class="fr-hub-ic">📅</span>
@@ -217,7 +222,7 @@ export function ligarFerramentas() {
     if (!ov || _hist === 0) return;
     // Agenda/Rifa aberta POR CIMA do hub → deixa o modal dela tratar o back (ela fecha,
     // o hub reaparece). Sem isso, o back fechava o hub junto.
-    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov')) return;
+    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov')) return;
     _hist--;
     if (grupoAberto) { grupoAberto = null; desenhar(); }        // grupo → Listas
     else if (vista === 'listas') { vista = 'hub'; desenhar(); } // Listas → hub
@@ -232,6 +237,7 @@ export function ligarFerramentas() {
 
     // Hub → cards
     if (e.target.closest('[data-hub-listas]')) { history.pushState({ fr: 1 }, ''); _hist++; vista = 'listas'; grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-hub-objetivos]')) { abrirObjetivos(); return; } // abre por cima do hub
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
 
