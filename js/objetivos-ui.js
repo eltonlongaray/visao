@@ -87,14 +87,16 @@ export async function abrirObjetivos() {
         <div class="ag-title">🎯 Meus Objetivos</div>
       </div>
       <div class="ag-scroll">
-        <button class="obj-ideal-toggle" id="obj-ideal-toggle" type="button">
-          <span class="obj-ideal-ic">🧭</span>
-          <span class="obj-ideal-tit">Organizando meu ideal</span>
-          <span class="obj-ideal-chev">▾</span>
-        </button>
-        <div class="obj-ideal-body" id="obj-ideal-body" hidden>
-          <div class="bloco-sub" style="margin:2px 0 12px">Antes de escolher seus focos, defina o que é o <b>ideal</b> pra você em cada uma das 6 áreas da vida. Isso guia o que você vai priorizar embaixo.</div>
-          ${PILARES.map(p => _pilarHtml(p, ideal)).join('')}
+        <div class="obj-ideal" id="obj-ideal">
+          <button class="obj-ideal-toggle" id="obj-ideal-toggle" type="button">
+            <span class="obj-ideal-ic">🧭</span>
+            <span class="obj-ideal-tit">Organizando meu ideal</span>
+            <span class="obj-ideal-chev">▾</span>
+          </button>
+          <div class="obj-ideal-body" id="obj-ideal-body">
+            <div class="bloco-sub" style="margin:2px 0 12px">Antes de escolher seus focos, defina o que é o <b>ideal</b> pra você em cada uma das 6 áreas da vida. Isso guia o que você vai priorizar embaixo.</div>
+            ${PILARES.map(p => _pilarHtml(p, ideal)).join('')}
+          </div>
         </div>
 
         <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
@@ -108,12 +110,11 @@ export async function abrirObjetivos() {
   _objClose = trapModalBack(() => ov.remove());
   ov.querySelector('#obj-back').addEventListener('click', () => history.back());
 
-  // "Organizando meu ideal" — retrátil
-  const toggle = ov.querySelector('#obj-ideal-toggle');
-  const body = ov.querySelector('#obj-ideal-body');
-  toggle.addEventListener('click', () => {
-    body.hidden = !body.hidden;
-    toggle.classList.toggle('aberto', !body.hidden);
+  // "Organizando meu ideal" — retrátil (borda envolve as laterais quando abre,
+  // igual ao card do dia no Ritual: classe .open no wrapper).
+  const idealWrap = ov.querySelector('#obj-ideal');
+  ov.querySelector('#obj-ideal-toggle').addEventListener('click', () => {
+    idealWrap.classList.toggle('open');
   });
 
   // Auto-save dos pilares (debounce) — grava em profile.idealPilares

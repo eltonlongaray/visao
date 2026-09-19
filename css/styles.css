@@ -7134,15 +7134,21 @@ body.sem-rolagem { overflow: hidden; }
 .pend-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
 .pend-seta { color: var(--muted); font-size: 18px; flex: none; }
 
-/* ── "Organizando meu ideal" (6 pilares, retrátil) dentro de Meus Objetivos ── */
-.obj-ideal-toggle { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: color-mix(in srgb, var(--accent-2) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--border)); border-radius: 14px; padding: 14px; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
-.obj-ideal-toggle:active { transform: scale(.995); }
+/* ── "Organizando meu ideal" (6 pilares, retrátil) dentro de Meus Objetivos ──
+   Estilo card do dia do Ritual: header + corpo viram UM card só, com a borda
+   descendo pelas laterais quando abre (classe .open no wrapper). */
+.obj-ideal { margin-bottom: 14px; }
+.obj-ideal-toggle { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: color-mix(in srgb, var(--accent-2) 10%, var(--card)); border: 1px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; font-family: inherit; transition: background .2s, border-color .2s, border-radius .2s; }
+.obj-ideal-toggle:hover { border-color: var(--accent); }
+.obj-ideal.open .obj-ideal-toggle { background: color-mix(in srgb, var(--accent-2) 14%, var(--card)); border-color: color-mix(in srgb, var(--accent-2) 34%, var(--border)); border-radius: 12px 12px 0 0; }
 .obj-ideal-ic { font-size: 20px; flex: none; }
 .obj-ideal-tit { flex: 1; font-size: 15px; font-weight: 800; color: var(--text); }
-.obj-ideal-chev { color: var(--accent-2); font-size: 13px; transition: transform .2s ease; }
-.obj-ideal-toggle.aberto .obj-ideal-chev { transform: rotate(180deg); }
-.obj-ideal-body { margin-bottom: 4px; }
+.obj-ideal-chev { color: var(--muted); font-size: 13px; flex: none; transition: transform .2s ease; }
+.obj-ideal.open .obj-ideal-chev { transform: rotate(180deg); color: var(--accent-2); }
+.obj-ideal-body { display: none; border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--border)); border-top: none; border-radius: 0 0 12px 12px; padding: 12px; }
+.obj-ideal.open .obj-ideal-body { display: block; }
 .obj-pilar { background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+.obj-ideal-body .obj-pilar:last-child { margin-bottom: 0; }
 .obj-pilar-nome { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .obj-pilar textarea { width: 100%; box-sizing: border-box; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.4; padding: 9px 11px; resize: vertical; min-height: 46px; outline: none; }
 .obj-pilar textarea:focus { border-color: var(--accent-2); }
