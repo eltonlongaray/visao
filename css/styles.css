@@ -7117,6 +7117,23 @@ body.sem-rolagem { overflow: hidden; }
 .fr-hub-badge { flex: none; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
 .fr-hub-tag { flex: none; font-size: 10px; font-weight: 800; letter-spacing: .5px; color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--border)); padding: 3px 8px; border-radius: 999px; }
 
+/* ── Card "Complete seu Falcon" (pendências de configuração) ── */
+.pend-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.pend-title { font-size: 15px; font-weight: 800; color: var(--text); }
+.pend-frac { flex: none; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+.pend-barra { height: 7px; border-radius: 999px; background: var(--card-2); overflow: hidden; margin-bottom: 12px; }
+.pend-barra i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-2, #a78bfa), var(--blue, #60a5fa)); transition: width .3s ease; }
+.pend-grupo-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 6px; }
+.pend-lbl-prio { color: #ef4444; }
+.pend-lbl-sec { color: var(--accent-2, #a78bfa); }
+.pend-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 12px; padding: 11px 12px; margin-bottom: 7px; cursor: pointer; font-family: inherit; }
+.pend-item:active { transform: scale(.99); }
+.pend-item.pend-prioritario { border-left-color: #ef4444; }
+.pend-item.pend-secundario { border-left-color: var(--accent-2, #a78bfa); }
+.pend-ic { font-size: 18px; flex: none; }
+.pend-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
+.pend-seta { color: var(--muted); font-size: 18px; flex: none; }
+
 /* ── Preparo Físico (hub: Atividade Física + Composição Corporal) ── */
 /* Cabe no viewport menos o padding do overlay (40px) — não corta o Salvar. */
 .pf-modal { max-width: 480px; padding: 0; overflow: hidden; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); }

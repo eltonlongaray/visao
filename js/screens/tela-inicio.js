@@ -38,6 +38,7 @@ import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
+import { montarPendencias } from '../pendencias-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 import { abrirAgenda } from '../agenda-ui.js';
 import { abrirRifas } from '../rifas-ui.js';
@@ -103,6 +104,9 @@ export async function renderHome(app) {
           <div class="agua-meta" id="agua-meta">${aguaMetaHtml()}</div>
         </div>
       </div>
+
+      <!-- COMPLETE SEU FALCON: pendências de configuração (some quando tudo preenchido) -->
+      <div id="pend-secao" hidden></div>
 
       <!-- AVISOS (comunicados do time) -->
       <button class="reminders-card avisos-card" id="avisos-card" type="button">
@@ -170,6 +174,7 @@ export async function renderHome(app) {
   attachPrefHandlers();
   loadAndRenderReminders();
   loadAvisosDot();
+  montarPendencias();   // card "Complete seu Falcon" (some quando tudo preenchido)
 
   // Auto-inicia SÓ na primeira vez do usuário. Marca como visto ANTES de abrir,
   // pra não reaparecer se ele pular (X) — pular não chamava markDone e voltava sempre.
@@ -182,7 +187,7 @@ export async function renderHome(app) {
   if (!window.__catsChangedBound) {
     window.__catsChangedBound = true;
     document.addEventListener('falcon:cats-changed', async () => {
-      try { categories = await getCategories(); renderCats(); } catch (e) { console.warn('[home] cats-changed:', e.message); }
+      try { categories = await getCategories(); renderCats(); montarPendencias(); } catch (e) { console.warn('[home] cats-changed:', e.message); }
     });
   }
 
