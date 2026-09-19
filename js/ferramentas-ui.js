@@ -83,11 +83,6 @@ function telaHub() {
     </div>
     <div class="fr-sub">Tudo num lugar só. Toque num card.</div>
     <div class="fr-hub">
-      <button class="fr-hubcard" data-hub-listas type="button">
-        <span class="fr-hub-ic">📋</span>
-        <span class="fr-hub-tx"><b>Listas</b><small>Coisas que você precisa fazer ou comprar, sem data nem hora</small></span>
-        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
-      </button>
       <button class="fr-hubcard" data-hub-objetivos type="button">
         <span class="fr-hub-ic">🎯</span>
         <span class="fr-hub-tx"><b>Meus Objetivos</b><small>Defina suas áreas e escolha o que manter com constância</small></span>
@@ -101,6 +96,11 @@ function telaHub() {
         <span class="fr-hub-ic">🎟️</span>
         <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
         <span class="fr-hub-tag">PRO</span>
+      </button>
+      <button class="fr-hubcard" data-hub-listas type="button">
+        <span class="fr-hub-ic">📋</span>
+        <span class="fr-hub-tx"><b>Listas</b><small>Coisas que você precisa fazer ou comprar, sem data nem hora</small></span>
+        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
       </button>
     </div>`;
 }

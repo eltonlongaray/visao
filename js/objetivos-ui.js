@@ -10,7 +10,7 @@ import {
   listarObjetivos, salvarObjetivo, removerObjetivo, progressoDosObjetivos,
   constanciaDosObjetivos,
 } from './objetivos.js';
-import { getCategories } from './banco-dados.js';
+import { getCategories, saveCategory } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
@@ -145,7 +145,12 @@ export async function abrirEditorObjetivo(id) {
         <select id="obj-atividade">
           <option value="">Toque para escolher…</option>
           ${atividades.map(a => `<option value="${esc(a.id)}" ${obj?.atividadeId === a.id ? 'selected' : ''}>${esc(a.icon || '')} ${esc(a.name || 'Atividade')}</option>`).join('')}
+          <option value="__nova__">➕ Criar nova atividade…</option>
         </select>
+      </label>
+      <label class="input-field" id="obj-nova-wrap" hidden>
+        <div class="input-field-label">Nome da nova atividade <span class="ag-lbl-opt">— entra também nas suas Atividades da Home</span></div>
+        <input id="obj-nova-ativ" placeholder="Ex: Meditar, Ler, Correr…">
       </label>
 
       <label class="input-field"><div class="input-field-label">Vezes por dia</div>
@@ -171,6 +176,16 @@ export async function abrirEditorObjetivo(id) {
   document.body.appendChild(ov);
 
   const selAtiv = ov.querySelector('#obj-atividade');
+  const novaWrap = ov.querySelector('#obj-nova-wrap');
+  const novaInput = ov.querySelector('#obj-nova-ativ');
+  // Mostra o campo de nome quando a pessoa escolhe "Criar nova atividade…"
+  const syncNova = () => {
+    const isNova = selAtiv.value === '__nova__';
+    novaWrap.hidden = !isNova;
+    if (isNova) setTimeout(() => novaInput.focus(), 50);
+  };
+  selAtiv.addEventListener('change', syncNova);
+  syncNova();
 
   // Frase em português do que foi configurado. Três campos numéricos soltos
   // não dizem o que vai acontecer; a frase diz.
@@ -204,12 +219,30 @@ export async function abrirEditorObjetivo(id) {
   });
 
   ov.querySelector('#obj-salvar').addEventListener('click', async () => {
-    const atividadeId = selAtiv.value || null;
+    let atividadeId = selAtiv.value || null;
     // Sem atividade escolhida o objetivo nasceria travado em zero pra sempre:
     // não haveria o que contar.
     if (!atividadeId) { showToast('Escolhe a atividade do Ritual.', 'info'); return; }
 
-    const nomeAtiv = selAtiv.options[selAtiv.selectedIndex]?.text?.trim() || 'Objetivo';
+    let nomeAtiv;
+    if (atividadeId === '__nova__') {
+      // Cria a atividade que ainda não existe e já a joga nas Atividades da Home.
+      const novoNome = novaInput.value.trim();
+      if (!novoNome) { showToast('Dá um nome pra nova atividade.', 'info'); novaInput.focus(); return; }
+      try {
+        const order = (atividades.length ? Math.max(...atividades.map(a => a.order || 0)) : 0) + 1;
+        atividadeId = await saveCategory(null, {
+          name: novoNome, icon: '🎯', color: '#a78bfa',
+          order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        });
+        // Avisa a Home pra ela repintar as Atividades com a nova (se estiver aberta atrás).
+        document.dispatchEvent(new CustomEvent('falcon:cats-changed'));
+      } catch (e) { showToast('Erro ao criar atividade: ' + e.message, 'error'); return; }
+      nomeAtiv = novoNome;
+    } else {
+      nomeAtiv = selAtiv.options[selAtiv.selectedIndex]?.text?.trim() || 'Objetivo';
+    }
+
     await salvarObjetivo({
       id: obj?.id,
       nome: nomeAtiv,

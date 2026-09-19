@@ -177,6 +177,15 @@ export async function renderHome(app) {
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
 
+  // Quando uma atividade nova é criada em outro lugar (ex.: dentro do Foco e
+  // Disciplina), repinta as Atividades sem precisar recarregar a Home.
+  if (!window.__catsChangedBound) {
+    window.__catsChangedBound = true;
+    document.addEventListener('falcon:cats-changed', async () => {
+      try { categories = await getCategories(); renderCats(); } catch (e) { console.warn('[home] cats-changed:', e.message); }
+    });
+  }
+
   // Retorno do OAuth do Mercado Pago (Rifa) → avisa e reabre o hub.
   try {
     const mp = new URLSearchParams(location.search).get('mp');
