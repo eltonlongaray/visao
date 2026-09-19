@@ -10,7 +10,7 @@ import {
   listarObjetivos, salvarObjetivo, removerObjetivo, progressoDosObjetivos,
   constanciaDosObjetivos,
 } from './objetivos.js';
-import { getCategories, saveCategory } from './banco-dados.js';
+import { getCategories, saveCategory, getProfile, setProfile } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
@@ -22,13 +22,61 @@ const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 
 let _objClose = null;
 
+// Os 6 pilares (áreas da vida) de "Organizando meu ideal".
+// financeiro tem 2 campos (Trabalho + Propósito) — ter um trabalho ≠ fazer algo
+// que te realiza.
+const PILARES = [
+  { k: 'corpo',      ic: '💪', nome: 'Saúde do Corpo',            hint: 'Ex: treinar, comer bem, dormir cedo, beber água' },
+  { k: 'mente',      ic: '🧠', nome: 'Saúde da Mente',            hint: 'Ex: ler, estudar, focar, menos tela' },
+  { k: 'emocional',  ic: '❤️', nome: 'Saúde Emocional',           hint: 'Ex: gratidão, terapia, relações que somam' },
+  { k: 'espiritual', ic: '🙏', nome: 'Saúde Espiritual',          hint: 'Ex: orar, meditar, contato com a natureza' },
+  { k: 'financeiro', ic: '💰', nome: 'Financeira & Profissional', dois: true },
+  { k: 'social',     ic: '🎉', nome: 'Social & Lazer',            hint: 'Ex: amigos, família, hobbies, viagens' },
+];
+
+function _pilarHtml(p, ideal) {
+  if (p.dois) {
+    const f = ideal.financeiro || {};
+    return `
+      <div class="obj-pilar">
+        <div class="obj-pilar-nome">${p.ic} ${p.nome}</div>
+        <label class="obj-pilar-campo"><span>💼 Trabalho / Renda</span>
+          <textarea data-ideal="financeiro.trabalho" rows="2" placeholder="Onde você quer chegar no trabalho e na renda">${esc(f.trabalho || '')}</textarea></label>
+        <label class="obj-pilar-campo"><span>✨ Propósito — o que te realiza</span>
+          <textarea data-ideal="financeiro.proposito" rows="2" placeholder="O que te faz sentir realizado, além do dinheiro">${esc(f.proposito || '')}</textarea></label>
+      </div>`;
+  }
+  return `
+    <div class="obj-pilar">
+      <div class="obj-pilar-nome">${p.ic} ${p.nome}</div>
+      <textarea data-ideal="${p.k}" rows="2" placeholder="${esc(p.hint)}">${esc(ideal[p.k] || '')}</textarea>
+    </div>`;
+}
+
+// Lê todos os textareas de pilar e monta o objeto (trata "financeiro.trabalho").
+function _coletarIdeal(root) {
+  const ideal = {};
+  root.querySelectorAll('[data-ideal]').forEach(t => {
+    const key = t.dataset.ideal, val = t.value;
+    if (key.includes('.')) {
+      const [a, b] = key.split('.');
+      ideal[a] = ideal[a] || {};
+      ideal[a][b] = val;
+    } else { ideal[key] = val; }
+  });
+  return ideal;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 0: TELA CHEIA (card "Meus Objetivos" dentro da Caixa de Ferramentas)
-// Por cima vem (Fase 2) a definição das 6 áreas; por baixo o "Foco e
+// Em cima: "Organizando meu ideal" (6 pilares, retrátil). Embaixo: "Foco e
 // Disciplina" = o tracker de constância que já existia na Home.
 // ═══════════════════════════════════════════════════════════════
 export async function abrirObjetivos() {
   if (document.getElementById('objetivos-ov')) return;
+  let ideal = {};
+  try { ideal = (await getProfile())?.idealPilares || {}; } catch {}
+
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.id = 'objetivos-ov';
@@ -39,7 +87,17 @@ export async function abrirObjetivos() {
         <div class="ag-title">🎯 Meus Objetivos</div>
       </div>
       <div class="ag-scroll">
-        <div class="rf-sec-lbl">🔥 Foco e Disciplina</div>
+        <button class="obj-ideal-toggle" id="obj-ideal-toggle" type="button">
+          <span class="obj-ideal-ic">🧭</span>
+          <span class="obj-ideal-tit">Organizando meu ideal</span>
+          <span class="obj-ideal-chev">▾</span>
+        </button>
+        <div class="obj-ideal-body" id="obj-ideal-body" hidden>
+          <div class="bloco-sub" style="margin:2px 0 12px">Antes de escolher seus focos, defina o que é o <b>ideal</b> pra você em cada uma das 6 áreas da vida. Isso guia o que você vai priorizar embaixo.</div>
+          ${PILARES.map(p => _pilarHtml(p, ideal)).join('')}
+        </div>
+
+        <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
         <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. O que entrar aqui vira atividade na sua Home — e eu conto sozinho a partir do Ritual.</div>
         <button class="btn-primary" id="obj-novo" type="button" style="width:100%;margin-bottom:14px">➕ Novo foco</button>
         <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
@@ -49,6 +107,22 @@ export async function abrirObjetivos() {
   ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
   _objClose = trapModalBack(() => ov.remove());
   ov.querySelector('#obj-back').addEventListener('click', () => history.back());
+
+  // "Organizando meu ideal" — retrátil
+  const toggle = ov.querySelector('#obj-ideal-toggle');
+  const body = ov.querySelector('#obj-ideal-body');
+  toggle.addEventListener('click', () => {
+    body.hidden = !body.hidden;
+    toggle.classList.toggle('aberto', !body.hidden);
+  });
+
+  // Auto-save dos pilares (debounce) — grava em profile.idealPilares
+  let idealTimer = null;
+  ov.querySelectorAll('[data-ideal]').forEach(t => t.addEventListener('input', () => {
+    clearTimeout(idealTimer);
+    idealTimer = setTimeout(() => { setProfile({ idealPilares: _coletarIdeal(ov) }).catch(() => {}); }, 500);
+  }));
+
   ligarObjetivos();
   await montarObjetivos();
 }
