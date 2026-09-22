@@ -236,7 +236,7 @@ export async function renderAgendaPublica(app, slug) {
     app.innerHTML = _tela(`
       <div class="ap-head">
         <div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div>
-        ${ident?.nome ? `<div class="ap-ola">👋 Olá, <b>${_esc(ident.nome.split(' ')[0])}</b>!</div>` : ''}
+        ${ident?.nome ? `<div class="ap-ola">👋 Olá, <b>${_esc(ident.nome.split(' ')[0])}</b>! <button class="ap-trocar" id="ap-trocar" type="button">Não é você? Trocar</button></div>` : ''}
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
         <div class="ap-aviso24">⚠️ <b>Precisa cancelar?</b> Avise com <b>24h de antecedência</b>, por favor.</div>
@@ -299,6 +299,12 @@ export async function renderAgendaPublica(app, slug) {
   }
 
   function wire(dia) {
+    // "Não é você? Trocar" — limpa a identificação salva e volta pra tela de cadastro.
+    app.querySelector('#ap-trocar')?.addEventListener('click', () => {
+      ident = null; selHora = null;
+      try { localStorage.removeItem(_identKey(cfg.slug)); } catch {}
+      desenharIdentidade();
+    });
     const _irSemana = (novo) => {
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
       selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
