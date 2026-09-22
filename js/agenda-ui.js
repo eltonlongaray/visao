@@ -359,13 +359,14 @@ function desenhar() {
 
       <div class="ag-notif">
         <div class="ag-notif-tit">🔔 Receber os agendamentos no seu WhatsApp</div>
-        <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis:</div>
+        <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis — só 3 passos:</div>
         <ol class="ag-notif-passos">
-          <li>Salve o número <b>+34 644 51 95 23</b> nos seus contatos (é o CallMeBot).</li>
-          <li>Mande pra ele, no WhatsApp, a mensagem exata: <b>I allow callmebot to send me messages</b></li>
-          <li>Ele responde com uma <b>apikey</b> (um número). Cole ela aqui:</li>
+          <li>Toque no botão abaixo: ele abre o WhatsApp já com a mensagem certa. É só <b>enviar</b>.</li>
+          <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
+          <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
         </ol>
-        <label class="input-field"><div class="input-field-label">Apikey do CallMeBot</div>
+        <a class="ag-notif-wa" href="https://wa.me/34644519523?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
+        <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
           <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
         <div class="ag-notif-status" id="ag-notif-status"></div>
       </div>
