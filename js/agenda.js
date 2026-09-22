@@ -88,6 +88,19 @@ export async function salvarAgendaConfig(patch) {
   if (error) throw new Error(error.message);
 }
 
+// ── Notificação no WhatsApp do profissional (CallMeBot) ──
+// A apikey vive numa tabela à parte (RLS fechada) e é gravada por RPC; nunca
+// volta pro cliente. Aqui o dono grava e consulta se já configurou.
+export async function salvarCallmebotApikey(key) {
+  const { error } = await supabase.rpc('set_callmebot_apikey', { p_key: key || '' });
+  if (error) throw new Error(error.message);
+}
+export async function getTenhoCallmebot() {
+  const { data, error } = await supabase.rpc('tenho_callmebot');
+  if (error) return false;
+  return !!data;
+}
+
 // Agendamentos que o dono recebeu (de hoje pra frente, confirmados).
 export async function getAgendamentos() {
   const uid = _uid(); if (!uid) return [];

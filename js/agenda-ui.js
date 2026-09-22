@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado, salvarCallmebotApikey, getTenhoCallmebot } from './agenda.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -356,6 +356,19 @@ function desenhar() {
         <input id="ag-endereco" value="${_esc(_cfg.endereco || '')}" placeholder="Ex: Rua das Flores, 123 — Centro, Porto Alegre"></label>
       <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— botão "Falar no WhatsApp" no link do cliente</span></div>
         <input id="ag-whatsapp" inputmode="tel" value="${_esc(_cfg.whatsapp || '')}" placeholder="(DDD) 9 9999-9999"></label>
+
+      <div class="ag-notif">
+        <div class="ag-notif-tit">🔔 Receber os agendamentos no seu WhatsApp</div>
+        <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis:</div>
+        <ol class="ag-notif-passos">
+          <li>Salve o número <b>+34 644 51 95 23</b> nos seus contatos (é o CallMeBot).</li>
+          <li>Mande pra ele, no WhatsApp, a mensagem exata: <b>I allow callmebot to send me messages</b></li>
+          <li>Ele responde com uma <b>apikey</b> (um número). Cole ela aqui:</li>
+        </ol>
+        <label class="input-field"><div class="input-field-label">Apikey do CallMeBot</div>
+          <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
+        <div class="ag-notif-status" id="ag-notif-status"></div>
+      </div>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
@@ -510,6 +523,15 @@ function wireFixos(corpo) {
     pintarServicos();
   };
   corpo.querySelector('#ag-salvar').onclick = salvar;
+  // Status da notificação no WhatsApp (já configurou a apikey do CallMeBot?)
+  getTenhoCallmebot().then(tem => {
+    const el = corpo.querySelector('#ag-notif-status');
+    if (!el) return;
+    el.className = 'ag-notif-status ' + (tem ? 'ok' : 'off');
+    el.innerHTML = tem
+      ? '✅ Notificação ativa. Deixe o campo vazio pra manter, ou cole uma nova apikey pra trocar.'
+      : '⚠️ Ainda não configurado — sem a apikey você não recebe o aviso no WhatsApp.';
+  }).catch(() => {});
 }
 
 // Lê os inputs das linhas de serviço de volta pro _cfg.servicos (antes de re-render/salvar).
@@ -872,6 +894,9 @@ async function salvar() {
   try {
     await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
     _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
+    // Apikey do CallMeBot: só grava se digitou algo (vazio = mantém a atual).
+    const cbKey = corpo.querySelector('#ag-callmebot')?.value.trim();
+    if (cbKey) { try { await salvarCallmebotApikey(cbKey); } catch (e) { showToast('Apikey não salva: ' + e.message, 'info'); } }
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
