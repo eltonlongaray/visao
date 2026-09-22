@@ -7985,6 +7985,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ok-t { font-size: 21px; font-weight: 800; margin-top: 10px; }
 .ap-ok-d { font-size: 16px; color: var(--text); margin-top: 8px; }
 .ap-ok-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.ap-ok-wa-hint { font-size: 13.5px; color: var(--text); margin-top: 18px; line-height: 1.45; }
+.ap-ok-wa { display: block; margin-top: 10px; background: #25D366 !important; border-color: #25D366 !important; color: #fff !important; text-decoration: none; }
+.ap-ok-wa + .ap-ok-btn { margin-top: 10px; }
 
 /* toast simples da página pública */
 .ap-toast {

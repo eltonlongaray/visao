@@ -57,6 +57,22 @@ function _waProLink(cfg) {
   const msg = encodeURIComponent('Olá, vim através do Falcon Agenda e tenho dúvidas');
   return `https://wa.me/${d}?text=${msg}`;
 }
+// Link de CONFIRMAÇÃO: abre o WhatsApp do profissional com os dados do
+// agendamento prontos, pro cliente confirmar.
+function _waConfirmLink(cfg, { nome, servico, dataTxt, hora, fim }) {
+  let d = String(cfg?.whatsapp || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.length <= 11) d = '55' + d;
+  const linhas = [
+    'Olá! Acabei de agendar pelo Falcon Agenda 📅',
+    `*${dataTxt} às ${hora}${fim ? '–' + fim : ''}*`,
+    servico ? `Serviço: ${servico}` : null,
+    `Nome: ${nome}`,
+    '',
+    'Pode confirmar pra mim? 🙏',
+  ].filter(Boolean);
+  return `https://wa.me/${d}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}
 const WA_SVG_PUB = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
 export async function renderAgendaPublica(app, slug) {
@@ -81,12 +97,21 @@ export async function renderAgendaPublica(app, slug) {
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
   // monta os dias com TODOS os horários (livres + ocupados, pra mostrar "ocupado")
+  // Antecedência mínima: o cliente só marca um horário com pelo menos 5h à
+  // frente de agora (marcou de manhã → só tarde/noite). Isso também tira os
+  // horários que já passaram hoje.
+  const AGORA = Date.now();
+  const MIN_ANTEC_MS = 5 * 60 * 60 * 1000;
   const dias = [];
   for (let i = 0; i <= JANELA; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
     const times = _horariosDoDia(cfg, d);
     if (!times.length) continue;
-    const horarios = times.map(h => ({ hora: h, ocupado: estaOcupado(ocupados, iso(d), h, DUR) }));
+    const horarios = times.map(h => {
+      const [hh, mm] = h.split(':').map(Number);
+      const slotTs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hh || 0, mm || 0).getTime();
+      return { hora: h, ocupado: estaOcupado(ocupados, iso(d), h, DUR), cedo: (slotTs - AGORA) < MIN_ANTEC_MS };
+    });
     dias.push({ iso: iso(d), date: d, horarios });
   }
 
@@ -203,8 +228,8 @@ export async function renderAgendaPublica(app, slug) {
     if (dia) dia.horarios.forEach(s => g[_turno(s.hora)].push(s));
     const bloco = (lbl, icon, arr) => arr.length ? `
       <div class="ap-turno"><div class="ap-turno-lbl">${icon} ${lbl}</div>
-      <div class="ap-slots">${arr.map(s => s.ocupado
-        ? `<span class="ap-slot ocupado" title="Já agendado">${s.hora}<small>ocupado</small></span>`
+      <div class="ap-slots">${arr.map(s => (s.ocupado || s.cedo)
+        ? `<span class="ap-slot ocupado" title="${s.cedo ? 'Precisa de no mínimo 5h de antecedência' : 'Já agendado'}">${s.hora}<small>${s.cedo ? 'cedo' : 'ocupado'}</small></span>`
         : `<button class="ap-slot ${selHora === s.hora ? 'sel' : ''}" data-hora="${s.hora}" type="button">${s.hora}</button>`).join('')}</div></div>` : '';
 
     app.innerHTML = _tela(`
@@ -350,15 +375,24 @@ export async function renderAgendaPublica(app, slug) {
       ocupados.get(dia.iso).push({ ini: iniB, fim: iniB + durB });
       for (const s of dia.horarios) s.ocupado = estaOcupado(ocupados, dia.iso, s.hora, DUR);
       selHora = null;
+      const dataTxt = `${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}`;
+      const waLink = _waConfirmLink(cfg, { nome, servico: serv?.nome || null, dataTxt, hora, fim });
+      // Registra e leva o cliente pro WhatsApp do profissional pra confirmar.
+      // Tentativa automática (pode ser bloqueada) + botão garantido embaixo.
+      if (waLink) { try { window.open(waLink, '_blank'); } catch {} }
       app.innerHTML = _tela(`
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
-          <div class="ap-ok-t">Agendamento confirmado!</div>
-          <div class="ap-ok-d">${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
+          <div class="ap-ok-t">Agendamento registrado!</div>
+          <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
-          <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
+          ${waLink
+            ? `<div class="ap-ok-wa-hint">📲 Falta 1 passo: <b>confirme pelo WhatsApp</b> pra garantir seu horário.</div>
+               <a class="btn-primary ap-ok-btn ap-ok-wa" href="${waLink}" target="_blank" rel="noopener">Confirmar pelo WhatsApp</a>
+               <button class="btn-secondary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>`
+            : `<button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>`}
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
     } catch (e) {
