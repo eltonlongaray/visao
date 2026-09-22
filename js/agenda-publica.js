@@ -387,7 +387,7 @@ export async function renderAgendaPublica(app, slug) {
       const dataTxt = `${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}`;
       // Avisa o profissional no WhatsApp dele (o Falcon manda sozinho, via
       // CallMeBot). Fire-and-forget: não trava a confirmação do cliente.
-      notificarProfissional(cfg.slug, { nome, servico: serv?.nome || null, dataTxt, hora, fim });
+      notificarProfissional(cfg.slug, { nome, contato: zap, servico: serv?.nome || null, dataTxt, hora, fim });
       app.innerHTML = _tela(`
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>

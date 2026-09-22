@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "method" }, 405);
 
   try {
-    const { slug, nome, servico, dataTxt, hora, fim } = await req.json();
+    const { slug, nome, contato, servico, dataTxt, hora, fim } = await req.json();
     if (!slug) return json({ ok: false, error: "slug" }, 400);
 
     const sb = createClient(
@@ -61,11 +61,16 @@ Deno.serve(async (req) => {
     let phone = String(cfg.whatsapp).replace(/\D/g, "");
     if (phone.length <= 11) phone = "55" + phone;
 
+    // WhatsApp do cliente: mostra o número e um link clicável pra retornar.
+    const zap = contato ? String(contato).replace(/\D/g, "") : "";
+    const zapFull = zap && zap.length <= 11 ? "55" + zap : zap;
     const text = [
       "📅 *Novo agendamento no Falcon!*",
       `${dataTxt ?? ""} às ${hora ?? ""}${fim ? "–" + fim : ""}`.trim(),
       servico ? `Serviço: ${servico}` : null,
       nome ? `Cliente: ${nome}` : null,
+      contato ? `WhatsApp: ${contato}` : null,
+      zapFull ? `https://wa.me/${zapFull}` : null,
     ].filter(Boolean).join("\n");
 
     let res = await enviar(phone, text, apikey);
