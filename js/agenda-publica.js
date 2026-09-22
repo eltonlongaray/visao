@@ -108,7 +108,9 @@ export async function renderAgendaPublica(app, slug) {
     const horarios = times.map(h => {
       const [hh, mm] = h.split(':').map(Number);
       const slotTs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hh || 0, mm || 0).getTime();
-      return { hora: h, ocupado: estaOcupado(ocupados, iso(d), h, DUR), cedo: (slotTs - AGORA) < MIN_ANTEC_MS };
+      const passou = slotTs < AGORA;   // já passou → some (não é "cedo")
+      // "cedo" = ainda vai acontecer, mas falta menos de 5h de antecedência.
+      return { hora: h, ocupado: estaOcupado(ocupados, iso(d), h, DUR), passou, cedo: !passou && (slotTs - AGORA) < MIN_ANTEC_MS };
     });
     dias.push({ iso: iso(d), date: d, horarios });
   }
@@ -223,7 +225,8 @@ export async function renderAgendaPublica(app, slug) {
     const diasSem = _diasDaSemana(semOffset);
     const dia = dias.find(x => x.iso === selDia) || null;   // dias[] tem os horários
     const g = { manha: [], tarde: [], noite: [] };
-    if (dia) dia.horarios.forEach(s => g[_turno(s.hora)].push(s));
+    // Horários que já passaram somem da lista (não têm por que aparecer).
+    if (dia) dia.horarios.forEach(s => { if (!s.passou) g[_turno(s.hora)].push(s); });
     const bloco = (lbl, icon, arr) => arr.length ? `
       <div class="ap-turno"><div class="ap-turno-lbl">${icon} ${lbl}</div>
       <div class="ap-slots">${arr.map(s => (s.ocupado || s.cedo)
@@ -252,7 +255,9 @@ export async function renderAgendaPublica(app, slug) {
         ).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
       </div>
       <div class="ap-slots-wrap">
-        ${bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)}
+        ${(g.manha.length + g.tarde.length + g.noite.length)
+          ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
+          : '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>'}
       </div>
       ${selHora && dia ? _formHtml(dia, selHora) : ''}
       <div class="ap-wa-pro-wrap">${_waProHtml()}</div>
