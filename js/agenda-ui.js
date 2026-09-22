@@ -365,7 +365,7 @@ function desenhar() {
           <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
           <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
         </ol>
-        <a class="ag-notif-wa" href="https://wa.me/34644519523?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
+        <a class="ag-notif-wa" href="https://wa.me/34623789595?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
         <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
           <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
         <div class="ag-notif-status" id="ag-notif-status"></div>
