@@ -357,18 +357,26 @@ function desenhar() {
       <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— botão "Falar no WhatsApp" no link do cliente</span></div>
         <input id="ag-whatsapp" inputmode="tel" value="${_esc(_cfg.whatsapp || '')}" placeholder="(DDD) 9 9999-9999"></label>
 
-      <div class="ag-notif">
+      <div class="ag-notif" id="ag-notif">
         <div class="ag-notif-tit">🔔 Receber os agendamentos no seu WhatsApp</div>
-        <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis — só 3 passos:</div>
-        <ol class="ag-notif-passos">
-          <li>Toque no botão abaixo: ele abre o WhatsApp já com a mensagem certa. É só <b>enviar</b>.</li>
-          <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
-          <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
-        </ol>
-        <a class="ag-notif-wa" href="https://wa.me/34623789595?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
-        <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
-          <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
-        <div class="ag-notif-status" id="ag-notif-status"></div>
+
+        <div class="ag-notif-done" id="ag-notif-done" hidden>
+          <div class="ag-notif-status ok">✅ Ativado! Você recebe cada agendamento novo no seu WhatsApp.</div>
+          <button type="button" class="ag-notif-reconfig" id="ag-notif-reconfig">Reconfigurar / trocar a chave</button>
+        </div>
+
+        <div class="ag-notif-setup" id="ag-notif-setup" hidden>
+          <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis — só 3 passos:</div>
+          <ol class="ag-notif-passos">
+            <li>Toque no botão abaixo: ele abre o WhatsApp já com a mensagem certa. É só <b>enviar</b>.</li>
+            <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
+            <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
+          </ol>
+          <a class="ag-notif-wa" href="https://wa.me/34623789595?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
+          <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
+            <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
+          <div class="ag-notif-status" id="ag-notif-status"></div>
+        </div>
       </div>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
@@ -524,15 +532,16 @@ function wireFixos(corpo) {
     pintarServicos();
   };
   corpo.querySelector('#ag-salvar').onclick = salvar;
-  // Status da notificação no WhatsApp (já configurou a apikey do CallMeBot?)
-  getTenhoCallmebot().then(tem => {
-    const el = corpo.querySelector('#ag-notif-status');
-    if (!el) return;
-    el.className = 'ag-notif-status ' + (tem ? 'ok' : 'off');
-    el.innerHTML = tem
-      ? '✅ Notificação ativa. Deixe o campo vazio pra manter, ou cole uma nova apikey pra trocar.'
-      : '⚠️ Ainda não configurado — sem a apikey você não recebe o aviso no WhatsApp.';
-  }).catch(() => {});
+  // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
+  // senão → o passo a passo pra configurar.
+  const _mostrarNotif = (tem) => {
+    const done = corpo.querySelector('#ag-notif-done');
+    const setup = corpo.querySelector('#ag-notif-setup');
+    if (done) done.hidden = !tem;
+    if (setup) setup.hidden = tem;
+  };
+  getTenhoCallmebot().then(_mostrarNotif).catch(() => _mostrarNotif(false));
+  corpo.querySelector('#ag-notif-reconfig')?.addEventListener('click', () => _mostrarNotif(false));
 }
 
 // Lê os inputs das linhas de serviço de volta pro _cfg.servicos (antes de re-render/salvar).
@@ -897,7 +906,14 @@ async function salvar() {
     _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     // Apikey do CallMeBot: só grava se digitou algo (vazio = mantém a atual).
     const cbKey = corpo.querySelector('#ag-callmebot')?.value.trim();
-    if (cbKey) { try { await salvarCallmebotApikey(cbKey); } catch (e) { showToast('Apikey não salva: ' + e.message, 'info'); } }
+    if (cbKey) {
+      try {
+        await salvarCallmebotApikey(cbKey);
+        // configurou → esconde o passo a passo e mostra o "✅ ativado"
+        corpo.querySelector('#ag-notif-done')?.removeAttribute('hidden');
+        corpo.querySelector('#ag-notif-setup')?.setAttribute('hidden', '');
+      } catch (e) { showToast('Apikey não salva: ' + e.message, 'info'); }
+    }
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');

@@ -7503,6 +7503,7 @@ body.sem-rolagem { overflow: hidden; }
 .ag-notif-status { font-size: 12.5px; line-height: 1.4; margin-top: 6px; }
 .ag-notif-status.ok { color: #22c55e; }
 .ag-notif-status.off { color: #f59e0b; }
+.ag-notif-reconfig { background: none; border: none; color: var(--accent-2); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 0 0; font-family: inherit; text-decoration: underline; }
 
 /* abas de dia da semana */
 /* Card "Dias que você atende" — liga/desliga dias da semana no padrão */
