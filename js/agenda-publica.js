@@ -60,7 +60,7 @@ function _waProLink(cfg) {
 // O Falcon avisa o PROFISSIONAL no WhatsApp dele automaticamente (via CallMeBot,
 // server-side). Fire-and-forget: um erro aqui não pode travar o agendamento do
 // cliente. A apikey fica só no servidor — a página pública só manda o slug.
-const _FN_URL = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/agenda-notify';
+const _FN_URL = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/rapid-handler';
 async function notificarProfissional(slug, dados) {
   try {
     await fetch(_FN_URL, {
