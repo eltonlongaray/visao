@@ -50,6 +50,7 @@ export async function abrirObjetivos() {
         <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
         <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. O que entrar aqui vira atividade na sua Home — e eu conto sozinho a partir do Ritual.</div>
         <button class="btn-primary" id="obj-novo" type="button" style="width:100%;margin-bottom:14px">➕ Novo foco</button>
+        <div class="rf-sec-lbl" style="margin:4px 0 10px">Meta de Constância</div>
         <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
       </div>
     </div></div>`;

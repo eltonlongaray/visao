@@ -18,7 +18,6 @@ import { showToast } from './aviso-tela.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const itemId = (k, txt) => `${k}:${slug(txt)}`;
@@ -140,10 +139,12 @@ export async function abrirIdeal({ aoFechar } = {}) {
   trapModalBack(() => { if (_saveT) _salvarJa(); ov.remove(); aoFechar?.(); });
   ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
 
+  // Popup (não é página inteira): só um X no canto superior direito. Na grade o
+  // X fecha a janela; dentro de um pilar ele fecha o pilar e volta pra grade.
   const header = (titulo) => `
     <div class="ag-header">
-      <button class="fr-voltar" data-back type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
       <div class="ag-title">${titulo}</div>
+      <button class="fr-x" data-back type="button" aria-label="Fechar">✕</button>
     </div>`;
 
   function desenharGrade() {
