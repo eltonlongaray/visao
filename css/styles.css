@@ -7137,7 +7137,21 @@ body.sem-rolagem { overflow: hidden; }
 /* ── "Organizando meu ideal" — botão em Meus Objetivos + popup (ideal-ui.js):
    grade dos 6 pilares ↔ checklist com lista pronta, "Seus itens" e os botões
    🔥 constância / 📋 só atividades em cada item marcado. */
-.obj-ideal-card { width: 100%; margin-bottom: 6px; }
+/* Botão "Organizando meu ideal": fica sozinho acima do Foco e Disciplina, então
+   precisa de cara de BOTÃO (não de card informativo) — fundo roxo em degradê,
+   borda destacada, seta › e efeito de apertar. */
+.obj-ideal-card {
+  width: 100%; margin-bottom: 6px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-2) 26%, var(--card)), color-mix(in srgb, var(--blue, #60a5fa) 14%, var(--card)));
+  border: 1.5px solid color-mix(in srgb, var(--accent-2) 60%, var(--border));
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--accent-2) 70%, transparent);
+  transition: transform .1s, box-shadow .15s, border-color .15s;
+}
+.obj-ideal-card:hover { border-color: var(--accent-2); }
+.obj-ideal-card:active { transform: scale(.98); box-shadow: 0 3px 10px -6px color-mix(in srgb, var(--accent-2) 70%, transparent); }
+.obj-ideal-card .fr-hub-ic { background: color-mix(in srgb, var(--accent-2) 30%, var(--card)); }
+.obj-ideal-card .fr-hub-tx b { color: var(--text); }
+.obj-ideal-seta { flex: none; font-size: 26px; line-height: 1; font-weight: 700; color: var(--accent-2); margin-left: 2px; }
 .ideal-modal .ag-scroll { padding-bottom: 20px; }
 .ideal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ideal-pilar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 13px; cursor: pointer; font-family: inherit; color: var(--text); }

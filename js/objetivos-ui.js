@@ -45,6 +45,7 @@ export async function abrirObjetivos() {
           <span class="fr-hub-ic">🧭</span>
           <span class="fr-hub-tx"><b>Organizando meu ideal</b><small>Marque o que é importante em cada área da vida: físico, mental, emocional…</small></span>
           <span class="fr-hub-tag" id="obj-ideal-resumo" hidden></span>
+          <span class="obj-ideal-seta" aria-hidden="true">›</span>
         </button>
 
         <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
