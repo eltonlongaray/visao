@@ -18,6 +18,7 @@ import { showToast } from './aviso-tela.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const itemId = (k, txt) => `${k}:${slug(txt)}`;
@@ -153,12 +154,13 @@ export async function abrirIdeal({ aoFechar } = {}) {
   trapModalBack(() => { if (_saveT) _salvarJa(); ov.remove(); aoFechar?.(); });
   ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
 
-  // Popup (não é página inteira): só um X no canto superior direito. Na grade o
-  // X fecha a janela; dentro de um pilar ele fecha o pilar e volta pra grade.
-  const header = (titulo) => `
+  // Popup (não é página inteira): X no canto superior direito FECHA a janela.
+  // Dentro de um pilar aparece também a seta ‹ à esquerda, que volta pra grade.
+  const header = (titulo, voltar = false) => `
     <div class="ag-header">
+      ${voltar ? `<button class="fr-voltar" data-voltar type="button" aria-label="Voltar aos pilares">${SVG_VOLTAR}</button>` : ''}
       <div class="ag-title">${titulo}</div>
-      <button class="fr-x" data-back type="button" aria-label="Fechar">✕</button>
+      <button class="fr-x" data-fechar type="button" aria-label="Fechar">✕</button>
     </div>`;
 
   function desenharGrade() {
@@ -177,7 +179,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
           }).join('')}
         </div>
       </div>`;
-    corpo.querySelector('[data-back]').onclick = () => history.back();
+    corpo.querySelector('[data-fechar]').onclick = () => history.back();
     corpo.querySelectorAll('[data-pilar]').forEach(b => b.onclick = () => entrarPilar(b.dataset.pilar));
   }
 
@@ -185,7 +187,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
     pilarK = k; vista = 'pilar';
     // Back do aparelho no checklist volta pra grade (não fecha a janela toda).
     fecharPilar = trapModalBack(() => { vista = 'grade'; pilarK = null; fecharPilar = null; desenharGrade(); });
-    corpo.innerHTML = `${header('…')}<div class="ag-load">Carregando…</div>`;
+    corpo.innerHTML = `${header('…', true)}<div class="ag-load">Carregando…</div>`;
     st = await _status();
     if (vista === 'pilar' && pilarK === k) desenharPilar();
   }
@@ -223,7 +225,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
     est.extras.forEach(x => txtDe.set(x.id, x.txt));
 
     corpo.innerHTML = `
-      ${header(`${pilar.ic} ${pilar.nome}`)}
+      ${header(`${pilar.ic} ${pilar.nome}`, true)}
       <div class="ag-scroll">
         <div class="bloco-sub" style="margin:0 0 6px">Marque o que é importante pra você. Em cada item marcado, escolha: <b>acompanhar a constância</b> (vira foco com meta e entra na Home) ou <b>só colocar nas Atividades</b>.</div>
         ${pilar.secoes.map(sec => `
@@ -239,7 +241,9 @@ export async function abrirIdeal({ aoFechar } = {}) {
     const scroll = corpo.querySelector('.ag-scroll');
     if (scroll) scroll.scrollTop = scrollAntes;
 
-    corpo.querySelector('[data-back]').onclick = () => history.back();
+    // ‹ volta pra grade (tira só a camada do pilar); X fecha tudo (as 2 camadas).
+    corpo.querySelector('[data-voltar]').onclick = () => history.back();
+    corpo.querySelector('[data-fechar]').onclick = () => history.go(-2);
 
     corpo.querySelectorAll('[data-sel]').forEach(cb => cb.onchange = () => {
       const id = cb.dataset.sel;
