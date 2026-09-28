@@ -21,7 +21,17 @@ const TEMPOS = [
   { k: '1a3',    lbl: '1 a 3 anos' },
   { k: 'mais3',  lbl: '3+ anos' },
 ];
-const PADRAO = { objetivo: 'aurea', forca: false, freqSemana: 3, freqMusculo: 2, tempoTreino: 'menos1' };
+// Pausa: quanto tempo ficou parado (sem treinar). Muda o ponto de partida —
+// voltar de 1 ano parado não é igual a quem nunca parou.
+const PAUSAS = [
+  { k: 'nao',    lbl: 'Não parei' },
+  { k: 'menos1m', lbl: 'Menos de 1 mês' },
+  { k: '1a3m',   lbl: '1 a 3 meses' },
+  { k: '3a6m',   lbl: '3 a 6 meses' },
+  { k: '6a12m',  lbl: '6 meses a 1 ano' },
+  { k: 'mais1a', lbl: 'Mais de 1 ano' },
+];
+const PADRAO = { objetivo: 'aurea', forca: false, freqSemana: 3, freqMusculo: 2, tempoTreino: 'menos1', pausa: 'nao' };
 
 // Frequência semanal POR MÚSCULO (lista do Elton). freqMusculo (a resposta
 // antiga, "o mesmo músculo quantas vezes") vira o ponto de partida de todos.
@@ -83,7 +93,13 @@ function _corpoHtml(pt) {
     <div class="pt-chips" id="pt-tempo">
       ${TEMPOS.map(t => `<button class="pt-chip ${pt.tempoTreino === t.k ? 'sel' : ''}" data-tempo="${t.k}" type="button">${t.lbl}</button>`).join('')}
     </div>
-    <div class="pt-hint">Sua <b>constância atual</b> (sem falhar) eu acompanho sozinho pelo Ritual — é diferente de experiência.</div>`;
+    <div class="pt-hint">Sua <b>constância atual</b> (sem falhar) eu acompanho sozinho pelo Ritual — é diferente de experiência.</div>
+
+    <div class="pt-q" style="margin-top:14px">Você ficou um tempo parado sem treinar? Quanto tempo?</div>
+    <div class="pt-chips" id="pt-pausa">
+      ${PAUSAS.map(x => `<button class="pt-chip ${pt.pausa === x.k ? 'sel' : ''}" data-pausa="${x.k}" type="button">${x.lbl}</button>`).join('')}
+    </div>
+    <div class="pt-hint">Se parou, a volta começa mais leve — a memória muscular ajuda a recuperar rápido.</div>`;
 }
 
 // Um músculo não pode ser treinado mais vezes do que os treinos da semana:
@@ -119,6 +135,10 @@ function _ligarSelecoes(c, pt) {
   c.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
     pt.tempoTreino = b.dataset.tempo;
     c.querySelectorAll('[data-tempo]').forEach(x => x.classList.toggle('sel', x === b));
+  });
+  c.querySelectorAll('[data-pausa]').forEach(b => b.onclick = () => {
+    pt.pausa = b.dataset.pausa;
+    c.querySelectorAll('[data-pausa]').forEach(x => x.classList.toggle('sel', x === b));
   });
 }
 
