@@ -33,7 +33,7 @@ export const PILARES = [
     'Reduzir açúcar e ultraprocessados', 'Fazer check-up médico', 'Cuidar da postura', 'Tomar sol pela manhã',
   ] }] },
   { k: 'mente', ic: '🧠', nome: 'Mental', cor: '#3b82f6', secoes: [{ itens: [
-    'Ler todos os dias', 'Estudar algo novo', 'Menos tempo de tela e redes sociais', 'Meditar',
+    'Ler', 'Estudar algo novo', 'Menos tempo de tela e redes sociais', 'Meditar',
     'Planejar o dia', 'Escrever um diário', 'Aprender um idioma', 'Resolver desafios (xadrez, quebra-cabeça)',
   ] }] },
   { k: 'emocional', ic: '❤️', nome: 'Emocional', cor: '#ec4899', secoes: [{ itens: [
@@ -46,7 +46,7 @@ export const PILARES = [
   ] }] },
   { k: 'financeiro', ic: '💰', nome: 'Financeiro & Profissional', cor: '#eab308', secoes: [
     { tit: '💼 Trabalho & Renda', itens: [
-      'Montar reserva de emergência', 'Investir todo mês', 'Controlar os gastos', 'Sair das dívidas',
+      'Montar reserva de emergência', 'Investir', 'Controlar os gastos', 'Sair das dívidas',
       'Aumentar minha renda', 'Fazer um curso da minha área', 'Crescer na carreira ou empreender',
     ] },
     { tit: '✨ Propósito', itens: [
@@ -67,8 +67,22 @@ let _saveT = null;
 
 // Converte o formato antigo (textos livres em profile.idealPilares) em itens
 // "seus" já marcados — assim nada que a pessoa escreveu se perde.
+// Itens renomeados (o ID sai do texto): quem já tinha marcado o nome antigo
+// continua marcado. Os itens não trazem frequência — quem define é a pessoa,
+// na Meta de Constância.
+const ALIAS = {
+  'mente:ler-todos-os-dias': 'mente:ler',
+  'financeiro:investir-todo-mes': 'financeiro:investir',
+};
+function _aplicarAlias(est) {
+  for (const v of Object.values(est)) {
+    if (Array.isArray(v?.sel)) v.sel = [...new Set(v.sel.map(id => ALIAS[id] || id))];
+  }
+  return est;
+}
+
 function _migrar(p) {
-  if (p?.idealItens) return JSON.parse(JSON.stringify(p.idealItens));
+  if (p?.idealItens) return _aplicarAlias(JSON.parse(JSON.stringify(p.idealItens)));
   const est = {};
   const old = p?.idealPilares || {};
   const add = (k, txt) => {
