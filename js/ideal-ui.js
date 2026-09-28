@@ -35,6 +35,7 @@ export const PILARES = [
   ] }] },
   { k: 'mente', ic: '🧠', nome: 'Mental', cor: '#3b82f6', secoes: [{ itens: [
     'Ler', 'Estudar algo novo', 'Menos tempo de tela e redes sociais', 'Meditar',
+    'Breathwork (respiração consciente)',
     'Planejar o dia', 'Escrever um diário', 'Aprender um idioma', 'Resolver desafios (xadrez, quebra-cabeça)',
   ] }] },
   { k: 'emocional', ic: '❤️', nome: 'Emocional', cor: '#ec4899', secoes: [{ itens: [
