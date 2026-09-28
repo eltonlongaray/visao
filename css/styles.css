@@ -8052,7 +8052,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .pt-rodape .btn-primary { width: 100%; }
 .pt-q { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 
-.pt-objs { display: flex; flex-direction: column; gap: 7px; }
+/* grid 1fr: todos os cards de objetivo com a MESMA altura (se um quebrar linha
+   numa tela estreita, os outros acompanham) */
+.pt-objs { display: grid; grid-auto-rows: 1fr; gap: 7px; }
 .pt-obj { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--card-2); text-align: left; cursor: pointer; }
 .pt-obj.sel { border-color: var(--accent); background: rgba(124,58,237,.12); }
 .pt-obj-ic { font-size: 24px; flex: none; }

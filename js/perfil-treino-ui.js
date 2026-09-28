@@ -11,7 +11,7 @@ import { trapModalBack } from './modal-voltar.js';
 const OBJETIVOS = [
   // Atlético + Estético viraram UMA opção (Elton, 28/09): a proporção áurea É o
   // shape enxuto e proporcional — estátua grega, estilo jogador de tênis.
-  { k: 'aurea',    ic: '🏛️', lbl: 'Proporção Áurea',      sub: 'Shape de estátua grega — estilo jogador de tênis' },
+  { k: 'aurea',    ic: '🏛️', lbl: 'Proporção Áurea',      sub: 'Estátua grega, estilo jogador de tênis' },
   { k: 'volume',   ic: '💪', lbl: 'Máximo volume',        sub: 'Ficar grande — mira além da áurea' },
   { k: 'saude',    ic: '❤️', lbl: 'Só saúde',             sub: 'Bem-estar e composição saudável' },
 ];
