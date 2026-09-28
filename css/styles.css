@@ -7137,13 +7137,15 @@ body.sem-rolagem { overflow: hidden; }
 /* ── "Organizando meu ideal" — botão em Meus Objetivos + popup (ideal-ui.js):
    grade dos 6 pilares ↔ checklist com lista pronta, "Seus itens" e os botões
    🔥 constância / 📋 só atividades em cada item marcado. */
-/* Botão "Organizando meu ideal" e cards da Meta de Constância: fundo liso,
-   só uma BORDA LEVE (roxo bem suave) pra destacar do fundo — sem degradê nem
-   brilho (Elton não curtiu o "brilhoso"). A seta › mantém a cara de botão. */
-.obj-ideal-card { width: 100%; margin-bottom: 6px; border: 1px solid color-mix(in srgb, var(--accent-2) 32%, var(--border)); transition: transform .1s; }
+/* Botão "Organizando meu ideal" e cards da Meta de Constância no estilo do card
+   do dia no Ritual: fundo liso, borda fina normal e a LATERAL ESQUERDA de 4px
+   colorida (roxo; verde quando a meta está cumprida). Sem degradê/brilho. */
+.obj-ideal-card { width: 100%; margin-bottom: 6px; border: 1px solid var(--border); border-left: 4px solid var(--accent-2); transition: transform .1s; }
+.obj-ideal-card:hover { border-color: var(--border); border-left-color: var(--accent-2); }
 .obj-ideal-card:active { transform: scale(.98); }
 .obj-ideal-seta { flex: none; font-size: 26px; line-height: 1; font-weight: 700; color: var(--accent-2); margin-left: 2px; }
-.obj-item { border-color: color-mix(in srgb, var(--accent-2) 32%, var(--border)); }
+.obj-item { border: 1px solid var(--border); border-left: 4px solid var(--accent-2); }
+.obj-item.cumprido { border-color: var(--border); border-left-color: #5fd3a5; }
 .ideal-modal .ag-scroll { padding-bottom: 20px; }
 .ideal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ideal-pilar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 13px; cursor: pointer; font-family: inherit; color: var(--text); }
