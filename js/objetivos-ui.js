@@ -10,9 +10,10 @@ import {
   listarObjetivos, salvarObjetivo, removerObjetivo, progressoDosObjetivos,
   constanciaDosObjetivos,
 } from './objetivos.js';
-import { getCategories, saveCategory, getProfile, setProfile } from './banco-dados.js';
+import { getCategories, saveCategory } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { abrirIdeal, totalMarcadosIdeal } from './ideal-ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -22,60 +23,13 @@ const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 
 let _objClose = null;
 
-// Os 6 pilares (áreas da vida) de "Organizando meu ideal".
-// financeiro tem 2 campos (Trabalho + Propósito) — ter um trabalho ≠ fazer algo
-// que te realiza.
-const PILARES = [
-  { k: 'corpo',      ic: '💪', nome: 'Saúde do Corpo',            hint: 'Ex: treinar, comer bem, dormir cedo, beber água' },
-  { k: 'mente',      ic: '🧠', nome: 'Saúde da Mente',            hint: 'Ex: ler, estudar, focar, menos tela' },
-  { k: 'emocional',  ic: '❤️', nome: 'Saúde Emocional',           hint: 'Ex: gratidão, terapia, relações que somam' },
-  { k: 'espiritual', ic: '🙏', nome: 'Saúde Espiritual',          hint: 'Ex: orar, meditar, contato com a natureza' },
-  { k: 'financeiro', ic: '💰', nome: 'Financeira & Profissional', dois: true },
-  { k: 'social',     ic: '🎉', nome: 'Social & Lazer',            hint: 'Ex: amigos, família, hobbies, viagens' },
-];
-
-function _pilarHtml(p, ideal) {
-  if (p.dois) {
-    const f = ideal.financeiro || {};
-    return `
-      <div class="obj-pilar">
-        <div class="obj-pilar-nome">${p.ic} ${p.nome}</div>
-        <label class="obj-pilar-campo"><span>💼 Trabalho / Renda</span>
-          <textarea data-ideal="financeiro.trabalho" rows="2" placeholder="Onde você quer chegar no trabalho e na renda">${esc(f.trabalho || '')}</textarea></label>
-        <label class="obj-pilar-campo"><span>✨ Propósito — o que te realiza</span>
-          <textarea data-ideal="financeiro.proposito" rows="2" placeholder="O que te faz sentir realizado, além do dinheiro">${esc(f.proposito || '')}</textarea></label>
-      </div>`;
-  }
-  return `
-    <div class="obj-pilar">
-      <div class="obj-pilar-nome">${p.ic} ${p.nome}</div>
-      <textarea data-ideal="${p.k}" rows="2" placeholder="${esc(p.hint)}">${esc(ideal[p.k] || '')}</textarea>
-    </div>`;
-}
-
-// Lê todos os textareas de pilar e monta o objeto (trata "financeiro.trabalho").
-function _coletarIdeal(root) {
-  const ideal = {};
-  root.querySelectorAll('[data-ideal]').forEach(t => {
-    const key = t.dataset.ideal, val = t.value;
-    if (key.includes('.')) {
-      const [a, b] = key.split('.');
-      ideal[a] = ideal[a] || {};
-      ideal[a][b] = val;
-    } else { ideal[key] = val; }
-  });
-  return ideal;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 0: TELA CHEIA (card "Meus Objetivos" dentro da Caixa de Ferramentas)
-// Em cima: "Organizando meu ideal" (6 pilares, retrátil). Embaixo: "Foco e
-// Disciplina" = o tracker de constância que já existia na Home.
+// Em cima: botão "Organizando meu ideal" (abre popup com os 6 pilares — ver
+// ideal-ui.js). Embaixo: "Foco e Disciplina" = o tracker de constância.
 // ═══════════════════════════════════════════════════════════════
 export async function abrirObjetivos() {
   if (document.getElementById('objetivos-ov')) return;
-  let ideal = {};
-  try { ideal = (await getProfile())?.idealPilares || {}; } catch {}
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
@@ -87,17 +41,11 @@ export async function abrirObjetivos() {
         <div class="ag-title">🎯 Meus Objetivos</div>
       </div>
       <div class="ag-scroll">
-        <div class="obj-ideal" id="obj-ideal">
-          <button class="obj-ideal-toggle" id="obj-ideal-toggle" type="button">
-            <span class="obj-ideal-ic">🧭</span>
-            <span class="obj-ideal-tit">Organizando meu ideal</span>
-            <span class="obj-ideal-chev">▾</span>
-          </button>
-          <div class="obj-ideal-body" id="obj-ideal-body">
-            <div class="bloco-sub" style="margin:2px 0 12px">Antes de escolher seus focos, defina o que é o <b>ideal</b> pra você em cada uma das 6 áreas da vida. Isso guia o que você vai priorizar embaixo.</div>
-            ${PILARES.map(p => _pilarHtml(p, ideal)).join('')}
-          </div>
-        </div>
+        <button class="fr-hubcard obj-ideal-card" id="obj-ideal-abrir" type="button">
+          <span class="fr-hub-ic">🧭</span>
+          <span class="fr-hub-tx"><b>Organizando meu ideal</b><small>Marque o que é importante em cada área da vida: físico, mental, emocional…</small></span>
+          <span class="fr-hub-tag" id="obj-ideal-resumo" hidden></span>
+        </button>
 
         <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
         <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. O que entrar aqui vira atividade na sua Home — e eu conto sozinho a partir do Ritual.</div>
@@ -110,19 +58,15 @@ export async function abrirObjetivos() {
   _objClose = trapModalBack(() => ov.remove());
   ov.querySelector('#obj-back').addEventListener('click', () => history.back());
 
-  // "Organizando meu ideal" — retrátil (borda envolve as laterais quando abre,
-  // igual ao card do dia no Ritual: classe .open no wrapper).
-  const idealWrap = ov.querySelector('#obj-ideal');
-  ov.querySelector('#obj-ideal-toggle').addEventListener('click', () => {
-    idealWrap.classList.toggle('open');
-  });
-
-  // Auto-save dos pilares (debounce) — grava em profile.idealPilares
-  let idealTimer = null;
-  ov.querySelectorAll('[data-ideal]').forEach(t => t.addEventListener('input', () => {
-    clearTimeout(idealTimer);
-    idealTimer = setTimeout(() => { setProfile({ idealPilares: _coletarIdeal(ov) }).catch(() => {}); }, 500);
-  }));
+  // "Organizando meu ideal" — abre em popup (ideal-ui.js). O selo mostra quantos
+  // itens a pessoa já marcou nos 6 pilares.
+  const pintarResumoIdeal = async () => {
+    const el = ov.querySelector('#obj-ideal-resumo'); if (!el) return;
+    const n = await totalMarcadosIdeal().catch(() => 0);
+    el.hidden = !n; el.textContent = `${n} ✓`;
+  };
+  ov.querySelector('#obj-ideal-abrir').addEventListener('click', () => abrirIdeal({ aoFechar: pintarResumoIdeal }));
+  pintarResumoIdeal();
 
   ligarObjetivos();
   await montarObjetivos();
@@ -199,7 +143,9 @@ function linhaObjetivo(o, p) {
 // A opção "puxar do Ritual" é o coração disto: se a pessoa já marca a
 // academia lá, marcar de novo aqui seria trabalho dobrado — e as duas
 // contagens divergiriam na primeira vez que ela esquecesse uma das duas.
-export async function abrirEditorObjetivo(id) {
+// opts (vindo do "Organizando meu ideal"): novoNome = já escolhe/preenche a
+// atividade; icone/cor = da atividade nova; aoSalvar = avisa quem abriu.
+export async function abrirEditorObjetivo(id, opts = {}) {
   const objetivos = await listarObjetivos();
   const obj = id ? objetivos.find(o => o.id === id) : null;
 
@@ -260,6 +206,14 @@ export async function abrirEditorObjetivo(id) {
     if (isNova) setTimeout(() => novaInput.focus(), 50);
   };
   selAtiv.addEventListener('change', syncNova);
+  // Veio do "Organizando meu ideal": se a atividade já existe, seleciona ela;
+  // senão já deixa "Criar nova" com o nome preenchido.
+  if (!obj && opts.novoNome) {
+    const alvo = String(opts.novoNome).trim().toLowerCase();
+    const existente = atividades.find(a => String(a.name || '').trim().toLowerCase() === alvo);
+    if (existente) selAtiv.value = existente.id;
+    else { selAtiv.value = '__nova__'; novaInput.value = opts.novoNome; }
+  }
   syncNova();
 
   // Frase em português do que foi configurado. Três campos numéricos soltos
@@ -307,7 +261,7 @@ export async function abrirEditorObjetivo(id) {
       try {
         const order = (atividades.length ? Math.max(...atividades.map(a => a.order || 0)) : 0) + 1;
         atividadeId = await saveCategory(null, {
-          name: novoNome, icon: '🎯', color: '#a78bfa',
+          name: novoNome, icon: opts.icone || '🎯', color: opts.cor || '#a78bfa',
           order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
         });
         // Avisa a Home pra ela repintar as Atividades com a nova (se estiver aberta atrás).
@@ -331,6 +285,7 @@ export async function abrirEditorObjetivo(id) {
     fechar();
     await montarObjetivos();
     showToast('✅ Objetivo salvo!', 'success');
+    try { await opts.aoSalvar?.(); } catch {}
   });
 }
 

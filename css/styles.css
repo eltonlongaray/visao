@@ -7134,26 +7134,39 @@ body.sem-rolagem { overflow: hidden; }
 .pend-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
 .pend-seta { color: var(--muted); font-size: 18px; flex: none; }
 
-/* ── "Organizando meu ideal" (6 pilares, retrátil) dentro de Meus Objetivos ──
-   Estilo card do dia do Ritual: header + corpo viram UM card só, com a borda
-   descendo pelas laterais quando abre (classe .open no wrapper). */
-.obj-ideal { margin-bottom: 14px; }
-.obj-ideal-toggle { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: color-mix(in srgb, var(--accent-2) 10%, var(--card)); border: 1px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; font-family: inherit; transition: background .2s, border-color .2s, border-radius .2s; }
-.obj-ideal-toggle:hover { border-color: var(--accent); }
-.obj-ideal.open .obj-ideal-toggle { background: color-mix(in srgb, var(--accent-2) 14%, var(--card)); border-color: color-mix(in srgb, var(--accent-2) 34%, var(--border)); border-radius: 12px 12px 0 0; }
-.obj-ideal-ic { font-size: 20px; flex: none; }
-.obj-ideal-tit { flex: 1; font-size: 15px; font-weight: 800; color: var(--text); }
-.obj-ideal-chev { color: var(--muted); font-size: 13px; flex: none; transition: transform .2s ease; }
-.obj-ideal.open .obj-ideal-chev { transform: rotate(180deg); color: var(--accent-2); }
-.obj-ideal-body { display: none; border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--border)); border-top: none; border-radius: 0 0 12px 12px; padding: 12px; }
-.obj-ideal.open .obj-ideal-body { display: block; }
-.obj-pilar { background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
-.obj-ideal-body .obj-pilar:last-child { margin-bottom: 0; }
-.obj-pilar-nome { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-.obj-pilar textarea { width: 100%; box-sizing: border-box; background: var(--card); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.4; padding: 9px 11px; resize: vertical; min-height: 46px; outline: none; }
-.obj-pilar textarea:focus { border-color: var(--accent-2); }
-.obj-pilar-campo { display: block; margin-top: 8px; }
-.obj-pilar-campo > span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+/* ── "Organizando meu ideal" — botão em Meus Objetivos + popup (ideal-ui.js):
+   grade dos 6 pilares ↔ checklist com lista pronta, "Seus itens" e os botões
+   🔥 constância / 📋 só atividades em cada item marcado. */
+.obj-ideal-card { width: 100%; margin-bottom: 6px; }
+.ideal-modal .ag-scroll { padding-bottom: 20px; }
+.ideal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ideal-pilar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 13px; cursor: pointer; font-family: inherit; color: var(--text); }
+.ideal-pilar:active { transform: scale(.98); }
+.ideal-pilar-ic { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 21px; }
+.ideal-pilar-nome { font-size: 14px; font-weight: 700; line-height: 1.25; }
+.ideal-pilar-n { font-size: 12px; color: var(--muted); }
+.ideal-pilar-n.tem { color: var(--accent-2); font-weight: 700; }
+.ideal-sec { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--accent-2); margin: 16px 0 8px; }
+.ideal-item { position: relative; background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; margin-top: 8px; }
+.ideal-item.on { border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+.ideal-check { display: flex; align-items: center; gap: 10px; cursor: pointer; padding-right: 26px; }
+.ideal-check input { position: absolute; opacity: 0; pointer-events: none; }
+.ideal-box { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--border); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.ideal-check input:checked + .ideal-box { background: var(--accent-2); border-color: var(--accent-2); }
+.ideal-check input:checked + .ideal-box::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 800; }
+.ideal-txt { font-size: 14px; color: var(--text); line-height: 1.35; }
+.ideal-rm { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 4px; }
+.ideal-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-left: 32px; }
+.ideal-btn { border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+.ideal-btn.foco { color: #f97316; border-color: color-mix(in srgb, #f97316 55%, var(--border)); }
+.ideal-btn.ativ { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--border)); }
+.ideal-btn:disabled { opacity: .5; }
+.ideal-tag { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 999px; }
+.ideal-tag.foco { color: #f97316; background: color-mix(in srgb, #f97316 14%, var(--card)); }
+.ideal-tag.ativ { color: #22c55e; background: color-mix(in srgb, #22c55e 14%, var(--card)); }
+.ideal-add { display: flex; gap: 8px; margin-top: 16px; }
+.ideal-add input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; color: var(--text); font-family: inherit; font-size: 14px; }
+.ideal-add .btn-primary { width: auto; flex: none; padding: 0 16px; }
 
 /* ── Preparo Físico (hub: Atividade Física + Composição Corporal) ── */
 /* Cabe no viewport menos o padding do overlay (40px) — não corta o Salvar. */
