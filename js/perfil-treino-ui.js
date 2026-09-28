@@ -9,8 +9,9 @@ import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
 const OBJETIVOS = [
-  { k: 'atletico', ic: '🎾', lbl: 'Atlético / funcional', sub: 'Enxuto e proporcional (tipo jogador de tênis)' },
-  { k: 'aurea',    ic: '✨', lbl: 'Estético / áurea',     sub: 'A proporção clássica — shape de estátua' },
+  // Atlético + Estético viraram UMA opção (Elton, 28/09): a proporção áurea É o
+  // shape enxuto e proporcional — estátua grega, estilo jogador de tênis.
+  { k: 'aurea',    ic: '🏛️', lbl: 'Proporção Áurea',      sub: 'Shape de estátua grega — estilo jogador de tênis' },
   { k: 'volume',   ic: '💪', lbl: 'Máximo volume',        sub: 'Ficar grande — mira além da áurea' },
   { k: 'saude',    ic: '❤️', lbl: 'Só saúde',             sub: 'Bem-estar e composição saudável' },
 ];
@@ -24,7 +25,10 @@ const PADRAO = { objetivo: 'aurea', forca: false, freqSemana: 3, freqMusculo: 2,
 
 // Lê o perfil salvo com os padrões preenchidos.
 export function getPerfilTreino(profile) {
-  return { ...PADRAO, ...(profile?.perfilTreino || {}) };
+  const pt = { ...PADRAO, ...(profile?.perfilTreino || {}) };
+  // 'atletico' foi fundido na Proporção Áurea — quem tinha escolhido cai nela.
+  if (pt.objetivo === 'atletico') pt.objetivo = 'aurea';
+  return pt;
 }
 
 // HTML do questionário (sem header/rodapé fixos — flui na tela).
