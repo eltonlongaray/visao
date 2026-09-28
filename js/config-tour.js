@@ -92,7 +92,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     noCollapse: true,
     title: '🛠️ Caixa de Ferramentas',
-    message: 'Aqui dentro tem três coisas boas: <strong>Listas</strong> (recados e tarefas sem data), <strong>Agenda Online</strong> — se você <strong>atende clientes</strong> (personal, terapeuta…), monta seus horários e ganha um link pra bio; quem clicar agenda sozinho e já cai como compromisso no seu Ritual — e a <strong>Rifa Solidária</strong>, pra criar uma rifa e compartilhar o link. É só tocar pra abrir. 😉',
+    message: 'Aqui dentro mora o que organiza a sua vida: <strong>Meus Objetivos</strong> — você marca o que é importante em cada área (físico, mental, emocional…) e escolhe o que vai virar <strong>meta de constância</strong>, que eu acompanho sozinho pelo Ritual. Tem também a <strong>Agenda Online</strong> (se você atende clientes, ganha um link pra bio e o agendamento cai direto no seu Ritual), a <strong>Rifa Solidária</strong> e as <strong>Listas</strong> de coisas pra fazer ou comprar. É só tocar pra abrir. 😉',
     primaryBtn: 'Próximo →'
   },
 

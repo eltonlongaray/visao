@@ -130,6 +130,16 @@ export async function renderHome(app) {
         <div class="reminders-badge" id="reminders-badge" style="display:none">0</div>
       </button>
 
+      <!-- CAIXA DE FERRAMENTAS (3º, logo abaixo de Lembretes): hub (Objetivos, Agenda, Rifa, Listas) -->
+      <button class="reminders-card" id="ferramentas-card" type="button">
+        <div class="reminders-icon">🛠️</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Caixa de Ferramentas</div>
+          <div class="reminders-sub">Meus Objetivos, Agenda Online, Rifa e Listas</div>
+        </div>
+        <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
+      </button>
+
       <!-- MENSAGENS DA MANHÃ -->
       <button class="reminders-card msgs-card" id="morning-msgs-card" type="button">
         <div class="reminders-icon">💌</div>
@@ -138,16 +148,6 @@ export async function renderHome(app) {
           <div class="reminders-sub">${t('home.msgs.sub')}</div>
         </div>
         <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
-      </button>
-
-      <!-- CAIXA DE FERRAMENTAS: hub (Listas, Agenda Online, Rifa Solidária) -->
-      <button class="reminders-card" id="ferramentas-card" type="button">
-        <div class="reminders-icon">🛠️</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Caixa de Ferramentas</div>
-          <div class="reminders-sub">Listas, Agenda Online e Rifa Solidária</div>
-        </div>
-        <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
 
