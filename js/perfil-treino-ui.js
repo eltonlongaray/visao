@@ -23,11 +23,28 @@ const TEMPOS = [
 ];
 const PADRAO = { objetivo: 'aurea', forca: false, freqSemana: 3, freqMusculo: 2, tempoTreino: 'menos1' };
 
+// Frequência semanal POR MÚSCULO (lista do Elton). freqMusculo (a resposta
+// antiga, "o mesmo músculo quantas vezes") vira o ponto de partida de todos.
+const GRUPOS_MUS = [
+  { tit: 'Superiores', mus: [
+    { k: 'peito', nome: 'Peito' }, { k: 'costas', nome: 'Costas' }, { k: 'ombros', nome: 'Ombros' },
+    { k: 'trapezio', nome: 'Trapézio' }, { k: 'biceps', nome: 'Bíceps' }, { k: 'triceps', nome: 'Tríceps' },
+  ] },
+  { tit: 'Core', mus: [{ k: 'abdomen', nome: 'Abdômen' }] },
+  { tit: 'Inferiores', mus: [
+    { k: 'gluteo', nome: 'Glúteo' }, { k: 'quadriceps', nome: 'Quadríceps' },
+    { k: 'posterior', nome: 'Posterior da coxa' }, { k: 'panturrilha', nome: 'Panturrilha' },
+  ] },
+];
+export const MUSCULOS = GRUPOS_MUS.flatMap(g => g.mus);
+
 // Lê o perfil salvo com os padrões preenchidos.
 export function getPerfilTreino(profile) {
   const pt = { ...PADRAO, ...(profile?.perfilTreino || {}) };
   // 'atletico' foi fundido na Proporção Áurea — quem tinha escolhido cai nela.
   if (pt.objetivo === 'atletico') pt.objetivo = 'aurea';
+  const base = Number.isFinite(pt.freqMusculo) ? pt.freqMusculo : 2;
+  pt.freqPorMusculo = { ...Object.fromEntries(MUSCULOS.map(m => [m.k, base])), ...(pt.freqPorMusculo || {}) };
   return pt;
 }
 
@@ -52,11 +69,15 @@ function _corpoHtml(pt) {
       ${[1, 2, 3, 4, 5, 6, 7].map(n => `<option value="${n}" ${pt.freqSemana === n ? 'selected' : ''}>${n}× por semana</option>`).join('')}
     </select>
 
-    <div class="pt-q" style="margin-top:14px">O MESMO músculo, quantas vezes na semana?</div>
-    <div class="pt-chips" id="pt-fm">
-      ${[1, 2, 3].map(n => `<button class="pt-chip ${pt.freqMusculo === n ? 'sel' : ''}" data-fm="${n}" type="button">${n}×${n === 3 ? '+' : ''}</button>`).join('')}
+    <div class="pt-q" style="margin-top:14px">Quantas vezes na semana você treina cada músculo?</div>
+    <div class="pt-hint" style="margin-top:-4px">Toque no número de cada um. <b>2×</b> por semana costuma ser o ritmo que mais rende pra crescer.</div>
+    <div class="pt-mus-lista">
+      ${GRUPOS_MUS.map(g => `<div class="pt-mus-grupo">${g.tit}</div>${g.mus.map(m => `
+        <div class="pt-mus">
+          <span class="pt-mus-nome">${m.nome}</span>
+          <span class="pt-mus-chips">${[0, 1, 2, 3].map(n => `<button class="pt-chip mini ${pt.freqPorMusculo[m.k] === n ? 'sel' : ''}" data-mus="${m.k}" data-n="${n}" type="button">${n}×${n === 3 ? '+' : ''}</button>`).join('')}</span>
+        </div>`).join('')}`).join('')}
     </div>
-    <div class="pt-hint">2× por semana costuma ser o ritmo que mais rende pra crescer.</div>
 
     <div class="pt-q" style="margin-top:14px">Há quanto tempo você treina (no total)?</div>
     <div class="pt-chips" id="pt-tempo">
@@ -65,16 +86,36 @@ function _corpoHtml(pt) {
     <div class="pt-hint">Sua <b>constância atual</b> (sem falhar) eu acompanho sozinho pelo Ritual — é diferente de experiência.</div>`;
 }
 
+// Um músculo não pode ser treinado mais vezes do que os treinos da semana:
+// números acima ficam bloqueados e o valor marcado desce até o limite.
+function _limitarMus(c, pt) {
+  const max = pt.freqSemana;
+  for (const m of MUSCULOS) {
+    if ((pt.freqPorMusculo[m.k] ?? 0) > max) pt.freqPorMusculo[m.k] = Math.min(max, 3);
+  }
+  c.querySelectorAll('[data-mus]').forEach(b => {
+    const n = +b.dataset.n;
+    b.disabled = n > max;
+    b.classList.toggle('sel', pt.freqPorMusculo[b.dataset.mus] === n);
+  });
+}
+
 // Liga a seleção por classe (sem re-render, pra não perder checkbox/select).
 function _ligarSelecoes(c, pt) {
   c.querySelectorAll('[data-obj]').forEach(b => b.onclick = () => {
     pt.objetivo = b.dataset.obj;
     c.querySelectorAll('[data-obj]').forEach(x => x.classList.toggle('sel', x === b));
   });
-  c.querySelectorAll('[data-fm]').forEach(b => b.onclick = () => {
-    pt.freqMusculo = +b.dataset.fm;
-    c.querySelectorAll('[data-fm]').forEach(x => x.classList.toggle('sel', x === b));
+  c.querySelectorAll('[data-mus]').forEach(b => b.onclick = () => {
+    if (b.disabled) return;
+    pt.freqPorMusculo[b.dataset.mus] = +b.dataset.n;
+    _limitarMus(c, pt);
   });
+  c.querySelector('#pt-freqsem')?.addEventListener('change', (e) => {
+    pt.freqSemana = +e.target.value;
+    _limitarMus(c, pt);
+  });
+  _limitarMus(c, pt);
   c.querySelectorAll('[data-tempo]').forEach(b => b.onclick = () => {
     pt.tempoTreino = b.dataset.tempo;
     c.querySelectorAll('[data-tempo]').forEach(x => x.classList.toggle('sel', x === b));

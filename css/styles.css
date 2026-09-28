@@ -2290,6 +2290,22 @@ body.time-picker-open { overflow: hidden; }
   flex-shrink: 0;
 }
 
+/* Os 4 cards-botão da Home no esquema do Ritual (lateral esquerda 4px colorida +
+   contorno fino na mesma cor a 40%) — mesma linguagem de "isso é clicável" do
+   resto do app. Cada um na cor do seu ícone. */
+#avisos-card       { --card-cor: #a78bfa; }
+#reminders-card    { --card-cor: #fbbf24; }
+#morning-msgs-card { --card-cor: #f472b6; }
+#ferramentas-card  { --card-cor: #60a5fa; }
+#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card {
+  border: 1px solid color-mix(in srgb, var(--card-cor) 40%, transparent);
+  border-left: 4px solid var(--card-cor);
+}
+#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover {
+  border-color: color-mix(in srgb, var(--card-cor) 40%, transparent);
+  border-left-color: var(--card-cor);
+}
+
 /* Caixa de Ferramentas: martelo/chave um pouco maior que os outros ícones */
 #ferramentas-card .reminders-icon { font-size: 23px; }
 
@@ -8070,5 +8086,13 @@ body.rota-publica .bottom-nav { display: none !important; }
 .pt-chip { padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--card-2); color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
 .pt-chip.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pt-hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+/* Frequência semanal por músculo: 1 linha por músculo, chips 0×–3×+ à direita */
+.pt-mus-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pt-mus-grupo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--accent-2); margin: 8px 0 2px; }
+.pt-mus { display: flex; align-items: center; gap: 8px; background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 6px 7px 6px 12px; }
+.pt-mus-nome { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.pt-mus-chips { display: flex; gap: 5px; flex: none; }
+.pt-chip.mini { padding: 6px 0; min-width: 42px; font-size: 13px; text-align: center; }
+.pt-chip:disabled { opacity: .28; cursor: default; }
 
 .pf-embreve { margin: 16px 4px 0; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); font-size: 13px; line-height: 1.4; text-align: center; }
