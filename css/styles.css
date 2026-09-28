@@ -453,6 +453,14 @@ html, body { background-color: #1a1209; }
 .day-card[data-dow="5"] { --dow-color: #34d399; border-left-color: #34d399; }  /* Sex — verde */
 .day-card[data-dow="6"] { --dow-color: #fbbf24; border-left-color: #fbbf24; }  /* Sáb — laranja */
 .day-card[data-dow="0"] { --dow-color: #f87171; border-left-color: #f87171; }  /* Dom — vermelho (descanso) */
+/* Contorno fino VISÍVEL no card fechado (antes era --border a 7% e sumia; só
+   Hoje e Compromissos pareciam ter borda): cor do próprio dia a 40%, no mesmo
+   espírito do card de Compromissos. Hoje e aberto mantêm os destaques deles. */
+.day-card[data-dow]:not(.today):not(.open):not(.commitments-card) {
+  border-top-color: color-mix(in srgb, var(--dow-color) 40%, transparent);
+  border-right-color: color-mix(in srgb, var(--dow-color) 40%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--dow-color) 40%, transparent);
+}
 
 .day-card-header {
   display: flex; align-items: center; gap: 10px;
@@ -7140,12 +7148,12 @@ body.sem-rolagem { overflow: hidden; }
 /* Botão "Organizando meu ideal" e cards da Meta de Constância no estilo do card
    do dia no Ritual: fundo liso, borda fina normal e a LATERAL ESQUERDA de 4px
    colorida (roxo; verde quando a meta está cumprida). Sem degradê/brilho. */
-.obj-ideal-card { width: 100%; margin-bottom: 6px; border: 1px solid var(--border); border-left: 4px solid var(--accent-2); transition: transform .1s; }
-.obj-ideal-card:hover { border-color: var(--border); border-left-color: var(--accent-2); }
+.obj-ideal-card { width: 100%; margin-bottom: 6px; border: 1px solid color-mix(in srgb, var(--accent-2) 40%, transparent); border-left: 4px solid var(--accent-2); transition: transform .1s; }
+.obj-ideal-card:hover { border-color: color-mix(in srgb, var(--accent-2) 40%, transparent); border-left-color: var(--accent-2); }
 .obj-ideal-card:active { transform: scale(.98); }
 .obj-ideal-seta { flex: none; font-size: 26px; line-height: 1; font-weight: 700; color: var(--accent-2); margin-left: 2px; }
-.obj-item { border: 1px solid var(--border); border-left: 4px solid var(--accent-2); }
-.obj-item.cumprido { border-color: var(--border); border-left-color: #5fd3a5; }
+.obj-item { border: 1px solid color-mix(in srgb, var(--accent-2) 40%, transparent); border-left: 4px solid var(--accent-2); }
+.obj-item.cumprido { border-color: rgba(95,211,165,0.4); border-left-color: #5fd3a5; }
 .ideal-modal .ag-scroll { padding-bottom: 20px; }
 .ideal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ideal-pilar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 14px 13px; cursor: pointer; font-family: inherit; color: var(--text); }
