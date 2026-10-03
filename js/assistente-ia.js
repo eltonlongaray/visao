@@ -776,7 +776,7 @@ async function handleSend() {
 async function dispatchCommand(text) {
   setPetState('thinking');
   try {
-    const reply = typeof text === 'function' ? await text() : await routeCommand(text.trim());
+    const reply = typeof text === 'function' ? await text() : await routeCommand(semChamado(text));
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
     addMessage(t('pet.error.general'), 'bot');
@@ -784,6 +784,16 @@ async function dispatchCommand(text) {
   } finally {
     setPetState('idle');
   }
+}
+
+// Por voz a pessoa chama o pet pelo nome ("Falcon, qual meu próximo
+// compromisso"), e o ditado nem sempre põe a vírgula. O nome na frente
+// quebrava os regex ancorados no início (^marcar, ^editar...) e virava parte
+// do título da tarefa. Sai daqui antes de rotear; sozinho ("oi Falcon") fica.
+function semChamado(text) {
+  const t = String(text || '').trim();
+  const resto = t.replace(/^(?:(?:ei|oi|ok|ô|olá|e aí|fala)[\s,]+)?(?:falcon|pet)\b[\s,.:;!?-]*/i, '').trim();
+  return resto || t;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -906,6 +916,9 @@ async function routeCommand(text) {
   }
 
   // ── Consultas (PT + EN) ──
+  // "Próximo compromisso" vem antes da lista: ali a pessoa quer UM item (o
+  // próximo com horário), não as tarefas do dia inteiro.
+  if (/pr[oó]xim[oa]s?\s+(compromisso|tarefa|atividade|evento|coisa)|o que (vem|tenho|tem) (agora|depois(?! de amanh)|a seguir)|next (task|commitment|appointment)/i.test(tl)) return cmdProximo(tl);
   if (/dormi|sono|horas de sono|acordei|sleep|how.*sleep|woke.*up/i.test(tl))         return cmdSono();
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
@@ -1082,7 +1095,8 @@ async function executarIntencao(intencao, text) {
     case 'consultar_sono':      return cmdSono();
     case 'consultar_sequencia': return cmdSequencia();
     case 'consultar_agua':      return cmdHidratacao();
-    case 'consultar_tarefas':   return cmdTarefas();
+    case 'consultar_tarefas':
+      return /pr[oó]xim|a seguir|depois(?! de amanh)|agora/i.test(text) ? cmdProximo(text) : cmdTarefas();
     case 'ajuda':               return cmdAjuda();
     case 'ajuda_notificacoes':  return cmdNotificacoesAjuda();
     case 'saudacao':
@@ -1382,6 +1396,37 @@ async function cmdTarefas() {
   if (feitas.length)    msg += '<br>' + feitas.map(tk => `✅ ${tk.title}`).join('<br>');
   if (pendentes.length) msg += '<br>' + pendentes.map(tk => `⬜ ${tk.title}`).join('<br>');
   return msg;
+}
+
+// Próximo item com horário, de agora até 7 dias. Se a pessoa disse
+// "compromisso", procura só compromisso; senão qualquer tarefa com horário.
+async function cmdProximo(frase = '') {
+  const soCompromisso = /compromisso|commitment|appointment/i.test(frase);
+  const agora = new Date();
+  const hoje  = dayId(agora);
+  const hhmm  = agora.toTimeString().slice(0, 5);
+  const fim   = new Date(agora); fim.setDate(fim.getDate() + 7);
+  const dias  = (await fetchDaysRange(agora, fim)).sort((a, b) => a.id.localeCompare(b.id));
+  for (const dia of dias) {
+    const candidatos = (dia.tasks || [])
+      .filter(tk => !tk.done && !tk.cancelled && /^\d{1,2}:\d{2}/.test(tk.startTime || ''))
+      .filter(tk => !soCompromisso || tk.kind === 'commitment')
+      .filter(tk => dia.id > hoje || (dia.id === hoje && tk.startTime.padStart(5, '0') >= hhmm))
+      .sort((a, b) => a.startTime.padStart(5, '0').localeCompare(b.startTime.padStart(5, '0')));
+    if (!candidatos.length) continue;
+    const tk = candidatos[0];
+    const [y, m, d] = dia.id.split('-').map(Number);
+    const data = new Date(y, m - 1, d);
+    const amanha = new Date(agora); amanha.setDate(agora.getDate() + 1);
+    const quando = dia.id === hoje ? 'hoje'
+      : dia.id === dayId(amanha) ? 'amanhã'
+      : new Intl.DateTimeFormat(getLang(), { weekday: 'long', day: 'numeric', month: 'numeric' }).format(data);
+    const rotulo = tk.kind === 'commitment' ? 'Teu próximo compromisso' : 'Tua próxima tarefa';
+    return `⏭️ ${rotulo}: <strong>${tk.title}</strong>, ${quando} às <strong>${tk.startTime.slice(0, 5)}</strong>.`;
+  }
+  return soCompromisso
+    ? '📅 Nenhum compromisso com horário nos próximos 7 dias.'
+    : '📅 Nenhuma tarefa com horário nos próximos 7 dias.';
 }
 
 function askType(name, date = new Date(), time = '') {
