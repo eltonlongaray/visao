@@ -1,0 +1,43 @@
+Validação cruzada (5 folds, frases geradas): 1.000 ± 0.001
+Teste com frases escritas à mão (64 frases): 0.906
+Limiar de confiança: 0.25 → responde 97% das frases, acerta 92% delas; frases fora do escopo que passaram: 1/5
+
+Por intenção (teste à mão, sem limiar):
+                     precision    recall  f1-score   support
+
+            agendar       0.78      1.00      0.88         7
+              ajuda       1.00      0.75      0.86         4
+ ajuda_notificacoes       0.67      1.00      0.80         4
+     consultar_agua       1.00      1.00      1.00         4
+consultar_sequencia       1.00      1.00      1.00         4
+     consultar_sono       1.00      1.00      1.00         4
+  consultar_tarefas       1.00      0.75      0.86         4
+   editar_descricao       1.00      1.00      1.00         4
+     editar_horario       1.00      0.75      0.86         4
+        editar_nome       1.00      1.00      1.00         4
+  lembrete_desligar       0.67      0.50      0.57         4
+     lembrete_ligar       0.75      0.75      0.75         4
+          reagendar       1.00      1.00      1.00         5
+            repetir       1.00      1.00      1.00         4
+           saudacao       1.00      1.00      1.00         4
+
+           accuracy                           0.91        64
+          macro avg       0.92      0.90      0.90        64
+       weighted avg       0.92      0.91      0.90        64
+
+Erros no teste à mão:
+  "coloca a corrida às 6 em vez das 7" → previu agendar (0.47), era editar_horario
+  "me lembra da consulta com lembrete" → previu lembrete_desligar (0.61), era lembrete_ligar
+  "não quero mais aviso da leitura" → previu ajuda_notificacoes (0.34), era lembrete_desligar
+  "chega de lembrete na academia" → previu lembrete_ligar (0.64), era lembrete_desligar
+  "qual meu próximo compromisso" → previu agendar (0.16), era consultar_tarefas
+  "socorro não entendi nada" → previu ajuda_notificacoes (0.46), era ajuda
+
+Confiança nas frases fora do escopo:
+  "qual a capital da frança" → editar_descricao (0.55)
+  "me conta uma piada" → agendar (0.16)
+  "quanto custa o dólar hoje" → consultar_tarefas (0.25)
+  "escreve um poema" → editar_descricao (0.22)
+  "qual o resultado do jogo do grêmio" → reagendar (0.17)
+
+Modelo exportado: 2506 features × 15 intenções, 332 KB → pet-intencoes.json

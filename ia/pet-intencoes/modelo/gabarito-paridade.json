@@ -1,0 +1,347 @@
+[
+{
+"frase": "amanhã tenho dentista às 14h",
+"intencao": "agendar",
+"conf": 0.8306
+},
+{
+"frase": "bota aí corrida no sábado de manhã",
+"intencao": "agendar",
+"conf": 0.4098
+},
+{
+"frase": "queria registrar que treinei hoje",
+"intencao": "agendar",
+"conf": 0.9198
+},
+{
+"frase": "põe uma reunião com o João na quinta 10h",
+"intencao": "agendar",
+"conf": 0.3512
+},
+{
+"frase": "lembra que sexta tem aniversário da vó às 19",
+"intencao": "agendar",
+"conf": 0.6915
+},
+{
+"frase": "academia segunda 7h agenda pra mim",
+"intencao": "agendar",
+"conf": 0.868
+},
+{
+"frase": "consegue marcar inglês terça às 18?",
+"intencao": "agendar",
+"conf": 0.9503
+},
+{
+"frase": "o treino A agora vai se chamar treino de peito",
+"intencao": "editar_nome",
+"conf": 0.3526
+},
+{
+"frase": "trocar nome academia para crossfit",
+"intencao": "editar_nome",
+"conf": 0.8804
+},
+{
+"frase": "na verdade a leitura é leitura da bíblia muda o nome",
+"intencao": "editar_nome",
+"conf": 0.9573
+},
+{
+"frase": "renomeia mercado como feira",
+"intencao": "editar_nome",
+"conf": 0.8555
+},
+{
+"frase": "a reunião passou pras 16h",
+"intencao": "editar_horario",
+"conf": 0.7814
+},
+{
+"frase": "muda academia das 7 pras 8",
+"intencao": "editar_horario",
+"conf": 0.4801
+},
+{
+"frase": "o dentista é 15h30 e não 14h",
+"intencao": "editar_horario",
+"conf": 0.4591
+},
+{
+"frase": "coloca a corrida às 6 em vez das 7",
+"intencao": "agendar",
+"conf": 0.4727
+},
+{
+"frase": "na reunião anota levar o notebook",
+"intencao": "editar_descricao",
+"conf": 0.2532
+},
+{
+"frase": "descrição do dentista: levar raio x",
+"intencao": "editar_descricao",
+"conf": 0.9734
+},
+{
+"frase": "muda o detalhe da academia pra treino de ombro",
+"intencao": "editar_descricao",
+"conf": 0.5969
+},
+{
+"frase": "coloca uma observação no mercado comprar café",
+"intencao": "editar_descricao",
+"conf": 0.6609
+},
+{
+"frase": "não vai dar academia hoje passa pra amanhã",
+"intencao": "reagendar",
+"conf": 0.8882
+},
+{
+"frase": "o dentista mudou pra próxima terça",
+"intencao": "reagendar",
+"conf": 0.6631
+},
+{
+"frase": "deixa a leitura pra domingo",
+"intencao": "reagendar",
+"conf": 0.4692
+},
+{
+"frase": "adiar reunião para sexta-feira",
+"intencao": "reagendar",
+"conf": 0.849
+},
+{
+"frase": "joga o mercado pra semana que vem",
+"intencao": "reagendar",
+"conf": 0.963
+},
+{
+"frase": "quero aviso antes da reunião",
+"intencao": "lembrete_ligar",
+"conf": 0.778
+},
+{
+"frase": "liga o alarme da academia",
+"intencao": "lembrete_ligar",
+"conf": 0.8343
+},
+{
+"frase": "me lembra da consulta com lembrete",
+"intencao": "lembrete_desligar",
+"conf": 0.6146
+},
+{
+"frase": "ativa notificação pra corrida",
+"intencao": "lembrete_ligar",
+"conf": 0.3585
+},
+{
+"frase": "não quero mais aviso da leitura",
+"intencao": "ajuda_notificacoes",
+"conf": 0.3442
+},
+{
+"frase": "desativa o alarme do mercado",
+"intencao": "lembrete_desligar",
+"conf": 0.5839
+},
+{
+"frase": "chega de lembrete na academia",
+"intencao": "lembrete_ligar",
+"conf": 0.6361
+},
+{
+"frase": "some com o sininho da meditação",
+"intencao": "lembrete_desligar",
+"conf": 0.4548
+},
+{
+"frase": "academia de segunda a sexta",
+"intencao": "repetir",
+"conf": 0.7202
+},
+{
+"frase": "faz a leitura repetir todo dia",
+"intencao": "repetir",
+"conf": 0.9965
+},
+{
+"frase": "quero a reunião toda terça",
+"intencao": "repetir",
+"conf": 0.8814
+},
+{
+"frase": "deixa o mercado mensal",
+"intencao": "repetir",
+"conf": 0.3401
+},
+{
+"frase": "dormi quanto ontem?",
+"intencao": "consultar_sono",
+"conf": 0.9807
+},
+{
+"frase": "minhas horas de sono",
+"intencao": "consultar_sono",
+"conf": 0.9758
+},
+{
+"frase": "que horas acordei hoje",
+"intencao": "consultar_sono",
+"conf": 0.8481
+},
+{
+"frase": "to dormindo bem?",
+"intencao": "consultar_sono",
+"conf": 0.945
+},
+{
+"frase": "quantos dias seguidos já tô",
+"intencao": "consultar_sequencia",
+"conf": 0.9724
+},
+{
+"frase": "qual meu streak atual",
+"intencao": "consultar_sequencia",
+"conf": 0.8006
+},
+{
+"frase": "estou mantendo a constância?",
+"intencao": "consultar_sequencia",
+"conf": 0.602
+},
+{
+"frase": "quantas falhas tive na semana",
+"intencao": "consultar_sequencia",
+"conf": 0.4325
+},
+{
+"frase": "já bati a meta de água?",
+"intencao": "consultar_agua",
+"conf": 0.9227
+},
+{
+"frase": "quantos litros bebi",
+"intencao": "consultar_agua",
+"conf": 0.6885
+},
+{
+"frase": "falta muita água?",
+"intencao": "consultar_agua",
+"conf": 0.968
+},
+{
+"frase": "hidratação de hoje",
+"intencao": "consultar_agua",
+"conf": 0.9168
+},
+{
+"frase": "tem alguma coisa marcada amanhã?",
+"intencao": "consultar_tarefas",
+"conf": 0.6518
+},
+{
+"frase": "o que falta eu fazer",
+"intencao": "consultar_tarefas",
+"conf": 0.9378
+},
+{
+"frase": "me mostra a agenda da semana",
+"intencao": "consultar_tarefas",
+"conf": 0.4205
+},
+{
+"frase": "qual meu próximo compromisso",
+"intencao": "agendar",
+"conf": 0.159
+},
+{
+"frase": "não tá chegando notificação",
+"intencao": "ajuda_notificacoes",
+"conf": 0.9811
+},
+{
+"frase": "como deixo o app no celular igual aplicativo",
+"intencao": "ajuda_notificacoes",
+"conf": 0.9696
+},
+{
+"frase": "o alarme não toca no meu iphone",
+"intencao": "ajuda_notificacoes",
+"conf": 0.9192
+},
+{
+"frase": "como ativo os avisos",
+"intencao": "ajuda_notificacoes",
+"conf": 0.6617
+},
+{
+"frase": "como eu uso você",
+"intencao": "ajuda",
+"conf": 0.9655
+},
+{
+"frase": "que tipo de coisa tu faz",
+"intencao": "ajuda",
+"conf": 0.2027
+},
+{
+"frase": "socorro não entendi nada",
+"intencao": "ajuda_notificacoes",
+"conf": 0.4593
+},
+{
+"frase": "me explica o que dá pra pedir",
+"intencao": "ajuda",
+"conf": 0.4976
+},
+{
+"frase": "fala tu",
+"intencao": "saudacao",
+"conf": 0.8949
+},
+{
+"frase": "bom diaa",
+"intencao": "saudacao",
+"conf": 0.9458
+},
+{
+"frase": "valeu pet",
+"intencao": "saudacao",
+"conf": 0.9425
+},
+{
+"frase": "obrigadão",
+"intencao": "saudacao",
+"conf": 0.954
+},
+{
+"frase": "qual a capital da frança",
+"intencao": "editar_descricao",
+"conf": 0.5506
+},
+{
+"frase": "me conta uma piada",
+"intencao": "agendar",
+"conf": 0.1581
+},
+{
+"frase": "quanto custa o dólar hoje",
+"intencao": "consultar_tarefas",
+"conf": 0.2484
+},
+{
+"frase": "escreve um poema",
+"intencao": "editar_descricao",
+"conf": 0.2243
+},
+{
+"frase": "qual o resultado do jogo do grêmio",
+"intencao": "reagendar",
+"conf": 0.1744
+}
+]

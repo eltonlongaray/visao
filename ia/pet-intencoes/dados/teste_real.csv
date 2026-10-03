@@ -1,0 +1,70 @@
+frase,intencao
+amanhã tenho dentista às 14h,agendar
+bota aí corrida no sábado de manhã,agendar
+queria registrar que treinei hoje,agendar
+põe uma reunião com o João na quinta 10h,agendar
+lembra que sexta tem aniversário da vó às 19,agendar
+academia segunda 7h agenda pra mim,agendar
+consegue marcar inglês terça às 18?,agendar
+o treino A agora vai se chamar treino de peito,editar_nome
+trocar nome academia para crossfit,editar_nome
+na verdade a leitura é leitura da bíblia muda o nome,editar_nome
+renomeia mercado como feira,editar_nome
+a reunião passou pras 16h,editar_horario
+muda academia das 7 pras 8,editar_horario
+o dentista é 15h30 e não 14h,editar_horario
+coloca a corrida às 6 em vez das 7,editar_horario
+na reunião anota levar o notebook,editar_descricao
+descrição do dentista: levar raio x,editar_descricao
+muda o detalhe da academia pra treino de ombro,editar_descricao
+coloca uma observação no mercado comprar café,editar_descricao
+não vai dar academia hoje passa pra amanhã,reagendar
+o dentista mudou pra próxima terça,reagendar
+deixa a leitura pra domingo,reagendar
+adiar reunião para sexta-feira,reagendar
+joga o mercado pra semana que vem,reagendar
+quero aviso antes da reunião,lembrete_ligar
+liga o alarme da academia,lembrete_ligar
+me lembra da consulta com lembrete,lembrete_ligar
+ativa notificação pra corrida,lembrete_ligar
+não quero mais aviso da leitura,lembrete_desligar
+desativa o alarme do mercado,lembrete_desligar
+chega de lembrete na academia,lembrete_desligar
+some com o sininho da meditação,lembrete_desligar
+academia de segunda a sexta,repetir
+faz a leitura repetir todo dia,repetir
+quero a reunião toda terça,repetir
+deixa o mercado mensal,repetir
+dormi quanto ontem?,consultar_sono
+minhas horas de sono,consultar_sono
+que horas acordei hoje,consultar_sono
+to dormindo bem?,consultar_sono
+quantos dias seguidos já tô,consultar_sequencia
+qual meu streak atual,consultar_sequencia
+estou mantendo a constância?,consultar_sequencia
+quantas falhas tive na semana,consultar_sequencia
+já bati a meta de água?,consultar_agua
+quantos litros bebi,consultar_agua
+falta muita água?,consultar_agua
+hidratação de hoje,consultar_agua
+tem alguma coisa marcada amanhã?,consultar_tarefas
+o que falta eu fazer,consultar_tarefas
+me mostra a agenda da semana,consultar_tarefas
+qual meu próximo compromisso,consultar_tarefas
+não tá chegando notificação,ajuda_notificacoes
+como deixo o app no celular igual aplicativo,ajuda_notificacoes
+o alarme não toca no meu iphone,ajuda_notificacoes
+como ativo os avisos,ajuda_notificacoes
+como eu uso você,ajuda
+que tipo de coisa tu faz,ajuda
+socorro não entendi nada,ajuda
+me explica o que dá pra pedir,ajuda
+fala tu,saudacao
+bom diaa,saudacao
+valeu pet,saudacao
+obrigadão,saudacao
+qual a capital da frança,fora
+me conta uma piada,fora
+quanto custa o dólar hoje,fora
+escreve um poema,fora
+qual o resultado do jogo do grêmio,fora

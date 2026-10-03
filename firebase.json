@@ -6,7 +6,8 @@
       "firebase.json",
       ".firebaserc",
       ".git/**",
-      "node_modules/**"
+      "node_modules/**",
+      "ia/**"
     ],
     "rewrites": [
       {
