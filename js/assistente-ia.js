@@ -1422,7 +1422,9 @@ async function cmdProximo(frase = '') {
       : dia.id === dayId(amanha) ? 'amanhã'
       : new Intl.DateTimeFormat(getLang(), { weekday: 'long', day: 'numeric', month: 'numeric' }).format(data);
     const rotulo = tk.kind === 'commitment' ? 'Teu próximo compromisso' : 'Tua próxima tarefa';
-    return `⏭️ ${rotulo}: <strong>${tk.title}</strong>, ${quando} às <strong>${tk.startTime.slice(0, 5)}</strong>.`;
+    const desc = (tk.desc || '').trim();
+    return `⏭️ ${rotulo}: <strong>${tk.title}</strong>, ${quando} às <strong>${tk.startTime.slice(0, 5)}</strong>.`
+      + (desc ? `<br>📝 ${desc}` : '');
   }
   return soCompromisso
     ? '📅 Nenhum compromisso com horário nos próximos 7 dias.'
@@ -2468,13 +2470,33 @@ function drawWaveform() {
   frame();
 }
 
+// O reconhecedor de voz não pontua: devolve "falcon qual o meu próximo
+// compromisso" cru. Antes tudo ganhava ponto final, até pergunta. Aqui:
+//  • "Falcon"/"pet" chamando no começo ganha vírgula ("Falcon, qual...")
+//  • frase que começa com palavra de pergunta termina em "?"
+//  • saudação/agradecimento sozinho termina em "!"
+//  • "título" e "descrição" ditados ganham vírgula antes (vira o formato do exemplo)
+const INICIO_PERGUNTA = /^(qual|quais|quanto|quanta|quantos|quantas|quando|onde|como|quem|por ?que|pq|o que|que horas|ser[aá]|cad[eê]|pode|posso|consegue|voc[eê]|vc|d[aá] pra|tem como|[eé] poss[ií]vel|t[oô]|estou|eu (tenho|t[oô]|estou|dormi|bebi|fiz))(?=\s|$)/i;
+const SO_SAUDACAO = /^(oi+|ol[aá]|opa|e a[ií]|eae|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|vlw|tchau|at[eé] mais|show|top|massa|beleza)( (pet|falcon))?$/i;
+
 function formatTranscript(raw) {
   if (!raw) return '';
-  let t = raw.trim();
+  let t = raw.trim().replace(/\s+/g, ' ');
+  // Vocativo: "falcon qual..." → "Falcon, qual..."
+  const mVoc = t.match(/^((?:(?:ei|oi|ok|ô|olá|fala)\s+)?(?:falcon|pet))\s+(?![,.!?])(.+)$/i);
+  let chamado = '';
+  if (mVoc) { chamado = mVoc[1]; t = mVoc[2]; }
+  t = t.replace(/\s+(t[ií]tulo|descri[çc][ãa]o)\b/gi, (m, rot, off, str) => /[,.;:]$/.test(str.slice(0, off)) ? m : `, ${rot}`);
+  if (!/[.!?]$/.test(t)) {
+    const semPonto = t.replace(/[,;:]+$/, '');
+    t = SO_SAUDACAO.test(semPonto) ? semPonto + '!'
+      : INICIO_PERGUNTA.test(semPonto) || /\b(n[ée]|n[ãa]o [ée]|certo)$/i.test(semPonto) ? semPonto + '?'
+      : semPonto + '.';
+  }
+  if (chamado) t = `${chamado.charAt(0).toUpperCase() + chamado.slice(1)}, ${t.charAt(0).toLowerCase() + t.slice(1)}`;
   t = t.charAt(0).toUpperCase() + t.slice(1);
-  if (!/[.!?]$/.test(t)) t += '.';
   t = t.replace(/([.!?]\s+)([a-zà-ú])/g, (_, p, l) => p + l.toUpperCase());
-  return t;
+  return t.replace(/\bfalcon\b/g, 'Falcon');
 }
 
 // ═══════════════════════════════════════════════════════════════
