@@ -5,8 +5,8 @@ Primeiro passo pra tirar o Pet do regex: um modelo **nosso**, treinado com sciki
 ## Como funciona
 1. `gerar_dataset.py` cria ~2.400 frases a partir de modelos com lacunas (`marcar {ativ} {dia} {hora}`), com variação de escrita de chat (sem acento, "vc", "pfv"...).
 2. `texto.py` normaliza a frase e extrai as features: palavras, pares de palavras e trigramas de letras (pega erro de digitação).
-3. `treinar.py` treina TF-IDF + Regressão Logística, faz validação cruzada, testa em frases escritas à mão (`dados/teste_real.csv`), escolhe o limiar de confiança e exporta `modelo/pet-intencoes.json`.
-4. `pet-intencao.js` carrega o JSON e classifica no navegador. `testar_paridade.mjs` confere que o JS dá o mesmo resultado que o Python.
+3. `treinar.py` treina TF-IDF + Regressão Logística, faz validação cruzada, testa em frases escritas à mão (`dados/teste_real.csv`), escolhe o limiar de confiança e exporta os pesos pra `js/pet-ia/pet-intencoes-modelo.js`.
+4. `js/pet-ia/pet-intencao.js` carrega os pesos e classifica no navegador. `testar_paridade.mjs` confere que o JS dá o mesmo resultado que o Python.
 
 ## Rodar
 ```bash
@@ -35,8 +35,10 @@ agendar, editar_nome, editar_horario, editar_descricao, reagendar, lembrete_liga
 Data, hora e nome da atividade continuam saindo dos extratores que já existem em `js/assistente-ia.js` (`extractDate`, `extractTime`, `extractTaskName`). O classificador só decide **o que** fazer.
 
 ## Próximos passos
-- Ligar no Pet: quando o regex não entender, pergunta pro classificador; se a confiança for baixa, mostra opções ("você quis dizer...?").
 - 👍/👎 nas respostas pra coletar frases reais (com consentimento) e re-treinar.
 - Depois: comparar com um BERT em português (BERTimbau) ajustado pra mesma tarefa.
 
-Esta pasta não vai pro ar (está no `ignore` do `firebase.json`). Quando o modelo for ligado no app, o JSON e o JS vão pra `js/`.
+## No app
+O Pet usa o classificador quando o regex de `js/assistente-ia.js` não entende a frase (só em português). Confiança alta executa; baixa mostra "você quis dizer...?"; "fora" responde que isso não é com ele. Agendar e lembrete executam com card de confirmação; edições ainda pedem a frase no formato exato (o classificador sabe **o que** a pessoa quer, mas ainda não extrai o nome da atividade com segurança).
+
+Esta pasta (dados e treino) não vai pro ar: está no `ignore` do `firebase.json`. Só `js/pet-ia/` vai.

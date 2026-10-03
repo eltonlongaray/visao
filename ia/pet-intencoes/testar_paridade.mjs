@@ -1,9 +1,9 @@
 // Confere se o JS dá o mesmo resultado que o Python em todas as frases de teste.
 // Uso: node testar_paridade.mjs
 import { readFileSync } from 'node:fs';
-import { carregarModelo } from './pet-intencao.js';
+import { carregarModelo } from '../../js/pet-ia/pet-intencao.js';
+import modelo from '../../js/pet-ia/pet-intencoes-modelo.js';
 
-const modelo = JSON.parse(readFileSync(new URL('./modelo/pet-intencoes.json', import.meta.url)));
 const gabarito = JSON.parse(readFileSync(new URL('./modelo/gabarito-paridade.json', import.meta.url)));
 const classificar = carregarModelo(modelo);
 

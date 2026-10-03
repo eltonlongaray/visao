@@ -40,7 +40,7 @@ Confiança nas frases fora do escopo:
   "escreve um poema" → fora (0.88)
   "qual o resultado do jogo do grêmio" → fora (0.91)
 
-Modelo exportado: 2997 features × 16 intenções, 420 KB → pet-intencoes.json
+Modelo exportado: 2997 features × 16 intenções, 420 KB → pet-intencoes-modelo.js
 
 TESTE CEGO v2 (48 frases): acerto 0.938; com limiar responde 98% e acerta 96%; fora do escopo que passaram: 0/4
   "academia agora se chama treino funcional" → previu editar_horario (0.23), era editar_nome

@@ -34,9 +34,12 @@ export function carregarModelo(json) {
   const indice = new Map(json.vocab.map((f, i) => [f, i]));
   return function classificar(texto) {
     const contagem = new Map();
+    let palavrasConhecidas = 0;
     for (const f of features(texto)) {
       const i = indice.get(f);
-      if (i !== undefined) contagem.set(i, (contagem.get(i) || 0) + 1);
+      if (i === undefined) continue;
+      contagem.set(i, (contagem.get(i) || 0) + 1);
+      if (f.startsWith('w:')) palavrasConhecidas++;
     }
     // TF-IDF com norma L2 (igual ao TfidfVectorizer padrão)
     let norma = 0;
@@ -63,7 +66,10 @@ export function carregarModelo(json) {
       intencao,
       confianca,
       // "fora" = pedido que não é do app (clima, conta, piada...)
-      entendeu: intencao !== 'fora' && confianca >= json.limiar,
+      // Sem nenhuma palavra conhecida ("asdkjh") o modelo só chuta pelo
+      // viés de cada classe; melhor dizer que não entendeu.
+      entendeu: intencao !== 'fora' && confianca >= json.limiar && palavrasConhecidas > 0,
+      palavrasConhecidas,
       alternativas: ordem.slice(1, 3).filter(([c]) => c !== 'fora')
         .map(([c, p]) => ({ intencao: c, confianca: p })),
     };

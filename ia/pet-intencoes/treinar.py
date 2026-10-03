@@ -8,7 +8,8 @@ Modelo: TF-IDF (features de texto.py) + Regressão Logística multinomial.
   nunca usado pra ajustar nada. É o número honesto.
 - Limiar de confiança: abaixo dele o Pet diz que não entendeu (ou cai no regex).
 
-Saídas: modelo/pet-intencoes.json (pesos) e modelo/relatorio.txt.
+Saídas: js/pet-ia/pet-intencoes-modelo.js (pesos, carregado pelo Pet no app)
+e modelo/relatorio.txt.
 Uso: python3 treinar.py
 """
 import csv
@@ -102,8 +103,11 @@ def main():
         'coef': [[round(float(v), CASAS) for v in linha] for linha in clf.coef_],
         'intercept': [round(float(v), CASAS) for v in clf.intercept_],
     }
-    saida = AQUI / 'modelo' / 'pet-intencoes.json'
-    saida.write_text(json.dumps(exp, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    # Vai como módulo JS (e não .json) porque o service worker busca .js sempre
+    # na rede primeiro: modelo re-treinado chega no app sem ficar preso no cache.
+    saida = AQUI.parent.parent / 'js' / 'pet-ia' / 'pet-intencoes-modelo.js'
+    saida.write_text('// Gerado por ia/pet-intencoes/treinar.py. Não editar à mão.\nexport default '
+                     + json.dumps(exp, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
     rel.append(f'\nModelo exportado: {len(vocab)} features × {len(exp["classes"])} intenções, '
                f'{saida.stat().st_size / 1024:.0f} KB → {saida.name}')
 
