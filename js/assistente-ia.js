@@ -29,7 +29,7 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261003f';
+import * as PL from './pet-listas.js?v=20261003g';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
