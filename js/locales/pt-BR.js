@@ -383,6 +383,10 @@ export default {
   <li><em>quanto dormi?</em> · <em>minha constância?</em></li>
   <li><em>hidratação de hoje?</em> · <em>tarefas de hoje?</em></li>
 </ul>
+<strong>Marcar feito</strong>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
+  <li><em>fiz a Academia</em> · <em>marca Hidratação como feita</em> · <em>desmarca a FIAP</em> (atividades de hoje)</li>
+</ul>
 <strong>Listas (Caixa de Ferramentas)</strong>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>adiciona leite na lista do Mercado</em> · <em>marca arroz como feito</em></li>

@@ -25,7 +25,7 @@ const VAZIAS = new Set(('a o as os um uma uns umas de do da dos das no na nos na
   'deleta deletar troca trocar muda mudar edita editar corrige corrigir renomeia renomear ' +
   'adiciona adicionar coloca colocar bota botar poe por inclui incluir anota anotar acrescenta ' +
   'acrescentar add ja nao mais pet falcon favor pfv ai aqui la ok concluido concluida comprei ' +
-  'fiz resolvi pronto pronta caixa ferramentas dar da dá').split(' '));
+  'fiz resolvi terminei acabei pronto pronta caixa ferramentas dar hoje agora').split(' '));
 
 function palavras(s) {
   return norm(s).split(' ').filter(p => p && !VAZIAS.has(p));
@@ -42,8 +42,11 @@ export const DICA_LISTA = /\blistas?\b|\bcheck\b|caixa de ferramentas|\bcomo (fe
 export function detectarAcao(text) {
   const t = norm(text);
   if (/\b(cria|criar|crie|nova|novo|faz|faca|monta|montar|abre|abrir)\b.*\blista\b/.test(t)) return 'criar';
-  if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi))\b/.test(t)) return 'desmarcar';
-  if (/\b(marca|marcar|marque|da (um )?check|dar (um )?check|check|conclui|concluir|conclua|comprei|fiz|resolvi)\b/.test(t)) return 'marcar';
+  if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi)|como (nao feit[oa]|pendente))\b/.test(t)) return 'desmarcar';
+  // "bota leite como feito" / "coloca o arroz como concluído": o verbo é de
+  // adicionar, mas o pedido é marcar. Vem antes do adicionar por isso.
+  if (/\bcomo (feit[oa]|conclu[ií]d[oa]|pront[oa]|ok|comprad[oa])\b/.test(t)) return 'marcar';
+  if (/\b(marca|marcar|marque|da (um )?check|dar (um )?check|check|conclui|concluir|conclua|comprei|fiz|resolvi|terminei|acabei)\b/.test(t)) return 'marcar';
   if (/\b(troca|trocar|muda|mudar|edita|editar|corrige|corrigir|renomeia|renomear|altera|alterar)\b.*\b(por|pra|para)\b/.test(t)) return 'editar';
   if (/\b(apaga|apagar|apague|remove|remover|tira|tirar|exclui|excluir|deleta|deletar)\b/.test(t)) return 'apagar';
   if (/\b(adiciona|adicionar|adicione|coloca|colocar|coloque|bota|botar|poe|inclui|incluir|anota|anotar|acrescenta|acrescentar|add|insere|inserir)\b/.test(t)) return 'adicionar';
