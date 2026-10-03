@@ -26,6 +26,10 @@ import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
 import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP } from './recorrencia.js';
 import { juntarFala } from './ditado-merge.js';
+import {
+  carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
+} from './ferramentas.js';
+import * as PL from './pet-listas.js?v=20261003d';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -914,6 +918,12 @@ async function routeCommand(text) {
     await cmdEditarRepeticao(nomeR, tipoR, recFrag);
     return null;
   }
+
+  // ── Caixa de Ferramentas (listas): check, adicionar, editar, apagar, criar.
+  // Antes das consultas e do registro: "marca arroz como feito" bateria no
+  // ^marca do registro e viraria um agendamento. ──
+  const rLista = await tentarLista(text);
+  if (rLista !== undefined) return rLista;
 
   // ── Consultas (PT + EN) ──
   // "Próximo compromisso" vem antes da lista: ali a pessoa quer UM item (o
@@ -2182,6 +2192,192 @@ function showEditCard(matches, action, payload) {
   for (const match of matches) div.appendChild(makeCard(match));
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.6: CAIXA DE FERRAMENTAS (LISTAS) VIA PET
+// A leitura do pedido fica em pet-listas.js; aqui busca as listas, pergunta
+// quando há dúvida e grava só depois do card de confirmação.
+// ═══════════════════════════════════════════════════════════════
+
+let _arvore = null, _arvoreEm = 0;
+async function arvoreListas(forcar = false) {
+  if (forcar || !_arvore || Date.now() - _arvoreEm > 60000) {
+    _arvore = await carregarFerramentas();
+    _arvoreEm = Date.now();
+  }
+  return _arvore;
+}
+
+// Depois de gravar: badge da Home e, se a Caixa estiver aberta, avisa pra reabrir
+async function aposMudarLista() {
+  _arvore = null;
+  import('./ferramentas-ui.js').then(m => m.pintarBadgeFerramentas?.()).catch(() => {});
+}
+
+// Devolve undefined quando a frase não é sobre listas (o roteador segue).
+async function tentarLista(text) {
+  const acao = PL.detectarAcao(text);
+  if (!acao) return undefined;
+  const dica = PL.DICA_LISTA.test(text);
+  // Sem falar em "lista", só entra se não for agenda nem lembrete
+  // (extractDate cai em "hoje" quando não acha data, então aqui é por palavra)
+  const temData = /\b(hoje|amanh[ãa]|dia \d|\d{1,2}\/\d{1,2}|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|semana que vem)/i.test(text);
+  if (!dica && (/lembrete|sininho|\bsino\b|notifica|aviso|alarme/i.test(text) || extractTime(text) || temData)) return undefined;
+  if (!dica && acao === 'ver') return undefined;   // "qual meu próximo compromisso" etc.
+
+  let arvore;
+  try { arvore = await arvoreListas(); }
+  catch (err) { console.warn('[pet-listas]', err); return dica ? 'Não consegui abrir tuas listas agora. Tenta de novo daqui a pouco.' : undefined; }
+
+  const alvo = PL.acharAlvo(arvore, text);
+  const temAlvo = !!(alvo.grupo || alvo.candidatos.length);
+  if (!dica) {
+    // Sem a palavra "lista": "marca academia" / "bota mercado" continuam sendo
+    // agenda. Só vira lista se bater num item que existe (marcar, apagar,
+    // editar) ou se nomear a lista E sobrar o que adicionar.
+    if (acao === 'adicionar') { if (!temAlvo || !PL.textoParaAdicionar(text, alvo)) return undefined; }
+    else if (!PL.acharItens(arvore, acao === 'editar' ? (PL.partesEdicao(text, alvo)?.antigo || '') : text, alvo).length) return undefined;
+  }
+
+  switch (acao) {
+    case 'ver':       return listaVer(arvore, alvo);
+    case 'adicionar': return listaAdicionar(arvore, text, alvo);
+    case 'criar':     return listaCriar(arvore, text, alvo);
+    case 'editar':    return listaEditar(arvore, text, alvo);
+    default:          return listaItemAcao(arvore, text, alvo, acao);
+  }
+}
+
+const _itemLinha = (it) => `${it.feito ? '✅' : '⬜'} ${_esc(it.texto)}`;
+
+function listaVer(arvore, alvo) {
+  if (alvo.secao) {
+    const itens = alvo.secao.itens;
+    if (!itens.length) return `📋 <strong>${_esc(PL.ondeTexto(alvo.grupo, alvo.secao))}</strong> está vazia.`;
+    return `📋 <strong>${_esc(PL.ondeTexto(alvo.grupo, alvo.secao))}</strong><br>` + itens.map(_itemLinha).join('<br>');
+  }
+  const pend = (lista) => lista.filter(i => !i.feito).length;
+  if (alvo.grupo) {
+    const g = alvo.grupo;
+    const linhas = g.secoes.map(s => `• ${_esc(s.nome)}: ${pend(s.itens)} pendente(s)`);
+    if (g.soltos.length) linhas.unshift(...g.soltos.map(_itemLinha));
+    return `📋 <strong>${_esc(g.nome)}</strong><br>` + (linhas.join('<br>') || 'Nada aqui ainda.');
+  }
+  if (alvo.candidatos.length) {
+    addChoices('Qual delas?', alvo.candidatos.map(c => ({
+      label: PL.ondeTexto(c.grupo, c.secao), action: () => listaVer(arvore, { grupo: c.grupo, secao: c.secao }),
+    })));
+    return null;
+  }
+  const linhas = arvore.map(g => {
+    const n = pend(g.soltos) + g.secoes.reduce((a, s) => a + pend(s.itens), 0);
+    return `• ${_esc(g.nome)}: ${n} pendente(s)`;
+  });
+  return '📋 <strong>Tuas listas</strong><br>' + linhas.join('<br>') + '<br><br>Pra ver uma: <em>"o que tem na lista do Mercado"</em>.';
+}
+
+// Card de confirmação genérico: resumo + Confirmar/Cancelar. `acao` grava e
+// devolve o texto de sucesso.
+function cardConfirmarLista(resumo, acao) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `<span class="pet-preview-card">
+      <span class="pet-preview-title">${resumo}</span>
+      <button class="pet-reg-btn" data-ok>✅ Confirmar</button>
+      <button class="pet-choice-btn" data-nao>Cancelar</button>
+    </span>`;
+  const ok = div.querySelector('[data-ok]'), nao = div.querySelector('[data-nao]');
+  ok.addEventListener('click', async () => {
+    ok.disabled = nao.disabled = true; ok.textContent = 'Salvando…';
+    try {
+      const msg = await acao();
+      ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
+      aposMudarLista();
+      if (msg) addMessage(msg, 'bot');
+    } catch (err) {
+      console.error('[pet-listas]', err);
+      ok.disabled = nao.disabled = false; ok.textContent = '✅ Confirmar';
+      addMessage('Não consegui salvar 😕 ' + _esc(err.message || ''), 'bot');
+    }
+  });
+  nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Quando falta escolher grupo/categoria: chips com os destinos possíveis
+function escolherDestino(arvore, titulo, aoEscolher, candidatos = null) {
+  const opcoes = candidatos || arvore.flatMap(g => [{ grupo: g, secao: null }, ...g.secoes.map(s => ({ grupo: g, secao: s }))]);
+  addChoices(titulo, opcoes.slice(0, 24).map(o => ({ label: PL.ondeTexto(o.grupo, o.secao), action: () => { aoEscolher(o); return null; } })));
+}
+
+function listaAdicionar(arvore, text, alvo) {
+  const novo = PL.textoParaAdicionar(text, alvo);
+  if (!novo) return 'O que eu adiciono? Ex.: <em>"adiciona leite na lista do Mercado"</em>.';
+  const confirmar = ({ grupo, secao }) => cardConfirmarLista(
+    `➕ Adicionar <strong>${_esc(novo)}</strong> em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?`,
+    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; });
+  if (alvo.grupo) { confirmar(alvo); return null; }
+  escolherDestino(arvore, `Em qual lista eu ponho <strong>${_esc(novo)}</strong>?`, confirmar, alvo.candidatos.length ? alvo.candidatos : null);
+  return null;
+}
+
+function listaCriar(arvore, text, alvo) {
+  const nome = PL.nomeNovaLista(text, alvo);
+  if (!nome) return 'Qual o nome da lista? Ex.: <em>"cria uma lista de Viagem no Pessoal"</em>.';
+  const confirmar = (grupo) => {
+    if (grupo.secoes.some(s => _limpoTxt(s.nome) === _limpoTxt(nome)))
+      return addMessage(`Já existe <strong>${_esc(nome)}</strong> em ${_esc(grupo.nome)}.`, 'bot');
+    cardConfirmarLista(`🗂️ Criar a lista <strong>${_esc(nome)}</strong> em <strong>${_esc(grupo.nome)}</strong>?`,
+      async () => { await adicionarSecao(grupo.nome, nome); return `Pronto! Agora é só pedir: <em>"adiciona … na lista ${_esc(nome)}"</em>.`; });
+  };
+  if (alvo.grupo) { confirmar(alvo.grupo); return null; }
+  addChoices(`Em qual grupo fica a lista <strong>${_esc(nome)}</strong>?`,
+    arvore.map(g => ({ label: g.nome, action: () => { confirmar(g); return null; } })));
+  return null;
+}
+
+// marcar / desmarcar / apagar um item que já existe
+function listaItemAcao(arvore, text, alvo, acao) {
+  const filtro = acao === 'marcar' ? 'pendentes' : acao === 'desmarcar' ? 'feitos' : null;
+  const achados = PL.acharItens(arvore, text, alvo, filtro);
+  if (!achados.length) {
+    const todos = PL.acharItens(arvore, text, alvo);
+    if (todos.length && acao === 'marcar') return `<strong>${_esc(todos[0].item.texto)}</strong> já está marcado ✅`;
+    if (todos.length && acao === 'desmarcar') return `<strong>${_esc(todos[0].item.texto)}</strong> não está marcado.`;
+    return 'Não achei esse item nas tuas listas. Diz <em>"o que tem na lista do Mercado"</em> pra ver o que tem.';
+  }
+  const verbo = { marcar: '✅ Marcar', desmarcar: '⬜ Desmarcar', apagar: '🗑️ Apagar' }[acao];
+  const confirmar = ({ item, grupo, secao }) => cardConfirmarLista(
+    `${verbo} <strong>${_esc(item.texto)}</strong> em ${_esc(PL.ondeTexto(grupo, secao))}?`,
+    async () => {
+      if (acao === 'apagar') await apagarItem(item.id);
+      else await marcarItem(item.id, acao === 'marcar');
+      return null;
+    });
+  if (achados.length === 1) { confirmar(achados[0]); return null; }
+  addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
+    label: `${x.item.texto} · ${PL.ondeTexto(x.grupo, x.secao)}`, action: () => { confirmar(x); return null; },
+  })));
+  return null;
+}
+
+function listaEditar(arvore, text, alvo) {
+  const partes = PL.partesEdicao(text, alvo);
+  if (!partes || !partes.novo) return 'Me fala assim: <em>"troca arroz por arroz integral na lista do Mercado"</em>.';
+  const achados = PL.acharItens(arvore, partes.antigo, alvo);
+  if (!achados.length) return `Não achei <strong>${_esc(partes.antigo)}</strong> nas tuas listas.`;
+  const confirmar = ({ item, grupo, secao }) => cardConfirmarLista(
+    `✏️ Trocar <strong>${_esc(item.texto)}</strong> por <strong>${_esc(partes.novo)}</strong> em ${_esc(PL.ondeTexto(grupo, secao))}?`,
+    async () => { await editarItem(item.id, partes.novo); return null; });
+  if (achados.length === 1) { confirmar(achados[0]); return null; }
+  addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
+    label: `${x.item.texto} · ${PL.ondeTexto(x.grupo, x.secao)}`, action: () => { confirmar(x); return null; },
+  })));
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
