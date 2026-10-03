@@ -1,0 +1,2561 @@
+frase,intencao
+"pet, conta uma piada?",fora
+pode desliga a notificação de aula de inglês aí,lembrete_desligar
+quanto falta de água hoje pfv,consultar_agua
+"ei, ativar lembrete do compromisso faculdade pfv",lembrete_ligar
+"pet, qual meu recorde de dias seguidos",consultar_sequencia
+"Ei, quanto de água devo beber",consultar_agua
+quanto falta de água hj por favor,consultar_agua
+marca almoco com a mae pra semana que vem as 3 da tarde,agendar
+"ei, altera o título de curso pra estudo de python",editar_nome
+"ei, como tá minha sequência",consultar_sequencia
+"pet, lista de hoje",consultar_tarefas
+"mercado mudou de horario, coloca as 10 pfv",editar_horario
+quando é o próximo jogo do flamengo,fora
+ate mais!,saudacao
+"rapidinho, quanto eu dormi por favor",consultar_sono
+quero que dentista repita toda segunda aí,repetir
+pode minha streak por favor,consultar_sequencia
+chega de lembrete na psicologa!,lembrete_desligar
+"ei, bom dia pfv",saudacao
+quanto de água devo beber aí,consultar_agua
+como ta o clima semana que vem ai,fora
+Pode qual o placar do inter ai,fora
+"rapidinho, minha constância aí",consultar_sequencia
+"rapidinho, muay thai começa às 18 horas agora, ajusta aí",editar_horario
+Por favor você é humano? aí,fora
+por favor qual o maior país do mundo?,fora
+"rapidinho, me explica como funciona",ajuda
+"ei, tudo bem? por favor",saudacao
+"ei, como habilitar pop up?",ajuda_notificacoes
+some com o sininho da consulta,lembrete_desligar
+como falo com você?,ajuda
+pode muda a descricao de yoga pra comprar arroz e feijao,editar_descricao
+Troca aula de inglês das 10 pras 11 aí,editar_horario
+"ei, to quantos dias sem falhar? pfv",consultar_sequencia
+Por favor preciso marcar oração domingo às 7h,agendar
+não vibra quando chega aviso,ajuda_notificacoes
+repetir natacao toda semana?,repetir
+"pet, já fiz leitura hoje, registra aí aí",agendar
+pode ativa o sininho da treino de perna aí,lembrete_ligar
+por favor lista de hoje?,consultar_tarefas
+"ei, minha hidratação",consultar_agua
+tirar lembrete da tarefa curso aí,lembrete_desligar
+"rapidinho, tira o sino da faculdade",lembrete_desligar
+pode instalar no android pfv,ajuda_notificacoes
+"pet, some com o sininho da academia",lembrete_desligar
+Por favor o que tem pra amanha,consultar_tarefas
+Pode meu sono essa semana aí,consultar_sono
+por favor o que vem agora?,consultar_tarefas
+"ei, quanto falta de agua hoje!",consultar_agua
+coloca na descricao de muay thai: pauta trimestral?,editar_descricao
+"ei, faz yoga se repetir de segunda a sexta",repetir
+"rapidinho, qual meu recorde de dias seguidos",consultar_sequencia
+"ei, joga curso pra sábado",reagendar
+"pet, editar horário do tarefa natação para às 9:30!",editar_horario
+Me avisa antes de massagem?,lembrete_ligar
+tchau ai,saudacao
+o que posso te pedir ai,ajuda
+"rapidinho, notificação não aparece no iphone por favor",ajuda_notificacoes
+"pet, o que eu tenho hoje pfv",consultar_tarefas
+repetir tarefa leitura de segunda a sexta ai,repetir
+repetir atividade faculdade dias úteis por favor,repetir
+me avisa antes de oração,lembrete_ligar
+"pet, como usa isso por favor",ajuda
+como foi meu sono,consultar_sono
+"ei, nao quero ser lembrado da trabalho",lembrete_desligar
+"rapidinho, passa curso pra sexta pfv",reagendar
+Como voce funciona,ajuda
+"ei, altera o título de estudo pra corrida leve!",editar_nome
+"rapidinho, qual a próxima tarefa aí",consultar_tarefas
+faz uma redação sobre o meio ambiente,fora
+"pet, como voce funciona?",ajuda
+agendar compromisso amanhã às 18 horas título massagem!,agendar
+adia reuniao do projeto pra sexta,reagendar
+"pet, quero que meditação repita dias úteis",repetir
+"Ei, top pfv",saudacao
+"ei, obrigado!",saudacao
+bom dia por favor,saudacao
+"rapidinho, liga o lembrete de reunião",lembrete_ligar
+"rapidinho, altera a hora de dentista para 20h30",editar_horario
+Por favor como baixar o app no celular!,ajuda_notificacoes
+"Rapidinho, editar repetição do tarefa reunião para dias úteis?",repetir
+pode muda o título da tarefa natação para musculação,editar_nome
+"ei, marca psicologa pra depois de amanha as 3 da tarde!",agendar
+Como foi meu sono,consultar_sono
+por favor some com o sininho da caminhada,lembrete_desligar
+pode como tá o clima dia 25/10,fora
+Liga a notificação de meditação aí,lembrete_ligar
+por favor bota o sino na faculdade?,lembrete_ligar
+"ei, quantos copos de água hoje?",consultar_agua
+por favor muda o nome de corrida pra mercado do mês pfv,editar_nome
+tô hidratado??,consultar_agua
+"rapidinho, quais sao suas funcoes",ajuda
+"rapidinho, troca o nome da tarefa leitura por leitura biblica",editar_nome
+Olá?,saudacao
+como tá minha água,consultar_agua
+"pet, abre o youtube",fora
+troca o dia da caminhada pra hoje aí,reagendar
+anota meditação terça meio-dia,agendar
+"Pet, como ta minha semana por favor",consultar_tarefas
+"ei, ja fiz fisioterapia hoje, registra ai!",agendar
+"rapidinho, que horas fui dormir ontem",consultar_sono
+"ei, me mostra meu sono por favor",consultar_sono
+pode como ta minha agua pfv,consultar_agua
+pode troca mercado das 10 pras 11!,editar_horario
+por favor como se diz obrigado em inglês,fora
+tem alguma coisa semana que vem?!,consultar_tarefas
+"rapidinho, p que serve vc",ajuda
+"ei, remove o lembrete de leitura!",lembrete_desligar
+muda a descrição de leitura pra levar exames por favor,editar_descricao
+que horas fui dormir ontem pfv,consultar_sono
+por favor altera o titulo de jiu-jitsu p corrida leve por favor,editar_nome
+"Ei, me avisa antes de muay thai",lembrete_ligar
+preciso marcar reuniao do projeto quinta as 10,agendar
+pode recorrência de consulta todo mês,repetir
+"a jiu-jitsu não é 19:00, corrige o horário!",editar_horario
+"ei, cancela o lembrete do compromisso estudo",lembrete_desligar
+"pet, corrige o nome yoga p estudo de python!",editar_nome
+por favor tenho algo marcado amanhã? pfv,consultar_tarefas
+"ei, deixa dentista fixa toda segunda por favor",repetir
+"pode não é mais às 8, a fisioterapia é 19:00?",editar_horario
+"rapidinho, renomear massagem para musculação",editar_nome
+"rapidinho, a consulta e todo dia",repetir
+"ei, como baixar o app no celular por favor",ajuda_notificacoes
+pode as notificações não chegam aí,ajuda_notificacoes
+"ei, joga consulta pra segunda!",reagendar
+"rapidinho, atualiza a descricao de devocional!",editar_descricao
+top!,saudacao
+por favor qual meu recorde de dias seguidos,consultar_sequencia
+"a aula de inglês não é 19:00, corrige o horário pfv",editar_horario
+"pet, reagenda meditação pra domingo",reagendar
+oi pet pfv,saudacao
+pode como ta minha sequencia!,consultar_sequencia
+"pet, coloca lembrete em yoga aí",lembrete_ligar
+pode quero que leitura repita todo sábado!,repetir
+por favor ate mais?,saudacao
+"rapidinho, bom dia por favor",saudacao
+pode abre o youtube,fora
+"pet, liga o lembrete de massagem",lembrete_ligar
+por favor o que você faz aí,ajuda
+Pode me fala uma curiosidade!,fora
+"pet, bebi água suficiente?!",consultar_agua
+"ei, a aula de ingles e todo sabado!",repetir
+quantos dias seguidos eu tenho!,consultar_sequencia
+Pode o aviso nao chega no meu celular por favor,ajuda_notificacoes
+pode quanto tempo de sono,consultar_sono
+Muda reunião pro dia domingo,reagendar
+corrige o nome muay thai pra mercado do mês por favor,editar_nome
+muda o nome de banco pra leitura bíblica!,editar_nome
+Pode passa estudo pra dia 12!,reagendar
+Pode corrige o nome consulta pra treino a pfv,editar_nome
+como tá minha sequência?,consultar_sequencia
+coloca reunião do projeto às 9 em vez das 8,editar_horario
+"rapidinho, horas de sono da semana!",consultar_sono
+minha agenda sexta,consultar_tarefas
+troca o nome da compromisso yoga por pilates ai,editar_nome
+Escreve treino de costas na descrição da faculdade,editar_descricao
+"Pet, qual o placar do inter aí",fora
+"ei, notificacao nao aparece no iphone?",ajuda_notificacoes
+Quantos dias em sequência?,consultar_sequencia
+quero mudar o horario da aula de ingles,editar_horario
+Pode hoje eu fiz psicóloga,agendar
+bebi agua suficiente? por favor,consultar_agua
+altera o título de mercado pra estudo de python!,editar_nome
+deixa aula de ingles fixa toda semana pfv,repetir
+Por favor apaga o lembrete de massagem aí,lembrete_desligar
+instalar no android!,ajuda_notificacoes
+Pode obrigado!,saudacao
+tira o sino da devocional!,lembrete_desligar
+por favor quero mudar o nome de corrida para leitura bíblica aí,editar_nome
+"Ei, o que posso te pedir!",ajuda
+por favor nao me avisa mais da dentista,lembrete_desligar
+"pet, to confuso pfv",ajuda
+"Ei, bota faculdade quarta 15h",agendar
+"rapidinho, e ai pfv",saudacao
+média de sono aí,consultar_sono
+"pet, minha consistência pfv",consultar_sequencia
+"pet, nao quero mais aviso da massagem por favor",lembrete_desligar
+"Rapidinho, quantos ml eu tomei aí",consultar_agua
+passa academia pra,editar_horario
+Meta de agua?,consultar_agua
+cancela o lembrete do compromisso trabalho aí,lembrete_desligar
+"rapidinho, tira o sino da yoga por favor",lembrete_desligar
+"rapidinho, troca o detalhe da massagem para treino de costas",editar_descricao
+repete devocional todo dia,repetir
+quero que estudo repita toda semana pfv,repetir
+por favor jiu-jitsu agora e as 9:30,editar_horario
+"ei, adiciona faculdade hoje às 6 da manhã",agendar
+pode parar de lembrar da fisioterapia,lembrete_desligar
+quantos ml eu tomei,consultar_agua
+"pode caminhada começa às 7h agora, ajusta!",editar_horario
+Por favor o que eu posso falar?,ajuda
+adianta curso pra 20h30,editar_horario
+pode cancela o lembrete do compromisso banco,lembrete_desligar
+"rapidinho, o que falta fazer hoje",consultar_tarefas
+por favor nao recebo aviso,ajuda_notificacoes
+"rapidinho, liga a notificacao de psicologa!",lembrete_ligar
+troca o nome da atividade curso por estudo de python por favor,editar_nome
+"rapidinho, obrigado",saudacao
+minha constancia,consultar_sequencia
+por favor me mostra meu sono,consultar_sono
+Pode adia leitura pra quinta?,reagendar
+quais meus compromissos dia 25/10,consultar_tarefas
+"rapidinho, agendar compromisso segunda-feira as 3 da tarde titulo yoga ai",agendar
+"pet, coloca na descrição de leitura: comprar arroz e feijão pfv",editar_descricao
+quantos copos de água hoje,consultar_agua
+Quantos dias em sequência,consultar_sequencia
+"ei, quais atividades faltam!",consultar_tarefas
+pode olá aí,saudacao
+nova tarefa curso terça,agendar
+"ei, o que ainda nao fiz hoje?",consultar_tarefas
+por favor troca o dia da treino de perna pra segunda?,reagendar
+fala pet!,saudacao
+nao quero mais aviso da almoco com a mae,lembrete_desligar
+por favor as notificacoes nao chegam,ajuda_notificacoes
+por favor meu sono essa semana aí,consultar_sono
+tenho algo marcado terca? pfv,consultar_tarefas
+"pet, oração mudou de horário, coloca meio-dia por favor",editar_horario
+como coloco o app na tela inicial,ajuda_notificacoes
+quantos dias em sequencia ai,consultar_sequencia
+"ei, tem alguma coisa dia 12? pfv",consultar_tarefas
+"pet, editar nota da tarefa estudo para treino de costas pfv",editar_descricao
+"Rapidinho, renomeia mercado pra treino a",editar_nome
+por favor minhas tarefas,consultar_tarefas
+editar nome da academia para corrida leve,editar_nome
+"Rapidinho, desativa o sininho da curso aí",lembrete_desligar
+Boa tarde?,saudacao
+por favor muda a descrição de fisioterapia pra levar exames?,editar_descricao
+joga aula de ingles pra sabado,reagendar
+"ei, altera a observacao de caminhada pra capitulo 5?",editar_descricao
+"rapidinho, bebi água suficiente? aí",consultar_agua
+"rapidinho, deixa reuniao fixa todo sabado?",repetir
+"pet, faz leitura se repetir todo sabado por favor",repetir
+Editar hora do compromisso fisioterapia para as 8!,editar_horario
+pode adianta mercado pra às 18 horas por favor,editar_horario
+pode to hidratado?,consultar_agua
+"Rapidinho, corrige o nome natação pra pilates",editar_nome
+"pet, quero mudar o nome de corrida para estudo de python por favor",editar_nome
+por favor o lembrete não tocou?,ajuda_notificacoes
+por favor recomenda um filme pfv,fora
+o que eu tenho depois?,consultar_tarefas
+"rapidinho, chega de lembrete na academia?",lembrete_desligar
+"rapidinho, qual o placar do inter por favor",fora
+"pet, quanto falta de água hoje",consultar_agua
+poe lembrete na treino de perna,lembrete_ligar
+"Pet, ativar lembrete do compromisso reunião do projeto",lembrete_ligar
+Como habilitar pop up?,ajuda_notificacoes
+Reagenda devocional pra semana que vem,reagendar
+o que ainda nao fiz hoje por favor,consultar_tarefas
+"pet, treino de perna todo dia, coloca repetição",repetir
+"pet, nao quero mais aviso da academia",lembrete_desligar
+"ei, como tá minha água",consultar_agua
+"pet, remove o lembrete de trabalho pfv",lembrete_desligar
+"rapidinho, transfere jiu-jitsu pra sexta as 9:30",reagendar
+"pet, qual a melhor série da netflix aí",fora
+"pet, coloca massagem na agenda quarta as 6 da manha por favor",agendar
+desliga a notificacao de academia!,lembrete_desligar
+"Pet, boa noite!",saudacao
+"rapidinho, o que ainda não fiz hoje por favor",consultar_tarefas
+Pode qual meu próximo compromisso?,consultar_tarefas
+"Não vou conseguir estudo hoje, joga pra segunda",reagendar
+Por favor desativar lembrete do compromisso mercado,lembrete_desligar
+muda a descrição de oração pra treino de costas,editar_descricao
+adicionar lembrete na atividade trabalho,lembrete_ligar
+recorrencia de banco todo sabado!,repetir
+"rapidinho, como ta minha semana!",consultar_tarefas
+por favor qual meu recorde de dias seguidos?,consultar_sequencia
+Pode muda o horario de corrida pra 19:00,editar_horario
+me ajuda por favor,ajuda
+pode conta uma piada!,fora
+quero mudar o nome de caminhada para leitura bíblica pfv,editar_nome
+"pet, renomear trabalho para estudo de python",editar_nome
+por favor troca muay thai das 10 pras 11,editar_horario
+por favor quantos ml eu tomei ai,consultar_agua
+por favor sem notificação pra massagem,lembrete_desligar
+"ei, tô quantos dias sem falhar?!",consultar_sequencia
+"pet, troca o detalhe da banco para levar exames aí",editar_descricao
+vai chover domingo? pfv,fora
+"pet, pode parar de lembrar da reunião",lembrete_desligar
+pode minha hidratação,consultar_agua
+"rapidinho, pode parar de lembrar da meditação",lembrete_desligar
+"rapidinho, me fala uma curiosidade",fora
+Pode o que eu tenho depois,consultar_tarefas
+anota treino de perna dia 25/10 as 8,agendar
+passa estudo pra semana que vem?,reagendar
+Como instalar o app aí,ajuda_notificacoes
+"pet, joga treino de perna pra segunda-feira aí",reagendar
+"ei, atualiza a descrição de faculdade",editar_descricao
+por favor repetir tarefa mercado a cada 15 dias?,repetir
+"Rapidinho, editar hora do compromisso oração para às 10 aí",editar_horario
+"yoga mudou de horário, coloca às 7h pfv",editar_horario
+por favor beleza pfv,saudacao
+Muda banco pras 7 ao invés das 6,editar_horario
+"rapidinho, minha streak!",consultar_sequencia
+Por favor remarca yoga pra dia 25/10 por favor,reagendar
+adiciona reunião do projeto segunda às 3 da tarde,agendar
+Troca a hora da aula de ingles pra,editar_horario
+"rapidinho, como foi meu sono",consultar_sono
+Por favor pra que serve você,ajuda
+qual o placar do inter,fora
+"pet, minha consistência por favor",consultar_sequencia
+"rapidinho, como tá o clima segunda-feira",fora
+Por favor como instalar o app por favor,ajuda_notificacoes
+"pet, cancela o lembrete do compromisso yoga",lembrete_desligar
+pode top,saudacao
+pode qual a temperatura la fora?,fora
+Coloca reunião pra repetir todo mês,repetir
+boa tarde por favor,saudacao
+Quero que banco repita toda segunda,repetir
+"pet, reagendar almoço com a mãe para terça por favor",reagendar
+Por favor quantos ml eu tomei,consultar_agua
+pode tô hidratado? aí,consultar_agua
+o que eu tenho hoje,consultar_tarefas
+"pet, troca o dia da academia pra amanhã",reagendar
+"ei, o lembrete não tocou",ajuda_notificacoes
+"pet, repete corrida todo sábado",repetir
+Pode to hidratado? ai,consultar_agua
+"Pet, qual meu recorde de dias seguidos",consultar_sequencia
+"ei, oi pet?",saudacao
+por favor lista de hoje!,consultar_tarefas
+altera a hora de natação para às 6 da manhã,editar_horario
+liga a notificacao de almoco com a mae por favor,lembrete_ligar
+quanto é 15 vezes 3,fora
+"rapidinho, não entendi nada",ajuda
+por favor oi pet pfv,saudacao
+quais sao suas funcoes!,ajuda
+joga reunião pra segunda,reagendar
+"pet, como ativar notificação aí",ajuda_notificacoes
+resolve essa equação por favor,fora
+Marcar lembrete na tarefa mercado!,lembrete_ligar
+"ei, coloca banco pra repetir toda semana!",repetir
+"rapidinho, horas de sono da semana",consultar_sono
+O que eu tenho hoje,consultar_tarefas
+"rapidinho, mostra minhas tarefas de dia 25/10 aí",consultar_tarefas
+O aviso nao chega no meu celular pfv,ajuda_notificacoes
+me mostra meu sono,consultar_sono
+"ei, como instalar o app",ajuda_notificacoes
+por favor muda a descricao de leitura pra levar documento!,editar_descricao
+"rapidinho, já fiz oração hoje, registra aí",agendar
+faz academia se repetir dias úteis!,repetir
+pode falhei quantas vezes essa semana?,consultar_sequencia
+obrigado,saudacao
+Por favor como instalar o app,ajuda_notificacoes
+"ei, não vibra quando chega aviso!",ajuda_notificacoes
+"rapidinho, como baixar o app no celular aí",ajuda_notificacoes
+bebi agua suficiente?!,consultar_agua
+escreve levar documento na descricao da devocional pfv,editar_descricao
+por favor sem lembrete na oração aí,lembrete_desligar
+por favor altera a observacao de academia pra comprar arroz e feijao,editar_descricao
+"ei, renomeia oracao pra leitura biblica",editar_nome
+ativar lembrete do compromisso curso?,lembrete_ligar
+ativa o sininho da curso,lembrete_ligar
+"por favor vou ter banco semana que vem , marca p mim?",agendar
+coloca lembrete em almoço com a mãe,lembrete_ligar
+"rapidinho, coloca psicologa as 9 em vez das 8",editar_horario
+adiciona almoco com a mae amanha as 10 por favor,agendar
+por favor quanto tá o bitcoin!,fora
+"ei, o aviso não chega no meu celular pfv",ajuda_notificacoes
+nao precisa avisar de faculdade,lembrete_desligar
+Pode troca o dia da reunião do projeto pra domingo!,reagendar
+"Pet, quando e o proximo jogo do flamengo!",fora
+apaga o lembrete de consulta!,lembrete_desligar
+"pet, oi por favor",saudacao
+"ei, liga a notificação de caminhada",lembrete_ligar
+"rapidinho, quanta água eu bebi",consultar_agua
+"Ei, quantos dias seguidos eu tenho?",consultar_sequencia
+"pet, instalar no android",ajuda_notificacoes
+pode qual minha sequencia,consultar_sequencia
+"rapidinho, minhas tarefas",consultar_tarefas
+por favor coloca lembrete em consulta por favor,lembrete_ligar
+"rapidinho, massa",saudacao
+"ei, ativar lembrete do compromisso estudo",lembrete_ligar
+"pet, tenho algo marcado sexta? por favor",consultar_tarefas
+muda a descrição de academia pra comprar arroz e feijão?,editar_descricao
+"pet, vai chover dia 12?!",fora
+"ei, o nome de reunião agora é musculação pfv",editar_nome
+ativa o sininho da mercado?,lembrete_ligar
+"ei, quanto eu dormi",consultar_sono
+"rapidinho, meta de agua",consultar_agua
+pode muda o titulo da tarefa academia para corrida leve ai,editar_nome
+"ei, agendar compromisso segunda às 6 da manhã título yoga aí",agendar
+"ei, para de me avisar da muay thai por favor",lembrete_desligar
+boa tarde pfv,saudacao
+"rapidinho, me ensina a usar?",ajuda
+"ei, minha consistencia?",consultar_sequencia
+que horas eu acordei pfv,consultar_sono
+qual minha sequencia pfv,consultar_sequencia
+ola,saudacao
+"Ei, você gosta de pizza?",fora
+"caminhada começa às 9:30 agora, ajusta pfv",editar_horario
+pode troca o dia da meditação pra dia 25/10 aí,reagendar
+agendar atividade faculdade segunda-feira às 7h,agendar
+"pet, reagendar atividade oracao para terca por favor",reagendar
+Pode adia curso pra dia 25/10!,reagendar
+"ei, altera o título de academia pra leitura bíblica",editar_nome
+quero mudar o horário da curso pfv,editar_horario
+por favor muda o nome de academia pra corrida leve!,editar_nome
+Nova tarefa faculdade hoje por favor,agendar
+por favor não sei mexer nisso por favor,ajuda
+Por favor o que posso te pedir?,ajuda
+"pet, escreve comprar arroz e feijao na descricao da leitura",editar_descricao
+renomear dentista para estudo de python,editar_nome
+pode apaga o lembrete de caminhada,lembrete_desligar
+"ei, o que eu tenho sexta que vem por favor",consultar_tarefas
+"rapidinho, passa massagem pra 15h!",editar_horario
+pode anota yoga quarta 15h,agendar
+"ei, liga o lembrete de almoco com a mae!",lembrete_ligar
+"rapidinho, coloca lembrete em dentista",lembrete_ligar
+"ei, me ajuda aí",ajuda
+"pet, boa noite!",saudacao
+"rapidinho, quantas tarefas eu tenho sexta que vem",consultar_tarefas
+"rapidinho, ajuda aí",ajuda
+"Pet, quantos ml eu tomei",consultar_agua
+pode falhei quantas vezes essa semana? pfv,consultar_sequencia
+que horas fui dormir ontem por favor,consultar_sono
+As notificacoes nao chegam,ajuda_notificacoes
+"ei, nao quero mais aviso da corrida",lembrete_desligar
+"por favor mercado começa agora, ajusta por favor",editar_horario
+"rapidinho, adia almoço com a mãe pra sexta pfv",reagendar
+"Pet, o que eu tenho dia 12 aí",consultar_tarefas
+pode help ai,ajuda
+Por favor editar repetição do tarefa faculdade para de segunda a sexta?,repetir
+repete aula de inglês todo sábado pfv,repetir
+"rapidinho, obrigada aí",saudacao
+transfere corrida pra depois de amanhã 20h30 pfv,reagendar
+o que vem agora,consultar_tarefas
+tira o aviso da academia?,lembrete_desligar
+"Rapidinho, como baixar o app no celular pfv",ajuda_notificacoes
+quanto e 15 vezes 3,fora
+atrasa treino de perna pra às 18 horas?,editar_horario
+dormi bem essa noite?,consultar_sono
+"Ei, reagenda natação pra dia 12",reagendar
+Por favor que horas eu acordei!,consultar_sono
+por favor quanto falta de água hoje pfv,consultar_agua
+por favor marcar lembrete na tarefa reuniao por favor,lembrete_ligar
+agendar compromisso sexta às 7h título caminhada por favor,agendar
+"pet, quantos dias em sequência?",consultar_sequencia
+cria um compromisso de banco sexta que vem meio-dia por favor,agendar
+pode renomear massagem para corrida leve ai,editar_nome
+"ei, vou ter corrida amanhã às 3 da tarde, marca pra mim aí",agendar
+"pet, editar repeticao do estudo para toda segunda ai",repetir
+"ei, remarca mercado pra terça?",reagendar
+"pet, me avisa antes de consulta",lembrete_ligar
+nao entendi nada!,ajuda
+liga a notificação de reunião do projeto,lembrete_ligar
+Pode horas de sono da semana,consultar_sono
+não sei o que fazer aqui,ajuda
+tudo bem? aí,saudacao
+troca o dia da banco p segunda-feira,reagendar
+"pet, voce gosta de pizza?",fora
+pode desliga a notificação de reunião por favor,lembrete_desligar
+por favor como tá minha sequência?,consultar_sequencia
+"pet, muda o nome de mercado p mercado do mes",editar_nome
+"ei, o que eu tenho depois aí",consultar_tarefas
+"ei, faz estudo se repetir toda semana por favor",repetir
+Pode remarca mercado p quarta por favor,reagendar
+Faz fisioterapia se repetir todo sábado,repetir
+como usa isso,ajuda
+coloca academia pra repetir toda segunda,repetir
+A muay thai e todo mes ai,repetir
+"ei, quero mudar o nome de consulta para corrida leve",editar_nome
+"pet, o que você faz pfv",ajuda
+Boa tarde,saudacao
+empurra meditacao pra sabado ai,reagendar
+"rapidinho, muda reunião do projeto pras 7 ao invés das 6",editar_horario
+atualiza a descrição de mercado por favor,editar_descricao
+O que eu tenho depois!,consultar_tarefas
+por favor ativar lembrete do compromisso fisioterapia?,lembrete_ligar
+"Ei, escreve pauta trimestral na descrição da mercado?",editar_descricao
+por favor agendar compromisso depois de amanhã meio-dia título muay thai por favor,agendar
+"rapidinho, quero ser lembrado da fisioterapia!",lembrete_ligar
+"ei, quanto eu dormi por favor",consultar_sono
+por favor meu sono essa semana,consultar_sono
+Tô quantos dias sem falhar??,consultar_sequencia
+"ei, atualiza a descrição de estudo!",editar_descricao
+"Rapidinho, abre o youtube",fora
+"ei, troca o detalhe da consulta para treino de costas aí",editar_descricao
+"ei, a aula de inglês é todo sábado por favor",repetir
+"rapidinho, escreve levar documento na descricao da yoga?",editar_descricao
+coloca muay thai às 9 em vez das 8 pfv,editar_horario
+Que horas fui dormir ontem,consultar_sono
+"rapidinho, nao sei usar isso?",ajuda
+"Rapidinho, me conta uma historia",fora
+quantos copos de agua hoje!,consultar_agua
+"Rapidinho, recomenda um filme?",fora
+"ei, minhas tarefas",consultar_tarefas
+"pet, passa reuniao do projeto pra as 3 da tarde",editar_horario
+"por favor nao e mais as 8, a oracao e as 3 da tarde por favor",editar_horario
+olá,saudacao
+"pet, empurra meditação pra dia 25/10!",reagendar
+pode não sei mexer nisso pfv,ajuda
+"rapidinho, ola",saudacao
+Bebi água suficiente? pfv,consultar_agua
+Repete reuniao todo sabado,repetir
+"ei, muda o nome de dentista pra corrida leve",editar_nome
+"massagem todo mês, coloca repetição",repetir
+Dormi bem essa noite??,consultar_sono
+"pet, faz muay thai se repetir todo sábado aí",repetir
+por favor quero ser lembrado da aula de inglês,lembrete_ligar
+Como habilitar pop up,ajuda_notificacoes
+por favor tem alguma coisa hoje? pfv,consultar_tarefas
+"pet, lista de hoje!",consultar_tarefas
+Como ta minha semana?,consultar_tarefas
+"ei, já fiz consulta hoje, registra aí aí",agendar
+"Pet, mostra minhas tarefas de semana que vem",consultar_tarefas
+"ei, quanta agua eu bebi",consultar_agua
+o que tem pra amanha,consultar_tarefas
+pode agenda treino de perna sexta 20h30 pfv,agendar
+"ei, muda o nome de faculdade pra mercado do mes?",editar_nome
+show pfv,saudacao
+Por favor média de sono aí,consultar_sono
+"pet, liga o lembrete de reunião?",lembrete_ligar
+minha consistencia!,consultar_sequencia
+"Ei, quero ser lembrado da estudo?",lembrete_ligar
+"Pet, atrasa caminhada pra as 8",editar_horario
+anota jiu-jitsu depois de amanha as 10?,agendar
+por favor fala pet aí,saudacao
+editar nome da compromisso estudo para mercado do mês,editar_nome
+o que vem agora!,consultar_tarefas
+"rapidinho, to quantos dias sem falhar? ai",consultar_sequencia
+pode qual o próximo da agenda!,consultar_tarefas
+joga dentista pra segunda?,reagendar
+pode não sei mexer nisso?,ajuda
+por favor quantos anos tem o universo,fora
+por favor quantas tarefas eu tenho domingo!,consultar_tarefas
+"pet, a nota da almoco com a mae e levar documento!",editar_descricao
+pode minha streak,consultar_sequencia
+"rapidinho, recorrência de yoga toda segunda!",repetir
+"rapidinho, a nota da estudo e comprar arroz e feijao?",editar_descricao
+empurra trabalho pra segunda,reagendar
+O horario certo da almoco com a mae e 15h,editar_horario
+"Pet, tenho almoco com a mae dia 25/10 as 9:30 pfv",agendar
+"pet, quero mudar o nome de psicóloga para mercado do mês?",editar_nome
+recorrência de trabalho toda semana?,repetir
+"ei, qual meu recorde de dias seguidos?",consultar_sequencia
+Pode bebi água suficiente?,consultar_agua
+empurra banco pra hoje aí,reagendar
+help,ajuda
+"ei, editar horário do atividade aula de inglês para às 7h",editar_horario
+Quanto tempo de sono!,consultar_sono
+"ei, atualiza a descricao de curso!",editar_descricao
+troca o detalhe da treino de perna para levar documento,editar_descricao
+"pet, conta uma piada pfv",fora
+qual a temperatura la fora por favor,fora
+Pode dormi bem essa noite? ai,consultar_sono
+"Rapidinho, como coloco o app na tela inicial por favor",ajuda_notificacoes
+"ei, altera a hora de banco para as 10",editar_horario
+"Pet, como ativar notificação",ajuda_notificacoes
+"rapidinho, quantos copos de água hoje",consultar_agua
+não entendi nada,ajuda
+por favor help,ajuda
+"Rapidinho, o que ainda não fiz hoje?",consultar_tarefas
+pode top!,saudacao
+"ei, já fiz reunião hoje, registra aí pfv",agendar
+troca trabalho das 10 pras 11,editar_horario
+"pet, que horas eu acordei!",consultar_sono
+"rapidinho, qual meu proximo compromisso",consultar_tarefas
+"pode nao vou conseguir curso hoje, joga pra dia 25/10?",reagendar
+Por favor pode parar de lembrar da reuniao do projeto,lembrete_desligar
+quanta água eu bebi,consultar_agua
+por favor repetir meditação todo mês,repetir
+pode me dá uma receita de bolo?,fora
+pode quantos dias em sequencia pfv,consultar_sequencia
+como foi meu sono pfv,consultar_sono
+"rapidinho, coloca meditação pra repetir toda semana",repetir
+"pet, que horas fui dormir ontem aí",consultar_sono
+por favor tô hidratado? por favor,consultar_agua
+marcar faculdade terca as 8,agendar
+pode adicionar lembrete na tarefa estudo!,lembrete_ligar
+"rapidinho, passa psicologa pra as 18 horas ai",editar_horario
+"a oração não é às 18 horas, corrige o horário",editar_horario
+"pet, muda o nome de fisioterapia pra estudo de python aí",editar_nome
+Por favor renomear natação para pilates!,editar_nome
+por favor quero mudar o nome de oração para mercado do mês aí,editar_nome
+por favor to dormindo pouco?,consultar_sono
+"pet, tudo bem? por favor",saudacao
+pode como foi meu sono pfv,consultar_sono
+altera a observação de trabalho pra levar exames,editar_descricao
+"pet, empurra natação pra sexta que vem por favor",reagendar
+por favor quais atividades faltam pfv,consultar_tarefas
+Minha streak,consultar_sequencia
+Qual minha sequência por favor,consultar_sequencia
+me avisa antes de banco,lembrete_ligar
+"faculdade mudou de horario, coloca as 18 horas?",editar_horario
+por favor ativa o sininho da academia por favor,lembrete_ligar
+por favor como ta minha agua por favor,consultar_agua
+que horas fui dormir ontem,consultar_sono
+pode altera a observacao de muay thai pra capitulo 5 pfv,editar_descricao
+pode beleza!,saudacao
+"ei, quantos anos tem o universo aí",fora
+muda o nome de psicóloga pra pilates pfv,editar_nome
+"ei, vai chover dia 12??",fora
+"Ei, a meditação não é meio-dia, corrige o horário?",editar_horario
+escreve levar documento na descrição da psicóloga?,editar_descricao
+"pet, muda o título da compromisso aula de inglês para musculação",editar_nome
+não entendi nada!,ajuda
+Qual a proxima tarefa ai,consultar_tarefas
+"ei, repete corrida toda semana",repetir
+"ei, muda o título da atividade psicóloga para treino A",editar_nome
+"ei, deixa reuniao fixa toda segunda ai",repetir
+por favor troca a hora da jiu-jitsu pra às 18 horas!,editar_horario
+"ei, registra que eu fiz reuniao do projeto sabado ai",agendar
+Por favor remarca natação pra amanhã!,reagendar
+como ativar notificacao!,ajuda_notificacoes
+"academia toda semana, coloca repeticao por favor",repetir
+boa tarde,saudacao
+por favor renomear faculdade para reuniao semanal!,editar_nome
+"Reuniao do projeto mudou de horario, coloca as 3 da tarde por favor",editar_horario
+por favor pra que serve você,ajuda
+por favor não recebo aviso pfv,ajuda_notificacoes
+pode marcar lembrete na tarefa caminhada por favor,lembrete_ligar
+"rapidinho, quero agendar devocional dia 25/10",agendar
+Pode editar descricao do compromisso massagem para comprar arroz e feijao por favor,editar_descricao
+"Rapidinho, pode agendar consulta pra depois de amanhã?",agendar
+pode minha hidratação!,consultar_agua
+editar hora do compromisso devocional para as 8 ai,editar_horario
+"rapidinho, obrigada por favor",saudacao
+Pode bota o sino na mercado aí,lembrete_ligar
+por favor como usa isso pfv,ajuda
+"ei, tem alguma coisa segunda?",consultar_tarefas
+"Rapidinho, me ajuda",ajuda
+"rapidinho, o nome de trabalho agora e treino A ai",editar_nome
+Pode coloca treino de perna pra repetir todo dia?,repetir
+"ei, quanto falta de agua hoje ai",consultar_agua
+"Ei, as notificações não chegam?",ajuda_notificacoes
+"rapidinho, boa noite",saudacao
+tô hidratado? pfv,consultar_agua
+"Ei, joga natacao pra dia 12",reagendar
+"ei, apaga o lembrete de oracao?",lembrete_desligar
+não precisa me lembrar da trabalho aí,lembrete_desligar
+pode como foi meu sono aí,consultar_sono
+Pode qual o proximo da agenda pfv,consultar_tarefas
+Como usa isso,ajuda
+"pet, a estudo é de segunda a sexta",repetir
+não me avisa mais da jiu-jitsu?,lembrete_desligar
+"por favor fisioterapia mudou de horario, coloca as 3 da tarde ai",editar_horario
+Pode editar nota da tarefa dentista para levar documento,editar_descricao
+"ei, adiciona a nota levar exames em corrida",editar_descricao
+"Ei, o que eu posso falar por favor",ajuda
+"rapidinho, como coloco o app na tela inicial!",ajuda_notificacoes
+faz yoga se repetir todo dia,repetir
+por favor quero que reunião do projeto repita todo sábado!,repetir
+quem descobriu o brasil pfv,fora
+agendar compromisso dia 25/10 as 7h titulo estudo,agendar
+por favor bebi agua suficiente? pfv,consultar_agua
+desativar lembrete do compromisso oração por favor,lembrete_desligar
+"pet, media de sono",consultar_sono
+"rapidinho, coloca reuniao pra repetir todo mes?",repetir
+"rapidinho, a muay thai é todo mês",repetir
+"pet, me mostra meu sono",consultar_sono
+"ei, o que eu tenho hoje",consultar_tarefas
+"ei, a academia é de segunda a sexta aí",repetir
+"pet, instalar no android aí",ajuda_notificacoes
+conta uma piada,fora
+pode meta de água,consultar_agua
+"ei, reagenda corrida pra quarta",reagendar
+"rapidinho, inclui natacao amanha as 10!",agendar
+"Pet, preciso marcar trabalho quinta as 7h pfv",agendar
+"rapidinho, quanta água eu bebi pfv",consultar_agua
+manda mensagem no whatsapp por favor,fora
+Joga fisioterapia pra sexta por favor,reagendar
+Meta de agua!,consultar_agua
+"rapidinho, notificação não aparece no iphone?",ajuda_notificacoes
+pode o que eu tenho depois,consultar_tarefas
+minha streak,consultar_sequencia
+"pet, altera a hora de academia para 20h30 aí",editar_horario
+pode como ta minha semana?,consultar_tarefas
+"Ei, nao vibra quando chega aviso",ajuda_notificacoes
+"Ei, as notificações não chegam",ajuda_notificacoes
+"pet, como tá minha água!",consultar_agua
+qual a próxima tarefa,consultar_tarefas
+tira o sino da devocional,lembrete_desligar
+Por favor tô quantos dias sem falhar?,consultar_sequencia
+"pet, como ativar notificacao",ajuda_notificacoes
+"pet, quero mudar o nome de caminhada para pilates?",editar_nome
+bota o sino na massagem pfv,lembrete_ligar
+"ei, a nota da faculdade é levar documento!",editar_descricao
+"rapidinho, recorrência de devocional toda semana aí",repetir
+minha constância!,consultar_sequencia
+empurra banco pra sexta que vem,reagendar
+"Rapidinho, qual minha sequência",consultar_sequencia
+"pet, tira o sino da jiu-jitsu",lembrete_desligar
+"rapidinho, não precisa avisar de fisioterapia pfv",lembrete_desligar
+pode obrigada,saudacao
+me avisa antes de consulta aí,lembrete_ligar
+"ei, qual meu recorde de dias seguidos ai",consultar_sequencia
+por favor quem é o presidente do brasil,fora
+Por favor quanta agua eu bebi,consultar_agua
+agenda reuniao dia 25/10 as 6 da manha pfv,agendar
+pode o que voce faz,ajuda
+Obrigado!,saudacao
+"Pet, não quero ser lembrado da meditação",lembrete_desligar
+pode sem notificação pra dentista,lembrete_desligar
+não sei usar isso aí,ajuda
+Adianta yoga pra as 9:30 pfv,editar_horario
+o que vem agora?,consultar_tarefas
+pode adiciona a nota capitulo 5 em estudo,editar_descricao
+"rapidinho, que horas fui dormir ontem pfv",consultar_sono
+"ei, pode parar de lembrar da corrida por favor",lembrete_desligar
+troca o nome da tarefa muay thai por leitura bíblica,editar_nome
+pode liga o lembrete de dentista,lembrete_ligar
+"rapidinho, como habilitar pop up",ajuda_notificacoes
+por favor a dentista e dias uteis ai,repetir
+Oração agora é às 10 pfv,editar_horario
+"Pet, horas de sono da semana!",consultar_sono
+"rapidinho, quero mudar o horário da psicóloga por favor",editar_horario
+quanto tá o bitcoin,fora
+por favor recorrência de estudo toda semana?,repetir
+"rapidinho, pode parar de lembrar da trabalho",lembrete_desligar
+por favor nova tarefa estudo amanhã!,agendar
+Pode horas de sono da semana aí,consultar_sono
+pode qual meu recorde de dias seguidos?,consultar_sequencia
+não vibra quando chega aviso pfv,ajuda_notificacoes
+O aviso nao chega no meu celular!,ajuda_notificacoes
+"rapidinho, como foi meu sono!",consultar_sono
+joga aula de ingles pra dia 25/10,reagendar
+"massagem dias úteis, coloca repetição?",repetir
+"pet, não me avisa mais da oração",lembrete_desligar
+"Pode meditação toda semana, coloca repetição",repetir
+"rapidinho, voce gosta de pizza?!",fora
+fala pet pfv,saudacao
+Qual meu proximo compromisso?,consultar_tarefas
+"Rapidinho, qual minha sequencia ai",consultar_sequencia
+"ei, massa?",saudacao
+"pet, como usa isso aí",ajuda
+"Rapidinho, minha consistência",consultar_sequencia
+"rapidinho, escreve treino de costas na descricao da dentista pfv",editar_descricao
+"ei, minha consistencia por favor",consultar_sequencia
+pode que horas fui dormir ontem?,consultar_sono
+Como instalar o app pfv,ajuda_notificacoes
+me ensina a usar,ajuda
+"Rapidinho, quanto eu dormi",consultar_sono
+como ativar notificação aí,ajuda_notificacoes
+Help pfv,ajuda
+"ei, minha constância?",consultar_sequencia
+"pet, como ta minha agua pfv",consultar_agua
+que horas eu acordei!,consultar_sono
+pode me avisa antes de muay thai,lembrete_ligar
+"rapidinho, editar horario do devocional para 19:00 por favor",editar_horario
+"ei, show pfv",saudacao
+agendar compromisso quarta às 8 título almoço com a mãe por favor,agendar
+pode como tá minha água aí,consultar_agua
+"Ei, não vibra quando chega aviso",ajuda_notificacoes
+Pode põe lembrete na reunião do projeto pfv,lembrete_ligar
+"pet, me conta uma história!",fora
+pode qual minha sequencia pfv,consultar_sequencia
+Mercado agora e 19:00?,editar_horario
+pode desativa o sininho da reunião do projeto,lembrete_desligar
+Muda o título da atividade academia para leitura bíblica aí,editar_nome
+massa?,saudacao
+por favor bota devocional sábado às 10,agendar
+"rapidinho, desliga a notificação de yoga",lembrete_desligar
+"Ei, quantos copos de agua hoje!",consultar_agua
+quais são suas funções por favor,ajuda
+"rapidinho, como instalar o app",ajuda_notificacoes
+"pet, editar hora do compromisso faculdade para 19:00?",editar_horario
+reagendar compromisso aula de inglês para amanhã,reagendar
+"ei, me mostra meu sono",consultar_sono
+atrasa oração pra às 9:30 aí,editar_horario
+"pet, quantas tarefas eu tenho domingo pfv",consultar_tarefas
+"rapidinho, media de sono?",consultar_sono
+"pet, quantos copos de água hoje por favor",consultar_agua
+por favor repetir compromisso aula de inglês dias úteis?,repetir
+"pet, bota o sino na fisioterapia?",lembrete_ligar
+pode hoje eu fiz almoço com a mãe pfv,agendar
+"rapidinho, média de sono pfv",consultar_sono
+pode nova tarefa massagem sabado por favor,agendar
+"Rapidinho, troca o detalhe da caminhada para pauta trimestral",editar_descricao
+falhei quantas vezes essa semana? por favor,consultar_sequencia
+"rapidinho, atualiza a descrição de massagem por favor",editar_descricao
+pode editar nota da tarefa mercado para levar exames pfv,editar_descricao
+"ei, marcar lembrete na tarefa aula de ingles",lembrete_ligar
+"Ei, editar nome da academia para leitura bíblica",editar_nome
+quero mudar o nome de treino de perna para pilates,editar_nome
+Qual meu recorde de dias seguidos!,consultar_sequencia
+"rapidinho, como tá minha água pfv",consultar_agua
+empurra estudo pra terça!,reagendar
+por favor liga o lembrete de mercado,lembrete_ligar
+Manda mensagem no whatsapp,fora
+apaga o lembrete de reunião,lembrete_desligar
+o que ainda nao fiz hoje,consultar_tarefas
+remarca corrida pra semana que vem pfv,reagendar
+pode ativar lembrete do compromisso caminhada ai,lembrete_ligar
+"Pet, quanto tempo de sono",consultar_sono
+renomear faculdade para treino A,editar_nome
+pode quantos ml eu tomei,consultar_agua
+por favor qual a proxima tarefa,consultar_tarefas
+"Pet, treino de perna agora é 15h por favor",editar_horario
+"pet, sem notificação pra leitura por favor",lembrete_desligar
+"ei, marcar reunião do projeto sábado às 7h!",agendar
+"pet, altera a observação de faculdade pra levar exames aí",editar_descricao
+pode me conta uma história aí,fora
+escreve comprar arroz e feijao na descricao da consulta ai,editar_descricao
+"ei, quantas horas dormi hoje",consultar_sono
+"pet, você é humano?",fora
+Por favor ate mais ai,saudacao
+To confuso,ajuda
+Pode quantos dias seguidos eu tenho por favor,consultar_sequencia
+"rapidinho, editar descrição do tarefa devocional para treino de costas aí",editar_descricao
+"Pode nao vou conseguir oracao hoje, joga pra segunda",reagendar
+tchau por favor,saudacao
+por favor quanto tá o bitcoin,fora
+quais sao suas funcoes?,ajuda
+recorrência de reunião a cada 15 dias,repetir
+nao precisa me lembrar da academia ai,lembrete_desligar
+joga natação pra quarta,reagendar
+por favor to quantos dias sem falhar?,consultar_sequencia
+"Pet, passa trabalho p meio-dia",editar_horario
+ativa o sininho da academia,lembrete_ligar
+por favor troca o detalhe da corrida para pauta trimestral,editar_descricao
+por favor como ta minha semana por favor,consultar_tarefas
+atualiza a descrição de academia aí,editar_descricao
+"rapidinho, ja fiz academia hoje, registra ai pfv",agendar
+pode qual meu próximo compromisso!,consultar_tarefas
+pode empurra jiu-jitsu pra amanhã aí,reagendar
+repetir tarefa almoço com a mãe toda semana pfv,repetir
+lista de hoje por favor,consultar_tarefas
+por favor quero mudar o horario da mercado,editar_horario
+por favor quanto tempo de sono,consultar_sono
+por favor quantos ml eu tomei por favor,consultar_agua
+muda o nome de natação pra musculação!,editar_nome
+pode horas de sono da semana,consultar_sono
+pode como falo com você pfv,ajuda
+"rapidinho, o que vem agora por favor",consultar_tarefas
+Pode o horário certo da curso é às 8,editar_horario
+pode joga leitura pra segunda-feira,reagendar
+"rapidinho, liga o lembrete de estudo",lembrete_ligar
+falhei quantas vezes essa semana? aí,consultar_sequencia
+"Rapidinho, remarca reuniao do projeto p sexta?",reagendar
+notificacao nao aparece no iphone pfv,ajuda_notificacoes
+por favor quero mudar o horário da psicóloga pfv,editar_horario
+pode como baixar o app no celular,ajuda_notificacoes
+"rapidinho, atualiza a descricao de natacao ai",editar_descricao
+quantos dias em sequência,consultar_sequencia
+o que tem pra amanhã,consultar_tarefas
+"Ei, para de me avisar da natacao!",lembrete_desligar
+como instalar o app?,ajuda_notificacoes
+por favor quantos dias seguidos eu tenho ai,consultar_sequencia
+"rapidinho, me ajuda ai",ajuda
+"Pet, coloca na descricao de reuniao do projeto: comprar arroz e feijao!",editar_descricao
+"rapidinho, sem notificacao pra academia",lembrete_desligar
+por favor quantos dias seguidos eu tenho por favor,consultar_sequencia
+"ei, qual minha sequência por favor",consultar_sequencia
+me mostra meu sono?,consultar_sono
+"Pet, editar nome da devocional para pilates por favor",editar_nome
+Agendar compromisso sexta que vem as 6 da manha titulo devocional por favor,agendar
+"rapidinho, vai chover depois de amanhã?!",fora
+pode transfere almoco com a mae pra amanha,reagendar
+por favor quando e o proximo jogo do flamengo!,fora
+"pet, qual o maior país do mundo",fora
+"Ei, tira o aviso da aula de inglês",lembrete_desligar
+por favor cancela o lembrete do compromisso meditação,lembrete_desligar
+marcar lembrete na tarefa academia,lembrete_ligar
+coloca almoco com a mae p repetir toda segunda,repetir
+quero agendar faculdade dia 25/10 pfv,agendar
+"pet, minhas tarefas",consultar_tarefas
+corrige o nome almoço com a mãe pra pilates,editar_nome
+passa aula de inglês pra,editar_horario
+por favor instalar no android aí,ajuda_notificacoes
+atrasa corrida pra !,editar_horario
+pode opa pfv,saudacao
+pode adiciona a nota treino de costas em meditação!,editar_descricao
+"Ei, minha constância?",consultar_sequencia
+"ei, cria um compromisso de dentista dia 25/10 as 3 da tarde",agendar
+"pet, tchau pfv",saudacao
+bebi água suficiente??,consultar_agua
+"pet, editar nota da tarefa corrida para levar documento aí",editar_descricao
+Pesquisa no google,fora
+"pet, qual o proximo da agenda?",consultar_tarefas
+pode quero que aula de inglês repita dias úteis,repetir
+Sem notificação pra devocional por favor,lembrete_desligar
+pode muda caminhada pras 7 ao invés das 6 pfv,editar_horario
+"ei, cria um compromisso de aula de inglês domingo às 6 da manhã?",agendar
+que horas eu acordei,consultar_sono
+"pet, não vou conseguir meditação hoje, joga pra sexta aí",reagendar
+Pode qual a capital da argentina?,fora
+empurra consulta pra semana que vem,reagendar
+Qual a cotacao do euro,fora
+"rapidinho, tchau por favor",saudacao
+por favor me mostra meu sono aí,consultar_sono
+valeu!,saudacao
+"ei, e aí pfv",saudacao
+Pode marcar lembrete na tarefa aula de inglês aí,lembrete_ligar
+"ei, registra que eu fiz dentista segunda aí",agendar
+muda o horário de corrida pra 15h por favor,editar_horario
+o horario certo da devocional e as 18 horas?,editar_horario
+por favor renomear consulta para mercado do mês,editar_nome
+"pet, corrige o nome massagem pra mercado do mês",editar_nome
+"rapidinho, dormi bem essa noite?",consultar_sono
+pode show pfv,saudacao
+"ei, o que falta fazer hoje!",consultar_tarefas
+quero mudar o horário da devocional,editar_horario
+"ei, o que eu tenho hoje!",consultar_tarefas
+"Rapidinho, minha consistencia ai",consultar_sequencia
+Por favor boa tarde,saudacao
+"ei, minhas tarefas pfv",consultar_tarefas
+"Pet, troca o detalhe da aula de inglês para treino de costas pfv",editar_descricao
+quanta agua eu bebi pfv,consultar_agua
+quero mudar o nome de yoga para corrida leve,editar_nome
+pode massa pfv,saudacao
+pode editar nome da estudo para reunião semanal?,editar_nome
+por favor quais comandos aí,ajuda
+"rapidinho, preciso marcar devocional quarta ?",agendar
+quantos dias em sequência!,consultar_sequencia
+joga muay thai p dia 25/10 aí,reagendar
+pode a dentista é a cada 15 dias,repetir
+"rapidinho, nao sei o que fazer aqui",ajuda
+"oração mudou de horário, coloca às 8",editar_horario
+Me avisa antes de devocional,lembrete_ligar
+pode editar nome da mercado para mercado do mês?,editar_nome
+meta de agua?,consultar_agua
+"Rapidinho, editar hora do compromisso muay thai para 20h30",editar_horario
+pode boa tarde!,saudacao
+bota o sino na mercado ai,lembrete_ligar
+"Rapidinho, deixa meditação fixa a cada 15 dias pfv",repetir
+"Pet, consulta todo sábado, coloca repetição",repetir
+pode o que eu tenho depois por favor,consultar_tarefas
+"rapidinho, quantos dias seguidos eu tenho?",consultar_sequencia
+"pode estudo começa 19:00 agora, ajusta!",editar_horario
+quero mudar o nome de treino de perna para reunião semanal!,editar_nome
+as notificações não chegam?,ajuda_notificacoes
+"meditação a cada 15 dias, coloca repetição",repetir
+Por favor as notificações não chegam aí,ajuda_notificacoes
+"rapidinho, tô quantos dias sem falhar? pfv",consultar_sequencia
+o lembrete não tocou,ajuda_notificacoes
+"não é mais às 8, a natação é às 7h",editar_horario
+"Ei, o nome de psicóloga agora é pilates",editar_nome
+empurra meditacao pra amanha por favor,reagendar
+tchau?,saudacao
+cancela o lembrete do compromisso trabalho,lembrete_desligar
+"rapidinho, altera o título de reunião do projeto pra estudo de python?",editar_nome
+pode coloca reunião às 9 em vez das 8,editar_horario
+pode tudo bem? por favor,saudacao
+me avisa antes de treino de perna!,lembrete_ligar
+notificação não aparece no iphone,ajuda_notificacoes
+"pet, quem é o presidente do brasil",fora
+"rapidinho, coloca meditação pra repetir toda segunda!",repetir
+"pet, atrasa muay thai pra as 6 da manha pfv",editar_horario
+"rapidinho, me avisa antes de yoga por favor",lembrete_ligar
+"rapidinho, reunião agora é 19:00?",editar_horario
+por favor obrigado aí,saudacao
+por favor minha agenda segunda-feira,consultar_tarefas
+liga o lembrete de reuniao!,lembrete_ligar
+qual minha sequência por favor,consultar_sequencia
+minha hidratação,consultar_agua
+me fala uma curiosidade,fora
+"Nao e mais as 8, a muay thai e meio-dia",editar_horario
+nao sei mexer nisso?,ajuda
+minha hidratação aí,consultar_agua
+marcar consulta amanha 19:00,agendar
+Mover oracao para domingo pfv,reagendar
+"pet, quero ser lembrado da muay thai pfv",lembrete_ligar
+"pet, como coloco o app na tela inicial aí",ajuda_notificacoes
+minha consistência!,consultar_sequencia
+renomeia fisioterapia pra mercado do mes por favor,editar_nome
+editar descricao do compromisso psicologa para comprar arroz e feijao,editar_descricao
+pode o que eu tenho depois!,consultar_tarefas
+"Ei, coloca trabalho as 9 em vez das 8!",editar_horario
+quanta agua eu bebi?,consultar_agua
+"pet, qual a capital da argentina pfv",fora
+pode altera o título de oração pra musculação aí,editar_nome
+"pet, faz uma redação sobre o meio ambiente",fora
+"rapidinho, ajuda pfv",ajuda
+Pode o que você faz pfv,ajuda
+remove o lembrete de mercado!,lembrete_desligar
+"rapidinho, reagendar tarefa reuniao do projeto para dia 25/10 ai",reagendar
+Obrigado por favor,saudacao
+pode meta de água?,consultar_agua
+pode nova tarefa reunião sábado,agendar
+"Rapidinho, como voce funciona!",ajuda
+desativar lembrete do compromisso massagem pfv,lembrete_desligar
+repetir compromisso fisioterapia todo sabado,repetir
+"pet, qual minha sequencia",consultar_sequencia
+"rapidinho, editar descricao do atividade curso para capitulo 5",editar_descricao
+Como tá minha semana,consultar_tarefas
+"rapidinho, escreve comprar arroz e feijao na descricao da faculdade",editar_descricao
+tudo bem? pfv,saudacao
+"pet, bota o sino na massagem pfv",lembrete_ligar
+"Ei, qual minha sequencia ai",consultar_sequencia
+"Ei, opa aí",saudacao
+"ei, vou ter devocional semana que vem 15h, marca pra mim",agendar
+obrigada pfv,saudacao
+coloca na descrição de banco: capítulo 5,editar_descricao
+repete mercado de segunda a sexta?,repetir
+remove o lembrete de almoço com a mãe por favor,lembrete_desligar
+Coloca psicóloga na agenda depois de amanhã às 3 da tarde por favor,agendar
+por favor quanta água eu bebi,consultar_agua
+"rapidinho, quanta água eu bebi por favor",consultar_agua
+"ei, me mostra meu sono pfv",consultar_sono
+registra que eu fiz consulta hj,agendar
+massa ai,saudacao
+valeu por favor,saudacao
+"pet, abre o youtube pfv",fora
+"ei, quero que curso repita todo sábado por favor",repetir
+corrige o nome jiu-jitsu pra musculacao ai,editar_nome
+"pet, minha agenda sexta que vem",consultar_tarefas
+pode renomear mercado para mercado do mes?,editar_nome
+Editar descricao do atividade dentista para comprar arroz e feijao,editar_descricao
+Qual minha sequencia,consultar_sequencia
+meu sono essa semana,consultar_sono
+troca o dia da fisioterapia pra quarta?,reagendar
+"Pet, coloca na descricao de massagem: treino de costas",editar_descricao
+marcar lembrete na tarefa leitura,lembrete_ligar
+"rapidinho, registra que eu fiz banco dia 25/10",agendar
+"rapidinho, troca o nome da tarefa aula de inglês por pilates",editar_nome
+por favor nao quero ser lembrado da consulta!,lembrete_desligar
+"ei, nao entendi nada por favor",ajuda
+"pet, joga mercado pra dia 25/10 por favor",reagendar
+Resolve essa equacao,fora
+por favor qual a raiz quadrada de 81,fora
+quanto falta de agua hoje pfv,consultar_agua
+tô dormindo pouco? pfv,consultar_sono
+por favor corrige o nome meditação pra reunião semanal!,editar_nome
+"Pet, qual meu proximo compromisso por favor",consultar_tarefas
+por favor poe lembrete na estudo?,lembrete_ligar
+"Pet, troca o dia da academia pra depois de amanhã pfv",reagendar
+pode quantas tarefas eu tenho dia 25/10?,consultar_tarefas
+"rapidinho, ativa o sininho da dentista",lembrete_ligar
+por favor você gosta de pizza?,fora
+o nome de oração agora é mercado do mês,editar_nome
+pode o que posso te pedir pfv,ajuda
+"rapidinho, passa mercado pra depois de amanhã",reagendar
+"pet, editar nota da tarefa leitura para levar documento?",editar_descricao
+tô hidratado? por favor,consultar_agua
+agendar consulta sexta que vem as 3 da tarde!,agendar
+Pode passa treino de perna pra sexta?,reagendar
+Joga massagem pra sexta que vem pfv,reagendar
+Nova tarefa leitura hj,agendar
+pode qual a notícia de hoje!,fora
+"rapidinho, empurra oração pra segunda-feira",reagendar
+por favor como ativar notificacao!,ajuda_notificacoes
+socorro pfv,ajuda
+"pet, o horario certo da natacao e as 9:30!",editar_horario
+opa,saudacao
+altera a observação de fisioterapia p capítulo 5!,editar_descricao
+"rapidinho, não precisa me lembrar da caminhada",lembrete_desligar
+"ei, adicionar lembrete na tarefa faculdade?",lembrete_ligar
+muda fisioterapia pro dia semana que vem pfv,reagendar
+Por favor ajuda pfv,ajuda
+por favor desativar lembrete do compromisso estudo por favor,lembrete_desligar
+notificação não aparece no iphone aí,ajuda_notificacoes
+"rapidinho, quantas horas dormi hj",consultar_sono
+por favor quais são suas funções,ajuda
+"ei, editar descrição do tarefa estudo para pauta trimestral?",editar_descricao
+por favor quanto eu dormi!,consultar_sono
+Altera a hora de estudo para às 6 da manhã?,editar_horario
+"rapidinho, quais atividades faltam por favor",consultar_tarefas
+quero mudar o nome de natação para leitura bíblica?,editar_nome
+"ei, registra que eu fiz muay thai dia 25/10",agendar
+por favor o aviso nao chega no meu celular!,ajuda_notificacoes
+pode some com o sininho da corrida,lembrete_desligar
+Não vibra quando chega aviso aí,ajuda_notificacoes
+Por favor notificação não aparece no iphone por favor,ajuda_notificacoes
+quais comandos,ajuda
+pode como baixar o app no celular!,ajuda_notificacoes
+por favor media de sono,consultar_sono
+mover compromisso reunião do projeto para terça aí,reagendar
+"pet, top?",saudacao
+pode escreve uma música?,fora
+"rapidinho, altera a observação de dentista pra levar documento pfv",editar_descricao
+"Rapidinho, dormi bem essa noite? pfv",consultar_sono
+"rapidinho, quanto falta de agua hoje",consultar_agua
+"rapidinho, o aviso não chega no meu celular aí",ajuda_notificacoes
+"rapidinho, tenho mercado hoje às 8",agendar
+"Rapidinho, quem descobriu o brasil!",fora
+"rapidinho, não sei mexer nisso por favor",ajuda
+põe lembrete na dentista?,lembrete_ligar
+Corrige o nome natacao pra corrida leve pfv,editar_nome
+recomenda um filme aí,fora
+pode qual meu próximo compromisso por favor,consultar_tarefas
+por favor como foi meu sono por favor,consultar_sono
+quantos copos de agua hoje?,consultar_agua
+nao vibra quando chega aviso,ajuda_notificacoes
+pode marca devocional pra sexta que vem 15h!,agendar
+qual a raiz quadrada de 81 aí,fora
+"pet, coloca lembrete em trabalho?",lembrete_ligar
+muda a descricao de academia pra comprar arroz e feijao,editar_descricao
+"rapidinho, como tá minha água!",consultar_agua
+"rapidinho, o que eu tenho hoje",consultar_tarefas
+"pet, faz natação se repetir dias úteis!",repetir
+pode quantos anos tem o universo!,fora
+"pet, quais são suas funções",ajuda
+quanto de agua devo beber,consultar_agua
+quanto falta de água hoje!,consultar_agua
+me ensina a usar!,ajuda
+pode quantos dias em sequência!,consultar_sequencia
+minha hidratação por favor,consultar_agua
+pode muda o título da atividade treino de perna para leitura bíblica,editar_nome
+"pet, bom dia!",saudacao
+reunião do projeto agora é às 9:30 aí,editar_horario
+por favor adicionar lembrete na atividade treino de perna!,lembrete_ligar
+pode altera o título de consulta pra pilates,editar_nome
+"ei, qual a próxima tarefa!",consultar_tarefas
+pode editar descricao do atividade treino de perna para treino de costas ai,editar_descricao
+quem descobriu o brasil por favor,fora
+Pode quero ser lembrado da devocional por favor,lembrete_ligar
+Altera a hora de banco para as 7h ai,editar_horario
+Quanto falta de água hoje!,consultar_agua
+o nome de dentista agora é leitura bíblica,editar_nome
+por favor quantos anos tem o universo pfv,fora
+"pet, apaga o lembrete de leitura",lembrete_desligar
+Some com o sininho da academia,lembrete_desligar
+a nota da mercado é capítulo 5 aí,editar_descricao
+Pode coloca academia pra repetir toda segunda,repetir
+escreve pauta trimestral na descrição da leitura,editar_descricao
+por favor editar repeticao do atividade jiu-jitsu para toda segunda!,repetir
+to hidratado??,consultar_agua
+"Rapidinho, o horário certo da almoço com a mãe é às 8!",editar_horario
+"ei, quero ser lembrado da trabalho?",lembrete_ligar
+Por favor bom dia!,saudacao
+"Rapidinho, reagenda reunião pra domingo pfv",reagendar
+Por favor troca o dia da almoço com a mãe pra quarta,reagendar
+"ei, minha hidratacao!",consultar_agua
+troca a hora da fisioterapia pra ?,editar_horario
+"rapidinho, como ativar notificação",ajuda_notificacoes
+Por favor sem notificação pra curso?,lembrete_desligar
+pode desativa o sininho da oração aí,lembrete_desligar
+quantos dias em sequencia,consultar_sequencia
+"rapidinho, minha constancia pfv",consultar_sequencia
+"pet, qual a raiz quadrada de 81",fora
+"ei, onde fica o japao ai",fora
+marcar psicóloga amanhã às 7h?,agendar
+por favor passa curso pra 20h30 por favor,editar_horario
+top?,saudacao
+Pode adiciona a nota comprar arroz e feijao em jiu-jitsu,editar_descricao
+tenho devocional segunda meio-dia?,agendar
+por favor editar horário do atividade consulta para 20h30?,editar_horario
+"já fiz trabalho hoje, registra aí pfv",agendar
+"ei, como baixar o app no celular!",ajuda_notificacoes
+valeu?,saudacao
+"por favor corrida comeca meio-dia agora, ajusta ai",editar_horario
+por favor não recebo aviso aí,ajuda_notificacoes
+"ei, o aviso não chega no meu celular",ajuda_notificacoes
+Por favor altera o título de massagem pra corrida leve pfv,editar_nome
+"pet, a aula de inglês é a cada 15 dias",repetir
+"pet, deixa trabalho fixa todo sábado pfv",repetir
+"rapidinho, remarca banco pra quarta?",reagendar
+por favor quantas tarefas eu tenho segunda-feira pfv,consultar_tarefas
+pode quantos dias seguidos eu tenho,consultar_sequencia
+o aviso não chega no meu celular,ajuda_notificacoes
+a nota da treino de perna é comprar arroz e feijão aí,editar_descricao
+"rapidinho, reagenda muay thai p hj aí",reagendar
+por favor me lembra de faculdade depois de amanha as 18 horas,agendar
+"pet, o horário certo da reunião do projeto é às 9:30 por favor",editar_horario
+"Ei, muda o nome de trabalho pra mercado do mês?",editar_nome
+"ei, o aviso nao chega no meu celular pfv",ajuda_notificacoes
+"rapidinho, muda o titulo da compromisso oracao para mercado do mes!",editar_nome
+mover tarefa curso para terça,reagendar
+"pet, tô hidratado?",consultar_agua
+pode valeu,saudacao
+"Ei, não precisa me lembrar da aula de inglês!",lembrete_desligar
+remarca jiu-jitsu pra sexta aí,reagendar
+por favor muda banco pro dia quarta!,reagendar
+help pfv,ajuda
+"rapidinho, pode parar de lembrar da yoga pfv",lembrete_desligar
+por favor passa corrida pra 20h30,editar_horario
+por favor quais meus compromissos terça,consultar_tarefas
+pode não recebo aviso pfv,ajuda_notificacoes
+Reagendar tarefa massagem para amanha?,reagendar
+por favor passa leitura pra amanhã?,reagendar
+"Ei, a nota da massagem e pauta trimestral",editar_descricao
+pode quantas horas dormi hj ai,consultar_sono
+nao quero ser lembrado da meditacao?,lembrete_desligar
+pode quanto eu dormi?,consultar_sono
+"ei, vc gosta de pizza? aí",fora
+"pet, não me avisa mais da reunião do projeto",lembrete_desligar
+coloca na descrição de academia: levar documento!,editar_descricao
+"ei, o que posso te pedir!",ajuda
+Quanta agua eu bebi por favor,consultar_agua
+qual meu recorde de dias seguidos,consultar_sequencia
+pode renomear oracao para mercado do mes,editar_nome
+Faz almoço com a mãe se repetir de segunda a sexta!,repetir
+Abre o youtube pfv,fora
+sem lembrete na devocional pfv,lembrete_desligar
+"ei, horas de sono da semana",consultar_sono
+como foi meu sono aí,consultar_sono
+"rapidinho, quanto tempo de sono!",consultar_sono
+coloca lembrete em jiu-jitsu por favor,lembrete_ligar
+por favor desliga o lembrete de yoga,lembrete_desligar
+editar nota da tarefa oração para capítulo 5 por favor,editar_descricao
+pode vai chover segunda? pfv,fora
+por favor meta de água,consultar_agua
+"ei, renomeia leitura pra mercado do mes",editar_nome
+"pet, empurra jiu-jitsu pra hoje",reagendar
+pode qual meu proximo compromisso,consultar_tarefas
+as notificacoes nao chegam pfv,ajuda_notificacoes
+"ei, não sei o que fazer aqui pfv",ajuda
+muda caminhada pro dia dia 25/10!,reagendar
+"Rapidinho, qual a raiz quadrada de 81 pfv",fora
+como você funciona,ajuda
+"rapidinho, qual o próximo da agenda por favor",consultar_tarefas
+por favor quanto de agua devo beber ai,consultar_agua
+o que voce sabe fazer!,ajuda
+"Ei, coloca na descrição de oração: levar exames?",editar_descricao
+"pet, faz meditacao se repetir todo dia pfv",repetir
+"ei, falhei quantas vezes essa semana? por favor",consultar_sequencia
+por favor fala pet,saudacao
+ate mais?,saudacao
+passa reuniao pra segunda por favor,reagendar
+"ei, to dormindo pouco? ai",consultar_sono
+oi,saudacao
+Pode muda o horário de fisioterapia pra meio-dia pfv,editar_horario
+to confuso por favor,ajuda
+o que você faz!,ajuda
+"ei, mostra minhas tarefas de segunda",consultar_tarefas
+tem alguma coisa dia 12?,consultar_tarefas
+"rapidinho, quando e o proximo jogo do flamengo pfv",fora
+Pode como foi meu sono aí,consultar_sono
+quantos copos de agua hoje,consultar_agua
+não sei mexer nisso,ajuda
+"Ei, o aviso não chega no meu celular",ajuda_notificacoes
+"ei, quais são suas funções por favor",ajuda
+"rapidinho, quais são suas funções",ajuda
+"Pet, beleza",saudacao
+liga o lembrete de banco,lembrete_ligar
+"ei, adia mercado pra dia 25/10",reagendar
+por favor e ai,saudacao
+"ei, quero mudar o nome de curso para musculação",editar_nome
+"ei, altera o titulo de natacao pra pilates",editar_nome
+pode renomear massagem para treino A,editar_nome
+traduz bom dia pro espanhol ai,fora
+Pode dormi bem essa noite? por favor,consultar_sono
+por favor muda o nome de almoço com a mãe pra mercado do mês!,editar_nome
+"rapidinho, liga a notificacao de aula de ingles",lembrete_ligar
+por favor como tá minha água por favor,consultar_agua
+muda a descricao de academia pra comprar arroz e feijao por favor,editar_descricao
+O nome de trabalho agora é pilates,editar_nome
+pode bebi agua suficiente? ai,consultar_agua
+"rapidinho, quanta agua eu bebi!",consultar_agua
+tô quantos dias sem falhar??,consultar_sequencia
+"rapidinho, liga a notificação de oração?",lembrete_ligar
+"rapidinho, ativar lembrete do compromisso banco pfv",lembrete_ligar
+"ei, o aviso nao chega no meu celular",ajuda_notificacoes
+empurra meditação pra hoje?,reagendar
+"ei, anota reunião terça às 7h pfv",agendar
+"ei, to hidratado?",consultar_agua
+"Pode reunião começa às 3 da tarde agora, ajusta por favor",editar_horario
+as notificações não chegam!,ajuda_notificacoes
+por favor quanto de água devo beber por favor,consultar_agua
+por favor quero mudar o nome de massagem para treino A?,editar_nome
+"pet, a reunião do projeto não é às 9:30, corrige o horário?",editar_horario
+"rapidinho, almoço com a mãe todo sábado, coloca repetição aí",repetir
+"pet, nova tarefa corrida segunda-feira ai",agendar
+"Ei, lista de hoje?",consultar_tarefas
+por favor quantos ml eu tomei pfv,consultar_agua
+não recebo aviso aí,ajuda_notificacoes
+Me lembra de academia segunda 15h por favor,agendar
+como tá minha semana,consultar_tarefas
+muda a descricao de caminhada pra comprar arroz e feijao?,editar_descricao
+"ei, como foi meu sono",consultar_sono
+"rapidinho, anota estudo segunda",agendar
+pode minha streak?,consultar_sequencia
+Marcar almoço com a mãe hoje,agendar
+"pet, adicionar lembrete na compromisso massagem",lembrete_ligar
+escreve uma música,fora
+por favor quero que estudo repita todo sabado!,repetir
+"ei, inclui muay thai depois de amanha as 9:30",agendar
+"pet, o nome de oração agora é reunião semanal por favor",editar_nome
+pode boa noite?,saudacao
+"rapidinho, lista de hj!",consultar_tarefas
+"pet, adicionar lembrete na trabalho pfv",lembrete_ligar
+Repetir tarefa natação todo mês,repetir
+"pet, troca o nome da faculdade por reuniao semanal ai",editar_nome
+por favor qual meu próximo compromisso pfv,consultar_tarefas
+"rapidinho, tô hidratado?",consultar_agua
+pode pra que serve você?,ajuda
+"ei, hoje eu fiz curso",agendar
+o que falta fazer hoje,consultar_tarefas
+"Ei, coloca oração às 9 em vez das 8 aí",editar_horario
+"pet, o que posso te pedir?",ajuda
+quanto tempo de sono?,consultar_sono
+"rapidinho, fala pet!",saudacao
+"banco mudou de horário, coloca 15h?",editar_horario
+"rapidinho, renomear consulta para treino A por favor",editar_nome
+liga a notificação de jiu-jitsu pfv,lembrete_ligar
+"Pet, remarca psicóloga pra quinta aí",reagendar
+"Rapidinho, qual a proxima tarefa",consultar_tarefas
+Desativa o sininho da curso,lembrete_desligar
+agenda meditação amanhã às 9:30 aí,agendar
+atrasa massagem p às 18 horas aí,editar_horario
+"ei, bom dia!",saudacao
+pode o lembrete nao tocou pfv,ajuda_notificacoes
+Quantas tarefas eu tenho segunda-feira,consultar_tarefas
+por favor dormi bem essa noite? pfv,consultar_sono
+minha hidratação!,consultar_agua
+"rapidinho, remarca caminhada pra segunda-feira por favor",reagendar
+"ei, tira o sino da trabalho",lembrete_desligar
+por favor até mais?,saudacao
+"pet, quais meus compromissos quinta",consultar_tarefas
+por favor como foi meu sono aí,consultar_sono
+"Rapidinho, bebi água suficiente? pfv",consultar_agua
+editar repetição do compromisso mercado para a cada 15 dias por favor,repetir
+que horas eu acordei?,consultar_sono
+"rapidinho, renomeia mercado pra mercado do mês aí",editar_nome
+"ei, que horas fui dormir ontem!",consultar_sono
+por favor editar descrição do tarefa treino de perna para levar exames!,editar_descricao
+bom dia aí,saudacao
+"ei, como coloco o app na tela inicial pfv",ajuda_notificacoes
+quanta água eu bebi pfv,consultar_agua
+minha consistência aí,consultar_sequencia
+"rapidinho, a nota da psicóloga é treino de costas",editar_descricao
+por favor minhas tarefas pfv,consultar_tarefas
+"Pet, quais comandos pfv",ajuda
+Tenho algo marcado semana que vem?,consultar_tarefas
+"ei, já fiz jiu-jitsu hoje, registra aí?",agendar
+Pode como baixar o app no celular por favor,ajuda_notificacoes
+pode como tá minha sequência pfv,consultar_sequencia
+quais são suas funções pfv,ajuda
+por favor editar hora do compromisso faculdade para as 9:30 ai,editar_horario
+"pet, coloca muay thai pra repetir todo sábado pfv",repetir
+desliga o lembrete de curso aí,lembrete_desligar
+"rapidinho, registra que eu fiz trabalho depois de amanhã por favor",agendar
+Pode muda a descrição de jiu-jitsu pra levar documento,editar_descricao
+"ei, não é mais às 8, a consulta é 20h30",editar_horario
+"Pet, quanto de água devo beber",consultar_agua
+pode instalar no android,ajuda_notificacoes
+por favor minha hidratação,consultar_agua
+Muda o título da almoço com a mãe para reunião semanal!,editar_nome
+"pet, deixa natacao fixa todo sabado!",repetir
+"pet, reagendar tarefa corrida para dia 12!",reagendar
+joga estudo pra quinta,reagendar
+"ei, como tá minha sequência?",consultar_sequencia
+"rapidinho, inclui jiu-jitsu quarta às 3 da tarde!",agendar
+"ei, quero agendar mercado dia 25/10",agendar
+"pet, qual meu recorde de dias seguidos por favor",consultar_sequencia
+Tô hidratado? por favor,consultar_agua
+Coloca na descricao de yoga: capitulo 5,editar_descricao
+"ei, para de me avisar da faculdade!",lembrete_desligar
+altera o título de yoga pra musculação,editar_nome
+por favor deixa reunião fixa todo dia,repetir
+passa yoga pra sabado,reagendar
+"já fiz caminhada hoje, registra aí",agendar
+por favor como habilitar pop up por favor,ajuda_notificacoes
+pode adicionar lembrete na atividade psicóloga aí,lembrete_ligar
+por favor editar repeticao do leitura para de segunda a sexta,repetir
+"ei, qual o proximo da agenda ai",consultar_tarefas
+Pode tô quantos dias sem falhar? por favor,consultar_sequencia
+tenho algo marcado semana que vem??,consultar_tarefas
+"pet, onde fica o japao pfv",fora
+"rapidinho, reagendar compromisso oração para quinta pfv",reagendar
+pode como instalar o app?,ajuda_notificacoes
+Qual a raiz quadrada de 81,fora
+como foi meu sono por favor,consultar_sono
+pode média de sono por favor,consultar_sono
+meta de agua,consultar_agua
+"Ei, para de me avisar da treino de perna",lembrete_desligar
+"ei, o que falta fazer hoje por favor",consultar_tarefas
+por favor qual minha sequência,consultar_sequencia
+por favor editar hora do compromisso massagem para às 18 horas aí,editar_horario
+"ei, minha hidratacao",consultar_agua
+como habilitar pop up,ajuda_notificacoes
+"Ei, instalar no android?",ajuda_notificacoes
+repete reuniao a cada 15 dias pfv,repetir
+"ei, transfere corrida pra amanhã às 10 por favor",reagendar
+coloca oração às 9 em vez das 8 pfv,editar_horario
+"Ei, massa aí",saudacao
+"pet, quantos copos de água hoje",consultar_agua
+"pet, liga o lembrete de meditacao",lembrete_ligar
+tô hidratado?,consultar_agua
+Registrar compromisso leitura hoje?,agendar
+"rapidinho, bota o sino na natacao pfv",lembrete_ligar
+"Pet, quanta água eu bebi?",consultar_agua
+"rapidinho, renomear academia para corrida leve?",editar_nome
+"ei, meu sono essa semana?",consultar_sono
+"Rapidinho, que horas fui dormir ontem aí",consultar_sono
+por favor que horas eu acordei?,consultar_sono
+pode marcar lembrete na tarefa mercado por favor,lembrete_ligar
+poe lembrete na academia,lembrete_ligar
+troca mercado das 10 pras 11 por favor,editar_horario
+coloca na descrição de reunião: levar exames,editar_descricao
+Quero ser lembrado da caminhada!,lembrete_ligar
+"pet, renomear academia para mercado do mes pfv",editar_nome
+Obrigada?,saudacao
+remove o lembrete de banco por favor,lembrete_desligar
+"ei, faz natação se repetir todo sábado",repetir
+"Rapidinho, como tá minha sequência aí",consultar_sequencia
+pode agendar meditação pra domingo?,agendar
+"rapidinho, liga o lembrete de caminhada por favor",lembrete_ligar
+por favor quantos dias em sequência?,consultar_sequencia
+"pet, o que eu tenho hoje ai",consultar_tarefas
+como instalar o app por favor,ajuda_notificacoes
+apaga o lembrete de devocional!,lembrete_desligar
+Joga mercado pra dia 25/10 aí,reagendar
+bom dia,saudacao
+"rapidinho, beleza",saudacao
+pode adianta fisioterapia p as 18 horas,editar_horario
+Tchau?,saudacao
+"pet, como usa isso!",ajuda
+O que posso te pedir!,ajuda
+"Pet, minha streak pfv",consultar_sequencia
+Ativa o sininho da muay thai,lembrete_ligar
+"pet, editar descricao do atividade consulta para levar exames pfv",editar_descricao
+"ei, troca a hora da reuniao pra 20h30!",editar_horario
+minha consistencia,consultar_sequencia
+faz uma ligação,fora
+"pet, quero agendar oração semana que vem!",agendar
+editar nome da tarefa banco para corrida leve!,editar_nome
+Joga reunião pra segunda!,reagendar
+"Rapidinho, o lembrete não tocou",ajuda_notificacoes
+"pet, apaga o lembrete de oração?",lembrete_desligar
+tira o aviso da curso?,lembrete_desligar
+o que eu posso falar,ajuda
+Pode adia massagem p amanha,reagendar
+por favor registrar tarefa natacao amanha,agendar
+Pode top,saudacao
+instalar no android,ajuda_notificacoes
+"rapidinho, coloca na descricao de reuniao: levar documento",editar_descricao
+"ei, tenho treino de perna segunda-feira as 7h?",agendar
+"rapidinho, altera o título de fisioterapia p treino A por favor",editar_nome
+"ei, como baixar o app no celular aí",ajuda_notificacoes
+"ei, a treino de perna e toda semana ai",repetir
+por favor qual a capital da argentina,fora
+"rapidinho, que horas eu acordei",consultar_sono
+pode tem alguma coisa domingo? pfv,consultar_tarefas
+Horas de sono da semana por favor,consultar_sono
+adia meditação pra sexta que vem aí,reagendar
+"rapidinho, quantos dias em sequência!",consultar_sequencia
+tem alguma coisa domingo?,consultar_tarefas
+editar descrição do tarefa oração para levar exames!,editar_descricao
+por favor que horas fui dormir ontem!,consultar_sono
+"ei, como usa isso",ajuda
+"a reuniao do projeto nao e 19:00, corrige o horario",editar_horario
+"ei, atualiza a descrição de reunião",editar_descricao
+"rapidinho, renomear leitura para leitura bíblica?",editar_nome
+"ei, registra que eu fiz oração dia 12 por favor",agendar
+"rapidinho, não é mais às 8, a dentista é",editar_horario
+Você é humano? aí,fora
+como baixar o app no celular por favor,ajuda_notificacoes
+"rapidinho, o nome de meditacao agora e musculacao",editar_nome
+"ei, devocional agora e",editar_horario
+"ei, o que voce sabe fazer por favor",ajuda
+"ei, repete yoga todo mês",repetir
+pode o que eu tenho hoje?,consultar_tarefas
+pode marca leitura pra terça meio-dia,agendar
+por favor quais sao suas funcoes por favor,ajuda
+"Rapidinho, mover atividade academia para dia 12 aí",reagendar
+"ei, quantos dias seguidos eu tenho?",consultar_sequencia
+por favor top por favor,saudacao
+quantos copos de água hj!,consultar_agua
+"rapidinho, que horas eu acordei?",consultar_sono
+pode manda mensagem no whatsapp ai,fora
+Qual a temperatura la fora ai,fora
+bom dia ai,saudacao
+"pet, o que eu tenho depois de amanha por favor",consultar_tarefas
+"pet, como habilitar pop up?",ajuda_notificacoes
+"rapidinho, qual a cotacao do euro",fora
+agendar tarefa corrida quarta às 8 aí,agendar
+"treino de perna comeca 19:00 agora, ajusta?",editar_horario
+"rapidinho, media de sono!",consultar_sono
+"ei, vai chover depois de amanha?",fora
+"rapidinho, bom dia pfv",saudacao
+bebi água suficiente? pfv,consultar_agua
+pode empurra fisioterapia pra semana que vem,reagendar
+Escreve comprar arroz e feijão na descrição da psicóloga por favor,editar_descricao
+qual minha sequencia?,consultar_sequencia
+"pet, troca a hora da meditação pra aí",editar_horario
+pode editar repetição do tarefa massagem para a cada 15 dias?,repetir
+quanto tempo de sono!,consultar_sono
+"ei, qual minha sequencia?",consultar_sequencia
+"rapidinho, transfere leitura pra semana que vem por favor",reagendar
+pode como habilitar pop up por favor,ajuda_notificacoes
+pode tirar lembrete da compromisso leitura pfv,lembrete_desligar
+"rapidinho, quantas horas dormi hoje!",consultar_sono
+oi pfv,saudacao
+altera a hora de massagem para às 7h!,editar_horario
+"rapidinho, nova tarefa devocional dia 12 pfv",agendar
+registrar tarefa devocional semana que vem pfv,agendar
+"rapidinho, bota o sino na meditacao pfv",lembrete_ligar
+Passa academia pra amanhã pfv,reagendar
+por favor faz uma ligação pfv,fora
+show!,saudacao
+pode top por favor,saudacao
+pode ajuda?,ajuda
+por favor me ajuda!,ajuda
+Editar repeticao do tarefa yoga para todo sabado,repetir
+top,saudacao
+por favor tô dormindo pouco? aí,consultar_sono
+"pet, empurra almoço com a mãe pra dia 25/10",reagendar
+pode qual a temperatura lá fora aí,fora
+pode não recebo aviso,ajuda_notificacoes
+o nome de corrida agora é leitura bíblica,editar_nome
+"Ei, remarca almoco com a mae p segunda por favor",reagendar
+por favor coloca lembrete em banco,lembrete_ligar
+"rapidinho, corrige o nome devocional pra mercado do mes ai",editar_nome
+pode registrar tarefa psicóloga sexta,agendar
+qual minha sequência?,consultar_sequencia
+Meu sono essa semana,consultar_sono
+Quero ser lembrado da caminhada,lembrete_ligar
+qual a noticia de hj pfv,fora
+por favor como foi meu sono?,consultar_sono
+quanta agua eu bebi ai,consultar_agua
+instalar no android por favor,ajuda_notificacoes
+o aviso nao chega no meu celular,ajuda_notificacoes
+"ei, liga a notificacao de leitura",lembrete_ligar
+"rapidinho, troca o nome da natação por musculação?",editar_nome
+"ei, nao vou conseguir almoco com a mae hoje, joga pra segunda ai",reagendar
+"Rapidinho, reagendar tarefa psicologa para quinta",reagendar
+o que eu tenho depois!,consultar_tarefas
+"rapidinho, pesquisa no google por favor",fora
+"Rapidinho, muda a descrição de leitura p capítulo 5 aí",editar_descricao
+Qual a próxima tarefa!,consultar_tarefas
+"ei, ativar lembrete do compromisso dentista",lembrete_ligar
+cria um compromisso de oração quarta às 8,agendar
+o que tem p amanhã,consultar_tarefas
+"ei, reagendar compromisso devocional para sexta!",reagendar
+"pet, adia oracao pra domingo",reagendar
+minha constância pfv,consultar_sequencia
+Pode corrige o nome oração pra mercado do mês?,editar_nome
+pode falhei quantas vezes essa semana?!,consultar_sequencia
+"pet, passa jiu-jitsu pra 20h30 ai",editar_horario
+quero mudar o horário da almoço com a mãe!,editar_horario
+"a oracao nao e as 3 da tarde, corrige o horario",editar_horario
+tô quantos dias sem falhar? por favor,consultar_sequencia
+"Pet, ativa o sininho da caminhada!",lembrete_ligar
+qual minha sequencia por favor,consultar_sequencia
+ativar lembrete do compromisso mercado!,lembrete_ligar
+liga a notificação de consulta?,lembrete_ligar
+"rapidinho, quantos copos de agua hoje",consultar_agua
+atrasa jiu-jitsu pra por favor,editar_horario
+Pode muda o nome de estudo pra reunião semanal?,editar_nome
+Boa tarde pfv,saudacao
+"pet, a nota da leitura e comprar arroz e feijao",editar_descricao
+pode ate mais?,saudacao
+pode muda o nome de aula de inglês pra corrida leve,editar_nome
+"ei, o que você faz por favor",ajuda
+meta de água!,consultar_agua
+por favor como coloco o app na tela inicial pfv,ajuda_notificacoes
+como se diz obrigado em ingles pfv,fora
+como ativar notificacao,ajuda_notificacoes
+troca o nome da reunião do projeto por corrida leve por favor,editar_nome
+"Ei, altera a observacao de consulta p capitulo 5",editar_descricao
+pode bota o sino na leitura aí,lembrete_ligar
+pode quem é o presidente do brasil!,fora
+muda o nome de yoga pra pilates?,editar_nome
+quero ser lembrado da estudo pfv,lembrete_ligar
+por favor show,saudacao
+"rapidinho, traduz bom dia pro espanhol?",fora
+"pet, escreve pauta trimestral na descrição da massagem",editar_descricao
+"pet, como tá minha água",consultar_agua
+"Pet, o lembrete não tocou aí",ajuda_notificacoes
+"pet, qual meu próximo compromisso",consultar_tarefas
+Pode me avisa antes de devocional pfv,lembrete_ligar
+muda o nome de leitura p reunião semanal,editar_nome
+por favor troca o nome da tarefa psicóloga por musculação!,editar_nome
+renomeia devocional pra musculação,editar_nome
+Pode nao sei o que fazer aqui ai,ajuda
+"pet, repete almoco com a mae de segunda a sexta ai",repetir
+"rapidinho, qual a próxima tarefa",consultar_tarefas
+"ei, nao sei mexer nisso",ajuda
+liga o lembrete de yoga,lembrete_ligar
+me lembra de leitura segunda-feira as 18 horas,agendar
+quero mudar o horário da academia pfv,editar_horario
+pode corrige o nome meditacao pra corrida leve?,editar_nome
+pode mover atividade academia para domingo!,reagendar
+"Rapidinho, minha streak pfv",consultar_sequencia
+minha streak?,consultar_sequencia
+"ei, qual minha sequência aí",consultar_sequencia
+"Rapidinho, tirar lembrete da compromisso oracao por favor",lembrete_desligar
+cancela o lembrete do compromisso trabalho ai,lembrete_desligar
+"Ei, dormi bem essa noite? aí",consultar_sono
+"Pet, vou ter leitura quarta as 18 horas, marca p mim",agendar
+troca o detalhe da yoga para treino de costas?,editar_descricao
+"pet, coloca consulta na agenda domingo às 10?",agendar
+oracao agora e as 18 horas?,editar_horario
+para de me avisar da dentista aí,lembrete_desligar
+quanto de água devo beber,consultar_agua
+por favor o horário certo da psicóloga é às 7h?,editar_horario
+pode coloca na descricao de massagem: treino de costas,editar_descricao
+o nome de dentista agora é estudo de python aí,editar_nome
+corrige o nome banco pra corrida leve por favor,editar_nome
+por favor como ativar notificação por favor,ajuda_notificacoes
+repete caminhada toda semana por favor,repetir
+o que eu tenho terça,consultar_tarefas
+muda almoco com a mae pro dia dia 25/10,reagendar
+atrasa muay thai pra às 6 da manhã pfv,editar_horario
+o que eu tenho hoje?,consultar_tarefas
+anota reuniao do projeto hj as 18 horas ai,agendar
+"Pet, pode parar de lembrar da dentista?",lembrete_desligar
+por favor corrige o nome leitura pra corrida leve ai,editar_nome
+adia massagem pra dia 12?,reagendar
+cria um compromisso de curso sexta as 10!,agendar
+pode editar repeticao do atividade faculdade para dias uteis por favor,repetir
+"rapidinho, repetir massagem todo dia",repetir
+"pet, reagendar atividade consulta para sabado",reagendar
+por favor olá,saudacao
+qual minha sequencia,consultar_sequencia
+"rapidinho, opa por favor",saudacao
+por favor coloca na descricao de academia: capitulo 5 ai,editar_descricao
+meu sono essa semana por favor,consultar_sono
+quantos anos tem o universo aí,fora
+mover compromisso fisioterapia para segunda-feira?,reagendar
+"ei, adiciona a nota levar documento em academia",editar_descricao
+por favor não quero ser lembrado da caminhada aí,lembrete_desligar
+"Ei, renomear reunião do projeto para estudo de python aí",editar_nome
+por favor a consulta é toda segunda?,repetir
+pode muda o nome de reunião do projeto pra estudo de python por favor,editar_nome
+"pet, quanto falta de agua hoje",consultar_agua
+"pet, transfere dentista pra depois de amanhã meio-dia",reagendar
+marca trabalho pra amanha 15h!,agendar
+"Rapidinho, recomenda um filme ai",fora
+"ei, desativar lembrete do compromisso estudo",lembrete_desligar
+por favor o que posso te pedir por favor,ajuda
+"vou ter academia amanha as 7h, marca pra mim!",agendar
+"rapidinho, faz muay thai se repetir de segunda a sexta aí",repetir
+"pet, cancela o lembrete do compromisso yoga?",lembrete_desligar
+pode como instalar o app por favor,ajuda_notificacoes
+me lembra de mercado hoje às 18 horas,agendar
+Pode poe lembrete na devocional,lembrete_ligar
+"Ei, preciso marcar academia semana que vem meio-dia",agendar
+corrige o nome caminhada p leitura bíblica por favor,editar_nome
+Coloca aula de inglês pra repetir todo dia,repetir
+pode atrasa fisioterapia pra às 3 da tarde!,editar_horario
+pode editar horário do compromisso massagem para 20h30!,editar_horario
+pode o nome de curso agora e leitura biblica,editar_nome
+"ei, tem alguma coisa sexta??",consultar_tarefas
+to quantos dias sem falhar? por favor,consultar_sequencia
+"pet, marca oracao pra sexta 20h30 pfv",agendar
+e ai,saudacao
+que horas fui dormir ontem aí,consultar_sono
+"pet, editar repetição do atividade muay thai para a cada 15 dias aí",repetir
+pode que horas fui dormir ontem!,consultar_sono
+"ei, chega de lembrete na trabalho",lembrete_desligar
+qual meu proximo compromisso,consultar_tarefas
+como ativar notificação,ajuda_notificacoes
+pra que serve voce,ajuda
+pode minha hidratacao por favor,consultar_agua
+"ei, me avisa antes de consulta por favor",lembrete_ligar
+Por favor chega de lembrete na estudo,lembrete_desligar
+não precisa avisar de dentista,lembrete_desligar
+a mercado e todo mes!,repetir
+"Pet, quantos dias em sequência",consultar_sequencia
+"rapidinho, qual a raiz quadrada de 81 por favor",fora
+Pode quais sao suas funcoes,ajuda
+"ei, atrasa mercado pra 20h30",editar_horario
+pra que serve voce por favor,ajuda
+"pet, boa tarde!",saudacao
+"pet, minha hidratacao?",consultar_agua
+Nao recebo aviso pfv,ajuda_notificacoes
+"pet, preciso marcar reunião do projeto quinta às 9:30?",agendar
+"Pet, empurra banco pra depois de amanhã",reagendar
+A corrida e toda segunda!,repetir
+Mover atividade trabalho para terça pfv,reagendar
+"rapidinho, altera a hora de leitura para as 8",editar_horario
+pode beleza ai,saudacao
+"ei, altera o título de almoço com a mãe pra musculação por favor",editar_nome
+"Ei, dormi bem essa noite? ai",consultar_sono
+por favor reagenda fisioterapia p amanhã?,reagendar
+"rapidinho, o que voce sabe fazer pfv",ajuda
+"ei, remarca fisioterapia p terca ai",reagendar
+"rapidinho, quais atividades faltam pfv",consultar_tarefas
+cria um compromisso de massagem quinta ?,agendar
+"pet, horas de sono da semana aí",consultar_sono
+pode quanto tempo de sono aí,consultar_sono
+joga fisioterapia pra amanhã pfv,reagendar
+por favor não precisa avisar de curso aí,lembrete_desligar
+editar repetição do mercado para todo dia,repetir
+Tudo bem?,saudacao
+"ei, coloca trabalho pra repetir todo sábado",repetir
+"Pet, quanto eu dormi!",consultar_sono
+Muda o titulo da compromisso curso para corrida leve ai,editar_nome
+Pode troca o dia da psicóloga pra sábado por favor,reagendar
+Por favor troca o detalhe da caminhada para levar documento aí,editar_descricao
+"pet, tenho aula de inglês dia 25/10 às 6 da manhã!",agendar
+O que falta fazer hoje,consultar_tarefas
+pode remarca academia pra semana que vem,reagendar
+"ei, altera o titulo de natacao pra estudo de python pfv",editar_nome
+Quantos dias em sequência!,consultar_sequencia
+por favor até mais,saudacao
+"Rapidinho, muda a descrição de fisioterapia pra capítulo 5?",editar_descricao
+"pet, põe lembrete na muay thai",lembrete_ligar
+obrigado!,saudacao
+"pet, não quero mais aviso da mercado por favor",lembrete_desligar
+por favor tô dormindo pouco?,consultar_sono
+Pode muda o titulo da compromisso faculdade para musculacao,editar_nome
+renomear banco para mercado do mes,editar_nome
+Por favor show,saudacao
+por favor inclui muay thai sexta que vem 19:00,agendar
+me fala uma curiosidade?,fora
+onde fica o japao,fora
+a nota da devocional é treino de costas,editar_descricao
+"ei, bebi água suficiente??",consultar_agua
+"Rapidinho, muda a descrição de oração pra capítulo 5",editar_descricao
+o horário certo da almoço com a mãe é 15h pfv,editar_horario
+"pet, adia banco pra sabado",reagendar
+pode quais meus compromissos depois de amanhã,consultar_tarefas
+altera a observacao de jiu-jitsu pra pauta trimestral pfv,editar_descricao
+por favor me ajuda pfv,ajuda
+ativar lembrete do compromisso dentista,lembrete_ligar
+pode muda reunião pro dia quinta!,reagendar
+inclui trabalho semana que vem as 3 da tarde pfv,agendar
+"rapidinho, me avisa antes de mercado ai",lembrete_ligar
+Pode coloca faculdade as 9 em vez das 8,editar_horario
+"rapidinho, aula de inglês mudou de horário, coloca às 8",editar_horario
+"rapidinho, tchau ai",saudacao
+por favor muda caminhada pras 7 ao invés das 6?,editar_horario
+editar descricao do atividade almoco com a mae para treino de costas pfv,editar_descricao
+"Ei, massa",saudacao
+altera a observação de aula de inglês pra treino de costas pfv,editar_descricao
+"Rapidinho, me mostra meu sono",consultar_sono
+coloca na descricao de corrida: pauta trimestral?,editar_descricao
+liga a notificacao de leitura ai,lembrete_ligar
+quanto falta de água hoje,consultar_agua
+"Rapidinho, nao quero mais aviso da natacao",lembrete_desligar
+"pet, tô quantos dias sem falhar?",consultar_sequencia
+Quanto eu dormi?,consultar_sono
+Marcar lembrete na tarefa estudo pfv,lembrete_ligar
+por favor altera o título de aula de inglês pra mercado do mês por favor,editar_nome
+falhei quantas vezes essa semana?,consultar_sequencia
+oi pet,saudacao
+"ei, mover atividade reunião do projeto para terça aí",reagendar
+passa banco pra sábado?,reagendar
+"rapidinho, manda mensagem no whatsapp",fora
+O aviso não chega no meu celular pfv,ajuda_notificacoes
+pode o que eu posso falar pfv,ajuda
+"Trabalho toda segunda, coloca repetição",repetir
+remarca banco pra depois de amanhã,reagendar
+não quero ser lembrado da almoço com a mãe,lembrete_desligar
+quero ser lembrado da oracao,lembrete_ligar
+"ei, como tá minha água aí",consultar_agua
+pode quanto falta de água hj,consultar_agua
+faz uma ligação por favor,fora
+Qual a próxima tarefa?,consultar_tarefas
+pode média de sono,consultar_sono
+"Pet, quanto é 15 vezes 3",fora
+horas de sono da semana!,consultar_sono
+"Pet, bota o sino na corrida",lembrete_ligar
+"pet, tô dormindo pouco?",consultar_sono
+pode me avisa antes de banco,lembrete_ligar
+"rapidinho, minha streak por favor",consultar_sequencia
+to hidratado?,consultar_agua
+Pode troca o dia da dentista pra amanhã?,reagendar
+"ei, como ta minha agua!",consultar_agua
+quantas horas dormi hoje,consultar_sono
+reagendar compromisso muay thai para amanhã aí,reagendar
+"Pet, oi pet por favor",saudacao
+Por favor reagendar atividade leitura para sexta aí,reagendar
+"pet, como baixar o app no celular?",ajuda_notificacoes
+Pode quanta agua eu bebi ai,consultar_agua
+como falo com você,ajuda
+"Rapidinho, boa tarde",saudacao
+"Pet, editar nota da tarefa psicóloga para levar documento por favor",editar_descricao
+não precisa me lembrar da oração pfv,lembrete_desligar
+"ei, pode parar de lembrar da reunião do projeto por favor",lembrete_desligar
+o que eu tenho depois,consultar_tarefas
+pode remove o lembrete de estudo?,lembrete_desligar
+tô hidratado?!,consultar_agua
+"rapidinho, adiciona a nota comprar arroz e feijao em natacao!",editar_descricao
+e aí aí,saudacao
+bota o sino na corrida,lembrete_ligar
+pode você é humano? por favor,fora
+pode adianta natação p às 7h?,editar_horario
+por favor quero agendar reunião do projeto sexta que vem pfv,agendar
+pode não vibra quando chega aviso,ajuda_notificacoes
+por favor horas de sono da semana por favor,consultar_sono
+transfere almoco com a mae pra amanha 20h30 por favor,reagendar
+por favor ola,saudacao
+"ei, atualiza a descrição de curso aí",editar_descricao
+"rapidinho, como ta minha sequencia?",consultar_sequencia
+"Rapidinho, editar repetição do compromisso dentista para todo dia aí",repetir
+Minha constância,consultar_sequencia
+desativar lembrete do compromisso meditação,lembrete_desligar
+socorro,ajuda
+"pode estudo comeca 19:00 agora, ajusta",editar_horario
+"rapidinho, me avisa antes de reuniao",lembrete_ligar
+"rapidinho, notificação não aparece no iphone aí",ajuda_notificacoes
+pode agendar compromisso segunda-feira meio-dia título estudo pfv,agendar
+qual o próximo da agenda aí,consultar_tarefas
+por favor renomear academia para mercado do mês por favor,editar_nome
+"ei, desativa o sininho da natação pfv",lembrete_desligar
+"Ei, o lembrete não tocou",ajuda_notificacoes
+não recebo aviso,ajuda_notificacoes
+editar nota da tarefa psicóloga para levar documento!,editar_descricao
+por favor quero mudar o nome de natacao para estudo de python?,editar_nome
+"ei, meu sono essa semana",consultar_sono
+Meu sono essa semana!,consultar_sono
+"ei, to dormindo pouco? pfv",consultar_sono
+quantos dias seguidos eu tenho,consultar_sequencia
+por favor o que vc sabe fazer aí,ajuda
+Pode como coloco o app na tela inicial?,ajuda_notificacoes
+"rapidinho, o nome de natação agora é mercado do mês!",editar_nome
+Quanta agua eu bebi,consultar_agua
+Bebi agua suficiente?,consultar_agua
+"pet, pra que serve você?",ajuda
+por favor renomeia reunião pra mercado do mês,editar_nome
+quanto falta de agua hoje,consultar_agua
+banco agora é às 10 por favor,editar_horario
+por favor bom dia,saudacao
+"pet, que horas fui dormir ontem!",consultar_sono
+"pet, troca o nome da tarefa treino de perna por treino A",editar_nome
+por favor quero agendar leitura segunda-feira,agendar
+pode para de me avisar da academia!,lembrete_desligar
+o que ainda não fiz hoje,consultar_tarefas
+pode quantas horas dormi hoje,consultar_sono
+por favor qual a melhor série da netflix por favor,fora
+troca o dia da jiu-jitsu p terca?,reagendar
+transfere reuniao do projeto pra hoje as 6 da manha!,reagendar
+"pet, deixa dentista fixa todo dia pfv",repetir
+"ei, ajuda",ajuda
+"rapidinho, qual o placar do inter",fora
+tchau,saudacao
+"ei, quanto falta de água hj!",consultar_agua
+coloca aula de inglês p repetir a cada 15 dias,repetir
+Pode recorrencia de almoco com a mae toda semana!,repetir
+quantos ml eu tomei?,consultar_agua
+"rapidinho, quanto e 15 vezes 3",fora
+pode como ativar notificação!,ajuda_notificacoes
+não vibra quando chega aviso?,ajuda_notificacoes
+"Rapidinho, quantos ml eu tomei",consultar_agua
+Quantos ml eu tomei,consultar_agua
+"rapidinho, muda treino de perna pro dia dia 12 por favor",reagendar
+"Ei, dormi bem essa noite?",consultar_sono
+renomear yoga para reunião semanal!,editar_nome
+fala pet,saudacao
+muda a descricao de yoga pra pauta trimestral por favor,editar_descricao
+Pode o lembrete não tocou,ajuda_notificacoes
+passa meditacao pra as 7h,editar_horario
+"rapidinho, muda o nome de curso pra leitura biblica",editar_nome
+media de sono pfv,consultar_sono
+troca o detalhe da faculdade para levar exames?,editar_descricao
+Por favor bota o sino na devocional ai,lembrete_ligar
+"pet, ativar lembrete do compromisso academia!",lembrete_ligar
+"ei, tô hidratado? por favor",consultar_agua
+"ei, beleza",saudacao
+"Rapidinho, oi pet por favor",saudacao
+minha hidratacao,consultar_agua
+Renomear reunião para treino a!,editar_nome
+Por favor coloca na descrição de academia: capítulo 5 por favor,editar_descricao
+adia natacao pra dia 25/10,reagendar
+por favor faz uma ligação?,fora
+"rapidinho, recorrência de curso dias úteis?",repetir
+deixa devocional fixa a cada 15 dias!,repetir
+"Rapidinho, quanta água eu bebi por favor",consultar_agua
+Por favor as notificações não chegam,ajuda_notificacoes
+"pet, o que ainda nao fiz hoje por favor",consultar_tarefas
+"pet, meta de água",consultar_agua
+reagendar atividade fisioterapia para terça pfv,reagendar
+altera a observação de massagem pra comprar arroz e feijão?,editar_descricao
+"Ei, o que você faz",ajuda
+pode o lembrete não tocou pfv,ajuda_notificacoes
+pode como foi meu sono!,consultar_sono
+pode ativar lembrete do compromisso caminhada,lembrete_ligar
+por favor não me avisa mais da consulta!,lembrete_desligar
+transfere dentista pra hoje às 9:30 por favor,reagendar
+troca o detalhe da leitura para capitulo 5 ai,editar_descricao
+Por favor atrasa treino de perna p às 6 da manhã,editar_horario
+coloca muay thai pra repetir dias úteis aí,repetir
+quero que caminhada repita toda segunda,repetir
+"ei, editar nota da tarefa mercado para levar documento",editar_descricao
+"rapidinho, altera a observação de treino de perna p levar documento pfv",editar_descricao
+por favor valeu pfv,saudacao
+pode quanto de agua devo beber,consultar_agua
+"pet, quero ser lembrado da consulta",lembrete_ligar
+Pode desliga o lembrete de mercado,lembrete_desligar
+"rapidinho, qual a temperatura la fora",fora
+"pet, como usa isso pfv",ajuda
+Pode quando é o próximo jogo do flamengo,fora
+como baixar o app no celular?,ajuda_notificacoes
+pode nao quero mais aviso da psicologa,lembrete_desligar
+Por favor passa faculdade pra amanha,reagendar
+"pet, beleza",saudacao
+"Pet, minha hidratacao ai",consultar_agua
+"pet, quero que muay thai repita todo dia por favor",repetir
+por favor boa tarde!,saudacao
+valeu,saudacao
+"Rapidinho, coloca lembrete em academia",lembrete_ligar
+me avisa antes de reunião,lembrete_ligar
+pode bebi água suficiente? pfv,consultar_agua
+pode faz meditacao se repetir todo sabado por favor,repetir
+"ei, pode parar de lembrar da massagem ai",lembrete_desligar
+por favor qual minha sequência?,consultar_sequencia
+Pode muda natação pras 7 ao invés das 6?,editar_horario
+por favor to quantos dias sem falhar??,consultar_sequencia
+"ei, tudo bem?!",saudacao
+qual meu recorde de dias seguidos?,consultar_sequencia
+"oração mudou de horário, coloca meio-dia",editar_horario
+"Rapidinho, faz corrida se repetir dias úteis pfv",repetir
+"ei, quanto eu dormi pfv",consultar_sono
+"rapidinho, coloca lembrete em curso ai",lembrete_ligar
+altera a observação de mercado pra capítulo 5,editar_descricao
+pode como coloco o app na tela inicial por favor,ajuda_notificacoes
+"rapidinho, como tá minha água aí",consultar_agua
+escreve comprar arroz e feijão na descrição da almoço com a mãe pfv,editar_descricao
+"rapidinho, editar nota da tarefa leitura para comprar arroz e feijão aí",editar_descricao
+ativar lembrete do compromisso oracao por favor,lembrete_ligar
+"pet, meta de água por favor",consultar_agua
+"rapidinho, tudo bem?",saudacao
+"rapidinho, renomeia fisioterapia pra mercado do mes",editar_nome
+muda a descricao de almoco com a mae pra treino de costas!,editar_descricao
+Tira o sino da psicologa ai,lembrete_desligar
+pode escreve capítulo 5 na descrição da devocional!,editar_descricao
+"rapidinho, quais sao suas funcoes pfv",ajuda
+como se diz obrigado em ingles,fora
+o lembrete não tocou por favor,ajuda_notificacoes
+"pet, como ta minha sequencia pfv",consultar_sequencia
+editar horario do mercado para meio-dia,editar_horario
+por favor a nota da trabalho e pauta trimestral,editar_descricao
+editar hora do compromisso trabalho para às 6 da manhã por favor,editar_horario
+Renomeia caminhada pra mercado do mês,editar_nome
+"rapidinho, quanto tempo de sono pfv",consultar_sono
+"pet, show",saudacao
+"rapidinho, a nota da academia é levar documento pfv",editar_descricao
+troca a hora da psicóloga pra 15h,editar_horario
+tira o aviso da consulta?,lembrete_desligar
+Pode registrar tarefa estudo sexta!,agendar
+minha consistência?,consultar_sequencia
+por favor o nome de mercado agora e corrida leve,editar_nome
+"ei, fala pet!",saudacao
+To confuso pfv,ajuda
+"ei, quais atividades faltam",consultar_tarefas
+"pet, quantos anos tem o universo aí",fora
+"rapidinho, conta uma piada!",fora
+"pet, quantos dias em sequência",consultar_sequencia
+"ei, show!",saudacao
+"rapidinho, notificação não aparece no iphone",ajuda_notificacoes
+me avisa antes de massagem,lembrete_ligar
+por favor ativa o sininho da banco,lembrete_ligar
+por favor faz uma ligacao,fora
+ativar lembrete do compromisso muay thai?,lembrete_ligar
+pode qual minha sequência,consultar_sequencia
+pode minha consistência,consultar_sequencia
+editar nome da tarefa reuniao para mercado do mes,editar_nome
+pode para de me avisar da jiu-jitsu!,lembrete_desligar
+pode me avisa antes de corrida?,lembrete_ligar
+"pet, atualiza a descricao de meditacao",editar_descricao
+por favor escreve capítulo 5 na descrição da almoço com a mãe pfv,editar_descricao
+por favor não quero mais aviso da fisioterapia,lembrete_desligar
+quais são suas funções,ajuda
+"rapidinho, deixa trabalho fixa dias uteis",repetir
+"rapidinho, chega de lembrete na curso aí",lembrete_desligar
+Recorrência de faculdade todo dia pfv,repetir
+por favor pode agendar estudo pra hoje?,agendar
+"rapidinho, nao sei usar isso",ajuda
+Por favor troca aula de inglês das 10 pras 11 por favor,editar_horario
+pode não precisa avisar de muay thai,lembrete_desligar
+pode coloca lembrete em reuniao,lembrete_ligar
+Por favor que horas fui dormir ontem!,consultar_sono
+Repete almoço com a mãe todo mês?,repetir
+me explica como funciona por favor,ajuda
+Atualiza a descrição de aula de inglês,editar_descricao
+o que ainda não fiz hoje?,consultar_tarefas
+pode quanto eu dormi!,consultar_sono
+"rapidinho, me conta uma história aí",fora
+"Ei, registra que eu fiz yoga depois de amanhã por favor",agendar
+pode o que falta fazer hoje,consultar_tarefas
+"consulta mudou de horario, coloca 20h30 pfv",editar_horario
+"ei, boa noite?",saudacao
+"pet, a oração é a cada 15 dias",repetir
+não me avisa mais da caminhada aí,lembrete_desligar
+"Pet, atualiza a descricao de banco ai",editar_descricao
+me avisa antes de psicóloga!,lembrete_ligar
+editar repeticao do tarefa jiu-jitsu para toda semana,repetir
+Como se diz obrigado em inglês pfv,fora
+por favor quero mudar o horario da fisioterapia,editar_horario
+Minha streak pfv,consultar_sequencia
+Editar descrição do atividade dentista para levar documento,editar_descricao
+"ei, tô quantos dias sem falhar? pfv",consultar_sequencia
+"rapidinho, massa!",saudacao
+quantas horas dormi hj por favor,consultar_sono
+top por favor,saudacao
+"Pet, minha constância pfv",consultar_sequencia
+quero que trabalho repita a cada 15 dias,repetir
+"ei, registrar estudo segunda?",agendar
+"pet, marcar oração dia 12 meio-dia?",agendar
+"pet, editar descrição do compromisso academia para comprar arroz e feijão",editar_descricao
+Quero ser lembrado da leitura aí,lembrete_ligar
+Muda jiu-jitsu pras 7 ao invés das 6,editar_horario
+"pet, anota curso quarta",agendar
+Troca a hora da devocional pra às 10 pfv,editar_horario
+"rapidinho, tchau pfv",saudacao
+quanto falta de água hj!,consultar_agua
+por favor quais sao suas funcoes?,ajuda
+pode o aviso não chega no meu celular por favor,ajuda_notificacoes
+altera o titulo de faculdade p leitura biblica,editar_nome
+Altera o titulo de dentista pra pilates,editar_nome
+pode a yoga e todo dia,repetir
+por favor tô confuso?,ajuda
+"Mercado de segunda a sexta, coloca repeticao",repetir
+por favor quantos dias em sequência pfv,consultar_sequencia
+Por favor tô hidratado?!,consultar_agua
+por favor empurra devocional pra depois de amanhã?,reagendar
+pode reagendar compromisso jiu-jitsu para terça,reagendar
+"ei, tenho academia dia 12 20h30 por favor",agendar
+Pode renomeia psicóloga pra corrida leve?,editar_nome
+"ei, bota banco quinta as 8",agendar
+por favor quantas horas dormi hoje,consultar_sono
+"ei, meu sono essa semana por favor",consultar_sono
+mover tarefa caminhada para amanha por favor,reagendar
+tirar lembrete da atividade meditação aí,lembrete_desligar
+"pet, desativa o sininho da caminhada?",lembrete_desligar
+pode nao quero mais aviso da banco,lembrete_desligar
+"ei, quantas tarefas eu tenho terça aí",consultar_tarefas
+como coloco o app na tela inicial pfv,ajuda_notificacoes
+"Rapidinho, como baixar o app no celular",ajuda_notificacoes
+"rapidinho, to confuso",ajuda
+qual a notícia de hoje pfv,fora
+hoje eu fiz leitura!,agendar
+"ei, bota o sino na trabalho por favor",lembrete_ligar
+por favor quantas horas dormi hoje ai,consultar_sono
+Como se diz obrigado em inglês?,fora
+"rapidinho, bota caminhada dia 12 às 8 pfv",agendar
+"pet, até mais por favor",saudacao
+"Pet, altera a observacao de meditacao pra levar exames?",editar_descricao
+"rapidinho, o que posso te pedir aí",ajuda
+pode bom dia,saudacao
+"rapidinho, faz psicóloga se repetir de segunda a sexta!",repetir
+Como ativar notificação pfv,ajuda_notificacoes
+"rapidinho, tô quantos dias sem falhar?",consultar_sequencia
+"pet, inclui reuniao do projeto dia 25/10 as 18 horas ai",agendar
+"rapidinho, pra que serve você por favor",ajuda
+reagendar atividade banco para semana que vem!,reagendar
+"Pode reunião todo sábado, coloca repetição pfv",repetir
+Adicionar lembrete na tarefa muay thai,lembrete_ligar
+"pet, me dá uma receita de bolo",fora
+troca a hora da dentista pra às 6 da manhã,editar_horario
+"ei, reuniao toda semana, coloca repeticao",repetir
+por favor liga o lembrete de natação!,lembrete_ligar
+"ei, quero que almoco com a mae repita a cada 15 dias por favor",repetir
+"rapidinho, quais comandos?",ajuda
+Dormi bem essa noite?,consultar_sono
+altera o título de academia p musculação,editar_nome
+"rapidinho, como usa isso pfv",ajuda
+qual meu recorde de dias seguidos!,consultar_sequencia
+"Pet, transfere reuniao pra dia 25/10 20h30 por favor",reagendar
+quem escreveu dom casmurro?,fora
+Não quero ser lembrado da academia,lembrete_desligar
+por favor quantas horas dormi hoje?,consultar_sono
+"Rapidinho, joga curso pra segunda",reagendar
+pode qual a próxima tarefa aí,consultar_tarefas
+pode transfere muay thai pra dia 25/10 20h30 aí,reagendar
+Pode troca o nome da tarefa caminhada por musculação,editar_nome
+"rapidinho, escreve uma musica pfv",fora
+Editar nome da dentista para estudo de python,editar_nome
+"pet, passa banco pra !",editar_horario
+pode troca o detalhe da leitura para comprar arroz e feijão pfv,editar_descricao
+"pet, tenho caminhada segunda as 8!",agendar
+"Rapidinho, falhei quantas vezes essa semana?",consultar_sequencia
+por favor minha consistência por favor,consultar_sequencia
+"ei, adicionar lembrete na reunião aí",lembrete_ligar
+não quero ser lembrado da oração,lembrete_desligar
+Oi,saudacao
+pode resolve essa equação,fora
+"ei, quero que fisioterapia repita toda segunda por favor",repetir
+qual o preco da gasolina?,fora
+"ei, quanto de água devo beber",consultar_agua
+"pet, como baixar o app no celular",ajuda_notificacoes
+"rapidinho, adiciona a nota treino de costas em consulta!",editar_descricao
+Pode registra que eu fiz curso sexta?,agendar
+por favor falhei quantas vezes essa semana?,consultar_sequencia
+Por favor minha consistencia,consultar_sequencia
+"ei, tchau por favor",saudacao
+"rapidinho, oi pet por favor",saudacao
+por favor como tá minha água!,consultar_agua
+"ei, como ativar notificacao?",ajuda_notificacoes
+"pet, minha streak!",consultar_sequencia
+"Rapidinho, liga a notificação de jiu-jitsu",lembrete_ligar
+marcar lembrete na tarefa leitura?,lembrete_ligar
+"rapidinho, bebi água suficiente?!",consultar_agua
+Pode atualiza a descrição de corrida,editar_descricao
+por favor reagenda massagem pra semana que vem,reagendar
+"Rapidinho, o que ainda nao fiz hoje",consultar_tarefas
+"ei, minha constancia ai",consultar_sequencia
+"rapidinho, as notificações não chegam",ajuda_notificacoes
+Pode tô quantos dias sem falhar?,consultar_sequencia
+boa noite,saudacao
+"ei, quero que consulta repita dias úteis",repetir
+Tirar lembrete da atividade trabalho!,lembrete_desligar
+pode tô dormindo pouco?!,consultar_sono
+resolve essa equação,fora
+coloca caminhada pra repetir de segunda a sexta,repetir
+por favor media de sono pfv,consultar_sono
+muda o título da compromisso oração para treino A!,editar_nome
+editar nome da tarefa jiu-jitsu para corrida leve,editar_nome
+pode as notificações não chegam por favor,ajuda_notificacoes
+pode editar hora do compromisso caminhada para 15h,editar_horario
+"Oração toda segunda, coloca repetição aí",repetir
+pode me conta uma história,fora
+"rapidinho, muda o horario de reuniao do projeto pra as 6 da manha ai",editar_horario
+falhei quantas vezes essa semana? pfv,consultar_sequencia
+coloca curso pra repetir toda semana,repetir
+pode muda o nome de academia p musculação!,editar_nome
+"ei, quais comandos aí",ajuda
+"Rapidinho, quantos dias em sequência?",consultar_sequencia
+"Rapidinho, quantos ml eu tomei por favor",consultar_agua
+como habilitar pop up!,ajuda_notificacoes
+por favor altera a observação de academia pra levar exames?,editar_descricao
+não recebo aviso!,ajuda_notificacoes
+"rapidinho, editar descricao do consulta para levar exames por favor",editar_descricao
+"rapidinho, escreve treino de costas na descricao da meditacao?",editar_descricao
+por favor como você funciona aí,ajuda
+pode repetir atividade dentista todo mes por favor,repetir
+pode falhei quantas vezes essa semana? ai,consultar_sequencia
+"pet, agenda oração semana que vem às 3 da tarde pfv",agendar
+"Rapidinho, me conta uma história",fora
+não sei usar isso!,ajuda
+O que falta fazer hj?,consultar_tarefas
+"pet, mostra minhas tarefas de depois de amanhã!",consultar_tarefas
+"ei, mover compromisso psicóloga para quarta",reagendar
+por favor valeu?,saudacao
+quanto eu dormi,consultar_sono
+"pet, poe lembrete na psicologa!",lembrete_ligar
+"ei, help por favor",ajuda
+"pet, quanto eu dormi!",consultar_sono
+"rapidinho, escreve comprar arroz e feijão na descrição da treino de perna!",editar_descricao
+boa noite ai,saudacao
+nao recebo aviso?,ajuda_notificacoes
+quantos copos de agua hoje ai,consultar_agua
+por favor que horas eu acordei pfv,consultar_sono
+Liga a notificacao de academia,lembrete_ligar
+editar nota da tarefa jiu-jitsu para levar exames?,editar_descricao
+"rapidinho, quanto falta de agua hoje pfv",consultar_agua
+Tenho algo marcado amanhã?,consultar_tarefas
+"por favor corrida começa agora, ajusta?",editar_horario
+por favor sem notificação pra dentista pfv,lembrete_desligar
+show por favor,saudacao
+por favor quanto falta de agua hoje?,consultar_agua
+repete corrida de segunda a sexta,repetir
+deixa dentista fixa toda segunda aí,repetir
+"ei, minha constância!",consultar_sequencia
+"pet, to dormindo pouco? pfv",consultar_sono
+editar repeticao do curso para todo sabado pfv,repetir
+pode editar nome da compromisso aula de ingles para treino A,editar_nome
+"pet, as notificações não chegam?",ajuda_notificacoes
+"ei, tenho faculdade sexta pfv",agendar
+tenho mercado dia 25/10 20h30,agendar
+Como habilitar pop up pfv,ajuda_notificacoes
+como habilitar pop up por favor,ajuda_notificacoes
+qual o maior país do mundo?,fora
+"ei, faz corrida se repetir toda semana aí",repetir
+por favor editar nota da tarefa academia para levar exames aí,editar_descricao
+o que falta fazer hoje!,consultar_tarefas
+ajuda?,ajuda
+me avisa antes de reuniao?,lembrete_ligar
+"Rapidinho, troca o detalhe da fisioterapia para treino de costas",editar_descricao
+Por favor top,saudacao
+deixa almoço com a mãe fixa a cada 15 dias aí,repetir
+minha constância,consultar_sequencia
+"pet, muda faculdade pro dia semana que vem",reagendar
+"pet, falhei quantas vezes essa semana? ai",consultar_sequencia
+tira o aviso da caminhada!,lembrete_desligar
+o lembrete não tocou pfv,ajuda_notificacoes
+pode como ativar notificacao?,ajuda_notificacoes
+pode qual a melhor série da netflix,fora
+"rapidinho, o que você sabe fazer por favor",ajuda
+"pode natação dias úteis, coloca repetição",repetir
+"pet, quantas horas dormi hoje",consultar_sono
+"ei, o que eu tenho depois por favor",consultar_tarefas
+o que falta fazer hj,consultar_tarefas
+"rapidinho, coloca na descrição de leitura: pauta trimestral pfv",editar_descricao
+"ei, adiciona a nota pauta trimestral em almoço com a mãe!",editar_descricao
+"rapidinho, o aviso não chega no meu celular!",ajuda_notificacoes
+pode corrige o nome mercado pra leitura bíblica,editar_nome
+troca o nome da tarefa estudo por corrida leve aí,editar_nome
+Pode pra que serve você por favor,ajuda
+"Ei, help pfv",ajuda
+pode me mostra meu sono pfv,consultar_sono
+falhei quantas vezes essa semana?!,consultar_sequencia
+Por favor qual a noticia de hoje por favor,fora
+"Ei, quantos dias em sequencia pfv",consultar_sequencia
+socorro!,ajuda
+como ta minha sequencia?,consultar_sequencia
+pode quanto falta de água hoje aí,consultar_agua
+mostra minhas tarefas de sexta que vem por favor,consultar_tarefas
+pode agendar mercado pra quinta?,agendar
+pode horas de sono da semana ai,consultar_sono
+tô confuso aí,ajuda
+por favor me explica como funciona ai,ajuda
+"ei, recorrência de dentista todo sábado!",repetir
+qual a capital da argentina,fora
+"ei, editar repeticao do tarefa caminhada para todo sabado ai",repetir
+"pet, para de me avisar da trabalho aí",lembrete_desligar
+"ei, editar nota da tarefa consulta para pauta trimestral",editar_descricao
+Pode não sei o que fazer aqui,ajuda
+por favor cria um compromisso de dentista semana que vem às 9:30 aí,agendar
+"ei, tô dormindo pouco?",consultar_sono
+"rapidinho, troca psicóloga das 10 pras 11 aí",editar_horario
+a trabalho é toda segunda pfv,repetir
+"Rapidinho, como voce funciona",ajuda
+"pet, banco toda segunda, coloca repeticao",repetir
+"ei, pode agendar aula de inglês pra sábado? aí",agendar
+por favor nao sei usar isso!,ajuda
+pode traduz bom dia pro espanhol aí,fora
+"rapidinho, minha streak aí",consultar_sequencia
+pode lista de hj por favor,consultar_tarefas
+por favor como baixar o app no celular,ajuda_notificacoes
+por favor cancela o lembrete do compromisso yoga aí,lembrete_desligar
+por favor quero que reuniao do projeto repita toda segunda por favor,repetir
+"pet, como foi meu sono",consultar_sono
+"ei, top por favor",saudacao
+Pode troca o detalhe da curso para capitulo 5,editar_descricao
+"Rapidinho, quais comandos!",ajuda
+"rapidinho, quem escreveu dom casmurro pfv",fora
+desliga o lembrete de banco,lembrete_desligar
+Muda o titulo da atividade almoco com a mae para treino a pfv,editar_nome
+por favor me mostra meu sono por favor,consultar_sono
+por favor como foi meu sono,consultar_sono
+Caminhada agora é às 9:30,editar_horario
+o que você faz?,ajuda
+"Ei, conta uma piada por favor",fora
+quanta água eu bebi por favor,consultar_agua
+"rapidinho, quantas tarefas eu tenho sexta que vem ai",consultar_tarefas
+"ei, qual meu recorde de dias seguidos pfv",consultar_sequencia
+"ei, falhei quantas vezes essa semana?",consultar_sequencia
+pode bom dia?,saudacao
+quantas horas dormi hoje pfv,consultar_sono
+"rapidinho, as notificações não chegam por favor",ajuda_notificacoes
+"pet, adianta muay thai pra às 6 da manhã",editar_horario
+Pode minha constância aí,consultar_sequencia
+coloca na descrição de faculdade: capítulo 5,editar_descricao
+Coloca yoga pra repetir todo dia,repetir
+Tenho algo marcado depois de amanha? por favor,consultar_tarefas
+escreve levar exames na descrição da banco,editar_descricao
+como usa isso?,ajuda
+por favor reagenda yoga pra terça pfv,reagendar
+pode editar nota da tarefa consulta para capitulo 5,editar_descricao
+"ei, notificacao nao aparece no iphone",ajuda_notificacoes
+"Ei, reagendar atividade fisioterapia para terca pfv",reagendar
+por favor não sei o que fazer aqui,ajuda
+Por favor troca a hora da aula de inglês pra meio-dia!,editar_horario
+quantos anos tem o universo por favor,fora
+pode troca fisioterapia das 10 pras 11,editar_horario
+"pet, como falo com voce",ajuda
+"Pet, tira o aviso da jiu-jitsu por favor",lembrete_desligar
+média de sono,consultar_sono
+"pet, meu sono essa semana",consultar_sono
+sem notificação pra jiu-jitsu pfv,lembrete_desligar
+"rapidinho, adiciona a nota capítulo 5 em trabalho!",editar_descricao
+o que você faz por favor,ajuda
+ativa o sininho da mercado aí,lembrete_ligar
+Quantos anos tem o universo!,fora
+"ei, instalar no android?",ajuda_notificacoes
+minha agenda sexta que vem,consultar_tarefas
+"Rapidinho, falhei quantas vezes essa semana?!",consultar_sequencia
+"ei, como voce funciona!",ajuda
+me avisa antes de treino de perna por favor,lembrete_ligar
+o que tem pra amanhã!,consultar_tarefas
+"ei, deixa reuniao fixa toda semana!",repetir
+pode me ensina a usar,ajuda
+"pet, quero que natação repita a cada 15 dias",repetir
+que horas fui dormir ontem!,consultar_sono
+o nome de academia agora é leitura bíblica?,editar_nome
+Pode parar de lembrar da natação,lembrete_desligar
+quem e o presidente do brasil,fora
+Por favor atualiza a descrição de fisioterapia!,editar_descricao
+"pet, não entendi nada aí",ajuda
+pode recorrência de faculdade toda segunda,repetir
+muda o título da compromisso curso para leitura bíblica!,editar_nome
+a nota da curso e treino de costas?,editar_descricao
+"ei, me ajuda pfv",ajuda
+qual minha sequência,consultar_sequencia
+"vou ter banco semana que vem às 3 da tarde, marca p mim",agendar
+muda a descrição de faculdade pra comprar arroz e feijão,editar_descricao
+pode não sei usar isso aí,ajuda
+Altera a hora de banco para 15h!,editar_horario
+Pode marcar lembrete na tarefa fisioterapia!,lembrete_ligar
+altera a observação de corrida p capítulo 5!,editar_descricao
+faz faculdade se repetir toda segunda pfv,repetir
+"pet, bota banco quarta às 9:30 aí",agendar
+Pode registrar tarefa jiu-jitsu domingo,agendar
+me mostra meu sono por favor,consultar_sono
+"ei, adianta consulta pra meio-dia pfv",editar_horario
+"ei, manda mensagem no whatsapp aí",fora
+Quantos dias em sequencia por favor,consultar_sequencia
+pode editar nota da tarefa psicóloga para pauta trimestral!,editar_descricao
+Altera a observacao de muay thai pra pauta trimestral,editar_descricao
+"pet, vou ter meditacao semana que vem as 10, marca pra mim",agendar
+Por favor adia reunião do projeto p dia 12!,reagendar
+"ei, adicionar lembrete na atividade yoga ai",lembrete_ligar
+quantas tarefas eu tenho dia 25/10?,consultar_tarefas
+"pet, não vou conseguir dentista hoje, joga pra sexta que vem",reagendar
+"pet, renomeia caminhada pra pilates ai",editar_nome
+"Ei, almoço com a mãe todo mês, coloca repetição",repetir
+Falhei quantas vezes essa semana? aí,consultar_sequencia
+Adiciona a nota comprar arroz e feijao em almoco com a mae?,editar_descricao
+"ei, o que vem agora",consultar_tarefas
+pode você gosta de pizza? aí,fora
+"pet, top ai",saudacao
+Pode agenda faculdade terça 19:00,agendar
+por favor pode parar de lembrar da estudo!,lembrete_desligar
+"Ei, quantos dias seguidos eu tenho por favor",consultar_sequencia
+como tá minha água aí,consultar_agua
+Quantos dias seguidos eu tenho por favor,consultar_sequencia
+"ei, desliga a notificação de estudo por favor",lembrete_desligar
+"Rapidinho, joga dentista pra semana que vem por favor",reagendar
+"pet, agendar compromisso quarta as 8 titulo consulta?",agendar
+"pet, bota o sino na curso aí",lembrete_ligar
+Bota o sino na estudo pfv,lembrete_ligar
+por favor quantos dias em sequencia por favor,consultar_sequencia
+"ei, quanto falta de agua hoje por favor",consultar_agua
+atualiza a descrição de yoga aí,editar_descricao
+registrar compromisso estudo amanhã,agendar
+ativar lembrete do compromisso reunião do projeto,lembrete_ligar
+Muda reunião pro dia quarta pfv,reagendar
+"ei, como ta minha sequencia",consultar_sequencia
+Por favor altera a observacao de treino de perna pra levar documento,editar_descricao
+muda o nome de fisioterapia pra pilates,editar_nome
+quantos ml eu tomei!,consultar_agua
+"rapidinho, escreve levar exames na descrição da academia",editar_descricao
+por favor to dormindo pouco??,consultar_sono
+Registra que eu fiz treino de perna sábado,agendar
+"Rapidinho, quais meus compromissos sábado!",consultar_tarefas
+"pet, como tá minha sequência",consultar_sequencia
+quais atividades faltam?,consultar_tarefas
+quero agendar meditação segunda,agendar
+por favor mover curso para sexta que vem?,reagendar
+"Pet, me avisa antes de curso",lembrete_ligar
+"pet, marca reunião do projeto pra domingo 15h pfv",agendar
+me avisa antes de fisioterapia pfv,lembrete_ligar
+"Pet, meu sono essa semana aí",consultar_sono
+massa pfv,saudacao
+Pode olá,saudacao
+Muda o titulo da tarefa curso para pilates ai,editar_nome
+por favor tudo bem?!,saudacao
+pode tira o aviso da academia pfv,lembrete_desligar
+"rapidinho, desliga o lembrete de natação",lembrete_desligar
+por favor instalar no android,ajuda_notificacoes
+horas de sono da semana,consultar_sono
+"ei, o que vc sabe fazer aí",ajuda
+o lembrete nao tocou por favor,ajuda_notificacoes
+to hidratado? pfv,consultar_agua
+Pode adianta natação pra às 10,editar_horario
+"ei, desliga a notificação de consulta",lembrete_desligar
+"pet, sem notificação pra psicóloga",lembrete_desligar
+tô quantos dias sem falhar?,consultar_sequencia
+"ei, chega de lembrete na mercado",lembrete_desligar
+"rapidinho, como habilitar pop up!",ajuda_notificacoes
+quem escreveu dom casmurro!,fora
+"pet, qual a proxima tarefa pfv",consultar_tarefas
+Altera a observação de faculdade pra capítulo 5 por favor,editar_descricao
+"rapidinho, joga reuniao pra sexta que vem?",reagendar
+coloca yoga na agenda segunda-feira às 3 da tarde pfv,agendar
+"pet, editar nome da tarefa yoga para mercado do mês por favor",editar_nome
+ajuda por favor,ajuda
+pode remarca oracao pra amanha,reagendar
+as notificações não chegam pfv,ajuda_notificacoes
+atualiza a descricao de leitura por favor,editar_descricao
+"ei, me fala uma curiosidade pfv",fora
+"ei, repetir tarefa consulta todo sábado",repetir
+quantos anos tem o universo?,fora
+deixa fisioterapia fixa a cada 15 dias?,repetir
+"pet, dormi bem essa noite? por favor",consultar_sono
+Como se diz obrigado em inglês por favor,fora
+liga a notificação de oração?,lembrete_ligar
+qual meu proximo compromisso ai,consultar_tarefas
+tô dormindo pouco?,consultar_sono
+"ei, me ensina a usar",ajuda
+"pet, não me avisa mais da massagem!",lembrete_desligar
+por favor liga a notificação de consulta,lembrete_ligar
+cria um compromisso de jiu-jitsu dia 12 meio-dia por favor,agendar
+Bota o sino na jiu-jitsu pfv,lembrete_ligar
+"Rapidinho, como usa isso por favor",ajuda
+"rapidinho, tira o aviso da treino de perna",lembrete_desligar
+pode me ensina a usar aí,ajuda
+"ei, qual meu próximo compromisso!",consultar_tarefas
+"pode trabalho a cada 15 dias, coloca repetição!",repetir
+por favor quais são suas funções por favor,ajuda
+ativar lembrete do compromisso consulta?,lembrete_ligar
+"pet, help por favor",ajuda
+pode o que vem agora por favor,consultar_tarefas
+"rapidinho, pode agendar devocional pra dia 12?",agendar
+"pet, notificação não aparece no iphone pfv",ajuda_notificacoes
+Muda o nome de caminhada pra pilates aí,editar_nome
+"rapidinho, nao me avisa mais da psicologa por favor",lembrete_desligar
+"rapidinho, quantos ml eu tomei!",consultar_agua
+por favor agendar compromisso dia 12 às 7h título banco?,agendar
+Editar nota da tarefa banco para pauta trimestral,editar_descricao
+"ei, minha consistência pfv",consultar_sequencia
+meta de agua ai,consultar_agua
+faz uma ligação?,fora
+por favor corrige o nome dentista pra leitura bíblica!,editar_nome
+notificacao nao aparece no iphone,ajuda_notificacoes
+"ei, agendar compromisso hoje as 9:30 titulo mercado?",agendar
+"rapidinho, como baixar o app no celular",ajuda_notificacoes
+pode quanto eu dormi por favor,consultar_sono
+anota massagem sabado as 18 horas?,agendar
+o que eu tenho hoje ai,consultar_tarefas
+pode o lembrete não tocou aí,ajuda_notificacoes
+pode meta de água pfv,consultar_agua
+pode como habilitar pop up?,ajuda_notificacoes
+"ei, sem notificacao pra jiu-jitsu por favor",lembrete_desligar
+bota o sino na dentista!,lembrete_ligar
+pode atrasa meditação p 19:00 pfv,editar_horario
+"pet, quero que oração repita de segunda a sexta pfv",repetir
+me ajuda pfv,ajuda
+"ei, minha constância",consultar_sequencia
+"pet, desliga a notificação de caminhada pfv",lembrete_desligar
+quais meus compromissos sábado,consultar_tarefas
+o aviso nao chega no meu celular!,ajuda_notificacoes
+por favor reagenda natacao pra dia 25/10 pfv,reagendar
+adiciona a nota pauta trimestral em muay thai!,editar_descricao
+por favor troca reunião das 10 pras 11,editar_horario
+pode olá,saudacao
+"pet, quem descobriu o brasil?",fora
+"ei, troca a hora da fisioterapia pra 15h",editar_horario
+como ta minha agua ai,consultar_agua
+"Rapidinho, nao precisa me lembrar da natacao",lembrete_desligar
+"pet, troca o dia da banco pra depois de amanha",reagendar
+"Pet, joga jiu-jitsu pra amanha?",reagendar
+"Ei, altera a observação de devocional p levar documento!",editar_descricao
+"rapidinho, me explica como funciona aí",ajuda
+"Rapidinho, atrasa curso pra 15h!",editar_horario
+como baixar o app no celular,ajuda_notificacoes
+"pet, renomeia muay thai pra estudo de python pfv",editar_nome
+"Ei, como se diz obrigado em inglês!",fora
+Pode lista de hoje,consultar_tarefas
+pode quanto eu dormi aí,consultar_sono
+Como instalar o app,ajuda_notificacoes
+"pet, me ensina a usar!",ajuda
+"ei, quantos ml eu tomei por favor",consultar_agua
+"pode vou ter meditação dia 12 às 7h, marca p mim!",agendar
+tem alguma coisa amanhã?,consultar_tarefas
+por favor adia academia pra sexta,reagendar
+por favor preciso marcar reunião sexta que vem às 9:30,agendar
+"pet, tô hidratado? por favor",consultar_agua
+pode muda caminhada pro dia dia 12?,reagendar
+quanto tempo de sono,consultar_sono
+"pet, cria um compromisso de estudo segunda às 10?",agendar
+por favor que horas fui dormir ontem,consultar_sono
+"ei, coloca lembrete em mercado!",lembrete_ligar
+Por favor onde fica o japão,fora
+"pet, nao sei mexer nisso",ajuda
+Nao vibra quando chega aviso por favor,ajuda_notificacoes
+"rapidinho, tirar lembrete da compromisso yoga pfv",lembrete_desligar
+"pet, como ta minha sequencia",consultar_sequencia
+o que falta fazer hoje pfv,consultar_tarefas
+dormi bem essa noite?!,consultar_sono
+marcar lembrete na tarefa mercado,lembrete_ligar
+para de me avisar da curso,lembrete_desligar
+por favor não precisa avisar de banco,lembrete_desligar
+por favor faz uma redacao sobre o meio ambiente!,fora
+pode abre o youtube aí,fora
+"pet, agendar compromisso sexta que vem título trabalho!",agendar
+"Pet, não precisa avisar de reunião do projeto pfv",lembrete_desligar
+Coloca lembrete em aula de inglês!,lembrete_ligar
+"ei, não entendi nada!",ajuda
+Por favor poe lembrete na muay thai,lembrete_ligar
+Como coloco o app na tela inicial por favor,ajuda_notificacoes
+"pet, bom dia aí",saudacao
+Pode notificação não aparece no iphone,ajuda_notificacoes
+quais meus compromissos sexta,consultar_tarefas
+"Rapidinho, conta uma piada pfv",fora
+por favor desativar lembrete do compromisso jiu-jitsu aí,lembrete_desligar
+"ei, me explica como funciona?",ajuda
+pode deixa caminhada fixa todo sábado,repetir
+"Ei, quantos copos de água hoje?",consultar_agua
+"rapidinho, troca a hora da caminhada pra 20h30!",editar_horario
+média de sono!,consultar_sono
+"ei, quem é o presidente do brasil pfv",fora
+quero mudar o horario da massagem,editar_horario
+pode socorro?,ajuda
+como habilitar pop up?,ajuda_notificacoes
+Por favor corrige o nome psicologa pra estudo de python,editar_nome
+Tem alguma coisa dia 25/10?,consultar_tarefas
+nao vibra quando chega aviso por favor,ajuda_notificacoes
+"pet, empurra treino de perna pra amanha",reagendar
+"pet, agendar compromisso dia 12 as 7h titulo mercado?",agendar
+altera a hora de jiu-jitsu para as 6 da manha,editar_horario
+"ei, troca o nome da atividade academia por corrida leve",editar_nome
+por favor renomeia trabalho p leitura bíblica!,editar_nome
+deixa almoco com a mae fixa toda semana,repetir
+por favor opa ai,saudacao
+"ei, troca o nome da massagem por reuniao semanal",editar_nome
+pode troca o detalhe da fisioterapia para pauta trimestral pfv,editar_descricao
+como se diz obrigado em inglês pfv,fora
+pode que horas fui dormir ontem pfv,consultar_sono
+"rapidinho, adianta devocional pra às 7h por favor",editar_horario
+por favor não quero ser lembrado da massagem,lembrete_desligar
+"Pet, como baixar o app no celular",ajuda_notificacoes
+pode olá!,saudacao
+"Ei, coloca lembrete em aula de inglês por favor",lembrete_ligar
+"ei, nao recebo aviso?",ajuda_notificacoes
+"ei, muda a descricao de fisioterapia pra comprar arroz e feijao pfv",editar_descricao
+por favor conta uma piada?,fora
+qual a cotacao do euro pfv,fora
+registra que eu fiz almoço com a mãe domingo!,agendar
+pode me dá uma receita de bolo!,fora
+Por favor bebi água suficiente? por favor,consultar_agua
+"rapidinho, desliga a notificacao de corrida",lembrete_desligar
+"rapidinho, quantos ml eu tomei",consultar_agua
+a curso e toda semana!,repetir
+"rapidinho, tenho algo marcado depois de amanhã? por favor",consultar_tarefas
+Por favor quanto de água devo beber aí,consultar_agua
+"ei, repetir tarefa psicóloga dias úteis pfv",repetir
+Por favor poe lembrete na leitura por favor,lembrete_ligar
+ativar lembrete do compromisso muay thai por favor,lembrete_ligar
+"Pet, minhas tarefas",consultar_tarefas
+"rapidinho, top!",saudacao
+"pet, qual a próxima tarefa",consultar_tarefas
+pode socorro,ajuda
+"rapidinho, adicionar lembrete na tarefa faculdade aí",lembrete_ligar
+"ei, help aí",ajuda
+como ta minha sequencia ai,consultar_sequencia
+"pet, meta de agua por favor",consultar_agua
+"pet, a nota da leitura e levar documento pfv",editar_descricao
+Renomear mercado para reuniao semanal,editar_nome
+pode editar hora do compromisso consulta para às 7h?,editar_horario
+Me mostra meu sono,consultar_sono
+por favor agendar aula de inglês semana que vem às 18 horas?,agendar
+pode cancela o lembrete do compromisso devocional,lembrete_desligar
+passa curso pra segunda!,reagendar
+"pet, ativa o sininho da faculdade!",lembrete_ligar
+quantos dias seguidos eu tenho por favor,consultar_sequencia
+"Ja fiz reuniao do projeto hoje, registra ai por favor",agendar
+Como tá minha sequência?,consultar_sequencia
+"a banco não é às 10, corrige o horário!",editar_horario
+Deixa corrida fixa toda segunda,repetir
+muda o título da banco para leitura bíblica aí,editar_nome
+"ei, ativa o sininho da caminhada",lembrete_ligar
+por favor o que eu tenho depois aí,consultar_tarefas
+"pet, põe lembrete na almoço com a mãe?",lembrete_ligar
+"Pet, como coloco o app na tela inicial?",ajuda_notificacoes
+por favor agenda reunião do projeto sábado meio-dia por favor,agendar
+"Pet, repete treino de perna todo dia",repetir
+Pode altera o título de mercado pra treino a pfv,editar_nome
+o que voce faz pfv,ajuda
+por favor faz massagem se repetir todo sábado,repetir
+por favor minha constância!,consultar_sequencia
+"pet, me conta uma história por favor",fora
+"pet, como tá minha água aí",consultar_agua
+"ei, pode parar de lembrar da muay thai!",lembrete_desligar
+Muda a descrição de dentista pra levar exames,editar_descricao
+pode qual a notícia de hj?,fora
+"por favor não vou conseguir devocional hoje, joga pra quarta?",reagendar
+"rapidinho, empurra meditação pra segunda-feira!",reagendar
+"rapidinho, tchau",saudacao
+"ei, quantos copos de água hoje aí",consultar_agua
+"pet, como tá minha sequência pfv",consultar_sequencia
+por favor como falo com você!,ajuda
+Me avisa antes de jiu-jitsu?,lembrete_ligar
+me avisa antes de leitura,lembrete_ligar
+pode o que eu posso falar!,ajuda
+põe lembrete na muay thai!,lembrete_ligar
+pode como ta minha sequencia,consultar_sequencia
+agendar compromisso curso quarta às 3 da tarde pfv,agendar
+o que voce sabe fazer por favor,ajuda
+como coloco o app na tela inicial!,ajuda_notificacoes
+por favor tenho psicóloga hoje 19:00 aí,agendar
+beleza,saudacao
+"Rapidinho, quero que curso repita toda semana",repetir
+"rapidinho, quanto tempo de sono aí",consultar_sono
+"ei, qual meu próximo compromisso",consultar_tarefas
+Pode desliga a notificacao de reuniao pfv,lembrete_desligar
+pode anota fisioterapia semana que vem ai,agendar
+pode meu sono essa semana?,consultar_sono
+pode nao me avisa mais da jiu-jitsu pfv,lembrete_desligar
+por favor bota o sino na caminhada,lembrete_ligar
+Meu sono essa semana pfv,consultar_sono
+bebi água suficiente?,consultar_agua
+por favor me conta uma história,fora
+o que eu posso falar pfv,ajuda
+tira o sino da oracao,lembrete_desligar
+"ei, oi!",saudacao
+"Vou ter meditação depois de amanhã às 18 horas, marca pra mim por favor",agendar
+"pet, faz uma ligacao?",fora
+"ei, reagenda corrida pra sabado por favor",reagendar
+"pet, como instalar o app",ajuda_notificacoes
+"ei, tenho algo marcado quarta??",consultar_tarefas
+apaga o lembrete de meditação pfv,lembrete_desligar
+"ei, minha streak",consultar_sequencia
+"pet, marca devocional pra terça 19:00",agendar
+"pet, desativar lembrete do compromisso banco pfv",lembrete_desligar
+atualiza a descrição de banco?,editar_descricao

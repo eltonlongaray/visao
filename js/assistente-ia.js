@@ -771,10 +771,12 @@ async function handleSend() {
   await dispatchCommand(text);
 }
 
+// Aceita texto (passa pelo roteador) ou função (botão do "você quis dizer?",
+// que já sabe a intenção e não deve ser classificado de novo).
 async function dispatchCommand(text) {
   setPetState('thinking');
   try {
-    const reply = await routeCommand(text.trim());
+    const reply = typeof text === 'function' ? await text() : await routeCommand(text.trim());
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
     addMessage(t('pet.error.general'), 'bot');
@@ -973,6 +975,131 @@ async function routeCommand(text) {
     await cmdEditarNome(hint, afterPara, tipo); return null;
   }
 
+  // Nenhum regex entendeu: pergunta pro classificador de intenção (BLOCO 7.5)
+  return entenderComIA(text);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 7.5: CLASSIFICADOR DE INTENÇÃO — IA própria, roda no navegador
+// Modelo treinado em ia/pet-intencoes/ (TF-IDF + regressão logística).
+// Só entra quando o regex acima não entendeu, então não muda nada do que já
+// funcionava. Confiança alta executa; baixa pergunta "você quis dizer?".
+// ═══════════════════════════════════════════════════════════════
+
+let _classificar = null;
+async function classificador() {
+  if (!_classificar) {
+    const [{ carregarModelo }, { default: modelo }] = await Promise.all([
+      import('./pet-ia/pet-intencao.js?v=20261003a'),
+      import('./pet-ia/pet-intencoes-modelo.js?v=20261003a'),
+    ]);
+    _classificar = carregarModelo(modelo);
+  }
+  return _classificar;
+}
+
+const INTENCAO_ROTULO = {
+  agendar: '📅 Agendar ou registrar', editar_nome: '✏️ Mudar o nome',
+  editar_horario: '🕐 Mudar o horário', editar_descricao: '📝 Mudar a descrição',
+  reagendar: '📆 Mudar o dia', lembrete_ligar: '🔔 Ligar lembrete',
+  lembrete_desligar: '🔕 Tirar lembrete', repetir: '🔁 Repetir',
+  consultar_sono: '😴 Ver meu sono', consultar_sequencia: '🔥 Ver minha constância',
+  consultar_agua: '💧 Ver minha água', consultar_tarefas: '📋 Ver minhas tarefas',
+  ajuda_notificacoes: '📱 Notificações e instalar', ajuda: '❓ O que você faz',
+  saudacao: '👋 Só dizendo oi',
+};
+
+// Edições precisam do nome exato da atividade; o classificador sabe O QUE a
+// pessoa quer, mas ainda não separa o nome com segurança. Então ensina a frase.
+const INTENCAO_EXEMPLO = {
+  editar_nome: 'editar nome da tarefa Academia para Musculação',
+  editar_horario: 'editar horário do compromisso Dentista para 15h',
+  editar_descricao: 'editar descrição do compromisso Dentista para levar exames',
+  reagendar: 'reagendar compromisso Dentista para sexta',
+  repetir: 'repetir tarefa Academia toda semana',
+  lembrete_ligar: 'adicionar lembrete na tarefa Academia',
+  lembrete_desligar: 'tirar lembrete da tarefa Academia',
+};
+
+async function entenderComIA(text) {
+  // Modelo treinado em português; nos outros idiomas segue a resposta padrão
+  if (!String(getLang()).startsWith('pt')) return t('pet.unknown');
+  let r;
+  try {
+    r = (await classificador())(text);
+  } catch (err) {
+    console.warn('[pet-ia] classificador indisponível', err);
+    return t('pet.unknown');
+  }
+  if (r.entendeu) return executarIntencao(r.intencao, text);
+  if (!r.palavrasConhecidas) return t('pet.unknown');
+  if (r.intencao === 'fora')
+    return 'Isso foge do que eu sei fazer 😅 Eu cuido do app: agenda, sono, água e constância. Digite <strong>ajuda</strong> pra ver o que dá pra pedir.';
+
+  const opcoes = [r, ...r.alternativas].filter(o => o.intencao !== 'fora' && o.confianca >= 0.1).slice(0, 3);
+  if (!opcoes.length) return t('pet.unknown');
+  addChoices('🤔 Não tenho certeza. Você quis dizer...', [
+    ...opcoes.map(o => ({ label: INTENCAO_ROTULO[o.intencao], action: () => executarIntencao(o.intencao, text) })),
+    { label: '❌ Nenhuma', action: () => t('pet.unknown') },
+  ]);
+  return null;
+}
+
+function semAcento(s) {
+  return String(s).toLowerCase().normalize('NFD').replace(/\p{Mn}/gu, '');
+}
+
+// Palavras de comando que saem da frase pra sobrar só o nome da atividade
+const PALAVRAS_LEMBRETE = new Set(('nao mais quero precisa me pode para parar de chega sem liga ligar ' +
+  'desliga desligar ativa ativar desativa desativar tira tirar remove remover coloca colocar bota poe ' +
+  'avisa avisar avisos aviso lembra lembrar lembrete lembretes lembrado notifica notificar notificacao ' +
+  'notificacoes alarme sino sininho antes some com o a os as um uma da do na no em pra para dos das ' +
+  'ser quero pet por favor pfv ai tarefa compromisso atividade').split(' '));
+
+function nomeDoLembrete(text) {
+  return String(text).replace(/[.,;:!?]+/g, ' ').split(/\s+/)
+    .filter(p => p && !PALAVRAS_LEMBRETE.has(semAcento(p))).join(' ').trim();
+}
+
+// "coloca pra mim natação quarta 19h" → "agendar natação quarta 19h", que o
+// fluxo de registro já entende (e mostra o card de confirmação antes de gravar).
+function frasePraAgendar(text) {
+  const jaFeito = /\b(fiz|feito|terminei|conclu[ií])\b/i.test(text);
+  const resto = String(text)
+    .replace(/^(?:pet,?\s*|ei,?\s*|por favor\s+|pode\s+)*/i, '')
+    .replace(/^(?:já\s+|hoje\s+eu\s+|eu\s+)?(?:coloca|bota|p[õo]e|anota|adiciona|inclui|cria|crie|marca|preciso marcar|quero agendar|me lembra de|lembra de|tenho|vou ter|fiz|terminei)\b\s*/i, '')
+    .replace(/^(?:pra mim|aí)\s+/i, '')
+    .replace(/^(?:uma?\s+)?(?:nova\s+)?(?:tarefa|compromisso|atividade)\s+(?:de\s+)?/i, '')
+    .replace(/\s*,?\s*(?:anota|registra|marca)\s+(?:a[ií]|pra mim)\s*$/i, '')
+    .replace(/\s+na agenda\b/i, '')
+    .replace(/\btem\s+/i, '')
+    .trim();
+  return (jaFeito ? 'agendar atividade ' : 'agendar ') + resto;
+}
+
+async function executarIntencao(intencao, text) {
+  switch (intencao) {
+    case 'consultar_sono':      return cmdSono();
+    case 'consultar_sequencia': return cmdSequencia();
+    case 'consultar_agua':      return cmdHidratacao();
+    case 'consultar_tarefas':   return cmdTarefas();
+    case 'ajuda':               return cmdAjuda();
+    case 'ajuda_notificacoes':  return cmdNotificacoesAjuda();
+    case 'saudacao':
+      if (/obrigad|valeu|vlw|obg|brigad/i.test(text)) return 'De nada! 💛';
+      if (/tchau|até|ate mais|falou/i.test(text))   return 'Até mais! 👋';
+      return 'Oi! 👋 Em que posso ajudar? Digite <strong>ajuda</strong> pra ver o que eu faço.';
+    case 'agendar':
+      return routeCommand(frasePraAgendar(text));
+    case 'lembrete_ligar':
+    case 'lembrete_desligar': {
+      const nome = nomeDoLembrete(text);
+      if (nome) { await cmdEditarLembrete(nome, null, intencao === 'lembrete_ligar'); return null; }
+      break;
+    }
+  }
+  const ex = INTENCAO_EXEMPLO[intencao];
+  if (ex) return `Entendi: <strong>${INTENCAO_ROTULO[intencao]}</strong>. Pra eu achar a atividade certa, me fala assim:<br><em>"${ex}"</em>`;
   return t('pet.unknown');
 }
 
@@ -2052,7 +2179,7 @@ function addChoices(label, choices) {
         b.classList.add('pet-choice-used');
       });
       btn.classList.add('pet-choice-selected');
-      dispatchCommand(c.value);
+      dispatchCommand(c.action || c.value);
     });
     choicesEl.appendChild(btn);
   });

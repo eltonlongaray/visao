@@ -1,0 +1,53 @@
+frase,intencao
+coloca pra mim natação quarta 19h,agendar
+fiz meditação agora de manhã anota aí,agendar
+quinta tem consulta com a nutri às 16,agendar
+cria tarefa estudar python amanhã,agendar
+agendar corrida domingo cedo,agendar
+o nome certo é pilates e não yoga,editar_nome
+academia agora se chama treino funcional,editar_nome
+renomear estudo para estudo de inglês,editar_nome
+mudar horário da natação pras 20h,editar_horario
+a consulta foi pras 17h,editar_horario
+academia vai ser às 6h agora,editar_horario
+põe na nota da consulta levar exames de sangue,editar_descricao
+detalhe da reunião: trazer relatório,editar_descricao
+muda a observação do treino para pernas,editar_descricao
+a natação de hoje passa pra sexta,reagendar
+remarcar a consulta para dia 20,reagendar
+hoje não dá estudo deixa pra amanhã,reagendar
+quero lembrete na natação,lembrete_ligar
+me avisa da reunião antes,lembrete_ligar
+coloca alarme na consulta,lembrete_ligar
+não precisa mais lembrar da natação,lembrete_desligar
+para de me notificar da reunião,lembrete_desligar
+sem aviso pra academia,lembrete_desligar
+não quero lembrete na consulta,lembrete_desligar
+natação toda segunda e quarta,repetir
+repete o estudo todos os dias,repetir
+a consulta é mensal deixa repetindo,repetir
+dormi pouco?,consultar_sono
+quantas horas de sono essa semana,consultar_sono
+que horas eu dormi ontem,consultar_sono
+estou quantos dias sem falhar,consultar_sequencia
+minha sequência atual,consultar_sequencia
+tô constante esse mês?,consultar_sequencia
+quanto falta pra meta de água,consultar_agua
+bebi quanta água,consultar_agua
+minha água de hoje,consultar_agua
+o que tenho pra fazer amanhã,consultar_tarefas
+tem compromisso hoje?,consultar_tarefas
+quais tarefas faltam hoje,consultar_tarefas
+o celular não avisa os lembretes,ajuda_notificacoes
+como instalo no iphone,ajuda_notificacoes
+não aparece notificação nenhuma,ajuda_notificacoes
+o que dá pra fazer aqui,ajuda
+tô perdido me ajuda,ajuda
+como funciona esse chat,ajuda
+eae,saudacao
+muito obrigado,saudacao
+boa noite pet,saudacao
+qual a previsão do tempo,fora
+quem ganhou a copa,fora
+traduz isso pro inglês,fora
+quanto é 2 mais 2,fora
