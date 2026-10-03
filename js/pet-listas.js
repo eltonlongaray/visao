@@ -42,7 +42,10 @@ export const DICA_LISTA = /\blistas?\b|\bcheck\b|caixa de ferramentas|\bcomo (fe
 export function detectarAcao(text) {
   const t = norm(text);
   if (/\b(cria|criar|crie|nova|novo|faz|faca|monta|montar|abre|abrir)\b.*\blista\b/.test(t)) return 'criar';
-  if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi))\b/.test(t)) return 'desmarcar';
+  if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi)|como (nao feit[oa]|pendente))\b/.test(t)) return 'desmarcar';
+  // "bota leite como feito" / "coloca o arroz como concluído": o verbo é de
+  // adicionar, mas o pedido é marcar. Vem antes do adicionar por isso.
+  if (/\bcomo (feit[oa]|conclu[ií]d[oa]|pront[oa]|ok|comprad[oa])\b/.test(t)) return 'marcar';
   if (/\b(marca|marcar|marque|da (um )?check|dar (um )?check|check|conclui|concluir|conclua|comprei|fiz|resolvi|terminei|acabei)\b/.test(t)) return 'marcar';
   if (/\b(troca|trocar|muda|mudar|edita|editar|corrige|corrigir|renomeia|renomear|altera|alterar)\b.*\b(por|pra|para)\b/.test(t)) return 'editar';
   if (/\b(apaga|apagar|apague|remove|remover|tira|tirar|exclui|excluir|deleta|deletar)\b/.test(t)) return 'apagar';

@@ -29,7 +29,7 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261003e';
+import * as PL from './pet-listas.js?v=20261003f';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -2209,6 +2209,21 @@ async function arvoreListas(forcar = false) {
   return _arvore;
 }
 
+// Contexto da conversa: a última lista mostrada ou mexida. "Me mostra a lista
+// do mercado" e logo depois "bota leite como feito" = o leite DESSA lista.
+// Vale 10 minutos; frase que nomeia outra lista passa por cima.
+let _ctxLista = null;
+function lembrarLista(grupo, secao) {
+  if (grupo) _ctxLista = { grupo: grupo.nome, secaoId: secao?.id || null, em: Date.now() };
+}
+function alvoDoContexto(arvore) {
+  if (!_ctxLista || Date.now() - _ctxLista.em > 10 * 60000) return null;
+  const grupo = arvore.find(g => g.nome === _ctxLista.grupo);
+  if (!grupo) return null;
+  const secao = _ctxLista.secaoId ? grupo.secoes.find(s => s.id === _ctxLista.secaoId) || null : null;
+  return { grupo, secao, trechos: [], candidatos: [], doContexto: true };
+}
+
 // Depois de gravar: badge da Home e, se a Caixa estiver aberta, avisa pra reabrir
 async function aposMudarLista() {
   _arvore = null;
@@ -2250,7 +2265,8 @@ async function tentarLista(text) {
   try { arvore = await arvoreListas(); }
   catch (err) { console.warn('[pet-listas]', err); return dica ? 'Não consegui abrir tuas listas agora. Tenta de novo daqui a pouco.' : undefined; }
 
-  const alvo = PL.acharAlvo(arvore, text);
+  let alvo = PL.acharAlvo(arvore, text);
+  if (!alvo.grupo && !alvo.candidatos.length) alvo = alvoDoContexto(arvore) || alvo;
   const temAlvo = !!(alvo.grupo || alvo.candidatos.length);
   if (!dica) {
     // Sem a palavra "lista": "marca academia" / "bota mercado" continuam sendo
@@ -2272,6 +2288,7 @@ async function tentarLista(text) {
 const _itemLinha = (it) => `${it.feito ? '✅' : '⬜'} ${_esc(it.texto)}`;
 
 function listaVer(arvore, alvo) {
+  if (alvo.grupo) lembrarLista(alvo.grupo, alvo.secao);
   if (alvo.secao) {
     const itens = alvo.secao.itens;
     if (!itens.length) return `📋 <strong>${_esc(PL.ondeTexto(alvo.grupo, alvo.secao))}</strong> está vazia.`;
@@ -2337,9 +2354,9 @@ function escolherDestino(arvore, titulo, aoEscolher, candidatos = null) {
 function listaAdicionar(arvore, text, alvo) {
   const novo = PL.textoParaAdicionar(text, alvo);
   if (!novo) return 'O que eu adiciono? Ex.: <em>"adiciona leite na lista do Mercado"</em>.';
-  const confirmar = ({ grupo, secao }) => cardConfirmarLista(
+  const confirmar = ({ grupo, secao }) => { lembrarLista(grupo, secao); cardConfirmarLista(
     `➕ Adicionar <strong>${_esc(novo)}</strong> em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?`,
-    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; });
+    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; }); };
   if (alvo.grupo) { confirmar(alvo); return null; }
   escolherDestino(arvore, `Em qual lista eu ponho <strong>${_esc(novo)}</strong>?`, confirmar, alvo.candidatos.length ? alvo.candidatos : null);
   return null;
@@ -2364,7 +2381,10 @@ function listaCriar(arvore, text, alvo) {
 // hoje da Home que também bateram (só marcar/desmarcar; apagar é só de lista).
 function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
   const filtro = acao === 'marcar' ? 'pendentes' : acao === 'desmarcar' ? 'feitos' : null;
-  let achados = [...(acao === 'apagar' ? [] : hoje), ...PL.acharItens(arvore, text, alvo, filtro)];
+  let daLista = PL.acharItens(arvore, text, alvo, filtro);
+  // Contexto é só preferência: se na lista de antes não tem, procura em todas
+  if (!daLista.length && alvo.doContexto) { alvo = {}; daLista = PL.acharItens(arvore, text, alvo, filtro); }
+  let achados = [...(acao === 'apagar' ? [] : hoje), ...daLista];
   if (achados.length) { const topo = Math.max(...achados.map(x => x.nota)); achados = achados.filter(x => x.nota >= topo - 0.01); }
   if (!achados.length) {
     const todos = PL.acharItens(arvore, text, alvo);
@@ -2376,7 +2396,7 @@ function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
   const onde = (x) => x.hoje
     ? `hoje${x.item.task.startTime ? ' às ' + x.item.task.startTime.slice(0, 5) : ''}`
     : PL.ondeTexto(x.grupo, x.secao);
-  const confirmar = (x) => cardConfirmarLista(
+  const confirmar = (x) => (x.hoje || lembrarLista(x.grupo, x.secao), cardConfirmarLista(
     `${verbo} <strong>${_esc(x.item.texto)}</strong> · ${_esc(onde(x))}?`,
     async () => {
       if (x.hoje) {
@@ -2387,7 +2407,7 @@ function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
       if (acao === 'apagar') await apagarItem(x.item.id);
       else await marcarItem(x.item.id, acao === 'marcar');
       return null;
-    });
+    }));
   if (achados.length === 1) { confirmar(achados[0]); return null; }
   addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
     label: `${x.item.texto} · ${onde(x)}`, action: () => { confirmar(x); return null; },
@@ -2398,11 +2418,12 @@ function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
 function listaEditar(arvore, text, alvo) {
   const partes = PL.partesEdicao(text, alvo);
   if (!partes || !partes.novo) return 'Me fala assim: <em>"troca arroz por arroz integral na lista do Mercado"</em>.';
-  const achados = PL.acharItens(arvore, partes.antigo, alvo);
+  let achados = PL.acharItens(arvore, partes.antigo, alvo);
+  if (!achados.length && alvo.doContexto) achados = PL.acharItens(arvore, partes.antigo, {});
   if (!achados.length) return `Não achei <strong>${_esc(partes.antigo)}</strong> nas tuas listas.`;
-  const confirmar = ({ item, grupo, secao }) => cardConfirmarLista(
+  const confirmar = ({ item, grupo, secao }) => (lembrarLista(grupo, secao), cardConfirmarLista(
     `✏️ Trocar <strong>${_esc(item.texto)}</strong> por <strong>${_esc(partes.novo)}</strong> em ${_esc(PL.ondeTexto(grupo, secao))}?`,
-    async () => { await editarItem(item.id, partes.novo); return null; });
+    async () => { await editarItem(item.id, partes.novo); return null; }));
   if (achados.length === 1) { confirmar(achados[0]); return null; }
   addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
     label: `${x.item.texto} · ${PL.ondeTexto(x.grupo, x.secao)}`, action: () => { confirmar(x); return null; },
