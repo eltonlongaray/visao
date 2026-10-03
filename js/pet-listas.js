@@ -43,12 +43,14 @@ export function detectarAcao(text) {
   const t = norm(text);
   if (/\b(cria|criar|crie|nova|novo|faz|faca|monta|montar|abre|abrir)\b.*\blista\b/.test(t)) return 'criar';
   if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi)|como (nao feit[oa]|pendente))\b/.test(t)) return 'desmarcar';
+  // "remove leite como feito da lista": verbo de apagar vale antes do "como
+  // feito" (ninguém apaga algo "como feito"; é o nome do item).
+  if (/\b(apaga|apagar|apague|remove|remover|tira|tirar|exclui|excluir|deleta|deletar)\b/.test(t)) return 'apagar';
   // "bota leite como feito" / "coloca o arroz como concluído": o verbo é de
   // adicionar, mas o pedido é marcar. Vem antes do adicionar por isso.
   if (/\bcomo (feit[oa]|conclu[ií]d[oa]|pront[oa]|ok|comprad[oa])\b/.test(t)) return 'marcar';
   if (/\b(marca|marcar|marque|da (um )?check|dar (um )?check|check|conclui|concluir|conclua|comprei|fiz|resolvi|terminei|acabei)\b/.test(t)) return 'marcar';
   if (/\b(troca|trocar|muda|mudar|edita|editar|corrige|corrigir|renomeia|renomear|altera|alterar)\b.*\b(por|pra|para)\b/.test(t)) return 'editar';
-  if (/\b(apaga|apagar|apague|remove|remover|tira|tirar|exclui|excluir|deleta|deletar)\b/.test(t)) return 'apagar';
   if (/\b(adiciona|adicionar|adicione|coloca|colocar|coloque|bota|botar|poe|inclui|incluir|anota|anotar|acrescenta|acrescentar|add|insere|inserir)\b/.test(t)) return 'adicionar';
   if (/\b(mostra|mostrar|ver|veja|quais|qual|o que tem|que tem|abre|abrir|lista)\b/.test(t)) return 'ver';
   return null;
@@ -125,6 +127,9 @@ export function acharItens(arvore, text, alvo = {}, filtro = null) {
   if (!busca.length) return [];
   const lista = todosItens(arvore, alvo).filter(({ item }) =>
     filtro === 'pendentes' ? !item.feito : filtro === 'feitos' ? !!item.feito : true);
+  let frase = norm(text);
+  if (filtro === 'pendentes') frase = frase.replace(/\bcomo (feit[oa]|concluid[oa]|pront[oa]|ok|comprad[oa])\b/g, ' ');
+  frase = ' ' + frase + ' ';
   const notas = lista.map(x => {
     const doItem = new Set(norm(x.item.texto).split(' '));
     let nota = 0;
@@ -132,8 +137,10 @@ export function acharItens(arvore, text, alvo = {}, filtro = null) {
       if (doItem.has(p)) nota += 1;
       else if (p.length >= 4 && [...doItem].some(w => w.startsWith(p) || p.startsWith(w) && w.length >= 4)) nota += 0.6;
     }
-    // Frase que bate o item inteiro ganha desempate
-    if (norm(text).includes(norm(x.item.texto))) nota += 0.5;
+    // Frase que bate o item inteiro ganha desempate, e o item mais longo vence:
+    // "remove leite como feito" → o item "leite como feito", não o "leite".
+    // Pra marcar, o "como feito" é a ação, não parte do nome.
+    if (frase.includes(' ' + norm(x.item.texto) + ' ')) nota += 0.5 + norm(x.item.texto).length / 1000;
     return { ...x, nota };
   }).filter(x => x.nota > 0).sort((a, b) => b.nota - a.nota);
   if (!notas.length) return [];
