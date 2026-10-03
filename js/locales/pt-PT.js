@@ -383,6 +383,12 @@ export default {
   <li><em>quanto dormi?</em> · <em>a minha constância?</em></li>
   <li><em>hidratação de hoje?</em> · <em>tarefas de hoje?</em></li>
 </ul>
+<strong>Listas (Caixa de Ferramentas)</strong>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
+  <li><em>adiciona leite na lista do Mercado</em> · <em>marca arroz como feito</em></li>
+  <li><em>troca arroz por arroz integral</em> · <em>apaga o detergente da lista</em></li>
+  <li><em>cria uma lista de Viagem no Pessoal</em> · <em>o que tem na lista do Mercado</em></li>
+</ul>
 <strong>Registro de Atividades</strong>
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
 <em style="color:var(--muted);font-size:0.85em">Tarefas</em>
