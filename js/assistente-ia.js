@@ -8,6 +8,8 @@
 // BLOCO 7 — ROTEADOR DE COMANDOS
 // BLOCO 8 — HANDLERS DE COMANDOS
 // BLOCO 8.5 — EDIÇÃO E REAGENDAMENTO VIA PET
+// BLOCO 8.6 — CAIXA DE FERRAMENTAS (LISTAS) VIA PET
+// BLOCO 8.7 — PREPARO FÍSICO VIA PET
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -29,7 +31,8 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261003g';
+import * as PL from './pet-listas.js?v=20261003h';
+import * as PP from './pet-preparo.js?v=20261003h';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -924,6 +927,10 @@ async function routeCommand(text) {
   // ^marca do registro e viraria um agendamento. ──
   const rLista = await tentarLista(text);
   if (rLista !== undefined) return rLista;
+
+  // ── Preparo Físico: perfil de treino + peso/altura/sexo (com card) ──
+  const rPreparo = await tentarPreparo(text);
+  if (rPreparo !== undefined) return rPreparo;
 
   // ── Consultas (PT + EN) ──
   // "Próximo compromisso" vem antes da lista: ali a pessoa quer UM item (o
@@ -2316,7 +2323,7 @@ function listaVer(arvore, alvo) {
 
 // Card de confirmação genérico: resumo + Confirmar/Cancelar. `acao` grava e
 // devolve o texto de sucesso.
-function cardConfirmarLista(resumo, acao) {
+function cardConfirmarLista(resumo, acao, depois = aposMudarLista) {
   const box = document.getElementById('pet-messages');
   if (!box) return;
   const div = document.createElement('div');
@@ -2332,7 +2339,7 @@ function cardConfirmarLista(resumo, acao) {
     try {
       const msg = await acao();
       ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
-      aposMudarLista();
+      depois?.();
       if (msg) addMessage(msg, 'bot');
     } catch (err) {
       console.error('[pet-listas]', err);
@@ -2429,6 +2436,62 @@ function listaEditar(arvore, text, alvo) {
     label: `${x.item.texto} · ${PL.ondeTexto(x.grupo, x.secao)}`, action: () => { confirmar(x); return null; },
   })));
   return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.7: PREPARO FÍSICO VIA PET
+// ═══════════════════════════════════════════════════════════════
+// Perfil de treino (profile.perfilTreino) e peso/altura/sexo (profile). Quem
+// interpreta é o pet-preparo.js; aqui só mostra o card e grava. Medidas da fita
+// + fotos ficam na tela (bloco mensal travado), o Pet só leva até lá.
+const _rotPreparo = (r) => r.linhas.map(l => '• ' + l).join('<br>');
+
+function botaoIrPreparo(texto) {
+  addChoices(texto, [{ label: '💪 Abrir Preparo Físico', action: () => { location.hash = '#/preparo'; return null; } }]);
+}
+
+async function tentarPreparo(text) {
+  if (PP.querVerPreparo(text)) return verPreparo();
+  if (PP.falaDeMedidas(text) && !PP.interpretarPreparo(text)) {
+    botaoIrPreparo('As medidas (cintura, braço…) e as fotos ficam juntas num registro por mês, lá na <strong>Composição corporal</strong>. Te levo lá:');
+    return null;
+  }
+  // Data/hora/lembrete = agenda ("treino amanhã às 7"), não perfil.
+  if (extractTime(text) || /\blembr/i.test(text)) return undefined;
+  const r = PP.interpretarPreparo(text);
+  if (!r) return undefined;
+  cardConfirmarLista(`💪 Atualizar teu Preparo Físico?<br>${_rotPreparo(r)}`, async () => {
+    if (Object.keys(r.treino).length) {
+      const { getPerfilTreino } = await import('./perfil-treino-ui.js');
+      const atual = getPerfilTreino(await getProfile().catch(() => null));
+      const novo = { ...atual, ...r.treino, freqPorMusculo: { ...atual.freqPorMusculo, ...(r.treino.freqPorMusculo || {}) } };
+      // Mesma regra da tela: músculo não treina mais vezes que os treinos da semana
+      for (const k of Object.keys(novo.freqPorMusculo)) novo.freqPorMusculo[k] = Math.min(novo.freqPorMusculo[k], novo.freqSemana, 3);
+      await setProfile({ perfilTreino: novo });
+    }
+    if (Object.keys(r.corpo).length) {
+      const { salvarDadosCorpo } = await import('./corpo.js');
+      await salvarDadosCorpo(r.corpo);
+    }
+    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"qual meu perfil de treino"</em>.';
+  }, null);
+  return null;
+}
+
+async function verPreparo() {
+  const prof = await getProfile().catch(() => null);
+  const { getPerfilTreino, MUSCULOS } = await import('./perfil-treino-ui.js');
+  const pt = getPerfilTreino(prof);
+  const mus = MUSCULOS.map(m => `${m.nome} ${pt.freqPorMusculo[m.k] ?? 0}×`).join(', ');
+  const corpo = [];
+  if (prof?.pesoKg) corpo.push(`Peso <b>${String(prof.pesoKg).replace('.', ',')} kg</b>`);
+  if (prof?.alturaCm) corpo.push(`Altura <b>${String(prof.alturaCm / 100).replace('.', ',')} m</b>`);
+  return `💪 <strong>Teu Preparo Físico</strong><br>` +
+    `• Objetivo: <b>${PP.OBJETIVO_ROTULO[pt.objetivo] || pt.objetivo}</b>${pt.forca ? ' + 💥 Força' : ''}<br>` +
+    `• Treinos por semana: <b>${pt.freqSemana}×</b><br>` +
+    `• Por músculo: ${mus}<br>` +
+    (corpo.length ? `• ${corpo.join(' · ')}<br>` : '• Peso e altura: <em>ainda não informados</em> (ex.: "meu peso é 80 kg")<br>') +
+    `<br>Pra mudar, fala: <em>"treino 5 vezes por semana"</em>, <em>"meu objetivo é volume"</em>, <em>"fiquei 2 meses parado"</em>.`;
 }
 
 // ═══════════════════════════════════════════════════════════════
