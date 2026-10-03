@@ -61,6 +61,10 @@ MODELOS = {
         'adianta {ativ} pra {hora}', 'atrasa {ativ} pra {hora}',
         'quero mudar o horário da {ativ}', '{ativ} mudou de horário, coloca {hora}',
         'editar hora do compromisso {ativ} para {hora}',
+        'coloca {ativ} às 9 em vez das 8', 'muda {ativ} pras 7 ao invés das 6',
+        'não é mais às 8, a {ativ} é {hora}', 'a {ativ} não é {hora}, corrige o horário',
+        'o horário certo da {ativ} é {hora}', 'troca {ativ} das 10 pras 11',
+        '{ativ} começa {hora} agora, ajusta',
     ],
     'editar_descricao': [
         'editar descrição do {tipo} {ativ} para {desc}', 'muda a descrição de {ativ} pra {desc}',
@@ -92,6 +96,11 @@ MODELOS = {
         'tira o sino da {ativ}', 'cancela o lembrete do compromisso {ativ}',
         'apaga o lembrete de {ativ}', 'sem lembrete na {ativ}',
         'desliga a notificação de {ativ}',
+        'chega de lembrete na {ativ}', 'não quero mais aviso da {ativ}',
+        'não me avisa mais da {ativ}', 'tira o aviso da {ativ}',
+        'não precisa avisar de {ativ}', 'some com o sininho da {ativ}',
+        'não quero ser lembrado da {ativ}', 'sem notificação pra {ativ}',
+        'desativar lembrete do compromisso {ativ}', 'pode parar de lembrar da {ativ}',
     ],
     'repetir': [
         'repetir {tipo} {ativ} {rec}', 'repete {ativ} {rec}',
@@ -123,6 +132,9 @@ MODELOS = {
         'quais meus compromissos {dia}', 'minha agenda {dia}', 'o que falta fazer hoje',
         'mostra minhas tarefas de {dia}', 'tenho algo marcado {dia}?',
         'como tá minha semana', 'o que eu tenho {dia}', 'quais atividades faltam',
+        'qual meu próximo compromisso', 'qual a próxima tarefa', 'o que vem agora',
+        'o que eu tenho depois', 'qual o próximo da agenda', 'tem alguma coisa {dia}?',
+        'o que ainda não fiz hoje', 'quantas tarefas eu tenho {dia}',
     ],
     'ajuda_notificacoes': [
         'como instalar o app', 'as notificações não chegam', 'não recebo aviso',
@@ -136,11 +148,29 @@ MODELOS = {
         'me ajuda', 'como você funciona', 'help', 'o que posso te pedir',
         'como falo com você', 'me ensina a usar', 'não sei usar isso',
         'quais são suas funções',
+        'não entendi nada', 'socorro', 'não sei o que fazer aqui', 'tô confuso',
+        'como usa isso', 'me explica como funciona', 'pra que serve você',
+        'não sei mexer nisso', 'o que eu posso falar',
     ],
     'saudacao': [
         'oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'e aí', 'opa',
         'tudo bem?', 'obrigado', 'valeu', 'show', 'beleza', 'tchau', 'até mais',
         'oi pet', 'fala pet', 'obrigada', 'massa', 'top',
+    ],
+    # Fora do escopo: o Pet só cuida do app. Essa classe ensina o modelo a
+    # reconhecer pedido de outra coisa (o JS trata como "não entendi").
+    'fora': [
+        'qual a cotação do euro', 'quem é o presidente do brasil', 'me conta uma história',
+        'quanto é 15 vezes 3', 'qual a raiz quadrada de 81', 'vai chover {dia}?',
+        'como tá o clima {dia}', 'qual a temperatura lá fora', 'quem descobriu o brasil',
+        'qual o maior país do mundo', 'escreve uma música', 'faz uma redação sobre o meio ambiente',
+        'traduz bom dia pro espanhol', 'como se diz obrigado em inglês', 'qual o placar do inter',
+        'quando é o próximo jogo do flamengo', 'recomenda um filme', 'qual a melhor série da netflix',
+        'me fala uma curiosidade', 'quantos anos tem o universo', 'qual a capital da argentina',
+        'pesquisa no google', 'abre o youtube', 'manda mensagem no whatsapp', 'faz uma ligação',
+        'qual o preço da gasolina', 'quanto tá o bitcoin', 'resolve essa equação',
+        'quem escreveu dom casmurro', 'me dá uma receita de bolo', 'onde fica o japão',
+        'qual a notícia de hoje', 'você é humano?', 'você gosta de pizza?', 'conta uma piada',
     ],
 }
 

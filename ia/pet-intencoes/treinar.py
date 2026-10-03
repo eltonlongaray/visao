@@ -3,6 +3,9 @@
 Modelo: TF-IDF (features de texto.py) + Regressão Logística multinomial.
 - Validação cruzada (5 folds) nas frases geradas.
 - Teste nas frases escritas à mão (dados/teste_real.csv), que não saem dos modelos.
+  Os erros desse teste guiaram a v2 dos modelos, então ele virou conjunto de ajuste.
+- Teste cego (dados/teste_real_v2.csv): escrito antes de mexer nos modelos da v2,
+  nunca usado pra ajustar nada. É o número honesto.
 - Limiar de confiança: abaixo dele o Pet diz que não entendeu (ou cai no regex).
 
 Saídas: modelo/pet-intencoes.json (pesos) e modelo/relatorio.txt.
@@ -64,11 +67,12 @@ def main():
 
     # Limiar: o menor que deixa no máximo 1 frase "fora" passar como comando
     melhor = None
+    ok_fora = lambda prob: clf.classes_[prob.argmax(1)] != 'fora'
     for lim in np.arange(0.20, 0.80, 0.01):
-        aceitas = prob_dentro.max(1) >= lim
+        aceitas = (prob_dentro.max(1) >= lim) & ok_fora(prob_dentro)
         cobertura = aceitas.mean()
         acerto_aceitas = np.mean(pred[aceitas] == np.array([i for _, i in dentro])[aceitas]) if aceitas.any() else 0
-        fora_passou = int((prob_fora.max(1) >= lim).sum())
+        fora_passou = int(((prob_fora.max(1) >= lim) & ok_fora(prob_fora)).sum())
         if fora_passou <= 1:
             melhor = (round(float(lim), 2), cobertura, acerto_aceitas, fora_passou)
             break
@@ -90,7 +94,7 @@ def main():
     # Exporta: vocabulário na ordem das colunas, idf e pesos
     vocab = sorted(vet.vocabulary_, key=vet.vocabulary_.get)
     exp = {
-        'versao': 1,
+        'versao': 2,
         'classes': clf.classes_.tolist(),
         'limiar': limiar,
         'vocab': vocab,
@@ -105,9 +109,29 @@ def main():
 
     # Gabarito pro teste de paridade com o JS
     gabarito = [{'frase': f, 'intencao': clf.classes_[p.argmax()], 'conf': round(float(p.max()), 4)}
-                for f, p in zip(Xt, modelo.predict_proba(Xt))]
+                for f, p in zip(Xt + ler('teste_real_v2.csv')[0],
+                                modelo.predict_proba(Xt + ler('teste_real_v2.csv')[0]))]
     (AQUI / 'modelo' / 'gabarito-paridade.json').write_text(
         json.dumps(gabarito, ensure_ascii=False, indent=0), encoding='utf-8')
+
+    # Teste cego v2 (com o limiar escolhido acima)
+    Xc, yc = ler('teste_real_v2.csv')
+    dc = [(f, i) for f, i in zip(Xc, yc) if i != 'fora']
+    fc = [f for f, i in zip(Xc, yc) if i == 'fora']
+    pc = modelo.predict_proba([f for f, _ in dc])
+    predc = clf.classes_[pc.argmax(1)]
+    acc = np.mean(predc == np.array([i for _, i in dc]))
+    aceitas = (pc.max(1) >= limiar) & ok_fora(pc)
+    acc_lim = np.mean(predc[aceitas] == np.array([i for _, i in dc])[aceitas]) if aceitas.any() else 0
+    pfc = modelo.predict_proba(fc)
+    fora_c = int(((pfc.max(1) >= limiar) & ok_fora(pfc)).sum())
+    rel.append(f'\nTESTE CEGO v2 ({len(dc)} frases): acerto {acc:.3f}; com limiar responde '
+               f'{aceitas.mean():.0%} e acerta {acc_lim:.0%}; fora do escopo que passaram: {fora_c}/{len(fc)}')
+    for (f, i), p, pr in zip(dc, predc, pc.max(1)):
+        if p != i:
+            rel.append(f'  "{f}" → previu {p} ({pr:.2f}), era {i}')
+    for f, p in zip(fc, modelo.predict_proba(fc)):
+        rel.append(f'  fora: "{f}" → {clf.classes_[p.argmax()]} ({p.max():.2f})')
 
     texto = '\n'.join(rel)
     (AQUI / 'modelo' / 'relatorio.txt').write_text(texto + '\n', encoding='utf-8')

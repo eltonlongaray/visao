@@ -56,12 +56,16 @@ export function carregarModelo(json) {
     const exps = scores.map(s => Math.exp(s - max));
     const soma = exps.reduce((a, b) => a + b, 0);
     const probs = exps.map(e => e / soma);
-    let melhor = 0;
-    for (let c = 1; c < probs.length; c++) if (probs[c] > probs[melhor]) melhor = c;
+    // Ordena da mais provável pra menos; as seguintes viram "você quis dizer?"
+    const ordem = probs.map((p, c) => [json.classes[c], p]).sort((a, b) => b[1] - a[1]);
+    const [intencao, confianca] = ordem[0];
     return {
-      intencao: json.classes[melhor],
-      confianca: probs[melhor],
-      entendeu: probs[melhor] >= json.limiar,
+      intencao,
+      confianca,
+      // "fora" = pedido que não é do app (clima, conta, piada...)
+      entendeu: intencao !== 'fora' && confianca >= json.limiar,
+      alternativas: ordem.slice(1, 3).filter(([c]) => c !== 'fora')
+        .map(([c, p]) => ({ intencao: c, confianca: p })),
     };
   };
 }
