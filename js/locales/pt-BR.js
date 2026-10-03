@@ -393,6 +393,11 @@ export default {
   <li><em>troca arroz por arroz integral</em> · <em>apaga o detergente da lista</em></li>
   <li><em>cria uma lista de Viagem no Pessoal</em> · <em>o que tem na lista do Mercado</em></li>
 </ul>
+<strong>Preparo Físico</strong>
+<ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
+  <li><em>treino 5 vezes por semana</em> · <em>treino peito 2x por semana</em> · <em>meu objetivo é volume</em></li>
+  <li><em>treino há 2 anos</em> · <em>fiquei 3 meses parado</em> · <em>meu peso é 82 kg</em> · <em>qual meu perfil de treino</em></li>
+</ul>
 <strong>Registro de Atividades</strong>
 <small style="color:var(--muted);display:block;margin:2px 0 4px 0">verbos: marcar · agendar · registrar</small>
 <em style="color:var(--muted);font-size:0.85em">Ditando título e descrição</em>
