@@ -396,6 +396,7 @@ export default {
 <strong>Preparo Físico</strong>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>treino 5 vezes por semana</em> · <em>treino peito 2x por semana</em> · <em>meu objetivo é volume</em></li>
+  <li><em>muda o peito pra 3 e as costas pra 1</em> · <em>muda o peso pra 80 e os treinos pra 4</em></li>
   <li><em>treino há 2 anos</em> · <em>fiquei 3 meses parado</em> · <em>meu peso é 82 kg</em> · <em>qual meu perfil de treino</em></li>
 </ul>
 <strong>Registro de Atividades</strong>
