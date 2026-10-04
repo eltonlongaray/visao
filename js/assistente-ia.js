@@ -32,7 +32,7 @@ import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
-import * as PP from './pet-preparo.js?v=20261003h';
+import * as PP from './pet-preparo.js?v=20261004a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)

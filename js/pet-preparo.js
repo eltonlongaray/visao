@@ -68,19 +68,38 @@ function forca(t) {
 
 // "treino 5 vezes por semana" / "vou na academia 4 dias na semana"
 const POR_SEMANA = new RegExp(`\\b${NUM}\\s*(?:x|vezes|vez|dias?)\\s*(?:por|na|a|numa|em uma|toda)\\s*semana\\b`);
-function frequencias(t) {
-  const m = t.match(POR_SEMANA);
-  if (!m) return {};
-  const n = Math.round(num(m[1]));
-  const muscs = MUSCULO_FALA.filter(([re]) => re.test(t));
-  if (muscs.length) {
-    // "peito e costas 2x por semana": vale pra todos os citados
-    const por = {};
-    for (const [, ks] of muscs) for (const k of ks) por[k] = Math.max(0, Math.min(3, n));
-    return { freqPorMusculo: por, musculosRotulo: muscs.map(x => x[2]) };
+const N_VEZES = new RegExp(`\\b${NUM}\\s*(?:x|vezes|vez|dias?)\\b`);
+// "muda o peito pra 3" / "os treinos pra 4" (não pega "pra 80 kg", "pra 6 meses")
+const PRA_N = new RegExp(`\\b(?:pra|para|por|em)\\s+${NUM}\\b(?!\\s*(?:kg|quilos?|kilos?|anos?|mes|meses|semanas|cm|m\\b|metros?|\\.\\d))`);
+
+function numeroFreq(p) {
+  const m = p.match(N_VEZES) || p.match(PRA_N);
+  return m ? Math.round(num(m[1])) : null;
+}
+
+// Fala em pedaços ("peito pra 3, costas pra 1 e pernas 2x por semana"): cada
+// pedaço com músculo leva o seu número; músculo sem número ("bíceps e tríceps
+// 2x") pega o número do pedaço seguinte.
+function frequencias(partes) {
+  const por = {}, rotulos = [];
+  let pendentes = [], semana = null;
+  for (const p of partes) {
+    const muscs = MUSCULO_FALA.filter(([re]) => re.test(p));
+    const n = numeroFreq(p);
+    if (muscs.length) {
+      if (n == null) { pendentes.push(...muscs); continue; }
+      const v = Math.max(0, Math.min(3, n));
+      for (const [, ks, rot] of [...pendentes, ...muscs]) { for (const k of ks) por[k] = v; rotulos.push(`${rot} ${v}×`); }
+      pendentes = [];
+    } else if (n != null && n >= 1 && n <= 7 &&
+               (POR_SEMANA.test(p) || /\b(treinos?|treino|frequencia|vezes|dias de treino|academia)\b/.test(p))) {
+      semana = n;
+    }
   }
-  if (n >= 1 && n <= 7) return { freqSemana: n };
-  return {};
+  const out = {};
+  if (semana) out.freqSemana = semana;
+  if (rotulos.length) { out.freqPorMusculo = por; out.musculosRotulo = rotulos; }
+  return out;
 }
 
 function mesesDe(qtd, unidade) {
@@ -91,7 +110,8 @@ const DURACAO = `${NUM}\\s*(anos?|mes(?:es)?|semanas?|dias?)`;
 function tempoTreino(t) {
   if (/\b(comecei|to comecando|estou comecando|iniciante) (agora|a treinar|ontem|essa semana|semana passada)?\b/.test(t) &&
       !new RegExp(DURACAO).test(t) && !/\bparad|\bparei\b/.test(t)) return 'novo';
-  const m = t.match(new RegExp(`\\b(?:treino|treinando|malho|malhando|na academia)\\b[\\w. ]{0,30}?\\b(?:ha|faz|tem)\\s+(?:uns |umas |mais de |quase )?${DURACAO}`)) ||
+  const m = t.match(new RegExp(`\\b(?:tempo de treino|experiencia)\\b[\\w. ]{0,20}?${DURACAO}`)) ||
+            t.match(new RegExp(`\\b(?:treino|treinando|malho|malhando|na academia)\\b[\\w. ]{0,30}?\\b(?:ha|faz|tem)\\s+(?:uns |umas |mais de |quase )?${DURACAO}`)) ||
             t.match(new RegExp(`\\b(?:ha|faz)\\s+(?:uns |umas |mais de |quase )?${DURACAO}\\s+que\\s+(?:eu\\s+)?(?:treino|malho)`));
   if (!m) return null;
   const meses = mesesDe(num(m[1]), m[2]);
@@ -118,7 +138,7 @@ function pausa(t) {
 // BLOCO 3: CORPO
 // ═══════════════════════════════════════════════════════════════
 function peso(t) {
-  const m = t.match(new RegExp(`\\b(?:peso|pesando|pesei|estou com|to com|tô com)\\s+(?:e |eh |ta |esta |de |atual |hoje |agora )*(\\d{2,3}(?:\\.\\d)?)\\s*(?:kg|quilos?|kilos?)?\\b`)) ||
+  const m = t.match(new RegExp(`\\b(?:peso|pesando|pesei|estou com|to com|tô com)\\s+(?:e |eh |ta |esta |de |atual |hoje |agora |pra |para |em )*(\\d{2,3}(?:\\.\\d)?)\\s*(?:kg|quilos?|kilos?)?\\b`)) ||
             t.match(/\b(\d{2,3}(?:\.\d)?)\s*(?:kg|quilos?|kilos?)\b(?!\s*d[eao]s?\b)/);
   if (!m) return null;
   const kg = parseFloat(m[1]);
@@ -156,12 +176,12 @@ export function interpretarPreparo(text) {
   if (obj) { treino.objetivo = obj; linhas.push(`Objetivo: <b>${OBJETIVO_ROTULO[obj]}</b>`); }
   const f = forca(t);
   if (f !== null) { treino.forca = f; linhas.push(`+ Força: <b>${f ? 'sim' : 'não'}</b>`); }
-  const fr = frequencias(t);
+  const partes = String(text || '').replace(/(\d),(\d)/g, '$1.$2').split(/[,;]|\s+e\s+/i).map(norm).filter(Boolean);
+  const fr = frequencias(partes);
   if (fr.freqSemana) { treino.freqSemana = fr.freqSemana; linhas.push(`Treinos por semana: <b>${fr.freqSemana}×</b>`); }
   if (fr.freqPorMusculo) {
     treino.freqPorMusculo = fr.freqPorMusculo;
-    const n = Object.values(fr.freqPorMusculo)[0];
-    linhas.push(`${fr.musculosRotulo.join(', ')}: <b>${n}× por semana</b>`);
+    linhas.push(`Por músculo (na semana): <b>${fr.musculosRotulo.join(', ')}</b>`);
   }
   const tp = tempoTreino(t);
   if (tp) { treino.tempoTreino = tp; linhas.push(`Tempo de treino: <b>${TEMPO_ROTULO[tp]}</b>`); }
@@ -171,7 +191,7 @@ export function interpretarPreparo(text) {
   const kg = peso(t);
   if (kg) { corpo.pesoKg = kg; linhas.push(`Peso: <b>${String(kg).replace('.', ',')} kg</b>`); }
   const cm = altura(t);
-  if (cm) { corpo.alturaCm = cm; linhas.push(`Altura: <b>${String(cm / 100).replace('.', ',')} m</b>`); }
+  if (cm) { corpo.alturaCm = cm; linhas.push(`Altura: <b>${(cm / 100).toFixed(2).replace('.', ',')} m</b>`); }
   const sx = sexo(t);
   if (sx) { corpo.sexo = sx; linhas.push(`Sexo: <b>${sx === 'F' ? 'feminino' : 'masculino'}</b>`); }
 
