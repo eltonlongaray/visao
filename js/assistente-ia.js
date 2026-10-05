@@ -1275,6 +1275,21 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '') {
   // 1º o nome que a IA deu; se não achar, as palavras da frase toda (o Uber dele é a atividade "Trabalho")
   let achados = procurar(palavrasDe(nome, false).length ? palavrasDe(nome, false) : [semAcento(nome)]);
   if (!achados.length && texto) achados = procurar([...new Set([...palavrasDe(nome, true), ...palavrasDe(texto, true)])]);
+  // Ainda nada: usa o horário como pista ("não vou fazer Uber das 16h" → o que começa às 16h nesses dias)
+  if (!achados.length && aPartir != null) {
+    const porTitulo = new Map();
+    for (const dia of dias) {
+      if (soDias && !soDias.has(dia.id)) continue;
+      for (const tk of dia.tasks || []) {
+        if (tk.done || !!tk.cancelled !== reativar || !/^\d{1,2}:\d{2}/.test(tk.startTime || '')) continue;
+        const [h, m] = tk.startTime.split(':').map(Number);
+        if (Math.abs(h * 60 + m - aPartir) > 30) continue;
+        const k = semAcento(tk.title || '');
+        porTitulo.set(k, [...(porTitulo.get(k) || []), { dia: dia.id, tk }]);
+      }
+    }
+    achados = [...porTitulo.values()].sort((a, b) => b.length - a.length)[0] || [];
+  }
   if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong>${reativar ? ' cancelado' : ''} na tua agenda ${periodo}${aPartir != null ? ` a partir das ${_esc(j.hora)}` : ''}.`;
   const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number);
     return `${rotData(new Date(y, mo - 1, d))}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
