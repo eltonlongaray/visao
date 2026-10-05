@@ -43,7 +43,8 @@ function regraParou({ dias, agora }) {
   if (!tr.length || tr.some(x => x.atras <= 21)) return null;
   return {
     tipo: 'parou',
-    texto: 'Faz umas 3 semanas que não vejo treino marcado como feito. Tu deu uma parada?',
+    conversa: true,   // vira conversa guiada (pergunta o porquê antes de agir)
+    texto: 'Faz umas 3 semanas que não vejo treino marcado como feito. Tu deu uma parada ou só não tá marcando?',
     botoes: [
       { label: '⏸️ Parei um tempo', resp: 'parei' },
       { label: '💪 Tô treinando, só não marco', resp: 'nao_marco' },
@@ -65,7 +66,9 @@ function regraRitmo({ dias, prof, agora }) {
   const novo = Math.max(1, Math.round(porSemana));
   return {
     tipo: 'ritmo',
-    texto: `Teu perfil diz <strong>${f}× por semana</strong>, mas nas últimas 2 semanas eu vi <strong>${feitos} treino${feitos === 1 ? '' : 's'}</strong> marcado${feitos === 1 ? '' : 's'} como feito. Tu diminuiu o ritmo ou só não tá marcando?`,
+    conversa: true,   // vira conversa guiada (pergunta o porquê antes de agir)
+    dados: { f, feitos },
+    texto: `Teu perfil diz <strong>${f}× por semana</strong>, mas nas últimas 2 semanas eu vi <strong>${feitos} treino${feitos === 1 ? '' : 's'}</strong> marcado${feitos === 1 ? '' : 's'} como feito. O que rolou? Tu mudou o plano, faltou alguns dias ou só não marcou?`,
     botoes: [
       { label: `📉 Diminuí (${novo}× por semana)`, resp: 'diminui', valor: novo },
       { label: '✍️ Esqueci de marcar', resp: 'nao_marco' },
