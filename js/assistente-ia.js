@@ -1119,8 +1119,7 @@ async function entenderComIA(text) {
   const n = await entenderNaNuvem(text);
   if (n !== undefined) return n;
   if (!r.palavrasConhecidas) return t('pet.unknown');
-  if (r.intencao === 'fora')
-    return 'Isso foge do que eu sei fazer 😅 Eu cuido do app: agenda, sono, água e constância. Digite <strong>ajuda</strong> pra ver o que dá pra pedir.';
+  if (r.intencao === 'fora') return FORA_DO_APP;
 
   const opcoes = [r, ...r.alternativas].filter(o => o.intencao !== 'fora' && o.confianca >= 0.1).slice(0, 3);
   if (!opcoes.length) return t('pet.unknown');
@@ -1137,13 +1136,16 @@ async function entenderComIA(text) {
 // roteador já conhece, então a execução continua com os mesmos cards.
 // Sem nuvem (offline, cota do dia acabou), devolve undefined e segue o normal.
 // ═══════════════════════════════════════════════════════════════
+// O Pet só fala do app: assunto de fora sempre recebe esta resposta fixa
+// (o texto livre da IA nunca aparece nesse caso, nem se a pessoa insistir).
+const FORA_DO_APP = 'Isso foge do que eu faço 😅 Eu cuido da tua organização: agenda, treino, sono, água e listas. Digite <strong>ajuda</strong> pra ver o que dá pra pedir.';
 let _naNuvem = false;
 async function entenderNaNuvem(text) {
   if (_naNuvem || !PN.nuvemLigada()) return undefined;
   const j = await PN.perguntarNuvem({ texto: text });
   if (!j) return undefined;
   const frase = PN.fraseDoApp(j);
-  if (!frase) return j.resposta ? _esc(j.resposta) : undefined;
+  if (!frase) return FORA_DO_APP;   // "conversa" = assunto fora do app
   _naNuvem = true;
   try { return await routeCommand(frase); } finally { _naNuvem = false; }
 }
@@ -2732,7 +2734,7 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
     });
     if (_conversa !== c) return null;   // a conversa mudou enquanto esperava
     if (j?.opcao && c.botoes.some(b => b.id === j.opcao)) {
-      if (j.resposta) diz(_esc(j.resposta));
+      if (j.resposta) diz(_esc(String(j.resposta).slice(0, 160)));
       return PASSOS[c.passo]({ id: j.opcao, texto }, c.dados);
     }
     // A IA disse que não é resposta à pergunta (é outro pedido): sai da conversa
