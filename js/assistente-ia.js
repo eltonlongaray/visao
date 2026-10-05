@@ -1163,6 +1163,7 @@ async function entenderNaNuvem(text) {
   }
   if (!j) return undefined;
   if (j.acao === 'cancelar') return cmdCancelarNuvem(j);
+  if (j.acao === 'reativar') return cmdCancelarNuvem(j, true);
   const frase = PN.fraseDoApp(j);
   if (!frase) return 'fora';   // "conversa": quem chamou decide (oi/ajuda passam; o resto é fora do app)
   _naNuvem = true;
@@ -1171,48 +1172,98 @@ async function entenderNaNuvem(text) {
 
 // "Essa semana tô sem carro, não vou fazer Uber a partir das 16h": cancela as
 // ocorrências (não apaga; fica riscado como na tela do Ritual), com card.
+// "de terça a quinta", "até quinta", "sexta e sábado" também valem.
+// reativar=true faz o contrário: "o carro ficou pronto, volta o Uber de sábado".
 const PALAVRAS_GENERICAS = new Set('fazer trabalhar treinar atividade tarefa compromisso essa esta semana hoje amanha dia dias aplicativo app'.split(' '));
-async function cmdCancelarNuvem(j) {
-  const nome = String(j.titulo || '').trim();
-  if (!nome) return 'Qual atividade tu não vai fazer? Ex.: <em>"não vou na academia amanhã"</em>.';
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const quando = semAcento(j.quando || '');
-  let ini = hoje, fim = null, periodo = 'nos próximos 7 dias';
-  if (/semana que vem|proxima semana/.test(quando)) {
-    ini = new Date(hoje); ini.setDate(hoje.getDate() + (8 - hoje.getDay()) % 7 || 7);
-    fim = new Date(ini); fim.setDate(ini.getDate() + 6); periodo = 'na semana que vem';
-  } else if (/semana/.test(quando)) {
-    fim = new Date(hoje); fim.setDate(hoje.getDate() + (7 - hoje.getDay()) % 7); periodo = 'nesta semana';
-  } else if (quando) {
-    const d = extractDate(quando);
-    if (d) { d.setHours(0, 0, 0, 0); ini = fim = d; periodo = d.getTime() === hoje.getTime() ? 'hoje' : `em ${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}`; }
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const DIA_RE = /\b(hoje|depois de amanha|amanha|dom(?:ingo)?|seg(?:unda)?|ter(?:ca)?|qua(?:rta)?|qui(?:nta)?|sex(?:ta)?|sab(?:ado)?)(?:-feira)?\b/g;
+const DIA_IDX = { dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6 };
+
+// Datas citadas em "quando" (dias da semana = próxima ocorrência, hoje incluído)
+function datasDoQuando(quando, hoje) {
+  const out = [];
+  for (const m of quando.matchAll(DIA_RE)) {
+    const d = new Date(hoje);
+    if (m[1] === 'amanha') d.setDate(d.getDate() + 1);
+    else if (m[1] === 'depois de amanha') d.setDate(d.getDate() + 2);
+    else if (m[1] !== 'hoje') d.setDate(d.getDate() + (DIA_IDX[m[1].slice(0, 3)] - hoje.getDay() + 7) % 7);
+    out.push(d);
   }
-  if (!fim) { fim = new Date(hoje); fim.setDate(hoje.getDate() + 6); }
+  return out;
+}
+const rotData = (d) => `${DIAS_CURTOS[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+// { ini, fim, dias: Set de 'AAAA-MM-DD' ou null, periodo }
+function periodoDoQuando(quandoBruto) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const quando = semAcento(quandoBruto || '');
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (/semana que vem|proxima semana/.test(quando)) {
+    const ini = new Date(hoje); ini.setDate(hoje.getDate() + ((8 - hoje.getDay()) % 7 || 7));
+    const fim = new Date(ini); fim.setDate(ini.getDate() + 6);
+    return { ini, fim, dias: null, periodo: 'na semana que vem' };
+  }
+  const datas = datasDoQuando(quando, hoje);
+  if (/\bate\b/.test(quando) && datas.length) {
+    const fim = datas[datas.length - 1];
+    const ini = datas.length > 1 ? datas[0] : hoje;
+    if (fim >= ini) return { ini, fim, dias: null, periodo: `de ${rotData(ini)} até ${rotData(fim)}` };
+  }
+  if (datas.length === 2 && /\b(de|da|do)\b.*\b(a|ao)\b/.test(quando) && datas[1] >= datas[0]) {
+    return { ini: datas[0], fim: datas[1], dias: null, periodo: `de ${rotData(datas[0])} a ${rotData(datas[1])}` };
+  }
+  if (datas.length) {
+    const ord = [...datas].sort((x, y) => x - y);
+    return { ini: ord[0], fim: ord[ord.length - 1], dias: new Set(ord.map(iso)),
+      periodo: ord.length === 1 && ord[0].getTime() === hoje.getTime() ? 'hoje' : `em ${ord.map(rotData).join(', ')}` };
+  }
+  if (/semana/.test(quando)) {
+    const fim = new Date(hoje); fim.setDate(hoje.getDate() + (7 - hoje.getDay()) % 7);
+    return { ini: hoje, fim, dias: null, periodo: 'nesta semana' };
+  }
+  if (quando) {
+    const d = extractDate(quando);
+    if (d) { d.setHours(0, 0, 0, 0); return { ini: d, fim: d, dias: null, periodo: `em ${rotData(d)}` }; }
+  }
+  const fim = new Date(hoje); fim.setDate(hoje.getDate() + 6);
+  return { ini: hoje, fim, dias: null, periodo: 'nos próximos 7 dias' };
+}
+
+async function cmdCancelarNuvem(j, reativar = false) {
+  const nome = String(j.titulo || '').trim();
+  if (!nome) return reativar ? 'Qual atividade volta pra agenda? Ex.: <em>"volta o Uber de sábado"</em>.'
+    : 'Qual atividade tu não vai fazer? Ex.: <em>"não vou na academia amanhã"</em>.';
+  const { ini, fim, dias: soDias, periodo } = periodoDoQuando(j.quando);
   const mHora = String(j.hora || '').match(/^(\d{1,2}):(\d{2})/);
   const aPartir = mHora ? +mHora[1] * 60 + +mHora[2] : null;
   const palavras = semAcento(nome).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PALAVRAS_GENERICAS.has(w));
   if (!palavras.length) palavras.push(semAcento(nome));
   const dias = await fetchDaysRange(ini, fim);
   let melhor = 0, achados = [];
-  for (const dia of dias) for (const tk of dia.tasks || []) {
-    if (tk.done || tk.cancelled) continue;
-    if (aPartir != null && /^\d{1,2}:\d{2}/.test(tk.startTime || '')) {
-      const [h, m] = tk.startTime.split(':').map(Number);
-      if (h * 60 + m < aPartir) continue;
+  for (const dia of dias) {
+    if (soDias && !soDias.has(dia.id)) continue;
+    for (const tk of dia.tasks || []) {
+      if (tk.done || !!tk.cancelled !== reativar) continue;
+      if (aPartir != null && /^\d{1,2}:\d{2}/.test(tk.startTime || '')) {
+        const [h, m] = tk.startTime.split(':').map(Number);
+        if (h * 60 + m < aPartir) continue;
+      }
+      const alvo = semAcento(`${tk.title || ''} ${tk.desc || ''}`);
+      const nota = palavras.filter(w => alvo.includes(w)).length;
+      if (!nota) continue;
+      if (nota > melhor) { melhor = nota; achados = []; }
+      if (nota === melhor) achados.push({ dia: dia.id, tk });
     }
-    const alvo = semAcento(`${tk.title || ''} ${tk.desc || ''}`);
-    const nota = palavras.filter(w => alvo.includes(w)).length;
-    if (!nota) continue;
-    if (nota > melhor) { melhor = nota; achados = []; }
-    if (nota === melhor) achados.push({ dia: dia.id, tk });
   }
-  if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong> na tua agenda ${periodo}${aPartir != null ? ` a partir das ${j.hora}` : ''}.`;
-  const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number); const dt = new Date(y, mo - 1, d);
-    return `${['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][dt.getDay()]} ${String(d).padStart(2, '0')}/${String(mo).padStart(2, '0')}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
+  if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong>${reativar ? ' cancelado' : ''} na tua agenda ${periodo}${aPartir != null ? ` a partir das ${_esc(j.hora)}` : ''}.`;
+  const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number);
+    return `${rotData(new Date(y, mo - 1, d))}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
   const lista = achados.slice(0, 8);
-  cardConfirmarLista(`🚫 Cancelar <b>${_esc(lista[0].tk.title)}</b>${lista.length > 1 ? ` (${lista.length}×)` : ''}?<br>${lista.map(rot).join(' · ')}`, async () => {
-    for (const x of lista) await updateDayTask(x.dia, x.tk.id, { cancelled: true });
-    return `✅ Cancelei ${lista.length === 1 ? 'essa atividade' : `${lista.length} atividades`}. Fica riscado na agenda.`;
+  const qtd = lista.length > 1 ? ` (${lista.length}×)` : '';
+  cardConfirmarLista(`${reativar ? '↩️ Voltar' : '🚫 Cancelar'} <b>${_esc(lista[0].tk.title)}</b>${qtd}?<br>${lista.map(rot).join(' · ')}`, async () => {
+    for (const x of lista) await updateDayTask(x.dia, x.tk.id, { cancelled: !reativar });
+    const n = lista.length === 1 ? 'essa atividade' : `${lista.length} atividades`;
+    return reativar ? `✅ Voltei ${n} pra agenda.` : `✅ Cancelei ${n}. Fica riscado na agenda.`;
   }, null);
   return null;
 }
