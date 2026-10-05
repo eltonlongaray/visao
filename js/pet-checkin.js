@@ -3,9 +3,9 @@
 // (perfil diz 4 treinos/semana e só tem 1 marcado, ontem ficou coisa sem marcar…).
 // Só DECIDE a pergunta (sem banco, sem DOM). Quem busca os dados, mostra a
 // bolinha e executa a resposta é o assistente-ia.js (BLOCO 8.8).
-// Regras pra não virar chato:
-//  • no máximo 1 pergunta por dia;
-//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias);
+// Ele conduz a pessoa por TODOS os assuntos pendentes, um de cada vez (a
+// bolinha mostra quantos são). Pra não virar chato:
+//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias; ontem: 1);
 //  • "Depois" segura aquele tipo (treino/peso: 30 dias; ontem: 1 dia).
 // BLOCO 1 — O QUE CONTA COMO TREINO
 // BLOCO 2 — REGRAS (uma função por pergunta)
@@ -107,17 +107,18 @@ const ORDEM = [regraParou, regraRitmo, regraOntem, regraPeso];
 export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1 };       // dias depois de perguntar
 export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1 };     // dias depois do "Depois"
 
-// `estado` = { ultimaEm, tipos: { [tipo]: { perguntadoEm, adiadoAte } } }
-export function escolherPergunta(ctx, estado = {}) {
-  const agora = ctx.agora;
-  if (estado.ultimaEm && agora - estado.ultimaEm < DIA) return null;   // 1 por dia
+// `estado` = { tipos: { [tipo]: { perguntadoEm, adiadoAte } } }
+// Devolve a fila de perguntas pendentes, na ordem de prioridade.
+export function listarPerguntas(ctx, estado = {}) {
+  const agora = ctx.agora, fila = [];
   for (const regra of ORDEM) {
     const p = regra(ctx);
     if (!p) continue;
+    if (p.tipo === 'ritmo' && fila.some(x => x.tipo === 'parou')) continue;   // mesmo assunto
     const st = estado.tipos?.[p.tipo] || {};
     if (st.adiadoAte && agora < st.adiadoAte) continue;
     if (st.perguntadoEm && agora - st.perguntadoEm < FOLGA[p.tipo] * DIA) continue;
-    return p;
+    fila.push(p);
   }
-  return null;
+  return fila;
 }

@@ -749,6 +749,7 @@ function openChatPanel() {
 
 function fecharPainelDireto() {
   if (recording) stopMicCancel();
+  setBadge(_fila.length);   // assunto que ficou pra trás volta pra bolinha
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
   ajustarChatAoTeclado();   // devolve o pet pro canto e limpa a altura inline
 }
@@ -2556,51 +2557,58 @@ async function verPreparo() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8.8: CHECK-IN — o Pet puxa conversa
 // ═══════════════════════════════════════════════════════════════
-// Quando o app abre (logado), o pet-checkin.js escolhe no máximo 1 pergunta
-// por dia. Ela vira a bolinha vermelha no Pet e aparece quando o chat abre.
+// Quando o app abre (logado), o pet-checkin.js lista os assuntos pendentes.
+// A bolinha vermelha mostra quantos são; ao abrir o chat ele puxa um por vez
+// e, depois de cada resposta, já emenda o próximo.
 const CK_KEY = 'falcon_pet_checkin';
-let _checkin = null, _checkinRodou = false;
+let _fila = [], _checkinRodou = false, _CK = null;
 
 function lerCheckin() { try { return JSON.parse(localStorage.getItem(CK_KEY)) || {}; } catch { return {}; } }
 function gravarCheckin(st) { try { localStorage.setItem(CK_KEY, JSON.stringify(st)); } catch { /* sem storage: só não lembra */ } }
+const chatAberto = () => !!document.getElementById('pet-chat')?.classList.contains('pet-chat-open');
 
 async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    const CK = await import('./pet-checkin.js?v=20261005a');
+    _CK = await import('./pet-checkin.js?v=20261005b');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
       getProfile().catch(() => null),
       fetchDaysRange(new Date(agora - 60 * 86400000), ontem),
     ]);
-    const p = CK.escolherPergunta({ dias, prof, agora, ontemId: dayId(ontem) }, lerCheckin());
-    if (!p) return;
-    _checkin = { ...p, ontemId: dayId(ontem), CK };
-    if (document.getElementById('pet-chat')?.classList.contains('pet-chat-open')) mostrarCheckin();
-    else setBadge(1);
+    _fila = _CK.listarPerguntas({ dias, prof, agora, ontemId: dayId(ontem) }, lerCheckin())
+      .map(p => ({ ...p, ontemId: dayId(ontem) }));
+    if (!_fila.length) return;
+    if (chatAberto()) mostrarCheckin();
+    else setBadge(_fila.length);
   } catch (err) {
     console.warn('[pet-checkin]', err);
   }
 }
 
 function mostrarCheckin() {
-  const p = _checkin;
+  const p = _fila.shift();
   if (!p) return;
-  _checkin = null;
-  const st = lerCheckin();
-  st.ultimaEm = Date.now();
-  st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
-  gravarCheckin(st);
-  addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: () => responderCheckin(p, b) })));
+  if (!p.repetida) {
+    const st = lerCheckin();
+    st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
+    gravarCheckin(st);
+  }
+  addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
+    const msg = await responderCheckin(p, b);
+    // Emenda o próximo assunto depois da resposta aparecer
+    if (_fila.length) setTimeout(() => { if (chatAberto()) mostrarCheckin(); else setBadge(_fila.length); }, 900);
+    return msg;
+  } })));
 }
 
 async function responderCheckin(p, b) {
   switch (b.resp) {
     case 'depois': {
       const st = lerCheckin();
-      st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), adiadoAte: Date.now() + p.CK.ADIA[p.tipo] * 86400000 } };
+      st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), adiadoAte: Date.now() + _CK.ADIA[p.tipo] * 86400000 } };
       gravarCheckin(st);
       return 'Combinado, deixo isso pra depois 👍';
     }
@@ -2614,10 +2622,16 @@ async function responderCheckin(p, b) {
       return `📉 Atualizei teu perfil pra <strong>${b.valor}× por semana</strong>. Melhor um ritmo que tu mantém do que um que fica só no papel.`;
     case 'marcar_ontem': {
       await updateDayTask(p.ontemId, b.valor, { done: true });
+      // Sobrou mais coisa de ontem? Pergunta de novo só com o que falta
+      const resto = p.botoes.filter(x => x.resp === 'marcar_ontem' && x.valor !== b.valor);
+      if (resto.length) _fila.unshift({ ...p, repetida: true, texto: 'Mais alguma de ontem?',
+        botoes: [...resto, { label: '👍 Só essa', resp: 'so_essa' }] });
       return `✅ Marquei <strong>${_esc(b.label.replace(/^✅\s*/, ''))}</strong> como feito ontem.`;
     }
     case 'nao_fiz':
       return 'Tranquilo, hoje é outro dia 💪';
+    case 'so_essa':
+      return 'Fechado 👍';
     default:
       return null;
   }
