@@ -1162,8 +1162,8 @@ async function entenderNaNuvem(text) {
     _ultimaNuvem = j ? { texto: text, j, em: Date.now() } : null;
   }
   if (!j) return undefined;
-  if (j.acao === 'cancelar') return cmdCancelarNuvem(j);
-  if (j.acao === 'reativar') return cmdCancelarNuvem(j, true);
+  if (j.acao === 'cancelar') return cmdCancelarNuvem(j, false, text);
+  if (j.acao === 'reativar') return cmdCancelarNuvem(j, true, text);
   const frase = PN.fraseDoApp(j);
   if (!frase) return 'fora';   // "conversa": quem chamou decide (oi/ajuda passam; o resto é fora do app)
   _naNuvem = true;
@@ -1229,31 +1229,66 @@ function periodoDoQuando(quandoBruto) {
   return { ini: hoje, fim, dias: null, periodo: 'nos próximos 7 dias' };
 }
 
-async function cmdCancelarNuvem(j, reativar = false) {
-  const nome = String(j.titulo || '').trim();
+// Palavras da frase que não são nome de atividade (quando a IA não manda o título)
+const NAO_E_NOME = new Set(('nao vou mais das dos ate partir depois antes por causa carro pra para com sem ' +
+  'que ele ela meu minha essa esse esta este volta voltar cancela cancelar remove remover tira tirar ' +
+  'domingo segunda terca quarta quinta sexta sabado feira amanha hoje semana proxima').split(' '));
+async function cmdCancelarNuvem(j, reativar = false, texto = '') {
+  // A IA às vezes entende a ação mas esquece campos: completa pela frase
+  if (!j.quando && texto) j = { ...j, quando: texto };
+  if (!j.hora && texto) {
+    const mh = semAcento(texto).match(/\b(?:a partir d[ae]s?|depois d[ae]s?|apos as|das)\s*(\d{1,2})(?:[:h](\d{2}))?\s*h?/);
+    if (mh) j = { ...j, hora: `${mh[1].padStart(2, '0')}:${mh[2] || '00'}` };
+  }
+  let nome = String(j.titulo || '').trim();
+  if (!nome && texto) nome = semAcento(texto).split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 3 && !/^\d/.test(w) && !NAO_E_NOME.has(w) && !['fazer', 'atividade', 'tarefa', 'dia', 'dias', 'app'].includes(w)).join(' ');
   if (!nome) return reativar ? 'Qual atividade volta pra agenda? Ex.: <em>"volta o Uber de sábado"</em>.'
     : 'Qual atividade tu não vai fazer? Ex.: <em>"não vou na academia amanhã"</em>.';
   const { ini, fim, dias: soDias, periodo } = periodoDoQuando(j.quando);
   const mHora = String(j.hora || '').match(/^(\d{1,2}):(\d{2})/);
   const aPartir = mHora ? +mHora[1] * 60 + +mHora[2] : null;
-  const palavras = semAcento(nome).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PALAVRAS_GENERICAS.has(w));
-  if (!palavras.length) palavras.push(semAcento(nome));
+  // Compara pelo começo da palavra: "trabalhar" acha "Trabalho"
+  const radical = (w) => w.length >= 5 ? w.slice(0, 5) : w;
+  const palavrasDe = (t, comGenericas) => semAcento(t).split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 3 && !/^\d/.test(w) && !NAO_E_NOME.has(w) && (comGenericas || !PALAVRAS_GENERICAS.has(w))).map(radical);
   const dias = await fetchDaysRange(ini, fim);
-  let melhor = 0, achados = [];
-  for (const dia of dias) {
-    if (soDias && !soDias.has(dia.id)) continue;
-    for (const tk of dia.tasks || []) {
-      if (tk.done || !!tk.cancelled !== reativar) continue;
-      if (aPartir != null && /^\d{1,2}:\d{2}/.test(tk.startTime || '')) {
-        const [h, m] = tk.startTime.split(':').map(Number);
-        if (h * 60 + m < aPartir) continue;
+  const procurar = (palavras) => {
+    let melhor = 0, achados = [];
+    for (const dia of dias) {
+      if (soDias && !soDias.has(dia.id)) continue;
+      for (const tk of dia.tasks || []) {
+        if (tk.done || !!tk.cancelled !== reativar) continue;
+        if (aPartir != null && /^\d{1,2}:\d{2}/.test(tk.startTime || '')) {
+          const [h, m] = tk.startTime.split(':').map(Number);
+          if (h * 60 + m < aPartir) continue;
+        }
+        const alvo = semAcento(`${tk.title || ''} ${tk.desc || ''}`);
+        const nota = palavras.filter(w => alvo.includes(w)).length;
+        if (!nota) continue;
+        if (nota > melhor) { melhor = nota; achados = []; }
+        if (nota === melhor) achados.push({ dia: dia.id, tk });
       }
-      const alvo = semAcento(`${tk.title || ''} ${tk.desc || ''}`);
-      const nota = palavras.filter(w => alvo.includes(w)).length;
-      if (!nota) continue;
-      if (nota > melhor) { melhor = nota; achados = []; }
-      if (nota === melhor) achados.push({ dia: dia.id, tk });
     }
+    return achados;
+  };
+  // 1º o nome que a IA deu; se não achar, as palavras da frase toda (o Uber dele é a atividade "Trabalho")
+  let achados = procurar(palavrasDe(nome, false).length ? palavrasDe(nome, false) : [semAcento(nome)]);
+  if (!achados.length && texto) achados = procurar([...new Set([...palavrasDe(nome, true), ...palavrasDe(texto, true)])]);
+  // Ainda nada: usa o horário como pista ("não vou fazer Uber das 16h" → o que começa às 16h nesses dias)
+  if (!achados.length && aPartir != null) {
+    const porTitulo = new Map();
+    for (const dia of dias) {
+      if (soDias && !soDias.has(dia.id)) continue;
+      for (const tk of dia.tasks || []) {
+        if (tk.done || !!tk.cancelled !== reativar || !/^\d{1,2}:\d{2}/.test(tk.startTime || '')) continue;
+        const [h, m] = tk.startTime.split(':').map(Number);
+        if (Math.abs(h * 60 + m - aPartir) > 30) continue;
+        const k = semAcento(tk.title || '');
+        porTitulo.set(k, [...(porTitulo.get(k) || []), { dia: dia.id, tk }]);
+      }
+    }
+    achados = [...porTitulo.values()].sort((a, b) => b.length - a.length)[0] || [];
   }
   if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong>${reativar ? ' cancelado' : ''} na tua agenda ${periodo}${aPartir != null ? ` a partir das ${_esc(j.hora)}` : ''}.`;
   const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number);
