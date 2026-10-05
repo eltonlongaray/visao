@@ -7,7 +7,8 @@
       ".firebaserc",
       ".git/**",
       "node_modules/**",
-      "ia/**"
+      "ia/**",
+      "cloudflare/**"
     ],
     "rewrites": [
       {
