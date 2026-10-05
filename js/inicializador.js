@@ -32,7 +32,7 @@ import { showLock, hideLock, initAutoLock, isLocked } from './bloqueio.js';
 import { showToast } from './aviso-tela.js';
 import { playAlert } from './sons.js';
 import { hasTerms } from './lgpd-consentimentos.js';
-import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261005h';
+import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261005i';
 
 
 // ═══════════════════════════════════════════════════════════════
