@@ -386,8 +386,9 @@ function buildPetHTML() {
   </div>
 
   <!-- Corpo do pet — O OLHO INTEIRO -->
+  <!-- Embrulho só pra bolinha: o corpo tem overflow:hidden e cortava ela -->
+  <div class="pet-body-wrap">
   <div class="pet-body" id="pet-body" role="button" aria-label="${t('pet.open')}" tabindex="0">
-    <div id="pet-badge" class="pet-badge" style="display:none">1</div>
     <svg class="pet-eye-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <clipPath id="petEyeClip"><circle cx="30" cy="30" r="30"/></clipPath>
@@ -412,6 +413,8 @@ function buildPetHTML() {
       <span style="--d:0.5s">z</span>
       <span style="--d:1s">Z</span>
     </div>
+  </div>
+  <div id="pet-badge" class="pet-badge" style="display:none">1</div>
   </div>
 </div>`;
 }
