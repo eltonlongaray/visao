@@ -11,6 +11,7 @@
 // BLOCO 8.6 — CAIXA DE FERRAMENTAS (LISTAS) VIA PET
 // BLOCO 8.7 — PREPARO FÍSICO VIA PET
 // BLOCO 8.8 — CHECK-IN (o Pet puxa conversa + bolinha vermelha)
+// BLOCO 8.9 — CONVERSA GUIADA (entende a resposta no contexto e pergunta o porquê)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -34,6 +35,7 @@ import {
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
 import * as PP from './pet-preparo.js?v=20261005c';
+import * as PC from './pet-conversa.js?v=20261005a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -792,7 +794,11 @@ async function handleSend() {
 async function dispatchCommand(text) {
   setPetState('thinking');
   try {
-    const reply = typeof text === 'function' ? await text() : await routeCommand(await corrigirSeguras(semChamado(text)));
+    // Conversa guiada em andamento (o Pet perguntou algo): a frase é RESPOSTA,
+    // não comando novo. Se não for resposta e parecer comando, segue o roteador.
+    let reply;
+    if (typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
+    if (reply === undefined) reply = typeof text === 'function' ? await text() : await routeCommand(await corrigirSeguras(semChamado(text)));
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
     addMessage(t('pet.error.general'), 'bot');
@@ -2564,7 +2570,7 @@ async function verPreparo() {
 // A bolinha vermelha mostra quantos são; ao abrir o chat ele puxa um por vez
 // e, depois de cada resposta, já emenda o próximo.
 const CK_KEY = 'falcon_pet_checkin';
-let _fila = [], _checkinRodou = false, _CK = null;
+let _fila = [], _checkinRodou = false, _CK = null, _ckDias = [];
 
 function lerCheckin() { try { return JSON.parse(localStorage.getItem(CK_KEY)) || {}; } catch { return {}; } }
 function gravarCheckin(st) { try { localStorage.setItem(CK_KEY, JSON.stringify(st)); } catch { /* sem storage: só não lembra */ } }
@@ -2574,13 +2580,14 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261005b');
+    _CK = await import('./pet-checkin.js?v=20261005c');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
       getProfile().catch(() => null),
       fetchDaysRange(new Date(agora - 60 * 86400000), ontem),
     ]);
+    _ckDias = dias || [];
     _fila = _CK.listarPerguntas({ dias, prof, agora, ontemId: dayId(ontem) }, lerCheckin())
       .map(p => ({ ...p, ontemId: dayId(ontem) }));
     if (!_fila.length) return;
@@ -2599,12 +2606,24 @@ function mostrarCheckin() {
     st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
     gravarCheckin(st);
   }
+  if (p.conversa) { iniciarConversaTreino(p); return; }
   addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
     const msg = await responderCheckin(p, b);
-    // Emenda o próximo assunto depois da resposta aparecer
-    if (_fila.length) setTimeout(() => { if (chatAberto()) mostrarCheckin(); else setBadge(_fila.length); }, 900);
+    proximoAssunto();
     return msg;
   } })));
+}
+
+// Emenda o próximo assunto da fila depois da resposta aparecer
+function proximoAssunto() {
+  if (_fila.length) setTimeout(() => { if (chatAberto()) mostrarCheckin(); else setBadge(_fila.length); }, 900);
+}
+
+function adiarTipos(tipos, dias) {
+  const st = lerCheckin();
+  st.tipos = { ...(st.tipos || {}) };
+  for (const tp of tipos) st.tipos[tp] = { ...(st.tipos[tp] || {}), adiadoAte: Date.now() + dias * 86400000 };
+  gravarCheckin(st);
 }
 
 async function responderCheckin(p, b) {
@@ -2639,6 +2658,297 @@ async function responderCheckin(p, b) {
       return null;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.9: CONVERSA GUIADA — entende a resposta no contexto
+// ═══════════════════════════════════════════════════════════════
+// Quando o Pet pergunta algo ("vi 1 treino, o que rolou?"), a próxima frase é
+// RESPOSTA. Fora de contexto, "só fiz um na terça" não quer dizer nada; aqui
+// quer dizer "faltei". Ele entende, pergunta o PORQUÊ (sem julgar) e só então
+// age: ajusta o plano, marca o que ficou sem marcar, para de cobrar…
+// Botão e texto livre caem no mesmo passo (PASSOS). Um passo devolve
+// undefined quando a frase não é resposta: se parecer comando, a conversa sai
+// e o roteador normal assume; senão o Pet pergunta de novo, mais curto.
+let _conversa = null;   // { passo, dados, em, texto, botoes, curta, tentativas }
+const CONVERSA_MS = 15 * 60000;
+const CMD_RE = /^(marca\w*|agenda\w*|registra\w*|adiciona\w*|coloca|apaga\w*|remove\w*|desmarca\w*|edita\w*|reagenda\w*|mostra\w*|qual|quais|quanto|quantos|quando|cria\w*|abre|ajuda|lembra\w*|me lembra|o que)\b/i;
+const pareceComando = (text) => !!text && (CMD_RE.test(String(text).trim()) || PL.DICA_LISTA.test(text) || !!PP.interpretarPreparo(text));
+const diz = (html) => addMessage(html, 'bot');
+const BT = (id, label) => ({ id, label });
+
+function conversaAtiva() {
+  if (_conversa && Date.now() - _conversa.em > CONVERSA_MS) _conversa = null;
+  return !!_conversa;
+}
+
+// Faz a pergunta e guarda em que passo a conversa está
+function perguntar(passo, texto, botoes, dados, curta = null) {
+  _conversa = { passo, dados, em: Date.now(), texto, botoes, curta, tentativas: 0 };
+  addChoices(texto, botoes.map(b => ({ label: b.label, action: () => continuarConversa(null, b.id, passo) })));
+  return null;
+}
+
+function encerrarConversa(msg) {
+  _conversa = null;
+  proximoAssunto();
+  return msg;
+}
+
+// Texto livre (texto) ou botão (id). Botão de uma pergunta antiga não faz nada.
+async function continuarConversa(texto, id = null, passoBotao = null) {
+  if (!conversaAtiva() || (passoBotao && _conversa.passo !== passoBotao)) return passoBotao ? null : undefined;
+  const c = _conversa;
+  c.em = Date.now();
+  const r = await PASSOS[c.passo]({ id, texto: texto || '' }, c.dados);
+  if (r !== undefined) return r;
+  if (pareceComando(texto)) { _conversa = null; return undefined; }   // era comando novo
+  if (++c.tentativas >= 2) return encerrarConversa('Tudo bem, deixa pra lá 👍 Se quiser falar disso depois, é só me chamar.');
+  addChoices(`Não peguei bem 😅 ${c.curta || c.texto}`, c.botoes.map(b => ({ label: b.label, action: () => continuarConversa(null, b.id, c.passo) })));
+  return null;
+}
+
+// ─── Treino: dados de apoio ──────────────────────────────────
+async function freqAtual(d) {
+  if (!d.f) {
+    const { getPerfilTreino } = await import('./perfil-treino-ui.js');
+    d.f = getPerfilTreino(await getProfile().catch(() => null)).freqSemana || 3;
+  }
+  return d.f;
+}
+
+const DOW = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const DOW_FALA = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+const dataDoId = (id) => { const [y, m, d] = String(id).split('-').map(Number); return new Date(y, m - 1, d); };
+const rotuloTreino = (x) => { const dt = dataDoId(x.dia); return `${x.title} · ${DOW[dt.getDay()]} ${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`; };
+
+// Treinos agendados nos últimos 14 dias que ficaram sem marcar
+function treinosSemMarcar() {
+  const limite = dayId(new Date(Date.now() - 14 * 86400000));
+  const out = [];
+  for (const dia of _ckDias) {
+    if (dia.id < limite) continue;
+    for (const t of dia.tasks || []) {
+      if (!t.done && !t.cancelled && _CK?.TREINO_RE.test(t.title || '')) out.push({ dia: dia.id, id: t.id, title: t.title });
+    }
+  }
+  return out.slice(-6);
+}
+
+// Média de sono (min) das últimas noites registradas, ou null
+function mediaSono() {
+  const porId = new Map(_ckDias.map(d => [d.id, d]));
+  const noites = [];
+  for (const dia of _ckDias.slice(-8)) {
+    const antes = new Date(dataDoId(dia.id).getTime() - 86400000);
+    const dorme = porId.get(dayId(antes))?.sleepTime;
+    const mins = dia.wakeTime && dorme ? sleepDuration(dorme, dia.wakeTime) : 0;
+    if (mins > 0) noites.push(mins);
+  }
+  return noites.length >= 2 ? Math.round(noites.reduce((a, b) => a + b, 0) / noites.length) : null;
+}
+
+// Guarda o motivo (profile.extra.faltas, últimas 20) e devolve quantas vezes o
+// mesmo motivo já tinha aparecido nos últimos 30 dias
+async function registrarFalta(motivo, texto) {
+  try {
+    const prof = await getProfile().catch(() => null);
+    const faltas = Array.isArray(prof?.faltas) ? prof.faltas : [];
+    const desde = Date.now() - 30 * 86400000;
+    const antes = faltas.filter(x => x.motivo === motivo && new Date(x.em).getTime() >= desde).length;
+    faltas.push({ em: new Date().toISOString(), motivo, texto: String(texto || '').slice(0, 140) });
+    await setProfile({ faltas: faltas.slice(-20) });
+    return motivo === 'outro' ? 0 : antes;
+  } catch (err) {
+    console.warn('[pet-conversa] falta', err);
+    return 0;
+  }
+}
+
+function opcoesFreq(f, comManter) {
+  const ops = [f - 1, f - 2].filter(n => n >= 1).map(n => BT(String(n), `📉 ${n}× por semana`));
+  return comManter ? [BT('manter', `💪 Manter ${f}×`), ...ops] : [...ops, BT(String(Math.min(7, f + 1)), `📈 ${Math.min(7, f + 1)}× por semana`)];
+}
+
+async function salvarNovaFreq(d, n) {
+  const f = await freqAtual(d);
+  if (n === f) return encerrarConversa(`Fechado, o plano segue <strong>${f}× por semana</strong> 💪 Tô contigo.`);
+  await salvarPerfilTreino({ freqSemana: n });
+  return encerrarConversa(n < f
+    ? `📉 Atualizei teu perfil pra <strong>${n}× por semana</strong>. Melhor um ritmo que tu mantém do que um que fica só no papel. Quando ficar fácil, a gente sobe de novo.`
+    : `📈 Atualizei teu perfil pra <strong>${n}× por semana</strong>. Bora! 💪`);
+}
+
+// ─── Treino: início (vem do check-in "ritmo" ou "parou") ─────
+function iniciarConversaTreino(p) {
+  const dados = { tipo: p.tipo, f: p.dados?.f, feitos: p.dados?.feitos };
+  if (p.tipo === 'parou') {
+    return perguntar('plano', p.texto,
+      [BT('parou', '⏸️ Dei uma parada'), BT('esqueci', '✍️ Treinei, só não marquei'), BT('depois', '⏰ Depois')],
+      dados, 'Tu deu uma parada ou só não tá marcando?');
+  }
+  return perguntar('plano', p.texto,
+    [BT('faltou', '🙋 Faltei alguns'), BT('mudou', '📉 Mudei o plano'), BT('esqueci', '✍️ Treinei, só não marquei'), BT('depois', '⏰ Depois')],
+    dados, 'Tu faltou alguns treinos, mudou o plano ou só não marcou?');
+}
+
+// Se a pessoa já disse o motivo junto ("faltei porque tava cansado"), não pergunta de novo
+function perguntarMotivo(d, texto, pergunta) {
+  const m = texto ? PC.motivoFalta(texto) : null;
+  if (m) return tratarMotivo(d, m, texto);
+  return perguntar('motivo', pergunta,
+    [...Object.entries(PC.MOTIVOS).map(([k, v]) => BT(k, v.label)), BT('outro', '🤷 Outro')],
+    d, 'O que fez tu faltar? Rotina, cansaço, preguiça, dor… sem julgamento.');
+}
+
+async function tratarMotivo(d, m, texto) {
+  const f = await freqAtual(d);
+  const antes = await registrarFalta(m, texto);
+  const repete = antes >= 1 ? `É a ${antes + 1}ª vez no último mês que ${PC.MOTIVOS[m].nome} atrapalha. ` : '';
+  switch (m) {
+    case 'rotina':
+      return perguntar('ajuste',
+        `${repete}Rotina mudou, acontece. Melhor um plano que cabe na tua vida do que um que fica no papel. Quantas vezes por semana cabem agora?`,
+        [...opcoesFreq(f, true), BT('so_semana', '🗓️ Foi só essa semana')], d,
+        'Quantas vezes por semana cabem na tua rotina agora?');
+    case 'cansaco': {
+      const sono = mediaSono();
+      const fmt = sono ? `${Math.floor(sono / 60)}h${String(sono % 60).padStart(2, '0')}` : '';
+      const txtSono = !sono
+        ? 'Não tenho teu sono anotado; se tu registrar a hora que dorme e acorda, eu te aviso quando ele tiver atrapalhando.'
+        : sono < 420
+          ? `Tua média de sono nos últimos dias foi <strong>${fmt}</strong>, abaixo das 7h. Isso derruba o treino; vale priorizar dormir mais essa semana.`
+          : `Tua média de sono nos últimos dias foi <strong>${fmt}</strong>, então parece mais o dia puxado do que o sono.`;
+      return perguntar('ajuste',
+        `Cansaço pesa mesmo. ${txtSono} Num dia cansado, um treino mais curto ou mais leve vale mais que nenhum. ${repete}Quer manter o plano?`,
+        [BT('manter', `💪 Manter ${f}×`), ...(f > 1 ? [BT(String(f - 1), `📉 Baixar pra ${f - 1}×`)] : [])], d,
+        `Quer manter ${f}× por semana ou baixar um pouco?`);
+    }
+    case 'preguica':
+      return perguntar('agendar',
+        `Valeu pela sinceridade, acontece com todo mundo 🙂 O segredo é não depender da vontade: treino com dia e hora marcados vira compromisso. ` +
+        (repete ? `${repete}Talvez ${f}× esteja puxado agora; baixar um pouco por um tempo ajuda a criar o hábito. ` : '') +
+        'Quer que eu agende o próximo treino?',
+        [BT('agendar', '📅 Agenda pra amanhã'), ...(repete && f > 1 ? [BT(String(f - 1), `📉 Baixar pra ${f - 1}×`)] : []), BT('nao', '💪 Deixa comigo')], d,
+        'Quer que eu agende o próximo treino pra amanhã?');
+    case 'saude':
+      adiarTipos(['ritmo', 'parou'], 14);
+      return encerrarConversa(`Saúde primeiro 🙏 Nada de forçar com dor. ${repete}Vou parar de te cobrar treino pelas próximas 2 semanas. Se não melhorar, vale procurar um médico ou fisio, e na volta começa mais leve.`);
+    case 'imprevisto':
+      return encerrarConversa(`${repete}Imprevisto acontece, não muda nada no plano 👊 ${repete ? 'Se tá acontecendo direto, vale deixar um dia de folga na semana pra encaixar o treino que caiu. ' : ''}Semana que vem é vida normal: ${f}× por semana.`);
+    default:
+      return perguntar('ajuste', `Entendi, obrigado por me contar 🙂 Quer manter teu plano de <strong>${f}× por semana</strong> ou ajustar?`,
+        opcoesFreq(f, true), d, `Quer manter ${f}× por semana ou ajustar?`);
+  }
+}
+
+// "Treinei, só não marquei": mostra os treinos sem marcar pra marcar ali mesmo
+function passoMarcar(d, primeira) {
+  d.pendentes = d.pendentes || treinosSemMarcar();
+  const lista = d.pendentes;
+  if (!lista.length) {
+    return encerrarConversa(primeira
+      ? 'Beleza! Não achei treino agendado sem marcar nos últimos dias. Pra marcar rápido, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪'
+      : 'Pronto, tudo marcado 💪 Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino.');
+  }
+  return perguntar('marcar',
+    primeira ? 'Beleza! Achei estes treinos agendados que ficaram sem marcar. Quais tu fez?' : 'Mais algum?',
+    [...lista.map(x => BT(`${x.dia}|${x.id}`, `✅ ${rotuloTreino(x)}`)), ...(lista.length > 1 ? [BT('todos', '✅ Todos')] : []), BT('pronto', '👍 Pronto')],
+    d, 'Quais desses tu fez? Pode falar o dia, tipo "o de terça".');
+}
+
+const PASSOS = {
+  // "Mudou o plano, faltou ou não marcou?"
+  async plano({ id, texto }, d) {
+    const r = id ? { op: id } : PC.respostaPlano(texto);
+    const f = await freqAtual(d);
+    if (r.op === 'faltou' && r.feitos != null && r.feitos >= f) r.op = 'esqueci';   // fez tudo: só não marcou
+    switch (r.op) {
+      case 'depois':
+        adiarTipos([d.tipo], _CK.ADIA[d.tipo]);
+        return encerrarConversa('Combinado, deixo isso pra depois 👍');
+      case 'esqueci':
+        return passoMarcar(d, true);
+      case 'mudou':
+        if (r.novo) return salvarNovaFreq(d, r.novo);
+        return perguntar('ajuste', 'Beleza. Quantas vezes por semana tu vai treinar agora?', opcoesFreq(f, false), d);
+      case 'parou':
+        await salvarPerfilTreino({ pausa: 'menos1m' });
+        diz('⏸️ Anotei no teu perfil que tu deu uma parada. A volta começa mais leve.');
+        return perguntarMotivo(d, texto, 'Sem julgamento, tô aqui pra te ajudar a voltar, não pra cobrar 🙂 O que fez tu parar? Pode ser sincero.');
+      case 'faltou': {
+        if (!id) {
+          let ack = r.feitos != null
+            ? `Entendi: foram <strong>${r.feitos} de ${f}</strong>. Então o plano continua o mesmo, tu só faltou ${f - r.feitos === 1 ? '1 dia' : `${f - r.feitos} dias`}.`
+            : 'Entendi: o plano continua o mesmo, tu só faltou alguns dias.';
+          if (r.hoje) ack += ' E boa que hoje tem treino 💪 Quando terminar, me fala <em>"fiz a academia"</em> que eu marco.';
+          diz(ack);
+        }
+        return perguntarMotivo(d, texto, 'Sem julgamento, tô aqui pra te ajudar a manter o ritmo, não pra cobrar 🙂 O que levou tu a faltar? Pode ser sincero.');
+      }
+      default:
+        return undefined;
+    }
+  },
+
+  // "O que levou tu a faltar?" Texto que não bate com nenhum motivo conta como "outro"
+  async motivo({ id, texto }, d) {
+    let m = id || PC.motivoFalta(texto);
+    if (!m) {
+      if (pareceComando(texto)) return undefined;
+      m = 'outro';
+    }
+    return tratarMotivo(d, m, id ? '' : texto);
+  },
+
+  // Quantas vezes por semana (ou manter)
+  async ajuste({ id, texto }, d) {
+    const f = await freqAtual(d);
+    if (id === 'so_semana' || (!id && /\b(so essa semana|so esta semana|foi so essa|semana atipica)\b/.test(PC.norm(texto)))) {
+      return encerrarConversa(`Fechado, foi só uma semana fora da curva. O plano segue <strong>${f}× por semana</strong> 💪`);
+    }
+    if (id === 'manter' || (!id && PC.querManter(texto))) return salvarNovaFreq(d, f);
+    const n = id ? Number(id) : PC.numeroPorSemana(texto);
+    if (n) return salvarNovaFreq(d, n);
+    return undefined;
+  },
+
+  // "Quer que eu agende o próximo treino?"
+  async agendar({ id, texto }, d) {
+    if (/^\d$/.test(id || '')) return salvarNovaFreq(d, Number(id));
+    const sn = id ? (id === 'agendar') : PC.simNao(texto);
+    if (sn === true || (!id && /\bagend/.test(PC.norm(texto)))) {
+      _conversa = null;
+      // Usa a atividade de treino que a pessoa já tem (ex.: "Musculação"); sem nenhuma, o fluxo normal oferece criar
+      const cats = await getCategories().catch(() => []);
+      const nome = cats.find(c => _CK?.TREINO_RE.test(c.name || ''))?.name || 'Academia';
+      return routeCommand(`agendar atividade ${nome} amanhã`);
+    }
+    if (sn === false || (!id && /\b(deixa comigo|eu me viro|eu vou|pode deixar)\b/.test(PC.norm(texto)))) {
+      return encerrarConversa('Fechado, confio em ti 💪 Quando treinar, me fala <em>"fiz a academia"</em> que eu marco.');
+    }
+    return undefined;
+  },
+
+  // Marcar os treinos que ficaram sem marcar
+  async marcar({ id, texto }, d) {
+    const t = PC.norm(texto);
+    if (id === 'pronto' || (!id && (PC.simNao(texto) === false || /\b(pronto|so isso|so esse|so esses|nenhum mais|mais nenhum|era so)\b/.test(t)))) {
+      return encerrarConversa('Fechado 👍 Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino.');
+    }
+    let alvos;
+    if (id === 'todos' || (!id && /\b(todos|todas|tudo)\b/.test(t))) alvos = d.pendentes;
+    else if (id) alvos = d.pendentes.filter(x => `${x.dia}|${x.id}` === id);
+    else {
+      const dias = [...t.matchAll(/\b(domingo|segunda|terca|quarta|quinta|sexta|sabado)\b/g)].map(m => DOW_FALA[m[1]]);
+      alvos = d.pendentes.filter(x => dias.includes(dataDoId(x.dia).getDay()));
+    }
+    if (!alvos.length) return undefined;
+    for (const x of alvos) await updateDayTask(x.dia, x.id, { done: true });
+    d.pendentes = d.pendentes.filter(x => !alvos.includes(x));
+    diz(`✅ Marquei como feito: ${alvos.map(x => `<strong>${_esc(rotuloTreino(x))}</strong>`).join(', ')}.`);
+    return passoMarcar(d, false);
+  },
+};
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 9: HELPERS DE MENSAGEM
