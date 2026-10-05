@@ -37,3 +37,6 @@ node_modules/
 .firebase/
 .firebaserc.local
 firebase-debug.log
+
+# estado local do wrangler (deploy dos Workers da Cloudflare)
+.wrangler/

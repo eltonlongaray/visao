@@ -408,9 +408,11 @@ function analiseHtml() {
 // BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
 function formHtml() {
-  const roupa = dados.sexo === 'F' ? 'Fique de <b>calcinha</b> e, em cima, <b>sem sutiã com uma fita em X</b> (esparadrapo) no mamilo <b>ou um biquíni bem justo</b> que não esconda o contorno — o top/roupa larga esconde as dobrinhas e atrapalha comparar'
-    : dados.sexo === 'M' ? 'Fique só de <b>cueca ou sunga</b> (nada de bermuda larga — atrapalha ver o contorno)'
-    : 'Homens só de <b>cueca/sunga</b>; mulheres de calcinha + fita em X no mamilo ou biquíni justo (roupa larga esconde as dobrinhas)';
+  // Roupa das fotos (Elton, 28/09): homem de sunga (senão short curto), mulher de
+  // biquíni — quanto MAIS o corpo aparece, melhor dá pra comparar contorno e dobras.
+  const roupa = dados.sexo === 'F' ? 'Fique de <b>biquíni</b> — quanto mais o corpo aparece, melhor dá pra comparar o contorno e as dobrinhas'
+    : dados.sexo === 'M' ? 'Fique de <b>sunga</b> (se não tiver, um <b>short curto</b>) — quanto mais o corpo aparece, melhor dá pra comparar o contorno e as dobrinhas'
+    : 'Homens de <b>sunga</b> (ou short curto) e mulheres de <b>biquíni</b> — quanto mais o corpo aparece, melhor dá pra comparar o contorno e as dobrinhas';
   // Pescoço: SEMPRE pedir. Ele entra na fórmula (cintura − pescoço) e muda por
   // MÚSCULO também (nadador/trapézio), não só por gordura — reaproveitar o valor
   // antigo distorcia o % de gordura. Vem pré-preenchido com o último como sugestão.

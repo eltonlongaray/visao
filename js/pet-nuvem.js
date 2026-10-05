@@ -14,7 +14,7 @@
 // BLOCO 1: CONFIG
 // ═══════════════════════════════════════════════════════════════
 // Endereço do Worker publicado (não é segredo). Vazio = desligado.
-export const PET_IA_URL = '';
+export const PET_IA_URL = 'https://pet-ia.eltonvisao.workers.dev';
 const TEMPO_MAX = 8000;
 
 // ═══════════════════════════════════════════════════════════════
