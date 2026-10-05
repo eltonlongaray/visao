@@ -10,6 +10,7 @@
 // BLOCO 8.5 — EDIÇÃO E REAGENDAMENTO VIA PET
 // BLOCO 8.6 — CAIXA DE FERRAMENTAS (LISTAS) VIA PET
 // BLOCO 8.7 — PREPARO FÍSICO VIA PET
+// BLOCO 8.8 — CHECK-IN (o Pet puxa conversa + bolinha vermelha)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -42,6 +43,9 @@ export function initPet() {
   document.body.insertAdjacentHTML('beforeend', buildPetHTML());
   attachHandlers();
   scheduleBlink();
+  // Check-in só com a pessoa logada (precisa dos dados dela)
+  import('./autenticacao.js').then(({ auth, onAuthStateChanged }) =>
+    onAuthStateChanged(auth, (u) => { if (u) setTimeout(prepararCheckin, 4000); })).catch(() => {});
 }
 
 export function showPet() {
@@ -734,6 +738,7 @@ function openChatPanel() {
   ajustarChatAoTeclado();   // dimensiona pela tela visível já na abertura
   setBadge(0);
   setPetState('idle');
+  mostrarCheckin();
   if (!petNoHistorico) {
     history.pushState({ falconPet: 1 }, '');
     petNoHistorico = true;
@@ -744,6 +749,7 @@ function openChatPanel() {
 
 function fecharPainelDireto() {
   if (recording) stopMicCancel();
+  setBadge(_fila.length);   // assunto que ficou pra trás volta pra bolinha
   document.getElementById('pet-chat')?.classList.remove('pet-chat-open');
   ajustarChatAoTeclado();   // devolve o pet pro canto e limpa a altura inline
 }
@@ -1028,14 +1034,12 @@ async function corretor(text, soSeguras) {
     return r.trocas.length ? r : null;
   } catch { return null; }
 }
-const _avisoCorrecao = (r) => addMessage(`<small style="opacity:.7">✏️ Entendi: ${r.trocas.map(([e, c]) => `<s>${_esc(e)}</s> ${_esc(c)}`).join(', ')}</small>`, 'bot');
 
 // Antes de rotear: só as palavras "seguras" (lista, compromisso, apaga…)
 async function corrigirSeguras(text) {
   if (typeof text !== 'string') return text;
   const r = await corretor(text, true);
   if (!r) return text;
-  _avisoCorrecao(r);
   return r.texto;
 }
 
@@ -1043,7 +1047,6 @@ async function tentarCorrigido(text) {
   if (_corrigindo) return undefined;
   const r = await corretor(text, false);
   if (!r) return undefined;
-  _avisoCorrecao(r);
   _corrigindo = true;
   try { return await routeCommand(r.texto); } finally { _corrigindo = false; }
 }
@@ -2513,14 +2516,7 @@ async function tentarPreparo(text) {
   if (!r) return undefined;
   _ctxPreparo = Date.now();
   cardConfirmarLista(`💪 Atualizar teu Preparo Físico?<br>${_rotPreparo(r)}`, async () => {
-    if (Object.keys(r.treino).length) {
-      const { getPerfilTreino } = await import('./perfil-treino-ui.js');
-      const atual = getPerfilTreino(await getProfile().catch(() => null));
-      const novo = { ...atual, ...r.treino, freqPorMusculo: { ...atual.freqPorMusculo, ...(r.treino.freqPorMusculo || {}) } };
-      // Mesma regra da tela: músculo não treina mais vezes que os treinos da semana
-      for (const k of Object.keys(novo.freqPorMusculo)) novo.freqPorMusculo[k] = Math.min(novo.freqPorMusculo[k], novo.freqSemana, 3);
-      await setProfile({ perfilTreino: novo });
-    }
+    if (Object.keys(r.treino).length) await salvarPerfilTreino(r.treino);
     if (Object.keys(r.corpo).length) {
       const { salvarDadosCorpo } = await import('./corpo.js');
       await salvarDadosCorpo(r.corpo);
@@ -2529,6 +2525,16 @@ async function tentarPreparo(text) {
     return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"mostra como ficou"</em>.';
   }, null);
   return null;
+}
+
+// Junta o patch no perfil de treino salvo e grava
+async function salvarPerfilTreino(patch) {
+  const { getPerfilTreino } = await import('./perfil-treino-ui.js');
+  const atual = getPerfilTreino(await getProfile().catch(() => null));
+  const novo = { ...atual, ...patch, freqPorMusculo: { ...atual.freqPorMusculo, ...(patch.freqPorMusculo || {}) } };
+  // Mesma regra da tela: músculo não treina mais vezes que os treinos da semana
+  for (const k of Object.keys(novo.freqPorMusculo)) novo.freqPorMusculo[k] = Math.min(novo.freqPorMusculo[k], novo.freqSemana, 3);
+  await setProfile({ perfilTreino: novo });
 }
 
 async function verPreparo() {
@@ -2546,6 +2552,89 @@ async function verPreparo() {
     `• Por músculo: ${mus}<br>` +
     (corpo.length ? `• ${corpo.join(' · ')}<br>` : '• Peso e altura: <em>ainda não informados</em> (ex.: "meu peso é 80 kg")<br>') +
     `<br>Pra mudar, fala: <em>"treino 5 vezes por semana"</em>, <em>"meu objetivo é volume"</em>, <em>"fiquei 2 meses parado"</em>.`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.8: CHECK-IN — o Pet puxa conversa
+// ═══════════════════════════════════════════════════════════════
+// Quando o app abre (logado), o pet-checkin.js lista os assuntos pendentes.
+// A bolinha vermelha mostra quantos são; ao abrir o chat ele puxa um por vez
+// e, depois de cada resposta, já emenda o próximo.
+const CK_KEY = 'falcon_pet_checkin';
+let _fila = [], _checkinRodou = false, _CK = null;
+
+function lerCheckin() { try { return JSON.parse(localStorage.getItem(CK_KEY)) || {}; } catch { return {}; } }
+function gravarCheckin(st) { try { localStorage.setItem(CK_KEY, JSON.stringify(st)); } catch { /* sem storage: só não lembra */ } }
+const chatAberto = () => !!document.getElementById('pet-chat')?.classList.contains('pet-chat-open');
+
+async function prepararCheckin() {
+  if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
+  _checkinRodou = true;
+  try {
+    _CK = await import('./pet-checkin.js?v=20261005b');
+    const agora = Date.now();
+    const ontem = new Date(agora - 86400000);
+    const [prof, dias] = await Promise.all([
+      getProfile().catch(() => null),
+      fetchDaysRange(new Date(agora - 60 * 86400000), ontem),
+    ]);
+    _fila = _CK.listarPerguntas({ dias, prof, agora, ontemId: dayId(ontem) }, lerCheckin())
+      .map(p => ({ ...p, ontemId: dayId(ontem) }));
+    if (!_fila.length) return;
+    if (chatAberto()) mostrarCheckin();
+    else setBadge(_fila.length);
+  } catch (err) {
+    console.warn('[pet-checkin]', err);
+  }
+}
+
+function mostrarCheckin() {
+  const p = _fila.shift();
+  if (!p) return;
+  if (!p.repetida) {
+    const st = lerCheckin();
+    st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
+    gravarCheckin(st);
+  }
+  addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
+    const msg = await responderCheckin(p, b);
+    // Emenda o próximo assunto depois da resposta aparecer
+    if (_fila.length) setTimeout(() => { if (chatAberto()) mostrarCheckin(); else setBadge(_fila.length); }, 900);
+    return msg;
+  } })));
+}
+
+async function responderCheckin(p, b) {
+  switch (b.resp) {
+    case 'depois': {
+      const st = lerCheckin();
+      st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), adiadoAte: Date.now() + _CK.ADIA[p.tipo] * 86400000 } };
+      gravarCheckin(st);
+      return 'Combinado, deixo isso pra depois 👍';
+    }
+    case 'nao_marco':
+      return 'Beleza! Pra marcar rápido, é só me falar <em>"fiz a academia"</em> que eu marco pra ti.';
+    case 'parei':
+      await salvarPerfilTreino({ pausa: 'menos1m' });
+      return '⏸️ Anotei no teu perfil que tu tá parado. A volta começa mais leve, e quando quiser recomeçar é só agendar o treino comigo 💪';
+    case 'diminui':
+      await salvarPerfilTreino({ freqSemana: b.valor });
+      return `📉 Atualizei teu perfil pra <strong>${b.valor}× por semana</strong>. Melhor um ritmo que tu mantém do que um que fica só no papel.`;
+    case 'marcar_ontem': {
+      await updateDayTask(p.ontemId, b.valor, { done: true });
+      // Sobrou mais coisa de ontem? Pergunta de novo só com o que falta
+      const resto = p.botoes.filter(x => x.resp === 'marcar_ontem' && x.valor !== b.valor);
+      if (resto.length) _fila.unshift({ ...p, repetida: true, texto: 'Mais alguma de ontem?',
+        botoes: [...resto, { label: '👍 Só essa', resp: 'so_essa' }] });
+      return `✅ Marquei <strong>${_esc(b.label.replace(/^✅\s*/, ''))}</strong> como feito ontem.`;
+    }
+    case 'nao_fiz':
+      return 'Tranquilo, hoje é outro dia 💪';
+    case 'so_essa':
+      return 'Fechado 👍';
+    default:
+      return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
