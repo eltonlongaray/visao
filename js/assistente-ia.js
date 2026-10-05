@@ -1028,14 +1028,12 @@ async function corretor(text, soSeguras) {
     return r.trocas.length ? r : null;
   } catch { return null; }
 }
-const _avisoCorrecao = (r) => addMessage(`<small style="opacity:.7">✏️ Entendi: ${r.trocas.map(([e, c]) => `<s>${_esc(e)}</s> ${_esc(c)}`).join(', ')}</small>`, 'bot');
 
 // Antes de rotear: só as palavras "seguras" (lista, compromisso, apaga…)
 async function corrigirSeguras(text) {
   if (typeof text !== 'string') return text;
   const r = await corretor(text, true);
   if (!r) return text;
-  _avisoCorrecao(r);
   return r.texto;
 }
 
@@ -1043,7 +1041,6 @@ async function tentarCorrigido(text) {
   if (_corrigindo) return undefined;
   const r = await corretor(text, false);
   if (!r) return undefined;
-  _avisoCorrecao(r);
   _corrigindo = true;
   try { return await routeCommand(r.texto); } finally { _corrigindo = false; }
 }
