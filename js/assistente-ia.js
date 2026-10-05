@@ -32,7 +32,7 @@ import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
-import * as PP from './pet-preparo.js?v=20261004a';
+import * as PP from './pet-preparo.js?v=20261005a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -2249,6 +2249,12 @@ async function candidatosHoje(text, acao) {
 }
 
 async function tentarLista(text) {
+  // "mostra como ficou" logo depois de mexer numa lista: mostra ela de novo
+  if (_ctxLista && Date.now() - _ctxLista.em < 10 * 60000 && _ctxLista.em > _ctxPreparo && PP.pedeVerDeNovo(text)) {
+    const arvore = await arvoreListas();
+    const alvo = alvoDoContexto(arvore);
+    if (alvo) return listaVer(arvore, alvo);
+  }
   const acao = PL.detectarAcao(text);
   if (!acao) return undefined;
   const dica = PL.DICA_LISTA.test(text);
@@ -2450,8 +2456,14 @@ function botaoIrPreparo(texto) {
   addChoices(texto, [{ label: '💪 Abrir Preparo Físico', action: () => { location.hash = '#/preparo'; return null; } }]);
 }
 
+// Contexto: depois de mexer no Preparo, "mostra como ficou" é sobre ele (10 min),
+// a não ser que a pessoa tenha mexido numa lista depois.
+let _ctxPreparo = 0;
+const preparoNoContexto = () => Date.now() - _ctxPreparo < 10 * 60000 && _ctxPreparo > (_ctxLista?.em || 0);
+
 async function tentarPreparo(text) {
   if (PP.querVerPreparo(text)) return verPreparo();
+  if (preparoNoContexto() && PP.pedeVerDeNovo(text) && !PP.interpretarPreparo(text)) return verPreparo();
   if (PP.falaDeMedidas(text) && !PP.interpretarPreparo(text)) {
     botaoIrPreparo('As medidas (cintura, braço…) e as fotos ficam juntas num registro por mês, lá na <strong>Composição corporal</strong>. Te levo lá:');
     return null;
@@ -2460,6 +2472,7 @@ async function tentarPreparo(text) {
   if (extractTime(text) || /\blembr/i.test(text)) return undefined;
   const r = PP.interpretarPreparo(text);
   if (!r) return undefined;
+  _ctxPreparo = Date.now();
   cardConfirmarLista(`💪 Atualizar teu Preparo Físico?<br>${_rotPreparo(r)}`, async () => {
     if (Object.keys(r.treino).length) {
       const { getPerfilTreino } = await import('./perfil-treino-ui.js');
@@ -2473,12 +2486,14 @@ async function tentarPreparo(text) {
       const { salvarDadosCorpo } = await import('./corpo.js');
       await salvarDadosCorpo(r.corpo);
     }
-    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"qual meu perfil de treino"</em>.';
+    _ctxPreparo = Date.now();
+    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"mostra como ficou"</em>.';
   }, null);
   return null;
 }
 
 async function verPreparo() {
+  _ctxPreparo = Date.now();
   const prof = await getProfile().catch(() => null);
   const { getPerfilTreino, MUSCULOS } = await import('./perfil-treino-ui.js');
   const pt = getPerfilTreino(prof);
