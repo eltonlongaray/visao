@@ -32,7 +32,7 @@ import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
-import * as PP from './pet-preparo.js?v=20261005a';
+import * as PP from './pet-preparo.js?v=20261005c';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -783,7 +783,7 @@ async function handleSend() {
 async function dispatchCommand(text) {
   setPetState('thinking');
   try {
-    const reply = typeof text === 'function' ? await text() : await routeCommand(semChamado(text));
+    const reply = typeof text === 'function' ? await text() : await routeCommand(await corrigirSeguras(semChamado(text)));
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
     addMessage(t('pet.error.general'), 'bot');
@@ -1005,8 +1005,47 @@ async function routeCommand(text) {
     await cmdEditarNome(hint, afterPara, tipo); return null;
   }
 
-  // Nenhum regex entendeu: pergunta pro classificador de intenção (BLOCO 7.5)
+  // Nenhum regex entendeu: tenta de novo com a digitação corrigida ("perfip"
+  // → "perfil"). Só aqui no fim, pra nunca mexer numa frase que já funcionava
+  // ("adiciona sabão" não vira "sábado").
+  const rCorrigido = await tentarCorrigido(text);
+  if (rCorrigido !== undefined) return rCorrigido;
+
+  // Pergunta pro classificador de intenção (BLOCO 7.5)
   return entenderComIA(text);
+}
+
+let _corrigindo = false, _conhecidas = null;
+async function corretor(text, soSeguras) {
+  if (!String(getLang()).startsWith('pt')) return null;
+  try {
+    const [{ corrigirTexto }, { default: modelo }] = await Promise.all([
+      import('./pet-corretor.js?v=20261005b'),
+      import('./pet-ia/pet-intencoes-modelo.js?v=20261003a'),
+    ]);
+    _conhecidas ||= new Set(modelo.vocab.filter(v => v.startsWith('w:')).map(v => v.slice(2)));
+    const r = corrigirTexto(text, _conhecidas, soSeguras);
+    return r.trocas.length ? r : null;
+  } catch { return null; }
+}
+const _avisoCorrecao = (r) => addMessage(`<small style="opacity:.7">✏️ Entendi: ${r.trocas.map(([e, c]) => `<s>${_esc(e)}</s> ${_esc(c)}`).join(', ')}</small>`, 'bot');
+
+// Antes de rotear: só as palavras "seguras" (lista, compromisso, apaga…)
+async function corrigirSeguras(text) {
+  if (typeof text !== 'string') return text;
+  const r = await corretor(text, true);
+  if (!r) return text;
+  _avisoCorrecao(r);
+  return r.texto;
+}
+
+async function tentarCorrigido(text) {
+  if (_corrigindo) return undefined;
+  const r = await corretor(text, false);
+  if (!r) return undefined;
+  _avisoCorrecao(r);
+  _corrigindo = true;
+  try { return await routeCommand(r.texto); } finally { _corrigindo = false; }
 }
 
 // ═══════════════════════════════════════════════════════════════
