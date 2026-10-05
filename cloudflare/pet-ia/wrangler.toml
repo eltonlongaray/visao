@@ -1,0 +1,14 @@
+# Worker "pet-ia" (Cloudflare Workers AI). Publicar: `npx wrangler deploy` nesta pasta,
+# ou colar o worker.js no painel da Cloudflare (ver LEIAME.md).
+name = "pet-ia"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[ai]
+binding = "AI"
+
+# Valores PÚBLICOS (os mesmos que já estão no app, js/config-supabase.js).
+# Servem só pra conferir se quem chama está logado. Não é chave secreta.
+[vars]
+SUPABASE_URL = "https://snbxaudykjpqqgocgaoz.supabase.co"
+SUPABASE_KEY = "sb_publishable_rObp-4IhXg33NkL3P-czVg_aNl9VaxG"

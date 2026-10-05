@@ -35,7 +35,8 @@ import {
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
 import * as PP from './pet-preparo.js?v=20261005c';
-import * as PC from './pet-conversa.js?v=20261005a';
+import * as PC from './pet-conversa.js?v=20261005b';
+import * as PN from './pet-nuvem.js?v=20261005a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -1110,12 +1111,15 @@ async function entenderComIA(text) {
     r = (await classificador())(text);
   } catch (err) {
     console.warn('[pet-ia] classificador indisponível', err);
-    return t('pet.unknown');
+    const n = await entenderNaNuvem(text);
+    return n !== undefined ? n : t('pet.unknown');
   }
   if (r.entendeu) return executarIntencao(r.intencao, text);
+  // Não teve certeza: pergunta pra IA de linguagem na nuvem (BLOCO 7.6)
+  const n = await entenderNaNuvem(text);
+  if (n !== undefined) return n;
   if (!r.palavrasConhecidas) return t('pet.unknown');
-  if (r.intencao === 'fora')
-    return 'Isso foge do que eu sei fazer 😅 Eu cuido do app: agenda, sono, água e constância. Digite <strong>ajuda</strong> pra ver o que dá pra pedir.';
+  if (r.intencao === 'fora') return FORA_DO_APP;
 
   const opcoes = [r, ...r.alternativas].filter(o => o.intencao !== 'fora' && o.confianca >= 0.1).slice(0, 3);
   if (!opcoes.length) return t('pet.unknown');
@@ -1124,6 +1128,26 @@ async function entenderComIA(text) {
     { label: '❌ Nenhuma', action: () => t('pet.unknown') },
   ]);
   return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 7.6: IA DE LINGUAGEM NA NUVEM (Cloudflare) — só quando nada entendeu
+// A IA devolve a ação em JSON; o pet-nuvem.js transforma numa frase que o
+// roteador já conhece, então a execução continua com os mesmos cards.
+// Sem nuvem (offline, cota do dia acabou), devolve undefined e segue o normal.
+// ═══════════════════════════════════════════════════════════════
+// O Pet só fala do app: assunto de fora sempre recebe esta resposta fixa
+// (o texto livre da IA nunca aparece nesse caso, nem se a pessoa insistir).
+const FORA_DO_APP = 'Desculpe, não posso ajudar com assuntos não relacionados ao app. Digite <strong>ajuda</strong> pra ver o que eu faço.';
+let _naNuvem = false;
+async function entenderNaNuvem(text) {
+  if (_naNuvem || !PN.nuvemLigada()) return undefined;
+  const j = await PN.perguntarNuvem({ texto: text });
+  if (!j) return undefined;
+  const frase = PN.fraseDoApp(j);
+  if (!frase) return FORA_DO_APP;   // "conversa" = assunto fora do app
+  _naNuvem = true;
+  try { return await routeCommand(frase); } finally { _naNuvem = false; }
 }
 
 function semAcento(s) {
@@ -2702,6 +2726,32 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
   const r = await PASSOS[c.passo]({ id, texto: texto || '' }, c.dados);
   if (r !== undefined) return r;
   if (pareceComando(texto)) { _conversa = null; return undefined; }   // era comando novo
+  // As regras não pegaram: a IA na nuvem lê a resposta e escolhe o botão certo
+  if (texto && PN.nuvemLigada()) {
+    const j = await PN.perguntarNuvem({
+      texto, pergunta: String(c.curta || c.texto).replace(/<[^>]+>/g, ''),
+      opcoes: c.botoes.map(b => ({ id: b.id, label: b.label })),
+    });
+    if (_conversa !== c) return null;   // a conversa mudou enquanto esperava
+    if (j?.opcao && c.botoes.some(b => b.id === j.opcao)) {
+      if (j.resposta) diz(_esc(String(j.resposta).slice(0, 160)));
+      return PASSOS[c.passo]({ id: j.opcao, texto }, c.dados);
+    }
+    // A IA disse que não é resposta à pergunta (é outro pedido): sai da conversa
+    if (j && j.acao !== 'responder_pergunta') {
+      _conversa = null;
+      // Já sabemos que é frase "falada": deixa a IA entender o pedido direto
+      const n = await entenderNaNuvem(texto);
+      return n;
+    }
+  } else if (texto) {
+    // Sem nuvem: se o classificador reconhece um pedido do app, também sai
+    try {
+      const rc = (await classificador())(texto);
+      if (rc.entendeu && rc.intencao !== 'fora') { _conversa = null; return undefined; }
+    } catch { /* sem classificador: segue perguntando */ }
+  }
+  if (PADRAO_PASSO[c.passo]) return PASSOS[c.passo]({ id: PADRAO_PASSO[c.passo], texto }, c.dados);
   if (++c.tentativas >= 2) return encerrarConversa('Tudo bem, deixa pra lá 👍 Se quiser falar disso depois, é só me chamar.');
   addChoices(`Não peguei bem 😅 ${c.curta || c.texto}`, c.botoes.map(b => ({ label: b.label, action: () => continuarConversa(null, b.id, c.passo) })));
   return null;
@@ -2856,6 +2906,9 @@ function passoMarcar(d, primeira) {
     d, 'Quais desses tu fez? Pode falar o dia, tipo "o de terça".');
 }
 
+// Resposta que ninguém entendeu, num passo onde qualquer coisa vale: usa esta opção
+const PADRAO_PASSO = { motivo: 'outro' };
+
 const PASSOS = {
   // "Mudou o plano, faltou ou não marcou?"
   async plano({ id, texto }, d) {
@@ -2890,14 +2943,11 @@ const PASSOS = {
     }
   },
 
-  // "O que levou tu a faltar?" Texto que não bate com nenhum motivo conta como "outro"
+  // "O que levou tu a faltar?" Sem palavra-chave, a IA na nuvem tenta; senão vira "outro" (PADRAO_PASSO)
   async motivo({ id, texto }, d) {
-    let m = id || PC.motivoFalta(texto);
-    if (!m) {
-      if (pareceComando(texto)) return undefined;
-      m = 'outro';
-    }
-    return tratarMotivo(d, m, id ? '' : texto);
+    const m = id || PC.motivoFalta(texto);
+    if (!m) return undefined;
+    return tratarMotivo(d, m, texto);
   },
 
   // Quantas vezes por semana (ou manter)
