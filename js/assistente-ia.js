@@ -2469,9 +2469,59 @@ function listaVer(arvore, alvo) {
   return '📋 <strong>Tuas listas</strong><br>' + linhas.join('<br>') + '<br><br>Pra ver uma: <em>"o que tem na lista do Mercado"</em>.';
 }
 
+// ── Depois de confirmar: mostra o RESULTADO na própria conversa ──
+// (Elton: nada de atalho pra outra tela — a lista/dia/perfil aparece no chat,
+// com um botão "Ver … completo" que também abre ali mesmo.)
+const _LIMITE_CHAT = 8;
+const _linhaDestaque = (txt, feito, destaque) => {
+  const t = _esc(txt);
+  const novo = destaque && _limpoTxt(txt) === _limpoTxt(destaque);
+  return `${feito ? '✅' : '⬜'} ${novo ? `<strong>${t}</strong> ✨` : t}`;
+};
+function _htmlListaChat(titulo, itens, destaque, completa) {
+  const pend = itens.filter(i => !i.feito), feitos = itens.filter(i => i.feito);
+  if (!itens.length) return { html: `${titulo}<br><em>vazia</em>`, temMais: false };
+  if (completa) return { html: titulo + '<br>' + [...pend, ...feitos].map(i => _linhaDestaque(i.texto, i.feito, destaque)).join('<br>'), temMais: false };
+  const mostra = pend.slice(0, _LIMITE_CHAT);
+  // o item mexido aparece mesmo se já estiver feito (ex.: acabou de marcar)
+  const mexido = destaque && feitos.find(i => _limpoTxt(i.texto) === _limpoTxt(destaque));
+  const linhas = mostra.map(i => _linhaDestaque(i.texto, false, destaque));
+  if (mexido) linhas.push(_linhaDestaque(mexido.texto, true, destaque));
+  const resto = [];
+  if (pend.length > _LIMITE_CHAT) resto.push(`+${pend.length - _LIMITE_CHAT} pendente(s)`);
+  const feitosOcultos = feitos.length - (mexido ? 1 : 0);
+  if (feitosOcultos > 0) resto.push(`${feitosOcultos} já feito(s)`);
+  return { html: titulo + '<br>' + (linhas.join('<br>') || '<em>tudo feito 🎉</em>') + (resto.length ? `<br><small>${resto.join(' · ')}</small>` : ''), temMais: resto.length > 0 };
+}
+
+// Lista (grupo/categoria) do jeito que ficou depois da mudança
+async function mostrarListaNaConversa(grupoNome, secaoId, destaque) {
+  const arv = await arvoreListas(true);
+  const grupo = arv.find(g => g.nome === grupoNome); if (!grupo) return;
+  const secao = secaoId ? grupo.secoes.find(s => s.id === secaoId) || null : null;
+  const itens = secao ? secao.itens : grupo.soltos;
+  const titulo = `📋 <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong> · como ficou`;
+  const { html, temMais } = _htmlListaChat(titulo, itens, destaque, false);
+  if (!temMais) return addMessage(html, 'bot');
+  addChoices(html, [{ label: '📋 Ver lista completa', action: () => _htmlListaChat(`📋 <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong> · completa`, itens, destaque, true).html }]);
+}
+
+// Atividades de HOJE (Ritual) depois de marcar/desmarcar uma delas
+async function mostrarHojeNaConversa(destaque) {
+  const tasks = (await getDayTasks(dayId(new Date())).catch(() => []))
+    .filter(tk => !tk.cancelled)
+    .sort((a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
+  const itens = tasks.map(tk => ({ texto: (tk.startTime ? tk.startTime.slice(0, 5) + ' · ' : '') + (tk.title || ''), feito: !!tk.done, _t: tk.title || '' }));
+  // destaque compara pelo título (sem a hora na frente)
+  const alvo = destaque && itens.find(i => _limpoTxt(i._t) === _limpoTxt(destaque));
+  const { html, temMais } = _htmlListaChat('📅 <strong>Teu dia hoje</strong> · como ficou', itens, alvo?.texto, false);
+  if (!temMais) return addMessage(html, 'bot');
+  addChoices(html, [{ label: '📅 Ver o dia completo', action: () => _htmlListaChat('📅 <strong>Teu dia hoje</strong> · completo', itens, alvo?.texto, true).html }]);
+}
+
 // Card de confirmação genérico: resumo + Confirmar/Cancelar. `acao` grava e
 // devolve o texto de sucesso.
-function cardConfirmarLista(resumo, acao, depois = aposMudarLista) {
+function cardConfirmarLista(resumo, acao, depois = aposMudarLista, mostrar = null) {
   const box = document.getElementById('pet-messages');
   if (!box) return;
   const div = document.createElement('div');
@@ -2489,6 +2539,9 @@ function cardConfirmarLista(resumo, acao, depois = aposMudarLista) {
       ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
       depois?.();
       if (msg) addMessage(msg, 'bot');
+      // resultado na conversa (lista/dia/perfil como ficou) — falha aqui não
+      // desfaz nada: o dado já foi gravado
+      if (mostrar) { try { await mostrar(); } catch (e) { console.warn('[pet-mostrar]', e); } }
     } catch (err) {
       console.error('[pet-listas]', err);
       ok.disabled = nao.disabled = false; ok.textContent = '✅ Confirmar';
@@ -2511,7 +2564,8 @@ function listaAdicionar(arvore, text, alvo) {
   if (!novo) return 'O que eu adiciono? Ex.: <em>"adiciona leite na lista do Mercado"</em>.';
   const confirmar = ({ grupo, secao }) => { lembrarLista(grupo, secao); cardConfirmarLista(
     `➕ Adicionar <strong>${_esc(novo)}</strong> em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?`,
-    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; }); };
+    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; },
+    aposMudarLista, () => mostrarListaNaConversa(grupo.nome, secao?.id || null, novo)); };
   if (alvo.grupo) { confirmar(alvo); return null; }
   escolherDestino(arvore, `Em qual lista eu ponho <strong>${_esc(novo)}</strong>?`, confirmar, alvo.candidatos.length ? alvo.candidatos : null);
   return null;
@@ -2562,7 +2616,9 @@ function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
       if (acao === 'apagar') await apagarItem(x.item.id);
       else await marcarItem(x.item.id, acao === 'marcar');
       return null;
-    }));
+    }, aposMudarLista, () => x.hoje
+      ? mostrarHojeNaConversa(x.item.texto)
+      : mostrarListaNaConversa(x.grupo.nome, x.secao?.id || null, acao === 'apagar' ? null : x.item.texto)));
   if (achados.length === 1) { confirmar(achados[0]); return null; }
   addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
     label: `${x.item.texto} · ${onde(x)}`, action: () => { confirmar(x); return null; },
@@ -2578,7 +2634,8 @@ function listaEditar(arvore, text, alvo) {
   if (!achados.length) return `Não achei <strong>${_esc(partes.antigo)}</strong> nas tuas listas.`;
   const confirmar = ({ item, grupo, secao }) => (lembrarLista(grupo, secao), cardConfirmarLista(
     `✏️ Trocar <strong>${_esc(item.texto)}</strong> por <strong>${_esc(partes.novo)}</strong> em ${_esc(PL.ondeTexto(grupo, secao))}?`,
-    async () => { await editarItem(item.id, partes.novo); return null; }));
+    async () => { await editarItem(item.id, partes.novo); return null; },
+    aposMudarLista, () => mostrarListaNaConversa(grupo.nome, secao?.id || null, partes.novo)));
   if (achados.length === 1) { confirmar(achados[0]); return null; }
   addChoices('Achei mais de um. Qual?', achados.slice(0, 8).map(x => ({
     label: `${x.item.texto} · ${PL.ondeTexto(x.grupo, x.secao)}`, action: () => { confirmar(x); return null; },
@@ -2622,8 +2679,9 @@ async function tentarPreparo(text) {
       await salvarDadosCorpo(r.corpo);
     }
     _ctxPreparo = Date.now();
-    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"mostra como ficou"</em>.';
-  }, null);
+    return null;
+  }, null, () => addChoices('✅ <strong>Preparo Físico atualizado.</strong>',
+    [{ label: '💪 Ver perfil completo', action: () => verPreparo() }]));
   return null;
 }
 
