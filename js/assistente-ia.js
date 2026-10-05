@@ -799,6 +799,12 @@ async function dispatchCommand(text) {
     // não comando novo. Se não for resposta e parecer comando, segue o roteador.
     let reply;
     if (typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
+    // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
+    // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
+    if (reply === undefined && typeof text !== 'function' && pareceFalaLivre(semChamado(text))) {
+      const n = await entenderNaNuvem(semChamado(text));
+      if (n !== undefined && n !== 'fora') reply = n;
+    }
     if (reply === undefined) reply = typeof text === 'function' ? await text() : await routeCommand(await corrigirSeguras(semChamado(text)));
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
@@ -1106,18 +1112,23 @@ const INTENCAO_EXEMPLO = {
 async function entenderComIA(text) {
   // Modelo treinado em português; nos outros idiomas segue a resposta padrão
   if (!String(getLang()).startsWith('pt')) return t('pet.unknown');
+  // Com a nuvem ligada, ela vem ANTES do classificador: entende frase falada
+  // bem melhor ("tô sem carro, não vou fazer Uber…"). O classificador fica pra
+  // quando a nuvem não responde (offline, cota do dia) e pro papo curto ("oi").
+  const n = await entenderNaNuvem(text);
+  if (n !== undefined && n !== 'fora') return n;
+  const nuvemDisseFora = n === 'fora';
   let r;
   try {
     r = (await classificador())(text);
   } catch (err) {
     console.warn('[pet-ia] classificador indisponível', err);
-    const n = await entenderNaNuvem(text);
-    return n !== undefined ? n : t('pet.unknown');
+    return nuvemDisseFora ? FORA_DO_APP : t('pet.unknown');
   }
-  if (r.entendeu) return executarIntencao(r.intencao, text);
-  // Não teve certeza: pergunta pra IA de linguagem na nuvem (BLOCO 7.6)
-  const n = await entenderNaNuvem(text);
-  if (n !== undefined) return n;
+  if (r.entendeu && (!nuvemDisseFora || ['saudacao', 'ajuda', 'ajuda_notificacoes'].includes(r.intencao))) {
+    return executarIntencao(r.intencao, text);
+  }
+  if (nuvemDisseFora) return FORA_DO_APP;
   if (!r.palavrasConhecidas) return t('pet.unknown');
   if (r.intencao === 'fora') return FORA_DO_APP;
 
@@ -1139,15 +1150,71 @@ async function entenderComIA(text) {
 // O Pet só fala do app: assunto de fora sempre recebe esta resposta fixa
 // (o texto livre da IA nunca aparece nesse caso, nem se a pessoa insistir).
 const FORA_DO_APP = 'Desculpe, não posso ajudar com assuntos não relacionados ao app. Digite <strong>ajuda</strong> pra ver o que eu faço.';
-let _naNuvem = false;
+let _naNuvem = false, _ultimaNuvem = null;
+const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(/\s+/).length >= 7 &&
+  !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim());
 async function entenderNaNuvem(text) {
   if (_naNuvem || !PN.nuvemLigada()) return undefined;
-  const j = await PN.perguntarNuvem({ texto: text });
+  // Mesma frase de novo em seguida (ex.: tentou antes do roteador): reaproveita
+  let j = _ultimaNuvem && _ultimaNuvem.texto === text && Date.now() - _ultimaNuvem.em < 30000 ? _ultimaNuvem.j : null;
+  if (!j) {
+    j = await PN.perguntarNuvem({ texto: text });
+    _ultimaNuvem = j ? { texto: text, j, em: Date.now() } : null;
+  }
   if (!j) return undefined;
+  if (j.acao === 'cancelar') return cmdCancelarNuvem(j);
   const frase = PN.fraseDoApp(j);
-  if (!frase) return FORA_DO_APP;   // "conversa" = assunto fora do app
+  if (!frase) return 'fora';   // "conversa": quem chamou decide (oi/ajuda passam; o resto é fora do app)
   _naNuvem = true;
   try { return await routeCommand(frase); } finally { _naNuvem = false; }
+}
+
+// "Essa semana tô sem carro, não vou fazer Uber a partir das 16h": cancela as
+// ocorrências (não apaga; fica riscado como na tela do Ritual), com card.
+const PALAVRAS_GENERICAS = new Set('fazer trabalhar treinar atividade tarefa compromisso essa esta semana hoje amanha dia dias aplicativo app'.split(' '));
+async function cmdCancelarNuvem(j) {
+  const nome = String(j.titulo || '').trim();
+  if (!nome) return 'Qual atividade tu não vai fazer? Ex.: <em>"não vou na academia amanhã"</em>.';
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const quando = semAcento(j.quando || '');
+  let ini = hoje, fim = null, periodo = 'nos próximos 7 dias';
+  if (/semana que vem|proxima semana/.test(quando)) {
+    ini = new Date(hoje); ini.setDate(hoje.getDate() + (8 - hoje.getDay()) % 7 || 7);
+    fim = new Date(ini); fim.setDate(ini.getDate() + 6); periodo = 'na semana que vem';
+  } else if (/semana/.test(quando)) {
+    fim = new Date(hoje); fim.setDate(hoje.getDate() + (7 - hoje.getDay()) % 7); periodo = 'nesta semana';
+  } else if (quando) {
+    const d = extractDate(quando);
+    if (d) { d.setHours(0, 0, 0, 0); ini = fim = d; periodo = d.getTime() === hoje.getTime() ? 'hoje' : `em ${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}`; }
+  }
+  if (!fim) { fim = new Date(hoje); fim.setDate(hoje.getDate() + 6); }
+  const mHora = String(j.hora || '').match(/^(\d{1,2}):(\d{2})/);
+  const aPartir = mHora ? +mHora[1] * 60 + +mHora[2] : null;
+  const palavras = semAcento(nome).split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !PALAVRAS_GENERICAS.has(w));
+  if (!palavras.length) palavras.push(semAcento(nome));
+  const dias = await fetchDaysRange(ini, fim);
+  let melhor = 0, achados = [];
+  for (const dia of dias) for (const tk of dia.tasks || []) {
+    if (tk.done || tk.cancelled) continue;
+    if (aPartir != null && /^\d{1,2}:\d{2}/.test(tk.startTime || '')) {
+      const [h, m] = tk.startTime.split(':').map(Number);
+      if (h * 60 + m < aPartir) continue;
+    }
+    const alvo = semAcento(`${tk.title || ''} ${tk.desc || ''}`);
+    const nota = palavras.filter(w => alvo.includes(w)).length;
+    if (!nota) continue;
+    if (nota > melhor) { melhor = nota; achados = []; }
+    if (nota === melhor) achados.push({ dia: dia.id, tk });
+  }
+  if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong> na tua agenda ${periodo}${aPartir != null ? ` a partir das ${j.hora}` : ''}.`;
+  const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number); const dt = new Date(y, mo - 1, d);
+    return `${['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][dt.getDay()]} ${String(d).padStart(2, '0')}/${String(mo).padStart(2, '0')}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
+  const lista = achados.slice(0, 8);
+  cardConfirmarLista(`🚫 Cancelar <b>${_esc(lista[0].tk.title)}</b>${lista.length > 1 ? ` (${lista.length}×)` : ''}?<br>${lista.map(rot).join(' · ')}`, async () => {
+    for (const x of lista) await updateDayTask(x.dia, x.tk.id, { cancelled: true });
+    return `✅ Cancelei ${lista.length === 1 ? 'essa atividade' : `${lista.length} atividades`}. Fica riscado na agenda.`;
+  }, null);
+  return null;
 }
 
 function semAcento(s) {
@@ -2740,9 +2807,9 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
     // A IA disse que não é resposta à pergunta (é outro pedido): sai da conversa
     if (j && j.acao !== 'responder_pergunta') {
       _conversa = null;
-      // Já sabemos que é frase "falada": deixa a IA entender o pedido direto
+      // Frase falada: a IA entende o pedido direto (o regex costuma pegar só um pedaço)
       const n = await entenderNaNuvem(texto);
-      return n;
+      return n === 'fora' ? undefined : n;
     }
   } else if (texto) {
     // Sem nuvem: se o classificador reconhece um pedido do app, também sai
