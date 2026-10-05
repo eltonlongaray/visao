@@ -72,8 +72,11 @@ const N_VEZES = new RegExp(`\\b${NUM}\\s*(?:x|vezes|vez|dias?)\\b`);
 // "muda o peito pra 3" / "os treinos pra 4" (não pega "pra 80 kg", "pra 6 meses")
 const PRA_N = new RegExp(`\\b(?:pra|para|por|em)\\s+${NUM}\\b(?!\\s*(?:kg|quilos?|kilos?|anos?|mes|meses|semanas|cm|m\\b|metros?|\\.\\d))`);
 
+// "de duas vezes por semana PARA uma vez": vale o número depois do último pra/para.
 function numeroFreq(p) {
-  const m = p.match(N_VEZES) || p.match(PRA_N);
+  const corte = [...p.matchAll(/\b(?:pra|para)\b/g)].pop();
+  const m = (corte && (p.slice(corte.index).match(N_VEZES) || p.slice(corte.index).match(PRA_N))) ||
+            p.match(N_VEZES) || p.match(PRA_N);
   return m ? Math.round(num(m[1])) : null;
 }
 
@@ -210,4 +213,10 @@ export function falaDeMedidas(text) {
   const t = norm(text);
   return /\b(cintura|pescoco|quadril|peitoral|coxa|medidas?|medicao|fotos? do corpo|percentual de gordura|% de gordura|gordura corporal)\b/.test(t) &&
     /\b(registr|anot|salv|coloc|bot|minha|meu|med|tirar|fazer|atualiz)/.test(t);
+}
+
+// "mostra como ficou" logo depois de mexer no Preparo (contexto da conversa)
+export function pedeVerDeNovo(text) {
+  const t = norm(text);
+  return t.split(' ').length <= 7 && /\b(como ficou|ficou como|mostra|mostre|me mostra|ver como|deixa eu ver|e agora)\b/.test(t);
 }

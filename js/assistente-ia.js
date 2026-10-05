@@ -32,7 +32,7 @@ import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
-import * as PP from './pet-preparo.js?v=20261004a';
+import * as PP from './pet-preparo.js?v=20261005c';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -783,7 +783,7 @@ async function handleSend() {
 async function dispatchCommand(text) {
   setPetState('thinking');
   try {
-    const reply = typeof text === 'function' ? await text() : await routeCommand(semChamado(text));
+    const reply = typeof text === 'function' ? await text() : await routeCommand(await corrigirSeguras(semChamado(text)));
     if (reply) addMessage(reply, 'bot');
   } catch (err) {
     addMessage(t('pet.error.general'), 'bot');
@@ -1005,8 +1005,47 @@ async function routeCommand(text) {
     await cmdEditarNome(hint, afterPara, tipo); return null;
   }
 
-  // Nenhum regex entendeu: pergunta pro classificador de intenção (BLOCO 7.5)
+  // Nenhum regex entendeu: tenta de novo com a digitação corrigida ("perfip"
+  // → "perfil"). Só aqui no fim, pra nunca mexer numa frase que já funcionava
+  // ("adiciona sabão" não vira "sábado").
+  const rCorrigido = await tentarCorrigido(text);
+  if (rCorrigido !== undefined) return rCorrigido;
+
+  // Pergunta pro classificador de intenção (BLOCO 7.5)
   return entenderComIA(text);
+}
+
+let _corrigindo = false, _conhecidas = null;
+async function corretor(text, soSeguras) {
+  if (!String(getLang()).startsWith('pt')) return null;
+  try {
+    const [{ corrigirTexto }, { default: modelo }] = await Promise.all([
+      import('./pet-corretor.js?v=20261005b'),
+      import('./pet-ia/pet-intencoes-modelo.js?v=20261003a'),
+    ]);
+    _conhecidas ||= new Set(modelo.vocab.filter(v => v.startsWith('w:')).map(v => v.slice(2)));
+    const r = corrigirTexto(text, _conhecidas, soSeguras);
+    return r.trocas.length ? r : null;
+  } catch { return null; }
+}
+const _avisoCorrecao = (r) => addMessage(`<small style="opacity:.7">✏️ Entendi: ${r.trocas.map(([e, c]) => `<s>${_esc(e)}</s> ${_esc(c)}`).join(', ')}</small>`, 'bot');
+
+// Antes de rotear: só as palavras "seguras" (lista, compromisso, apaga…)
+async function corrigirSeguras(text) {
+  if (typeof text !== 'string') return text;
+  const r = await corretor(text, true);
+  if (!r) return text;
+  _avisoCorrecao(r);
+  return r.texto;
+}
+
+async function tentarCorrigido(text) {
+  if (_corrigindo) return undefined;
+  const r = await corretor(text, false);
+  if (!r) return undefined;
+  _avisoCorrecao(r);
+  _corrigindo = true;
+  try { return await routeCommand(r.texto); } finally { _corrigindo = false; }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2249,6 +2288,12 @@ async function candidatosHoje(text, acao) {
 }
 
 async function tentarLista(text) {
+  // "mostra como ficou" logo depois de mexer numa lista: mostra ela de novo
+  if (_ctxLista && Date.now() - _ctxLista.em < 10 * 60000 && _ctxLista.em > _ctxPreparo && PP.pedeVerDeNovo(text)) {
+    const arvore = await arvoreListas();
+    const alvo = alvoDoContexto(arvore);
+    if (alvo) return listaVer(arvore, alvo);
+  }
   const acao = PL.detectarAcao(text);
   if (!acao) return undefined;
   const dica = PL.DICA_LISTA.test(text);
@@ -2450,8 +2495,14 @@ function botaoIrPreparo(texto) {
   addChoices(texto, [{ label: '💪 Abrir Preparo Físico', action: () => { location.hash = '#/preparo'; return null; } }]);
 }
 
+// Contexto: depois de mexer no Preparo, "mostra como ficou" é sobre ele (10 min),
+// a não ser que a pessoa tenha mexido numa lista depois.
+let _ctxPreparo = 0;
+const preparoNoContexto = () => Date.now() - _ctxPreparo < 10 * 60000 && _ctxPreparo > (_ctxLista?.em || 0);
+
 async function tentarPreparo(text) {
   if (PP.querVerPreparo(text)) return verPreparo();
+  if (preparoNoContexto() && PP.pedeVerDeNovo(text) && !PP.interpretarPreparo(text)) return verPreparo();
   if (PP.falaDeMedidas(text) && !PP.interpretarPreparo(text)) {
     botaoIrPreparo('As medidas (cintura, braço…) e as fotos ficam juntas num registro por mês, lá na <strong>Composição corporal</strong>. Te levo lá:');
     return null;
@@ -2460,6 +2511,7 @@ async function tentarPreparo(text) {
   if (extractTime(text) || /\blembr/i.test(text)) return undefined;
   const r = PP.interpretarPreparo(text);
   if (!r) return undefined;
+  _ctxPreparo = Date.now();
   cardConfirmarLista(`💪 Atualizar teu Preparo Físico?<br>${_rotPreparo(r)}`, async () => {
     if (Object.keys(r.treino).length) {
       const { getPerfilTreino } = await import('./perfil-treino-ui.js');
@@ -2473,12 +2525,14 @@ async function tentarPreparo(text) {
       const { salvarDadosCorpo } = await import('./corpo.js');
       await salvarDadosCorpo(r.corpo);
     }
-    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"qual meu perfil de treino"</em>.';
+    _ctxPreparo = Date.now();
+    return '✅ Preparo Físico atualizado. Pra ver tudo: <em>"mostra como ficou"</em>.';
   }, null);
   return null;
 }
 
 async function verPreparo() {
+  _ctxPreparo = Date.now();
   const prof = await getProfile().catch(() => null);
   const { getPerfilTreino, MUSCULOS } = await import('./perfil-treino-ui.js');
   const pt = getPerfilTreino(prof);
