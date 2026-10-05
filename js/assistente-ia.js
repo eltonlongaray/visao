@@ -1138,7 +1138,7 @@ async function entenderComIA(text) {
 // ═══════════════════════════════════════════════════════════════
 // O Pet só fala do app: assunto de fora sempre recebe esta resposta fixa
 // (o texto livre da IA nunca aparece nesse caso, nem se a pessoa insistir).
-const FORA_DO_APP = 'Isso foge do que eu faço 😅 Eu cuido da tua organização: agenda, treino, sono, água e listas. Digite <strong>ajuda</strong> pra ver o que dá pra pedir.';
+const FORA_DO_APP = 'Desculpe, não posso ajudar com assuntos não relacionados ao app. Digite <strong>ajuda</strong> pra ver o que eu faço.';
 let _naNuvem = false;
 async function entenderNaNuvem(text) {
   if (_naNuvem || !PN.nuvemLigada()) return undefined;
