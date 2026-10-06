@@ -26,7 +26,7 @@ import {
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
-import { scheduleNotif, cancelNotif, getNotifMuted, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
+import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
 import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP } from './recorrencia.js';
@@ -2867,32 +2867,24 @@ async function prepararCheckin() {
   }
 }
 
-// Fim do dia: com o app aberto, às 21h o Pet já puxa a nota de hoje; e uma
-// notificação às 21h30 lembra quem estiver com o app fechado (só se a pessoa
-// já liberou notificações e não silenciou; uma por dia).
+// Fim do dia: com o app aberto, às 21h o Pet já puxa a nota de hoje (bolinha
+// vermelha no Pet, sem notificação). Abrindo o app depois das 21h, ela já vem na fila.
 function agendarFimDoDia(ctx) {
   const hoje = new Date(ctx.agora);
   const as21 = new Date(hoje); as21.setHours(_CK.HORA_NOTA_HOJE, 0, 0, 0);
   if (ctx.agora < as21.getTime()) {
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const p = _CK.listarPerguntas({ ...ctx, agora: Date.now() }, lerCheckin()).find(x => x.tipo === 'nota_hoje');
+        // Relê o dia de hoje: a nota pode ter sido feita na tela depois que o app abriu
+        const atual = await getDay(ctx.hojeId).catch(() => null);
+        const dias = ctx.dias.filter(d => d.id !== ctx.hojeId).concat(atual ? [{ ...(ctx.dias.find(d => d.id === ctx.hojeId) || { tasks: [] }), ...atual }] : ctx.dias.filter(d => d.id === ctx.hojeId));
+        const p = _CK.listarPerguntas({ ...ctx, dias, agora: Date.now() }, lerCheckin()).find(x => x.tipo === 'nota_hoje');
         if (!p || _fila.some(x => x.tipo === 'nota_hoje')) return;
         _fila.push({ ...p, ontemId: ctx.ontemId });
         if (chatAberto() && !conversaAtiva()) mostrarCheckin(); else setBadge(_fila.length);
       } catch (_) { /* sem check-in: tudo bem */ }
     }, as21.getTime() - ctx.agora);
   }
-  const as2130 = new Date(hoje); as2130.setHours(_CK.HORA_NOTA_HOJE, 30, 0, 0);
-  const tag = `nota-hoje-${ctx.hojeId}`;
-  try {
-    if (ctx.agora >= as2130.getTime() || localStorage.getItem('falcon_nota_push') === ctx.hojeId) return;
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || getNotifMuted()) return;
-    // Mesmo critério do check-in: só pra quem usa a nota e ainda não escreveu a de hoje
-    if (!_CK.listarPerguntas({ ...ctx, agora: as2130.getTime() }, {}).some(x => x.tipo === 'nota_hoje')) return;
-    localStorage.setItem('falcon_nota_push', ctx.hojeId);
-    scheduleNotif({ title: 'Falcon', body: 'Bora fechar o dia? Tua nota de hoje tá te esperando 📝', tag, timestamp: as2130.getTime() }).catch(() => {});
-  } catch (_) { /* sem storage/notificação: só o check-in */ }
 }
 
 function mostrarCheckin() {
@@ -3407,7 +3399,6 @@ async function salvarNotaOntem(d) {
   }
   if (d.dormiu) patch.sleepTime = d.dormiu;
   await setDayMeta(d.diaId, patch);
-  if (d.hoje) cancelNotif(`nota-hoje-${d.diaId}`).catch(() => {});
 }
 
 Object.assign(PASSOS, {
