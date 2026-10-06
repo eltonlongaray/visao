@@ -40,7 +40,7 @@ import { trapModalBack } from '../modal-voltar.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
 import { montarAgendaInline } from '../agenda-ui.js';
 import { cancelarAgendamentoDaTask, getAgendamentoById, moverAgendamento } from '../agenda.js';
-import { scheduleNotif, notifTag } from '../notificacoes.js';
+import { scheduleNotif, cancelNotif, notifTag } from '../notificacoes.js';
 import { t as tr, getLang } from '../idioma.js';
 
 
@@ -3782,6 +3782,8 @@ function openDayNoteModal(dayDocId) {
       await setDayMeta(dayDocId, { dayNote: data });
       // Atualiza cache: esse dia agora tem nota → não dispara mais o aviso
       prevNoteCache.set(dayDocId, true);
+      // Nota feita: o lembrete das 21h30 do Pet ("bora fechar o dia") não precisa mais tocar
+      cancelNotif(`nota-hoje-${dayDocId}`).catch(() => {});
 
       // Sucesso: cartão verde + vibração + som + mensagem
       const card = modal.querySelector('.note-modal');

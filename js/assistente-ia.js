@@ -26,7 +26,7 @@ import {
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
-import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
+import { scheduleNotif, cancelNotif, getNotifMuted, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
 import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP } from './recorrencia.js';
@@ -2841,22 +2841,52 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261006b');
+    _CK = await import('./pet-checkin.js?v=20261006c');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
       getProfile().catch(() => null),
-      fetchDaysRange(new Date(agora - 60 * 86400000), ontem),
+      fetchDaysRange(new Date(agora - 60 * 86400000), new Date(agora)),
     ]);
     _ckDias = dias || [];
-    _fila = _CK.listarPerguntas({ dias, prof, agora, ontemId: dayId(ontem) }, lerCheckin())
+    const ctx = { dias, prof, agora, ontemId: dayId(ontem), hojeId: dayId(new Date(agora)) };
+    _fila = _CK.listarPerguntas(ctx, lerCheckin())
       .map(p => ({ ...p, ontemId: dayId(ontem) }));
+    agendarFimDoDia(ctx);
     if (!_fila.length) return;
     if (chatAberto()) mostrarCheckin();
     else setBadge(_fila.length);
   } catch (err) {
     console.warn('[pet-checkin]', err);
   }
+}
+
+// Fim do dia: com o app aberto, às 21h o Pet já puxa a nota de hoje; e uma
+// notificação às 21h30 lembra quem estiver com o app fechado (só se a pessoa
+// já liberou notificações e não silenciou; uma por dia).
+function agendarFimDoDia(ctx) {
+  const hoje = new Date(ctx.agora);
+  const as21 = new Date(hoje); as21.setHours(_CK.HORA_NOTA_HOJE, 0, 0, 0);
+  if (ctx.agora < as21.getTime()) {
+    setTimeout(() => {
+      try {
+        const p = _CK.listarPerguntas({ ...ctx, agora: Date.now() }, lerCheckin()).find(x => x.tipo === 'nota_hoje');
+        if (!p || _fila.some(x => x.tipo === 'nota_hoje')) return;
+        _fila.push({ ...p, ontemId: ctx.ontemId });
+        if (chatAberto() && !conversaAtiva()) mostrarCheckin(); else setBadge(_fila.length);
+      } catch (_) { /* sem check-in: tudo bem */ }
+    }, as21.getTime() - ctx.agora);
+  }
+  const as2130 = new Date(hoje); as2130.setHours(_CK.HORA_NOTA_HOJE, 30, 0, 0);
+  const tag = `nota-hoje-${ctx.hojeId}`;
+  try {
+    if (ctx.agora >= as2130.getTime() || localStorage.getItem('falcon_nota_push') === ctx.hojeId) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' || getNotifMuted()) return;
+    // Mesmo critério do check-in: só pra quem usa a nota e ainda não escreveu a de hoje
+    if (!_CK.listarPerguntas({ ...ctx, agora: as2130.getTime() }, {}).some(x => x.tipo === 'nota_hoje')) return;
+    localStorage.setItem('falcon_nota_push', ctx.hojeId);
+    scheduleNotif({ title: 'Falcon', body: 'Bora fechar o dia? Tua nota de hoje tá te esperando 📝', tag, timestamp: as2130.getTime() }).catch(() => {});
+  } catch (_) { /* sem storage/notificação: só o check-in */ }
 }
 
 function mostrarCheckin() {
@@ -2867,7 +2897,7 @@ function mostrarCheckin() {
     st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
     gravarCheckin(st);
   }
-  if (p.conversa) { if (p.tipo === 'nota') iniciarConversaNota(p); else iniciarConversaTreino(p); return; }
+  if (p.conversa) { if (p.tipo === 'nota' || p.tipo === 'nota_hoje') iniciarConversaNota(p); else iniciarConversaTreino(p); return; }
   if (p.tipo === 'ontem') { checklistOntem(p); return; }
   addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
     const msg = await responderCheckin(p, b);
@@ -3295,6 +3325,7 @@ const PASSOS = {
 // BLOCO 8.10: NOTA DE ONTEM PELO PET
 // ═══════════════════════════════════════════════════════════════
 // Check-in "nota": a nota de ontem ficou em branco (ou sem a hora de dormir).
+// Check-in "nota_hoje": a partir das 21h, a nota de hoje (fechar o dia).
 // O Pet pergunta uma coisa por vez, do jeito do modal da nota (tela-ritual.js):
 // orgulho/falha → o que melhorar → hora de dormir (+ cochilo e madrugada).
 // A pessoa pode falar tudo do sono numa frase só; no fim um card confirma e
@@ -3303,18 +3334,21 @@ const ehComandoCurto = (texto) => pareceComando(texto) && String(texto).trim().s
 const PULAR = BT('pular', '⏭️ Pular');
 
 function iniciarConversaNota(p) {
-  const dados = { ontemId: p.ontemId, ...(p.dados || {}) };
-  return perguntar('nota_inicio', p.texto, [BT('bora', '📝 Bora'), BT('depois', '⏰ Depois')], dados, 'Bora preencher a nota de ontem?');
+  const dados = { tipo: p.tipo, diaId: p.ontemId, ...(p.dados || {}) };
+  return perguntar('nota_inicio', p.texto, [BT('bora', '📝 Bora'), BT('depois', '⏰ Depois')], dados, `Bora preencher a nota de ${qualDia(dados)}?`);
 }
+
+const qualDia = (d) => d.hoje ? 'hoje' : 'ontem';
 
 function perguntarOrgulho(d) {
   d.textoFeito = true;
-  return perguntar('nota_orgulho', 'Do que tu te orgulha de ontem e onde falhou?', [PULAR], d,
-    'Me conta: do que tu te orgulha de ontem e onde falhou?');
+  return perguntar('nota_orgulho', `Do que tu te orgulha de ${qualDia(d)} e onde falhou?`, [PULAR], d,
+    `Me conta: do que tu te orgulha de ${qualDia(d)} e onde falhou?`);
 }
 function perguntarMelhorar(d) {
-  return perguntar('nota_melhorar', 'E quais medidas tu vai tomar pra fazer melhor hoje?', [PULAR], d,
-    'O que tu vai fazer diferente hoje?');
+  const quando = d.hoje ? 'amanhã' : 'hoje';
+  return perguntar('nota_melhorar', `E quais medidas tu vai tomar pra fazer melhor ${quando}?`, [PULAR], d,
+    `O que tu vai fazer diferente ${quando}?`);
 }
 async function perguntarSono(d) {
   if (!d.semSono || d.dormiu) return perguntarExtra(d);
@@ -3326,7 +3360,7 @@ async function perguntarSono(d) {
     'Que horas tu foi dormir ontem?');
 }
 function perguntarExtra(d) {
-  const falta = [d.cochiloMin == null && 'cochilou de dia', d.madrugadaMin == null && 'ficou acordado de madrugada'].filter(Boolean);
+  const falta = [d.cochiloMin == null && `cochilou de dia${d.hoje ? ' hoje' : ''}`, d.madrugadaMin == null && `ficou acordado de madrugada${d.hoje ? ' (na noite passada)' : ''}`].filter(Boolean);
   if (!falta.length) return fecharNota(d);
   return perguntar('nota_extra', `E tu ${falta.join(' ou ')}? Se sim, quanto tempo?`, [BT('nenhum', '🙅 Não')], d,
     `Tu ${falta.join(' ou ')}? Quanto tempo?`);
@@ -3348,12 +3382,12 @@ function mostrarCardNota(d) {
   if (d.cochiloMin != null) linhas.push(`☀️ <strong>Cochilo de dia:</strong> ${PNT.fmtMin(d.cochiloMin)}`);
   if (d.madrugadaMin != null) linhas.push(`🌌 <strong>Acordado de madrugada:</strong> ${PNT.fmtMin(d.madrugadaMin)}`);
   if (!linhas.length) return encerrarConversa('Tranquilo, não anotei nada. Quando quiser, é só me falar 👍');
-  return perguntar('nota_confirmar', `📝 Nota de ontem (${dataCurta(d.ontemId)}):<br>${linhas.join('<br>')}<br><br>Salvo assim?`,
+  return perguntar('nota_confirmar', `📝 Nota de ${qualDia(d)} (${dataCurta(d.diaId)}):<br>${linhas.join('<br>')}<br><br>Salvo assim?`,
     [BT('salvar', '✅ Salvar'), BT('refazer', '✏️ Refazer'), BT('cancelar', '❌ Cancelar')], d, 'Salvo a nota assim?');
 }
 
 async function salvarNotaOntem(d) {
-  const dia = await getDay(d.ontemId).catch(() => null);
+  const dia = await getDay(d.diaId).catch(() => null);
   const patch = {};
   const temNota = d.prideFail || d.improve || d.cochiloMin != null || d.madrugadaMin != null;
   if (temNota) {
@@ -3366,14 +3400,15 @@ async function salvarNotaOntem(d) {
     patch.dayNote = nota;
   }
   if (d.dormiu) patch.sleepTime = d.dormiu;
-  await setDayMeta(d.ontemId, patch);
+  await setDayMeta(d.diaId, patch);
+  if (d.hoje) cancelNotif(`nota-hoje-${d.diaId}`).catch(() => {});
 }
 
 Object.assign(PASSOS, {
   async nota_inicio({ id, texto }, d) {
     const sn = id ? (id === 'bora') : PC.simNao(texto);
     if (id === 'depois' || sn === false || (!id && /\b(depois|agora nao|mais tarde)\b/.test(PC.norm(texto)))) {
-      adiarTipos(['nota'], _CK.ADIA.nota);
+      adiarTipos([d.tipo], _CK.ADIA[d.tipo]);
       return encerrarConversa('Combinado, deixo pra depois 👍');
     }
     if (sn === true) return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
@@ -3444,8 +3479,10 @@ Object.assign(PASSOS, {
       console.warn('[pet-nota]', err);
       return encerrarConversa('Não consegui salvar agora 😕 Tenta de novo daqui a pouco.');
     }
-    const sono = d.dormiu ? ` Tu dormiu às <strong>${d.dormiu}</strong>.` : '';
-    return encerrarConversa(`✅ Nota de ontem salva!${sono} Bora fazer de hoje um dia melhor 💪`);
+    const sono = d.dormiu ? ` ${d.hoje ? 'Anotei que tu vai dormir' : 'Tu dormiu'} às <strong>${d.dormiu}</strong>.` : '';
+    return encerrarConversa(d.hoje
+      ? `✅ Nota de hoje salva!${sono} Dia fechado, bom descanso 🌙`
+      : `✅ Nota de ontem salva!${sono} Bora fazer de hoje um dia melhor 💪`);
   },
 });
 
