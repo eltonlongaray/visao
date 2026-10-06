@@ -5,8 +5,8 @@
 // bolinha e executa a resposta é o assistente-ia.js (BLOCO 8.8).
 // Ele conduz a pessoa por TODOS os assuntos pendentes, um de cada vez (a
 // bolinha mostra quantos são). Pra não virar chato:
-//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias; ontem: 1);
-//  • "Depois" segura aquele tipo (treino/peso: 30 dias; ontem: 1 dia).
+//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias; ontem/nota: 1);
+//  • "Depois" segura aquele tipo (treino/peso: 30 dias; ontem/nota: 1 dia).
 // BLOCO 1 — O QUE CONTA COMO TREINO
 // BLOCO 2 — REGRAS (uma função por pergunta)
 // BLOCO 3 — ESCOLHER A PERGUNTA DO DIA
@@ -107,12 +107,35 @@ function regraOntem({ dias, ontemId }) {
   };
 }
 
+// Nota de ontem: em branco (ou sem a hora de dormir). Só pra quem usa o dia:
+// ontem teve atividade ou já escreveu alguma nota nos últimos 60 dias.
+function notaVazia(d) {
+  const n = d?.dayNote || {};
+  return !(String(n.prideFail || '').trim() || String(n.improve || '').trim() || n.daySleepMinutes || n.nightAwakeMinutes || n.daySleepHours || n.nightAwakeHours);
+}
+function regraNota({ dias, ontemId }) {
+  const ontem = (dias || []).find(d => d.id === ontemId);
+  const usa = (ontem?.tasks || []).length || (dias || []).some(d => d.id !== ontemId && !notaVazia(d));
+  if (!usa) return null;
+  const semNota = notaVazia(ontem), semSono = !ontem?.sleepTime;
+  if (!semNota && !semSono) return null;
+  return {
+    tipo: 'nota',
+    conversa: true,
+    dados: { semNota, semSono },
+    texto: semNota
+      ? `Tua nota de ontem ficou em branco${semSono ? ' (e a hora que tu foi dormir também)' : ''}. Bora preencher comigo? É rapidinho, uma pergunta por vez.`
+      : 'Ontem ficou faltando a hora que tu foi dormir. Bora anotar?',
+    botoes: [],
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: ESCOLHER A PERGUNTA DO DIA
 // ═══════════════════════════════════════════════════════════════
-const ORDEM = [regraParou, regraRitmo, regraOntem, regraPeso];
-export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1 };       // dias depois de perguntar
-export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1 };     // dias depois do "Depois"
+const ORDEM = [regraParou, regraRitmo, regraOntem, regraNota, regraPeso];
+export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1, nota: 1 };       // dias depois de perguntar
+export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1, nota: 1 };     // dias depois do "Depois"
 
 // `estado` = { tipos: { [tipo]: { perguntadoEm, adiadoAte } } }
 // Devolve a fila de perguntas pendentes, na ordem de prioridade.

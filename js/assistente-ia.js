@@ -12,6 +12,7 @@
 // BLOCO 8.7 — PREPARO FÍSICO VIA PET
 // BLOCO 8.8 — CHECK-IN (o Pet puxa conversa + bolinha vermelha)
 // BLOCO 8.9 — CONVERSA GUIADA (entende a resposta no contexto e pergunta o porquê)
+// BLOCO 8.10 — NOTA DE ONTEM PELO PET (orgulho/falha, melhorar, sono, cochilo, madrugada)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -37,6 +38,7 @@ import * as PL from './pet-listas.js?v=20261003h';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261005b';
 import * as PN from './pet-nuvem.js?v=20261005a';
+import * as PNT from './pet-nota.js?v=20261006a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -2839,7 +2841,7 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261006a');
+    _CK = await import('./pet-checkin.js?v=20261006b');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
@@ -2865,7 +2867,7 @@ function mostrarCheckin() {
     st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
     gravarCheckin(st);
   }
-  if (p.conversa) { iniciarConversaTreino(p); return; }
+  if (p.conversa) { if (p.tipo === 'nota') iniciarConversaNota(p); else iniciarConversaTreino(p); return; }
   if (p.tipo === 'ontem') { checklistOntem(p); return; }
   addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
     const msg = await responderCheckin(p, b);
@@ -3288,6 +3290,164 @@ const PASSOS = {
     return passoMarcar(d, false);
   },
 };
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.10: NOTA DE ONTEM PELO PET
+// ═══════════════════════════════════════════════════════════════
+// Check-in "nota": a nota de ontem ficou em branco (ou sem a hora de dormir).
+// O Pet pergunta uma coisa por vez, do jeito do modal da nota (tela-ritual.js):
+// orgulho/falha → o que melhorar → hora de dormir (+ cochilo e madrugada).
+// A pessoa pode falar tudo do sono numa frase só; no fim um card confirma e
+// grava no mesmo lugar da tela (days.meta.dayNote + sleepTime).
+const ehComandoCurto = (texto) => pareceComando(texto) && String(texto).trim().split(/\s+/).length <= 6;
+const PULAR = BT('pular', '⏭️ Pular');
+
+function iniciarConversaNota(p) {
+  const dados = { ontemId: p.ontemId, ...(p.dados || {}) };
+  return perguntar('nota_inicio', p.texto, [BT('bora', '📝 Bora'), BT('depois', '⏰ Depois')], dados, 'Bora preencher a nota de ontem?');
+}
+
+function perguntarOrgulho(d) {
+  d.textoFeito = true;
+  return perguntar('nota_orgulho', 'Do que tu te orgulha de ontem e onde falhou?', [PULAR], d,
+    'Me conta: do que tu te orgulha de ontem e onde falhou?');
+}
+function perguntarMelhorar(d) {
+  return perguntar('nota_melhorar', 'E quais medidas tu vai tomar pra fazer melhor hoje?', [PULAR], d,
+    'O que tu vai fazer diferente hoje?');
+}
+async function perguntarSono(d) {
+  if (!d.semSono || d.dormiu) return perguntarExtra(d);
+  const prof = await getProfile().catch(() => null);
+  d.padrao = prof?.defaultSleepTime || '';
+  return perguntar('nota_sono',
+    'Que horas tu foi dormir ontem? Se tirou cochilo de dia ou ficou acordado de madrugada, me conta junto. Tipo <em>"dormi 23h30, cochilei 20 min e fiquei 1h acordado"</em>.',
+    [...(d.padrao ? [BT('padrao', `🛏️ No horário de sempre (${d.padrao})`)] : []), PULAR], d,
+    'Que horas tu foi dormir ontem?');
+}
+function perguntarExtra(d) {
+  const falta = [d.cochiloMin == null && 'cochilou de dia', d.madrugadaMin == null && 'ficou acordado de madrugada'].filter(Boolean);
+  if (!falta.length) return fecharNota(d);
+  return perguntar('nota_extra', `E tu ${falta.join(' ou ')}? Se sim, quanto tempo?`, [BT('nenhum', '🙅 Não')], d,
+    `Tu ${falta.join(' ou ')}? Quanto tempo?`);
+}
+
+// Falou do sono primeiro: ainda pergunta o orgulho/melhorar antes do card
+function fecharNota(d) {
+  if (d.semNota && !d.textoFeito) return perguntarOrgulho(d);
+  return mostrarCardNota(d);
+}
+
+const dataCurta = (id) => { const dt = dataDoId(id); return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`; };
+
+function mostrarCardNota(d) {
+  const linhas = [];
+  if (d.prideFail) linhas.push(`🏆 <strong>Orgulho e falha:</strong> ${_esc(d.prideFail)}`);
+  if (d.improve) linhas.push(`🎯 <strong>Melhorar:</strong> ${_esc(d.improve)}`);
+  if (d.dormiu) linhas.push(`🌙 <strong>Dormiu:</strong> ${d.dormiu}`);
+  if (d.cochiloMin != null) linhas.push(`☀️ <strong>Cochilo de dia:</strong> ${PNT.fmtMin(d.cochiloMin)}`);
+  if (d.madrugadaMin != null) linhas.push(`🌌 <strong>Acordado de madrugada:</strong> ${PNT.fmtMin(d.madrugadaMin)}`);
+  if (!linhas.length) return encerrarConversa('Tranquilo, não anotei nada. Quando quiser, é só me falar 👍');
+  return perguntar('nota_confirmar', `📝 Nota de ontem (${dataCurta(d.ontemId)}):<br>${linhas.join('<br>')}<br><br>Salvo assim?`,
+    [BT('salvar', '✅ Salvar'), BT('refazer', '✏️ Refazer'), BT('cancelar', '❌ Cancelar')], d, 'Salvo a nota assim?');
+}
+
+async function salvarNotaOntem(d) {
+  const dia = await getDay(d.ontemId).catch(() => null);
+  const patch = {};
+  const temNota = d.prideFail || d.improve || d.cochiloMin != null || d.madrugadaMin != null;
+  if (temNota) {
+    const nota = { ...(dia?.dayNote || {}) };
+    if (d.prideFail) nota.prideFail = d.prideFail;
+    if (d.improve) nota.improve = d.improve;
+    if (d.cochiloMin != null) { nota.daySleepMinutes = d.cochiloMin; nota.daySleepHours = Math.round(d.cochiloMin / 60 * 10) / 10; }
+    if (d.madrugadaMin != null) { nota.nightAwakeMinutes = d.madrugadaMin; nota.nightAwakeHours = Math.round(d.madrugadaMin / 60 * 10) / 10; }
+    nota.registeredAt = new Date().toISOString();
+    patch.dayNote = nota;
+  }
+  if (d.dormiu) patch.sleepTime = d.dormiu;
+  await setDayMeta(d.ontemId, patch);
+}
+
+Object.assign(PASSOS, {
+  async nota_inicio({ id, texto }, d) {
+    const sn = id ? (id === 'bora') : PC.simNao(texto);
+    if (id === 'depois' || sn === false || (!id && /\b(depois|agora nao|mais tarde)\b/.test(PC.norm(texto)))) {
+      adiarTipos(['nota'], _CK.ADIA.nota);
+      return encerrarConversa('Combinado, deixo pra depois 👍');
+    }
+    if (sn === true) return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
+    // Já respondeu direto ("me orgulho de…" / "dormi 23h")
+    if (texto && !ehComandoCurto(texto)) {
+      const sono = PNT.lerSono(texto);
+      if (sono.dormiu || sono.cochiloMin != null || sono.madrugadaMin != null) return PASSOS.nota_sono({ texto }, d);
+      if (d.semNota && texto.trim().split(/\s+/).length >= 4) return PASSOS.nota_orgulho({ texto }, d);
+    }
+    return undefined;
+  },
+
+  async nota_orgulho({ id, texto }, d) {
+    if (id !== 'pular') {
+      if (!texto.trim() || ehComandoCurto(texto)) return undefined;
+      d.prideFail = texto.trim().slice(0, 1000);
+    }
+    return perguntarMelhorar(d);
+  },
+
+  async nota_melhorar({ id, texto }, d) {
+    if (id !== 'pular') {
+      if (!texto.trim() || ehComandoCurto(texto)) return undefined;
+      d.improve = texto.trim().slice(0, 1000);
+    }
+    return perguntarSono(d);
+  },
+
+  async nota_sono({ id, texto }, d) {
+    if (id === 'pular') return perguntarExtra(d);
+    if (id === 'padrao') { d.dormiu = d.padrao; return perguntarExtra(d); }
+    const sono = PNT.lerSono(texto);
+    if (!sono.dormiu && sono.cochiloMin == null && sono.madrugadaMin == null) {
+      if (!id && /\b(de sempre|horario de sempre|mesmo horario|normal)\b/.test(PC.norm(texto)) && d.padrao) { d.dormiu = d.padrao; return perguntarExtra(d); }
+      return undefined;
+    }
+    if (sono.dormiu) d.dormiu = sono.dormiu;
+    if (sono.cochiloMin != null) d.cochiloMin = sono.cochiloMin;
+    if (sono.madrugadaMin != null) d.madrugadaMin = sono.madrugadaMin;
+    if (!d.dormiu && d.semSono) {
+      return perguntar('nota_sono', 'Anotado. E que horas tu foi dormir?', [...(d.padrao ? [BT('padrao', `🛏️ No horário de sempre (${d.padrao})`)] : []), PULAR], d, 'Que horas tu foi dormir ontem?');
+    }
+    return perguntarExtra(d);
+  },
+
+  async nota_extra({ id, texto }, d) {
+    const zera = () => { if (d.cochiloMin == null) d.cochiloMin = 0; if (d.madrugadaMin == null) d.madrugadaMin = 0; };
+    if (id === 'nenhum') { zera(); return fecharNota(d); }
+    const sono = PNT.lerSono(texto);
+    if (sono.cochiloMin != null) d.cochiloMin = sono.cochiloMin;
+    if (sono.madrugadaMin != null) d.madrugadaMin = sono.madrugadaMin;
+    if (sono.cochiloMin != null || sono.madrugadaMin != null) { zera(); return fecharNota(d); }
+    if (PC.simNao(texto) === false || /\b(nenhum|nada|nem um nem outro|dormi direto|direto)\b/.test(PC.norm(texto))) { zera(); return fecharNota(d); }
+    return undefined;
+  },
+
+  async nota_confirmar({ id, texto }, d) {
+    const sn = id ? (id === 'salvar') : PC.simNao(texto);
+    if (id === 'refazer' || (!id && /\b(refaz\w*|corrig\w*|muda\w*|errado)\b/.test(PC.norm(texto)))) {
+      for (const k of ['prideFail', 'improve', 'dormiu', 'cochiloMin', 'madrugadaMin', 'textoFeito']) delete d[k];
+      return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
+    }
+    if (id === 'cancelar' || sn === false) return encerrarConversa('Beleza, não salvei nada 👍');
+    if (sn !== true) return undefined;
+    try {
+      await salvarNotaOntem(d);
+    } catch (err) {
+      console.warn('[pet-nota]', err);
+      return encerrarConversa('Não consegui salvar agora 😕 Tenta de novo daqui a pouco.');
+    }
+    const sono = d.dormiu ? ` Tu dormiu às <strong>${d.dormiu}</strong>.` : '';
+    return encerrarConversa(`✅ Nota de ontem salva!${sono} Bora fazer de hoje um dia melhor 💪`);
+  },
+});
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 9: HELPERS DE MENSAGEM
