@@ -306,6 +306,13 @@ function _participantesHtml() {
 function _premiosList() {
   return (Array.isArray(_sel.premios) && _sel.premios.length) ? _sel.premios : ['Prêmio único'];
 }
+// Mesma pessoa = mesmo nome (sem maiúscula/acento) OU mesmos 8 últimos dígitos
+// do WhatsApp (pega 9 faltando e +55). Igual à regra do banco (rifa_mesma_pessoa).
+const _normNome = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+const _normFone = (t) => { const d = String(t || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(-8) : ''; };
+const _mesmaPessoa = (a, b) => !!((_normNome(a?.nome) && _normNome(a.nome) === _normNome(b?.nome))
+  || (_normFone(a?.contato) && _normFone(a.contato) === _normFone(b?.contato)));
+
 function _sorteioHtml() {
   const r = _sel;
   const premios = _premiosList();
@@ -320,9 +327,13 @@ function _sorteioHtml() {
         const ord = i + 1, g = porOrdem[ord];
         if (g) {
           const wa = _waLink(g.contato, `Parabéns! Você ganhou "${p}" na ${r.titulo || 'rifa'} com o número ${g.numero}! 🎉`);
-          return `<div class="rf-sortlinha ganho">
+          // mesma pessoa já ganhou um prêmio ANTERIOR → este precisa ser sorteado de novo
+          const antes = g.nome ? sorteados.find(x => x.ordem < ord && x.nome && _mesmaPessoa(x, g)) : null;
+          return `<div class="rf-sortlinha ganho${antes ? ' repetido' : ''}">
             <div class="rf-sortlinha-top"><span class="rf-sortlinha-premio">${ord}º · ${_esc(p)}</span><span class="rf-sortlinha-num">🎉 ${g.numero}</span></div>
-            <div class="rf-sortlinha-ganhador"><b>${_esc(g.nome || 'Número não vendido')}</b>${g.contato ? ` · ${_esc(g.contato)}` : ''}${wa ? ` <a href="${wa}" target="_blank" rel="noopener" class="rf-part-wa">${WA_SVG}</a>` : ''}</div>
+            <div class="rf-sortlinha-ganhador"><b>${_esc(g.nome || 'Número não vendido')}</b>${g.contato ? ` · ${_esc(g.contato)}` : ''}${wa ? ` <a href="${wa}" target="_blank" rel="noopener" class="rf-part-wa">${WA_SVG}</a>` : ''}${g.auto ? ' <span class="rf-auto-tag">🤖 automático</span>' : ''}</div>
+            ${antes ? `<div class="rf-repetido-aviso">⚠️ Essa pessoa já ganhou o <b>${antes.ordem}º prêmio</b>. Sorteie este de novo.</div>` : ''}
+            <button class="${antes ? 'btn-primary' : 'ag-linkbtn'} rf-sort-redo" data-sort-redo="${ord}" type="button">🔁 Sortear este de novo</button>
           </div>`;
         }
         return `<div class="rf-sortlinha" data-ord="${ord}">
@@ -387,6 +398,15 @@ function wireEditor(corpo) {
     if (!n || n < 1) { showToast('Digite o número (ex.: Loteria Federal)', 'info'); return; }
     _sortearPremio(ord, n);
   });
+  corpo.querySelectorAll('[data-sort-redo]').forEach(b => b.onclick = async () => {
+    const ord = +b.dataset.sortRedo;
+    const ok = await confirmModal({
+      title: `Sortear o ${ord}º prêmio de novo?`,
+      message: 'Só este prêmio é refeito — os outros resultados continuam. Quem já ganhou outro prêmio fica de fora.',
+      confirmText: 'Sortear de novo', cancelText: 'Cancelar',
+    });
+    if (ok) _sortearDeNovo(ord);
+  });
   corpo.querySelector('#rf-sort-todos')?.addEventListener('click', _sortearTodos);
   corpo.querySelector('#rf-refazer')?.addEventListener('click', async () => {
     if (!confirm('Refazer o sorteio? Todos os resultados serão apagados.')) return;
@@ -424,6 +444,36 @@ async function _sortearPremio(ordem, numero) {
     desenharEditor();
     showToast(res.ganhador ? `🎉 ${res.premio}: ${res.ganhador} (nº ${res.numero})` : `${res.premio}: nº ${res.numero} (não vendido)`, 'success');
   } catch (e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+// 🔁 Refaz UM prêmio já sorteado (botão TEMPORÁRIO — Elton vai remover depois).
+// O banco ainda só impede o MESMO NÚMERO de ganhar 2×; então, se cair numa
+// pessoa que já ganhou outro prêmio, sorteia de novo (até 15×) — cada
+// tentativa é aleatória entre os números livres, então o resultado final é
+// sorteado só entre pessoas que ainda não ganharam.
+async function _sortearDeNovo(ordem) {
+  const btn = document.querySelector(`[data-sort-redo="${ordem}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Sorteando…'; }
+  let res = null, repetido = false;
+  try {
+    for (let t = 0; t < 15; t++) {
+      res = await sortearPremio(_sel.slug, ordem, null);
+      const lista = Array.isArray(res.sorteados) ? res.sorteados : [];
+      const eu = lista.find(x => x.ordem === ordem);
+      repetido = !!(eu?.nome && lista.some(x => x.ordem !== ordem && x.nome && _mesmaPessoa(x, eu)));
+      if (!repetido) break;
+    }
+    _snapshotForm();
+    _sel.sorteados = Array.isArray(res.sorteados) ? res.sorteados : [];
+    _sel.sorteio_status = _sel.sorteados.length >= res.total_premios ? 'encerrado' : 'ao_vivo';
+    _sincLista();
+    desenharEditor();
+    if (repetido) showToast('Sorteei 15 vezes e só caiu em quem já ganhou. Confere os participantes.', 'error');
+    else showToast(res.ganhador ? `🎉 ${res.premio}: ${res.ganhador} (nº ${res.numero})` : `${res.premio}: nº ${res.numero} (não vendido)`, 'success');
+  } catch (e) {
+    showToast('Erro: ' + e.message, 'error');
+    if (btn?.isConnected) { btn.disabled = false; btn.textContent = '🔁 Sortear este de novo'; }
+  }
 }
 
 // Sorteia todos os prêmios que ainda faltam (aleatório), um a um.
