@@ -2839,7 +2839,7 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261005c');
+    _CK = await import('./pet-checkin.js?v=20261006a');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
@@ -2866,11 +2866,65 @@ function mostrarCheckin() {
     gravarCheckin(st);
   }
   if (p.conversa) { iniciarConversaTreino(p); return; }
+  if (p.tipo === 'ontem') { checklistOntem(p); return; }
   addChoices(p.texto, p.botoes.map(b => ({ label: b.label, action: async () => {
     const msg = await responderCheckin(p, b);
     proximoAssunto();
     return msg;
   } })));
+}
+
+// Ontem: a pessoa marca quantas quiser NA MESMA mensagem (cada toque marca
+// ou desmarca na hora, o botão vira ✔️) e fecha com "Pronto". Sem repetir a pergunta.
+function checklistOntem(p) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  const span = document.createElement('span');
+  span.innerHTML = p.texto.replace(/Tu fez alguma\?$/, 'Toca nas que tu fez:').replace(/Tu fez\?$/, 'Toca se tu fez:');
+  const lista = document.createElement('div');
+  lista.className = 'pet-choices';
+  const feitos = new Set();
+  const itens = p.botoes.filter(b => b.resp === 'marcar_ontem');
+  const nomeDe = (b) => b.label.replace(/^✅\s*/, '');
+  let fim;
+  const atualizarFim = () => { fim.textContent = feitos.size ? `👍 Pronto (${feitos.size})` : '🙅 Não fiz nenhuma'; };
+  for (const b of itens) {
+    const btn = document.createElement('button');
+    btn.className = 'pet-choice-btn';
+    btn.textContent = `⬜ ${nomeDe(b)}`;
+    btn.addEventListener('click', async () => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const marcar = !feitos.has(b.valor);
+      try {
+        await updateDayTask(p.ontemId, b.valor, { done: marcar });
+        if (marcar) feitos.add(b.valor); else feitos.delete(b.valor);
+        btn.textContent = `${marcar ? '✅' : '⬜'} ${nomeDe(b)}`;
+        btn.classList.toggle('pet-choice-selected', marcar);
+      } catch (_) {
+        addMessage('Não consegui marcar agora. Tenta de novo daqui a pouco.', 'bot');
+      }
+      btn.disabled = false;
+      atualizarFim();
+    });
+    lista.appendChild(btn);
+  }
+  fim = document.createElement('button');
+  fim.className = 'pet-choice-btn';
+  atualizarFim();
+  fim.addEventListener('click', () => {
+    div.querySelectorAll('.pet-choice-btn').forEach(x => { x.disabled = true; x.classList.add('pet-choice-used'); });
+    fim.classList.add('pet-choice-selected');
+    addMessage(feitos.size ? `✅ Marquei ${feitos.size === 1 ? '1 coisa' : `${feitos.size} coisas`} de ontem como feito.` : 'Tranquilo, hoje é outro dia 💪', 'bot');
+    proximoAssunto();
+  });
+  lista.appendChild(fim);
+  span.appendChild(lista);
+  div.appendChild(span);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
 }
 
 // Emenda o próximo assunto da fila depois da resposta aparecer
