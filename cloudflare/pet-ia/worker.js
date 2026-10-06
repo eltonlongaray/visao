@@ -68,6 +68,8 @@ Pessoa: o carro ficou pronto, volta o uber de sábado
 {"acao":"reativar","titulo":"Uber","quando":"sábado","resposta":"Boa! Vou voltar o Uber de sábado pra agenda 🚗"}
 Pessoa: hoje não vou na academia, vou na sexta
 {"acao":"remarcar","titulo":"Academia","quando":"hoje","para":"sexta","resposta":"Beleza, vou passar a academia de hoje pra sexta 💪"}
+Pessoa: troca o dia da academia de hoje para sexta-feira
+{"acao":"remarcar","titulo":"Academia","quando":"hoje","para":"sexta","resposta":"Fechado, passo a academia de hoje pra sexta."}
 Pessoa: comprei o pão já
 {"acao":"lista_marcar","itens":["pão"],"resposta":"Boa, vou marcar o pão como comprado."}
 Pessoa: vou conseguir treinar só umas 3 vezes por semana agora

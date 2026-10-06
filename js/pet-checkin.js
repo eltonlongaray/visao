@@ -5,8 +5,8 @@
 // bolinha e executa a resposta é o assistente-ia.js (BLOCO 8.8).
 // Ele conduz a pessoa por TODOS os assuntos pendentes, um de cada vez (a
 // bolinha mostra quantos são). Pra não virar chato:
-//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias; ontem: 1);
-//  • "Depois" segura aquele tipo (treino/peso: 30 dias; ontem: 1 dia).
+//  • cada tipo tem sua folga depois de perguntado (treino/peso: 7 dias; ontem/nota: 1);
+//  • "Depois" segura aquele tipo (treino/peso: 30 dias; ontem/nota: 1 dia).
 // BLOCO 1 — O QUE CONTA COMO TREINO
 // BLOCO 2 — REGRAS (uma função por pergunta)
 // BLOCO 3 — ESCOLHER A PERGUNTA DO DIA
@@ -35,7 +35,7 @@ function treinos(dias, agora) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: REGRAS
 // ═══════════════════════════════════════════════════════════════
-// Cada regra devolve a pergunta ou null. `ctx` = { dias (últimos 60), prof, agora, ontemId }
+// Cada regra devolve a pergunta ou null. `ctx` = { dias (últimos 60, até hoje), prof, agora, ontemId, hojeId }
 
 // Parou? Tinha treino feito entre 22 e 60 dias atrás e nenhum nos últimos 21.
 function regraParou({ dias, agora }) {
@@ -107,12 +107,52 @@ function regraOntem({ dias, ontemId }) {
   };
 }
 
+// Nota do dia: em branco (ou sem a hora de dormir). Só pra quem usa o dia:
+// o dia teve atividade ou já escreveu alguma nota nos últimos 60 dias.
+function notaVazia(d) {
+  const n = d?.dayNote || {};
+  return !(String(n.prideFail || '').trim() || String(n.improve || '').trim() || n.daySleepMinutes || n.nightAwakeMinutes || n.daySleepHours || n.nightAwakeHours);
+}
+const usaNota = (dias, dia, id) => (dia?.tasks || []).length || (dias || []).some(d => d.id !== id && !notaVazia(d));
+
+function regraNota({ dias, ontemId }) {
+  const ontem = (dias || []).find(d => d.id === ontemId);
+  if (!usaNota(dias, ontem, ontemId)) return null;
+  const semNota = notaVazia(ontem), semSono = !ontem?.sleepTime;
+  if (!semNota && !semSono) return null;
+  return {
+    tipo: 'nota',
+    conversa: true,
+    dados: { semNota, semSono, diaId: ontemId, hoje: false },
+    texto: semNota
+      ? `Tua nota de ontem ficou em branco${semSono ? ' (e a hora que tu foi dormir também)' : ''}. Bora preencher comigo? É rapidinho, uma pergunta por vez.`
+      : 'Ontem ficou faltando a hora que tu foi dormir. Bora anotar?',
+    botoes: [],
+  };
+}
+
+// Fim do dia (a partir das 21h): o Pet já puxa a nota de HOJE.
+// A hora de dormir de hoje ainda não aconteceu, então só pergunta a nota.
+export const HORA_NOTA_HOJE = 21;
+function regraNotaHoje({ dias, hojeId, agora }) {
+  if (!hojeId || new Date(agora).getHours() < HORA_NOTA_HOJE) return null;
+  const hoje = (dias || []).find(d => d.id === hojeId);
+  if (!usaNota(dias, hoje, hojeId) || !notaVazia(hoje)) return null;
+  return {
+    tipo: 'nota_hoje',
+    conversa: true,
+    dados: { semNota: true, semSono: false, diaId: hojeId, hoje: true },
+    texto: 'Bora fechar o dia? 🌙 Tua nota de hoje ainda tá em branco. Te faço umas perguntas rápidas, uma por vez.',
+    botoes: [],
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: ESCOLHER A PERGUNTA DO DIA
 // ═══════════════════════════════════════════════════════════════
-const ORDEM = [regraParou, regraRitmo, regraOntem, regraPeso];
-export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1 };       // dias depois de perguntar
-export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1 };     // dias depois do "Depois"
+const ORDEM = [regraParou, regraRitmo, regraOntem, regraNota, regraNotaHoje, regraPeso];
+export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1, nota: 1, nota_hoje: 0.5 };       // dias depois de perguntar
+export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1, nota: 1, nota_hoje: 0.5 };     // dias depois do "Depois"
 
 // `estado` = { tipos: { [tipo]: { perguntadoEm, adiadoAte } } }
 // Devolve a fila de perguntas pendentes, na ordem de prioridade.
