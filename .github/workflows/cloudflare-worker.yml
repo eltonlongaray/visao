@@ -1,0 +1,35 @@
+# Publica o Worker do Pet (cloudflare/pet-ia) na Cloudflare sozinho, sempre que
+# o worker.js mudar na main. Também dá pra rodar na mão: Actions → "Publicar
+# Worker do Pet" → Run workflow (funciona pelo celular).
+# Precisa de 2 secrets no GitHub (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — token da Cloudflare com permissão "Edit Cloudflare Workers"
+#   CLOUDFLARE_ACCOUNT_ID — o Account ID que aparece no painel da Cloudflare
+# Sem os secrets o job só avisa e não falha.
+name: Publicar Worker do Pet
+
+on:
+  push:
+    branches: [main]
+    paths: ['cloudflare/pet-ia/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir secrets
+        id: tem
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$CONTA" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
+          else echo "::warning::Faltam os secrets CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID; Worker não publicado."; fi
+      - name: Publicar
+        if: steps.tem.outputs.ok == '1'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare/pet-ia
