@@ -92,12 +92,16 @@ function regraOntem({ dias, ontemId }) {
   const ontem = (dias || []).find(d => d.id === ontemId);
   const soltas = (ontem?.tasks || []).filter(t => !t.done && !t.cancelled).slice(0, 4);
   if (!soltas.length) return null;
-  const nomes = soltas.map(t => `<strong>${String(t.title || '').replace(/[&<>"']/g, '')}</strong>`).join(', ');
+  const limpa = (x) => String(x || '').replace(/[&<>"']/g, '').trim();
+  // Descrição junto do nome: duas "Contas a pagar" ficam diferentes ("Contas a pagar · luz")
+  const desc = (t) => { const d = limpa(t.desc).replace(/\s+/g, ' '); return d ? (d.length > 40 ? d.slice(0, 39) + '…' : d) : ''; };
+  const nome = (t) => limpa(t.title) + (desc(t) ? ` · ${desc(t)}` : '');
+  const nomes = soltas.map(t => `<strong>${limpa(t.title)}</strong>${desc(t) ? ` (${desc(t)})` : ''}`).join(', ');
   return {
     tipo: 'ontem',
     texto: `Ontem ${soltas.length === 1 ? 'ficou 1 coisa' : `ficaram ${soltas.length} coisas`} sem marcar: ${nomes}. ${soltas.length === 1 ? 'Tu fez?' : 'Tu fez alguma?'}`,
     botoes: [
-      ...soltas.map(t => ({ label: `✅ ${t.title}`, resp: 'marcar_ontem', valor: t.id })),
+      ...soltas.map(t => ({ label: `✅ ${nome(t)}`, resp: 'marcar_ontem', valor: t.id })),
       { label: '🙅 Não fiz', resp: 'nao_fiz' },
     ],
   };
