@@ -84,8 +84,12 @@ export function motivoFalta(text) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 4: RESPOSTAS CURTAS
 // ═══════════════════════════════════════════════════════════════
+// "pode mudar a academia pra sexta" NÃO é "sim": é um pedido novo começando com "pode"
+const VERBO_OK = /^(ser|salvar|confirmar|gravar|seguir|fazer|mandar|ir|deixar|marcar|apagar|continuar|comecar|crer|botar|por|colocar|anotar|agendar|passar)$/;
 export function simNao(text) {
   const t = norm(text);
+  const pedido = t.match(/^(?:pode|vai|quero|manda)\s+(\w+(?:ar|er|ir))\b/);
+  if (pedido && !VERBO_OK.test(pedido[1])) return null;
   if (/^(sim|s|isso|isso mesmo|pode|pode ser|bora|claro|ok|beleza|blz|fechado|quero|manda|com certeza|uhum|aham|vamos|vai)\b/.test(t)) return true;
   if (/^(nao|n|nem|negativo|deixa|deixa quieto|melhor nao|nao precisa|agora nao)\b/.test(t)) return false;
   return null;
