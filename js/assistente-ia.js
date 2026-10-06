@@ -3533,6 +3533,10 @@ function mostrarFalaAoVivo(texto) {
 // a onda volta pro modo animado de antes.
 let _medidor = null;   // { stream, ctx, analyser, buf }
 async function ligarMedidor() {
+  // No Android o medidor e o reconhecimento disputam o microfone: a onda anda,
+  // mas o reconhecedor fica mudo (sem erro nenhum) e nada é transcrito. Lá a
+  // onda fica no modo animado e o microfone é só do reconhecimento.
+  if (/Android/i.test(navigator.userAgent)) return;
   try { if (localStorage.getItem('visao_pet_sem_medidor') === '1') return; } catch (_) {}
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC || !navigator.mediaDevices?.getUserMedia) return;
