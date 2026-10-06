@@ -1241,7 +1241,13 @@ const NAO_E_NOME = new Set(('nao vou mais das dos ate partir depois antes por ca
 async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = false) {
   let novoDia = null, novaHora = '';
   if (remarcar) {
-    novoDia = j.para ? extractDate(semAcento(j.para)) : null;
+    novoDia = j.para && !/^\s*hoje\s*$/i.test(j.para) ? extractDate(semAcento(j.para)) : null;
+    // A IA não mandou o dia novo ("troca a academia de hoje para sexta-feira"):
+    // pega o último dia que vem depois de "pra/para/pro/na/no" na própria frase
+    if (!novoDia && texto) {
+      const achados = [...semAcento(texto).matchAll(/\b(?:pra|para|pro|na|no)\s+(?:a\s+|o\s+)?(depois de amanha|amanha|domingo|segunda|terca|quarta|quinta|sexta|sabado|dia \d{1,2}|\d{1,2}\/\d{1,2})/g)];
+      if (achados.length) novoDia = extractDate(achados[achados.length - 1][1]);
+    }
     if (!novoDia) return 'Pra que dia tu quer passar? Ex.: <em>"hoje não vou na academia, vou na sexta"</em>.';
     novoDia.setHours(0, 0, 0, 0);
     novaHora = /^\d{1,2}:\d{2}$/.test(j.hora || '') ? j.hora.padStart(5, '0') : '';
