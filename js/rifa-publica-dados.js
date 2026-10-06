@@ -11,6 +11,15 @@ export async function getRifa(slug) {
   return data || null;
 }
 
+// Sorteio AUTOMÁTICO: o banco só sorteia se já passou a tolerância depois do
+// horário e ainda falta prêmio (senão não faz nada). Qualquer visitante pode
+// pedir — o sorteio é no servidor, com random() do banco.
+export async function sortearAutomatico(slug) {
+  const { data, error } = await supabase.rpc('sortear_automatico', { p_slug: (slug || '').trim() });
+  if (error) throw new Error(error.message);
+  return data || null;
+}
+
 // Números já escolhidos (array de int).
 export async function getNumerosOcupados(slug) {
   const { data, error } = await supabase.rpc('rifa_ocupados', { p_slug: (slug || '').trim() });
