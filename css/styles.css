@@ -6065,6 +6065,13 @@ body.tour-active { overflow: hidden; }
   border-top: 1px solid var(--border);
 }
 .pet-waveform { flex: 1; height: 40px; border-radius: 8px; }
+/* Fala aparecendo em tempo real enquanto grava */
+.pet-rec-live {
+  margin: 0 12px 6px; padding: 8px 12px; max-height: 30vh; overflow-y: auto;
+  border-radius: 12px; background: rgba(124, 58, 237, 0.12);
+  color: var(--text); font-size: 15px; line-height: 1.4; white-space: pre-wrap; word-break: break-word;
+}
+.pet-rec-live.vazio { color: var(--muted); font-style: italic; }
 .pet-rec-cancel, .pet-rec-confirm {
   width: 32px; height: 32px;
   border-radius: 50%; border: none; cursor: pointer;

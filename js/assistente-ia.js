@@ -381,6 +381,7 @@ function buildPetHTML() {
       </button>
       <button class="pet-send-btn" id="pet-send-btn" aria-label="${t('pet.send')}">➤</button>
     </div>
+    <div id="pet-rec-live" class="pet-rec-live" style="display:none" aria-live="polite"></div>
     <div id="pet-recording-bar" class="pet-recording-bar" style="display:none">
       <canvas id="pet-waveform" class="pet-waveform"></canvas>
       <button id="pet-rec-cancel" class="pet-rec-cancel" aria-label="${t('pet.cancel')}">×</button>
@@ -1164,6 +1165,7 @@ async function entenderNaNuvem(text) {
   if (!j) return undefined;
   if (j.acao === 'cancelar') return cmdCancelarNuvem(j, false, text);
   if (j.acao === 'reativar') return cmdCancelarNuvem(j, true, text);
+  if (j.acao === 'remarcar') return cmdCancelarNuvem(j, false, text, true);
   const frase = PN.fraseDoApp(j);
   if (!frase) return 'fora';   // "conversa": quem chamou decide (oi/ajuda passam; o resto é fora do app)
   _naNuvem = true;
@@ -1233,17 +1235,26 @@ function periodoDoQuando(quandoBruto) {
 const NAO_E_NOME = new Set(('nao vou mais das dos ate partir depois antes por causa carro pra para com sem ' +
   'que ele ela meu minha essa esse esta este volta voltar cancela cancelar remove remover tira tirar ' +
   'domingo segunda terca quarta quinta sexta sabado feira amanha hoje semana proxima').split(' '));
-async function cmdCancelarNuvem(j, reativar = false, texto = '') {
+// remarcar=true: "hoje não vou na academia, vou na sexta" → move do dia "quando" (hoje) pro dia "para"
+async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = false) {
+  let novoDia = null, novaHora = '';
+  if (remarcar) {
+    novoDia = j.para ? extractDate(semAcento(j.para)) : null;
+    if (!novoDia) return 'Pra que dia tu quer passar? Ex.: <em>"hoje não vou na academia, vou na sexta"</em>.';
+    novoDia.setHours(0, 0, 0, 0);
+    novaHora = /^\d{1,2}:\d{2}$/.test(j.hora || '') ? j.hora.padStart(5, '0') : '';
+    j = { ...j, quando: j.quando || 'hoje', hora: '' };
+  }
   // A IA às vezes entende a ação mas esquece campos: completa pela frase
   if (!j.quando && texto) j = { ...j, quando: texto };
-  if (!j.hora && texto) {
+  if (!j.hora && texto && !remarcar) {
     const mh = semAcento(texto).match(/\b(?:a partir d[ae]s?|depois d[ae]s?|apos as|das)\s*(\d{1,2})(?:[:h](\d{2}))?\s*h?/);
     if (mh) j = { ...j, hora: `${mh[1].padStart(2, '0')}:${mh[2] || '00'}` };
   }
   let nome = String(j.titulo || '').trim();
   if (!nome && texto) nome = semAcento(texto).split(/[^a-z0-9]+/)
     .filter(w => w.length >= 3 && !/^\d/.test(w) && !NAO_E_NOME.has(w) && !['fazer', 'atividade', 'tarefa', 'dia', 'dias', 'app'].includes(w)).join(' ');
-  if (!nome) return reativar ? 'Qual atividade volta pra agenda? Ex.: <em>"volta o Uber de sábado"</em>.'
+  if (!nome) return remarcar ? 'Qual atividade tu quer passar pra outro dia?' : reativar ? 'Qual atividade volta pra agenda? Ex.: <em>"volta o Uber de sábado"</em>.'
     : 'Qual atividade tu não vai fazer? Ex.: <em>"não vou na academia amanhã"</em>.';
   const { ini, fim, dias: soDias, periodo } = periodoDoQuando(j.quando);
   const mHora = String(j.hora || '').match(/^(\d{1,2}):(\d{2})/);
@@ -1295,6 +1306,19 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '') {
     return `${rotData(new Date(y, mo - 1, d))}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
   const lista = achados.slice(0, 8);
   const qtd = lista.length > 1 ? ` (${lista.length}×)` : '';
+  if (remarcar) {
+    const novoId = `${novoDia.getFullYear()}-${String(novoDia.getMonth() + 1).padStart(2, '0')}-${String(novoDia.getDate()).padStart(2, '0')}`;
+    const x = lista[0];
+    if (x.dia === novoId) return `<strong>${_esc(x.tk.title)}</strong> já está em ${rotData(novoDia)}.`;
+    cardConfirmarLista(`📆 Passar <b>${_esc(x.tk.title)}</b> de ${rot(x)} pra <b>${rotData(novoDia)}${novaHora || x.tk.startTime ? ' ' + (novaHora || x.tk.startTime) : ''}</b>?`, async () => {
+      const { id: _drop, ...resto } = x.tk;
+      await deleteDayTask(x.dia, x.tk.id);
+      await addDayTask(novoId, { ...resto, startTime: novaHora || x.tk.startTime || '', rescheduled: true,
+        rescheduleCount: (x.tk.rescheduleCount || 0) + 1, done: false, cancelled: false, order: 0 });
+      return `✅ Passei <strong>${_esc(x.tk.title)}</strong> pra ${rotData(novoDia)}.`;
+    }, null);
+    return null;
+  }
   cardConfirmarLista(`${reativar ? '↩️ Voltar' : '🚫 Cancelar'} <b>${_esc(lista[0].tk.title)}</b>${qtd}?<br>${lista.map(rot).join(' · ')}`, async () => {
     for (const x of lista) await updateDayTask(x.dia, x.tk.id, { cancelled: !reativar });
     const n = lista.length === 1 ? 'essa atividade' : `${lista.length} atividades`;
@@ -3319,11 +3343,13 @@ async function startMic() {
       // A junção vale DENTRO da lista também. A própria e.results chega com o
       // mesmo enunciado repetido em posições diferentes — concatenar tudo era
       // o que sobrava de duplicata depois de eu ter tratado só os reinícios.
-      let final = '';
+      let final = '', parcial = '';
       for (let i = 0; i < e.results.length; i++) {
         if (e.results[i].isFinal) final = juntarFala(final, e.results[i][0].transcript);
+        else parcial = e.results[i][0].transcript;   // o que ainda está sendo dito
       }
       trechoAtual = final;
+      mostrarFalaAoVivo([juntarFala(accumulated, final), parcial].filter(Boolean).join(' '));
       voiceActive = true;
       clearTimeout(voiceTimer);
       voiceTimer = setTimeout(() => { voiceActive = false; }, 250);
@@ -3380,6 +3406,13 @@ async function startMic() {
         abortCount++;
         if (abortCount <= 3) return;
       }
+      // Alguns Android não deixam o medidor de volume e o reconhecimento usarem
+      // o microfone juntos: desliga o medidor (e lembra) e segue reconhecendo.
+      if (e.error === 'audio-capture' && _medidor) {
+        pararMedidor();
+        try { localStorage.setItem('visao_pet_sem_medidor', '1'); } catch (_) {}
+        try { recognition = buildRecognition(); recognition.start(); return; } catch (_) {}
+      }
       if (e.error === 'audio-capture' || e.error === 'not-allowed') {
         addMessage(t('pet.error.mic.blocked'), 'bot');
       }
@@ -3398,6 +3431,8 @@ async function startMic() {
   recognition = buildRecognition();
   recognition.start();
   showRecordingUI();
+  mostrarFalaAoVivo('');
+  ligarMedidor();   // sem await: a onda já começa e passa a seguir a voz quando o medidor abrir
   drawWaveform();
   setPetState('thinking');
 }
@@ -3431,7 +3466,50 @@ function stopMicCancel() {
   setPetState('idle');
 }
 
+// Texto aparecendo enquanto a pessoa fala
+function mostrarFalaAoVivo(texto) {
+  const el = document.getElementById('pet-rec-live');
+  if (!el) return;
+  el.textContent = texto ? texto : '🎙️ Pode falar…';
+  el.classList.toggle('vazio', !texto);
+  el.scrollTop = el.scrollHeight;
+}
+
+// Medidor de volume de verdade (a onda segue a voz). Se o aparelho não deixar,
+// a onda volta pro modo animado de antes.
+let _medidor = null;   // { stream, ctx, analyser, buf }
+async function ligarMedidor() {
+  try { if (localStorage.getItem('visao_pet_sem_medidor') === '1') return; } catch (_) {}
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC || !navigator.mediaDevices?.getUserMedia) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    if (!recording) { stream.getTracks().forEach(tk => tk.stop()); return; }
+    const ctx = new AC();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    _medidor = { stream, ctx, analyser, buf: new Uint8Array(analyser.fftSize) };
+  } catch (_) { _medidor = null; }
+}
+function pararMedidor() {
+  if (!_medidor) return;
+  try { _medidor.stream.getTracks().forEach(tk => tk.stop()); } catch (_) {}
+  try { _medidor.ctx.close(); } catch (_) {}
+  _medidor = null;
+}
+// Volume atual de 0 a 1 (null = sem medidor)
+function volumeAgora() {
+  if (!_medidor) return null;
+  const { analyser, buf } = _medidor;
+  analyser.getByteTimeDomainData(buf);
+  let soma = 0;
+  for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; soma += v * v; }
+  return Math.min(1, Math.sqrt(soma / buf.length) * 4.5);
+}
+
 function teardownMic() {
+  pararMedidor();
   cancelAnimationFrame(waveAnimId);
   voiceActive = false;
   clearTimeout(voiceTimer);
@@ -3440,9 +3518,13 @@ function teardownMic() {
 function showRecordingUI() {
   document.getElementById('pet-input-row').style.display     = 'none';
   document.getElementById('pet-recording-bar').style.display = 'flex';
+  const live = document.getElementById('pet-rec-live');
+  if (live) live.style.display = 'block';
 }
 
 function hideRecordingUI() {
+  const live = document.getElementById('pet-rec-live');
+  if (live) { live.style.display = 'none'; live.textContent = ''; }
   document.getElementById('pet-recording-bar').style.display = 'none';
   document.getElementById('pet-input-row').style.display     = 'flex';
 }
@@ -3464,6 +3546,28 @@ function drawWaveform() {
   function frame() {
     waveAnimId = requestAnimationFrame(frame);
     tick++;
+    // Com medidor: a onda anda da direita pra esquerda seguindo o volume real
+    const vol = volumeAgora();
+    if (vol != null) {
+      if (tick % 2 === 0) {
+        targets.copyWithin(0, 1);
+        targets[N - 1] = 0.05 + vol * 0.9;
+      }
+      ctx.clearRect(0, 0, W, H);
+      const totalW = N * (BAR + GAP) - GAP;
+      let x = (W - totalW) / 2;
+      for (let i = 0; i < N; i++) {
+        heights[i] += (targets[i] - heights[i]) * 0.5;
+        const bH = Math.max(3, heights[i] * H * 0.9);
+        ctx.fillStyle = '#7c3aed';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, (H - bH) / 2, BAR, bH, 1.5);
+        else ctx.rect(x, (H - bH) / 2, BAR, bH);
+        ctx.fill();
+        x += BAR + GAP;
+      }
+      return;
+    }
     const active = voiceActive;
     if (wasActive && !active) {
       for (let i = 0; i < N; i++) targets[i] = 0.04 + Math.random() * 0.08;
