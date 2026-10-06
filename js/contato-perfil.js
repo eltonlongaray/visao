@@ -114,7 +114,7 @@ function _show(stage, force = false, perfil = null) {
       <label class="input-field"><div class="input-field-label">Nome completo</div>
         <input id="pf-nome" placeholder="Seu nome completo" autocomplete="name" /></label>
       <label class="input-field"><div class="input-field-label">Como prefere ser chamado(a) <span style="color:var(--red)">*</span></div>
-        <input id="pf-apelido" placeholder="Ex: Elton" autocomplete="nickname" /></label>
+        <input id="pf-apelido" placeholder="Ex: Maria" autocomplete="nickname" /></label>
       <label class="input-field"><div class="input-field-label">Data de nascimento</div>
         <input id="pf-nasc" type="date" /></label>
       <label class="input-field"><div class="input-field-label">WhatsApp (com DDD)</div>
@@ -129,6 +129,7 @@ function _show(stage, force = false, perfil = null) {
       <div class="modal-actions">
         <button class="btn-primary" id="pf-save" style="width:100%">Salvar</button>
       </div>
+      <button type="button" id="pf-sair" style="display:block;width:100%;margin-top:12px;padding:10px;background:none;border:none;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer">Já tenho conta · Sair e entrar com outra</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -143,6 +144,17 @@ function _show(stage, force = false, perfil = null) {
   }
 
   const close = () => { overlay.remove(); _open = false; };
+
+  // Saída do formulário: sem nome ele não fecha, então quem entrou na conta
+  // errada (ex.: e-mail diferente no iPhone → conta nova vazia) ficava preso
+  // sem conseguir chegar em Ajustes → Sair. Caso Larissa, 06/10.
+  overlay.querySelector('#pf-sair').onclick = async () => {
+    const { auth, signOut } = await import('./autenticacao.js');
+    try { await signOut(auth); } catch {}
+    close();
+    location.hash = '#/login';
+    location.reload();
+  };
 
   overlay.querySelector('#pf-save').onclick = async () => {
     const full  = overlay.querySelector('#pf-nome').value.trim();

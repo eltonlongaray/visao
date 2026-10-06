@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // VISÃO · Service Worker — cache híbrido
 // Estratégia:
 //   - HTML + JS  → network-first (sempre pega versão fresca, fallback cache offline)
@@ -6,7 +6,7 @@
 //   - Firebase/CDN → sempre rede (não cacheia)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'visao-v705';
+const CACHE_NAME = 'visao-v706';
 
 // Estado de mute — atualizado via postMessage do app principal
 let _muted = false;

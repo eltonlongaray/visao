@@ -78,9 +78,17 @@ export async function createUserWithEmailAndPassword(_auth, email, password) {
   if (error) throw _err(error);
   return { user: _mapUser(data.user) };
 }
+// Sair NUNCA pode falhar: se o servidor recusar (sessão vencida, sem rede),
+// limpa a sessão deste aparelho mesmo assim — senão a pessoa fica presa logada.
 export async function signOut(_auth) {
   const { error } = await supabase.auth.signOut();
-  if (error) throw _err(error);
+  if (error) {
+    console.warn('[auth] signOut no servidor falhou, limpando local:', error.message);
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch {}
+  }
+  _currentUser = null;
+  _emit();
 }
 export async function sendPasswordResetEmail(_auth, email) {
   const redirectTo = window.location.origin + window.location.pathname;
