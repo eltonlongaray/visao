@@ -36,7 +36,7 @@ import {
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261003h';
 import * as PP from './pet-preparo.js?v=20261005c';
-import * as PC from './pet-conversa.js?v=20261005b';
+import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261005a';
 import * as PNT from './pet-nota.js?v=20261006a';
 
@@ -3329,6 +3329,12 @@ const PASSOS = {
 // A pessoa pode falar tudo do sono numa frase só; no fim um card confirma e
 // grava no mesmo lugar da tela (days.meta.dayNote + sleepTime).
 const ehComandoCurto = (texto) => pareceComando(texto) && String(texto).trim().split(/\s+/).length <= 6;
+// Pedido novo no meio da nota ("pode mudar a academia de hoje pra sexta"): não é resposta
+const PEDIDO_RE = /\b(muda|mudar|mude|troca|trocar|troque|passa|passar|passe|remarca\w*|cancela\w*|agenda\w*|desmarca\w*|adiciona\w*|apaga\w*|marca|marcar|marque|cria|criar|crie|lembra|lembrar|lembre)\b/;
+const ehPedido = (texto) => {
+  const t = PC.norm(texto);
+  return /^(pode|consegue|preciso que|quero que|da pra|me ajuda)\b/.test(t) || PEDIDO_RE.test(t.split(' ').slice(0, 4).join(' ')) || ehComandoCurto(texto);
+};
 const PULAR = BT('pular', '⏭️ Pular');
 
 function iniciarConversaNota(p) {
@@ -3410,7 +3416,7 @@ Object.assign(PASSOS, {
     }
     if (sn === true) return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
     // Já respondeu direto ("me orgulho de…" / "dormi 23h")
-    if (texto && !ehComandoCurto(texto)) {
+    if (texto && !ehPedido(texto)) {
       const sono = PNT.lerSono(texto);
       if (sono.dormiu || sono.cochiloMin != null || sono.madrugadaMin != null) return PASSOS.nota_sono({ texto }, d);
       if (d.semNota && texto.trim().split(/\s+/).length >= 4) return PASSOS.nota_orgulho({ texto }, d);
@@ -3420,7 +3426,7 @@ Object.assign(PASSOS, {
 
   async nota_orgulho({ id, texto }, d) {
     if (id !== 'pular') {
-      if (!texto.trim() || ehComandoCurto(texto)) return undefined;
+      if (!texto.trim() || ehPedido(texto)) return undefined;
       d.prideFail = texto.trim().slice(0, 1000);
     }
     return perguntarMelhorar(d);
@@ -3428,7 +3434,7 @@ Object.assign(PASSOS, {
 
   async nota_melhorar({ id, texto }, d) {
     if (id !== 'pular') {
-      if (!texto.trim() || ehComandoCurto(texto)) return undefined;
+      if (!texto.trim() || ehPedido(texto)) return undefined;
       d.improve = texto.trim().slice(0, 1000);
     }
     return perguntarSono(d);
