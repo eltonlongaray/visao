@@ -321,7 +321,7 @@ function _sorteioHtml() {
   const faltam = premios.filter((_, i) => !porOrdem[i + 1]).length;
   return `
     <div class="rf-sec-lbl">🎬 Sorteio ao vivo <span class="ag-lbl-opt">— ${premios.length} prêmio${premios.length > 1 ? 's' : ''} = ${premios.length} sorteio${premios.length > 1 ? 's' : ''}</span></div>
-    <div class="rf-dica-box">${_fmtSorteio(r.sorteio_em) ? `Marcado pra <b>${_fmtSorteio(r.sorteio_em)}</b>. ` : ''}A contagem aparece no fim do link. Sorteie prêmio por prêmio — cada resultado aparece ao vivo pra todo mundo. Um número não ganha dois prêmios.</div>
+    <div class="rf-dica-box">${_fmtSorteio(r.sorteio_em) ? `Marcado pra <b>${_fmtSorteio(r.sorteio_em)}</b>. ` : ''}A contagem aparece no fim do link. Sorteie prêmio por prêmio — cada resultado aparece ao vivo pra todo mundo. <b>Uma pessoa não ganha dois prêmios</b> (mesmo nome ou mesmo WhatsApp), e números <b>pagos têm preferência</b>.<br><br>🔒 As vendas <b>fecham no horário do sorteio</b>. 🤖 Se você não sortear até <b>30 min depois</b>, o sistema sorteia sozinho.</div>
     <div class="rf-sorteio-list">
       ${premios.map((p, i) => {
         const ord = i + 1, g = porOrdem[ord];

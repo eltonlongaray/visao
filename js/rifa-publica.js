@@ -3,7 +3,7 @@
 // opcional; gera Pix (QR + copia-e-cola) do total na chave do dono. O app NÃO
 // processa pagamento — só mostra o código pra a pessoa pagar direto no banco.
 // ─────────────────────────────────────────────────────────────
-import { getRifa, getNumerosOcupados, escolherNumeros } from './rifa-publica-dados.js';
+import { getRifa, getNumerosOcupados, escolherNumeros, sortearAutomatico } from './rifa-publica-dados.js';
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _tela = inner => `<div class="rf-wrap">${inner}</div>`;
@@ -107,6 +107,25 @@ export async function renderRifaPublica(app, slug) {
     if (rifa.data_sorteio) { const t = new Date(rifa.data_sorteio + 'T20:00:00').getTime(); return isNaN(t) ? 0 : t; }
     return 0;
   }
+  // Se o dono não sortear até AUTO_MIN minutos depois do horário, o sistema
+  // sorteia sozinho (função sortear_automatico no banco). Mesmo valor do SQL.
+  const AUTO_MIN = 30;
+  const _limiteAutoMs = () => { const a = _alvoMs(); return a ? a + AUTO_MIN * 60000 : 0; };
+  const _horaBr = (ms) => { const d = new Date(ms); return `${_pad2(d.getHours())}:${_pad2(d.getMinutes())}`; };
+  // Vendas fecham no horário do sorteio (ou se o dono já começou a sortear).
+  const _vendasFechadas = () => {
+    const a = _alvoMs();
+    return (a && Date.now() >= a) || rifa.sorteio_status === 'encerrado'
+      || (Array.isArray(rifa.sorteados) && rifa.sorteados.length > 0);
+  };
+  let _autoPedido = false;
+  async function _pedirAutomatico() {
+    if (_autoPedido) return;
+    _autoPedido = true;
+    try { await sortearAutomatico(slug); } catch (e) { console.warn('[rifa] sorteio automático:', e.message); }
+    _checarSorteio();
+  }
+
   function _fmtSorteioBr() {
     const ms = _alvoMs(); if (!ms) return '';
     const d = new Date(ms);
@@ -115,6 +134,8 @@ export async function renderRifaPublica(app, slug) {
 
   function desenhar() {
     _pararSorteioTimers();
+    const fechadas = _vendasFechadas();
+    if (fechadas) sel.clear();
     const premios = Array.isArray(rifa.premios) ? rifa.premios : [];
     const wa = _waRifaLink(rifa);
     app.innerHTML = _tela(`
@@ -130,10 +151,11 @@ export async function renderRifaPublica(app, slug) {
           <div class="rf-premios-t">🏆 Prêmios</div>
           ${premios.map((p, i) => `<div class="rf-premio"><b>${i + 1}º</b> ${_esc(p)}</div>`).join('')}
         </div>` : ''}
-        <div class="rf-info">🎟️ Escolha quantos números desejar</div>
+        <div class="rf-info">${fechadas ? '🔒 Vendas encerradas — chegou a hora do sorteio' : '🎟️ Escolha quantos números desejar'}</div>
       </div>
       ${_lerMeus(slug).length ? `<div class="rf-meus">🎟️ <b>Seus números:</b> ${_lerMeus(slug).join(', ')}${rifa.data_sorteio ? ` <span class="rf-meus-sorteio">· 📅 Sorteio ${_dataBr(rifa.data_sorteio)}</span>` : ''}</div>` : ''}
       <div id="rf-sorteio-sec"></div>
+      ${fechadas ? '<div class="rf-dica">As vendas encerraram. Boa sorte! 🍀</div>' : `
       ${sel.size ? _painelHtml() : '<div class="rf-dica">Toque nos números que quer reservar (pode escolher vários).</div>'}
       <div class="rf-grid">
         ${Array.from({ length: total }, (_, i) => {
@@ -142,7 +164,7 @@ export async function renderRifaPublica(app, slug) {
             ? `<span class="rf-num ocupado" title="Já escolhido">${n}</span>`
             : `<button class="rf-num ${sel.has(n) ? 'sel' : ''}" data-num="${n}" type="button">${n}</button>`;
         }).join('')}
-      </div>
+      </div>`}
     `);
     wire();
     _montarSorteio();
@@ -158,7 +180,27 @@ export async function renderRifaPublica(app, slug) {
     const sorteados = Array.isArray(rifa.sorteados) ? rifa.sorteados : [];
     const st = rifa.sorteio_status;
     const alvo = _alvoMs();
-    const comecou = st === 'ao_vivo' || st === 'encerrado' || sorteados.length > 0 || (alvo && Date.now() >= alvo);
+    // "Ao vivo" só quando o sorteio começou DE VERDADE (dono sorteou algo ou
+    // o automático rodou). Hora passada sem ninguém sortear = aguardando.
+    const comecou = st === 'ao_vivo' || st === 'encerrado' || sorteados.length > 0;
+    const passouHora = !!alvo && Date.now() >= alvo;
+    const limite = _limiteAutoMs();
+
+    // 0) Hora chegou, ninguém sorteou: espera o organizador até o limite; depois o sistema sorteia
+    if (!comecou && passouHora) {
+      const auto = Date.now() >= limite;
+      sec.innerHTML = `<div class="rf-sorteio rf-sorteio-live">
+        <div class="rf-sorteio-t">${auto ? '🎲 Sorteando automaticamente…' : '⏰ Chegou a hora do sorteio!'}</div>
+        <div class="rf-sorteio-sub">${auto
+          ? 'O organizador não sorteou no horário, então o sistema está sorteando agora, entre os números reservados.'
+          : `Aguardando o organizador começar. Se não começar até <b>${_horaBr(limite)}</b>, o sorteio é feito automaticamente.`}</div>
+        <div class="rf-live-spin">🎲</div>
+      </div>`;
+      if (auto) _pedirAutomatico();
+      else _tickT = setInterval(() => { if (Date.now() >= limite) _montarSorteio(); }, 5000);
+      _drawPollT = setInterval(_checarSorteio, 4000);
+      return;
+    }
 
     // 1) Sorteio começou → mostra a lista dos prêmios (ganhos + aguardando)
     if (comecou) {
@@ -176,9 +218,12 @@ export async function renderRifaPublica(app, slug) {
             </div>`;
           }).join('')}
         </div>
-        ${encerrado ? '<div class="rf-sorteio-sub">Parabéns aos ganhadores! 🏆</div>' : '<div class="rf-live-spin">🎲</div>'}
+        ${encerrado ? `<div class="rf-sorteio-sub">Parabéns aos ganhadores! 🏆${sorteados.some(x => x.auto) ? '<br><small>🤖 Sorteio feito automaticamente pelo sistema, porque o organizador não sorteou no horário.</small>' : ''}</div>` : '<div class="rf-live-spin">🎲</div>'}
       </div>`;
-      if (!encerrado) _drawPollT = setInterval(_checarSorteio, 4000);
+      if (!encerrado) {
+        if (limite && Date.now() >= limite) _pedirAutomatico();   // dono começou e parou no meio
+        _drawPollT = setInterval(_checarSorteio, 4000);
+      }
       return;
     }
     // 2) Contagem regressiva
@@ -195,7 +240,7 @@ export async function renderRifaPublica(app, slug) {
       </div>`;
       const tick = () => {
         let dif = alvo - Date.now();
-        if (dif <= 0) { _montarSorteio(); return; }   // vira "ao vivo"
+        if (dif <= 0) { desenhar(); return; }   // hora do sorteio: fecha a venda e mostra o sorteio
         const d = Math.floor(dif / 86400000); dif -= d * 86400000;
         const h = Math.floor(dif / 3600000); dif -= h * 3600000;
         const m = Math.floor(dif / 60000); dif -= m * 60000;
@@ -219,9 +264,10 @@ export async function renderRifaPublica(app, slug) {
       const mudou = JSON.stringify(r.sorteados || []) !== JSON.stringify(rifa.sorteados || [])
         || r.sorteio_status !== rifa.sorteio_status;
       if (mudou) {
+        const fechavaAntes = _vendasFechadas();
         rifa.sorteados = r.sorteados;
         rifa.sorteio_status = r.sorteio_status;
-        _montarSorteio();
+        if (_vendasFechadas() !== fechavaAntes) desenhar(); else _montarSorteio();
       }
     } catch {}
   }
