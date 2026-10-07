@@ -3100,6 +3100,15 @@ function attachHandlers(app) {
               profile.monthlyCommitments = monthlyFiltered;
               console.log('[del-all] limpou', monthlyCur.length - monthlyFiltered.length, 'entradas monthly');
             }
+            // 2c) Regras de repetição criadas pelo Pet (profile.recurrenceRules):
+            //     sem isto a tarefa "toda semana" do Pet renascia depois do "todas"
+            const regrasCur = Array.isArray(profile?.recurrenceRules) ? profile.recurrenceRules : [];
+            const regrasFiltradas = regrasCur.filter(r => !(tGroupId && r.groupId === tGroupId) &&
+              !((r.title || '').trim().toLowerCase() === tTitleKey && (r.categoryId || '') === tCatKey));
+            if (regrasFiltradas.length !== regrasCur.length) {
+              await setProfile({ recurrenceRules: regrasFiltradas });
+              profile.recurrenceRules = regrasFiltradas;
+            }
           } catch (err) {
             console.warn('[del-recurring] template cleanup:', err);
           }
