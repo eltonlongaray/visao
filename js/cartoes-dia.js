@@ -260,7 +260,9 @@ export async function desenharCartao(cartao) {
   ctx.globalAlpha = 1;
   // Texto: o maior tamanho que cabe dentro do cartão
   const topo = cy + 70, base = cy + ch - 70, larg = cw - 140, xt = cx + 70;
-  let tam = 62, linhasT = [], linhas = [], alt = 0;
+  // Mesmo tamanho de letra em todos (48 é o maior que cabe no cartão mais longo);
+  // só diminui se um cartão novo não couber
+  let tam = 48, linhasT = [], linhas = [], alt = 0;
   for (; tam >= 28; tam -= 2) {
     ctx.font = `700 ${Math.round(tam * 1.08)}px ${FONTE}`;
     linhasT = cartao.titulo ? quebrar(ctx, cartao.titulo, larg) : [];
