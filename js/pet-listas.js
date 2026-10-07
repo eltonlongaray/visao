@@ -182,7 +182,9 @@ export function textoParaAdicionar(text, alvo = {}) {
 export function separarItens(texto) {
   const vistos = new Set(), out = [];
   for (const p of String(texto || '').split(/\s*(?:,|;|\be\b|\bmais\b|\btamb[eé]m\b)\s*/i)) {
-    const item = limparPontas(p.replace(/^(?:o|a|os|as|um|uma|item)\s+/i, ''));
+    // "anota aí pra mim na lista aveia" → tira o "aí pra mim" que sobrou do pedido
+    const semPedido = p.replace(/^(?:a[ií]\s+)?(?:(?:pra|para)\s+(?:mim|n[oó]s|a\s+gente)\s+)?/i, '');
+    const item = limparPontas(semPedido.replace(/^(?:o|a|os|as|um|uma|item)\s+/i, ''));
     const k = norm(item);
     if (item && !vistos.has(k)) { vistos.add(k); out.push(item); }
   }

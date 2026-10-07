@@ -18,6 +18,8 @@ import { trapModalBack } from './modal-voltar.js';
 const P = (n, texto) => ({ rotulo: `Princípio ${n}`, texto });
 const A = (n, titulo, texto) => ({ rotulo: `Acordo ${n}`, titulo, texto });
 const PE = (texto) => ({ rotulo: 'Pensamento', texto });
+// Filosofia: rótulo livre, título opcional e autor no fim do texto
+const F = (rotulo, titulo, texto, autor) => ({ rotulo, ...(titulo ? { titulo } : {}), texto: autor ? `${texto}\n\n— ${autor}` : texto });
 
 export const CARTOES = [
   P(1, 'Presente, escuto a pessoa até o final, falo pausadamente, sem pressa, e antes de falar penso e analiso o que vou falar e como vou falar, fazendo mais perguntas do que afirmações. Observo minhas emoções antes de agir e não permito que o estado emocional do outro interfira no meu estado.'),
@@ -49,6 +51,27 @@ export const CARTOES = [
   PE('Tudo o que parece negativo no início se transforma em algo positivo no final. No fim, o bem sempre vence o mal.'),
   // Repete 3× de propósito (é assim que o Élton usa a frase)
   PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\n\nGratidão ❤️\nGratidão ❤️\nGratidão ❤️'),
+  // Valores e princípios estoicos + sabedoria oriental (escritos com o Élton em 07/10)
+  F('Valor estoico', 'Sabedoria', 'Antes de agir, penso no que é certo, não no que é fácil. Uso a razão pra decidir, não o impulso, e aprendo com tudo o que me acontece.'),
+  F('Valor estoico', 'Coragem', 'Faço o que é certo mesmo com medo. Reconheço o medo e sigo em frente, porque é no desconforto que eu cresço.'),
+  F('Valor estoico', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque somos parte do mesmo todo.'),
+  F('Valor estoico', 'Temperança', 'Tenho domínio sobre meus desejos. Como, bebo, gasto e falo na medida certa. Nem excesso, nem falta.'),
+  F('Valor estoico', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A disciplina me leva aonde a motivação não alcança.'),
+  F('Princípio estoico', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Ponho toda a minha energia nos meus pensamentos, escolhas e ações. O resto eu aceito com serenidade.', 'Epicteto'),
+  F('Princípio estoico', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Tudo o que me acontece vira matéria-prima pra eu crescer.'),
+  F('Princípio estoico', 'Lembra que vais morrer', 'Lembro que o tempo é curto. Não adio o que importa e vivo cada dia como se ele fosse completo em si mesmo.', 'Sêneca'),
+  F('Princípio estoico', 'O obstáculo é o caminho', 'O que impede a ação faz a ação avançar. O que está no meu caminho se torna o meu caminho.', 'Marco Aurélio'),
+  F('Princípio estoico', 'Preparo a mente', 'Imagino com calma o que pode dar errado. Assim nada me pega de surpresa e eu já sei como agir.', 'Sêneca'),
+  F('Sabedoria estoica', '', 'Não são as coisas que me perturbam, mas o que eu penso sobre elas. Quando algo me abala, mudo primeiro o meu olhar.', 'Epicteto'),
+  F('Sabedoria estoica', '', 'A melhor vingança é não ser como quem me ofendeu. Respondo com quem eu sou, não com o que me fizeram.', 'Marco Aurélio'),
+  F('Sabedoria taoista', '', 'Uma jornada de mil léguas começa com um único passo. Não me assusto com o tamanho do caminho: dou o primeiro passo hoje.', 'Lao Tsé'),
+  F('Sabedoria taoista', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força, e com o tempo a água vence a pedra.', 'Lao Tsé'),
+  F('Sabedoria taoista', '', 'Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.', 'Lao Tsé'),
+  F('Sabedoria chinesa', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim.', 'Confúcio'),
+  F('Sabedoria budista', '', 'Tudo passa: o bom e o ruim. Não me apego ao que é bom nem me desespero com o que é ruim.'),
+  F('Sabedoria budista', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora.'),
+  F('Sabedoria budista', '', 'O ódio não acaba com ódio, acaba com amor. Não respondo raiva com raiva.', 'Buda'),
+  F('Sabedoria budista', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira e não atiro a segunda em mim mesmo.', 'Buda'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
