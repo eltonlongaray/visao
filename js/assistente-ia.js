@@ -1319,11 +1319,14 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = fals
     const x = lista[0];
     if (x.dia === novoId) return `<strong>${_esc(x.tk.title)}</strong> já está em ${rotData(novoDia)}.`;
     cardConfirmarLista(`📆 Passar <b>${_esc(x.tk.title)}</b> de ${rot(x)} pra <b>${rotData(novoDia)}${novaHora || x.tk.startTime ? ' ' + (novaHora || x.tk.startTime) : ''}</b>?`, async () => {
-      const { id: _drop, ...resto } = x.tk;
-      await deleteDayTask(x.dia, x.tk.id);
+      const { id: _drop, movedTo: _m, ...resto } = x.tk;
+      // A original NÃO é apagada: fica riscada (🚫) com "↪ transferida pra <dia>".
+      // Apagar não funcionava com atividade que repete: o modelo da semana via o
+      // buraco e recriava ela no mesmo dia.
+      await updateDayTask(x.dia, x.tk.id, { cancelled: true, movedTo: novoId });
       await addDayTask(novoId, { ...resto, startTime: novaHora || x.tk.startTime || '', rescheduled: true,
         rescheduleCount: (x.tk.rescheduleCount || 0) + 1, done: false, cancelled: false, order: 0 });
-      return `✅ Passei <strong>${_esc(x.tk.title)}</strong> pra ${rotData(novoDia)}.`;
+      return `✅ Passei <strong>${_esc(x.tk.title)}</strong> pra ${rotData(novoDia)}. No dia antigo ela fica riscada como transferida.`;
     }, null);
     return null;
   }
