@@ -22,8 +22,8 @@ const TEMPO_MAX = 8000;
 // ═══════════════════════════════════════════════════════════════
 export const nuvemLigada = () => !!PET_IA_URL && navigator.onLine !== false;
 
-// { texto, pergunta?, opcoes?: [{id,label}] } → objeto da IA ou null
-export async function perguntarNuvem({ texto, pergunta = '', opcoes = [] }) {
+// { texto, pergunta?, opcoes?: [{id,label}], historico?: [{quem:'pessoa'|'pet', texto}] } → objeto da IA ou null
+export async function perguntarNuvem({ texto, pergunta = '', opcoes = [], historico = [] }) {
   if (!nuvemLigada() || !String(texto || '').trim()) return null;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TEMPO_MAX);
@@ -34,7 +34,7 @@ export async function perguntarNuvem({ texto, pergunta = '', opcoes = [] }) {
     const r = await fetch(PET_IA_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ texto, pergunta, opcoes }),
+      body: JSON.stringify({ texto, pergunta, opcoes, historico }),
       signal: ctrl.signal,
     });
     if (!r.ok) return null;
