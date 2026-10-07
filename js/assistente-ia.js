@@ -954,7 +954,7 @@ async function routeCommand(text) {
   // ^marca do registro e viraria um agendamento. ──
   // ── Cartão do dia: abre o cartão (o botão Compartilhar fica nele) ──
   if (/\bcart(?:ao|ão|oes|ões)\b.*\b(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261007a').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261007b').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';

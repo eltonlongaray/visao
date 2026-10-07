@@ -37,7 +37,7 @@ export const CARTOES = [
   P(15, 'Quando me pego reclamando, ao final da reclamação adiciono um "ainda bem que..." para encerrar a frase agradecendo. Por exemplo: essa casa tá muito suja, ainda bem que tenho todos os materiais que preciso pra deixar ela bem limpa e cheirosa.'),
   P(16, 'Eu me amo e sou prioridade na minha vida: primeiro eu, depois os outros. Sou fiel aos meus princípios e valores. Isso é inegociável.'),
   P(17, 'Não faço para os outros o que eu não gostaria que fizessem comigo e faço para os outros o que gostaria que fizessem para mim. Faço sem esperar reconhecimento algum: expectativas podem machucar, por isso não espero nada de ninguém.'),
-  P(18, 'O dinheiro que chega pra mim é limpo e abençoado. Posso ganhar mais dinheiro dormindo do que posso gastar acordado. Sou feliz e grato agora porque o dinheiro vem para mim em grandes quantias e de forma contínua, através de múltiplas fontes de renda. O dinheiro é uma energia de fonte infinita e posso acessá-lo com sabedoria, para benefício próprio, de todos ao meu redor e além.'),
+  PE('O dinheiro que chega pra mim é limpo e abençoado. Posso ganhar mais dinheiro dormindo do que posso gastar acordado. Sou feliz e grato agora porque o dinheiro vem para mim em grandes quantias e de forma contínua, através de múltiplas fontes de renda. O dinheiro é uma energia de fonte infinita e posso acessá-lo com sabedoria, para benefício próprio, de todos ao meu redor e além.'),
   A(1, 'Eu sou impecável com a minha palavra.', 'Eu não uso minhas palavras contra mim. Não me diminuo, não me saboto. Também não calunio ninguém. Falo com integridade. Penso no que vou dizer e reflito se devo falar e como devo falar. Uso o poder da minha palavra só pra criar verdade e amor.'),
   A(2, 'Eu não levo nada para o lado pessoal.', 'Nada do que os outros fazem é por minha causa. O que eles fazem ou dizem é projeção da realidade deles, do sonho deles. Sou imune às opiniões e atitudes dos outros. Me recuso a ser vítima. Me liberto de sofrimentos desnecessários.'),
   A(3, 'Eu não fico presumindo coisas.', 'Tenho coragem de fazer perguntas e de expressar claramente o que eu realmente quero. Sou o mais claro possível pra evitar mal-entendido, tristeza e drama.'),
@@ -134,39 +134,96 @@ function cantos(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 
+// Gerador de números fixo (o cenário sai igual toda vez)
+function sorteador(semente) {
+  let x = semente >>> 0;
+  return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296);
+}
+
+// Crista de montanha natural (deslocamento do ponto médio)
+function crista(rnd, n, rugosidade) {
+  const pts = new Array(n + 1).fill(0);
+  pts[0] = rnd(); pts[n] = rnd();
+  for (let passo = n, amp = 1; passo > 1; passo /= 2, amp *= rugosidade) {
+    for (let i = passo / 2; i < n; i += passo) pts[i] = (pts[i - passo / 2] + pts[i + passo / 2]) / 2 + (rnd() - 0.5) * amp;
+  }
+  return pts;
+}
+
+// Cenário do Falcão: céu da noite, lua, estrelas e cordilheira com névoa.
+// As montanhas sobem nas laterais pra emoldurar o cartão.
+function desenharCenario(ctx) {
+  const rnd = sorteador(11);
+  const ceu = ctx.createLinearGradient(0, 0, 0, H);
+  ceu.addColorStop(0, '#05020c'); ceu.addColorStop(0.35, '#170932'); ceu.addColorStop(0.62, '#4b2386'); ceu.addColorStop(0.8, '#7a3fa8'); ceu.addColorStop(1, '#120722');
+  ctx.fillStyle = ceu; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 220; i++) {
+    const x = rnd() * W, y = rnd() * H * 0.55, r = rnd() * 2.2 + 0.4;
+    ctx.globalAlpha = 0.2 + rnd() * 0.75; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // Lua dourada no alto, à direita
+  const lx = W * 0.82, ly = 190;
+  const halo = ctx.createRadialGradient(lx, ly, 40, lx, ly, 300);
+  halo.addColorStop(0, 'rgba(245,197,24,0.4)'); halo.addColorStop(1, 'rgba(245,197,24,0)');
+  ctx.fillStyle = halo; ctx.fillRect(0, 0, W, 600);
+  ctx.fillStyle = '#ffe28c'; ctx.beginPath(); ctx.arc(lx, ly, 62, 0, Math.PI * 2); ctx.fill();
+  // Camadas (de trás pra frente): topo = altura no meio, lado = altura nas pontas
+  const camadas = [
+    { meio: 0.60, lado: 0.42, var: 260, cor: '#3d1f73', rug: 0.55 },
+    { meio: 0.70, lado: 0.50, var: 220, cor: '#2c1457', rug: 0.55 },
+    { meio: 0.80, lado: 0.60, var: 180, cor: '#1d0c3c', rug: 0.5 },
+    { meio: 0.90, lado: 0.72, var: 140, cor: '#0e0620', rug: 0.5 },
+  ];
+  const N = 64;
+  for (const c of camadas) {
+    const cr = crista(rnd, N, c.rug);
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let i = 0; i <= N; i++) {
+      const x = (i / N) * W, d = Math.abs(i / N * 2 - 1) ** 1.6;
+      ctx.lineTo(x, H * (c.meio + (c.lado - c.meio) * d) - (cr[i] - 0.5) * c.var);
+    }
+    ctx.lineTo(W, H); ctx.closePath();
+    ctx.fillStyle = c.cor; ctx.fill();
+    // névoa entre as camadas
+    const yn = H * c.meio;
+    const nv = ctx.createLinearGradient(0, yn - 120, 0, yn + 160);
+    nv.addColorStop(0, 'rgba(196,181,253,0)'); nv.addColorStop(0.6, 'rgba(196,181,253,0.10)'); nv.addColorStop(1, 'rgba(196,181,253,0)');
+    ctx.fillStyle = nv; ctx.fillRect(0, yn - 120, W, 280);
+  }
+}
+
 export async function desenharCartao(cartao) {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
-  // Fundo: roxo escuro do Falcon com brilho no meio
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#0d0618'); g.addColorStop(0.5, '#2a1052'); g.addColorStop(1, '#0d0618');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const brilho = ctx.createRadialGradient(W / 2, H * 0.48, 40, W / 2, H * 0.48, 760);
-  brilho.addColorStop(0, 'rgba(124,58,237,0.45)'); brilho.addColorStop(1, 'rgba(124,58,237,0)');
-  ctx.fillStyle = brilho; ctx.fillRect(0, 0, W, H);
-  // Moldura dourada
-  ctx.strokeStyle = OURO; ctx.lineWidth = 6;
-  cantos(ctx, 48, 48, W - 96, H - 96, 44); ctx.stroke();
-  ctx.globalAlpha = 0.35; ctx.lineWidth = 2;
-  cantos(ctx, 68, 68, W - 136, H - 136, 32); ctx.stroke();
-  ctx.globalAlpha = 1;
-  // Tudo um pouco mais pro meio: o Instagram cobre o topo (nome/barra) e a
-  // base (campo de resposta) do story
+  desenharCenario(ctx);
   await carregarFonte();
-  const logo = await carregarImg('icons/falcon-badge.png');
-  if (logo) ctx.drawImage(logo, W / 2 - 105, 250, 210, 210);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  // Rótulo ("PRINCÍPIO 7")
-  ctx.fillStyle = OURO; ctx.font = `700 48px ${MARCA}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
-  ctx.fillText(cartao.rotulo.toUpperCase(), W / 2, 545);
+  const sombra = (blur, cor = 'rgba(0,0,0,0.7)') => { ctx.shadowColor = cor; ctx.shadowBlur = blur; };
+  // Em cima, fora do cartão: o rótulo ("PRINCÍPIO 7").
+  // Tudo dentro de 270..1660: o Instagram cobre o topo e a base do story.
+  sombra(18);
+  ctx.fillStyle = OURO; ctx.font = `700 64px ${MARCA}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
+  ctx.fillText(cartao.rotulo.toUpperCase(), W / 2, 340);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-  ctx.fillRect(W / 2 - 60, 577, 120, 4);
-  // Texto: o maior tamanho que cabe na área do meio
-  const topo = 640, base = 1450, larg = W - 230;
-  let tam = 66, linhasT = [], linhas = [], alt = 0;
-  for (; tam >= 30; tam -= 2) {
+  ctx.shadowBlur = 0;
+  // O cartão no meio: vidro escuro com borda dourada
+  const cx = 60, cy = 410, cw = W - 120, ch = 1030;
+  sombra(60, 'rgba(0,0,0,0.6)');
+  cantos(ctx, cx, cy, cw, ch, 40);
+  ctx.fillStyle = 'rgba(13,6,24,0.6)'; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = OURO; ctx.lineWidth = 4; ctx.stroke();
+  ctx.globalAlpha = 0.3; ctx.lineWidth = 2;
+  cantos(ctx, cx + 16, cy + 16, cw - 32, ch - 32, 28); ctx.stroke();
+  ctx.globalAlpha = 1;
+  // Texto: o maior tamanho que cabe dentro do cartão
+  const topo = cy + 70, base = cy + ch - 70, larg = cw - 140, xt = cx + 70;
+  let tam = 62, linhasT = [], linhas = [], alt = 0;
+  for (; tam >= 28; tam -= 2) {
     ctx.font = `700 ${Math.round(tam * 1.08)}px ${FONTE}`;
     linhasT = cartao.titulo ? quebrar(ctx, cartao.titulo, larg) : [];
     ctx.font = `400 ${tam}px ${FONTE}`;
@@ -175,20 +232,25 @@ export async function desenharCartao(cartao) {
     if (alt <= base - topo) break;
   }
   let y = topo + (base - topo - alt) / 2 + tam;
+  ctx.textAlign = 'left';
   ctx.fillStyle = OURO; ctx.font = `700 ${Math.round(tam * 1.08)}px ${FONTE}`;
-  for (const l of linhasT) { ctx.fillText(l, W / 2, y); y += tam * 1.45; }
+  for (const l of linhasT) { ctx.fillText(l, xt, y); y += tam * 1.45; }
   if (linhasT.length) y += tam * 0.7;
   ctx.fillStyle = '#ffffff'; ctx.font = `400 ${tam}px ${FONTE}`;
-  for (const l of linhas) { if (l) ctx.fillText(l, W / 2, y); y += l ? tam * 1.42 : tam * 0.6; }
-  // Rodapé com a marca (Cinzel, com brilho dourado)
-  ctx.fillStyle = OURO; ctx.font = `700 70px ${MARCA}`;
-  ctx.shadowColor = 'rgba(245,197,24,0.45)'; ctx.shadowBlur = 24;
+  for (const l of linhas) { if (l) ctx.fillText(l, xt, y); y += l ? tam * 1.42 : tam * 0.6; }
+  ctx.textAlign = 'center';
+  // Embaixo, fora do cartão: falcão + ESTILO FALCON + endereço do app
+  const logo = await carregarImg('icons/falcon-badge.png');
+  if (logo) { sombra(20); ctx.drawImage(logo, W / 2 - 60, 1478, 120, 120); ctx.shadowBlur = 0; }
+  sombra(24, 'rgba(245,197,24,0.45)');
+  ctx.fillStyle = OURO; ctx.font = `700 66px ${MARCA}`;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '8px';
-  ctx.fillText('ESTILO FALCON', W / 2, 1580);
+  ctx.fillText('ESTILO FALCON', W / 2, 1650);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-  ctx.shadowBlur = 0;
+  sombra(12);
   ctx.fillStyle = LILAS; ctx.font = `400 32px ${FONTE}`;
-  ctx.fillText('estilo-falcon.web.app', W / 2, 1636);
+  ctx.fillText('estilo-falcon.web.app', W / 2, 1700);
+  ctx.shadowBlur = 0;
   return cv;
 }
 
