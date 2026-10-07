@@ -30,7 +30,7 @@ import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
 import { t, getLang } from './idioma.js';
 import { extrairCampos } from './ditado-campos.js';
-import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP } from './recorrencia.js';
+import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP, nextOccurrence } from './recorrencia.js';
 import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
@@ -41,6 +41,7 @@ import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261007a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261007a';
+import * as PCT from './pet-contas.js?v=20261007a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -977,7 +978,12 @@ async function routeCommand(text) {
   // Antes das consultas e do registro: "marca arroz como feito" bateria no
   // ^marca do registro e viraria um agendamento. ──
   // ── Cartão do dia: abre o cartão (o botão Compartilhar fica nele) ──
-  if (/\bcart(?:ao|ão|oes|ões)\b.*\b(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
+  // ── Contas a pagar em lote ("…: Internet - dia 02, Seguro - dia 05") ──
+  const rContas = await tentarContasLote(text);
+  if (rContas !== undefined) return rContas;
+
+  // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
+  if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
     import('./cartoes-dia.js?v=20261007c').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
@@ -1194,7 +1200,8 @@ async function entenderComIA(text) {
 const FORA_DO_APP = 'Desculpe, não posso ajudar com assuntos não relacionados ao app. Digite <strong>ajuda</strong> pra ver o que eu faço.';
 let _naNuvem = false, _ultimaNuvem = null;
 const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(/\s+/).length >= 7 &&
-  !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim());
+  !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim()) &&
+  !PCT.lerLoteDeContas(text);   // lista de contas: o roteador já entende inteira
 async function entenderNaNuvem(text) {
   if (_naNuvem || !PN.nuvemLigada()) return undefined;
   // Mesma frase de novo em seguida (ex.: tentou antes do roteador): reaproveita
@@ -3863,6 +3870,81 @@ async function ritualConsulta(t, { semana, proxima }) {
   if (!tks.length) return `Nada ${soCompromisso ? 'de compromisso ' : ''}marcado ${/^(hoje|ontem|amanhã)$/.test(nome) ? nome : 'em ' + nome}.`;
   const feitas = tks.filter(tk => tk.done).length;
   return `📅 <strong>${soCompromisso ? 'Compromissos' : 'Agenda'} ${_de(data)}</strong> · ${feitas}/${tks.length} feitas<br>${tks.map(_linhaTarefa).join('<br>')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.12: CONTAS A PAGAR EM LOTE
+// ═══════════════════════════════════════════════════════════════
+// Cada item vira compromisso da atividade "Contas a pagar" (descrição = nome
+// da conta), todo mês no mesmo dia e com lembrete. O que já está agendado
+// (regra, mensal ou tarefa do próximo dia) é pulado. Outra conta no mesmo dia
+// com outro nome ("Faculdade" x "FIAP") vem desmarcada no card pra pessoa decidir.
+async function tentarContasLote(text) {
+  const itens = PCT.lerLoteDeContas(text);
+  if (!itens) return undefined;
+  const prof = await getProfile().catch(() => null);
+  const regras = (Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : []).filter(r => r.freq === 'monthly');
+  const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const anchor = dayId(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const linhas = [];
+  for (const it of itens) {
+    const data = nextOccurrence({ freq: 'monthly', interval: 1, dayOfMonth: it.dia, anchor }, hoje);
+    const tasks = await getDayTasks(dayId(data)).catch(() => []);
+    const doDia = [...regras.filter(r => r.dayOfMonth === it.dia), ...mensais.filter(m => m.dayOfMonth === it.dia), ...(tasks || [])];
+    const jaTem = [...regras, ...mensais, ...(tasks || [])].some(x => PCT.mesmaConta(it.nome, x));
+    const outras = [...new Set(doDia.filter(x => PCT.ehContaAPagar(x) && x.desc && !PCT.mesmaConta(it.nome, x)).map(x => x.desc.trim()))];
+    linhas.push({ ...it, data, jaTem, outras });
+  }
+  const novas = linhas.filter(l => !l.jaTem);
+  if (!novas.length) return `Todas essas contas já estão agendadas ✅ (${linhas.map(l => _esc(l.nome)).join(', ')}).`;
+  cardContasLote(linhas);
+  return null;
+}
+
+function cardContasLote(linhas) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const dd = (n) => String(n).padStart(2, '0');
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `<span class="pet-preview-card">
+      <span class="pet-preview-title">💸 Criar <strong>Contas a pagar</strong> (compromisso), todo mês no mesmo dia e com lembrete?</span>
+      <span class="pet-contas-lista">${linhas.map((l, i) => l.jaTem
+        ? `<span class="pet-conta pet-conta-ja">✔️ ${_esc(l.nome)} · dia ${dd(l.dia)} <em>já agendada</em></span>`
+        : `<label class="pet-conta"><input type="checkbox" data-i="${i}" ${l.outras.length ? '' : 'checked'}> ${_esc(l.nome)} · dia ${dd(l.dia)}${l.outras.length ? ` <em>dia ${dd(l.dia)} já tem: ${l.outras.map(_esc).join(', ')}. É a mesma?</em>` : ''}</label>`).join('')}</span>
+      <button class="pet-reg-btn" data-ok>✅ Criar</button>
+      <button class="pet-choice-btn" data-nao>Cancelar</button>
+    </span>`;
+  const ok = div.querySelector('[data-ok]'), nao = div.querySelector('[data-nao]');
+  ok.addEventListener('click', async () => {
+    const marcadas = [...div.querySelectorAll('input[data-i]:checked')].map(c => linhas[Number(c.dataset.i)]);
+    if (!marcadas.length) { addMessage('Marca pelo menos uma conta 🙂', 'bot'); return; }
+    ok.disabled = nao.disabled = true; ok.textContent = 'Criando…';
+    div.querySelectorAll('input[data-i]').forEach(c => { c.disabled = true; });
+    const feitas = [];
+    try {
+      for (const l of marcadas) {
+        const grpId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        const cat = await executeRegistro(PCT.TITULO_CONTA, false, l.data, '', l.nome, true, grpId);
+        await salvarRegra({
+          groupId: grpId, title: PCT.TITULO_CONTA, desc: l.nome, kind: 'commitment', startTime: '',
+          categoryId: cat?.id || null, icon: cat?.icon || '', reminderEnabled: true,
+          freq: 'monthly', interval: 1, dayOfMonth: l.dia, anchor: dayId(l.data),
+        });
+        feitas.push(l);
+      }
+      ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
+      addMessage(`✅ Criei ${feitas.length === 1 ? '1 conta' : `${feitas.length} contas`} a pagar. Repetem todo mês no mesmo dia, com lembrete:<br>${feitas.map(l => `• ${_esc(l.nome)} · dia ${dd(l.dia)}`).join('<br>')}`, 'bot');
+    } catch (err) {
+      console.error('[pet-contas]', err);
+      ok.textContent = '✅ Feito em parte'; nao.remove();
+      addMessage(`Criei ${feitas.length} e parei num erro 😕 ${_esc(err.message || '')}. Manda a lista de novo que eu pulo as que já foram.`, 'bot');
+    }
+  });
+  nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -140,15 +140,6 @@ export async function renderHome(app) {
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
-      <!-- CARTÃO DO DIA (um princípio por dia, pra compartilhar) -->
-      <button class="reminders-card" id="cartao-dia-card" type="button">
-        <div class="reminders-icon">🃏</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Cartão do dia</div>
-          <div class="reminders-sub">Teu princípio de hoje, pronto pra compartilhar</div>
-        </div>
-      </button>
-
       <!-- MENSAGENS DA MANHÃ -->
       <button class="reminders-card msgs-card" id="morning-msgs-card" type="button">
         <div class="reminders-icon">💌</div>
@@ -157,6 +148,15 @@ export async function renderHome(app) {
           <div class="reminders-sub">${t('home.msgs.sub')}</div>
         </div>
         <div class="msgs-dot" id="msgs-dot" ${hasUnreadToday() ? '' : 'style="display:none"'}></div>
+      </button>
+
+      <!-- CARTÃO DO DIA (por último; um princípio por dia, pra compartilhar) -->
+      <button class="reminders-card" id="cartao-dia-card" type="button">
+        <div class="reminders-icon">🃏</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Cartão do dia</div>
+          <div class="reminders-sub">Teu princípio de hoje, pronto pra compartilhar</div>
+        </div>
       </button>
 
 
