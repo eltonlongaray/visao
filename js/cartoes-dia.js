@@ -52,26 +52,26 @@ export const CARTOES = [
   // Repete 3× de propósito (é assim que o Élton usa a frase)
   PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\n\nGratidão ❤️\nGratidão ❤️\nGratidão ❤️'),
   // Valores e princípios estoicos + sabedoria oriental (escritos com o Élton em 07/10)
-  F('Princípio estoico', 'Sabedoria', 'Antes de agir, penso no que é certo, não no que é fácil. Uso a razão pra decidir, não o impulso, e aprendo com tudo o que me acontece.'),
-  F('Princípio estoico', 'Coragem', 'Faço o que é certo mesmo com medo. Reconheço o medo e sigo em frente, porque é no desconforto que eu cresço.'),
-  F('Princípio estoico', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque somos parte do mesmo todo.'),
-  F('Princípio estoico', 'Temperança', 'Tenho domínio sobre meus desejos. Como, bebo, gasto e falo na medida certa. Nem excesso, nem falta.'),
-  F('Princípio estoico', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A disciplina me leva aonde a motivação não alcança.'),
-  F('Princípio estoico', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Ponho toda a minha energia nos meus pensamentos, escolhas e ações. O resto eu aceito com serenidade.', 'Epicteto'),
-  F('Princípio estoico', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Tudo o que me acontece vira matéria-prima pra eu crescer.'),
-  F('Princípio estoico', 'Lembra que vais morrer', 'Lembro que o tempo é curto. Não adio o que importa e vivo cada dia como se ele fosse completo em si mesmo.', 'Sêneca'),
-  F('Princípio estoico', 'O obstáculo é o caminho', 'O que impede a ação faz a ação avançar. O que está no meu caminho se torna o meu caminho.', 'Marco Aurélio'),
-  F('Princípio estoico', 'Preparo a mente', 'Imagino com calma o que pode dar errado. Assim nada me pega de surpresa e eu já sei como agir.', 'Sêneca'),
-  F('Pensamento estoico', '', 'Não são as coisas que me perturbam, mas o que eu penso sobre elas. Quando algo me abala, mudo primeiro o meu olhar.', 'Epicteto'),
-  F('Pensamento estoico', '', 'A melhor vingança é não ser como quem me ofendeu. Respondo com quem eu sou, não com o que me fizeram.', 'Marco Aurélio'),
-  F('Pensamento taoista', '', 'Uma jornada de mil léguas começa com um único passo. Não me assusto com o tamanho do caminho: dou o primeiro passo hoje.', 'Lao Tsé'),
-  F('Pensamento taoista', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força, e com o tempo a água vence a pedra.', 'Lao Tsé'),
-  F('Pensamento taoista', '', 'Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.', 'Lao Tsé'),
-  F('Pensamento confucionista', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim.', 'Confúcio'),
-  F('Pensamento budista', '', 'Tudo passa: o bom e o ruim. Não me apego ao que é bom nem me desespero com o que é ruim.'),
-  F('Pensamento budista', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora.'),
-  F('Pensamento budista', '', 'O ódio não acaba com ódio, acaba com amor. Não respondo raiva com raiva.', 'Buda'),
-  F('Pensamento budista', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira e não atiro a segunda em mim mesmo.', 'Buda'),
+  F('Princípio 18', 'Sabedoria', 'Antes de agir, penso no que é certo, não no que é fácil. Uso a razão pra decidir, não o impulso, e aprendo com tudo o que me acontece.'),
+  F('Princípio 19', 'Coragem', 'Faço o que é certo mesmo com medo. Reconheço o medo e sigo em frente, porque é no desconforto que eu cresço.'),
+  F('Princípio 20', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque somos parte do mesmo todo.'),
+  F('Princípio 21', 'Temperança', 'Tenho domínio sobre meus desejos. Como, bebo, gasto e falo na medida certa. Nem excesso, nem falta.'),
+  F('Princípio 22', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A disciplina me leva aonde a motivação não alcança.'),
+  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Ponho toda a minha energia nos meus pensamentos, escolhas e ações. O resto eu aceito com serenidade.', 'Epicteto'),
+  F('Princípio 24', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Tudo o que me acontece vira matéria-prima pra eu crescer.'),
+  F('Princípio 25', 'Lembra que vais morrer', 'Lembro que o tempo é curto. Não adio o que importa e vivo cada dia como se ele fosse completo em si mesmo.', 'Sêneca'),
+  F('Princípio 26', 'O obstáculo é o caminho', 'O que impede a ação faz a ação avançar. O que está no meu caminho se torna o meu caminho.', 'Marco Aurélio'),
+  F('Princípio 27', 'Preparo a mente', 'Imagino com calma o que pode dar errado. Assim nada me pega de surpresa e eu já sei como agir.', 'Sêneca'),
+  F('Pensamento', '', 'Não são as coisas que me perturbam, mas o que eu penso sobre elas. Quando algo me abala, mudo primeiro o meu olhar.', 'Epicteto'),
+  F('Pensamento', '', 'A melhor vingança é não ser como quem me ofendeu. Respondo com quem eu sou, não com o que me fizeram.', 'Marco Aurélio'),
+  F('Pensamento', '', 'Uma jornada de mil léguas começa com um único passo. Não me assusto com o tamanho do caminho: dou o primeiro passo hoje.', 'Lao Tsé'),
+  F('Pensamento', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força, e com o tempo a água vence a pedra.', 'Lao Tsé'),
+  F('Pensamento', '', 'Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.', 'Lao Tsé'),
+  F('Pensamento', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim.', 'Confúcio'),
+  F('Pensamento', '', 'Tudo passa: o bom e o ruim. Não me apego ao que é bom nem me desespero com o que é ruim.'),
+  F('Pensamento', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora.'),
+  F('Pensamento', '', 'O ódio não acaba com ódio, acaba com amor. Não respondo raiva com raiva.', 'Buda'),
+  F('Pensamento', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira e não atiro a segunda em mim mesmo.', 'Buda'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -245,7 +245,6 @@ export async function desenharCartao(cartao) {
   sombra(18);
   ctx.fillStyle = OURO; ctx.font = `700 64px ${MARCA}`;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
-  for (let t = 64; t > 40 && ctx.measureText(cartao.rotulo.toUpperCase()).width > W - 140; t -= 2) ctx.font = `700 ${t}px ${MARCA}`;
   ctx.fillText(cartao.rotulo.toUpperCase(), W / 2, 340);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   ctx.shadowBlur = 0;
