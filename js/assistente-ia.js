@@ -13,6 +13,7 @@
 // BLOCO 8.8 — CHECK-IN (o Pet puxa conversa + bolinha vermelha)
 // BLOCO 8.9 — CONVERSA GUIADA (entende a resposta no contexto e pergunta o porquê)
 // BLOCO 8.10 — NOTA DE ONTEM PELO PET (orgulho/falha, melhorar, sono, cochilo, madrugada)
+// BLOCO 8.11 — RITUAL PELO PET (água, sono, nota de qualquer dia, excluir, feito em outro dia, ver agenda)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -37,8 +38,9 @@ import {
 import * as PL from './pet-listas.js?v=20261003h';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261005a';
+import * as PN from './pet-nuvem.js?v=20261007a';
 import * as PNT from './pet-nota.js?v=20261006a';
+import * as PR from './pet-ritual.js?v=20261007a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -950,6 +952,11 @@ async function routeCommand(text) {
   // ── Caixa de Ferramentas (listas): check, adicionar, editar, apagar, criar.
   // Antes das consultas e do registro: "marca arroz como feito" bateria no
   // ^marca do registro e viraria um agendamento. ──
+  // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
+  // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
+  const rRitual = await tentarRitual(text);
+  if (rRitual !== undefined) return rRitual;
+
   const rLista = await tentarLista(text);
   if (rLista !== undefined) return rLista;
 
@@ -3402,7 +3409,7 @@ function iniciarConversaNota(p) {
   return perguntar('nota_inicio', p.texto, [BT('bora', '📝 Bora'), BT('depois', '⏰ Depois')], dados, `Bora preencher a nota de ${qualDia(dados)}?`);
 }
 
-const qualDia = (d) => d.hoje ? 'hoje' : 'ontem';
+const qualDia = (d) => d.hoje ? 'hoje' : (d.rotulo || 'ontem');
 
 function perguntarOrgulho(d) {
   d.textoFeito = true;
@@ -3410,7 +3417,7 @@ function perguntarOrgulho(d) {
     `Me conta: do que tu te orgulha de ${qualDia(d)} e onde falhou?`);
 }
 function perguntarMelhorar(d) {
-  const quando = d.hoje ? 'amanhã' : 'hoje';
+  const quando = d.hoje ? 'amanhã' : d.rotulo && d.rotulo !== 'ontem' ? 'nos próximos dias' : 'hoje';
   return perguntar('nota_melhorar', `E quais medidas tu vai tomar pra fazer melhor ${quando}?`, [PULAR], d,
     `O que tu vai fazer diferente ${quando}?`);
 }
@@ -3471,7 +3478,7 @@ Object.assign(PASSOS, {
   async nota_inicio({ id, texto }, d) {
     const sn = id ? (id === 'bora') : PC.simNao(texto);
     if (id === 'depois' || sn === false || (!id && /\b(depois|agora nao|mais tarde)\b/.test(PC.norm(texto)))) {
-      adiarTipos([d.tipo], _CK.ADIA[d.tipo]);
+      if (_CK?.ADIA?.[d.tipo]) adiarTipos([d.tipo], _CK.ADIA[d.tipo]);
       return encerrarConversa('Combinado, deixo pra depois 👍');
     }
     if (sn === true) return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
@@ -3548,6 +3555,263 @@ Object.assign(PASSOS, {
       : `✅ Nota de ontem salva!${sono} Bora fazer de hoje um dia melhor 💪`);
   },
 });
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.11: RITUAL PELO PET — água, acordei/dormi, nota de qualquer dia,
+// excluir tarefa, feito em outro dia e "o que tenho sexta?"
+// Quem entende a frase é o pet-ritual.js; aqui busca, mostra o card e grava.
+// Devolve undefined quando a frase não é disso (o roteador segue).
+// ═══════════════════════════════════════════════════════════════
+const _hojeId = () => dayId(new Date());
+const _dataDoId = (id) => { const [y, m, d] = id.split('-').map(Number); return new Date(y, m - 1, d); };
+// "de hoje", "de ontem", "de sex 09/10"
+const _de = (d) => `de ${PR.nomeDia(d)}`;
+
+async function tentarRitual(text) {
+  const t = PR.semPedido(text);
+  const nota = PR.lerNota(t);
+  if (nota) return ritualNota(t, nota);
+  const agua = PR.lerAgua(t);
+  if (agua) return ritualAgua(t, agua);
+  if (PR.lerSonoDoDia(t)) { const r = await ritualSono(t); if (r !== undefined) return r; }
+  const exc = PR.lerExcluir(t);
+  if (exc) { const r = await ritualExcluir(t, exc); if (r !== undefined) return r; }
+  const feito = PR.lerFeito(t);
+  if (feito) {
+    const { data, dito } = PR.diaDaFrase(t);
+    if (dito && PR.isoDia(data) !== _hojeId()) { const r = await ritualFeito(t, feito, data); if (r !== undefined) return r; }
+  }
+  const cons = PR.lerConsultaAgenda(t);
+  if (cons) return ritualConsulta(t, cons);
+  return undefined;
+}
+
+// ── Água ──
+async function ritualAgua(t, { ml, modo }) {
+  const { data } = PR.diaDaFrase(t);
+  if (PR.isoDia(data) > _hojeId()) return 'Água eu só anoto de hoje pra trás 😉';
+  if (ml == null) return 'Quanto tu bebeu? Ex.: <em>"bebi 500 ml"</em> ou <em>"tomei 2 copos"</em> (1 copo = 250 ml).';
+  if (ml > 8000) return `${ml} ml é muita água 😅 Confere o valor e me fala de novo?`;
+  const id = PR.isoDia(data);
+  const dia = await getDay(id).catch(() => null);
+  const atual = dia?.hydrationMl || 0, meta = dia?.hydrationGoal || 2000;
+  const novo = modo === 'somar' ? atual + ml : modo === 'tirar' ? Math.max(0, atual - ml) : ml;
+  const verbo = modo === 'somar' ? `Somar <b>${ml} ml</b> na água ${_de(data)}`
+    : modo === 'tirar' ? `Tirar <b>${ml} ml</b> da água ${_de(data)}`
+    : `Deixar a água ${_de(data)} em <b>${ml} ml</b>`;
+  cardConfirmarLista(`💧 ${verbo}?<br>${atual} → <b>${novo} ml</b> (meta ${meta} ml)`, async () => {
+    await setDayMeta(id, { hydrationMl: novo });
+    const falta = meta - novo;
+    return falta > 0 ? `✅ Anotado: ${novo} ml ${_de(data)}. Faltam ${falta} ml pra meta.` : `✅ Anotado: ${novo} ml ${_de(data)}. Meta batida! 🎉`;
+  }, null);
+  return null;
+}
+
+// ── Acordei / dormi / cochilo / madrugada ──
+async function ritualSono(t) {
+  const { data, dito } = PR.diaDaFrase(t);
+  const ts = PR.semAcento(t);
+  const sono = PNT.lerSono(t);
+  // "acordei 6h30": a hora sozinha não é hora de dormir
+  if (!/\b(dorm\w*|deitei|cama|peguei no sono|apaguei|capotei)\b/.test(ts)) sono.dormiu = null;
+  const acordou = /\b(acordei|levantei|despertei)\b/.test(ts) && !/madrugada|de noite|no meio da noite/.test(ts) ? extractTime(t) : null;
+  if (!acordou && !sono.dormiu && sono.cochiloMin == null && sono.madrugadaMin == null) return undefined;
+  if (PR.isoDia(data) > _hojeId()) return 'Sono eu só anoto de hoje pra trás 😉';
+  const patches = {};   // id do dia → patch
+  const linhas = [];
+  const add = (id, p) => { patches[id] = { ...(patches[id] || {}), ...p }; };
+  if (acordou) { add(PR.isoDia(data), { wakeTime: acordou }); linhas.push(`☀️ Acordou às <b>${acordou}</b> ${_de(data)}`); }
+  if (sono.dormiu) {
+    // "dormi às 23h" de manhã/tarde = a noite de ontem. Dito o dia, vale ele.
+    const noite = new Date(data);
+    if (!dito && new Date().getHours() < 18) noite.setDate(noite.getDate() - 1);
+    add(PR.isoDia(noite), { sleepTime: sono.dormiu });
+    linhas.push(`🌙 Dormiu às <b>${sono.dormiu}</b> (noite ${_de(noite)})`);
+  }
+  const notaDia = PR.isoDia(data);
+  if (sono.cochiloMin != null) linhas.push(`😴 Cochilo ${_de(data)}: <b>${PNT.fmtMin(sono.cochiloMin)}</b>`);
+  if (sono.madrugadaMin != null) linhas.push(`🌌 Acordado de madrugada ${_de(data)}: <b>${PNT.fmtMin(sono.madrugadaMin)}</b>`);
+  cardConfirmarLista(`🛌 Anotar no Ritual?<br>${linhas.join('<br>')}`, async () => {
+    if (sono.cochiloMin != null || sono.madrugadaMin != null) {
+      const dia = await getDay(notaDia).catch(() => null);
+      const nota = { ...(dia?.dayNote || {}) };
+      if (sono.cochiloMin != null) { nota.daySleepMinutes = sono.cochiloMin; nota.daySleepHours = Math.round(sono.cochiloMin / 60 * 10) / 10; }
+      if (sono.madrugadaMin != null) { nota.nightAwakeMinutes = sono.madrugadaMin; nota.nightAwakeHours = Math.round(sono.madrugadaMin / 60 * 10) / 10; }
+      nota.registeredAt = new Date().toISOString();
+      add(notaDia, { dayNote: nota });
+    }
+    for (const [id, p] of Object.entries(patches)) await setDayMeta(id, p);
+    return '✅ Anotado no Ritual.';
+  }, null);
+  return null;
+}
+
+// ── Nota de qualquer dia ──
+async function ritualNota(t, nota) {
+  const { data } = PR.diaDaFrase(t);
+  const id = PR.isoDia(data);
+  if (id > _hojeId()) return 'A nota é do dia que já passou (ou de hoje). Pra lembrar de algo no futuro, agenda uma tarefa 😉';
+  const dia = await getDay(id).catch(() => null);
+  if (nota.apagar) {
+    if (!PNT.notaDoDia(dia).temNota) return `A nota ${_de(data)} já está em branco.`;
+    cardConfirmarLista(`🗑️ Apagar a nota ${_de(data)}?`, async () => {
+      await setDayMeta(id, { dayNote: null });
+      return `✅ Apaguei a nota ${_de(data)}.`;
+    }, null);
+    return null;
+  }
+  if (nota.abrir) {
+    const n = PNT.notaDoDia(dia);
+    iniciarConversaNota({ tipo: 'nota_pedida', ontemId: id, texto: `Bora preencher a nota ${_de(data)}? Te faço umas perguntas rápidas, uma por vez.`,
+      dados: { semNota: !n.temTexto, semSono: !n.temSono, hoje: id === _hojeId(), rotulo: PR.nomeDia(data) } });
+    return null;
+  }
+  const rotulo = nota.campo === 'improve' ? 'O que melhorar' : 'Orgulho e falha';
+  const antes = String(dia?.dayNote?.[nota.campo] || '').trim();
+  const novo = antes ? `${antes}\n${nota.conteudo}` : nota.conteudo;
+  cardConfirmarLista(`📝 Nota ${_de(data)} · <b>${rotulo}</b>:<br>${antes ? `<em>${_esc(antes)}</em><br>+ ` : ''}${_esc(nota.conteudo)}`, async () => {
+    const atual = await getDay(id).catch(() => null);
+    await setDayMeta(id, { dayNote: { ...(atual?.dayNote || {}), [nota.campo]: novo.slice(0, 1000), registeredAt: new Date().toISOString() } });
+    return `✅ Anotado na nota ${_de(data)}.`;
+  }, null);
+  return null;
+}
+
+// ── Excluir tarefa (só esse dia ou todas as repetições) ──
+const _ehRecorrente = (tk) => !!(tk.recurrenceGroupId || (tk.recurrenceType && tk.recurrenceType !== 'today'));
+async function ritualExcluir(t, { todas }) {
+  const { data } = PR.diaDaFrase(t, new Date(), 'futuro');
+  const id = PR.isoDia(data);
+  const tasks = await getDayTasks(id).catch(() => []);
+  const achados = PR.acharTarefas(tasks, t);
+  if (!achados.length) return undefined;   // pode ser item de lista: o roteador segue
+  const confirmar = (tk) => {
+    if (_ehRecorrente(tk) && !todas) {
+      addChoices(`<b>${_esc(tk.title)}</b> se repete. Apago só ${_de(data)} ou todas daqui pra frente?`, [
+        { label: `Só ${PR.nomeDia(data)}`, action: () => { cardExcluir(tk, id, data, false); return null; } },
+        { label: '🔁 Todas daqui pra frente', action: () => { cardExcluir(tk, id, data, true); return null; } },
+      ]);
+      return null;
+    }
+    cardExcluir(tk, id, data, todas && _ehRecorrente(tk));
+    return null;
+  };
+  if (achados.length === 1) return confirmar(achados[0]);
+  addChoices('Achei mais de uma. Qual eu apago?', achados.slice(0, 8).map(tk => ({
+    label: `${tk.startTime ? tk.startTime + ' · ' : ''}${tk.title}`, action: () => confirmar(tk) })));
+  return null;
+}
+
+function cardExcluir(tk, id, data, todas) {
+  cardConfirmarLista(todas
+    ? `🗑️ Apagar <b>${_esc(tk.title)}</b> de ${PR.nomeDia(data)} em diante (todas as repetições)?<br><small>Os dias que já passaram ficam como estão.</small>`
+    : `🗑️ Apagar <b>${_esc(tk.title)}</b>${tk.startTime ? ' ' + tk.startTime : ''} ${_de(data)}?`, async () => {
+    if (!todas) {
+      await apagarSoEsseDia(tk, id);
+      return `✅ Apaguei <strong>${_esc(tk.title)}</strong> ${_de(data)}.`;
+    }
+    const n = await apagarTodasRepeticoes(tk, data);
+    return `✅ Apaguei <strong>${_esc(tk.title)}</strong> de ${n} dia${n === 1 ? '' : 's'} e tirei da repetição.`;
+  }, null);
+}
+
+// Igual ao "só este dia" do Ritual: apaga e marca o dia pra repetição não recriar
+async function apagarSoEsseDia(tk, id) {
+  await deleteDayTask(id, tk.id);
+  if (!_ehRecorrente(tk)) return;
+  const dia = await getDay(id).catch(() => null);
+  const grupos = Array.isArray(dia?.excludedRecurrenceGroups) ? dia.excludedRecurrenceGroups.slice() : [];
+  const titulos = Array.isArray(dia?.excludedRecurrenceTitles) ? dia.excludedRecurrenceTitles.slice() : [];
+  if (tk.recurrenceGroupId) { if (!grupos.includes(tk.recurrenceGroupId)) grupos.push(tk.recurrenceGroupId); }
+  else { const k = `${(tk.title || '').trim().toLowerCase()}::${tk.categoryId || ''}`; if (!titulos.includes(k)) titulos.push(k); }
+  await setDayMeta(id, { excludedRecurrenceGroups: grupos, excludedRecurrenceTitles: titulos });
+}
+
+// Igual ao "todas" do Ritual: apaga do dia em diante (1 ano) e tira dos modelos
+// da semana, dos mensais e das regras de repetição do Pet
+async function apagarTodasRepeticoes(tk, data) {
+  const titulo = (tk.title || '').trim().toLowerCase(), cat = tk.categoryId || '', grupo = tk.recurrenceGroupId || '';
+  const bate = (x) => (grupo && (x.recurrenceGroupId === grupo || x.groupId === grupo)) ||
+    ((x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat);
+  const fim = new Date(data); fim.setDate(fim.getDate() + 365);
+  const dias = await fetchDaysRange(data, fim);
+  let n = 0;
+  for (const d of dias) for (const x of d.tasks || []) if (!x.done && bate(x)) { try { await deleteDayTask(d.id, x.id); n++; } catch { /* segue */ } }
+  // Tudo num setProfile só (modelos da semana + mensais + regras do Pet)
+  const prof = await getProfile().catch(() => null);
+  const patch = {};
+  const tpls = { ...(prof?.weekdayTemplates || {}) };
+  let mudouTpl = false;
+  for (const dow of Object.keys(tpls)) {
+    const arr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
+    const filtrado = arr.filter(x => !bate(x));
+    if (filtrado.length !== arr.length) { tpls[dow] = filtrado; mudouTpl = true; }
+  }
+  if (mudouTpl) patch.weekdayTemplates = tpls;
+  const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
+  if (mensais.some(bate)) patch.monthlyCommitments = mensais.filter(x => !bate(x));
+  const regras = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : [];
+  if (regras.some(bate)) patch.recurrenceRules = regras.filter(x => !bate(x));
+  if (Object.keys(patch).length) await setProfile(patch);
+  return Math.max(n, 1);
+}
+
+// ── Marcar / desmarcar feito em outro dia ──
+async function ritualFeito(t, acao, data) {
+  if (PR.isoDia(data) > _hojeId()) return 'Esse dia ainda não chegou 😉 Dá pra marcar como feito de hoje pra trás.';
+  const id = PR.isoDia(data);
+  const tasks = await getDayTasks(id).catch(() => []);
+  const achados = PR.acharTarefas(tasks, t, tk => !tk.cancelled && !!tk.done === (acao === 'desmarcar'));
+  if (!achados.length) {
+    const ja = PR.acharTarefas(tasks, t, tk => !tk.cancelled);
+    if (ja.length) return `<strong>${_esc(ja[0].title)}</strong> ${_de(data)} já está ${acao === 'marcar' ? 'feita ✅' : 'sem o feito'}.`;
+    return undefined;
+  }
+  const confirmar = (tk) => {
+    cardConfirmarLista(`${acao === 'marcar' ? '✅ Marcar' : '↩️ Desmarcar'} <b>${_esc(tk.title)}</b> ${_de(data)}${acao === 'marcar' ? ' como feita' : ''}?`, async () => {
+      await updateDayTask(id, tk.id, { done: acao === 'marcar' });
+      return acao === 'marcar' ? `✅ Marquei <strong>${_esc(tk.title)}</strong> ${_de(data)}.` : `↩️ Desmarquei <strong>${_esc(tk.title)}</strong> ${_de(data)}.`;
+    }, null);
+    return null;
+  };
+  if (achados.length === 1) return confirmar(achados[0]);
+  addChoices('Achei mais de uma. Qual?', achados.slice(0, 8).map(tk => ({
+    label: `${tk.startTime ? tk.startTime + ' · ' : ''}${tk.title}`, action: () => confirmar(tk) })));
+  return null;
+}
+
+// ── "O que tenho sexta?", "o que eu fiz ontem", "compromissos da semana" ──
+const _linhaTarefa = (tk) => `${tk.cancelled ? '🚫' : tk.done ? '✅' : '⬜'} ${tk.startTime ? `<b>${tk.startTime.slice(0, 5)}</b> ` : ''}${tk.cancelled ? `<s>${_esc(tk.title)}</s>` : _esc(tk.title)}`;
+const _ordemHora = (a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99'));
+async function ritualConsulta(t, { semana, proxima }) {
+  const ts = PR.semAcento(t);
+  const soCompromisso = /\bcompromissos?\b/.test(ts);
+  if (semana) {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const ini = new Date(hoje);
+    ini.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7) + (proxima ? 7 : 0));
+    const fim = new Date(ini); fim.setDate(ini.getDate() + 6);
+    const dias = (await fetchDaysRange(ini, fim)).sort((a, b) => a.id.localeCompare(b.id));
+    const blocos = [];
+    for (const d of dias) {
+      const tks = (d.tasks || []).filter(tk => !soCompromisso || tk.kind === 'commitment').sort(_ordemHora);
+      if (!tks.length) continue;
+      const feitas = tks.filter(tk => tk.done).length;
+      const mostrar = soCompromisso ? tks : tks.filter(tk => tk.kind === 'commitment' || tk.startTime);
+      blocos.push(`<b>${PR.nomeDia(_dataDoId(d.id))}</b>${soCompromisso ? '' : ` · ${feitas}/${tks.length} feitas`}${mostrar.length ? '<br>' + mostrar.slice(0, 6).map(_linhaTarefa).join('<br>') : ''}`);
+    }
+    const titulo = `📅 <strong>${soCompromisso ? 'Compromissos' : 'Tua agenda'} ${proxima ? 'da semana que vem' : 'da semana'}</strong>`;
+    return blocos.length ? `${titulo}<br><br>${blocos.join('<br><br>')}` : `${titulo}<br>Nada marcado ainda.`;
+  }
+  const passado = /\b(fiz|fez|foi|fizeram)\b/.test(ts);
+  const { data } = PR.diaDaFrase(t, new Date(), passado ? 'passado' : 'futuro');
+  const id = PR.isoDia(data);
+  const tks = (await getDayTasks(id).catch(() => [])).filter(tk => !soCompromisso || tk.kind === 'commitment').sort(_ordemHora);
+  const nome = PR.nomeDia(data);
+  if (!tks.length) return `Nada ${soCompromisso ? 'de compromisso ' : ''}marcado ${/^(hoje|ontem|amanhã)$/.test(nome) ? nome : 'em ' + nome}.`;
+  const feitas = tks.filter(tk => tk.done).length;
+  return `📅 <strong>${soCompromisso ? 'Compromissos' : 'Agenda'} ${_de(data)}</strong> · ${feitas}/${tks.length} feitas<br>${tks.map(_linhaTarefa).join('<br>')}`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 9: HELPERS DE MENSAGEM

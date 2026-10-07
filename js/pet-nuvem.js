@@ -75,7 +75,44 @@ export function fraseDoApp(j) {
       return ['agendar', titulo, limpa(j.quando), hora ? `às ${hora}` : ''].filter(Boolean).join(' ');
     }
     case 'marcar_feito':
-      return limpa(j.titulo) ? `fiz ${limpa(j.titulo)}` : null;
+    case 'desmarcar_feito': {
+      const titulo = limpa(j.titulo);
+      if (!titulo) return null;
+      const quando = /^hoje$/i.test(limpa(j.quando)) ? '' : limpa(j.quando);
+      return [j.acao === 'marcar_feito' ? 'fiz' : 'desmarca', titulo, quando].filter(Boolean).join(' ');
+    }
+    case 'excluir':
+      return limpa(j.titulo) ? `apaga ${limpa(j.titulo)} de ${limpa(j.quando) || 'hoje'}${j.todas ? ' todas' : ''}` : null;
+    case 'agua': {
+      const n = Math.round(Number(j.numero) || 0);
+      if (n <= 0 && j.campo !== 'definir') return null;
+      const quando = limpa(j.quando) || 'hoje';
+      if (j.campo === 'tirar') return `tira ${n} ml da água de ${quando}`;
+      if (j.campo === 'definir') return n ? `minha água de ${quando} foi ${n} ml` : `zera a água de ${quando}`;
+      return `bebi ${n} ml de água ${quando}`;
+    }
+    case 'sono': {
+      const quando = limpa(j.quando);
+      const hora = /^\d{1,2}:\d{2}$/.test(limpa(j.hora)) ? limpa(j.hora) : '';
+      const n = Math.round(Number(j.numero) || 0);
+      if (j.campo === 'acordei' && hora) return `acordei às ${hora} ${quando}`.trim();
+      if (j.campo === 'dormi' && hora) return `dormi às ${hora} ${quando}`.trim();
+      if (j.campo === 'cochilo') return n ? `cochilei ${n} min ${quando}`.trim() : null;
+      if (j.campo === 'madrugada') return `fiquei acordado ${n} min de madrugada ${quando}`.trim();
+      return null;
+    }
+    case 'nota': {
+      const quando = limpa(j.quando) || 'hoje';
+      if (j.campo === 'apagar') return `apaga a nota de ${quando}`;
+      const texto = limpa(j.texto);
+      if (!texto || j.campo === 'preencher') return `preenche a nota de ${quando}`;
+      return `anota na nota de ${quando} que ${j.campo === 'melhorar' ? 'melhorar: ' : ''}${texto}`;
+    }
+    case 'consultar_dia': {
+      const quando = limpa(j.quando) || 'hoje';
+      if (/semana/i.test(quando)) return /que vem|pr[oó]xima/i.test(quando) ? 'minha agenda da semana que vem' : 'minha agenda da semana';
+      return j.campo === 'passado' ? `o que eu fiz ${quando}` : `o que tenho ${quando}?`;
+    }
     case 'lista_adicionar': {
       const itens = juntar(j.itens);
       return itens ? `adiciona ${itens} na lista ${limpa(j.lista) || 'mercado'}` : null;
