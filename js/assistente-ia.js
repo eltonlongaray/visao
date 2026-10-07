@@ -38,10 +38,10 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261007a';
+import * as PN from './pet-nuvem.js?v=20261007b';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261007a';
-import * as PCT from './pet-contas.js?v=20261007a';
+import * as PCT from './pet-contas.js?v=20261007b';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -1090,7 +1090,7 @@ async function corretor(text, soSeguras) {
   if (!String(getLang()).startsWith('pt')) return null;
   try {
     const [{ corrigirTexto }, { default: modelo }] = await Promise.all([
-      import('./pet-corretor.js?v=20261005b'),
+      import('./pet-corretor.js?v=20261007a'),
       import('./pet-ia/pet-intencoes-modelo.js?v=20261003a'),
     ]);
     _conhecidas ||= new Set(modelo.vocab.filter(v => v.startsWith('w:')).map(v => v.slice(2)));
@@ -3935,7 +3935,7 @@ function cardContasLote(linhas) {
         feitas.push(l);
       }
       ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
-      addMessage(`✅ Criei ${feitas.length === 1 ? '1 conta' : `${feitas.length} contas`} a pagar. Repetem todo mês no mesmo dia, com lembrete:<br>${feitas.map(l => `• ${_esc(l.nome)} · dia ${dd(l.dia)}`).join('<br>')}`, 'bot');
+      addMessage(`✅ Criei ${feitas.length === 1 ? '1 conta' : `${feitas.length} contas`} a pagar. ${feitas.length === 1 ? "Repete" : "Repetem"} todo mês no mesmo dia, com lembrete:<br>${feitas.map(l => `• ${_esc(l.nome)} · dia ${dd(l.dia)}`).join('<br>')}`, 'bot');
     } catch (err) {
       console.error('[pet-contas]', err);
       ok.textContent = '✅ Feito em parte'; nao.remove();
