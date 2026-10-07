@@ -1236,7 +1236,9 @@ function periodoDoQuando(quandoBruto) {
 // Palavras da frase que não são nome de atividade (quando a IA não manda o título)
 const NAO_E_NOME = new Set(('nao vou mais das dos ate partir depois antes por causa carro pra para com sem ' +
   'que ele ela meu minha essa esse esta este volta voltar cancela cancelar remove remover tira tirar ' +
-  'domingo segunda terca quarta quinta sexta sabado feira amanha hoje semana proxima').split(' '));
+  'domingo segunda terca quarta quinta sexta sabado feira amanha hoje semana proxima ' +
+  'acabei sem querer excluindo excluir apaguei quero preciso crie criar recria recriar novamente de novo ' +
+  'marque marca marcar como transferida transferido transfere transferir passa passar troca trocar muda mudar').split(' '));
 // remarcar=true: "hoje não vou na academia, vou na sexta" → move do dia "quando" (hoje) pro dia "para"
 async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = false) {
   let novoDia = null, novaHora = '';
@@ -1309,6 +1311,12 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = fals
     }
     achados = [...porTitulo.values()].sort((a, b) => b.length - a.length)[0] || [];
   }
+  // Remarcar sem a original (a pessoa apagou ela sem querer) mas já no dia novo:
+  // "apaguei a academia de terça, recria e marca como transferida pra sexta"
+  if (!achados.length && remarcar) {
+    const r = await recriarTransferida(nome, texto, ini, novoDia);
+    if (r !== undefined) return r;
+  }
   if (!achados.length) return `Não achei <strong>${_esc(nome)}</strong>${reativar ? ' cancelado' : ''} na tua agenda ${periodo}${aPartir != null ? ` a partir das ${_esc(j.hora)}` : ''}.`;
   const rot = (x) => { const [y, mo, d] = x.dia.split('-').map(Number);
     return `${rotData(new Date(y, mo - 1, d))}${x.tk.startTime ? ' ' + x.tk.startTime : ''}`; };
@@ -1318,6 +1326,17 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = fals
     const novoId = `${novoDia.getFullYear()}-${String(novoDia.getMonth() + 1).padStart(2, '0')}-${String(novoDia.getDate()).padStart(2, '0')}`;
     const x = lista[0];
     if (x.dia === novoId) return `<strong>${_esc(x.tk.title)}</strong> já está em ${rotData(novoDia)}.`;
+    // O dia novo já tem essa atividade (ex.: ela repete na sexta): não duplica,
+    // só deixa a original riscada como transferida
+    const destino = (await fetchDaysRange(novoDia, novoDia))[0];
+    const jaTem = (destino?.tasks || []).find(t => !t.cancelled && semAcento(t.title || '') === semAcento(x.tk.title || ''));
+    if (jaTem) {
+      cardConfirmarLista(`📆 ${rotData(novoDia)} já tem <b>${_esc(x.tk.title)}</b>${jaTem.startTime ? ' ' + jaTem.startTime : ''}. Deixo a de ${rot(x)} riscada como transferida pra lá?`, async () => {
+        await updateDayTask(x.dia, x.tk.id, { cancelled: true, movedTo: novoId });
+        return `✅ Pronto: <strong>${_esc(x.tk.title)}</strong> de ${rot(x)} ficou riscada com "↪ ${rotData(novoDia)}".`;
+      }, null);
+      return null;
+    }
     cardConfirmarLista(`📆 Passar <b>${_esc(x.tk.title)}</b> de ${rot(x)} pra <b>${rotData(novoDia)}${novaHora || x.tk.startTime ? ' ' + (novaHora || x.tk.startTime) : ''}</b>?`, async () => {
       const { id: _drop, movedTo: _m, ...resto } = x.tk;
       // A original NÃO é apagada: fica riscada (🚫) com "↪ transferida pra <dia>".
@@ -1334,6 +1353,42 @@ async function cmdCancelarNuvem(j, reativar = false, texto = '', remarcar = fals
     for (const x of lista) await updateDayTask(x.dia, x.tk.id, { cancelled: !reativar });
     const n = lista.length === 1 ? 'essa atividade' : `${lista.length} atividades`;
     return reativar ? `✅ Voltei ${n} pra agenda.` : `✅ Cancelei ${n}. Fica riscado na agenda.`;
+  }, null);
+  return null;
+}
+
+// A original sumiu do dia de origem (apagada), mas a atividade está no dia novo:
+// recria ela riscada no dia de origem com "↪ transferida". undefined = não achou.
+async function recriarTransferida(nome, texto, origem, novoDia) {
+  const radical = (w) => w.length >= 5 ? w.slice(0, 5) : w;
+  const palavras = [...new Set(semAcento(`${nome} ${texto}`).split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 3 && !/^\d/.test(w) && !NAO_E_NOME.has(w) && !PALAVRAS_GENERICAS.has(w)).map(radical))];
+  if (!palavras.length) return undefined;
+  const destino = (await fetchDaysRange(novoDia, novoDia))[0];
+  let melhor = null, nota = 0;
+  for (const tk of destino?.tasks || []) {
+    if (tk.cancelled) continue;
+    const n = palavras.filter(w => semAcento(tk.title || '').includes(w)).length;
+    if (n > nota) { nota = n; melhor = tk; }
+  }
+  if (!melhor) return undefined;
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const origemId = iso(origem), novoId = iso(novoDia);
+  if (origemId === novoId) return undefined;
+  const naOrigem = (await fetchDaysRange(origem, origem))[0];
+  const jaRiscada = (naOrigem?.tasks || []).find(t => t.cancelled && semAcento(t.title || '') === semAcento(melhor.title || ''));
+  if (jaRiscada) {
+    if (jaRiscada.movedTo === novoId) return `<strong>${_esc(melhor.title)}</strong> de ${rotData(origem)} já está riscada como transferida pra ${rotData(novoDia)}.`;
+    cardConfirmarLista(`📆 Marcar <b>${_esc(melhor.title)}</b> de ${rotData(origem)} como transferida pra <b>${rotData(novoDia)}</b>?`, async () => {
+      await updateDayTask(origemId, jaRiscada.id, { movedTo: novoId });
+      return `✅ Pronto: <strong>${_esc(melhor.title)}</strong> de ${rotData(origem)} ficou com "↪ ${rotData(novoDia)}".`;
+    }, null);
+    return null;
+  }
+  cardConfirmarLista(`📆 ${rotData(novoDia)} já tem <b>${_esc(melhor.title)}</b>. Recrio ela em ${rotData(origem)} riscada, como transferida pra ${rotData(novoDia)}?`, async () => {
+    const { id: _drop, movedTo: _m, rescheduled: _r, rescheduleCount: _c, ...resto } = melhor;
+    await addDayTask(origemId, { ...resto, done: false, cancelled: true, movedTo: novoId, order: 0 });
+    return `✅ Recriei <strong>${_esc(melhor.title)}</strong> em ${rotData(origem)}, riscada com "↪ ${rotData(novoDia)}".`;
   }, null);
   return null;
 }
@@ -3335,8 +3390,10 @@ const ehComandoCurto = (texto) => pareceComando(texto) && String(texto).trim().s
 // Pedido novo no meio da nota ("pode mudar a academia de hoje pra sexta"): não é resposta
 const PEDIDO_RE = /\b(muda|mudar|mude|troca|trocar|troque|passa|passar|passe|remarca\w*|cancela\w*|agenda\w*|desmarca\w*|adiciona\w*|apaga\w*|marca|marcar|marque|cria|criar|crie|lembra|lembrar|lembre)\b/;
 const ehPedido = (texto) => {
-  const t = PC.norm(texto);
-  return /^(pode|consegue|preciso que|quero que|da pra|me ajuda)\b/.test(t) || PEDIDO_RE.test(t.split(' ').slice(0, 4).join(' ')) || ehComandoCurto(texto);
+  // "eu preciso que tu troque…", "olha, queria que tu marcasse…"
+  const t = PC.norm(texto).replace(/^(?:(?:eu|olha|entao|ai|tipo)[\s,]+)+/, '');
+  return /^(pode|podes|consegue|preciso que|quero que|queria que|da pra|tem como|me ajuda)\b/.test(t) ||
+    PEDIDO_RE.test(t.split(/\s+/).slice(0, 6).join(' ')) || ehComandoCurto(texto);
 };
 const PULAR = BT('pular', '⏭️ Pular');
 
