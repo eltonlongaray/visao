@@ -2393,6 +2393,13 @@ function taskCard(t, dayDocId) {
   const rescheduleBadge = (t.rescheduleCount > 0)
     ? `<span class="task-reschedule-badge" title="Reagendado ${t.rescheduleCount}x">↻${t.rescheduleCount}</span>`
     : '';
+  // Transferida pra outro dia (pelo Pet): fica riscada aqui com o destino
+  const movedBadge = (t.cancelled && t.movedTo) ? (() => {
+    const [y, m, d] = String(t.movedTo).split('-').map(Number);
+    const dt = new Date(y, (m || 1) - 1, d || 1);
+    const dow = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][dt.getDay()];
+    return `<span class="task-moved-badge" title="Transferida">↪ ${dow} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}</span>`;
+  })() : '';
 
   return `
     <div class="task ${t.done ? 'done' : ''} ${t.cancelled ? 'cancelled' : ''} ${t.reminderEnabled ? 'has-reminder' : ''} ${isCommitment ? 'is-commitment' : ''}" data-task-id="${t.id}" data-day="${dayDocId}">
@@ -2400,7 +2407,7 @@ function taskCard(t, dayDocId) {
       <button class="task-thumb ${t.done ? 'done' : ''} ${t.cancelled ? 'is-cancelled' : ''} ${isCommitment ? 'task-check' : ''}" data-action="check" title="${t.cancelled ? tr('ritual.task.cancelled') : (t.done ? tr('ritual.task.done') : tr('ritual.task.mark'))}">${checkContent}</button>
       <div class="task-body">
         <div class="task-title">
-          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}${t.horaFim ? '–' + escape(t.horaFim) : ''}</span>` : ''}${escape(t.title)}${rescheduleBadge}
+          <span class="task-icon-inline">${taskIcon}</span>${t.startTime ? `<span class="task-time">${escape(t.startTime)}${t.horaFim ? '–' + escape(t.horaFim) : ''}</span>` : ''}${escape(t.title)}${rescheduleBadge}${movedBadge}
         </div>
         ${t.desc ? `<div class="task-sub">${escape(t.desc)}</div>` : ''}
         <div class="task-footer">
@@ -2800,7 +2807,8 @@ function attachHandlers(app) {
       if (!t) return;
       try {
         t.cancelled = false;
-        await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { cancelled: false });
+        delete t.movedTo;
+        await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { cancelled: false, movedTo: null });
         syncTaskInDom(t);
         updateDayCardStats(taskEl.dataset.day, false);
         showToast('Atividade restaurada', 'success');
