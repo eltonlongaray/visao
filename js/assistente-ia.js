@@ -799,6 +799,10 @@ async function handleSend() {
 // que já sabe a intenção e não deve ser classificado de novo).
 async function dispatchCommand(text) {
   setPetState('thinking');
+  // "Digitando…" antes de responder: a resposta local é instantânea e ficava
+  // seca. Os pontinhos somem quando a primeira resposta (texto ou card) entra.
+  const parar = mostrarDigitando();
+  await new Promise(r => setTimeout(r, 650 + Math.random() * 450));
   try {
     // Conversa guiada em andamento (o Pet perguntou algo): a frase é RESPOSTA,
     // não comando novo. Se não for resposta e parecer comando, segue o roteador.
@@ -816,8 +820,28 @@ async function dispatchCommand(text) {
     addMessage(t('pet.error.general'), 'bot');
     console.error('[pet]', err);
   } finally {
+    parar();
     setPetState('idle');
   }
+}
+
+// Bolha com 3 pontinhos no fim da conversa; sai sozinha quando outra mensagem
+// é adicionada. Devolve a função que tira (pra garantir no fim).
+function mostrarDigitando() {
+  const box = document.getElementById('pet-messages');
+  if (!box) return () => {};
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot pet-digitando';
+  div.setAttribute('aria-label', 'Falcon está digitando');
+  div.innerHTML = '<span><i></i><i></i><i></i></span>';
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  const obs = new MutationObserver(ms => {
+    if (ms.some(m => [...m.addedNodes].some(n => n !== div))) parar();
+  });
+  const parar = () => { obs.disconnect(); div.remove(); };
+  obs.observe(box, { childList: true });
+  return parar;
 }
 
 // Por voz a pessoa chama o pet pelo nome ("Falcon, qual meu próximo
