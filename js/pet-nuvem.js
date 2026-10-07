@@ -63,6 +63,7 @@ const CONSULTA_FRASE = {
   agua: 'quanta água eu bebi',
   sequencia: 'qual minha constância',
   perfil_treino: 'qual meu perfil de treino',
+  cartao_dia: 'mostra o cartão do dia',
 };
 
 // Devolve a frase que o roteador do Pet entende, ou null (só conversa)

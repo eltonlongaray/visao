@@ -140,6 +140,15 @@ export async function renderHome(app) {
         <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
+      <!-- CARTÃO DO DIA (um princípio por dia, pra compartilhar) -->
+      <button class="reminders-card" id="cartao-dia-card" type="button">
+        <div class="reminders-icon">🃏</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Cartão do dia</div>
+          <div class="reminders-sub">Teu princípio de hoje, pronto pra compartilhar</div>
+        </div>
+      </button>
+
       <!-- MENSAGENS DA MANHÃ -->
       <button class="reminders-card msgs-card" id="morning-msgs-card" type="button">
         <div class="reminders-icon">💌</div>
@@ -210,6 +219,8 @@ export async function renderHome(app) {
     // jogava um modal por cima dele — foi o que apareceu no meio do tutorial
     // no teste com usuário novo. Daí o isActive() nas duas chamadas, inclusive
     // DENTRO do setTimeout: o tour pode começar no intervalo da espera.
+    // Cartão do dia: 1× por dia, antes dos outros avisos
+    setTimeout(() => { if (!tour.isActive()) import('../cartoes-dia.js').then(m => m.talvezMostrarCartao()).catch(() => {}); }, 500);
     setTimeout(() => { if (!tour.isActive()) maybeInstallHint(); }, 1200);
     setTimeout(() => { if (!tour.isActive()) maybeInvitePerfil(); }, 2200);
   }
@@ -458,6 +469,9 @@ function attachHandlers() {
     const dot = document.getElementById('msgs-dot');
     if (dot) dot.style.display = 'none';
   });
+
+  document.getElementById('cartao-dia-card').addEventListener('click', () =>
+    import('../cartoes-dia.js').then(m => m.abrirCartaoDoDia()));
 
   // Toggle de tema dia/noite — o SVG reage automaticamente ao data-theme via CSS
   document.getElementById('theme-toggle').addEventListener('click', () => toggleTheme());

@@ -1086,7 +1086,8 @@ export async function renderRitual(app) {
   }
   // Pop-up "Vamos começar o dia com soberania?" — 1x por dia
   // só dispara se as mensagens da manhã NÃO foram abertas hoje
-  maybeShowSovereigntyPrompt();
+  // O Cartão do dia vem antes (1× por dia); fechando ele, segue o convite.
+  mostrarCartaoEDepoisSoberania();
 
   ligarViradaDeDia();
 }
@@ -1110,6 +1111,15 @@ function ligarViradaDeDia() {
     expanded.clear();
     forceRender();
   });
+}
+
+async function mostrarCartaoEDepoisSoberania() {
+  if (tourIsActive()) return;
+  try {
+    const m = await import('../cartoes-dia.js');
+    if (await m.talvezMostrarCartao(() => maybeShowSovereigntyPrompt())) return;
+  } catch (err) { console.warn('[cartao-dia]', err); }
+  maybeShowSovereigntyPrompt();
 }
 
 const SOVEREIGNTY_KEY_PREFIX = 'visao_sovereignty_prompt_dismissed_';

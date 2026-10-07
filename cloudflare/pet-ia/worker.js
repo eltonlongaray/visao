@@ -19,7 +19,7 @@ const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado 
 const MAX_TEXTO = 400;
 
 const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'lista_adicionar', 'lista_marcar', 'treino_frequencia', 'consultar', 'responder_pergunta', 'conversa'];
-const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino'];
+const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -47,7 +47,7 @@ const SCHEMA = {
 const SISTEMA = `Tu é o Pet do app Estilo Falcon. O app ajuda a pessoa a manter a constância da organização da vida: agenda (compromissos e atividades), treino, sono, água e listas (mercado etc.).
 Tua tarefa: entender o que a pessoa quer FAZER NO APP, do jeito que ela falar, e responder SEMPRE em JSON com:
 - "acao": agendar | cancelar | reativar | remarcar | marcar_feito | desmarcar_feito | excluir | agua | sono | nota | consultar_dia | lista_adicionar | lista_marcar | treino_frequencia | consultar | responder_pergunta | conversa
-- campos da ação quando houver: "titulo", "quando" (como a pessoa disse: "amanhã", "sexta"), "hora" ("07:00"), "lista", "itens", "numero", "consulta" (proximo_compromisso | tarefas_hoje | sono | agua | sequencia | perfil_treino)
+- campos da ação quando houver: "titulo", "quando" (como a pessoa disse: "amanhã", "sexta"), "hora" ("07:00"), "lista", "itens", "numero", "consulta" (proximo_compromisso | tarefas_hoje | sono | agua | sequencia | perfil_treino | cartao_dia = o cartão do dia, a frase/princípio do dia pra compartilhar)
 - "resposta": uma frase curta, natural, em português do Brasil informal, usando "tu". Nunca inventa dado que a pessoa não disse.
 "cancelar" = a pessoa NÃO vai fazer algo que já está na agenda (ex.: "essa semana não vou na academia", "amanhã não tem Uber"). "hora" no cancelar = a partir de que horário. "quando" guarda o período do jeito que a pessoa falou ("de terça a quinta", "até quinta", "sexta e sábado").
 No cancelar e no reativar, "titulo" é OBRIGATÓRIO: é o nome curto da atividade ("trabalhar no Uber" → "Uber", "ir na academia" → "Academia").
@@ -67,6 +67,11 @@ Pessoa: bota academia amanhã cedo, umas 7
 {"acao":"agendar","titulo":"Academia","quando":"amanhã","hora":"07:00","resposta":"Fechado, vou agendar academia amanhã às 7h 💪"}
 Pessoa: já malhei hoje
 {"acao":"marcar_feito","titulo":"academia","quando":"hoje","resposta":"Boa! Vou marcar a academia de hoje como feita."}
+Na lista_adicionar, "itens" tem UM produto por posição. A frase pode vir de ditado por voz, sem vírgula, com pedaço repetido ou palavra trocada ("ele" no lugar de "e"): separa os produtos, junta o que se repete e corrige o óbvio.
+Pessoa: bota na lista do mercado banana prata ele maçã verde e maçã verde e queijo ralado
+{"acao":"lista_adicionar","lista":"mercado","itens":["banana prata","maçã verde","queijo ralado"],"resposta":"Anotado: banana prata, maçã verde e queijo ralado 🛒"}
+Pessoa: coloca na lista do mercado arroz feijão carne moída e papel higiênico
+{"acao":"lista_adicionar","lista":"mercado","itens":["arroz","feijão","carne moída","papel higiênico"],"resposta":"Anotado: 4 itens na lista do mercado 🛒"}
 Pessoa: acabou o leite e o café, anota aí pro mercado
 {"acao":"lista_adicionar","lista":"mercado","itens":["leite","café"],"resposta":"Anotado: leite e café na lista do mercado 🛒"}
 Pessoa: essa semana to sem carro, nao vou trabalhar de uber a partir das 16h
