@@ -952,6 +952,14 @@ async function routeCommand(text) {
   // ── Caixa de Ferramentas (listas): check, adicionar, editar, apagar, criar.
   // Antes das consultas e do registro: "marca arroz como feito" bateria no
   // ^marca do registro e viraria um agendamento. ──
+  // ── Cartão do dia: abre o cartão (o botão Compartilhar fica nele) ──
+  if (/\bcart(?:ao|ão|oes|ões)\b.*\b(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
+    import('./cartoes-dia.js?v=20261007a').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    return /compartilh|manda|envia|posta|status|insta/i.test(text)
+      ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
+      : 'Aqui teu cartão do dia 🃏';
+  }
+
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   const rRitual = await tentarRitual(text);

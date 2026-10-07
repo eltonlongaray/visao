@@ -19,7 +19,7 @@ const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado 
 const MAX_TEXTO = 400;
 
 const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'lista_adicionar', 'lista_marcar', 'treino_frequencia', 'consultar', 'responder_pergunta', 'conversa'];
-const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino'];
+const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -47,7 +47,7 @@ const SCHEMA = {
 const SISTEMA = `Tu é o Pet do app Estilo Falcon. O app ajuda a pessoa a manter a constância da organização da vida: agenda (compromissos e atividades), treino, sono, água e listas (mercado etc.).
 Tua tarefa: entender o que a pessoa quer FAZER NO APP, do jeito que ela falar, e responder SEMPRE em JSON com:
 - "acao": agendar | cancelar | reativar | remarcar | marcar_feito | desmarcar_feito | excluir | agua | sono | nota | consultar_dia | lista_adicionar | lista_marcar | treino_frequencia | consultar | responder_pergunta | conversa
-- campos da ação quando houver: "titulo", "quando" (como a pessoa disse: "amanhã", "sexta"), "hora" ("07:00"), "lista", "itens", "numero", "consulta" (proximo_compromisso | tarefas_hoje | sono | agua | sequencia | perfil_treino)
+- campos da ação quando houver: "titulo", "quando" (como a pessoa disse: "amanhã", "sexta"), "hora" ("07:00"), "lista", "itens", "numero", "consulta" (proximo_compromisso | tarefas_hoje | sono | agua | sequencia | perfil_treino | cartao_dia = o cartão do dia, a frase/princípio do dia pra compartilhar)
 - "resposta": uma frase curta, natural, em português do Brasil informal, usando "tu". Nunca inventa dado que a pessoa não disse.
 "cancelar" = a pessoa NÃO vai fazer algo que já está na agenda (ex.: "essa semana não vou na academia", "amanhã não tem Uber"). "hora" no cancelar = a partir de que horário. "quando" guarda o período do jeito que a pessoa falou ("de terça a quinta", "até quinta", "sexta e sábado").
 No cancelar e no reativar, "titulo" é OBRIGATÓRIO: é o nome curto da atividade ("trabalhar no Uber" → "Uber", "ir na academia" → "Academia").
