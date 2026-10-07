@@ -23,7 +23,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getCategories, saveCategory, getProfile, setProfile, setWeekdayTemplate,
+  getCategories, saveCategory, getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
@@ -3737,14 +3737,17 @@ async function apagarTodasRepeticoes(tk, data) {
   const dias = await fetchDaysRange(data, fim);
   let n = 0;
   for (const d of dias) for (const x of d.tasks || []) if (!x.done && bate(x)) { try { await deleteDayTask(d.id, x.id); n++; } catch { /* segue */ } }
+  // Tudo num setProfile só (modelos da semana + mensais + regras do Pet)
   const prof = await getProfile().catch(() => null);
-  const tpls = prof?.weekdayTemplates || {};
+  const patch = {};
+  const tpls = { ...(prof?.weekdayTemplates || {}) };
+  let mudouTpl = false;
   for (const dow of Object.keys(tpls)) {
     const arr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
     const filtrado = arr.filter(x => !bate(x));
-    if (filtrado.length !== arr.length) await setWeekdayTemplate(+dow, filtrado);
+    if (filtrado.length !== arr.length) { tpls[dow] = filtrado; mudouTpl = true; }
   }
-  const patch = {};
+  if (mudouTpl) patch.weekdayTemplates = tpls;
   const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
   if (mensais.some(bate)) patch.monthlyCommitments = mensais.filter(x => !bate(x));
   const regras = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : [];
