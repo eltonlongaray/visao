@@ -18,6 +18,8 @@ import { trapModalBack } from './modal-voltar.js';
 const P = (n, texto) => ({ rotulo: `Princípio ${n}`, texto });
 const A = (n, titulo, texto) => ({ rotulo: `Acordo ${n}`, titulo, texto });
 const PE = (texto) => ({ rotulo: 'Pensamento', texto });
+// Filosofia: rótulo livre, título opcional e autor no fim do texto
+const F = (rotulo, titulo, texto, autor) => ({ rotulo, ...(titulo ? { titulo } : {}), texto: autor ? `${texto}\n\n— ${autor}` : texto });
 
 export const CARTOES = [
   P(1, 'Presente, escuto a pessoa até o final, falo pausadamente, sem pressa, e antes de falar penso e analiso o que vou falar e como vou falar, fazendo mais perguntas do que afirmações. Observo minhas emoções antes de agir e não permito que o estado emocional do outro interfira no meu estado.'),
@@ -49,6 +51,27 @@ export const CARTOES = [
   PE('Tudo o que parece negativo no início se transforma em algo positivo no final. No fim, o bem sempre vence o mal.'),
   // Repete 3× de propósito (é assim que o Élton usa a frase)
   PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\n\nGratidão ❤️\nGratidão ❤️\nGratidão ❤️'),
+  // Valores e princípios estoicos + sabedoria oriental (escritos com o Élton em 07/10)
+  F('Princípio 18', 'Sabedoria', 'Antes de agir, penso no que é certo, não no que é fácil. Uso a razão pra decidir, não o impulso, e aprendo com tudo o que me acontece.'),
+  F('Princípio 19', 'Coragem', 'Faço o que é certo mesmo com medo. Reconheço o medo e sigo em frente, porque é no desconforto que eu cresço.'),
+  F('Princípio 20', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque somos parte do mesmo todo.'),
+  F('Princípio 21', 'Temperança', 'Tenho domínio sobre meus desejos. Como, bebo, gasto e falo na medida certa. Nem excesso, nem falta.'),
+  F('Princípio 22', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A disciplina me leva aonde a motivação não alcança.'),
+  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Ponho toda a minha energia nos meus pensamentos, escolhas e ações. O resto eu aceito com serenidade.', 'Epicteto'),
+  F('Princípio 24', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Tudo o que me acontece vira matéria-prima pra eu crescer.'),
+  F('Princípio 25', 'Lembra que vais morrer', 'Lembro que o tempo é curto. Não adio o que importa e vivo cada dia como se ele fosse completo em si mesmo.', 'Sêneca'),
+  F('Princípio 26', 'O obstáculo é o caminho', 'O que impede a ação faz a ação avançar. O que está no meu caminho se torna o meu caminho.', 'Marco Aurélio'),
+  F('Princípio 27', 'Preparo a mente', 'Imagino com calma o que pode dar errado. Assim nada me pega de surpresa e eu já sei como agir.', 'Sêneca'),
+  F('Pensamento', '', 'Não são as coisas que me perturbam, mas o que eu penso sobre elas. Quando algo me abala, mudo primeiro o meu olhar.', 'Epicteto'),
+  F('Pensamento', '', 'A melhor vingança é não ser como quem me ofendeu. Respondo com quem eu sou, não com o que me fizeram.', 'Marco Aurélio'),
+  F('Pensamento', '', 'Uma jornada de mil léguas começa com um único passo. Não me assusto com o tamanho do caminho: dou o primeiro passo hoje.', 'Lao Tsé'),
+  F('Pensamento', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força, e com o tempo a água vence a pedra.', 'Lao Tsé'),
+  F('Pensamento', '', 'Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.', 'Lao Tsé'),
+  F('Pensamento', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim.', 'Confúcio'),
+  F('Pensamento', '', 'Tudo passa: o bom e o ruim. Não me apego ao que é bom nem me desespero com o que é ruim.'),
+  F('Pensamento', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora.'),
+  F('Pensamento', '', 'O ódio não acaba com ódio, acaba com amor. Não respondo raiva com raiva.', 'Buda'),
+  F('Pensamento', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira e não atiro a segunda em mim mesmo.', 'Buda'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -113,17 +136,32 @@ function carregarFonte() {
 
 const carregarImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 
-function quebrar(ctx, texto, largura) {
+// Quebra em linhas sem deixar palavra sozinha numa linha: se sobrar uma,
+// tenta de novo com a linha um pouco mais larga ou mais estreita
+function quebrarParagrafo(ctx, par, largura) {
+  const linhas = [];
+  let linha = '';
+  for (const p of par.split(/\s+/)) {
+    const teste = linha ? `${linha} ${p}` : p;
+    if (ctx.measureText(teste).width > largura && linha) { linhas.push(linha); linha = p; }
+    else linha = teste;
+  }
+  if (linha) linhas.push(linha);
+  return linhas;
+}
+
+export function quebrar(ctx, texto, largura) {
   const linhas = [];
   for (const par of String(texto).split('\n')) {
     if (!par.trim()) { linhas.push(''); continue; }
-    let linha = '';
-    for (const p of par.split(/\s+/)) {
-      const teste = linha ? `${linha} ${p}` : p;
-      if (ctx.measureText(teste).width > largura && linha) { linhas.push(linha); linha = p; }
-      else linha = teste;
+    let melhor = quebrarParagrafo(ctx, par, largura);
+    if (par.trim().split(/\s+/).length > 1) {
+      for (let f = 1.04; f >= 0.65 && melhor.some(l => !/\s/.test(l)); f -= 0.02) {
+        const tenta = quebrarParagrafo(ctx, par, largura * f);
+        if (!tenta.some(l => !/\s/.test(l))) melhor = tenta;
+      }
     }
-    if (linha) linhas.push(linha);
+    linhas.push(...melhor);
   }
   return linhas;
 }
@@ -222,14 +260,18 @@ export async function desenharCartao(cartao) {
   ctx.globalAlpha = 1;
   // Texto: o maior tamanho que cabe dentro do cartão
   const topo = cy + 70, base = cy + ch - 70, larg = cw - 140, xt = cx + 70;
-  let tam = 62, linhasT = [], linhas = [], alt = 0;
+  // Mesmo tamanho de letra em todos (48 é o maior que cabe no cartão mais longo);
+  // só diminui se um cartão novo não couber
+  let tam = 48, linhasT = [], linhas = [], alt = 0;
   for (; tam >= 28; tam -= 2) {
     ctx.font = `700 ${Math.round(tam * 1.08)}px ${FONTE}`;
     linhasT = cartao.titulo ? quebrar(ctx, cartao.titulo, larg) : [];
     ctx.font = `400 ${tam}px ${FONTE}`;
     linhas = quebrar(ctx, cartao.texto, larg);
     alt = linhasT.length * tam * 1.45 + (linhasT.length ? tam * 0.7 : 0) + linhas.reduce((a, l) => a + (l ? tam * 1.42 : tam * 0.6), 0);
-    if (alt <= base - topo) break;
+    // Só aceita o tamanho se nenhuma linha ficou com uma palavra sozinha
+    const sozinha = [...linhas, ...(linhasT.length > 1 ? linhasT : [])].some(l => l && !/\s/.test(l));
+    if (alt <= base - topo && (!sozinha || tam <= 34)) break;
   }
   let y = topo + (base - topo - alt) / 2 + tam;
   ctx.textAlign = 'left';
