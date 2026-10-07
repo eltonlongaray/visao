@@ -38,10 +38,11 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261007b';
+import * as PN from './pet-nuvem.js?v=20261007c';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261007a';
 import * as PCT from './pet-contas.js?v=20261007b';
+import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
@@ -811,6 +812,12 @@ async function dispatchCommand(text) {
     if (typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
     // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
+    // O Pet fez uma pergunta pra esclarecer o pedido: a resposta vai pra IA
+    // junto com a conversa ("dia 10" sozinho completa "cadastra a conta de luz")
+    if (reply === undefined && typeof text !== 'function' && esclarecendo()) {
+      const n = await entenderNaNuvem(semChamado(text));
+      if (n !== undefined && n !== 'fora') reply = n;
+    }
     if (reply === undefined && typeof text !== 'function' && pareceFalaLivre(semChamado(text))) {
       const n = await entenderNaNuvem(semChamado(text));
       if (n !== undefined && n !== 'fora') reply = n;
@@ -1177,14 +1184,14 @@ async function entenderComIA(text) {
     return executarIntencao(r.intencao, text);
   }
   if (nuvemDisseFora) return FORA_DO_APP;
-  if (!r.palavrasConhecidas) return t('pet.unknown');
+  if (!r.palavrasConhecidas) { anotarNoDiario(text, 'nao_entendi'); return t('pet.unknown'); }
   if (r.intencao === 'fora') return FORA_DO_APP;
 
   const opcoes = [r, ...r.alternativas].filter(o => o.intencao !== 'fora' && o.confianca >= 0.1).slice(0, 3);
-  if (!opcoes.length) return t('pet.unknown');
+  if (!opcoes.length) { anotarNoDiario(text, 'nao_entendi'); return t('pet.unknown'); }
   addChoices('🤔 Não tenho certeza. Você quis dizer...', [
     ...opcoes.map(o => ({ label: INTENCAO_ROTULO[o.intencao], action: () => executarIntencao(o.intencao, text) })),
-    { label: '❌ Nenhuma', action: () => t('pet.unknown') },
+    { label: '❌ Nenhuma', action: () => { anotarNoDiario(text, 'nenhuma'); return t('pet.unknown'); } },
   ]);
   return null;
 }
@@ -1202,15 +1209,41 @@ let _naNuvem = false, _ultimaNuvem = null;
 const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(/\s+/).length >= 7 &&
   !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim()) &&
   !PCT.lerLoteDeContas(text);   // lista de contas: o roteador já entende inteira
+// Esclarecer: a IA pode responder com uma PERGUNTA ("em que dia vence a conta
+// de luz?"). As falas ficam guardadas por uns minutos e vão junto na próxima
+// mensagem, pra IA juntar tudo num pedido só. No máximo 3 perguntas seguidas.
+const ESCLARECER_MS = 5 * 60 * 1000;
+let _esclarecer = null;   // { turnos: [{quem, texto}], em, rodadas }
+const esclarecendo = () => !!_esclarecer && Date.now() - _esclarecer.em < ESCLARECER_MS;
+const NAO_SEI_FAZER = 'Isso eu ainda não sei fazer 😕 Mas anotei teu pedido pra aprender e, quando estiver pronto, tu vai poder pedir pra mim.';
+
 async function entenderNaNuvem(text) {
   if (_naNuvem || !PN.nuvemLigada()) return undefined;
+  const historico = esclarecendo() ? _esclarecer.turnos : [];
+  if (!historico.length) _esclarecer = null;
   // Mesma frase de novo em seguida (ex.: tentou antes do roteador): reaproveita
-  let j = _ultimaNuvem && _ultimaNuvem.texto === text && Date.now() - _ultimaNuvem.em < 30000 ? _ultimaNuvem.j : null;
+  let j = !historico.length && _ultimaNuvem && _ultimaNuvem.texto === text && Date.now() - _ultimaNuvem.em < 30000 ? _ultimaNuvem.j : null;
   if (!j) {
-    j = await PN.perguntarNuvem({ texto: text });
-    _ultimaNuvem = j ? { texto: text, j, em: Date.now() } : null;
+    j = await PN.perguntarNuvem({ texto: text, historico });
+    _ultimaNuvem = j && !historico.length ? { texto: text, j, em: Date.now() } : null;
   }
   if (!j) return undefined;
+  if (j.acao === 'perguntar') {
+    const pergunta = String(j.resposta || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+    const rodadas = (historico.length ? _esclarecer.rodadas : 0) + 1;
+    if (!pergunta || rodadas > 3) {
+      _esclarecer = null;
+      anotarNoDiario([...historico.filter(h => h.quem === 'pessoa').map(h => h.texto), text].join(' / '), 'nao_entendi');
+      return t('pet.unknown');
+    }
+    _esclarecer = { turnos: [...historico, { quem: 'pessoa', texto: text }, { quem: 'pet', texto: pergunta }].slice(-6), em: Date.now(), rodadas };
+    return _esc(pergunta);
+  }
+  // Qualquer outra resposta encerra o esclarecimento. O pedido completo é a
+  // soma das falas da pessoa (vai pro diário se o app não souber fazer)
+  const pedido = [...historico.filter(h => h.quem === 'pessoa').map(h => h.texto), text].join(' / ');
+  _esclarecer = null;
+  if (j.acao === 'nao_sei_fazer') { anotarNoDiario(pedido, 'nao_sei_fazer'); return NAO_SEI_FAZER; }
   if (j.acao === 'cancelar') return cmdCancelarNuvem(j, false, text);
   if (j.acao === 'reativar') return cmdCancelarNuvem(j, true, text);
   if (j.acao === 'remarcar') return cmdCancelarNuvem(j, false, text, true);
