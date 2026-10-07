@@ -35,7 +35,7 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261003h';
+import * as PL from './pet-listas.js?v=20261007a';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261007a';
@@ -2750,15 +2750,35 @@ function escolherDestino(arvore, titulo, aoEscolher, candidatos = null) {
   addChoices(titulo, opcoes.slice(0, 24).map(o => ({ label: PL.ondeTexto(o.grupo, o.secao), action: () => { aoEscolher(o); return null; } })));
 }
 
-function listaAdicionar(arvore, text, alvo) {
+// Vários itens numa frase ("aveia, alho e legumes"). Falado sem vírgula
+// ("aveia flocão alho legumes pro refogado"), a IA da nuvem separa; sem nuvem,
+// separa por vírgula / "e" / "mais".
+async function itensParaAdicionar(novo, text) {
+  const local = PL.separarItens(novo);
+  const palavras = novo.trim().split(/\s+/).length;
+  if (palavras >= 4 && PN.nuvemLigada()) {
+    const j = await PN.perguntarNuvem({ texto: text }).catch(() => null);
+    if (j?.acao === 'lista_adicionar' && Array.isArray(j.itens)) {
+      const nuvem = PL.separarItens(j.itens.map(i => String(i).replace(/[<>,;]/g, ' ')).join(', '));
+      if (nuvem.length) return nuvem;
+    }
+  }
+  return local.length ? local : [novo];
+}
+
+async function listaAdicionar(arvore, text, alvo) {
   const novo = PL.textoParaAdicionar(text, alvo);
   if (!novo) return 'O que eu adiciono? Ex.: <em>"adiciona leite na lista do Mercado"</em>.';
+  const itens = await itensParaAdicionar(novo, text);
+  const nomes = itens.length > 1 ? `${itens.length} itens` : `<strong>${_esc(itens[0])}</strong>`;
   const confirmar = ({ grupo, secao }) => { lembrarLista(grupo, secao); cardConfirmarLista(
-    `➕ Adicionar <strong>${_esc(novo)}</strong> em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?`,
-    async () => { await adicionarItem(grupo.nome, novo, secao?.id || null); return null; },
-    aposMudarLista, () => mostrarListaNaConversa(grupo.nome, secao?.id || null, novo)); };
+    itens.length > 1
+      ? `➕ Adicionar ${itens.length} itens em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?<br>${itens.map(i => `• ${_esc(i)}`).join('<br>')}`
+      : `➕ Adicionar <strong>${_esc(itens[0])}</strong> em <strong>${_esc(PL.ondeTexto(grupo, secao))}</strong>?`,
+    async () => { for (const i of itens) await adicionarItem(grupo.nome, i, secao?.id || null); return null; },
+    aposMudarLista, () => mostrarListaNaConversa(grupo.nome, secao?.id || null, itens[itens.length - 1])); };
   if (alvo.grupo) { confirmar(alvo); return null; }
-  escolherDestino(arvore, `Em qual lista eu ponho <strong>${_esc(novo)}</strong>?`, confirmar, alvo.candidatos.length ? alvo.candidatos : null);
+  escolherDestino(arvore, `Em qual lista eu ponho ${nomes}?`, confirmar, alvo.candidatos.length ? alvo.candidatos : null);
   return null;
 }
 

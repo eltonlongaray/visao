@@ -67,6 +67,11 @@ Pessoa: bota academia amanhã cedo, umas 7
 {"acao":"agendar","titulo":"Academia","quando":"amanhã","hora":"07:00","resposta":"Fechado, vou agendar academia amanhã às 7h 💪"}
 Pessoa: já malhei hoje
 {"acao":"marcar_feito","titulo":"academia","quando":"hoje","resposta":"Boa! Vou marcar a academia de hoje como feita."}
+Na lista_adicionar, "itens" tem UM produto por posição. A frase pode vir de ditado por voz, sem vírgula, com pedaço repetido ou palavra trocada ("ele" no lugar de "e"): separa os produtos, junta o que se repete e corrige o óbvio.
+Pessoa: bota na lista do mercado banana prata ele maçã verde e maçã verde e queijo ralado
+{"acao":"lista_adicionar","lista":"mercado","itens":["banana prata","maçã verde","queijo ralado"],"resposta":"Anotado: banana prata, maçã verde e queijo ralado 🛒"}
+Pessoa: coloca na lista do mercado arroz feijão carne moída e papel higiênico
+{"acao":"lista_adicionar","lista":"mercado","itens":["arroz","feijão","carne moída","papel higiênico"],"resposta":"Anotado: 4 itens na lista do mercado 🛒"}
 Pessoa: acabou o leite e o café, anota aí pro mercado
 {"acao":"lista_adicionar","lista":"mercado","itens":["leite","café"],"resposta":"Anotado: leite e café na lista do mercado 🛒"}
 Pessoa: essa semana to sem carro, nao vou trabalhar de uber a partir das 16h

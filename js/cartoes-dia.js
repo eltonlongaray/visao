@@ -47,7 +47,8 @@ export const CARTOES = [
   PE('A sorte é um dom que me permeia.'),
   PE('Minha vida já reflete a abundância que sou.'),
   PE('Tudo o que parece negativo no início se transforma em algo positivo no final. No fim, o bem sempre vence o mal.'),
-  PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei. Gratidão ❤️'),
+  // Repete 3× de propósito (é assim que o Élton usa a frase)
+  PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\n\nGratidão ❤️\nGratidão ❤️\nGratidão ❤️'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -97,11 +98,25 @@ const W = 1080, H = 1920;
 const OURO = '#f5c518', LILAS = '#c4b5fd';
 const FONTE = "'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
 
+// Fonte da marca (Cinzel, licença OFL em fonts/): carrega uma vez antes de desenhar
+const MARCA = "'Cinzel Falcon', Georgia, 'Times New Roman', serif";
+let _fonte = null;
+function carregarFonte() {
+  _fonte ||= (async () => {
+    try {
+      const f = new FontFace('Cinzel Falcon', "url('fonts/cinzel-700.woff2') format('woff2')", { weight: '700' });
+      document.fonts.add(await f.load());
+    } catch (e) { console.warn('[cartao-dia] fonte:', e); }
+  })();
+  return _fonte;
+}
+
 const carregarImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 
 function quebrar(ctx, texto, largura) {
   const linhas = [];
   for (const par of String(texto).split('\n')) {
+    if (!par.trim()) { linhas.push(''); continue; }
     let linha = '';
     for (const p of par.split(/\s+/)) {
       const teste = linha ? `${linha} ${p}` : p;
@@ -136,23 +151,27 @@ export async function desenharCartao(cartao) {
   ctx.globalAlpha = 0.35; ctx.lineWidth = 2;
   cantos(ctx, 68, 68, W - 136, H - 136, 32); ctx.stroke();
   ctx.globalAlpha = 1;
-  // Falcão no topo
+  // Tudo um pouco mais pro meio: o Instagram cobre o topo (nome/barra) e a
+  // base (campo de resposta) do story
+  await carregarFonte();
   const logo = await carregarImg('icons/falcon-badge.png');
-  if (logo) ctx.drawImage(logo, W / 2 - 120, 150, 240, 240);
+  if (logo) ctx.drawImage(logo, W / 2 - 105, 250, 210, 210);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   // Rótulo ("PRINCÍPIO 7")
-  ctx.fillStyle = OURO; ctx.font = `700 46px ${FONTE}`;
-  ctx.fillText(cartao.rotulo.toUpperCase().split('').join(String.fromCharCode(8202)), W / 2, 480);
-  ctx.fillRect(W / 2 - 60, 512, 120, 4);
+  ctx.fillStyle = OURO; ctx.font = `700 48px ${MARCA}`;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
+  ctx.fillText(cartao.rotulo.toUpperCase(), W / 2, 545);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.fillRect(W / 2 - 60, 577, 120, 4);
   // Texto: o maior tamanho que cabe na área do meio
-  const topo = 590, base = 1540, larg = W - 220;
+  const topo = 640, base = 1450, larg = W - 230;
   let tam = 66, linhasT = [], linhas = [], alt = 0;
   for (; tam >= 30; tam -= 2) {
     ctx.font = `700 ${Math.round(tam * 1.08)}px ${FONTE}`;
     linhasT = cartao.titulo ? quebrar(ctx, cartao.titulo, larg) : [];
     ctx.font = `400 ${tam}px ${FONTE}`;
     linhas = quebrar(ctx, cartao.texto, larg);
-    alt = linhasT.length * tam * 1.45 + (linhasT.length ? tam * 0.7 : 0) + linhas.length * tam * 1.42;
+    alt = linhasT.length * tam * 1.45 + (linhasT.length ? tam * 0.7 : 0) + linhas.reduce((a, l) => a + (l ? tam * 1.42 : tam * 0.6), 0);
     if (alt <= base - topo) break;
   }
   let y = topo + (base - topo - alt) / 2 + tam;
@@ -160,12 +179,16 @@ export async function desenharCartao(cartao) {
   for (const l of linhasT) { ctx.fillText(l, W / 2, y); y += tam * 1.45; }
   if (linhasT.length) y += tam * 0.7;
   ctx.fillStyle = '#ffffff'; ctx.font = `400 ${tam}px ${FONTE}`;
-  for (const l of linhas) { ctx.fillText(l, W / 2, y); y += tam * 1.42; }
-  // Rodapé com a marca
-  ctx.fillStyle = OURO; ctx.font = `800 58px ${FONTE}`;
-  ctx.fillText('ESTILO FALCON'.split('').join(String.fromCharCode(8202)), W / 2, 1700);
-  ctx.fillStyle = LILAS; ctx.font = `400 34px ${FONTE}`;
-  ctx.fillText('estilo-falcon.web.app', W / 2, 1758);
+  for (const l of linhas) { if (l) ctx.fillText(l, W / 2, y); y += l ? tam * 1.42 : tam * 0.6; }
+  // Rodapé com a marca (Cinzel, com brilho dourado)
+  ctx.fillStyle = OURO; ctx.font = `700 70px ${MARCA}`;
+  ctx.shadowColor = 'rgba(245,197,24,0.45)'; ctx.shadowBlur = 24;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '8px';
+  ctx.fillText('ESTILO FALCON', W / 2, 1580);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = LILAS; ctx.font = `400 32px ${FONTE}`;
+  ctx.fillText('estilo-falcon.web.app', W / 2, 1636);
   return cv;
 }
 

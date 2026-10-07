@@ -177,6 +177,18 @@ export function textoParaAdicionar(text, alvo = {}) {
   return limparPontas(t);
 }
 
+// "leite, ovo e pão" → ["leite", "ovo", "pão"] (vírgula, "e", "mais", "também").
+// Tira repetidos (o ditado por voz às vezes repete um pedaço).
+export function separarItens(texto) {
+  const vistos = new Set(), out = [];
+  for (const p of String(texto || '').split(/\s*(?:,|;|\be\b|\bmais\b|\btamb[eé]m\b)\s*/i)) {
+    const item = limparPontas(p.replace(/^(?:o|a|os|as|um|uma|item)\s+/i, ''));
+    const k = norm(item);
+    if (item && !vistos.has(k)) { vistos.add(k); out.push(item); }
+  }
+  return out;
+}
+
 // "troca arroz por arroz integral" → { antigo: "arroz", novo: "arroz integral" }
 export function partesEdicao(text, alvo = {}) {
   const t = tirarAlvo(String(text || ''), alvo.trechos || [])
