@@ -27,6 +27,7 @@ import { auth } from '../autenticacao.js';
 import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
+import * as DIG from '../chat-digitando.js';
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
 // Permite a rota /desafios abrir a Comunidade já na aba Desafios.
@@ -203,6 +204,7 @@ export async function renderChat(app) {
   }, 12000);
   return () => {
     clearInterval(recarga); recarga = null;
+    DIG.sairDaSala();
     conversaCom = null;
     limparSelecao();
     limparAnexo();
@@ -266,12 +268,13 @@ async function recarregar() {
   if (!corpo) return;
   // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
   // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
-  if (aba === 'desafios') return renderDesafios(corpo, true);
+  if (aba === 'desafios') { DIG.sairDaSala(); return renderDesafios(corpo, true); }
   // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
   // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
   perfis = await fetchPerfis();
   if (aba === 'mural') return desenharMural(corpo);
   if (conversaCom) return desenharConversa(corpo);
+  DIG.sairDaSala();
   return desenharListaPrivada(corpo);
 }
 
@@ -1532,6 +1535,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   const corpoHtml = `
     ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
     <div class="chat-lista ${cabecalho || comFundo ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
+    <div class="chat-digitando" id="chat-digitando" hidden></div>
     <div class="chat-grava" id="chat-grava" hidden></div>
     <div class="chat-respondendo" id="chat-respondendo" hidden></div>
     <div class="chat-previa" id="chat-previa" hidden></div>
@@ -1588,6 +1592,31 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
   pintarRespondendo();
   window.dispatchEvent(new Event('falcon:layout'));
+  entrarNaSalaDoModo();
+}
+
+// Sala do "digitando…": o mural todo ou a dupla da conversa aberta
+let _buscaAgendada = null;
+function entrarNaSalaDoModo() {
+  const meu = auth.currentUser?.uid;
+  const sala = aba === 'mural' ? 'mural' : conversaCom ? DIG.salaPrivada(meu, conversaCom.id) : null;
+  DIG.entrarNaSala(sala, { id: meu, nome: meuNome }, {
+    mudou: pintarDigitando,
+    // quem digitava enviou: busca a mensagem já (junta avisos seguidos)
+    chegou: () => { clearTimeout(_buscaAgendada); _buscaAgendada = setTimeout(() => { if (!selecionados.size) recarregar(); }, 400); },
+  });
+}
+
+function pintarDigitando(nomes) {
+  const el = document.getElementById('chat-digitando');
+  if (!el) return;
+  if (!nomes.length) { el.hidden = true; el.innerHTML = ''; return; }
+  // No privado são só dois: basta a bolinha. No mural diz quem é.
+  const quem = aba === 'mural' ? `<em>${esc(DIG.textoDeQuem(nomes))}</em>` : '';
+  el.innerHTML = `<span class="chat-dig-bolha"><i></i><i></i><i></i></span>${quem}`;
+  el.hidden = false;
+  const l = document.getElementById('chat-lista');
+  if (l && l.scrollHeight - l.scrollTop - l.clientHeight < 80) l.scrollTop = l.scrollHeight;
 }
 
 // "Hoje" / "Ontem" / a data, quando a conversa vira o dia — sem isso uma
@@ -2092,6 +2121,8 @@ function ligarEventos(app) {
     ajustarAltura(ev.target);
     guardarRascunho();
     atualizarBotaoEnvio();
+    // primeira letra já mostra os pontinhos pro outro lado; apagou tudo, some
+    if (ev.target.value.trim()) DIG.estouDigitando(); else DIG.pararDeDigitar();
   });
 
   // Enter = quebra de linha (comportamento nativo da textarea, não mexemos).
@@ -2209,6 +2240,7 @@ function ligarEventos(app) {
       if (paraEnviar) limparAnexo();   // só fecha depois que deu certo
       if (arqParaEnviar) limparAnexoArq();
       respondendoA = null; pintarRespondendo();
+      DIG.pararDeDigitar({ enviou: true });
       await recarregar();
       // A lista só se auto-rola quando já estava no fim. Depois de enviar, a
       // própria mensagem tem que aparecer mesmo pra quem tinha subido a tela.
