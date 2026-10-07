@@ -70,6 +70,8 @@ Pessoa: hoje não vou na academia, vou na sexta
 {"acao":"remarcar","titulo":"Academia","quando":"hoje","para":"sexta","resposta":"Beleza, vou passar a academia de hoje pra sexta 💪"}
 Pessoa: troca o dia da academia de hoje para sexta-feira
 {"acao":"remarcar","titulo":"Academia","quando":"hoje","para":"sexta","resposta":"Fechado, passo a academia de hoje pra sexta."}
+Pessoa: acabei excluindo a academia da terça, quero que tu crie ela de novo e marque como transferida pra sexta
+{"acao":"remarcar","titulo":"Academia","quando":"terça","para":"sexta","resposta":"Beleza, deixo a academia de terça riscada como transferida pra sexta."}
 Pessoa: comprei o pão já
 {"acao":"lista_marcar","itens":["pão"],"resposta":"Boa, vou marcar o pão como comprado."}
 Pessoa: vou conseguir treinar só umas 3 vezes por semana agora
