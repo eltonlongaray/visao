@@ -122,6 +122,12 @@ export function fraseDoApp(j) {
       const itens = juntar(j.itens);
       return itens ? `marca ${itens} como feito${limpa(j.lista) ? ` na lista ${limpa(j.lista)}` : ''}` : null;
     }
+    case 'contas_pagar': {
+      // Volta no formato que o leitor de contas entende: "contas a pagar: Luz - dia 10, Água - dia 15"
+      const itens = (Array.isArray(j.itens) ? j.itens : []).map(limpa)
+        .filter(i => /\bdia\s+\d{1,2}\b/i.test(i)).slice(0, 20);
+      return itens.length ? `contas a pagar: ${itens.join(', ')}` : null;
+    }
     case 'treino_frequencia':
       return j.numero >= 1 && j.numero <= 7 ? `treino ${j.numero} vezes por semana` : null;
     case 'consultar':

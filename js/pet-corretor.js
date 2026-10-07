@@ -31,7 +31,8 @@ const COMUNS = new Set(('a o e é de do da dos das em no na nos nas um uma pra p
   'meu minha teu tua seu sua eu tu ele ela me te se já não sim mais menos muito pouco agora depois ' +
   'antes ficou fica fiz fez faz vou vai foi tem ter tenho tô to está estou era ser são isso esse essa ' +
   'aquilo aqui ali lá ai aí ok oi olá bom boa dia dias mes mês ano anos hora horas vez quero queria ' +
-  'pode posso quer deu dar bota põe pôe tira tirar pego pega pegar leite arroz pão café ovo ovos').split(' ').map(sem));
+  'pode posso quer deu dar bota põe pôe tira tirar pego pega pegar leite arroz pão café ovo ovos ' +
+  'conta contas pagar pago paga paguei pagando boleto boletos fatura faturas vence vencem vencimento cartão luz').split(' ').map(sem));
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: DISTÂNCIA (Damerau–Levenshtein restrita)
