@@ -301,7 +301,7 @@ export async function desenharCartao(cartao, fundo = fundoDoDia()) {
   sombra(18);
   ctx.fillStyle = OURO; ctx.font = `700 64px ${MARCA}`;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '6px';
-  ctx.fillText(cartao.rotulo.toUpperCase(), W / 2, 340);
+  ctx.fillText(cartao.rotulo.toUpperCase(), W / 2 + ('letterSpacing' in ctx ? 3 : 0), 340);   // +3: centro de verdade com o espaçamento
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   ctx.shadowBlur = 0;
   // O cartão no meio: vidro escuro com borda dourada
@@ -355,9 +355,11 @@ export async function desenharCartao(cartao, fundo = fundoDoDia()) {
   if (logo) { sombra(20); ctx.drawImage(logo, W / 2 - 60, 1478, 120, 120); ctx.shadowBlur = 0; }
   sombra(24, 'rgba(245,197,24,0.45)');
   ctx.fillStyle = OURO; ctx.font = `700 66px ${MARCA}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '8px';
-  ctx.fillText('ESTILO FALCON', W / 2, 1650);
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  const espaco = 'letterSpacing' in ctx;
+  if (espaco) ctx.letterSpacing = '8px';
+  // O espaçamento sobra depois da última letra: +4px deixa o nome no centro de verdade
+  ctx.fillText('ESTILO FALCON', W / 2 + (espaco ? 4 : 0), 1650);
+  if (espaco) ctx.letterSpacing = '0px';
   sombra(12);
   ctx.fillStyle = LILAS; ctx.font = `400 32px ${FONTE}`;
   ctx.fillText('estilo-falcon.web.app', W / 2, 1700);
