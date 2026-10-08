@@ -396,10 +396,10 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   ov.className = 'modal-overlay cartao-dia-ov';
   ov.innerHTML = `
     <div class="cartao-dia-box">
-      <div class="cartao-dia-moldura">
+      <div class="cartao-dia-moldura"><div class="cartao-dia-quadro">
         <button class="cartao-dia-seta esq" data-seta="-1" aria-label="Fundo anterior">‹</button>
         <button class="cartao-dia-seta dir" data-seta="1" aria-label="Próximo fundo">›</button>
-        <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}"></div>
+        <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}"></div></div>
       <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>

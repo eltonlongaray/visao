@@ -1005,7 +1005,7 @@ async function routeCommand(text) {
 
   // "troca o fundo do cartão", "fundo do cartão com a lua": muda o fundo e abre
   if (/\bfundo\b/i.test(text) && /\bcart(?:ao|ão)\b/i.test(text)) {
-    const m = await import('./cartoes-dia.js?v=20261008g').catch(() => null);
+    const m = await import('./cartoes-dia.js?v=20261008h').catch(() => null);
     if (m) {
       const sem = (x) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const pedido = m.FUNDOS.find(f => sem(text).includes(sem(f.nome)) || f.id.split('-').some(p => p.length > 4 && sem(text).includes(p)));
@@ -1017,7 +1017,7 @@ async function routeCommand(text) {
   }
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261008g').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261008h').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';
