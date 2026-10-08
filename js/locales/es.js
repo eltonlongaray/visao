@@ -181,6 +181,7 @@ export default {
   'recur.del.title':         '⚠️ ¿Eliminar tarea recurrente?',
   'recur.del.template':      'Esta tarea también se repite en semanas futuras (plantilla).',
   'recur.del.days':          'Aparece en {count} día(s) más esta semana.',
+  'recur.del.monthly':       'Se repite todos los meses el día {dia}.',
   'recur.del.one':           'Solo este día',
   'recur.del.one.sub':       'La mantiene en otros días y semanas futuras',
   'recur.del.all':           'Toda la recurrencia',

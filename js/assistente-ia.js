@@ -41,7 +41,7 @@ import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261007c';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261008b';
-import * as PCT from './pet-contas.js?v=20261007b';
+import * as PCT from './pet-contas.js?v=20261008a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // ═══════════════════════════════════════════════════════════════
@@ -818,6 +818,12 @@ async function dispatchCommand(text) {
       const n = await entenderNaNuvem(semChamado(text));
       if (n !== undefined && n !== 'fora') reply = n;
     }
+    // "Remova a conta a pagar da academia": apaga a regra mensal e os próximos
+    // meses. Antes da nuvem, que confundia com cadastrar contas.
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarExcluirConta(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
     if (reply === undefined && typeof text !== 'function') {
@@ -992,12 +998,14 @@ async function routeCommand(text) {
   // ^marca do registro e viraria um agendamento. ──
   // ── Cartão do dia: abre o cartão (o botão Compartilhar fica nele) ──
   // ── Contas a pagar em lote ("…: Internet - dia 02, Seguro - dia 05") ──
+  const rApagaConta = await tentarExcluirConta(text);
+  if (rApagaConta !== undefined) return rApagaConta;
   const rContas = await tentarContasLote(text);
   if (rContas !== undefined) return rContas;
 
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261007c').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261008b').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';
@@ -1253,6 +1261,16 @@ async function entenderNaNuvem(text) {
   if (j.acao === 'cancelar') return cmdCancelarNuvem(j, false, text);
   if (j.acao === 'reativar') return cmdCancelarNuvem(j, true, text);
   if (j.acao === 'remarcar') return cmdCancelarNuvem(j, false, text, true);
+  // Conta que a pessoa não falou (o modelo às vezes copia os exemplos: Luz,
+  // Água, Aluguel) não entra: só fica o nome que está na conversa
+  if (j.acao === 'contas_pagar' && Array.isArray(j.itens)) {
+    const falado = ` ${PCT.normNome(pedido)} `;
+    j.itens = j.itens.filter(i => {
+      const nome = PCT.normNome(String(i).split(/\s+[-–—:]\s*dia\b|\s+dia\s+\d/i)[0]);
+      return nome && falado.includes(` ${nome} `);
+    });
+    if (!j.itens.length) return undefined;
+  }
   const frase = PN.fraseDoApp(j);
   if (!frase) return 'fora';   // "conversa": quem chamou decide (oi/ajuda passam; o resto é fora do app)
   _naNuvem = true;
@@ -3893,8 +3911,11 @@ async function apagarSoEsseDia(tk, id) {
 // da semana, dos mensais e das regras de repetição do Pet
 async function apagarTodasRepeticoes(tk, data) {
   const titulo = (tk.title || '').trim().toLowerCase(), cat = tk.categoryId || '', grupo = tk.recurrenceGroupId || '';
+  // Conta a pagar: todas têm o mesmo título, só a descrição muda ("Luz", "Academia")
+  const conta = PCT.ehContaAPagar(tk), desc = PCT.normNome(tk.desc);
   const bate = (x) => (grupo && (x.recurrenceGroupId === grupo || x.groupId === grupo)) ||
-    ((x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat);
+    ((x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat &&
+      (!conta || PCT.normNome(x.desc) === desc));
   const fim = new Date(data); fim.setDate(fim.getDate() + 365);
   const dias = await fetchDaysRange(data, fim);
   let n = 0;
@@ -4003,6 +4024,56 @@ async function tentarContasLote(text) {
   if (!novas.length) return `Todas essas contas já estão agendadas ✅ (${linhas.map(l => _esc(l.nome)).join(', ')}).`;
   cardContasLote(linhas);
   return null;
+}
+
+// "Remova a conta a pagar da academia", "tira o boleto da luz": acha a conta
+// pelo nome (descrição) nas regras mensais e apaga a regra + os próximos meses.
+// Sem isso a regra recriava a conta todo mês, mesmo apagando na tela.
+async function tentarExcluirConta(text) {
+  if (!PCT.ehApagarConta(text)) return undefined;
+  const prof = await getProfile().catch(() => null);
+  const regras = (Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : []).filter(r => r.freq === 'monthly');
+  const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
+  const achadas = PCT.contasCitadas([...regras, ...mensais], text);
+  if (!achadas.length) {
+    // Falou "conta a pagar" com todas as letras: não cai no apagar de atividade
+    if (!/\bcontas?\s+a\s+pagar\b|\bboletos?\b|\bfaturas?\b/i.test(text)) return undefined;
+    const todas = [...new Set([...regras, ...mensais].filter(PCT.ehContaAPagar).map(c => String(c.desc || '').trim()).filter(Boolean))];
+    return todas.length
+      ? `Não achei essa nas tuas contas a pagar 🤔 As que estão cadastradas: ${todas.map(_esc).join(', ')}. Qual eu apago?`
+      : 'Tu ainda não tem nenhuma conta a pagar cadastrada.';
+  }
+  const porNome = new Map();   // nome normalizado -> { nome, dias }
+  for (const c of achadas) {
+    const k = PCT.normNome(c.desc);
+    if (!porNome.has(k)) porNome.set(k, { nome: c.desc.trim(), dias: new Set() });
+    if (c.dayOfMonth) porNome.get(k).dias.add(String(c.dayOfMonth).padStart(2, '0'));
+  }
+  const nomes = [...porNome.values()];
+  const rot = (n) => `<b>${_esc(n.nome)}</b>${n.dias.size ? ` (todo dia ${[...n.dias].join(', ')})` : ''}`;
+  cardConfirmarLista(`🗑️ Apagar ${nomes.length === 1 ? 'a conta a pagar' : 'as contas a pagar'} ${nomes.map(rot).join(', ')}?<br><small>Para de repetir e some dos próximos meses. Os meses que já passaram ficam.</small>`, async () => {
+    const n = await apagarContas(new Set(porNome.keys()), new Set(achadas.map(c => c.groupId).filter(Boolean)));
+    return `✅ Apaguei ${nomes.map(x => `<strong>${_esc(x.nome)}</strong>`).join(', ')} das contas a pagar${n ? ` (${n} dia${n === 1 ? '' : 's'} na agenda)` : ''}. Não volta mais.`;
+  }, null);
+  return null;
+}
+
+async function apagarContas(nomes, grupos) {
+  const bate = (x) => (grupos.has(x.recurrenceGroupId) || grupos.has(x.groupId)) ||
+    (PCT.ehContaAPagar(x) && nomes.has(PCT.normNome(x.desc)));
+  const prof = await getProfile().catch(() => null);
+  const patch = {};
+  const regras = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : [];
+  if (regras.some(bate)) patch.recurrenceRules = regras.filter(x => !bate(x));
+  const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
+  if (mensais.some(bate)) patch.monthlyCommitments = mensais.filter(x => !bate(x));
+  if (Object.keys(patch).length) await setProfile(patch);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const fim = new Date(hoje); fim.setDate(fim.getDate() + 400);
+  const dias = await fetchDaysRange(hoje, fim).catch(() => []);
+  let n = 0;
+  for (const d of dias) for (const x of d.tasks || []) if (!x.done && bate(x)) { try { await deleteDayTask(d.id, x.id); n++; } catch { /* segue */ } }
+  return n;
 }
 
 function cardContasLote(linhas) {

@@ -181,6 +181,7 @@ export default {
   'recur.del.title':         '⚠️ Delete recurring task?',
   'recur.del.template':      'This task also repeats in future weeks (template).',
   'recur.del.days':          'Appears in {count} more day(s) this week.',
+  'recur.del.monthly':       'Repeats every month on day {dia}.',
   'recur.del.one':           'This day only',
   'recur.del.one.sub':       'Keeps it on other days and future weeks',
   'recur.del.all':           'Entire recurrence',
