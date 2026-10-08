@@ -1005,7 +1005,7 @@ async function routeCommand(text) {
 
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261008b').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261008c').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';
