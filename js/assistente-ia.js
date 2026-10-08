@@ -40,7 +40,7 @@ import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261007c';
 import * as PNT from './pet-nota.js?v=20261006a';
-import * as PR from './pet-ritual.js?v=20261008a';
+import * as PR from './pet-ritual.js?v=20261008b';
 import * as PCT from './pet-contas.js?v=20261007b';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
@@ -3207,7 +3207,7 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
   c.em = Date.now();
   const r = await PASSOS[c.passo]({ id, texto: texto || '' }, c.dados);
   if (r !== undefined) return r;
-  if (pareceComando(texto)) { _conversa = null; return undefined; }   // era comando novo
+  if (pareceComando(texto) || (texto && ehPedido(texto))) { _conversa = null; return undefined; }   // era comando/pedido novo
   // As regras não pegaram: a IA na nuvem lê a resposta e escolhe o botão certo
   if (texto && PN.nuvemLigada()) {
     const j = await PN.perguntarNuvem({
@@ -3497,6 +3497,8 @@ const PEDIDO_RE = /\b(muda|mudar|mude|troca|trocar|troque|passa|passar|passe|rem
 const ehPedido = (texto) => {
   // "eu preciso que tu troque…", "olha, queria que tu marcasse…"
   const t = PC.norm(texto).replace(/^(?:(?:eu|olha|entao|ai|tipo)[\s,]+)+/, '');
+  // "me manda as atividades de hoje", "quais tarefas eu tenho?": consulta, não resposta
+  if (/\?\s*$/.test(String(texto)) || /^(me (manda|mostra|passa|diz|fala|lista|ve)|mostra|manda|lista|quais|qual|quanto|quantos|quantas|cade)\b/.test(t)) return true;
   return /^(pode|podes|consegue|preciso que|quero que|queria que|da pra|tem como|me ajuda)\b/.test(t) ||
     PEDIDO_RE.test(t.split(/\s+/).slice(0, 6).join(' ')) || ehComandoCurto(texto);
 };

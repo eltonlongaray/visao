@@ -187,7 +187,7 @@ export function lerConsultaAgenda(texto) {
   if (/\b(semana|proximos dias)\b/.test(t)) return { semana: true, proxima: /semana que vem|proxima semana/.test(t) };
   if (!DIA_RE.test(t)) return null;
   // "compromisso" sozinho sem "o que/qual/quais" pode ser registro ("compromisso sexta 10h")
-  if (!/\b(o que|qual|quais|minha agenda|agenda d|como|mostra|ve|ver|lista)\b/.test(t) && !/\?\s*$/.test(t)) return null;
+  if (!/\b(o que|qual|quais|minha agenda|agenda d|como|mostra|manda|passa|envia|ve|ver|lista)\b/.test(t) && !/\?\s*$/.test(t)) return null;
   return { semana: false };
 }
 
