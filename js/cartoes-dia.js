@@ -58,7 +58,7 @@ export const CARTOES = [
   F('Princípio 20', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque ninguém cresce sozinho e o que eu faço volta pro todo. “O que não é bom para a colmeia não é bom para a abelha.”', 'Marco Aurélio'),
   F('Princípio 21', 'Temperança', 'Tenho domínio sobre os meus desejos, e não o contrário. Como, bebo, gasto e falo na medida certa: nem excesso, nem falta. Cada vez que escolho a medida em vez do impulso, fico mais livre e mais forte.', 'Musônio Rufo'),
   F('Princípio 22', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A motivação vai e vem; a disciplina fica. Cada promessa que eu cumpro comigo mesmo me deixa mais forte. “Nenhum homem é livre se não é senhor de si mesmo.”', 'Epicteto'),
-  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Meus pensamentos, minhas escolhas e minhas ações são meus: é ali que ponho toda a minha energia. O resto, como a opinião dos outros e o passado, eu aceito com serenidade.', 'Epicteto'),
+  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Meus pensamentos, minhas escolhas e minhas ações são meus: é ali que ponho toda a minha energia. O resto, como a opinião dos outros, o passado e as situações imprevisíveis, eu aceito com serenidade.', 'Epicteto'),
   F('Princípio 24', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Não gasto energia brigando com o que já é. Tudo o que me acontece vira matéria-prima pra eu crescer, como o fogo que transforma em chama tudo o que jogam nele.', 'Marco Aurélio'),
   F('Princípio 25', 'Lembra que vais morrer', 'Lembro que o tempo é curto e não volta. Não adio o que importa: o abraço, o projeto, a conversa. Vivo cada dia como se ele fosse completo em si mesmo. “Não é que temos pouco tempo, é que desperdiçamos muito.”', 'Sêneca'),
   F('Princípio 26', 'O obstáculo é o caminho', 'Quando algo fica no meu caminho, eu não paro: uso aquilo pra avançar. Cada problema é um treino e me mostra o próximo passo. “O que impede a ação faz a ação avançar. O que está no caminho se torna o caminho.”', 'Marco Aurélio'),
@@ -73,17 +73,16 @@ export const CARTOES = [
   F('Pensamento', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora, sem a cabeça no ontem ou no amanhã. A vida acontece no presente, e é nele que eu escolho estar.', 'ensinamentos zen'),
   F('Pensamento', '', 'Não respondo raiva com raiva. Quem devolve ódio só aumenta o fogo; a calma e a compreensão é que apagam. “O ódio não cessa pelo ódio, mas pelo amor.”', 'Buda'),
   F('Pensamento', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira, porque faz parte da vida, mas não atiro a segunda em mim mesmo remoendo o que já passou.', 'Buda'),
-  // Mais 10 do Oriente (pedido do Élton em 08/10)
+  // Mais do Oriente (pedido do Élton em 08/10)
   F('Pensamento', '', 'Faço as coisas com calma e atenção, sem forçar. Quando sigo o jeito natural de cada coisa, o esforço fica leve, como o cozinheiro que corta seguindo as juntas da carne e por isso nunca precisa afiar a faca.', 'Chuang Tzu'),
   F('Pensamento', '', 'Antes de entrar numa batalha, conheço o terreno e conheço a mim mesmo: meus pontos fortes, meus pontos fracos e o que está à minha frente. “Conhece o outro e conhece a ti mesmo, e em cem batalhas não correrás perigo.”', 'Sun Tzu'),
   F('Pensamento', '', 'Não me comparo com os outros: me comparo com quem eu fui ontem. Cada dia é um treino pra ser um pouco melhor do que eu era. “Hoje é a vitória sobre o eu de ontem.”', 'Miyamoto Musashi'),
-  F('Pensamento', '', 'Aprendo e paro pra pensar no que aprendi. Informação sem reflexão não muda nada, e opinião sem estudo me engana. “Estudar sem pensar é inútil; pensar sem estudar é perigoso.”', 'Confúcio'),
   F('Pensamento', '', 'Cresço sem perder a curiosidade, a pureza e a alegria simples que eu tinha quando criança. A maturidade não precisa endurecer o coração. “O grande homem é aquele que não perde o seu coração de criança.”', 'Mêncio'),
   F('Pensamento', '', 'Cuido dos meus pensamentos, porque eles viram palavras, as palavras viram atitudes e as atitudes viram a minha vida. “Tudo o que somos é resultado do que pensamos.”', 'Buda'),
   F('Pensamento', '', 'Sei reconhecer quando já tenho o suficiente. Não vivo correndo atrás do próximo e do próximo: agradeço pelo que já está aqui. “Quem sabe que tem o suficiente é rico.”', 'Lao Tsé'),
   F('Pensamento', '', 'Quando a cabeça acelera, volto pra respiração. Uma respiração consciente já me traz de volta pro agora. “Inspirando, acalmo o corpo e a mente. Expirando, sorrio.”', 'Thich Nhat Hanh'),
   F('Pensamento', '', 'Encaro cada coisa como se fosse a primeira vez, aberto pra aprender, mesmo no que eu já sei fazer. “Na mente do principiante há muitas possibilidades; na do especialista, poucas.”', 'Shunryu Suzuki'),
-  F('Pensamento', '', 'Dou o meu melhor no que faço e solto o resultado. O esforço é meu; o que vem depois não depende só de mim. “Tens direito à ação, mas não aos frutos da ação.”', 'Bhagavad Gita'),
+  F('Pensamento', '', 'Dou o meu melhor no que faço e solto o resultado. O esforço é meu; o que vem depois não cabe a mim.', 'Bhagavad Gita'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
