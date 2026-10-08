@@ -8166,8 +8166,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cartao-dia-img { display: block; width: 100%; height: 100%; border-radius: 14px; }
 .cartao-dia-btns { display: flex; gap: 10px; width: 100%; flex: 0 0 auto; }
 .cartao-dia-btns button { flex: 1; }
-.cartao-dia-seta { position: absolute; bottom: 5%; z-index: 1; width: 20%; height: 48px; padding: 0; border: none; border-radius: 12px; background: rgba(0,0,0,.25); color: #f5c518; font-size: 1.6rem; line-height: 1; cursor: pointer; }
-.cartao-dia-seta.esq { left: 5.56%; }   /* 60/1080: alinha com a borda da caixa do texto */
-.cartao-dia-seta.dir { right: 5.56%; }
+.cartao-dia-seta { position: absolute; bottom: 5%; z-index: 1; height: 48px; padding: 0; border: none; border-radius: 12px; background: rgba(0,0,0,.25); color: #f5c518; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+/* Borda de fora = caixa do texto (60/1080); borda de dentro = começo e fim de "ESTILO FALCON". */
+.cartao-dia-seta.esq { left: 5.56%; width: 14.4%; }
+.cartao-dia-seta.dir { right: 5.56%; width: 15.2%; }
 .cartao-dia-nome-fundo { color: rgba(245,197,24,.8); font-size: .85rem; text-align: center; min-height: 1.2em; }
 .cartao-dia-img { -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
