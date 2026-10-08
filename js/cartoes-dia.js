@@ -395,8 +395,7 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   ov.className = 'modal-overlay cartao-dia-ov';
   ov.innerHTML = `
     <div class="cartao-dia-box">
-      <div class="cartao-dia-topo">🃏 Cartão do dia</div>
-      <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}">
+      <div class="cartao-dia-moldura"><img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}"></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
