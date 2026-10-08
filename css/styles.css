@@ -8161,4 +8161,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cartao-dia-img { width: 100%; max-height: calc(94vh - 130px); object-fit: contain; border-radius: 18px; box-shadow: 0 12px 40px rgba(0,0,0,.55); }
 .cartao-dia-btns { display: flex; gap: 10px; width: 100%; }
 .cartao-dia-btns button { flex: 1; }
+.cartao-dia-fundo { background: none; border: 1px solid rgba(245,197,24,.35); color: #f5c518; border-radius: 999px; padding: 8px 16px; font: inherit; font-size: .9rem; cursor: pointer; }
+.cartao-dia-fundo:disabled { opacity: .5; }
 .cartao-dia-img { -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }

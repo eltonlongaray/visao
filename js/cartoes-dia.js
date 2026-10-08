@@ -7,6 +7,7 @@
 // BLOCO 1 — OS CARTÕES (texto do Élton, igual pra todo mundo)
 // BLOCO 2 — CARTÃO DE HOJE
 // BLOCO 3 — IMAGEM (canvas)
+// BLOCO 3.1 — FUNDOS (cenário desenhado + fotos, sorteio por dia)
 // BLOCO 4 — MODAL + COMPARTILHAR
 // ─────────────────────────────────────────────────────────────
 import { auth } from './autenticacao.js';
@@ -243,11 +244,54 @@ function desenharCenario(ctx) {
   }
 }
 
-export async function desenharCartao(cartao) {
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 3.1: FUNDOS
+// ═══════════════════════════════════════════════════════════════
+// O cenário desenhado + fotos (escolhidas pelo Élton em 08/10, tons quentes).
+// Foto: z = zoom sobre o "cobrir a tela"; fy = ponto da foto (fração da
+// altura) que vai parar em alvo (px do story). Serve pra subir a lua/montanha.
+export const FUNDOS = [
+  { id: 'noite', nome: 'Noite estrelada' },
+  { id: 'valle-dia', nome: 'Valle de la Luna', src: 'img/cartao-fundos/valle-dia.jpg', z: 1.3, fy: 0.10, alvo: 0 },
+  { id: 'valle-lua-vulcao', nome: 'Lua e vulcão', src: 'img/cartao-fundos/valle-lua-vulcao.jpg', z: 1.2, fy: 0.12, alvo: 95 },
+  { id: 'valle-montanhas', nome: 'Montanhas do Atacama', src: 'img/cartao-fundos/valle-montanhas.jpg', z: 1, fy: 0, alvo: 0 },
+  { id: 'deserto-lua', nome: 'Lua no deserto', src: 'img/cartao-fundos/deserto-lua.jpg', z: 1.3, fy: 0.14, alvo: 170 },
+  { id: 'valle-por-do-sol', nome: 'Pôr do sol no Atacama', src: 'img/cartao-fundos/valle-por-do-sol.jpg', z: 1, fy: 0, alvo: 0 },
+  { id: 'stonehenge', nome: 'Stonehenge', src: 'img/cartao-fundos/stonehenge.jpg', z: 1, fy: 0, alvo: 0 },
+  { id: 'montanhas-coloridas', nome: 'Montanhas coloridas', src: 'img/cartao-fundos/montanhas-coloridas.jpg', z: 1, fy: 0, alvo: 0 },
+];
+const CHAVE_FUNDO = 'visao_cartao_fundo';   // vazio = sorteio do dia
+const fundoPorId = (id) => FUNDOS.find(f => f.id === id);
+// Escolha da pessoa (se fez) ou o sorteio do dia, igual pra ela o dia todo
+export function fundoDoDia(data = new Date(), quem = auth.currentUser?.uid || 'anon') {
+  try { const f = fundoPorId(localStorage.getItem(CHAVE_FUNDO)); if (f) return f; } catch { /* sem storage */ }
+  return FUNDOS[hash(`${quem}:fundo:${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`) % FUNDOS.length];
+}
+// "Trocar fundo": vai pro próximo e lembra a escolha
+export function proximoFundo(atual = fundoDoDia()) {
+  const f = FUNDOS[(FUNDOS.indexOf(atual) + 1) % FUNDOS.length];
+  try { localStorage.setItem(CHAVE_FUNDO, f.id); } catch { /* sem storage */ }
+  return f;
+}
+
+async function desenharFundo(ctx, fundo) {
+  const img = fundo?.src ? await carregarImg(fundo.src) : null;
+  if (!img) { desenharCenario(ctx); return; }   // sem foto (offline/erro): cenário desenhado
+  const e = Math.max(W / img.width, H / img.height) * (fundo.z || 1), w = img.width * e, h = img.height * e;
+  const y0 = Math.min(0, Math.max(H - h, (fundo.alvo || 0) - (fundo.fy || 0) * h));
+  ctx.drawImage(img, (W - w) / 2, y0, w, h);
+  // Véu escuro em cima e embaixo: rótulo e marca leem bem em qualquer foto
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(10,5,20,0.55)'); g.addColorStop(0.25, 'rgba(10,5,20,0.15)');
+  g.addColorStop(0.7, 'rgba(10,5,20,0.2)'); g.addColorStop(1, 'rgba(10,5,20,0.75)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+export async function desenharCartao(cartao, fundo = fundoDoDia()) {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
-  desenharCenario(ctx);
+  await desenharFundo(ctx, fundo);
   await carregarFonte();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const sombra = (blur, cor = 'rgba(0,0,0,0.7)') => { ctx.shadowColor = cor; ctx.shadowBlur = blur; };
@@ -323,8 +367,8 @@ export async function desenharCartao(cartao) {
 const comoArquivo = (cv) => new Promise((ok) => cv.toBlob(b => ok(new File([b], 'cartao-falcon.png', { type: 'image/png' })), 'image/png'));
 
 // Compartilhar: menu do celular (WhatsApp, Instagram…) ou, sem ele, baixa a imagem
-export async function compartilharCartao(cartao = cartaoDoDia()) {
-  const arq = await comoArquivo(await desenharCartao(cartao));
+export async function compartilharCartao(cartao = cartaoDoDia(), fundo = fundoDoDia()) {
+  const arq = await comoArquivo(await desenharCartao(cartao, fundo));
   if (navigator.canShare?.({ files: [arq] })) {
     try { await navigator.share({ files: [arq], text: 'Meu cartão do dia no Estilo Falcon 🦅 estilo-falcon.web.app' }); return 'compartilhado'; }
     catch (e) { if (e?.name === 'AbortError') return 'cancelado'; }
@@ -345,7 +389,8 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   if (document.querySelector('.cartao-dia-ov')) return;
   marcarVisto();
   const cartao = cartaoDoDia();
-  const cv = await desenharCartao(cartao);
+  let fundo = fundoDoDia();
+  const cv = await desenharCartao(cartao, fundo);
   const ov = document.createElement('div');
   ov.className = 'modal-overlay cartao-dia-ov';
   ov.innerHTML = `
@@ -356,14 +401,21 @@ export async function abrirCartaoDoDia(aoFechar = null) {
         <button class="btn-primary" data-share>📤 Compartilhar</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
+      <button class="cartao-dia-fundo" data-fundo>🖼️ Trocar fundo</button>
     </div>`;
   ov.querySelector('img').src = cv.toDataURL('image/png');
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => { ov.remove(); aoFechar?.(); });
   ov.querySelector('[data-fechar]').onclick = () => fechar();
+  ov.querySelector('[data-fundo]').onclick = async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    fundo = proximoFundo(fundo);
+    ov.querySelector('img').src = (await desenharCartao(cartao, fundo)).toDataURL('image/png');
+    b.disabled = false; b.textContent = `🖼️ Trocar fundo · ${fundo.nome}`;
+  };
   ov.querySelector('[data-share]').onclick = async (e) => {
     const b = e.currentTarget; b.disabled = true;
-    const r = await compartilharCartao(cartao).catch(() => 'erro');
+    const r = await compartilharCartao(cartao, fundo).catch(() => 'erro');
     b.disabled = false;
     if (r === 'baixado') b.textContent = '✅ Imagem salva';
   };
