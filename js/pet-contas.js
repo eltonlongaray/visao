@@ -6,6 +6,7 @@
 // grava é o BLOCO 8.12 do assistente-ia.js.
 // BLOCO 1 — LER A LISTA
 // BLOCO 2 — JÁ ESTÁ AGENDADO?
+// BLOCO 3 — APAGAR UMA CONTA
 // ─────────────────────────────────────────────────────────────
 
 export const TITULO_CONTA = 'Contas a pagar';
@@ -60,7 +61,7 @@ function inicioDaLista(t, ate) {
 export function lerLoteDeContas(texto) {
   const t = String(texto || '');
   const s = semAcento(t);
-  if (!GATILHO.test(s) || PERGUNTA.test(t.trim())) return null;
+  if (!GATILHO.test(s) || PERGUNTA.test(t.trim()) || ehApagarConta(t)) return null;
   const marcas = [...t.matchAll(DIA_G)];
   const itens = [];
   const vistos = new Set();
@@ -123,4 +124,21 @@ export function mesmaConta(nome, coisa) {
 // escrita diferente ("Faculdade" x "FIAP"). Não decide sozinho: o card avisa.
 export function ehContaAPagar(coisa) {
   return normNome(coisa?.title) === normNome(TITULO_CONTA);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 3: APAGAR UMA CONTA
+// ═══════════════════════════════════════════════════════════════
+// "Remova o compromisso de contas a pagar da academia": pedido de apagar que
+// fala de conta. Quem apaga é o assistente (regra mensal + próximos meses).
+const APAGAR = /\b(?:apag|exclu|delet|remov|tir[ae]\b|tirar|para\s+de\s+repetir)\w*/i;
+export function ehApagarConta(texto) {
+  const s = semAcento(texto).toLowerCase();
+  return APAGAR.test(s) && /\b(?:contas?|boletos?|faturas?)\b/.test(s);
+}
+
+// Quais "Contas a pagar" a frase cita, pelo nome que está na descrição
+export function contasCitadas(coisas, texto) {
+  const t = ` ${normNome(texto)} `;
+  return (coisas || []).filter(c => ehContaAPagar(c) && normNome(c.desc) && t.includes(` ${normNome(c.desc)} `));
 }

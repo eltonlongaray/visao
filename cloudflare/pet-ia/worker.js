@@ -59,7 +59,7 @@ No cancelar e no reativar, "titulo" é OBRIGATÓRIO: é o nome curto da atividad
 "sono" = registrar sono: "campo" = "acordei" | "dormi" (com "hora") | "cochilo" | "madrugada" (com "numero" = minutos), "quando" = dia.
 "nota" = nota do dia (o diário do Ritual): "campo" = "orgulho" (orgulho e falha do dia) | "melhorar" (o que vai fazer melhor) | "apagar" | "preencher" (quer preencher conversando), "texto" = o que anotar, "quando" = dia.
 "consultar_dia" = ver a agenda de um dia ou da semana: "quando" ("sexta", "amanhã", "essa semana", "semana que vem"), "campo" = "passado" se pergunta o que JÁ fez.
-"contas_pagar" = cadastrar contas que a pessoa paga todo mês (luz, internet, cartão, financiamento, aluguel…): "itens" tem UMA conta por posição no formato "Nome - dia NN" (o dia do vencimento). Não precisa de "quando" nem "hora": o app repete todo mês com lembrete.
+"contas_pagar" = cadastrar contas que a pessoa paga todo mês (luz, internet, cartão, financiamento, aluguel…): "itens" tem UMA conta por posição no formato "Nome - dia NN" (o dia do vencimento). Não precisa de "quando" nem "hora": o app repete todo mês com lembrete. É só pra CRIAR conta nova, com os nomes e dias que a pessoa falou na conversa; nunca copia contas dos exemplos. Apagar, remover ou tirar uma conta = "excluir" com "titulo" = nome da conta e "todas": true.
 "perguntar" = o pedido É do app, mas falta uma informação que o app não tem como adivinhar (o que agendar, o dia do vencimento da conta, qual lista…). Em "resposta" vai UMA pergunta curta e simpática pedindo só o que falta. Não pergunta o que tem padrão (hora de conta a pagar, lista "mercado", "hoje"). Na dúvida entre duas leituras, pergunta qual é.
 "nao_sei_fazer" = o pedido É do app, mas nenhuma ação acima faz isso (ex.: mudar o tema, mudar o idioma, mudar a meta, apagar a conta, mexer em notificação). Não inventa caminho na tela.
 Quando vier "Conversa até agora", a mensagem nova pode ser só a resposta da tua pergunta ("dia 10", "a de luz"): junta com o que a pessoa já disse e devolve a ação completa.
@@ -102,6 +102,8 @@ Pessoa: coloca na minha nota de ontem que eu tenho orgulho de ter treinado mesmo
 {"acao":"nota","campo":"orgulho","texto":"tenho orgulho de ter treinado mesmo cansado","quando":"ontem","resposta":"Vou anotar na tua nota de ontem."}
 Pessoa: pode apagar a reunião de quinta que foi cancelada de vez
 {"acao":"excluir","titulo":"Reunião","quando":"quinta","resposta":"Beleza, vou apagar a reunião de quinta."}
+Pessoa: tira o seguro das minhas contas, já quitei
+{"acao":"excluir","titulo":"conta a pagar Seguro","todas":true,"resposta":"Beleza, vou tirar o seguro das contas a pagar."}
 Pessoa: esqueci de marcar, eu fiz a leitura ontem sim
 {"acao":"marcar_feito","titulo":"Leitura","quando":"ontem","resposta":"Boa! Vou marcar a leitura de ontem como feita 📚"}
 Pessoa: me mostra o que eu tenho marcado pra sexta-feira

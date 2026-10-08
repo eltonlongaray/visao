@@ -2306,13 +2306,13 @@ async function showOverdueReminderModal(app, day, t) {
 
 // Modal de escolha pra exclusão de tarefa recorrente
 // Retorna 'one' | 'all' | null (cancelado)
-function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence) {
+function askDeleteScope(taskTitle, otherCount, hasTemplateRecurrence, infoMensal) {
   return new Promise((resolve) => {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
-    const subInfo = hasTemplateRecurrence
+    const subInfo = infoMensal || (hasTemplateRecurrence
       ? tr('recur.del.template')
-      : tr('recur.del.days', { count: otherCount });
+      : tr('recur.del.days', { count: otherCount }));
     modal.innerHTML = `
       <div class="modal" style="max-width:340px">
         <div class="modal-title" style="text-align:center">${tr('recur.del.title')}</div>
@@ -2998,13 +2998,22 @@ function attachHandlers(app) {
       // Tarefas criadas pelo pet (sem recurrenceGroupId nem recurrenceType) nunca disparam
       // o dialog — evita falso-positivo por match casual de título+categoria.
       const taskIsRecurring = !!(t.recurrenceGroupId || (t.recurrenceType && t.recurrenceType !== 'today'));
-      const isRecurring = taskIsRecurring && (recurringDays.length > 0 || recurringInTemplates.length > 0);
+      // Regra mensal (ex.: "Contas a pagar / Academia"): só existe 1 por mês, então
+      // não aparece em outros dias da semana nem nos moldes. Sem isto o apagar era
+      // simples e ensurePinnedRecurrences recriava a tarefa no próximo load.
+      const regraMensal = t.recurrenceGroupId
+        ? ((profile?.recurrenceRules || []).find(r => r.freq === 'monthly' && r.groupId === t.recurrenceGroupId) ||
+           (profile?.monthlyCommitments || []).find(m => (m.recurrenceGroupId || m.groupId) === t.recurrenceGroupId))
+        : null;
+      const isRecurring = taskIsRecurring && (!!regraMensal || recurringDays.length > 0 || recurringInTemplates.length > 0);
 
       let scope = 'one'; // 'one' | 'all'
       if (isRecurring) {
         // Mostra o total de ocorrências (na semana atual + templates futuros)
         const totalOther = recurringDays.length + (recurringInTemplates.length > 0 ? 1 : 0);
-        scope = await askDeleteScope(t.title, totalOther, recurringInTemplates.length > 0);
+        const infoMensal = regraMensal
+          ? tr('recur.del.monthly', { dia: String(regraMensal.dayOfMonth || '').padStart(2, '0') }) : '';
+        scope = await askDeleteScope(t.desc ? `${t.title} · ${t.desc}` : t.title, totalOther, recurringInTemplates.length > 0, infoMensal);
         if (!scope) return; // cancelado
       } else {
         // Não-recorrente: confirma SEM oferecer a opção de excluir recorrências
@@ -3080,9 +3089,14 @@ function attachHandlers(app) {
           const tTitleKey = (t.title || '').trim().toLowerCase();
           const tCatKey = t.categoryId || '';
           const tGroupId = t.recurrenceGroupId || '';
+          // Mensal: várias regras com o mesmo título ("Contas a pagar") e só a
+          // descrição muda. Aqui o fallback exige a descrição igual também,
+          // senão apagar "Academia" levava junto Luz, Internet, FIAP…
+          const tDescKey = (t.desc || '').trim().toLowerCase();
           const matchesT = (x) => {
             // groupId match (estrito quando ambos têm)
-            if (tGroupId && x.recurrenceGroupId === tGroupId) return true;
+            if (tGroupId && (x.recurrenceGroupId === tGroupId || x.groupId === tGroupId)) return true;
+            if (regraMensal && (x.desc || '').trim().toLowerCase() !== tDescKey) return false;
             // Fallback título+categoria (legado)
             const xTitle = (x.title || '').trim().toLowerCase();
             const xCat = x.categoryId || '';
@@ -3114,7 +3128,8 @@ function attachHandlers(app) {
             //     sem isto a tarefa "toda semana" do Pet renascia depois do "todas"
             const regrasCur = Array.isArray(profile?.recurrenceRules) ? profile.recurrenceRules : [];
             const regrasFiltradas = regrasCur.filter(r => !(tGroupId && r.groupId === tGroupId) &&
-              !((r.title || '').trim().toLowerCase() === tTitleKey && (r.categoryId || '') === tCatKey));
+              !((r.title || '').trim().toLowerCase() === tTitleKey && (r.categoryId || '') === tCatKey &&
+                (!regraMensal || (r.desc || '').trim().toLowerCase() === tDescKey)));
             if (regrasFiltradas.length !== regrasCur.length) {
               await setProfile({ recurrenceRules: regrasFiltradas });
               profile.recurrenceRules = regrasFiltradas;

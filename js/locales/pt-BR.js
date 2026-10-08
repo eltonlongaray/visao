@@ -181,6 +181,7 @@ export default {
   'recur.del.title':         '⚠️ Excluir tarefa recorrente?',
   'recur.del.template':      'Esta tarefa também se repete em semanas futuras (template).',
   'recur.del.days':          'Aparece em mais {count} dia(s) desta semana.',
+  'recur.del.monthly':       'Repete todo mês no dia {dia}.',
   'recur.del.one':           'Somente este dia',
   'recur.del.one.sub':       'Mantém nos outros dias e nas próximas semanas',
   'recur.del.all':           'Toda a recorrência',
