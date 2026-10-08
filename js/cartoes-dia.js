@@ -8,7 +8,7 @@
 // BLOCO 2 — CARTÃO DE HOJE
 // BLOCO 3 — IMAGEM (canvas)
 // BLOCO 3.1 — FUNDOS (cenário desenhado + fotos, sorteio por dia)
-// BLOCO 4 — MODAL + COMPARTILHAR
+// BLOCO 4 — MODAL + COMPARTILHAR + ESCOLHER FUNDO (importar, transparente, grade)
 // ─────────────────────────────────────────────────────────────
 import { auth } from './autenticacao.js';
 import { trapModalBack } from './modal-voltar.js';
@@ -259,9 +259,97 @@ export const FUNDOS = [
   { id: 'valle-por-do-sol', nome: 'Pôr do sol no Atacama', src: 'img/cartao-fundos/valle-por-do-sol.jpg', z: 1, fy: 0, alvo: 0 },
   { id: 'stonehenge', nome: 'Stonehenge', src: 'img/cartao-fundos/stonehenge.jpg', z: 1, fy: 0, alvo: 0 },
   { id: 'montanhas-coloridas', nome: 'Montanhas coloridas', src: 'img/cartao-fundos/montanhas-coloridas.jpg', z: 1, fy: 0, alvo: 0 },
+  // Fotos do Pexels baixadas pelo Élton em 08/10: já vêm cortadas no tamanho
+  // do story (1080×1920), então não precisam de zoom/posição
+  ...[
+    ['por-do-sol-na-cidade', 'Pôr do sol na cidade'], ['floresta-escura', 'Floresta escura'], ['floresta-verde', 'Floresta verde'],
+    ['trilha-na-floresta', 'Trilha na floresta'], ['floresta-dourada', 'Floresta dourada'], ['via-lactea-no-deserto', 'Via Láctea no deserto'],
+    ['via-lactea', 'Via Láctea'], ['ceu-da-madrugada', 'Céu da madrugada'], ['via-lactea-no-campo', 'Via Láctea no campo'],
+    ['ceu-estrelado', 'Céu estrelado'], ['arvore-sob-as-estrelas', 'Árvore sob as estrelas'], ['anoitecer-na-pedra', 'Anoitecer na pedra'],
+    ['vulcao-ao-luar', 'Vulcão ao luar'], ['lua-cheia-no-mar', 'Lua cheia no mar'], ['lua-crescente', 'Lua crescente'],
+    ['montanhas-a-noite', 'Montanhas à noite'], ['raios-de-sol-nas-montanhas', 'Raios de sol nas montanhas'],
+    ['sol-nas-montanhas-floridas', 'Sol nas montanhas floridas'], ['por-do-sol-na-serra', 'Pôr do sol na serra'],
+    ['por-do-sol-com-coqueiros', 'Pôr do sol com coqueiros'], ['amanhecer-no-parque', 'Amanhecer no parque'],
+    ['sol-sobre-as-ondas', 'Sol sobre as ondas'], ['mar-dourado', 'Mar dourado'], ['por-do-sol-vermelho', 'Pôr do sol vermelho'],
+    ['sol-entre-nuvens-no-mar', 'Sol entre nuvens no mar'], ['coqueiros-ao-entardecer', 'Coqueiros ao entardecer'],
+    ['reflexo-do-sol-no-mar', 'Reflexo do sol no mar'], ['luz-no-pinheiral', 'Luz no pinheiral'], ['ceu-em-chamas', 'Céu em chamas'],
+    ['sol-na-baia', 'Sol na baía'], ['silhueta-das-plantas', 'Silhueta das plantas'], ['acima-das-nuvens', 'Acima das nuvens'],
+    ['amanhecer-com-nevoa', 'Amanhecer com névoa'], ['fim-de-tarde-na-praia', 'Fim de tarde na praia'], ['ilhas-ao-por-do-sol', 'Ilhas ao pôr do sol'],
+    ['barco-no-sol', 'Barco no sol'], ['sol-entre-as-arvores', 'Sol entre as árvores'], ['sol-na-cerca', 'Sol na cerca'],
+    ['coqueiros-na-praia', 'Coqueiros na praia'], ['surfista-no-por-do-sol', 'Surfista no pôr do sol'], ['sol-radiante', 'Sol radiante'],
+    ['coqueiral-ao-entardecer', 'Coqueiral ao entardecer'], ['caminhada-no-por-do-sol', 'Caminhada no pôr do sol'],
+    ['sol-atras-da-serra', 'Sol atrás da serra'], ['sol-dourado', 'Sol dourado'], ['ilha-no-horizonte', 'Ilha no horizonte'],
+    ['lagoa-esmeralda', 'Lagoa esmeralda'], ['rio-entre-pedras', 'Rio entre pedras'], ['lago-verde', 'Lago verde'], ['cataratas', 'Cataratas'],
+    ['caverna-azul', 'Caverna azul'], ['lago-entre-montanhas', 'Lago entre montanhas'], ['coqueiral-na-praia', 'Coqueiral na praia'],
+    ['falesia-vermelha', 'Falésia vermelha'], ['falesia-e-mar-azul', 'Falésia e mar azul'], ['montanha-arco-iris', 'Montanha arco-íris'],
+    ['lago-glacial', 'Lago glacial'], ['coqueiro-solitario', 'Coqueiro solitário'], ['cachoeira-na-mata', 'Cachoeira na mata'],
+    ['rio-no-vale', 'Rio no vale'], ['lago-turquesa', 'Lago turquesa'], ['cascata', 'Cascata'], ['coqueiros-ao-vento', 'Coqueiros ao vento'],
+    ['lagoa-escondida', 'Lagoa escondida'], ['lago-nos-alpes', 'Lago nos Alpes'], ['cachoeira-e-arco-iris', 'Cachoeira e arco-íris'],
+    ['costa-verde', 'Costa verde'], ['lago-das-dolomitas', 'Lago das Dolomitas'], ['canion', 'Cânion'], ['pier-no-lago', 'Píer no lago'],
+    ['vale-das-montanhas', 'Vale das montanhas'], ['gruta', 'Gruta'], ['praia-rosa', 'Praia rosa'], ['rio-azul', 'Rio azul'],
+    ['lago-cristalino', 'Lago cristalino'], ['lago-e-passaros', 'Lago e pássaros'], ['coqueiros-na-agua', 'Coqueiros na água'],
+    ['outono-na-cascata', 'Outono na cascata'], ['lago-transparente', 'Lago transparente'], ['carpas', 'Carpas'],
+    ['carpas-coloridas', 'Carpas coloridas'], ['carpa-vermelha', 'Carpa vermelha'], ['carpas-no-escuro', 'Carpas no escuro'],
+    ['carpas-e-flores', 'Carpas e flores'], ['carpa-entre-folhas', 'Carpa entre folhas'], ['carpas-nas-pedras', 'Carpas nas pedras'],
+    ['cardume-de-carpas', 'Cardume de carpas'], ['falcao-peregrino', 'Falcão peregrino'], ['falcao-de-perfil', 'Falcão de perfil'],
+    ['olhar-de-aguia', 'Olhar de águia'], ['falcao-em-voo', 'Falcão em voo'], ['falcao-no-poleiro', 'Falcão no poleiro'],
+    ['falcao-de-peito-dourado', 'Falcão de peito dourado'], ['falcao-marrom', 'Falcão marrom']
+  ].map(([id, nome]) => ({ id, nome, src: `img/cartao-fundos/${id}.jpg` })),
 ];
+// Especiais (fora do sorteio do dia): sem fundo e a imagem da própria pessoa
+export const TRANSPARENTE = { id: 'transparente', nome: 'Sem fundo (transparente)', transparente: true };
 const CHAVE_FUNDO = 'visao_cartao_fundo';   // vazio = sorteio do dia
-const fundoPorId = (id) => FUNDOS.find(f => f.id === id);
+const CHAVE_MEU = 'visao_cartao_fundo_meu'; // imagem importada (dataURL, já reduzida)
+let _meuMemoria = null;                      // se o storage encher, vale até fechar o app
+function meuFundo() {
+  let src = _meuMemoria;
+  try { src ||= localStorage.getItem(CHAVE_MEU); } catch { /* sem storage */ }
+  return src ? { id: 'meu', nome: 'Minha imagem', src, fy: 0.5, alvo: H / 2 } : null;
+}
+const fundoPorId = (id) => id === TRANSPARENTE.id ? TRANSPARENTE : id === 'meu' ? meuFundo() : FUNDOS.find(f => f.id === id);
+// Miniatura pra grade de escolha (a da pessoa usa a própria imagem)
+export const miniDoFundo = (f) => !f?.src ? null : f.src.startsWith('data:') ? f.src : f.src.replace('cartao-fundos/', 'cartao-fundos/mini/');
+export const fundoImportado = () => meuFundo();
+
+// Pet: acha o fundo pelo nome falado ("fundo do cartão com as carpas coloridas").
+// O nome mais comprido que aparece na frase ganha (senão "Carpas" pega tudo).
+export function acharFundo(texto) {
+  const sem = (x) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const t = sem(texto);
+  if (/transparente|sem fundo/.test(t)) return TRANSPARENTE;
+  // 1º o nome inteiro (o mais comprido); senão, o que bate mais palavras
+  const inteiro = [...FUNDOS].sort((a, b) => b.nome.length - a.nome.length).find(f => t.includes(sem(f.nome)));
+  if (inteiro) return inteiro;
+  let melhor = null, pontos = 0;
+  for (const f of FUNDOS) {
+    const p = f.id.split('-').filter(w => w.length > 2 && !/^(das|nas|dos|nos|com|sob)$/.test(w) && new RegExp(`\\b${w}`).test(t)).length;
+    if (p > pontos) { melhor = f; pontos = p; }
+  }
+  return melhor;
+}
+
+// Escolha pela grade: id vazio volta pro sorteio do dia
+export function escolherFundo(id) {
+  try { if (id) localStorage.setItem(CHAVE_FUNDO, id); else localStorage.removeItem(CHAVE_FUNDO); } catch { /* sem storage */ }
+  return (id && fundoPorId(id)) || fundoDoDia();
+}
+
+// Importar imagem: reduz pro tamanho do story (cobrindo 1080×1920) e guarda
+export async function importarFundo(arquivo) {
+  const url = URL.createObjectURL(arquivo);
+  const img = await carregarImg(url);
+  URL.revokeObjectURL(url);
+  if (!img) throw new Error('Não deu pra abrir essa imagem.');
+  const e = Math.min(1, Math.max(W / img.width, H / img.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(img.width * e); cv.height = Math.round(img.height * e);
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  const src = cv.toDataURL('image/jpeg', 0.85);
+  _meuMemoria = src;
+  try { localStorage.setItem(CHAVE_MEU, src); } catch { /* cheio: fica só na memória */ }
+  try { localStorage.setItem(CHAVE_FUNDO, 'meu'); } catch { /* sem storage */ }
+  return meuFundo();
+}
 // Escolha da pessoa (se fez) ou o sorteio do dia, igual pra ela o dia todo
 export function fundoDoDia(data = new Date(), quem = auth.currentUser?.uid || 'anon') {
   try { const f = fundoPorId(localStorage.getItem(CHAVE_FUNDO)); if (f) return f; } catch { /* sem storage */ }
@@ -275,24 +363,51 @@ export function proximoFundo(atual = fundoDoDia(), passo = 1) {
   return f;
 }
 
+// Quão clara a foto é atrás do rótulo (topo), do cartão (meio) e da marca
+// (base), de 0 a 1. Lê uma cópia pequenininha (27×48): rápido até no celular.
+// Pesa a média com o ponto mais claro: um sol estourado atrás do texto conta.
+function claridade(cv) {
+  const p = document.createElement('canvas'); p.width = 27; p.height = 48;
+  const c = p.getContext('2d'); c.drawImage(cv, 0, 0, 27, 48);
+  const d = c.getImageData(0, 0, 27, 48).data;
+  const faixa = (l0, l1) => {
+    let soma = 0, max = 0, n = 0;
+    for (let l = l0; l < l1; l++) for (let x = 0; x < 27; x++) {
+      const i = (l * 27 + x) * 4, v = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+      soma += v; max = Math.max(max, v); n++;
+    }
+    return (soma / n) * 0.6 + max * 0.4;
+  };
+  // linhas de 40px: rótulo 270–400, cartão 410–1440, marca 1470–1720
+  return { topo: faixa(6, 10), meio: faixa(10, 36), base: faixa(36, 43) };
+}
+const entre = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// Desenha o fundo e devolve quão escuro o vidro do cartão precisa ser
 async function desenharFundo(ctx, fundo) {
+  if (fundo?.transparente) return { vidro: 0.72 };   // sem fundo: PNG com transparência
   const img = fundo?.src ? await carregarImg(fundo.src) : null;
-  if (!img) { desenharCenario(ctx); return; }   // sem foto (offline/erro): cenário desenhado
+  if (!img) { desenharCenario(ctx); return { vidro: 0.6 }; }   // sem foto (offline/erro): cenário desenhado
   const e = Math.max(W / img.width, H / img.height) * (fundo.z || 1), w = img.width * e, h = img.height * e;
   const y0 = Math.min(0, Math.max(H - h, (fundo.alvo || 0) - (fundo.fy || 0) * h));
   ctx.drawImage(img, (W - w) / 2, y0, w, h);
-  // Véu escuro em cima e embaixo: rótulo e marca leem bem em qualquer foto
+  // Véu escuro em cima e embaixo, mais forte quanto mais clara a foto ali:
+  // rótulo e marca leem bem em qualquer foto (pedido do Élton, 08/10)
+  const luz = claridade(ctx.canvas);
+  const topo = entre(0.2 + luz.topo * 0.75, 0.45, 0.85), base = entre(0.3 + luz.base * 0.7, 0.6, 0.9);
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, 'rgba(10,5,20,0.55)'); g.addColorStop(0.25, 'rgba(10,5,20,0.15)');
-  g.addColorStop(0.7, 'rgba(10,5,20,0.2)'); g.addColorStop(1, 'rgba(10,5,20,0.75)');
+  g.addColorStop(0, `rgba(10,5,20,${topo})`); g.addColorStop(0.21, `rgba(10,5,20,${topo * 0.8})`);
+  g.addColorStop(0.3, 'rgba(10,5,20,0.15)'); g.addColorStop(0.68, 'rgba(10,5,20,0.2)');
+  g.addColorStop(0.76, `rgba(10,5,20,${base * 0.85})`); g.addColorStop(1, `rgba(10,5,20,${base})`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  return { vidro: entre(0.45 + luz.meio * 0.5, 0.6, 0.88) };
 }
 
 export async function desenharCartao(cartao, fundo = fundoDoDia()) {
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
-  await desenharFundo(ctx, fundo);
+  const { vidro } = await desenharFundo(ctx, fundo);
   await carregarFonte();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const sombra = (blur, cor = 'rgba(0,0,0,0.7)') => { ctx.shadowColor = cor; ctx.shadowBlur = blur; };
@@ -308,7 +423,7 @@ export async function desenharCartao(cartao, fundo = fundoDoDia()) {
   const cx = 60, cy = 410, cw = W - 120, ch = 1030;
   sombra(60, 'rgba(0,0,0,0.6)');
   cantos(ctx, cx, cy, cw, ch, 40);
-  ctx.fillStyle = 'rgba(13,6,24,0.6)'; ctx.fill();
+  ctx.fillStyle = `rgba(13,6,24,${vidro})`; ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = OURO; ctx.lineWidth = 4; ctx.stroke();
   ctx.globalAlpha = 0.3; ctx.lineWidth = 2;
@@ -407,20 +522,26 @@ export async function abrirCartaoDoDia(aoFechar = null) {
         <button class="btn-primary" data-share>📤 Compartilhar</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
+      <button class="cartao-dia-fundo" data-fundo>🖼️ Escolher fundo · importar · transparente</button>
     </div>`;
-  ov.querySelector('img').src = cv.toDataURL('image/png');
+  const imgEl = ov.querySelector('img'), btFundo = ov.querySelector('[data-fundo]');
+  const nomeFundo = ov.querySelector('[data-nome-fundo]');
+  const mostrar = (canvas) => {
+    imgEl.src = canvas.toDataURL('image/png');
+    imgEl.classList.toggle('transparente', !!fundo.transparente);   // xadrez atrás pra ver que é transparente
+    nomeFundo.textContent = `🖼️ ${fundo.nome}`;
+  };
+  mostrar(cv);
+  nomeFundo.textContent += ' · arraste pro lado pra trocar';
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => { ov.remove(); aoFechar?.(); });
   ov.querySelector('[data-fechar]').onclick = () => fechar();
   // Troca só o fundo: setas ‹ › nas laterais ou arrastar o cartão pro lado.
-  const nomeFundo = ov.querySelector('[data-nome-fundo]');
-  nomeFundo.textContent = `🖼️ ${fundo.nome} · arraste pro lado pra trocar`;
   let trocando = false;
   const trocar = async (passo) => {
     if (trocando) return; trocando = true;
     fundo = proximoFundo(fundo, passo);
-    nomeFundo.textContent = `🖼️ ${fundo.nome}`;
-    ov.querySelector('img').src = (await desenharCartao(cartao, fundo)).toDataURL('image/png');
+    mostrar(await desenharCartao(cartao, fundo));
     trocando = false;
   };
   ov.querySelectorAll('[data-seta]').forEach(b => { b.onclick = () => trocar(Number(b.dataset.seta)); });
@@ -433,12 +554,60 @@ export async function abrirCartaoDoDia(aoFechar = null) {
     x0 = null;
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) trocar(dx < 0 ? 1 : -1);
   }, { passive: true });
+  // Escolher na grade (todas as fotos), importar imagem ou deixar transparente
+  btFundo.onclick = () => abrirEscolhaFundo(fundo, async (novo) => {
+    fundo = novo; btFundo.disabled = true;
+    mostrar(await desenharCartao(cartao, fundo));
+    btFundo.disabled = false;
+  });
   ov.querySelector('[data-share]').onclick = async (e) => {
     const b = e.currentTarget; b.disabled = true;
     const r = await compartilharCartao(cartao, fundo).catch(() => 'erro');
     b.disabled = false;
     if (r === 'baixado') b.textContent = '✅ Imagem salva';
   };
+}
+
+// Escolher fundo: importar imagem, transparente, sorteio do dia e a grade de fotos
+function abrirEscolhaFundo(atual, aoEscolher) {
+  const meu = meuFundo();
+  const item = (f) => {
+    const mini = miniDoFundo(f);
+    return `<button class="cartao-fundos-item${f.id === atual.id ? ' atual' : ''}" data-id="${f.id}">
+      ${mini ? `<img loading="lazy" decoding="async" src="${mini}" alt="">` : '<span class="cartao-fundos-noite">🌙</span>'}
+      <small>${f.nome}</small></button>`;
+  };
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay cartao-fundos-ov';
+  ov.innerHTML = `
+    <div class="cartao-fundos-box">
+      <div class="cartao-fundos-topo"><strong>Escolher fundo</strong><button class="cartao-fundos-x" data-x aria-label="Fechar">✕</button></div>
+      <div class="cartao-fundos-acoes">
+        <button data-importar>📥 Importar imagem</button>
+        <button data-id="transparente"${atual.transparente ? ' class="atual"' : ''}>◻️ Transparente</button>
+        <button data-id="">🎲 Sorteio do dia</button>
+      </div>
+      <input type="file" accept="image/*" hidden data-arquivo>
+      <div class="cartao-fundos-grade">${[...(meu ? [meu] : []), ...FUNDOS].map(item).join('')}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  const fechar = trapModalBack(() => ov.remove());
+  ov.querySelector('[data-x]').onclick = () => fechar();
+  ov.onclick = (e) => { if (e.target === ov) fechar(); };
+  ov.querySelectorAll('[data-id]').forEach(b => {
+    b.onclick = () => { const f = escolherFundo(b.dataset.id); fechar(); aoEscolher(f); };
+  });
+  const arq = ov.querySelector('[data-arquivo]');
+  ov.querySelector('[data-importar]').onclick = () => arq.click();
+  arq.onchange = async () => {
+    const file = arq.files?.[0];
+    if (!file) return;
+    const b = ov.querySelector('[data-importar]');
+    b.disabled = true; b.textContent = '⏳ Abrindo…';
+    try { const f = await importarFundo(file); fechar(); aoEscolher(f); }
+    catch (e) { b.disabled = false; b.textContent = '📥 Importar imagem'; alert(e.message || 'Não deu pra abrir essa imagem.'); }
+  };
+  ov.querySelector('.cartao-fundos-item.atual')?.scrollIntoView({ block: 'center' });
 }
 
 // Na abertura do app: 1× por dia. Devolve true se abriu.

@@ -1005,19 +1005,17 @@ async function routeCommand(text) {
 
   // "troca o fundo do cartão", "fundo do cartão com a lua": muda o fundo e abre
   if (/\bfundo\b/i.test(text) && /\bcart(?:ao|ão)\b/i.test(text)) {
-    const m = await import('./cartoes-dia.js?v=20261008i').catch(() => null);
+    const m = await import('./cartoes-dia.js?v=20261008l').catch(() => null);
     if (m) {
-      const sem = (x) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-      const pedido = m.FUNDOS.find(f => sem(text).includes(sem(f.nome)) || f.id.split('-').some(p => p.length > 4 && sem(text).includes(p)));
-      const f = pedido || m.proximoFundo();
-      if (pedido) try { localStorage.setItem('visao_cartao_fundo', f.id); } catch { /* sem storage */ }
+      const pedido = m.acharFundo(text);
+      const f = pedido ? m.escolherFundo(pedido.id) : m.proximoFundo();
       m.abrirCartaoDoDia();
-      return `Troquei o fundo do cartão pra <strong>${_esc(f.nome)}</strong> 🖼️ No cartão tem o botão <strong>Trocar fundo</strong> pra ver os outros.`;
+      return `Troquei o fundo do cartão pra <strong>${_esc(f.nome)}</strong> 🖼️ No cartão, as setas ‹ › trocam e <strong>Escolher fundo</strong> mostra todas as fotos, deixa transparente ou importa uma imagem tua.`;
     }
   }
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261008i').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261008l').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';
