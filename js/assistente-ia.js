@@ -40,7 +40,7 @@ import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261007c';
 import * as PNT from './pet-nota.js?v=20261006a';
-import * as PR from './pet-ritual.js?v=20261007a';
+import * as PR from './pet-ritual.js?v=20261008a';
 import * as PCT from './pet-contas.js?v=20261007b';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
@@ -817,6 +817,12 @@ async function dispatchCommand(text) {
     if (reply === undefined && typeof text !== 'function' && esclarecendo()) {
       const n = await entenderNaNuvem(semChamado(text));
       if (n !== undefined && n !== 'fora') reply = n;
+    }
+    // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
+    // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await ritualVarias(PR.semPedido(semChamado(text)));
+      if (r !== undefined) reply = r;
     }
     if (reply === undefined && typeof text !== 'function' && pareceFalaLivre(semChamado(text))) {
       const n = await entenderNaNuvem(semChamado(text));
@@ -3663,6 +3669,8 @@ async function tentarRitual(text) {
   const t = PR.semPedido(text);
   const nota = PR.lerNota(t);
   if (nota) return ritualNota(t, nota);
+  const varias = await ritualVarias(t);
+  if (varias !== undefined) return varias;
   const agua = PR.lerAgua(t);
   if (agua) return ritualAgua(t, agua);
   if (PR.lerSonoDoDia(t)) { const r = await ritualSono(t); if (r !== undefined) return r; }
@@ -3676,6 +3684,53 @@ async function tentarRitual(text) {
   const cons = PR.lerConsultaAgenda(t);
   if (cons) return ritualConsulta(t, cons);
   return undefined;
+}
+
+// ── Várias atividades numa frase ("alongamento fiz, janta leve sim, academia sim") ──
+// Um card só, com caixinha por atividade. Se a frase também fala de água, o
+// card da água vem logo depois.
+async function ritualVarias(t) {
+  if (t.trim().split(/\s+/).length < 6 || !PR.temSinalFeito(t) || PR.ehPergunta(t)) return undefined;
+  const { data } = PR.diaDaFrase(t);
+  const id = PR.isoDia(data);
+  if (id > _hojeId()) return undefined;
+  const tasks = await getDayTasks(id).catch(() => []);
+  const achados = PR.tarefasCitadas(tasks, t);
+  if (achados.length < 2) return undefined;
+  const box = document.getElementById('pet-messages');
+  if (!box) return undefined;
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `<span class="pet-preview-card">
+      <span class="pet-preview-title">✅ Marcar como feito ${_de(data)}?</span>
+      <span class="pet-contas-lista">${achados.map((a, i) => `<label class="pet-conta"><input type="checkbox" data-i="${i}" checked> ${_esc(a.titulo)}${a.total > 1 ? ` <em>${a.tarefas.length} de ${a.total}${a.tarefas.some(tk => tk.startTime) ? ` (${a.tarefas.map(tk => tk.startTime?.slice(0, 5)).filter(Boolean).join(', ')})` : ''}</em>` : ''}</label>`).join('')}</span>
+      <button class="pet-reg-btn" data-ok>✅ Marcar</button>
+      <button class="pet-choice-btn" data-nao>Cancelar</button>
+    </span>`;
+  const ok = div.querySelector('[data-ok]'), nao = div.querySelector('[data-nao]');
+  ok.addEventListener('click', async () => {
+    const marcadas = [...div.querySelectorAll('input[data-i]:checked')].map(c => achados[Number(c.dataset.i)]);
+    if (!marcadas.length) { addMessage('Nenhuma marcada. Desmarca só o que tu não fez 😉', 'bot'); return; }
+    ok.disabled = nao.disabled = true; ok.textContent = 'Salvando…';
+    div.querySelectorAll('input[data-i]').forEach(c => { c.disabled = true; });
+    try {
+      for (const a of marcadas) for (const tk of a.tarefas) await updateDayTask(id, tk.id, { done: true });
+      ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
+      const n = marcadas.reduce((s, a) => s + a.tarefas.length, 0);
+      addMessage(`✅ Marquei ${n === 1 ? '1 atividade' : `${n} atividades`} ${_de(data)}. Boa! 💪`, 'bot');
+    } catch (err) {
+      console.error('[pet-varias]', err);
+      ok.disabled = nao.disabled = false; ok.textContent = '✅ Marcar';
+      div.querySelectorAll('input[data-i]').forEach(c => { c.disabled = false; });
+      addMessage('Não consegui salvar 😕 ' + _esc(err.message || ''), 'bot');
+    }
+  });
+  nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  const agua = PR.lerAgua(t);
+  if (agua?.ml != null) await ritualAgua(t, agua);
+  return null;
 }
 
 // ── Água ──
@@ -3750,6 +3805,19 @@ async function ritualNota(t, nota) {
       await setDayMeta(id, { dayNote: null });
       return `✅ Apaguei a nota ${_de(data)}.`;
     }, null);
+    return null;
+  }
+  if (nota.consultar) {
+    const n = PNT.notaDoDia(dia);
+    const dn = dia?.dayNote || {};
+    if (n.temTexto) {
+      const partes = [];
+      if (String(dn.prideFail || '').trim()) partes.push(`<b>Orgulho e falha:</b> ${_esc(dn.prideFail)}`);
+      if (String(dn.improve || '').trim()) partes.push(`<b>O que melhorar:</b> ${_esc(dn.improve)}`);
+      return `✅ Sim, a nota ${_de(data)} está preenchida:<br>${partes.join('<br>')}`;
+    }
+    iniciarConversaNota({ tipo: 'nota_pedida', ontemId: id, texto: `Ainda não, a nota ${_de(data)} está em branco${n.temNota ? ' (só tem o sono)' : ''}. Bora preencher? Te faço umas perguntas rápidas, uma por vez.`,
+      dados: { semNota: true, semSono: !n.temSono, hoje: id === _hojeId(), rotulo: PR.nomeDia(data) } });
     return null;
   }
   if (nota.abrir) {

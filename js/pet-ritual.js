@@ -152,6 +152,10 @@ export function lerNota(texto) {
     conteudo = conteudo.slice(rotulo[0].length).trim();
   }
   conteudo = conteudo.replace(/[.!]+$/, '').trim();
+  // "a nota de ontem foi preenchida?", "já preenchi a nota?": é pergunta, responde
+  // se está feita (e oferece preencher se não estiver)
+  if (!conteudo && (ehPergunta(texto) || /\b(foi|esta|ta|ja)\b.{0,25}\b(preenchid\w*|feit\w*|complet\w*)\b/.test(t)))
+    return { consultar: true };
   if (!conteudo) return /\b(preench\w*|faz\w*|fazer|abre|abrir|anota\w*|escreve\w*|registra\w*|completa\w*)\b/.test(t) ? { abrir: true } : null;
   return { campo: campo || 'prideFail', conteudo };
 }
@@ -216,4 +220,49 @@ export function acharTarefas(tasks, texto, filtro = () => true) {
     if (nota + bonus === melhor) achados.push(tk);
   }
   return achados;
+}
+
+// ── Várias atividades citadas numa frase só ──
+// "alongamento eu fiz e a respiração, janta leve sim, hidratação três, academia
+// sim": devolve as tarefas pendentes citadas, na ordem do dia. Título repetido
+// (5× Hidratação) usa o número dito logo depois ("hidratação três" = 3); sem
+// número, 1. "não fiz a academia" fica de fora.
+const SINAL_FEITO = /\b(fiz|feit[oa]s?|sim|terminei|conclui\w*|cumpri|consegui|tomei|bebi)\b/;
+export const temSinalFeito = (texto) => SINAL_FEITO.test(semAcento(semPedido(texto)));
+export function tarefasCitadas(tasks, texto) {
+  const t = semAcento(semPedido(texto));
+  if (!SINAL_FEITO.test(t)) return [];
+  const tokens = t.split(/[^a-z0-9]+/).filter(Boolean);
+  const raiz = tokens.map(radical);
+  const grupos = new Map();   // título normalizado → tarefas pendentes
+  for (const tk of tasks || []) {
+    if (tk.done || tk.cancelled) continue;
+    const k = semAcento(tk.title || '').trim();
+    if (!k) continue;
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(tk);
+  }
+  const achados = [];
+  for (const [k, lista] of grupos) {
+    const palavras = palavrasDoNome(k);
+    if (!palavras.length) continue;
+    const posPrimeira = raiz.findIndex(r => r === palavras[0] || (palavras[0].length >= 4 && r.startsWith(palavras[0])));
+    if (posPrimeira < 0) continue;
+    const batem = palavras.filter(w => raiz.includes(w)).length;
+    if (batem < Math.max(1, palavras.length - 1)) continue;
+    // "não fiz a academia" / "academia não"
+    const antes = tokens.slice(Math.max(0, posPrimeira - 3), posPrimeira);
+    const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + palavras.length + 1);
+    if (antes.includes('nao') || depois[palavras.length - 1] === 'nao' || depois[0] === 'nao') continue;
+    let n = 1;
+    if (lista.length > 1) {
+      for (const w of tokens.slice(posPrimeira + 1, posPrimeira + 5)) {
+        const v = /^\d{1,2}$/.test(w) ? Number(w) : NUM_PALAVRA[w];
+        if (v && v <= lista.length) { n = v; break; }
+      }
+    }
+    const ordem = [...lista].sort((a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
+    achados.push({ titulo: lista[0].title, pos: posPrimeira, tarefas: ordem.slice(0, n), total: lista.length });
+  }
+  return achados.sort((a, b) => a.pos - b.pos);
 }
