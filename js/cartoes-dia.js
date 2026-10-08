@@ -268,8 +268,9 @@ export function fundoDoDia(data = new Date(), quem = auth.currentUser?.uid || 'a
   return FUNDOS[hash(`${quem}:fundo:${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`) % FUNDOS.length];
 }
 // "Trocar fundo": vai pro próximo e lembra a escolha
-export function proximoFundo(atual = fundoDoDia()) {
-  const f = FUNDOS[(FUNDOS.indexOf(atual) + 1) % FUNDOS.length];
+export function proximoFundo(atual = fundoDoDia(), passo = 1) {
+  const n = FUNDOS.length;
+  const f = FUNDOS[(((FUNDOS.indexOf(atual) + passo) % n) + n) % n];
   try { localStorage.setItem(CHAVE_FUNDO, f.id); } catch { /* sem storage */ }
   return f;
 }
@@ -395,23 +396,41 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   ov.className = 'modal-overlay cartao-dia-ov';
   ov.innerHTML = `
     <div class="cartao-dia-box">
-      <div class="cartao-dia-moldura"><img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}"></div>
+      <div class="cartao-dia-moldura">
+        <button class="cartao-dia-seta esq" data-seta="-1" aria-label="Fundo anterior">‹</button>
+        <button class="cartao-dia-seta dir" data-seta="1" aria-label="Próximo fundo">›</button>
+        <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}"></div>
+      <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
-      <button class="cartao-dia-fundo" data-fundo>🖼️ Trocar fundo</button>
     </div>`;
   ov.querySelector('img').src = cv.toDataURL('image/png');
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => { ov.remove(); aoFechar?.(); });
   ov.querySelector('[data-fechar]').onclick = () => fechar();
-  ov.querySelector('[data-fundo]').onclick = async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    fundo = proximoFundo(fundo);
+  // Troca só o fundo: setas ‹ › nas laterais ou arrastar o cartão pro lado.
+  const nomeFundo = ov.querySelector('[data-nome-fundo]');
+  nomeFundo.textContent = `🖼️ ${fundo.nome} · arraste pro lado pra trocar`;
+  let trocando = false;
+  const trocar = async (passo) => {
+    if (trocando) return; trocando = true;
+    fundo = proximoFundo(fundo, passo);
+    nomeFundo.textContent = `🖼️ ${fundo.nome}`;
     ov.querySelector('img').src = (await desenharCartao(cartao, fundo)).toDataURL('image/png');
-    b.disabled = false; b.textContent = `🖼️ Trocar fundo · ${fundo.nome}`;
+    trocando = false;
   };
+  ov.querySelectorAll('[data-seta]').forEach(b => { b.onclick = () => trocar(Number(b.dataset.seta)); });
+  const moldura = ov.querySelector('.cartao-dia-moldura');
+  let x0 = null, y0 = null;
+  moldura.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  moldura.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) trocar(dx < 0 ? 1 : -1);
+  }, { passive: true });
   ov.querySelector('[data-share]').onclick = async (e) => {
     const b = e.currentTarget; b.disabled = true;
     const r = await compartilharCartao(cartao, fundo).catch(() => 'erro');
