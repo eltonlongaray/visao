@@ -1010,7 +1010,7 @@ async function routeCommand(text) {
       const pedido = m.acharFundo(text);
       const f = pedido ? m.escolherFundo(pedido.id) : m.proximoFundo();
       m.abrirCartaoDoDia();
-      return `Troquei o fundo do cartão pra <strong>${_esc(f.nome)}</strong> 🖼️ No cartão, as setas ‹ › trocam e <strong>Escolher fundo</strong> mostra todas as fotos, deixa transparente ou importa uma imagem tua.`;
+      return `Troquei o fundo do cartão pra <strong>${_esc(f.nome)}</strong> 🖼️ No cartão, as setas ‹ › trocam e o botão <strong>⋯</strong> do meio mostra todas as fotos, deixa transparente ou importa uma imagem tua.`;
     }
   }
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão

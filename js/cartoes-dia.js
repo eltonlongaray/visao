@@ -520,9 +520,9 @@ export async function abrirCartaoDoDia(aoFechar = null) {
       <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
+        <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente">⋯</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
-      <button class="cartao-dia-fundo" data-fundo>🖼️ Escolher fundo · importar · transparente</button>
     </div>`;
   const imgEl = ov.querySelector('img'), btFundo = ov.querySelector('[data-fundo]');
   const nomeFundo = ov.querySelector('[data-nome-fundo]');
