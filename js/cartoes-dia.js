@@ -18,8 +18,9 @@ import { trapModalBack } from './modal-voltar.js';
 const P = (n, texto) => ({ rotulo: `Princípio ${n}`, texto });
 const A = (n, titulo, texto) => ({ rotulo: `Acordo ${n}`, titulo, texto });
 const PE = (texto) => ({ rotulo: 'Pensamento', texto });
-// Filosofia: rótulo livre, título opcional e autor no fim do texto
-const F = (rotulo, titulo, texto, autor) => ({ rotulo, ...(titulo ? { titulo } : {}), texto: autor ? `${texto}\n\n— ${autor}` : texto });
+// Filosofia: rótulo livre, título opcional e "Inspirado em …" no fim. O texto
+// é a lição em linguagem de hoje; o que o autor disse de fato vai entre aspas.
+const F = (rotulo, titulo, texto, autor) => ({ rotulo, ...(titulo ? { titulo } : {}), texto, ...(autor ? { autor } : {}) });
 
 export const CARTOES = [
   P(1, 'Presente, escuto a pessoa até o final, falo pausadamente, sem pressa, e antes de falar penso e analiso o que vou falar e como vou falar, fazendo mais perguntas do que afirmações. Observo minhas emoções antes de agir e não permito que o estado emocional do outro interfira no meu estado.'),
@@ -52,26 +53,26 @@ export const CARTOES = [
   // Repete 3× de propósito (é assim que o Élton usa a frase)
   PE('Eu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\nEu perdoo a quem me magoou e peço perdão a quem eu magoei.\n\nGratidão ❤️\nGratidão ❤️\nGratidão ❤️'),
   // Valores e princípios estoicos + sabedoria oriental (escritos com o Élton em 07/10)
-  F('Princípio 18', 'Sabedoria', 'Antes de agir, penso no que é certo, não no que é fácil. Uso a razão pra decidir, não o impulso, e aprendo com tudo o que me acontece.', 'Marco Aurélio'),
-  F('Princípio 19', 'Coragem', 'Faço o que é certo mesmo com medo. Reconheço o medo e sigo em frente, porque é no desconforto que eu cresço.', 'Sêneca'),
-  F('Princípio 20', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque somos parte do mesmo todo.', 'Marco Aurélio'),
-  F('Princípio 21', 'Temperança', 'Tenho domínio sobre meus desejos. Como, bebo, gasto e falo na medida certa. Nem excesso, nem falta.', 'Musônio Rufo'),
-  F('Princípio 22', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A disciplina me leva aonde a motivação não alcança.', 'Epicteto'),
-  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Ponho toda a minha energia nos meus pensamentos, escolhas e ações. O resto eu aceito com serenidade.', 'Epicteto'),
-  F('Princípio 24', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Tudo o que me acontece vira matéria-prima pra eu crescer.', 'Marco Aurélio'),
-  F('Princípio 25', 'Lembra que vais morrer', 'Lembro que o tempo é curto. Não adio o que importa e vivo cada dia como se ele fosse completo em si mesmo.', 'Sêneca'),
-  F('Princípio 26', 'O obstáculo é o caminho', 'O que impede a ação faz a ação avançar. O que está no meu caminho se torna o meu caminho.', 'Marco Aurélio'),
-  F('Princípio 27', 'Preparo a mente', 'Imagino com calma o que pode dar errado. Assim nada me pega de surpresa e eu já sei como agir.', 'Sêneca'),
-  F('Pensamento', '', 'Não são as coisas que me perturbam, mas o que eu penso sobre elas. Quando algo me abala, mudo primeiro o meu olhar.', 'Epicteto'),
-  F('Pensamento', '', 'A melhor vingança é não ser como quem me ofendeu. Respondo com quem eu sou, não com o que me fizeram.', 'Marco Aurélio'),
-  F('Pensamento', '', 'Uma jornada de mil léguas começa com um único passo. Não me assusto com o tamanho do caminho: dou o primeiro passo hoje.', 'Lao Tsé'),
-  F('Pensamento', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força, e com o tempo a água vence a pedra.', 'Lao Tsé'),
-  F('Pensamento', '', 'Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.', 'Lao Tsé'),
-  F('Pensamento', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim.', 'Confúcio'),
-  F('Pensamento', '', 'Tudo passa: o bom e o ruim. Não me apego ao que é bom nem me desespero com o que é ruim.'),
-  F('Pensamento', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora.'),
-  F('Pensamento', '', 'O ódio não acaba com ódio, acaba com amor. Não respondo raiva com raiva.', 'Buda'),
-  F('Pensamento', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira e não atiro a segunda em mim mesmo.', 'Buda'),
+  F('Princípio 18', 'Sabedoria', 'Antes de agir, paro e penso no que é certo, não no que é mais fácil. Decido pela razão, não pelo impulso do momento. Tudo o que me acontece tem algo pra me ensinar, e eu escolho aprender. “Se não é certo, não faça; se não é verdade, não diga.”', 'Marco Aurélio'),
+  F('Princípio 19', 'Coragem', 'Faço o que é certo mesmo com medo. O medo aparece, eu reconheço e sigo em frente assim mesmo, porque quase sempre o que eu temo é menor do que parece. “Sofremos mais na imaginação do que na realidade.” É no desconforto que eu cresço.', 'Sêneca'),
+  F('Princípio 20', 'Justiça', 'Trato cada pessoa com respeito e honestidade, seja quem for. Faço a minha parte pelo bem de todos, porque ninguém cresce sozinho e o que eu faço volta pro todo. “O que não é bom para a colmeia não é bom para a abelha.”', 'Marco Aurélio'),
+  F('Princípio 21', 'Temperança', 'Tenho domínio sobre os meus desejos, e não o contrário. Como, bebo, gasto e falo na medida certa: nem excesso, nem falta. Cada vez que escolho a medida em vez do impulso, fico mais livre e mais forte.', 'Musônio Rufo'),
+  F('Princípio 22', 'Disciplina', 'Faço o que me propus, com vontade ou sem vontade. A motivação vai e vem; a disciplina fica. Cada promessa que eu cumpro comigo mesmo me deixa mais forte. “Nenhum homem é livre se não é senhor de si mesmo.”', 'Epicteto'),
+  F('Princípio 23', 'O que depende de mim', 'Separo o que depende de mim do que não depende. Meus pensamentos, minhas escolhas e minhas ações são meus: é ali que ponho toda a minha energia. O resto, como a opinião dos outros e o passado, eu aceito com serenidade.', 'Epicteto'),
+  F('Princípio 24', 'Amor ao destino', 'Aceito o que acontece como se eu mesmo tivesse escolhido. Não gasto energia brigando com o que já é. Tudo o que me acontece vira matéria-prima pra eu crescer, como o fogo que transforma em chama tudo o que jogam nele.', 'Marco Aurélio'),
+  F('Princípio 25', 'Lembra que vais morrer', 'Lembro que o tempo é curto e não volta. Não adio o que importa: o abraço, o projeto, a conversa. Vivo cada dia como se ele fosse completo em si mesmo. “Não é que temos pouco tempo, é que desperdiçamos muito.”', 'Sêneca'),
+  F('Princípio 26', 'O obstáculo é o caminho', 'Quando algo fica no meu caminho, eu não paro: uso aquilo pra avançar. Cada problema é um treino e me mostra o próximo passo. “O que impede a ação faz a ação avançar. O que está no caminho se torna o caminho.”', 'Marco Aurélio'),
+  F('Princípio 27', 'Preparo a mente', 'Imagino com calma o que pode dar errado, sem medo, só pra estar pronto. Assim nada me pega de surpresa: já pensei no plano B e sei como agir. Quem se prepara sofre menos quando o imprevisto chega.', 'Sêneca'),
+  F('Pensamento', '', 'Quando algo me abala, antes de reagir olho pra forma como estou enxergando. O fato é um; o peso que dou a ele sou eu que escolho. Mudo o meu olhar e a situação muda junto. “Não são as coisas que nos perturbam, mas a opinião que temos delas.”', 'Epicteto'),
+  F('Pensamento', '', 'Quando alguém me ofende, não devolvo na mesma moeda. Respondo com quem eu sou, não com o que me fizeram. Assim a ofensa fica com quem fez. “A melhor vingança é não ser como quem te fez mal.”', 'Marco Aurélio'),
+  F('Pensamento', '', 'Não me assusto com o tamanho do caminho. Grandes mudanças são feitas de pequenos passos repetidos todo dia, e o primeiro eu dou hoje. “Uma jornada de mil léguas começa com um único passo.”', 'Lao Tsé'),
+  F('Pensamento', '', 'Sou como a água: flexível, mas constante. Contorno os obstáculos sem perder a minha força. A água não briga com a pedra, mas com o tempo abre caminho nela. Minha persistência faz o mesmo.', 'Lao Tsé'),
+  F('Pensamento', '', 'Conhecer e vencer a mim mesmo vale mais do que vencer os outros, por isso olho pra dentro todo dia. “Quem conhece os outros é inteligente; quem conhece a si mesmo é sábio. Quem vence os outros é forte; quem vence a si mesmo é poderoso.”', 'Lao Tsé'),
+  F('Pensamento', '', 'Cobro primeiro de mim, depois dos outros. Antes de apontar o que falta no outro, olho o que falta em mim e começo por aí. “O sábio exige de si mesmo; o tolo exige dos outros.”', 'Confúcio'),
+  F('Pensamento', '', 'Tudo passa: o bom e o ruim. Aproveito o que é bom sem me agarrar a ele e atravesso o que é ruim sabendo que também vai passar. Nada é permanente, e é isso que me dá paz.', 'Buda'),
+  F('Pensamento', '', 'Quando como, só como. Quando ando, só ando. Estou inteiro no que faço agora, sem a cabeça no ontem ou no amanhã. A vida acontece no presente, e é nele que eu escolho estar.', 'ensinamentos zen'),
+  F('Pensamento', '', 'Não respondo raiva com raiva. Quem devolve ódio só aumenta o fogo; a calma e a compreensão é que apagam. “O ódio não cessa pelo ódio, mas pelo amor.”', 'Buda'),
+  F('Pensamento', '', 'A dor é a primeira flecha; o sofrimento que eu crio pensando nela é a segunda. Recebo a primeira, porque faz parte da vida, mas não atiro a segunda em mim mesmo remoendo o que já passou.', 'Buda'),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -259,7 +260,9 @@ export async function desenharCartao(cartao) {
   cantos(ctx, cx + 16, cy + 16, cw - 32, ch - 32, 28); ctx.stroke();
   ctx.globalAlpha = 1;
   // Texto: o maior tamanho que cabe dentro do cartão
-  const topo = cy + 70, base = cy + ch - 70, larg = cw - 140, xt = cx + 70;
+  // Embaixo, dentro do cartão, fica o selo "Construindo minha nova versão"
+  const topo = cy + 70, base = cy + ch - 116, larg = cw - 140, xt = cx + 70;
+  const inspirado = cartao.autor ? `Inspirado em ${cartao.autor}` : '';
   // Mesmo tamanho de letra em todos (48 é o maior que cabe no cartão mais longo);
   // só diminui se um cartão novo não couber
   let tam = 48, linhasT = [], linhas = [], alt = 0;
@@ -268,7 +271,8 @@ export async function desenharCartao(cartao) {
     linhasT = cartao.titulo ? quebrar(ctx, cartao.titulo, larg) : [];
     ctx.font = `400 ${tam}px ${FONTE}`;
     linhas = quebrar(ctx, cartao.texto, larg);
-    alt = linhasT.length * tam * 1.45 + (linhasT.length ? tam * 0.7 : 0) + linhas.reduce((a, l) => a + (l ? tam * 1.42 : tam * 0.6), 0);
+    alt = linhasT.length * tam * 1.45 + (linhasT.length ? tam * 0.7 : 0) + linhas.reduce((a, l) => a + (l ? tam * 1.42 : tam * 0.6), 0) +
+      (inspirado ? tam * 1.5 : 0);
     // Só aceita o tamanho se nenhuma linha ficou com uma palavra sozinha
     const sozinha = [...linhas, ...(linhasT.length > 1 ? linhasT : [])].some(l => l && !/\s/.test(l));
     if (alt <= base - topo && (!sozinha || tam <= 34)) break;
@@ -280,7 +284,17 @@ export async function desenharCartao(cartao) {
   if (linhasT.length) y += tam * 0.7;
   ctx.fillStyle = '#ffffff'; ctx.font = `400 ${tam}px ${FONTE}`;
   for (const l of linhas) { if (l) ctx.fillText(l, xt, y); y += l ? tam * 1.42 : tam * 0.6; }
+  if (inspirado) {
+    ctx.fillStyle = OURO; ctx.font = `italic 400 ${Math.round(tam * 0.8)}px ${FONTE}`;
+    ctx.fillText(inspirado, xt, y + tam * 0.5);
+  }
   ctx.textAlign = 'center';
+  // Selo: quem compartilha está construindo, não precisa já ser aquilo
+  ctx.globalAlpha = 0.35; ctx.strokeStyle = OURO; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W / 2 - 120, cy + ch - 112); ctx.lineTo(W / 2 + 120, cy + ch - 112); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = LILAS; ctx.font = `italic 400 34px ${FONTE}`;
+  ctx.fillText('Construindo minha nova versão', W / 2, cy + ch - 62);
   // Embaixo, fora do cartão: falcão + ESTILO FALCON + endereço do app
   const logo = await carregarImg('icons/falcon-badge.png');
   if (logo) { sombra(20); ctx.drawImage(logo, W / 2 - 60, 1478, 120, 120); ctx.shadowBlur = 0; }
@@ -327,7 +341,7 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   ov.innerHTML = `
     <div class="cartao-dia-box">
       <div class="cartao-dia-topo">🃏 Cartão do dia</div>
-      <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}">
+      <img class="cartao-dia-img" alt="${cartao.rotulo}: ${String(cartao.titulo ? cartao.titulo + ' ' : '').replace(/"/g, '')}${cartao.texto.replace(/"/g, '')}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}">
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
