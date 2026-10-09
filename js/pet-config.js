@@ -6,6 +6,7 @@
 // BLOCO 2 — TEMA CLARO / ESCURO
 // BLOCO 3 — ABRIR UMA TELA
 // BLOCO 4 — ATIVIDADES (listar, criar, renomear, ícone, cor, excluir)
+// BLOCO 5 — DÚVIDA SOBRE TÍTULO E DESCRIÇÃO
 // ─────────────────────────────────────────────────────────────
 
 const semAcento = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -171,4 +172,15 @@ export function acharAtividade(cats, nome) {
     || (cats || []).find(c => n(c).includes(alvo))
     || (cats || []).find(c => alvo.split(' ').filter(w => w.length >= 4).some(w => n(c).split(' ').includes(w)))
     || null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: DÚVIDA SOBRE TÍTULO E DESCRIÇÃO
+// ═══════════════════════════════════════════════════════════════
+// "qual a diferença entre título e descrição?", "o que vai na descrição?",
+// "pra que serve o título da atividade?"
+export function lerDuvidaTituloDescricao(texto) {
+  const t = semAcento(semPedido(texto)).replace(/,/g, ' ').replace(/\s+/g, ' ');
+  if (!/\b(titulo|descricao|discricao)\b/.test(t)) return false;
+  return /\b(diferenca|diferente|o que (e|vai|coloco|boto|escrevo|poe)|pra que serve|para que serve|qual (e|a) (a )?(funcao|ideia)|como (uso|funciona)|explica)\b/.test(t);
 }
