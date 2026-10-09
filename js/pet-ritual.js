@@ -160,6 +160,39 @@ export function lerNota(texto) {
   return { campo: campo || 'prideFail', conteudo };
 }
 
+// Notas de um período: { campo: 'prideFail'|'improve'|null (as duas), ini, fim, rotulo }
+// "quais foram as falhas que anotei nos últimos 7 dias?", "minhas melhorias desse mês",
+// "o que eu me aconselhei pra melhorar essa semana", "minhas anotações do mês passado"
+const NUM_DIAS = { dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, quinze: 15, vinte: 20, trinta: 30 };
+export function lerNotasPeriodo(texto, agora = new Date()) {
+  const t = semAcento(semPedido(texto));
+  const falha = /\b(falh\w*|errei|erros?|orgulh\w*)\b/.test(t);
+  const melhora = /\b(melhor\w*|aconselh\w*|conselhos?|medidas?|licoes?|aprendi\w*)\b/.test(t);
+  const notas = /\b(notas|anotac\w*|anotei|anotado|reflex\w*)\b/.test(t);
+  if (!falha && !melhora && !notas) return null;
+  // Período: sem período é outra coisa ("anota na nota de ontem que falhei")
+  const hoje = new Date(agora); hoje.setHours(0, 0, 0, 0);
+  const antes = (n) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return d; };
+  let ini, fim = hoje, rotulo;
+  const nd = t.match(/\b(?:ultimos?|nos|dos|esses?|nesses?)\s+(\d{1,3}|\w+)\s+dias\b/);
+  const n = nd ? (/^\d+$/.test(nd[1]) ? Number(nd[1]) : NUM_DIAS[nd[1]]) : null;
+  if (n) { ini = antes(n - 1); rotulo = `dos últimos ${n} dias`; }
+  else if (/\bmes passado\b|\bultimo mes\b/.test(t)) {
+    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); rotulo = 'do mês passado';
+  } else if (/\bmes\b/.test(t)) { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); rotulo = 'deste mês'; }
+  else if (/\bsemana passada\b|\bultima semana\b/.test(t)) {
+    const seg = antes((hoje.getDay() + 6) % 7);
+    ini = new Date(seg); ini.setDate(ini.getDate() - 7); fim = new Date(seg); fim.setDate(fim.getDate() - 1); rotulo = 'da semana passada';
+  } else if (/\bsemana\b/.test(t)) { ini = antes((hoje.getDay() + 6) % 7); rotulo = 'desta semana'; }
+  else if (/\bultimos dias\b|\bultimamente\b/.test(t)) { ini = antes(6); rotulo = 'dos últimos 7 dias'; }
+  else return null;
+  // Tem que ser consulta, não registro
+  const consulta = ehPergunta(texto) || /\b(quais|qual|o que|me (mostra|manda|passa|lista|fala|diz)|mostra|lista|listar|manda|ver|resum\w*|todas?|minhas?)\b/.test(t);
+  if (!consulta) return null;
+  const campo = falha && !melhora ? 'prideFail' : melhora && !falha ? 'improve' : null;
+  return { campo, ini, fim, rotulo };
+}
+
 const EXCLUIR_RE = /^(apaga|apague|apagar|exclui|exclua|excluir|deleta|deletar|delete|remove|remova|remover|tira|tire|tirar)\b/;
 // Excluir tarefa: { todas } ou null
 export function lerExcluir(texto) {
@@ -243,17 +276,25 @@ export function tarefasCitadas(tasks, texto) {
     grupos.get(k).push(tk);
   }
   const achados = [];
+  const bate = (r, w) => r === w || (w.length >= 4 && r.startsWith(w));
   for (const [k, lista] of grupos) {
-    const palavras = palavrasDoNome(k);
-    if (!palavras.length) continue;
-    const posPrimeira = raiz.findIndex(r => r === palavras[0] || (palavras[0].length >= 4 && r.startsWith(palavras[0])));
+    // O título inteiro ou um pedaço dele vale: "Mobilidade / alongamento" acha
+    // por "alongamento"; "Breathwork (respiração consciente)" por "respiração"
+    let posPrimeira = -1, batem = 0;
+    for (const parte of [k, ...k.split(/[()\/|+,]/)]) {
+      const palavras = palavrasDoNome(parte);
+      if (!palavras.length) continue;
+      const pos = raiz.findIndex(r => palavras.some(w => bate(r, w)));
+      if (pos < 0) continue;
+      const n = palavras.filter(w => raiz.some(r => bate(r, w))).length;
+      if (n < Math.max(1, palavras.length - 1)) continue;
+      if (posPrimeira < 0 || pos < posPrimeira) { posPrimeira = pos; batem = n; }
+    }
     if (posPrimeira < 0) continue;
-    const batem = palavras.filter(w => raiz.includes(w)).length;
-    if (batem < Math.max(1, palavras.length - 1)) continue;
     // "não fiz a academia" / "academia não"
     const antes = tokens.slice(Math.max(0, posPrimeira - 3), posPrimeira);
-    const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + palavras.length + 1);
-    if (antes.includes('nao') || depois[palavras.length - 1] === 'nao' || depois[0] === 'nao') continue;
+    const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + batem + 1);
+    if (antes.includes('nao') || depois[batem - 1] === 'nao' || depois[0] === 'nao') continue;
     let n = 1;
     if (lista.length > 1) {
       for (const w of tokens.slice(posPrimeira + 1, posPrimeira + 5)) {

@@ -38,9 +38,9 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261007c';
+import * as PN from './pet-nuvem.js?v=20261009a';
 import * as PNT from './pet-nota.js?v=20261006a';
-import * as PR from './pet-ritual.js?v=20261008b';
+import * as PR from './pet-ritual.js?v=20261009a';
 import * as PCT from './pet-contas.js?v=20261008a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
@@ -826,6 +826,11 @@ async function dispatchCommand(text) {
     }
     // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
+    // "Quais falhas anotei nos últimos 7 dias?": lista as notas do período, dia a dia
+    if (reply === undefined && typeof text !== 'function') {
+      const per = PR.lerNotasPeriodo(semChamado(text));
+      if (per) reply = await ritualNotasPeriodo(per);
+    }
     if (reply === undefined && typeof text !== 'function') {
       const r = await ritualVarias(PR.semPedido(semChamado(text)));
       if (r !== undefined) reply = r;
@@ -3697,6 +3702,8 @@ const _de = (d) => `de ${PR.nomeDia(d)}`;
 
 async function tentarRitual(text) {
   const t = PR.semPedido(text);
+  const per = PR.lerNotasPeriodo(t);
+  if (per) return ritualNotasPeriodo(per);
   const nota = PR.lerNota(t);
   if (nota) return ritualNota(t, nota);
   const varias = await ritualVarias(t);
@@ -3821,6 +3828,24 @@ async function ritualSono(t) {
     return '✅ Anotado no Ritual.';
   }, null);
   return null;
+}
+
+// ── Notas de um período (falhas e/ou melhorias, com o dia da semana) ──
+const SEMANA_LONGA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+async function ritualNotasPeriodo({ campo, ini, fim, rotulo }) {
+  const dias = await fetchDaysRange(ini, fim).catch(() => null);
+  if (!dias) return 'Não consegui abrir tuas notas agora 😕 Tenta de novo daqui a pouco.';
+  const campos = campo ? [campo] : ['prideFail', 'improve'];
+  const nome = { prideFail: '🏆 Orgulho e falha', improve: '🎯 O que melhorar' };
+  const blocos = [];
+  for (const c of campos) {
+    const linhas = dias.map(d => [d.id, String(d.dayNote?.[c] || '').trim()]).filter(([, txt]) => txt)
+      .map(([id, txt]) => { const [a, m, dd] = id.split('-').map(Number); return `• <b>${SEMANA_LONGA[new Date(a, m - 1, dd).getDay()]} ${String(dd).padStart(2, '0')}/${String(m).padStart(2, '0')}:</b> ${_esc(txt).replace(/\n/g, '<br>')}`; });
+    if (linhas.length) blocos.push(`<b>${nome[c]}</b><br>${linhas.join('<br>')}`);
+  }
+  const oque = campo === 'prideFail' ? 'falhas' : campo === 'improve' ? 'melhorias' : 'anotações';
+  if (!blocos.length) return `Tu não anotou ${oque} nas notas ${rotulo}. Quer preencher a de hoje? É só dizer "preenche a nota de hoje".`;
+  return `📝 Tuas ${oque} ${rotulo}:<br><br>${blocos.join('<br><br>')}`;
 }
 
 // ── Nota de qualquer dia ──
