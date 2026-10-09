@@ -160,6 +160,39 @@ export function lerNota(texto) {
   return { campo: campo || 'prideFail', conteudo };
 }
 
+// Notas de um período: { campo: 'prideFail'|'improve'|null (as duas), ini, fim, rotulo }
+// "quais foram as falhas que anotei nos últimos 7 dias?", "minhas melhorias desse mês",
+// "o que eu me aconselhei pra melhorar essa semana", "minhas anotações do mês passado"
+const NUM_DIAS = { dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, quinze: 15, vinte: 20, trinta: 30 };
+export function lerNotasPeriodo(texto, agora = new Date()) {
+  const t = semAcento(semPedido(texto));
+  const falha = /\b(falh\w*|errei|erros?|orgulh\w*)\b/.test(t);
+  const melhora = /\b(melhor\w*|aconselh\w*|conselhos?|medidas?|licoes?|aprendi\w*)\b/.test(t);
+  const notas = /\b(notas|anotac\w*|anotei|anotado|reflex\w*)\b/.test(t);
+  if (!falha && !melhora && !notas) return null;
+  // Período: sem período é outra coisa ("anota na nota de ontem que falhei")
+  const hoje = new Date(agora); hoje.setHours(0, 0, 0, 0);
+  const antes = (n) => { const d = new Date(hoje); d.setDate(d.getDate() - n); return d; };
+  let ini, fim = hoje, rotulo;
+  const nd = t.match(/\b(?:ultimos?|nos|dos|esses?|nesses?)\s+(\d{1,3}|\w+)\s+dias\b/);
+  const n = nd ? (/^\d+$/.test(nd[1]) ? Number(nd[1]) : NUM_DIAS[nd[1]]) : null;
+  if (n) { ini = antes(n - 1); rotulo = `dos últimos ${n} dias`; }
+  else if (/\bmes passado\b|\bultimo mes\b/.test(t)) {
+    ini = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1); fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0); rotulo = 'do mês passado';
+  } else if (/\bmes\b/.test(t)) { ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1); rotulo = 'deste mês'; }
+  else if (/\bsemana passada\b|\bultima semana\b/.test(t)) {
+    const seg = antes((hoje.getDay() + 6) % 7);
+    ini = new Date(seg); ini.setDate(ini.getDate() - 7); fim = new Date(seg); fim.setDate(fim.getDate() - 1); rotulo = 'da semana passada';
+  } else if (/\bsemana\b/.test(t)) { ini = antes((hoje.getDay() + 6) % 7); rotulo = 'desta semana'; }
+  else if (/\bultimos dias\b|\bultimamente\b/.test(t)) { ini = antes(6); rotulo = 'dos últimos 7 dias'; }
+  else return null;
+  // Tem que ser consulta, não registro
+  const consulta = ehPergunta(texto) || /\b(quais|qual|o que|me (mostra|manda|passa|lista|fala|diz)|mostra|lista|listar|manda|ver|resum\w*|todas?|minhas?)\b/.test(t);
+  if (!consulta) return null;
+  const campo = falha && !melhora ? 'prideFail' : melhora && !falha ? 'improve' : null;
+  return { campo, ini, fim, rotulo };
+}
+
 const EXCLUIR_RE = /^(apaga|apague|apagar|exclui|exclua|excluir|deleta|deletar|delete|remove|remova|remover|tira|tire|tirar)\b/;
 // Excluir tarefa: { todas } ou null
 export function lerExcluir(texto) {
@@ -229,6 +262,26 @@ export function acharTarefas(tasks, texto, filtro = () => true) {
 // número, 1. "não fiz a academia" fica de fora.
 const SINAL_FEITO = /\b(fiz|feit[oa]s?|sim|terminei|conclui\w*|cumpri|consegui|tomei|bebi)\b/;
 export const temSinalFeito = (texto) => SINAL_FEITO.test(semAcento(semPedido(texto)));
+const bate = (r, w) => r === w || (w.length >= 4 && r.startsWith(w));
+// Onde um nome aparece na frase: { pos, n } ou null. O nome inteiro ou um pedaço
+// dele vale: "Mobilidade / alongamento" acha por "alongamento";
+// "Breathwork (respiração consciente)" por "respiração".
+function ondeCita(nome, raiz) {
+  let melhor = null;
+  const k = semAcento(nome).trim();
+  if (!k) return null;
+  for (const parte of [k, ...k.split(/[()\/|+,.;:-]/)]) {
+    const palavras = palavrasDoNome(parte);
+    if (!palavras.length) continue;
+    const pos = raiz.findIndex(r => palavras.some(w => bate(r, w)));
+    if (pos < 0) continue;
+    const n = palavras.filter(w => raiz.some(r => bate(r, w))).length;
+    if (n < Math.max(1, palavras.length - 1)) continue;
+    if (!melhor || pos < melhor.pos) melhor = { pos, n };
+  }
+  return melhor;
+}
+
 export function tarefasCitadas(tasks, texto) {
   const t = semAcento(semPedido(texto));
   if (!SINAL_FEITO.test(t)) return [];
@@ -243,17 +296,20 @@ export function tarefasCitadas(tasks, texto) {
     grupos.get(k).push(tk);
   }
   const achados = [];
-  for (const [k, lista] of grupos) {
-    const palavras = palavrasDoNome(k);
-    if (!palavras.length) continue;
-    const posPrimeira = raiz.findIndex(r => r === palavras[0] || (palavras[0].length >= 4 && r.startsWith(palavras[0])));
-    if (posPrimeira < 0) continue;
-    const batem = palavras.filter(w => raiz.includes(w)).length;
-    if (batem < Math.max(1, palavras.length - 1)) continue;
+  for (const lista0 of grupos.values()) {
+    // Acha pelo nome da atividade (todas do grupo) ou pela descrição (só as
+    // que têm aquela descrição: "Contas a pagar" com "luz" na descrição)
+    let lista = lista0, achou = ondeCita(lista0[0].title, raiz), pelaDesc = false;
+    for (const desc of new Set(lista0.map(tk => String(tk.desc || '').trim()).filter(Boolean))) {
+      const c = ondeCita(desc, raiz);
+      if (c && (!achou || c.pos < achou.pos)) { achou = c; pelaDesc = true; lista = lista0.filter(tk => String(tk.desc || '').trim() === desc); }
+    }
+    if (!achou) continue;
+    const { pos: posPrimeira, n: batem } = achou;
     // "não fiz a academia" / "academia não"
     const antes = tokens.slice(Math.max(0, posPrimeira - 3), posPrimeira);
-    const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + palavras.length + 1);
-    if (antes.includes('nao') || depois[palavras.length - 1] === 'nao' || depois[0] === 'nao') continue;
+    const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + batem + 1);
+    if (antes.includes('nao') || depois[batem - 1] === 'nao' || depois[0] === 'nao') continue;
     let n = 1;
     if (lista.length > 1) {
       for (const w of tokens.slice(posPrimeira + 1, posPrimeira + 5)) {
@@ -262,7 +318,34 @@ export function tarefasCitadas(tasks, texto) {
       }
     }
     const ordem = [...lista].sort((a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
-    achados.push({ titulo: lista[0].title, pos: posPrimeira, tarefas: ordem.slice(0, n), total: lista.length });
+    const titulo = pelaDesc ? `${lista[0].title} (${lista[0].desc})` : lista[0].title;
+    achados.push({ titulo, pos: posPrimeira, tarefas: ordem.slice(0, n), total: lista.length });
   }
   return achados.sort((a, b) => a.pos - b.pos);
+}
+
+// O que a pessoa disse que fez mas não bate com nenhuma atividade do dia (nem
+// nome, nem descrição, feita ou não): ["meditação", "leitura"]. A frase é
+// cortada em pedaços que terminam no sinal ("X sim", "fiz X"); pedaço sem
+// atividade vira pergunta. Água e números ficam de fora (têm leitor próprio).
+const NAO_E_ATIVIDADE = new Set(('sim tambem tb posso pude consegui fiz feito feita feitos feitas terminei cumpri tomei bebi ' +
+  'quantos quantas quanto foi foram ml litro litros copo copos agua garrafa mais menos ainda agora muito pouco bem tudo certo ' +
+  'isso aquilo coisa coisas resto hoje ontem nada nenhum nenhuma').split(' '));
+export function citacoesSemTarefa(tasks, texto) {
+  const t = semAcento(semPedido(texto));
+  if (!SINAL_FEITO.test(t)) return [];
+  // Corta a frase original (com acento, pra mostrar igual a pessoa falou)
+  const pedacos = semPedido(texto).toLowerCase().replace(/\b(sim|fiz|feit[oa]s?|terminei|cumpri|consegui)\b/g, '$1|').split(/[|.;,!?]|\be tambem\b/);
+  const todas = (tasks || []).filter(tk => String(tk.title || '').trim());
+  const faltam = [];
+  for (const original of pedacos) {
+    const pedaco = semAcento(original);
+    const raiz = pedaco.split(/[^a-z0-9]+/).filter(Boolean).map(radical);
+    if (!raiz.length || /\b(agua|ml|litros?|copos?|hidrat\w*)\b/.test(pedaco)) continue;
+    if (/\bnao\b/.test(pedaco)) continue;
+    if (todas.some(tk => ondeCita(tk.title, raiz) || (tk.desc && ondeCita(tk.desc, raiz)))) continue;
+    const palavras = original.split(/[^\p{L}\p{N}]+/u).filter(w => { const a = semAcento(w); return a.length >= 4 && !/^\d+$/.test(a) && !NAO_E_NOME.has(a) && !NAO_E_ATIVIDADE.has(a); });
+    if (palavras.length) faltam.push(palavras.slice(0, 3).join(' '));
+  }
+  return [...new Set(faltam)];
 }

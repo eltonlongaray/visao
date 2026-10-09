@@ -114,6 +114,11 @@ export function fraseDoApp(j) {
       if (/semana/i.test(quando)) return /que vem|pr[oó]xima/i.test(quando) ? 'minha agenda da semana que vem' : 'minha agenda da semana';
       return j.campo === 'passado' ? `o que eu fiz ${quando}` : `o que tenho ${quando}?`;
     }
+    case 'notas_periodo': {
+      const periodo = limpa(j.periodo) || 'últimos 7 dias';
+      const oque = j.campo === 'falhas' ? 'falhas' : j.campo === 'melhorias' ? 'melhorias' : 'anotações';
+      return `quais minhas ${oque} ${/^(ultimos|últimos)/i.test(periodo) ? 'nos' : 'de'} ${periodo}`;
+    }
     case 'lista_adicionar': {
       const itens = juntar(j.itens);
       return itens ? `adiciona ${itens} na lista ${limpa(j.lista) || 'mercado'}` : null;
