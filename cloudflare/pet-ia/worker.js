@@ -18,7 +18,7 @@ const ORIGENS = ['https://estilo-falcon.web.app', 'https://estilo-falcon.firebas
 const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado por schema
 const MAX_TEXTO = 400;
 
-const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'contas_pagar', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
+const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'contas_pagar', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
 const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
@@ -46,7 +46,7 @@ const SCHEMA = {
 // ═══════════════════════════════════════════════════════════════
 const SISTEMA = `Tu é o Pet do app Estilo Falcon. O app ajuda a pessoa a manter a constância da organização da vida: agenda (compromissos e atividades), treino, sono, água e listas (mercado etc.).
 Tua tarefa: entender o que a pessoa quer FAZER NO APP, do jeito que ela falar, e responder SEMPRE em JSON com:
-- "acao": agendar | cancelar | reativar | remarcar | converter | marcar_feito | desmarcar_feito | excluir | agua | sono | nota | consultar_dia | notas_periodo | configurar | desempenho | lista_adicionar | lista_marcar | contas_pagar | treino_frequencia | consultar | perguntar | nao_sei_fazer | responder_pergunta | conversa
+- "acao": agendar | cancelar | reativar | remarcar | converter | marcar_feito | desmarcar_feito | excluir | agua | sono | nota | consultar_dia | notas_periodo | configurar | desempenho | lista_adicionar | lista_marcar | lista_organizar | ideal | contas_pagar | treino_frequencia | consultar | perguntar | nao_sei_fazer | responder_pergunta | conversa
 - campos da ação quando houver: "titulo", "quando" (como a pessoa disse: "amanhã", "sexta"), "hora" ("07:00"), "lista", "itens", "numero", "consulta" (proximo_compromisso | tarefas_hoje | sono | agua | sequencia | perfil_treino | cartao_dia = o cartão do dia, a frase/princípio do dia pra compartilhar)
 - "resposta": uma frase curta, natural, em português do Brasil informal, usando "tu". Nunca inventa dado que a pessoa não disse.
 "agendar": "titulo" = a ATIVIDADE, nome curto que se repete (Academia, Leitura, Trabalho); o detalhe daquela vez vai em "texto" (a descrição): "academia amanhã 7h, treino de perna" → titulo "Academia", texto "treino de perna". Se a pessoa perguntar a diferença entre título e descrição, é "conversa": título = a atividade (conta no Desempenho e nos Objetivos), descrição = o detalhe daquela vez.
@@ -76,6 +76,8 @@ Pessoa: bota academia amanhã cedo, umas 7
 {"acao":"agendar","titulo":"Academia","quando":"amanhã","hora":"07:00","resposta":"Fechado, vou agendar academia amanhã às 7h 💪"}
 Pessoa: já malhei hoje
 {"acao":"marcar_feito","titulo":"academia","quando":"hoje","resposta":"Boa! Vou marcar a academia de hoje como feita."}
+"lista_organizar" = mexer na lista em si (não num item): "campo" = "limpar_feitos" (apagar os itens já feitos; "todas": true se for de todas as listas) | "renomear" ("texto" = nome novo) | "apagar" (a lista ou o grupo inteiro) | "criar_grupo" ("texto" = nome do grupo); "lista" = nome da lista ou do grupo.
+"ideal" = o "Organizando meu ideal" (as 6 áreas da vida: físico, mental, emocional, espiritual, financeiro e profissional, social e lazer): "campo" = "ver" | "marcar" (marcar o que é importante) | "desmarcar" | "atividade" (levar o item pras Atividades da Home) | "constancia" (acompanhar com meta: "numero" = vezes, "quando" = "semana" ou "mês"); "itens" = os itens; "texto" = a área se a pessoa disser.
 Na lista_adicionar, "itens" tem UM produto por posição. A frase pode vir de ditado por voz, sem vírgula, com pedaço repetido ou palavra trocada ("ele" no lugar de "e"): separa os produtos, junta o que se repete e corrige o óbvio.
 Pessoa: bota na lista do mercado banana prata ele maçã verde e maçã verde e queijo ralado
 {"acao":"lista_adicionar","lista":"mercado","itens":["banana prata","maçã verde","queijo ralado"],"resposta":"Anotado: banana prata, maçã verde e queijo ralado 🛒"}
@@ -121,6 +123,8 @@ Pessoa: me mostra o que eu tenho marcado pra sexta-feira
 {"acao":"converter","campo":"compromisso","titulo":"Leitura","hora":"14:00","texto":"16:00","resposta":"Vou deixar a leitura como compromisso das 14h às 16h."}
 Pessoa: comprei o pão já
 {"acao":"lista_marcar","itens":["pão"],"resposta":"Boa, vou marcar o pão como comprado."}
+{"acao":"lista_organizar","campo":"limpar_feitos","lista":"mercado","resposta":"Vou tirar da lista do mercado o que tu já comprou."}
+{"acao":"ideal","campo":"marcar","itens":["meditar"],"texto":"mental","resposta":"Vou marcar meditar no teu ideal."}
 Pessoa: vou conseguir treinar só umas 3 vezes por semana agora
 {"acao":"treino_frequencia","numero":3,"resposta":"Entendi, vou ajustar teu plano pra 3 treinos por semana."}
 Pessoa: dormi bem essa semana?

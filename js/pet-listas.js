@@ -8,6 +8,7 @@
 // BLOCO 3 — ALVO (qual grupo / categoria)
 // BLOCO 4 — ITENS (qual item já existente)
 // BLOCO 5 — TEXTO NOVO (o que adicionar / pra que trocar)
+// BLOCO 6 — ESTRUTURA (limpar feitos, renomear/apagar lista, criar grupo)
 // ─────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════════════════════════════
@@ -208,4 +209,33 @@ export function nomeNovaLista(text, alvo = {}) {
   const grupoTrechos = alvo.grupo ? [norm(alvo.grupo.nome)] : [];
   const nome = limparPontas(tirarAlvo(m[1], grupoTrechos));
   return nome ? nome.charAt(0).toUpperCase() + nome.slice(1) : '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: ESTRUTURA
+// ═══════════════════════════════════════════════════════════════
+// Pedidos sobre a lista em si, não sobre um item:
+//  { tipo: 'limpar', todas }            "limpa os feitos do Mercado"
+//  { tipo: 'renomear', antes, novo }    "renomeia a lista Mercado pra Supermercado"
+//  { tipo: 'apagar' }                   "apaga a lista Viagem", "exclui o grupo Faculdade"
+//  { tipo: 'criarGrupo', nome }         "cria o grupo Faculdade"
+export function detectarEstrutura(text) {
+  const t = norm(text);
+  const bruto = String(text || '').trim().replace(/[.!?]+$/, '');
+  if (/\b(limpa|limpar|limpe|apaga|apagar|apague|remove|remover|tira|tirar|exclui|excluir|deleta|deletar)\b.*\b(feit[oa]s|conclu\w*|marcad[oa]s|riscad[oa]s?|complet[oa]s|pront[oa]s|comprad[oa]s)\b/.test(t))
+    return { tipo: 'limpar', todas: /\b(todas as listas|todos os grupos|de tudo|de todas|em todas)\b/.test(t) };
+  if (/\b(renomei\w*|renomear|(mud|troc|alter)\w* o nome)\b/.test(t) && /\b(lista|grupo)\b/.test(t)) {
+    const m = bruto.match(/^(.*\S)\s+(?:pra|para|por)\s+(?:o nome\s+(?:de\s+)?)?(.+)$/i);
+    if (!m) return null;
+    const novo = limparPontas(m[2].replace(/^(?:a\s+lista|o\s+grupo|lista|grupo)\s+/i, ''));
+    return novo ? { tipo: 'renomear', antes: m[1], novo: novo.charAt(0).toUpperCase() + novo.slice(1) } : null;
+  }
+  if (/^(?:(?:pode|quero|preciso)\s+(?:que\s+(?:tu|voce)\s+)?)?(apaga|apagar|apague|exclui|excluir|exclua|deleta|deletar|remove|remover|remova)\s+(?:(?:a|o|essa|esse|minha|meu|toda a|todo o)\s+)?(lista|grupo)\b/.test(t))
+    return { tipo: 'apagar' };
+  if (/\b(cria|criar|crie|novo|faz|faca|monta|montar|adiciona|adicionar)\b.*\bgrupo\b/.test(t) && !/\blista\b/.test(t)) {
+    const m = bruto.match(/\bgrupo\s+(?:novo\s+)?(?:(?:d[aoe]s?|chamado|com o nome(?:\s+de)?|pra|para)\s+)?(.+)$/i);
+    const nome = m ? limparPontas(m[1]) : '';
+    return { tipo: 'criarGrupo', nome: nome ? nome.charAt(0).toUpperCase() + nome.slice(1) : '' };
+  }
+  return null;
 }

@@ -120,6 +120,41 @@ export async function totalMarcadosIdeal() {
   return Object.values(_estado).reduce((n, v) => n + (v?.sel?.length || 0), 0);
 }
 
+// ── Pro Pet (BLOCO 8.15 do assistente): ler e gravar o Ideal sem abrir a tela ──
+// Lista achatada de todos os itens (sugeridos + os da pessoa) com o pilar.
+export async function idealItens() {
+  if (_saveT) await _salvarJa();
+  await _carregar();
+  const out = [];
+  for (const p of PILARES) {
+    const est = _p(p.k);
+    p.secoes.forEach(sec => sec.itens.forEach(t => {
+      const id = itemId(p.k, t);
+      out.push({ k: p.k, pilar: p, id, txt: t, sel: est.sel.includes(id), seu: false });
+    }));
+    est.extras.forEach(x => out.push({ k: p.k, pilar: p, id: x.id, txt: x.txt, sel: est.sel.includes(x.id), seu: true }));
+  }
+  return out;
+}
+// Marca (on=true) ou desmarca itens; `novo` = { k, txt } cria um item da pessoa já marcado.
+export async function idealGravar({ marcar = [], desmarcar = [], novos = [] } = {}) {
+  if (_saveT) await _salvarJa();
+  await _carregar();
+  for (const { k, id } of marcar) { const e = _p(k); e.sel = [...new Set([...e.sel, id])]; }
+  for (const { k, id } of desmarcar) { const e = _p(k); e.sel = e.sel.filter(x => x !== id); }
+  for (const { k, txt } of novos) {
+    const e = _p(k), id = `${k}:x-${slug(txt)}`;
+    if (!e.extras.some(x => x.id === id)) e.extras.push({ id, txt });
+    e.sel = [...new Set([...e.sel, id])];
+  }
+  return _salvarJa();
+}
+// 'foco' (em constância), 'ativ' (nas Atividades) ou null, por texto do item
+export async function idealStatus() {
+  const st = await _status();
+  return { st, de: (txt) => _statusItem(st, txt) };
+}
+
 // Descobre, pelo nome, se o item já virou atividade (e se tem foco de constância).
 async function _status() {
   const [cats, objs] = await Promise.all([getCategories().catch(() => []), listarObjetivos().catch(() => [])]);
