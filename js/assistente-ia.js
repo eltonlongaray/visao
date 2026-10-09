@@ -14,6 +14,8 @@
 // BLOCO 8.9 — CONVERSA GUIADA (entende a resposta no contexto e pergunta o porquê)
 // BLOCO 8.10 — NOTA DE ONTEM PELO PET (orgulho/falha, melhorar, sono, cochilo, madrugada)
 // BLOCO 8.11 — RITUAL PELO PET (água, sono, nota de qualquer dia, excluir, feito em outro dia, ver agenda)
+// BLOCO 8.12 — CONTAS A PAGAR EM LOTE
+// BLOCO 8.13 — CONFIGURAR O APP CONVERSANDO (horário padrão, tema, abrir tela, atividades)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -23,7 +25,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getCategories, saveCategory, getProfile, setProfile,
+  getCategories, saveCategory, deleteCategory, getProfile, setProfile,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
@@ -38,9 +40,12 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009a';
+import * as PN from './pet-nuvem.js?v=20261009b';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009a';
+import * as PCF from './pet-config.js?v=20261009a';
+import { navigate, forceRender } from './roteador.js';
+import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
@@ -826,6 +831,11 @@ async function dispatchCommand(text) {
     }
     // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
+    // Configurar o app ("muda a cor da atividade X pra azul"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarConfig(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // "Quais falhas anotei nos últimos 7 dias?": lista as notas do período, dia a dia
     if (reply === undefined && typeof text !== 'function') {
       const per = PR.lerNotasPeriodo(semChamado(text));
@@ -1028,6 +1038,10 @@ async function routeCommand(text) {
 
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
+  // ── Configurar o app: horário padrão, tema, abrir tela, atividades (BLOCO 8.13) ──
+  const rConfig = await tentarConfig(text);
+  if (rConfig !== undefined) return rConfig;
+
   const rRitual = await tentarRitual(text);
   if (rRitual !== undefined) return rRitual;
 
@@ -4161,6 +4175,108 @@ function cardContasLote(linhas) {
   nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.13: CONFIGURAR O APP CONVERSANDO
+// Horário padrão de acordar/dormir, tema, abrir tela e as atividades da Home
+// (listar, criar, renomear, ícone, cor, excluir). Leitores em pet-config.js.
+// Tudo que grava passa por card; abrir tela e tema são na hora (dá pra voltar).
+// ═══════════════════════════════════════════════════════════════
+// Depois de mudar perfil/atividades: a tela aberta redesenha com o dado novo
+function _redesenharTela() {
+  if (/^#\/(home|ritual|desempenho)\b/.test(location.hash || '')) { try { forceRender(); } catch { /* sem tela */ } }
+}
+
+async function tentarConfig(text) {
+  const t = PR.semPedido(text);
+  const tela = PCF.lerAbrirTela(t);
+  if (tela) {
+    setTimeout(() => navigate(tela.rota), 400);
+    return `Abrindo ${tela.nome} 👉`;
+  }
+  const tema = PCF.lerTema(t);
+  if (tema) {
+    const atual = currentTheme();
+    const novo = tema === 'trocar' ? (atual === 'dark' ? 'light' : 'dark') : tema;
+    if (novo === atual) return `O app já está no tema ${novo === 'dark' ? 'escuro 🌙' : 'claro ☀️'}.`;
+    applyTheme(novo);
+    return `Pronto, tema ${novo === 'dark' ? 'escuro 🌙' : 'claro ☀️'}. Se quiser voltar, é só pedir.`;
+  }
+  const hp = PCF.lerHorarioPadrao(t);
+  if (hp) return configHorarioPadrao(hp);
+  const atv = PCF.lerAtividadeConfig(t);
+  if (atv) return configAtividade(atv);
+  return undefined;
+}
+
+async function configHorarioPadrao(hp) {
+  const partes = [];
+  if (hp.acordar) partes.push(`⏰ Acordar: <b>${hp.acordar}</b>`);
+  if (hp.dormir) partes.push(`🌙 Dormir: <b>${hp.dormir}</b>`);
+  cardConfirmarLista(`Horário padrão:<br>${partes.join('<br>')}`, async () => {
+    const patch = {};
+    if (hp.acordar) patch.defaultWakeTime = hp.acordar;
+    if (hp.dormir) patch.defaultSleepTime = hp.dormir;
+    await setProfile(patch);
+    _redesenharTela();
+    return '✅ Horário padrão salvo. Tua meta de sono segue esse horário.';
+  }, null);
+  return null;
+}
+
+async function configAtividade(p) {
+  const cats = await getCategories().catch(() => null);
+  if (!cats) return 'Não consegui abrir tuas atividades agora 😕 Tenta de novo daqui a pouco.';
+  const lista = () => cats.length ? cats.map(c => `${c.icon || '🏷️'} ${_esc(c.name)}`).join('<br>') : '(nenhuma ainda)';
+  if (p.tipo === 'listar') return cats.length ? `📋 Tuas atividades (${cats.length}):<br>${lista()}` : 'Tu ainda não tem atividades cadastradas. Diz "cria a atividade Leitura" que eu crio.';
+  if (p.tipo === 'criar') {
+    if (!p.nome) return 'Qual o nome da atividade? Ex.: "cria a atividade Leitura".';
+    const ja = PCF.acharAtividade(cats, p.nome);
+    if (ja && _limpoTxt(ja.name) === _limpoTxt(p.nome)) return `Tu já tem a atividade ${ja.icon || '🏷️'} <b>${_esc(ja.name)}</b>.`;
+    const icon = _emojiAtividade(p.nome);
+    const color = _CATCOLORS[cats.length % _CATCOLORS.length];
+    cardConfirmarLista(`➕ Criar a atividade ${icon} <b>${_esc(p.nome)}</b>?`, async () => {
+      const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
+      await saveCategory(null, { name: p.nome, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+      _redesenharTela();
+      return `✅ Atividade criada. Pra trocar o ícone ou a cor é só pedir.`;
+    }, null);
+    return null;
+  }
+  const c = PCF.acharAtividade(cats, p.nome);
+  // Não achou: pergunta o nome certo e mostra as que existem
+  if (!c) return `🤔 Não encontrei a atividade <b>${_esc(p.nome || '')}</b>. Me diz o nome exato. Tuas atividades:<br>${lista()}`;
+  const nomeC = `${c.icon || '🏷️'} <b>${_esc(c.name)}</b>`;
+  const salvar = (patch, msg) => async () => {
+    await saveCategory(c.id, { ...c, ...patch });   // ...c: guarda o lembrete e o resto do extra
+    _redesenharTela();
+    return msg;
+  };
+  if (p.tipo === 'renomear') {
+    if (!p.novo) return 'Pra qual nome? Ex.: "renomeia a atividade Academia pra Musculação".';
+    cardConfirmarLista(`✏️ Renomear ${nomeC} pra <b>${_esc(p.novo)}</b>?`, salvar({ name: p.novo }, '✅ Nome trocado. As tarefas que já estão no Ritual continuam com o nome antigo.'), null);
+    return null;
+  }
+  if (p.tipo === 'icone') {
+    if (!p.icone) return `Qual emoji tu quer pra ${nomeC}? Manda junto, ex.: "troca o ícone da atividade ${_esc(c.name)} pra 🏋️".`;
+    cardConfirmarLista(`🎨 Trocar o ícone de ${nomeC} pra ${p.icone}?`, salvar({ icon: p.icone }, '✅ Ícone trocado.'), null);
+    return null;
+  }
+  if (p.tipo === 'cor') {
+    if (!p.cor) return `Qual cor? Tenho: ${Object.keys(PCF.CORES).join(', ')}.`;
+    cardConfirmarLista(`🎨 Trocar a cor de ${nomeC} pra <span style="display:inline-block;width:.9em;height:.9em;border-radius:50%;background:${p.cor};vertical-align:middle"></span> <b>${_esc(p.corNome)}</b>?`, salvar({ color: p.cor }, '✅ Cor trocada.'), null);
+    return null;
+  }
+  if (p.tipo === 'excluir') {
+    cardConfirmarLista(`🗑️ Excluir a atividade ${nomeC}?<br><small>Ela sai da tua biblioteca. As tarefas marcadas em dias do Ritual continuam lá.</small>`, async () => {
+      await deleteCategory(c.id);
+      _redesenharTela();
+      return '✅ Atividade excluída.';
+    }, null);
+    return null;
+  }
+  return undefined;
 }
 
 // ═══════════════════════════════════════════════════════════════

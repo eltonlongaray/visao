@@ -115,9 +115,25 @@ export function fraseDoApp(j) {
       return j.campo === 'passado' ? `o que eu fiz ${quando}` : `o que tenho ${quando}?`;
     }
     case 'notas_periodo': {
-      const periodo = limpa(j.periodo) || 'últimos 7 dias';
+      const periodo = limpa(j.quando || j.periodo) || 'últimos 7 dias';
       const oque = j.campo === 'falhas' ? 'falhas' : j.campo === 'melhorias' ? 'melhorias' : 'anotações';
       return `quais minhas ${oque} ${/^(ultimos|últimos)/i.test(periodo) ? 'nos' : 'de'} ${periodo}`;
+    }
+    case 'configurar': {
+      const nome = limpa(j.titulo), valor = limpa(j.texto), hora = limpa(j.hora) || valor;
+      switch (j.campo) {
+        case 'acordar_padrao': return hora ? `meu horário padrão de acordar é ${hora}` : null;
+        case 'dormir_padrao': return hora ? `meu horário padrão de dormir é ${hora}` : null;
+        case 'tema': return /clar|light/i.test(valor) ? 'muda pro tema claro' : /escur|dark/i.test(valor) ? 'muda pro tema escuro' : 'troca o tema';
+        case 'abrir_tela': return valor ? `abre ${valor}` : null;
+        case 'atividades_listar': return 'quais são minhas atividades';
+        case 'atividade_criar': return nome ? `cria a atividade ${nome}` : null;
+        case 'atividade_renomear': return nome && valor ? `renomeia a atividade ${nome} pra ${valor}` : null;
+        case 'atividade_icone': return nome ? `troca o ícone da atividade ${nome} pra ${valor}`.trim() : null;
+        case 'atividade_cor': return nome ? `muda a cor da atividade ${nome} pra ${valor}`.trim() : null;
+        case 'atividade_excluir': return nome ? `apaga a atividade ${nome}` : null;
+        default: return null;
+      }
     }
     case 'lista_adicionar': {
       const itens = juntar(j.itens);
