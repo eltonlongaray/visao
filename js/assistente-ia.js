@@ -17,6 +17,9 @@
 // BLOCO 8.12 — CONTAS A PAGAR EM LOTE
 // BLOCO 8.13 — CONFIGURAR O APP CONVERSANDO (horário padrão, tema, abrir tela, atividades)
 // BLOCO 8.14 — DESEMPENHO, REFLEXÃO DA SEMANA E OBJETIVOS PELO PET
+// BLOCO 8.15 — IDEAL (OS 6 PILARES) PELO PET
+// BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
+// BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -42,12 +45,13 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009g';
+import * as PN from './pet-nuvem.js?v=20261009h';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
+import * as PDF from './pet-desafios.js?v=20261009h';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -844,6 +848,11 @@ async function dispatchCommand(text) {
     }
     // "Não tô conseguindo lembrar de marcar as coisas": orienta e oferece ajuda
     if (reply === undefined && typeof text !== 'function' && PCF.lerPedidoLembrar(semChamado(text))) reply = ajudaLembrar();
+    // Desafios ("bebi 500 ml no desafio da água"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarDesafios(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarIdeal(semChamado(text));
@@ -1006,6 +1015,21 @@ async function routeCommand(text) {
     if (/^(n[aã]o|deixa|esquece|cancela)\b/i.test(text.trim())) return 'Beleza, deixei como estava.';
   }
   { const c = PCF.lerConverterTipo(text); if (c) return converterTipo(c, text); }
+  // Faltou dizer quanto fez no desafio: "300", "meio litro"
+  if (convState?.type === 'desafio_qtd') {
+    const { id } = convState;
+    convState = null;
+    const q = PDF.lerQuantidade(text);
+    if (q) {
+      const c = await _carregarDesafios().catch(() => null);
+      const d = c?.desafios.find(x => x.id === id);
+      if (d) return desafioCheckin(d, { qtd: q, metaToda: false }, c);
+    } else if (/\b(bati|cumpri|complet\w*|tudo|meta)\b/i.test(text)) {
+      const c = await _carregarDesafios().catch(() => null);
+      const d = c?.desafios.find(x => x.id === id);
+      if (d) return desafioCheckin(d, { qtd: null, metaToda: true }, c);
+    }
+  }
   // Faltou dizer quantas vezes pra acompanhar a constância de um item do Ideal
   if (convState?.type === 'ideal_vezes') {
     const { txt } = convState;
@@ -1084,6 +1108,10 @@ async function routeCommand(text) {
 
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
+
+  // Desafios antes do Ritual: "bebi 500 ml no desafio da água" não é a água do dia
+  const rDesafio = await tentarDesafios(text);
+  if (rDesafio !== undefined) return rDesafio;
 
   // A lista em si ("exclui o grupo Faculdade") antes do Ritual, que leria
   // "Faculdade" como a atividade de hoje
@@ -4607,6 +4635,271 @@ async function lembreteNasDeHoje() {
     for (const x of sem) await updateDayTask(id, x.id, { reminderEnabled: true });
     _redesenharTela();
     return 'Lembretes ligados 🔔 O celular avisa na hora de cada uma.';
+  }, null);
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.17: DESAFIOS PELO PET
+// Ver, ranking, entrar (na lista ou com código), sair, check-in e criar.
+// A leitura do pedido fica em pet-desafios.js; a gravação usa as MESMAS
+// funções da aba Desafios (desafios.js), sempre depois do card.
+// Privacidade igual à tela: ranking com nomes só pra quem está dentro;
+// desafio oficial de fora mostra só o placar sem nomes.
+// ⚠️ Quando a tela de Desafios mudar, atualizar isto junto (e o Worker).
+// ═══════════════════════════════════════════════════════════════
+const _diaDesafio = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+const _medalha = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`);
+const _unDesafio = (d) => (d.unidade ? ' ' + _esc(d.unidade) : '');
+
+function _redesenharDesafios() {
+  if (/^#\/(desafios|chat|desempenho)\b/.test(location.hash || '')) { try { forceRender(); } catch { /* sem tela */ } }
+}
+
+async function _carregarDesafios() {
+  const [D, M, A] = await Promise.all([import('./desafios.js'), import('./desafios-moldes.js'), import('./autenticacao.js')]);
+  const [desafios, parts, checks] = await Promise.all([D.fetchDesafios(), D.fetchParticipantes(), D.fetchCheckins()]);
+  const uid = A.auth.currentUser?.uid;
+  const email = A.auth.currentUser?.email || '';
+  const sou = (d) => parts.some(x => x.desafio_id === d.id && x.user_id === uid);
+  return { D, M, uid, email, desafios, parts, checks, sou };
+}
+
+// Mesmo nome que a tela usa ao entrar (aparece no ranking dos participantes)
+async function _meuNomeDesafio(email) {
+  const p = await getProfile().catch(() => null);
+  return (p?.preferredName || p?.fullName || (email || '').split('@')[0] || 'Falcão').trim();
+}
+
+async function tentarDesafios(text) {
+  const p = PDF.lerDesafio(PR.semPedido(text));
+  if (!p) return undefined;
+  let c;
+  try { c = await _carregarDesafios(); }
+  catch (e) { console.warn('[pet-desafios]', e); return 'Não consegui abrir os desafios agora 😕 Tenta de novo daqui a pouco.'; }
+  const meus = c.desafios.filter(c.sou), fora = c.desafios.filter(d => !c.sou(d));
+  const citou = !!(p.nome || p.molde);
+
+  // Escolhe o desafio citado na lista; se não citou e só tem um, é ele
+  const escolher = (lista, fazer, vazio, naoAchei) => {
+    if (!lista.length) return vazio;
+    let achados = PDF.acharDesafio(lista, text);
+    if (!achados.length && !citou && lista.length === 1) achados = lista;
+    if (!achados.length && citou) return naoAchei;
+    if (achados.length === 1) return fazer(achados[0]);
+    const opcoes = achados.length ? achados : lista;
+    addChoices('Qual desafio?', opcoes.slice(0, 6).map(d => ({
+      label: `${c.M.emojiDoTipo(d.tipo)} ${d.titulo}`, action: () => fazer(d),
+    })));
+    return null;
+  };
+
+  switch (p.acao) {
+    case 'criar': return desafioCriar(p, c);
+    case 'codigo': return desafioCodigo(p.codigo, c);
+    case 'entrar': {
+      const jaEstou = citou ? PDF.acharDesafio(meus, text) : [];
+      if (jaEstou.length === 1 && !PDF.acharDesafio(fora, text).length) return `Tu já está no desafio <b>${_esc(jaEstou[0].titulo)}</b> 🦅`;
+      return escolher(fora.filter(d => d.modalidade === 'oficial'), (d) => desafioEntrar(d, c),
+        'Não tem desafio aberto pra entrar agora. Se um amigo te convidou, me fala o código: <em>"entra com o código ABC123"</em>.',
+        'Não achei esse desafio aberto 🤔 Se foi um amigo que criou, pede o código e me fala: <em>"entra com o código ABC123"</em>.');
+    }
+    case 'sair':
+      return escolher(meus, (d) => desafioSair(d, c),
+        'Tu não está em nenhum desafio agora.', 'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
+    case 'checkin':
+      return escolher(meus, (d) => desafioCheckin(d, p, c),
+        'Tu ainda não está em nenhum desafio. Fala <em>"quais desafios tem?"</em> que eu te mostro os abertos.',
+        'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
+    case 'ranking': {
+      const todos = [...meus, ...fora];
+      return escolher(citou ? todos : meus, (d) => desafioRanking(d, c),
+        'Tu ainda não está em nenhum desafio, então não tem ranking pra mostrar.',
+        'Não achei esse desafio 🤔 Fala <em>"quais desafios tem?"</em> que eu te mostro.');
+    }
+    default: {
+      if (citou) {
+        const achados = PDF.acharDesafio(c.desafios, text);
+        if (achados.length === 1) return desafioDetalhe(achados[0], c);
+        if (achados.length > 1) return escolher(achados, (d) => desafioDetalhe(d, c), null, null);
+      }
+      return desafiosVisao(meus, fora, c);
+    }
+  }
+}
+
+// Meus desafios (progresso de hoje e posição) + os oficiais abertos
+function desafiosVisao(meus, fora, c) {
+  const hoje = _diaDesafio();
+  const linhas = meus.map(d => {
+    const ck = c.checks.filter(x => x.desafio_id === d.id);
+    const rk = PDF.ranking(d, c.parts.filter(x => x.desafio_id === d.id), ck);
+    const eu = rk.findIndex(r => r.user_id === c.uid);
+    const somei = PDF.somaHoje(ck, c.uid, hoje);
+    const hojeTxt = d.meta_diaria ? `hoje ${somei}/${d.meta_diaria}${_unDesafio(d)}${somei >= d.meta_diaria ? ' ✅' : ''}`
+      : (somei > 0 ? 'hoje ✅' : 'hoje ainda não');
+    const dias = `${rk[eu]?.done || 0}${d.dias_total ? '/' + d.dias_total : ''} dias`;
+    const pos = d.modalidade !== 'individual' && rk.length > 1 ? ` · ${_medalha(eu)} de ${rk.length}` : '';
+    return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${hojeTxt} · ${dias}${pos}</small>`;
+  });
+  const abertos = fora.filter(d => d.modalidade === 'oficial');
+  let out = meus.length ? `🏆 <b>Teus desafios</b><br>${linhas.join('<br>')}` : 'Tu ainda não está em nenhum desafio.';
+  if (abertos.length) out += `<br><br>🙋 <b>Abertos pra entrar</b><br>${abertos.slice(0, 6).map(d => `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`).join('<br>')}<br><small>Pra entrar: <em>"entra no desafio ${_esc(abertos[0].titulo)}"</em></small>`;
+  else if (!meus.length) out += '<br>Cria um com os amigos: <em>"cria um desafio de água de 21 dias com amigos"</em>.';
+  if (meus.length) out += '<br><br><small>Pra marcar: <em>"bebi 500 ml no desafio da água"</em> · <em>"marca o desafio de meditação"</em></small>';
+  return out;
+}
+
+// Um desafio só: se estou dentro, meu progresso; se não, o que é e como entrar
+function desafioDetalhe(d, c) {
+  if (!c.sou(d)) {
+    const meta = d.meta_diaria ? `Meta: <b>${d.meta_diaria}${_unDesafio(d)}</b> por dia` : 'Marcar feito uma vez por dia';
+    addChoices(`${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${_esc(d.descricao || '')}</small><br>${meta}${d.dias_total ? ` · ${d.dias_total} dias` : ''}${d.prenda ? `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}` : ''}<br>Tu ainda não está nele. Quer entrar?`,
+      [{ label: '🙋 Entrar', action: () => desafioEntrar(d, c) }, { label: 'Agora não', action: () => 'Beleza 👍' }]);
+    return null;
+  }
+  const hoje = _diaDesafio();
+  const ck = c.checks.filter(x => x.desafio_id === d.id);
+  const rk = PDF.ranking(d, c.parts.filter(x => x.desafio_id === d.id), ck);
+  const eu = rk.findIndex(r => r.user_id === c.uid);
+  const somei = PDF.somaHoje(ck, c.uid, hoje);
+  const feitos = rk[eu]?.done || 0;
+  let out = `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br>`;
+  if (d.meta_diaria) {
+    const falta = Math.max(0, d.meta_diaria - somei);
+    out += `Hoje: <b>${somei}/${d.meta_diaria}${_unDesafio(d)}</b>${falta ? ` (faltam ${falta}${_unDesafio(d)})` : ' ✅ meta batida!'}`;
+  } else out += somei > 0 ? 'Hoje: feito ✅' : 'Hoje: ainda não marcou';
+  out += `<br>Dias cumpridos: <b>${feitos}${d.dias_total ? ' de ' + d.dias_total : ''}</b>`;
+  if (d.modalidade !== 'individual' && rk.length > 1) out += `<br>Posição: ${_medalha(eu)} de ${rk.length}`;
+  if (d.prenda) out += `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}`;
+  return out;
+}
+
+async function desafioRanking(d, c) {
+  if (!c.sou(d)) {
+    if (d.modalidade !== 'oficial') return 'Esse ranking só quem está no desafio vê.';
+    const placar = (await c.D.fetchPlacar().catch(() => ({})))[d.id];
+    return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br>${placar ? `🙋 ${placar.total} participando · ${placar.pct}% em dia` : 'Ainda sem placar.'}<br><small>O ranking com nomes só aparece pra quem entra: <em>"entra no desafio ${_esc(d.titulo)}"</em>.</small>`;
+  }
+  const ck = c.checks.filter(x => x.desafio_id === d.id);
+  const rk = PDF.ranking(d, c.parts.filter(x => x.desafio_id === d.id), ck);
+  const eu = rk.findIndex(r => r.user_id === c.uid);
+  if (d.modalidade === 'individual') return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b> é só teu, sem ranking. Tu cumpriu <b>${rk[eu]?.done || 0}${d.dias_total ? ' de ' + d.dias_total : ''}</b> dias 💪`;
+  const top = rk.slice(0, 8).map((r, i) => `${_medalha(i)} ${_esc(r.nome)}${r.user_id === c.uid ? ' <b>(tu)</b>' : ''} · ${r.done} ${r.done === 1 ? 'dia' : 'dias'}`);
+  if (eu >= 8) top.push(`…<br>${eu + 1}º <b>tu</b> · ${rk[eu].done} dias`);
+  return `🏅 <b>Ranking · ${_esc(d.titulo)}</b><br>${top.join('<br>')}`;
+}
+
+async function desafioEntrar(d, c) {
+  const meta = d.meta_diaria ? `<br><small>Meta: ${d.meta_diaria}${_unDesafio(d)} por dia${d.dias_total ? ` · ${d.dias_total} dias` : ''}</small>` : (d.dias_total ? `<br><small>${d.dias_total} dias</small>` : '');
+  const prenda = d.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(d.prenda)}. Entrando, tu topa.</small>` : '';
+  cardConfirmarLista(`🙋 Entrar no desafio <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>?${meta}${prenda}`, async () => {
+    await c.D.joinDesafio(d.id, await _meuNomeDesafio(c.email));
+    _redesenharDesafios();
+    return `Tu entrou no desafio 🦅 Quando fizer, me fala: <em>"${d.tipo === 'agua' ? 'bebi 500 ml no desafio da água' : `marca o desafio ${_esc(d.titulo)}`}"</em>.`;
+  }, null);
+  return null;
+}
+
+function desafioCodigo(codigo, c) {
+  cardConfirmarLista(`🔑 Entrar no desafio do código <strong>${_esc(codigo)}</strong>?`, async () => {
+    await c.D.entrarPorCodigo(codigo, await _meuNomeDesafio(c.email));
+    _redesenharDesafios();
+    return 'Tu entrou no desafio 🦅 Fala <em>"meus desafios"</em> pra ver como tá.';
+  }, null);
+  return null;
+}
+
+function desafioSair(d, c) {
+  cardConfirmarLista(`🚪 Sair do desafio <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>?<br><small>Teus check-ins ficam guardados, mas tu sai do ranking.</small>`, async () => {
+    await c.D.leaveDesafio(d.id);
+    _redesenharDesafios();
+    return 'Pronto, tu saiu do desafio.';
+  }, null);
+  return null;
+}
+
+// Soma no desafio: quantidade dita (convertida pra unidade dele), "bati a meta"
+// (o que falta) ou, sem meta, marcar feito hoje
+function desafioCheckin(d, p, c) {
+  const hoje = _diaDesafio();
+  const somei = PDF.somaHoje(c.checks.filter(x => x.desafio_id === d.id), c.uid, hoje);
+  const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  const meta = d.meta_diaria;
+  if (!meta) {
+    if (somei > 0) return `<b>${nome}</b> já está marcado hoje ✅`;
+    cardConfirmarLista(`✅ Marcar <strong>${nome}</strong> como feito hoje?`, async () => {
+      await c.D.addCheckin(d.id, 1);
+      _redesenharDesafios();
+      return 'Marcado no desafio ✅ 🦅';
+    }, null);
+    return null;
+  }
+  const falta = Math.max(0, meta - somei);
+  if (!falta) return `Tu já bateu a meta de hoje no <b>${nome}</b> ✅ (${somei}/${meta}${_unDesafio(d)})`;
+  let q = p.metaToda ? falta : PDF.naUnidade(p.qtd, d.unidade);
+  // "fiz o desafio" num desafio de 1 por vez (exercícios, reflexão): soma 1
+  const opcoes = Array.isArray(d.prova_opcoes) ? d.prova_opcoes : [];
+  if (!q && !p.qtd && opcoes.length === 1 && opcoes[0] === 1) q = 1;
+  if (!q) {
+    convState = { type: 'desafio_qtd', id: d.id };
+    const chips = opcoes.filter(o => o < falta).slice(0, 3).map(o => ({ label: `+${o}${d.unidade ? ' ' + d.unidade : ''}`, action: () => _cardSomar(d, o, somei, c) }));
+    chips.push({ label: `🎯 Bati a meta (+${falta})`, action: () => _cardSomar(d, falta, somei, c) });
+    addChoices(`Quanto tu fez no <b>${nome}</b>? Hoje está em ${somei}/${meta}${_unDesafio(d)}.`, chips);
+    return null;
+  }
+  return _cardSomar(d, q, somei, c);
+}
+
+function _cardSomar(d, q, somei, c) {
+  convState = null;
+  const meta = d.meta_diaria, fica = somei + q;
+  cardConfirmarLista(`${c.M.emojiDoTipo(d.tipo)} Somar <strong>${q}${_unDesafio(d)}</strong> no desafio <strong>${_esc(d.titulo)}</strong>?<br><small>Hoje fica ${fica}/${meta}${_unDesafio(d)}${fica >= meta ? ' 🎯' : ''}</small>`, async () => {
+    await c.D.addCheckin(d.id, q);
+    _redesenharDesafios();
+    return fica >= meta ? 'Meta de hoje batida! 🦅🔥' : `Somado ✅ Faltam ${meta - fica}${_unDesafio(d)} pra meta de hoje.`;
+  }, null);
+  return null;
+}
+
+// Cria a partir do molde (água, leitura...) ou com o nome dito. Oficial só na tela (admin).
+function desafioCriar(p, c) {
+  const molde = p.molde ? c.M.MOLDE_BY_ID[p.molde] : null;
+  if (!molde && !p.nome) {
+    addChoices('Desafio de quê?', c.M.MOLDES.map(m => ({ label: `${m.emoji} ${m.nome}`, action: () => desafioCriar({ ...p, molde: m.id }, c) })));
+    return null;
+  }
+  if (!p.modalidade) {
+    addChoices('Vai ser só teu ou com amigos?', [
+      { label: '🧍 Sozinho', action: () => desafioCriar({ ...p, modalidade: 'individual' }, c) },
+      { label: '👥 Com amigos', action: () => desafioCriar({ ...p, modalidade: 'amigos' }, c) },
+    ]);
+    return null;
+  }
+  const metaDita = molde ? PDF.naUnidade(p.qtd, molde.unidade) : null;
+  const meta = molde ? (metaDita || molde.meta) : null;
+  const unidade = molde ? molde.unidade : null;
+  const dias = p.dias || molde?.dias || null;
+  let titulo = molde ? molde.titulo : p.nome.charAt(0).toUpperCase() + p.nome.slice(1);
+  if (molde && metaDita && metaDita !== molde.meta) {
+    titulo = molde.id === 'agua' ? `Beber ${String(meta / 1000).replace('.', ',')}L de água` : `${molde.nome}: ${meta} ${unidade} por dia`;
+  }
+  const descricao = molde ? molde.desc.replace(/\b2L\b/, `${String(meta / 1000).replace('.', ',')}L`) : `${titulo} todo dia.`;
+  const amigos = p.modalidade === 'amigos';
+  const resumo = `🏆 Criar o desafio <strong>${molde?.emoji || '🏆'} ${_esc(titulo)}</strong>?<br><small>` +
+    `${meta ? `Meta: ${meta} ${_esc(unidade)} por dia · ` : 'Marcar feito 1x por dia · '}${dias ? `${dias} dias · ` : ''}${amigos ? '👥 com amigos (te dou o código pra convidar)' : '🧍 só teu'}</small>`;
+  cardConfirmarLista(resumo, async () => {
+    const codigo = amigos ? c.M.gerarCodigo() : null;
+    const id = await c.D.createDesafio({
+      titulo, descricao, dias, meta, unidade, opcoes: molde?.opcoes || [], tipo: molde?.id || null,
+      modalidade: p.modalidade, codigo, prenda: null, dataInicio: null, dataFim: null,
+    });
+    // Quem cria entra no próprio desafio, igual à tela
+    try { await c.D.joinDesafio(id, await _meuNomeDesafio(c.email)); } catch { /* segue */ }
+    _redesenharDesafios();
+    return amigos
+      ? `Desafio criado 🏆 Código do convite: <b>${_esc(codigo)}</b><br>Manda pros amigos. Eles entram pela aba Desafios em <b>🔑 Entrar com código</b> ou me falando <em>"entra com o código ${_esc(codigo)}"</em>.<br><small>Pra combinar uma prenda, edita o desafio na tela ✏️</small>`
+      : 'Desafio criado 🏆 Já te coloquei nele. Quando fizer, é só me falar.';
   }, null);
   return null;
 }
