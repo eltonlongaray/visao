@@ -27,7 +27,7 @@
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
   getCategories, saveCategory, deleteCategory, getProfile, setProfile, getWeekNote, setWeekNote,
-  dayId, sleepDuration, formatTime
+  dayId, sleepDuration, formatTime, getWeekdayTemplate, setWeekdayTemplate
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
@@ -42,10 +42,10 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009f';
+import * as PN from './pet-nuvem.js?v=20261009g';
 import * as PNT from './pet-nota.js?v=20261006a';
-import * as PR from './pet-ritual.js?v=20261009a';
-import * as PCF from './pet-config.js?v=20261009f';
+import * as PR from './pet-ritual.js?v=20261009g';
+import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
 import { navigate, forceRender } from './roteador.js';
@@ -842,6 +842,8 @@ async function dispatchCommand(text) {
       const c = PCF.lerConverterTipo(semChamado(text));
       if (c) reply = await converterTipo(c, semChamado(text));
     }
+    // "Não tô conseguindo lembrar de marcar as coisas": orienta e oferece ajuda
+    if (reply === undefined && typeof text !== 'function' && PCF.lerPedidoLembrar(semChamado(text))) reply = ajudaLembrar();
     // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarIdeal(semChamado(text));
@@ -1078,6 +1080,8 @@ async function routeCommand(text) {
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
+  if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
 
@@ -4525,6 +4529,87 @@ async function configAtividade(p) {
 // ═══════════════════════════════════════════════════════════════
 const _pctBarra = (p) => '🟩'.repeat(Math.round(p / 20)) + '⬜'.repeat(5 - Math.round(p / 20));
 const _segundaDe = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.16: AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
+// A pessoa esquece de marcar o que fez ou de abrir o app. O Pet orienta e
+// já oferece o que resolve: lembrete diário pra conferir o dia, sininho nas
+// atividades de hoje e o passo a passo de instalar/avisos.
+// ═══════════════════════════════════════════════════════════════
+const TITULO_CONFERIR = 'Conferir o dia no Falcon';
+
+function ajudaLembrar() {
+  addChoices(
+    'Normal isso! Constância vem de sistema, não de memória 💪 Três coisas que ajudam:<br><br>' +
+    '⏰ <b>Um horário fixo pra conferir o dia.</b> Eu crio um lembrete todo dia, tipo às 21h, pra tu abrir o app e marcar o que fez.<br><br>' +
+    '🔔 <b>Lembrete nas atividades com horário.</b> O celular avisa na hora de fazer e tu já marca ali mesmo.<br><br>' +
+    '🗣️ <b>Fala comigo na hora que fizer:</b> <em>"fiz a academia"</em>. Se esquecer, no dia seguinte eu te pergunto o que ficou em branco.<br><br>' +
+    '📲 Deixa o Falcon na tela inicial, perto do app que tu mais abre. Ver o ícone já lembra.<br><br>Quer que eu já faça alguma?',
+    [
+      { label: '⏰ Lembrete diário pra conferir', action: () => { escolherHoraConferir(); return null; } },
+      { label: '🔔 Lembrete nas atividades de hoje', action: () => lembreteNasDeHoje() },
+      { label: '📲 Instalar e ativar avisos', action: () => cmdNotificacoesAjuda() },
+    ]);
+  return null;
+}
+
+function escolherHoraConferir() {
+  addChoices('Que horas é melhor pra tu conferir o dia?', ['08:00', '12:00', '18:00', '21:00', '22:00'].map(h => ({
+    label: h, action: () => { criarConferirDiario(h); return null; },
+  })));
+}
+
+// Compromisso diário com lembrete, igual ao "Repetir: todo dia" da tela:
+// entra hoje e no resto da semana, e no modelo dos 7 dias da semana.
+async function criarConferirDiario(hora) {
+  const tmpl0 = await getWeekdayTemplate(new Date().getDay()).catch(() => []);
+  if ((tmpl0 || []).some(x => _limpoTxt(x.title) === _limpoTxt(TITULO_CONFERIR))) {
+    addMessage(`Tu já tem o <b>${TITULO_CONFERIR}</b> todo dia ✅ Pra mudar a hora: <em>"editar horário do compromisso conferir para 21h"</em>.`, 'bot');
+    return;
+  }
+  cardConfirmarLista(`⏰ Criar <strong>${TITULO_CONFERIR}</strong> todo dia às <strong>${hora}</strong>, com lembrete?`, async () => {
+    const shifts = await getShifts().catch(() => []);
+    const grpId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const base = {
+      activityId: null, title: TITULO_CONFERIR, desc: 'Abrir o app e marcar o que fiz hoje', kind: 'commitment',
+      startTime: hora, shiftId: pickShift(shifts, hora), categoryId: null, icon: '✅',
+      done: false, reminderEnabled: true, recurrenceType: 'daily', recurrenceGroupId: grpId,
+    };
+    // Hoje e os próximos dias até domingo (as semanas seguintes vêm do modelo)
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const restantes = hoje.getDay() === 0 ? 0 : 7 - hoje.getDay();
+    for (let i = 0; i <= restantes; i++) {
+      const d = new Date(hoje); d.setDate(hoje.getDate() + i);
+      const id = dayId(d);
+      const tasks = await getDayTasks(id).catch(() => []);
+      if (tasks.some(x => _limpoTxt(x.title) === _limpoTxt(TITULO_CONFERIR))) continue;
+      await addDayTask(id, { ...base, order: tasks.length });
+    }
+    const { recurrenceType, done, ...modelo } = base;
+    for (let dow = 0; dow < 7; dow++) {
+      const lista = (await getWeekdayTemplate(dow).catch(() => [])) || [];
+      if (lista.some(x => x.recurrenceGroupId === grpId)) continue;
+      await setWeekdayTemplate(dow, [...lista, { ...modelo, recurrenceType: 'daily', order: lista.length }]);
+    }
+    _redesenharTela();
+    return `Pronto! Todo dia às ${hora} eu te lembro de conferir o dia ⏰ Quando abrir, é só me falar o que fez.`;
+  }, null);
+}
+
+// Liga o sininho nas atividades de HOJE que têm horário e ainda não foram feitas
+async function lembreteNasDeHoje() {
+  const id = dayId(new Date());
+  const tasks = (await getDayTasks(id).catch(() => [])).filter(x => !x.done && !x.cancelled && x.startTime);
+  const sem = tasks.filter(x => !x.reminderEnabled).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  if (!tasks.length) return 'Hoje tu não tem atividade com horário pendente. Quando agendar uma, fala <em>"com lembrete"</em> que eu ligo o aviso 🔔';
+  if (!sem.length) return 'Tuas atividades de hoje com horário já estão com lembrete 🔔';
+  cardConfirmarLista(`🔔 Ligar o lembrete em ${sem.length} atividade(s) de hoje?<br><small>${sem.map(x => `${_esc(x.startTime.slice(0, 5))} · ${_esc(x.title)}`).join('<br>')}</small>`, async () => {
+    for (const x of sem) await updateDayTask(id, x.id, { reminderEnabled: true });
+    _redesenharTela();
+    return 'Lembretes ligados 🔔 O celular avisa na hora de cada uma.';
+  }, null);
+  return null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8.15: IDEAL (OS 6 PILARES) PELO PET

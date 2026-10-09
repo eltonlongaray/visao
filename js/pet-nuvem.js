@@ -169,6 +169,7 @@ export function fraseDoApp(j) {
       const itens = juntar(j.itens);
       return itens ? `marca ${itens} como feito${limpa(j.lista) ? ` na lista ${limpa(j.lista)}` : ''}` : null;
     }
+    case 'ajuda_lembrar': return 'me ajuda a lembrar de marcar as coisas no app';
     case 'lista_organizar': {
       const lista = limpa(j.lista), texto = limpa(j.texto);
       switch (j.campo) {

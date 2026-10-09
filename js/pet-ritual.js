@@ -330,7 +330,7 @@ export function tarefasCitadas(tasks, texto) {
 // atividade vira pergunta. Água e números ficam de fora (têm leitor próprio).
 const NAO_E_ATIVIDADE = new Set(('sim tambem tb posso pude consegui fiz feito feita feitos feitas terminei cumpri tomei bebi ' +
   'quantos quantas quanto foi foram ml litro litros copo copos agua garrafa mais menos ainda agora muito pouco bem tudo certo ' +
-  'isso aquilo coisa coisas resto hoje ontem nada nenhum nenhuma').split(' '));
+  'isso aquilo coisa coisas resto hoje ontem nada nenhum nenhuma esqueci esqueco marcar marquei registrar registrei anotar anotei').split(' '));
 export function citacoesSemTarefa(tasks, texto) {
   const t = semAcento(semPedido(texto));
   if (!SINAL_FEITO.test(t)) return [];
