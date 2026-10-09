@@ -16,6 +16,7 @@
 // BLOCO 8.11 — RITUAL PELO PET (água, sono, nota de qualquer dia, excluir, feito em outro dia, ver agenda)
 // BLOCO 8.12 — CONTAS A PAGAR EM LOTE
 // BLOCO 8.13 — CONFIGURAR O APP CONVERSANDO (horário padrão, tema, abrir tela, atividades)
+// BLOCO 8.14 — DESEMPENHO, REFLEXÃO DA SEMANA E OBJETIVOS PELO PET
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -25,7 +26,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getCategories, saveCategory, deleteCategory, getProfile, setProfile,
+  getCategories, saveCategory, deleteCategory, getProfile, setProfile, getWeekNote, setWeekNote,
   dayId, sleepDuration, formatTime
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
@@ -40,10 +41,11 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009b';
+import * as PN from './pet-nuvem.js?v=20261009c';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009a';
 import * as PCF from './pet-config.js?v=20261009a';
+import * as PDS from './pet-desempenho.js?v=20261009a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -831,6 +833,11 @@ async function dispatchCommand(text) {
     }
     // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
+    // Desempenho/objetivos ("como tá meu desempenho esse mês?"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarDesempenho(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Configurar o app ("muda a cor da atividade X pra azul"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarConfig(semChamado(text));
@@ -1038,6 +1045,10 @@ async function routeCommand(text) {
 
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
+  // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
+  const rDes = await tentarDesempenho(text);
+  if (rDes !== undefined) return rDes;
+
   // ── Configurar o app: horário padrão, tema, abrir tela, atividades (BLOCO 8.13) ──
   const rConfig = await tentarConfig(text);
   if (rConfig !== undefined) return rConfig;
@@ -4277,6 +4288,150 @@ async function configAtividade(p) {
     return null;
   }
   return undefined;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.14: DESEMPENHO, REFLEXÃO DA SEMANA E OBJETIVOS PELO PET
+// Consultas com as mesmas contas da tela Desempenho; reflexão e objetivos
+// gravam com card. Leitores em pet-desempenho.js.
+// ═══════════════════════════════════════════════════════════════
+const _pctBarra = (p) => '🟩'.repeat(Math.round(p / 20)) + '⬜'.repeat(5 - Math.round(p / 20));
+const _segundaDe = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+async function tentarDesempenho(text) {
+  const t = PR.semPedido(text);
+  const obj = PDS.lerObjetivo(t);
+  if (obj) return desempenhoObjetivo(obj);
+  const ref = PDS.lerReflexao(t);
+  if (ref) return desempenhoReflexao(ref);
+  const c = PDS.lerConsultaDesempenho(t);
+  if (c) return desempenhoConsulta(c);
+  return undefined;
+}
+
+async function desempenhoConsulta(c) {
+  if (c.tipo === 'recorde') {
+    const desde = new Date(); desde.setDate(desde.getDate() - 400);
+    const [dias, profile] = await Promise.all([fetchDaysRange(desde, new Date()), getProfile().catch(() => null)]);
+    const k = calcularConstancia(dias, profile?.streakOrigin || null);
+    const bm = PDS.melhorMes(dias, _hojeId());
+    const nomeMes = bm ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(Number(bm.chave.slice(0, 4)), Number(bm.chave.slice(5)) - 1, 1)) : '';
+    return `🏆 <b>Teus recordes</b><br>• Maior sequência: <b>${k.longest} ${k.longest === 1 ? 'dia' : 'dias'}</b> seguidos<br>• Sequência atual: <b>${k.current}</b> ${k.current === 1 ? 'dia' : 'dias'}${k.current && k.current >= k.longest ? ' 🔥 (é o teu recorde!)' : ''}<br>• Constância geral: <b>${k.rate}%</b> dos dias registrados${bm ? `<br>• Melhor mês: <b>${nomeMes}</b>, com ${bm.pct}% das tarefas feitas` : ''}`;
+  }
+  const { ini, fim, rotulo } = c.periodo;
+  const dias = await fetchDaysRange(ini, fim).catch(() => null);
+  if (!dias) return 'Não consegui abrir teu desempenho agora 😕 Tenta de novo daqui a pouco.';
+  const hoje = _hojeId();
+  const passados = dias.filter(d => d.id <= hoje);
+  if (c.tipo === 'sono') {
+    const s = PDS.sonoMedio(passados, sleepDuration);
+    if (!s) return `Não tenho sono registrado ${rotulo}. Preenche "Acordei" e "Dormi" no Ritual (ou me fala "dormi às 23h") que eu calculo.`;
+    return `😴 Teu sono ${rotulo}: média de <b>${PDS.fmtHM(s.media)}</b> por noite (${s.dias} ${s.dias === 1 ? 'dia' : 'dias'} com registro).<br>${PDS.classeSono(s.media)}`;
+  }
+  if (c.tipo === 'atividade') {
+    const cats = await getCategories().catch(() => []);
+    const cat = PCF.acharAtividade(cats, c.nome);
+    const alvo = _limpoTxt(c.nome);
+    const casa = (tk) => cat ? (tk.categoryId === cat.id || _limpoTxt(tk.title) === _limpoTxt(cat.name)) : _limpoTxt(tk.title).includes(alvo);
+    const tarefas = passados.flatMap(d => (d.tasks || []).filter(tk => !tk.cancelled && casa(tk)).map(tk => ({ ...tk, dia: d.id })));
+    if (!tarefas.length) {
+      const nomes = cats.map(x => `${x.icon || '🏷️'} ${_esc(x.name)}`).join('<br>');
+      return `🤔 Não encontrei <b>${_esc(c.nome)}</b> ${rotulo}. Me diz o nome exato da atividade${nomes ? `. Tuas atividades:<br>${nomes}` : '.'}`;
+    }
+    const feitas = tarefas.filter(tk => tk.done);
+    const diasFeitos = new Set(feitas.map(tk => tk.dia)).size;
+    const pct = Math.round(feitas.length / tarefas.length * 100);
+    const nome = cat ? `${cat.icon || '🏷️'} ${_esc(cat.name)}` : _esc(tarefas[0].title);
+    return `📊 <b>${nome}</b> ${rotulo}:<br>• Feita <b>${feitas.length}</b> de ${tarefas.length} vezes planejadas (${pct}%) ${_pctBarra(pct)}<br>• Em <b>${diasFeitos}</b> ${diasFeitos === 1 ? 'dia' : 'dias diferentes'}`;
+  }
+  // Geral: % das tarefas feitas até hoje + a atividade que mais e a que menos cumpriu
+  let done = 0, total = 0;
+  const porAtv = new Map();
+  for (const d of passados) for (const tk of d.tasks || []) {
+    if (tk.cancelled) continue;
+    total++; if (tk.done) done++;
+    const k = tk.title || '—';
+    const a = porAtv.get(k) || { done: 0, total: 0 };
+    a.total++; if (tk.done) a.done++;
+    porAtv.set(k, a);
+  }
+  if (!total) return `Não tem tarefa registrada ${rotulo} ainda. Quando tiver, te mostro o desempenho 😉`;
+  const pct = Math.round(done / total * 100);
+  const lista = [...porAtv].filter(([, a]) => a.total >= 3).map(([k, a]) => [k, Math.round(a.done / a.total * 100), a]);
+  lista.sort((a, b) => b[1] - a[1]);
+  const melhor = lista[0], pior = lista.length > 1 ? lista[lista.length - 1] : null;
+  return `📊 Teu desempenho ${rotulo}: <b>${pct}%</b> ${_pctBarra(pct)}<br>${done} de ${total} tarefas feitas (até hoje).` +
+    (melhor && melhor[2].done ? `<br>💪 Mais firme: <b>${_esc(melhor[0])}</b> (${melhor[2].done}/${melhor[2].total})` : '') +
+    (pior && pior[1] < melhor[1] ? `<br>🎯 Pra melhorar: <b>${_esc(pior[0])}</b> (${pior[2].done}/${pior[2].total})` : '');
+}
+
+async function desempenhoReflexao(r) {
+  const seg = _segundaDe(new Date());
+  if (r.passada) seg.setDate(seg.getDate() - 7);
+  const id = dayId(seg);
+  const qual = r.passada ? 'da semana passada' : 'desta semana';
+  const atual = String((await getWeekNote(id).catch(() => null))?.note || '').trim();
+  if (r.consultar) return atual ? `📝 Tua reflexão ${qual}:<br>${_esc(atual).replace(/\n/g, '<br>')}` : `A reflexão ${qual} está em branco. Me fala "reflexão da semana: ..." que eu anoto.`;
+  if (r.abrir) return `Bora! Me fala o que tu quer escrever, assim: <em>"reflexão da semana: essa semana eu aprendi..."</em>`;
+  const novo = atual ? `${atual}\n${r.conteudo}` : r.conteudo;
+  cardConfirmarLista(`📝 Reflexão ${qual}:<br>${atual ? `<em>${_esc(atual)}</em><br>+ ` : ''}${_esc(r.conteudo)}`, async () => {
+    await setWeekNote(id, { note: novo.slice(0, 4000) });
+    _redesenharTela();
+    return `✅ Anotado na reflexão ${qual}.`;
+  }, null);
+  return null;
+}
+
+async function desempenhoObjetivo(o) {
+  const OBJ = await import('./objetivos.js');
+  const lista = await OBJ.listarObjetivos().catch(() => null);
+  if (!lista) return 'Não consegui abrir teus objetivos agora 😕 Tenta de novo daqui a pouco.';
+  const perNome = (p) => p === 'mes' ? 'por mês' : 'por semana';
+  const alvoTxt = (x) => `${x.vezes}× ${perNome(x.periodo)}${Number(x.vezesDia) > 1 ? ` (${x.vezesDia}× no dia)` : ''}`;
+  const achar = (nome) => { const n = _limpoTxt(nome); return lista.find(x => _limpoTxt(x.atividadeNome || x.nome) === n) || lista.find(x => _limpoTxt(x.atividadeNome || x.nome).includes(n) || n.includes(_limpoTxt(x.atividadeNome || x.nome))); };
+  if (o.tipo === 'ver') {
+    if (!lista.length) return 'Tu ainda não tem objetivos. Cria um assim: <em>"cria um objetivo de academia 4 vezes por semana"</em>.';
+    const [prog, cons] = await Promise.all([OBJ.progressoDosObjetivos(lista), OBJ.constanciaDosObjetivos(lista).catch(() => new Map())]);
+    return `🎯 <b>Teus objetivos</b><br>` + lista.map(x => {
+      const p = prog.get(x.id) || { feitos: 0, alvo: x.vezes, pct: 0 };
+      const k = cons.get(x.id)?.texto;
+      return `• <b>${_esc(x.atividadeNome || x.nome)}</b>: ${p.feitos} de ${p.alvo} ${x.periodo === 'mes' ? 'no mês' : 'na semana'} ${p.cumprido ? '✅' : _pctBarra(p.pct)}${k ? ` · ${k}` : ''}`;
+    }).join('<br>');
+  }
+  if (o.tipo === 'apagar') {
+    const x = achar(o.nome);
+    if (!x) return `🤔 Não achei objetivo de <b>${_esc(o.nome)}</b>.${lista.length ? ` Teus objetivos: ${lista.map(y => _esc(y.atividadeNome || y.nome)).join(', ')}.` : ''}`;
+    cardConfirmarLista(`🗑️ Apagar o objetivo <b>${_esc(x.atividadeNome || x.nome)}</b> (${alvoTxt(x)})?`, async () => {
+      await OBJ.removerObjetivo(x.id); _redesenharTela(); return '✅ Objetivo apagado.';
+    }, null);
+    return null;
+  }
+  if (!o.nome) return 'De qual atividade é o objetivo? Ex.: <em>"cria um objetivo de academia 4 vezes por semana"</em>.';
+  if (o.tipo === 'mudar' || (o.tipo === 'criar' && achar(o.nome))) {
+    const x = achar(o.nome);
+    if (!x) return `🤔 Não achei objetivo de <b>${_esc(o.nome)}</b>. Pra criar: <em>"cria um objetivo de ${_esc(o.nome)} ${o.vezes} vezes ${perNome(o.periodo)}"</em>.`;
+    const novo = { ...x, vezes: o.vezes, periodo: o.periodo, vezesDia: o.vezesDia };
+    cardConfirmarLista(`✏️ Objetivo <b>${_esc(x.atividadeNome || x.nome)}</b>: ${alvoTxt(x)} → <b>${alvoTxt(novo)}</b>?`, async () => {
+      await OBJ.salvarObjetivo(novo); _redesenharTela(); return '✅ Objetivo atualizado.';
+    }, null);
+    return null;
+  }
+  // Criar: o objetivo conta pela atividade da Home. Sem ela, cria junto.
+  const cats = await getCategories().catch(() => []);
+  const cat = PCF.acharAtividade(cats, o.nome);
+  const nome = cat ? cat.name : o.nome.charAt(0).toUpperCase() + o.nome.slice(1);
+  const novo = { nome, atividadeNome: nome, vezes: o.vezes, vezesDia: o.vezesDia, periodo: o.periodo, origem: 'ritual' };
+  cardConfirmarLista(`🎯 Novo objetivo: <b>${_esc(nome)}</b> ${alvoTxt(novo)}${cat ? '' : `<br><small>A atividade "${_esc(nome)}" ainda não existe, eu crio ela junto.</small>`}`, async () => {
+    let atividadeId = cat?.id;
+    if (!atividadeId) {
+      const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
+      atividadeId = await saveCategory(null, { name: nome, icon: _emojiAtividade(nome), color: _CATCOLORS[cats.length % _CATCOLORS.length], order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+    }
+    await OBJ.salvarObjetivo({ ...novo, atividadeId });
+    _redesenharTela();
+    return '✅ Objetivo criado. A contagem vem sozinha das tarefas feitas no Ritual.';
+  }, null);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════

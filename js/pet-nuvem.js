@@ -135,6 +135,24 @@ export function fraseDoApp(j) {
         default: return null;
       }
     }
+    case 'desempenho': {
+      const nome = limpa(j.titulo), quando = limpa(j.quando), texto = limpa(j.texto);
+      const periodo = !quando ? '' : /^(ultimos|últimos)/i.test(quando) ? ` nos ${quando}` : /passad/i.test(quando) ? ` ${/semana/i.test(quando) ? 'da' : 'do'} ${quando}` : /^(esse|essa|este|esta|nesse|nessa|neste|nesta)\b/i.test(quando) ? ` ${quando}` : ` ${/semana/i.test(quando) ? 'essa' : 'esse'} ${quando.replace(/^(a|o)\s+/i, '')}`;
+      const per = /m[eê]s/i.test(quando) ? 'mês' : 'semana';
+      switch (j.campo) {
+        case 'geral': return `meu desempenho${periodo || ' do mês'}`;
+        case 'atividade': return nome ? `quantas vezes fiz ${nome}${periodo || ' esse mês'}` : null;
+        case 'recorde': return 'meu recorde';
+        case 'sono': return `média de sono${periodo || ' da semana'}`;
+        case 'reflexao_ver': return `qual minha reflexão da semana${/passada/i.test(quando) ? ' passada' : ''}?`;
+        case 'reflexao_anotar': return texto ? `reflexão da semana: ${texto}` : 'preenche a reflexão da semana';
+        case 'objetivos_ver': return 'como tão meus objetivos?';
+        case 'objetivo_criar': return nome && j.numero > 0 ? `cria um objetivo de ${nome} ${j.numero} vezes por ${per}` : null;
+        case 'objetivo_mudar': return nome && j.numero > 0 ? `muda o objetivo de ${nome} pra ${j.numero} vezes por ${per}` : null;
+        case 'objetivo_apagar': return nome ? `apaga o objetivo de ${nome}` : null;
+        default: return null;
+      }
+    }
     case 'lista_adicionar': {
       const itens = juntar(j.itens);
       return itens ? `adiciona ${itens} na lista ${limpa(j.lista) || 'mercado'}` : null;
