@@ -7,6 +7,7 @@
 // BLOCO 3 — ABRIR UMA TELA
 // BLOCO 4 — ATIVIDADES (listar, criar, renomear, ícone, cor, excluir)
 // BLOCO 5 — DÚVIDA SOBRE TÍTULO E DESCRIÇÃO
+// BLOCO 6 — TRANSFORMAR TAREFA EM COMPROMISSO (e o contrário)
 // ─────────────────────────────────────────────────────────────
 
 const semAcento = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -183,4 +184,47 @@ export function lerDuvidaTituloDescricao(texto) {
   const t = semAcento(semPedido(texto)).replace(/,/g, ' ').replace(/\s+/g, ' ');
   if (!/\b(titulo|descricao|discricao)\b/.test(t)) return false;
   return /\b(diferenca|diferente|o que (e|vai|coloco|boto|escrevo|poe)|pra que serve|para que serve|qual (e|a) (a )?(funcao|ideia)|como (uso|funciona)|explica)\b/.test(t);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: TRANSFORMAR TAREFA EM COMPROMISSO (e o contrário)
+// ═══════════════════════════════════════════════════════════════
+// Início e fim de "das 14h às 16h", "de 2 a 4 da tarde", "às 18h" → { ini, fim }.
+// "da tarde" dito só no fim vale pros dois ("de 2 a 4 da tarde" = 14h–16h).
+export function faixaHorario(trecho) {
+  const t = semAcento(trecho).replace(/\bdia \d{1,2}(?:\/\d{1,2})?\b|\b\d{1,2}\/\d{1,2}\b/g, ' ');
+  const partes = t.split(/\s+(?:ate|as|a)\s+(?=(?:as\s+)?(?:\d|(?:meio|meia|uma|duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\b))|\s*[-–]\s*(?=\d)/)
+    .filter(x => /\d|meio|meia|\b(uma|duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\b/.test(x));
+  if (!partes.length) return { ini: null, fim: null };
+  const per = (x) => (x.match(/\b(da noite|da manha|da madrugada|de madrugada|da tarde)\b/) || [])[1];
+  const p0 = partes[0], p1 = partes[1] || '';
+  const ini = hora(p0 + (!per(p0) && per(p1) ? ' ' + per(p1) : '').replace(/^/, ' '));
+  const fim = p1 ? hora(' ' + p1) : null;
+  // "das 10 às 2" = 10h–14h
+  if (ini && fim && fim < ini && Number(fim.slice(0, 2)) < 12) {
+    const h = Number(fim.slice(0, 2)) + 12;
+    return { ini, fim: `${h}${fim.slice(2)}` };
+  }
+  return { ini, fim };
+}
+
+// { para: 'commitment' | 'task', nome, ini, fim, temDia } ou null.
+// "transforma a tarefa academia em compromisso das 18h às 19h",
+// "deixa a reunião como compromisso às 14h", "converte o compromisso X em tarefa"
+export function lerConverterTipo(texto) {
+  const orig = semPedido(texto).normalize('NFC').replace(/[.!?]+$/, '').replace(/\s+/g, ' ').trim();
+  const t = semAcento(orig);
+  const m = t.match(/^(?:transform\w*|convert\w*|torn\w*|passa\w*|muda\w*|troca\w*|deixa\w*|coloca\w*|bota\w*|vira\w*|faz\w*)\s+(?:(?:o|a)\s+)?(?:(?:compromisso|tarefa|atividade)\s+)?(?:d[oa]\s+)?(.+?)\s+(?:em|pra|para|pro|como|num|numa)\s+(?:um\s+|uma\s+|o\s+|a\s+)?(compromisso|tarefa|atividade)\b(.*)$/d);
+  if (!m) return null;
+  // Nome com acento e maiúscula como a pessoa escreveu (pra mensagem "não encontrei")
+  const bruto = orig.length === t.length ? orig.slice(m.indices[1][0], m.indices[1][1]) : m[1];
+  const nome = bruto.replace(/\s+(?:de|do|da|na|no)\s+(?:hoje|amanh[aã]|ontem|(?:pr[oó]xim[ao]\s+)?(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?|dia\s+\d{1,2}(?:\/\d{1,2})?)$/i, '').trim();
+  // "muda o nome da tarefa X pra tarefa Y" é renomear, não trocar o tipo
+  if (!nome || /^(?:o\s+|a\s+)?(?:nome|cor|icone|horario|hora|descricao|titulo|lembrete)\b/.test(semAcento(nome))) return null;
+  const { ini, fim } = faixaHorario(m[3]);
+  return {
+    para: m[2] === 'compromisso' ? 'commitment' : 'task',
+    nome, ini, fim,
+    temDia: DIA_RE.test(t.replace(/\bsemana\b/, '')),
+  };
 }

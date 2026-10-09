@@ -41,10 +41,10 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009d';
+import * as PN from './pet-nuvem.js?v=20261009e';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009a';
-import * as PCF from './pet-config.js?v=20261009b';
+import * as PCF from './pet-config.js?v=20261009e';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
@@ -835,6 +835,11 @@ async function dispatchCommand(text) {
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
     // "Qual a diferença entre título e descrição?": explica com o exemplo do app
     if (reply === undefined && typeof text !== 'function' && PCF.lerDuvidaTituloDescricao(semChamado(text))) reply = EXPLICA_TITULO_DESCRICAO;
+    // "Transforma a tarefa X em compromisso das 14h às 16h": antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const c = PCF.lerConverterTipo(semChamado(text));
+      if (c) reply = await converterTipo(c, semChamado(text));
+    }
     // Desempenho/objetivos ("como tá meu desempenho esse mês?"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesempenho(semChamado(text));
@@ -981,6 +986,16 @@ async function routeCommand(text) {
     }
     return t('pet.ask.type');
   }
+
+  // Faltou o horário pra virar compromisso: "das 14h às 16h"
+  if (convState?.type === 'conv_hora') {
+    const { ini, fim } = PCF.faixaHorario(' ' + text);
+    const { c, match } = convState;
+    convState = null;
+    if (ini) return converterTipo({ ...c, ini, fim }, '', match);
+    if (/^(n[aã]o|deixa|esquece|cancela)\b/i.test(text.trim())) return 'Beleza, deixei como estava.';
+  }
+  { const c = PCF.lerConverterTipo(text); if (c) return converterTipo(c, text); }
 
   if (convState?.type === 'waiting_time') {
     const { name, date } = convState;
@@ -2492,7 +2507,7 @@ async function searchTasksByName(hint, tipo) {
   const past   = new Date(today); past.setDate(today.getDate() - 3);
   const future = new Date(today); future.setDate(today.getDate() + 14);
   const days = await fetchDaysRange(past, future);
-  const q = cleanSearchHint(hint).toLowerCase();
+  const q = semAcento(cleanSearchHint(hint));
   const isComp = tipo && /compromisso|commitment/.test(tipo);
   const results = [];
   for (const day of days) {
@@ -2505,7 +2520,7 @@ async function searchTasksByName(hint, tipo) {
       // Acha por título OU descrição: a pessoa lembra da atividade tanto pelo
       // nome quanto pelo detalhe ("o compromisso Startup" = o de descrição
       // Startup). O card de confirmação evita edição errada em falso positivo.
-      const alvo = `${task.title || ''} ${task.desc || ''}`.toLowerCase();
+      const alvo = semAcento(`${task.title || ''} ${task.desc || ''}`);
       if (alvo.includes(q)) {
         const [y, m, d] = day.id.split('-').map(Number);
         results.push({ task, dayDocId: day.id, date: new Date(y, m - 1, d) });
@@ -2555,6 +2570,43 @@ async function cmdReatgendar(nameHint, afterPara, tipo) {
   showEditCard(matches, 'reschedule', { newDate, newTime });
 }
 
+// Tarefa ↔ compromisso: "transforma a tarefa academia em compromisso das 18h às 19h".
+// Acha a tarefa do usuário (título ou descrição), mostra o card e só grava no
+// Confirmar. Compromisso precisa de horário: sem ele, pergunta.
+async function converterTipo(c, texto, jaAchada) {
+  const quer = c.para === 'commitment' ? 'compromisso' : 'tarefa';
+  let match = jaAchada;
+  if (!match) {
+    let achados = (await searchTasksByName(c.nome)).sort((a, b) => a.date - b.date);
+    if (c.temDia && texto) {
+      const alvo = dayId(extractDate(texto));
+      achados = achados.filter(x => x.dayDocId === alvo);
+    }
+    // Sem dia dito: a de hoje; senão a próxima; senão a mais recente
+    const hoje = dayId(new Date());
+    match = achados.find(x => x.dayDocId === hoje)
+      || achados.find(x => x.dayDocId > hoje)
+      || achados[achados.length - 1];
+    // Do mesmo jeito que o "Não encontrei" das atividades de hoje
+    if (!match) return `🤔 Não encontrei <b>${_esc(c.nome)}</b> na tua agenda. Me diz o nome exato da tarefa, do jeito que está no app.`;
+  }
+  const tk = match.task;
+  const ehComp = tk.kind === 'commitment';
+  if (c.para === 'task') {
+    if (!ehComp) return `<b>${_esc(tk.title)}</b> já é tarefa 🙂`;
+    showEditCard([match], 'kind', { newKind: 'task' });
+    return null;
+  }
+  const ini = c.ini || (ehComp ? '' : tk.startTime || '');
+  if (ehComp && !c.ini) return `<b>${_esc(tk.title)}</b> já é compromisso${tk.startTime ? ` (${tk.startTime}${tk.horaFim ? '–' + tk.horaFim : ''})` : ''} 🙂`;
+  if (!ini) {
+    convState = { type: 'conv_hora', c, match };
+    return `Pra virar ${quer}, <b>${_esc(tk.title)}</b> precisa de horário. Que horas? Ex.: <em>das 14h às 15h</em> ou <em>às 18h</em>.`;
+  }
+  showEditCard([match], 'kind', { newKind: 'commitment', newTime: ini, horaFim: c.fim || '' });
+  return null;
+}
+
 function showEditCard(matches, action, payload) {
   const box = document.getElementById('pet-messages');
   if (!box) return;
@@ -2595,6 +2647,20 @@ function showEditCard(matches, action, payload) {
         }));
     } else if (action === 'time') {
       p = updateDayTask(dayDocId, task.id, { startTime: payload.newTime, rescheduled: true, rescheduleCount: reschedCount });
+    } else if (action === 'kind') {
+      // Compromisso: horário de início (e fim, se dito) e o turno pelo horário
+      const upd = { kind: payload.newKind };
+      p = (async () => {
+        if (payload.newKind === 'commitment') {
+          upd.startTime = payload.newTime;
+          upd.horaFim = payload.horaFim || null;
+          const shifts = await getShifts().catch(() => []);
+          if (shifts.length) upd.shiftId = pickShift(shifts, payload.newTime);
+        }
+        await updateDayTask(dayDocId, task.id, upd);
+        Object.assign(task, upd);
+        _redesenharTela();
+      })();
     } else {
       const newDayId = dayId(payload.newDate);
       const newTime  = payload.newTime || task.startTime || '';
@@ -2645,6 +2711,13 @@ function showEditCard(matches, action, payload) {
       title.textContent = `🔁 ${task.title}`;
       const rl = ruleLabel({ ...payload.recFrag, weekday: date.getDay(), dayOfMonth: date.getDate() });
       sub.textContent   = `repetir → ${rl}`;
+    } else if (action === 'kind') {
+      title.textContent = `${payload.newKind === 'commitment' ? '📌' : '✅'} ${task.title}`;
+      const faixa = payload.newKind === 'commitment'
+        ? ` · ${payload.newTime}${payload.horaFim ? '–' + payload.horaFim : ''}` : '';
+      const de = task.kind === 'commitment' ? 'compromisso' : 'tarefa';
+      const para = payload.newKind === 'commitment' ? 'compromisso' : 'tarefa';
+      sub.textContent   = `${de === para ? para : de + ' → ' + para} · ${fmtDate(date)}${faixa}`;
     } else if (action === 'time') {
       title.textContent = `⏰ ${task.title}`;
       sub.textContent   = `${fmtDate(date)} · ${task.startTime || '—'} → ${payload.newTime}`;
