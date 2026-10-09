@@ -8,6 +8,7 @@
 // BLOCO 4 — ATIVIDADES (listar, criar, renomear, ícone, cor, excluir)
 // BLOCO 5 — DÚVIDA SOBRE TÍTULO E DESCRIÇÃO
 // BLOCO 6 — TRANSFORMAR TAREFA EM COMPROMISSO (e o contrário)
+// BLOCO 7 — PEDIDO DE AJUDA PRA LEMBRAR / TER CONSTÂNCIA
 // ─────────────────────────────────────────────────────────────
 
 const semAcento = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -228,4 +229,24 @@ export function lerConverterTipo(texto) {
     nome, ini, fim,
     temDia: DIA_RE.test(t.replace(/\bsemana\b/, '')),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 7: PEDIDO DE AJUDA PRA LEMBRAR / TER CONSTÂNCIA
+// ═══════════════════════════════════════════════════════════════
+// "não tô conseguindo lembrar de marcar as coisas", "esqueço de abrir o app",
+// "me ajuda a ter constância", "como faço pra não esquecer de registrar?".
+// Não pega quem já conta o que fez ("esqueci de marcar, fiz a leitura ontem"):
+// isso é registro, o Ritual resolve.
+export function lerPedidoLembrar(texto) {
+  const t = semAcento(texto).replace(/[,.!?;]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/\b(fiz|fui|feit[oa]s?|bebi|dormi|acordei|treinei|li|terminei|conclui)\b/.test(t)) return false;
+  const coisa = /\b(marcar|registrar|anotar|preencher|conferir|abrir|usar|olhar|entrar|app|aplicativo|falcon|ritual|atividades|tarefas|coisas|constancia|rotina|habito)\b/;
+  if (!coisa.test(t)) return false;
+  return /\besquec\w*|\besqueco\b|\besqueci\b/.test(t)
+    || (/\bnao\s+(?:to\s+|estou\s+|tou\s+|ando\s+)?(?:consig\w*|conseguindo|lembr\w*)\b/.test(t)
+      && /\b(lembr\w*|marcar|registrar|anotar|preencher|conferir|constancia|habito)\b|\b(abrir|usar|olhar|entrar n)\w*\s+(?:o\s+|no\s+)?(app|aplicativo|falcon)\b/.test(t))
+    || /\b(?:me\s+)?ajud\w*\b.*\b(lembrar|constancia|nao esquecer|abrir|conferir|disciplina|rotina|habito)\b/.test(t)
+    || /\bcomo\s+(?:eu\s+)?(?:faco|consigo|posso|fazer)\s+(?:pra|para)\s+(?:me\s+)?(lembrar|nao esquecer|ter constancia|manter|abrir|conferir|criar o habito)\b/.test(t)
+    || /\b(dificuldade|nao tenho constancia|perco a constancia|sem constancia)\b/.test(t);
 }
