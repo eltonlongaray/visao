@@ -41,10 +41,10 @@ import {
 import * as PL from './pet-listas.js?v=20261007b';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009c';
+import * as PN from './pet-nuvem.js?v=20261009d';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009a';
-import * as PCF from './pet-config.js?v=20261009a';
+import * as PCF from './pet-config.js?v=20261009b';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
@@ -833,6 +833,8 @@ async function dispatchCommand(text) {
     }
     // "Alongamento fiz, janta leve sim, academia sim…": frase longa que a IA da
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
+    // "Qual a diferença entre título e descrição?": explica com o exemplo do app
+    if (reply === undefined && typeof text !== 'function' && PCF.lerDuvidaTituloDescricao(semChamado(text))) reply = EXPLICA_TITULO_DESCRICAO;
     // Desempenho/objetivos ("como tá meu desempenho esse mês?"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesempenho(semChamado(text));
@@ -1262,7 +1264,8 @@ const FORA_DO_APP = 'Desculpe, não posso ajudar com assuntos não relacionados 
 let _naNuvem = false, _ultimaNuvem = null;
 const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(/\s+/).length >= 7 &&
   !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim()) &&
-  !PCT.lerLoteDeContas(text);   // lista de contas: o roteador já entende inteira
+  !PCT.lerLoteDeContas(text) &&   // lista de contas: o roteador já entende inteira
+  !/\b(t[ií]tulo|d[ei]scri[çcs][ãa]o)\b/i.test(text);   // título/descrição ditados: o roteador separa os campos
 // Esclarecer: a IA pode responder com uma PERGUNTA ("em que dia vence a conta
 // de luz?"). As falas ficam guardadas por uns minutos e vão junto na próxima
 // mensagem, pra IA juntar tudo num pedido só. No máximo 3 perguntas seguidas.
@@ -1910,6 +1913,9 @@ async function cmdProximo(frase = '') {
 }
 
 function askType(name, date = new Date(), time = '') {
+  // Sobra de "academia com descrição X" / "academia, treino de perna": a descrição
+  // é separada no card seguinte; aqui só não mostra o conector solto
+  name = String(name || '').replace(/\s+,/g, ',').replace(/[\s,]+(com|de|e)$/i, '').trim();
   convState = { type: 'waiting_type', name, date, time };
   const dd    = date.getDate().toString().padStart(2, '0');
   const mm    = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1983,6 +1989,17 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
     _showMarcacao('Agenda Online', done, date, time);
     return;
   }
+  // "Academia treino de perna", "Contas a pagar luz": começa com uma atividade
+  // da pessoa → o título é a atividade e o resto vira a descrição
+  if (!cats.some(c => _limpoTxt(c.name) === _limpoTxt(name))) {
+    const ini = [...cats].sort((a, b) => b.name.length - a.name.length)
+      .find(c => _limpoTxt(name).startsWith(_limpoTxt(c.name) + ' ') || _limpoTxt(name).startsWith(_limpoTxt(c.name) + ','));
+    if (ini) {
+      const resto = String(name).trim().slice(ini.name.length).replace(/^[\s,.:;·-]+/, '').replace(/^(com|de|do|da|pra|para|no|na)\b\s*/i, '').trim();
+      if (resto && !ditado.descricao) ditado.descricao = resto.charAt(0).toUpperCase() + resto.slice(1);
+      name = ini.name;
+    }
+  }
   const registrada = cats.some(c => _limpoTxt(c.name) === _limpoTxt(name));
   // Duas etapas: se o título ainda NÃO é atividade registrada, primeiro resolve
   // isso (escolher uma ou criar); só depois vem o card de marcação limpo.
@@ -1999,7 +2016,7 @@ function _showGateAtividade(name, done, date, time, cats) {
   const aviso = document.createElement('div');
   aviso.className = 'pet-msg pet-msg-bot';
   const asp = document.createElement('span');
-  asp.innerHTML = `Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Crie essa ou escolha uma das suas:`;
+  asp.innerHTML = `Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Crie essa ou escolha uma das suas. Se escolher uma, <b>“${_esc(name)}”</b> vai pra descrição.<br><small>💡 O título é a atividade (é ela que conta no Desempenho e nos Objetivos). A descrição é o detalhe daquela vez.</small>`;
   aviso.appendChild(asp);
   box.appendChild(aviso);
 
@@ -2021,7 +2038,12 @@ function _showGateAtividade(name, done, date, time, cats) {
     div.remove();     // deixando só o card de marcação que vem a seguir.
     _showMarcacao(nome, done, date, time);
   };
-  if (atvGrid) atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => resolver(chip.dataset.atv)));
+  // Escolheu uma atividade existente: o que a pessoa falou ("Aniversário da
+  // Grazi") não se perde, vira a descrição dessa vez
+  if (atvGrid) atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
+    if (!ditado.descricao && _limpoTxt(name) !== _limpoTxt(chip.dataset.atv)) ditado.descricao = name;
+    resolver(chip.dataset.atv);
+  }));
   const cbtn = div.querySelector('[data-create]');
   cbtn.addEventListener('click', async () => {
     cbtn.disabled = true; cbtn.textContent = 'Criando…';
@@ -4199,7 +4221,14 @@ function _redesenharTela() {
   if (/^#\/(home|ritual|desempenho)\b/.test(location.hash || '')) { try { forceRender(); } catch { /* sem tela */ } }
 }
 
+const EXPLICA_TITULO_DESCRICAO =
+  '📌 <b>Título</b> é a <b>atividade</b>: o que tu faz sempre (Academia, Leitura, Contas a pagar). É ele que conta no Desempenho, nos Objetivos e na sequência.<br>' +
+  '📝 <b>Descrição</b> é o <b>detalhe daquela vez</b>: o que muda de um dia pro outro (treino de perna, capítulo 3, conta de luz).<br><br>' +
+  'Exemplo: título <b>Academia</b>, descrição <b>treino de perna</b>. Assim a academia conta no teu objetivo e tu ainda sabe o que treinou.<br>' +
+  'Pra mim, fala assim: <em>"agenda academia amanhã às 7h, descrição treino de perna"</em>. Se tu falar só "aniversário da Grazi", eu te pergunto em qual atividade ele entra e guardo o nome na descrição.';
+
 async function tentarConfig(text) {
+  if (PCF.lerDuvidaTituloDescricao(text)) return EXPLICA_TITULO_DESCRICAO;
   const t = PR.semPedido(text);
   const tela = PCF.lerAbrirTela(t);
   if (tela) {

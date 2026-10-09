@@ -73,7 +73,8 @@ export function fraseDoApp(j) {
       const titulo = limpa(j.titulo);
       if (!titulo) return null;
       const hora = limpa(j.hora);
-      return ['agendar', titulo, limpa(j.quando), hora ? `às ${hora}` : ''].filter(Boolean).join(' ');
+      const desc = limpa(j.texto);
+      return ['agendar', titulo, limpa(j.quando), hora ? `às ${hora}` : '', desc ? `descrição ${desc}` : ''].filter(Boolean).join(' ');
     }
     case 'marcar_feito':
     case 'desmarcar_feito': {
