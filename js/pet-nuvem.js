@@ -120,6 +120,13 @@ export function fraseDoApp(j) {
       const oque = j.campo === 'falhas' ? 'falhas' : j.campo === 'melhorias' ? 'melhorias' : 'anotações';
       return `quais minhas ${oque} ${/^(ultimos|últimos)/i.test(periodo) ? 'nos' : 'de'} ${periodo}`;
     }
+    case 'converter': {
+      const nome = limpa(j.titulo), quando = limpa(j.quando), ini = limpa(j.hora), fim = limpa(j.texto);
+      if (!nome) return null;
+      const vira = /tarefa|atividade/i.test(j.campo || '') ? 'tarefa' : 'compromisso';
+      const faixa = ini ? (fim ? ` das ${ini} às ${fim}` : ` às ${ini}`) : '';
+      return `transforma ${nome}${quando ? ' de ' + quando : ''} em ${vira}${vira === 'compromisso' ? faixa : ''}`;
+    }
     case 'configurar': {
       const nome = limpa(j.titulo), valor = limpa(j.texto), hora = limpa(j.hora) || valor;
       switch (j.campo) {
