@@ -37,15 +37,17 @@ import { parseRecorrencia, ruleLabel, ordWeekday, RECUR_STRIP, nextOccurrence } 
 import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
+  limparFeitos, renomearSecao, apagarSecao, criarGrupo, apagarGrupo, renomearGrupo,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261007b';
+import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261009e';
+import * as PN from './pet-nuvem.js?v=20261009f';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009a';
-import * as PCF from './pet-config.js?v=20261009e';
+import * as PCF from './pet-config.js?v=20261009f';
 import * as PDS from './pet-desempenho.js?v=20261009a';
+import * as PI from './pet-ideal.js?v=20261009f';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -840,6 +842,11 @@ async function dispatchCommand(text) {
       const c = PCF.lerConverterTipo(semChamado(text));
       if (c) reply = await converterTipo(c, semChamado(text));
     }
+    // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarIdeal(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Desempenho/objetivos ("como tá meu desempenho esse mês?"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesempenho(semChamado(text));
@@ -943,7 +950,8 @@ async function routeCommand(text) {
   // "descrição" é o NOME do campo a mudar, não um valor. Sem esta guarda, o
   // extrairCampos engolia "descrição do compromisso X para Y" e sobrava só
   // "Editar" — o parser de edição nunca via o comando inteiro.
-  const ehEdicao = /^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(String(text).trim());
+  // Idem "muda o nome do grupo X para Y" (a lista em si, BLOCO 8.6).
+  const ehEdicao = /^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(String(text).trim()) || !!PL.detectarEstrutura(text);
 
   if (!ehEdicao && (campos.titulo || campos.descricao)) {
     ditado = {
@@ -996,6 +1004,13 @@ async function routeCommand(text) {
     if (/^(n[aã]o|deixa|esquece|cancela)\b/i.test(text.trim())) return 'Beleza, deixei como estava.';
   }
   { const c = PCF.lerConverterTipo(text); if (c) return converterTipo(c, text); }
+  // Faltou dizer quantas vezes pra acompanhar a constância de um item do Ideal
+  if (convState?.type === 'ideal_vezes') {
+    const { txt } = convState;
+    convState = null;
+    const v = PI.lerIdeal(`${text} ideal`);
+    if (v?.vezes) return desempenhoObjetivo({ tipo: 'criar', nome: txt, vezes: v.vezes, periodo: v.periodo === 'mês' ? 'mes' : 'semana', vezesDia: 1 });
+  }
 
   if (convState?.type === 'waiting_time') {
     const { name, date } = convState;
@@ -1063,6 +1078,13 @@ async function routeCommand(text) {
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
+  const rIdeal = await tentarIdeal(text);
+  if (rIdeal !== undefined) return rIdeal;
+
+  // A lista em si ("exclui o grupo Faculdade") antes do Ritual, que leria
+  // "Faculdade" como a atividade de hoje
+  if (PL.detectarEstrutura(text)) { const r = await tentarLista(text); if (r !== undefined) return r; }
+
   const rDes = await tentarDesempenho(text);
   if (rDes !== undefined) return rDes;
 
@@ -1087,7 +1109,8 @@ async function routeCommand(text) {
   if (/dormi|sono|horas de sono|acordei|sleep|how.*sleep|woke.*up/i.test(tl))         return cmdSono();
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
-  if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl)) return cmdTarefas();
+  if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl) &&
+      !/^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(tl)) return cmdTarefas();   // "editar nome da tarefa X" é edição
   if (/^\s*(notifica\S*|notifica[çc][õo]es|notification|notif|push|pop.?up|vibra\S*)[\s!?.…]*$/i.test(tl) ||
       /\binstalar\b|\binstalo\b|instala[çc][aã]o|adicionar (à |a |ao )?(tela|in[ií]cio)|tela inicial|como (instalar|instalo)|(notifica\S*|aviso)\s+(n[ãa]o|nao)\s+(chega|aparece|funciona|vem|toca|soa|vibra)|(n[ãa]o|nao)\s+(recebo|chega|aparece|vem|toca|soa|vibra)\s+(notifica|aviso|lembrete)|ativar\s+(notifica\S*|pop.?up|vibra)|habilitar\s+notifica|pop.?up/i.test(tl))
     return cmdNotificacoesAjuda();
@@ -1280,6 +1303,7 @@ let _naNuvem = false, _ultimaNuvem = null;
 const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(/\s+/).length >= 7 &&
   !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim()) &&
   !PCT.lerLoteDeContas(text) &&   // lista de contas: o roteador já entende inteira
+  !PL.detectarEstrutura(text) &&   // limpar/renomear/apagar lista, criar grupo
   !/\b(t[ií]tulo|d[ei]scri[çcs][ãa]o)\b/i.test(text);   // título/descrição ditados: o roteador separa os campos
 // Esclarecer: a IA pode responder com uma PERGUNTA ("em que dia vence a conta
 // de luz?"). As falas ficam guardadas por uns minutos e vão junto na próxima
@@ -2811,6 +2835,9 @@ async function tentarLista(text) {
     const alvo = alvoDoContexto(arvore);
     if (alvo) return listaVer(arvore, alvo);
   }
+  // A lista em si: limpar feitos, renomear/apagar lista, criar grupo
+  const est = PL.detectarEstrutura(text);
+  if (est) { const r = await listaEstrutura(est, text); if (r !== undefined) return r; }
   const acao = PL.detectarAcao(text);
   if (!acao) return undefined;
   const dica = PL.DICA_LISTA.test(text);
@@ -2852,6 +2879,105 @@ async function tentarLista(text) {
     case 'editar':    return listaEditar(arvore, text, alvo);
     default:          return listaItemAcao(arvore, text, alvo, acao, hoje);
   }
+}
+
+// Limpar feitos, renomear/apagar lista ou grupo, criar grupo. Sempre com card.
+// Grupos que vêm com o app (Casa, Pessoal…) não mudam de nome nem se apagam,
+// igual na tela.
+async function listaEstrutura(est, text) {
+  let arvore;
+  try { arvore = await arvoreListas(); }
+  catch (err) { console.warn('[pet-listas]', err); return 'Não consegui abrir tuas listas agora. Tenta de novo daqui a pouco.'; }
+  const nomeDe = (o) => _esc(PL.ondeTexto(o.grupo, o.secao));
+
+  if (est.tipo === 'criarGrupo') {
+    if (!est.nome) return 'Qual o nome do grupo? Ex.: <em>"cria o grupo Faculdade"</em>.';
+    if (arvore.some(g => _limpoTxt(g.nome) === _limpoTxt(est.nome))) return `Já existe o grupo <strong>${_esc(est.nome)}</strong>.`;
+    cardConfirmarLista(`🗂️ Criar o grupo <strong>${_esc(est.nome)}</strong> na Caixa de Ferramentas?`,
+      async () => { await criarGrupo(est.nome); return `Pronto! Pra criar uma lista nele: <em>"cria a lista X no ${_esc(est.nome)}"</em>.`; });
+    return null;
+  }
+
+  let alvo = PL.acharAlvo(arvore, est.tipo === 'renomear' ? est.antes : text);
+  if (!alvo.grupo && !alvo.candidatos.length && est.tipo === 'limpar') alvo = alvoDoContexto(arvore) || alvo;
+  // Nome repetido em dois grupos ("Lazer"): pergunta qual e segue com ele
+  if (!alvo.grupo && alvo.candidatos.length) {
+    addChoices('Qual delas?', alvo.candidatos.map(c => ({ label: PL.ondeTexto(c.grupo, c.secao),
+      action: () => { listaEstruturaEm(est, { grupo: c.grupo, secao: c.secao }, arvore); return null; } })));
+    return null;
+  }
+
+  if (est.tipo === 'limpar') {
+    if (alvo.grupo) return listaEstruturaEm(est, alvo, arvore);
+    const comFeitos = arvore.filter(g => PL.todosItens([g]).some(x => x.item.feito));
+    if (!comFeitos.length) return 'Nenhuma lista tem item feito pra limpar 👍';
+    if (est.todas || comFeitos.length === 1) {
+      const n = comFeitos.reduce((a, g) => a + PL.todosItens([g]).filter(x => x.item.feito).length, 0);
+      cardConfirmarLista(`🧹 Apagar <strong>${n} item(ns) feito(s)</strong> de ${comFeitos.map(g => _esc(g.nome)).join(', ')}?`,
+        async () => { for (const g of comFeitos) await limparFeitos(g.nome); return 'Listas limpas 🧹'; });
+      return null;
+    }
+    addChoices('Limpar os feitos de qual grupo?', [
+      ...comFeitos.map(g => ({ label: g.nome, action: () => { listaEstruturaEm(est, { grupo: g, secao: null }, arvore); return null; } })),
+      { label: 'Todos', action: () => { listaEstrutura({ ...est, todas: true }, text); return null; } },
+    ]);
+    return null;
+  }
+  if (!alvo.grupo) {
+    // Sem nome de lista conhecido: "apaga a lista X" de uma lista que não existe
+    if (!PL.DICA_LISTA.test(text) && !/\bgrupo\b/i.test(text)) return undefined;
+    return 'Não achei essa lista 🤔 Diz <em>"quais minhas listas"</em> pra ver os nomes.';
+  }
+  return listaEstruturaEm(est, alvo, arvore);
+}
+
+function listaEstruturaEm(est, alvo, arvore) {
+  const { grupo, secao } = alvo;
+  const onde = _esc(PL.ondeTexto(grupo, secao));
+  if (est.tipo === 'limpar') {
+    const feitos = PL.todosItens([grupo], secao ? { grupo, secao } : {}).filter(x => x.item.feito);
+    if (!feitos.length) { addMessage(`<strong>${onde}</strong> não tem item feito pra limpar 👍`, 'bot'); return null; }
+    lembrarLista(grupo, secao);
+    cardConfirmarLista(`🧹 Apagar <strong>${feitos.length} item(ns) feito(s)</strong> de <strong>${onde}</strong>?<br><small>${feitos.slice(0, 6).map(x => '✅ ' + _esc(x.item.texto)).join('<br>')}${feitos.length > 6 ? '<br>…' : ''}</small>`,
+      async () => {
+        if (secao) for (const x of feitos) await apagarItem(x.item.id);
+        else await limparFeitos(grupo.nome);
+        return null;
+      }, aposMudarLista, () => mostrarListaNaConversa(grupo.nome, secao?.id || null));
+    return null;
+  }
+  if (est.tipo === 'renomear') {
+    if (secao) {
+      if (grupo.secoes.some(s => s !== secao && _limpoTxt(s.nome) === _limpoTxt(est.novo))) { addMessage(`Já existe <strong>${_esc(est.novo)}</strong> em ${_esc(grupo.nome)}.`, 'bot'); return null; }
+      cardConfirmarLista(`✏️ Renomear a lista <strong>${onde}</strong> pra <strong>${_esc(est.novo)}</strong>?`,
+        async () => { await renomearSecao(secao.id, est.novo); return 'Renomeada ✏️'; });
+      return null;
+    }
+    if (!grupo.custom) { addMessage(`O grupo <strong>${_esc(grupo.nome)}</strong> vem com o app e não muda de nome. Dá pra renomear as listas dele ou criar um grupo novo: <em>"cria o grupo ${_esc(est.novo)}"</em>.`, 'bot'); return null; }
+    if (arvore.some(g => g !== grupo && _limpoTxt(g.nome) === _limpoTxt(est.novo))) { addMessage(`Já existe o grupo <strong>${_esc(est.novo)}</strong>.`, 'bot'); return null; }
+    cardConfirmarLista(`✏️ Renomear o grupo <strong>${onde}</strong> pra <strong>${_esc(est.novo)}</strong>?`,
+      async () => { await renomearGrupo(grupo.nome, est.novo); return 'Renomeado ✏️'; });
+    return null;
+  }
+  // apagar
+  if (secao) {
+    const n = secao.itens.length;
+    cardConfirmarLista(`🗑️ Apagar a lista <strong>${onde}</strong>?${n ? `<br><small>Os ${n} item(ns) dela vão junto.</small>` : ''}`,
+      async () => { await apagarSecao(secao.id); return 'Lista apagada 🗑️'; });
+    return null;
+  }
+  if (!grupo.custom) { addMessage(`O grupo <strong>${_esc(grupo.nome)}</strong> vem com o app e não se apaga. Dá pra apagar uma lista dele: <em>"apaga a lista X"</em>.`, 'bot'); return null; }
+  const n = PL.todosItens([grupo]).length;
+  cardConfirmarLista(`🗑️ Apagar o grupo <strong>${onde}</strong>?<br><small>${grupo.secoes.length} lista(s) e ${n} item(ns) vão junto.</small>`,
+    async () => {
+      if (grupo.grupoId) await apagarGrupo(grupo.grupoId, grupo.nome);
+      else {   // grupo que só existe pelos itens (sem registro próprio)
+        for (const sc of grupo.secoes) await apagarSecao(sc.id);
+        for (const it of grupo.soltos) await apagarItem(it.id);
+      }
+      return 'Grupo apagado 🗑️';
+    });
+  return null;
 }
 
 const _itemLinha = (it) => `${it.feito ? '✅' : '⬜'} ${_esc(it.texto)}`;
@@ -4399,6 +4525,122 @@ async function configAtividade(p) {
 // ═══════════════════════════════════════════════════════════════
 const _pctBarra = (p) => '🟩'.repeat(Math.round(p / 20)) + '⬜'.repeat(5 - Math.round(p / 20));
 const _segundaDe = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.15: IDEAL (OS 6 PILARES) PELO PET
+// A leitura do pedido fica em pet-ideal.js; o Ideal é lido e gravado pelo
+// ideal-ui.js (mesmo estado da tela "Organizando meu ideal").
+// ═══════════════════════════════════════════════════════════════
+async function tentarIdeal(text) {
+  const p = PI.lerIdeal(PR.semPedido(text));
+  if (!p) return undefined;
+  const IU = await import('./ideal-ui.js');
+  let lista;
+  try { lista = await IU.idealItens(); }
+  catch (e) { console.warn('[pet-ideal]', e); return 'Não consegui abrir teu Ideal agora 😕 Tenta de novo daqui a pouco.'; }
+  const nomePilar = (k) => IU.PILARES.find(x => x.k === k)?.nome || '';
+  const daArea = p.pilar ? lista.filter(x => x.k === p.pilar) : lista;
+
+  if (p.acao === 'ver') {
+    const { de } = await IU.idealStatus().catch(() => ({ de: () => null }));
+    const pilares = IU.PILARES.filter(x => !p.pilar || x.k === p.pilar);
+    const blocos = pilares.map(pl => {
+      const sel = lista.filter(x => x.k === pl.k && x.sel);
+      if (!sel.length) return p.pilar ? `${pl.ic} <b>${_esc(pl.nome)}</b><br><em>nada marcado ainda</em>` : '';
+      return `${pl.ic} <b>${_esc(pl.nome)}</b><br>` + sel.map(x => {
+        const s = de(x.txt);
+        return `• ${_esc(x.txt)}${s === 'foco' ? ' 🔥' : s === 'ativ' ? ' 📋' : ''}`;
+      }).join('<br>');
+    }).filter(Boolean);
+    if (!blocos.length) return '🧭 Teu Ideal ainda está vazio. Marca o que importa pra ti: <em>"marca ler e meditar no meu ideal"</em>.';
+    return '🧭 <b>Teu Ideal</b><br>' + blocos.join('<br><br>') + '<br><br><small>🔥 = em constância · 📋 = nas Atividades</small>';
+  }
+
+  if (!p.itens.length) return 'Qual item do Ideal? Ex.: <em>"marca ler no meu ideal"</em>.';
+
+  if (p.acao === 'marcar') {
+    const marcar = [], novos = [], ja = [], semArea = [];
+    for (const dito of p.itens) {
+      const achados = PI.acharItemIdeal(daArea, dito);
+      if (achados.length) {
+        const x = achados[0];
+        (x.sel ? ja : marcar).push(x);
+      } else if (p.pilar) novos.push({ k: p.pilar, txt: dito.charAt(0).toUpperCase() + dito.slice(1) });
+      else semArea.push(dito);
+    }
+    const linhas = [
+      ...marcar.map(x => `☑️ ${_esc(x.txt)} <small>(${_esc(x.pilar.nome)})</small>`),
+      ...novos.map(x => `⭐ ${_esc(x.txt)} <small>(${_esc(nomePilar(x.k))}, item teu)</small>`),
+    ];
+    const gravar = (extras = []) => cardConfirmarLista(`🧭 Marcar no teu Ideal?<br>${[...linhas, ...extras.map(x => `⭐ ${_esc(x.txt)} <small>(${_esc(nomePilar(x.k))}, item teu)</small>`)].join('<br>')}`,
+      async () => { await IU.idealGravar({ marcar, novos: [...novos, ...extras] }); return 'Marcado no teu Ideal 🧭 Pra levar pra Home: <em>"coloca X do ideal nas atividades"</em>.'; }, null);
+    if (ja.length) addMessage(`${ja.map(x => `<b>${_esc(x.txt)}</b>`).join(', ')} já ${ja.length > 1 ? 'estão marcados' : 'está marcado'} ✅`, 'bot');
+    // Item novo sem área dita: pergunta em qual pilar entra
+    if (semArea.length) {
+      const txt = semArea[0].charAt(0).toUpperCase() + semArea[0].slice(1);
+      addChoices(`<b>${_esc(txt)}</b> não está nas sugestões. Em qual área da vida ele entra?`,
+        IU.PILARES.map(pl => ({ label: `${pl.ic} ${pl.nome}`, action: () => { gravar([{ k: pl.k, txt }]); return null; } })));
+      return null;
+    }
+    if (!linhas.length) return null;
+    gravar();
+    return null;
+  }
+
+  // desmarcar / atividade / constância: um item que já está no Ideal
+  const dito = p.itens[0];
+  let achados = PI.acharItemIdeal(daArea, dito);
+  if (p.acao === 'desmarcar') achados = achados.filter(x => x.sel);
+  else if (achados.some(x => x.sel)) achados = achados.filter(x => x.sel);
+  if (!achados.length) {
+    if (p.acao === 'desmarcar') return `<b>${_esc(dito)}</b> não está marcado no teu Ideal.`;
+    if (p.acao === 'constancia') achados = [{ txt: dito.charAt(0).toUpperCase() + dito.slice(1) }];
+  }
+  const seguir = (x) => {
+    if (p.acao === 'desmarcar') {
+      cardConfirmarLista(`🧭 Desmarcar <strong>${_esc(x.txt)}</strong> do teu Ideal <small>(${_esc(x.pilar.nome)})</small>?`,
+        async () => { await IU.idealGravar({ desmarcar: [x] }); return null; }, null);
+      return null;
+    }
+    if (p.acao === 'constancia') {
+      if (!p.vezes) {
+        convState = { type: 'ideal_vezes', txt: x.txt };
+        return `🔥 Quantas vezes tu quer fazer <b>${_esc(x.txt)}</b>? Ex.: <em>3 vezes por semana</em> ou <em>20 vezes por mês</em>.`;
+      }
+      return desempenhoObjetivo({ tipo: 'criar', nome: x.txt, vezes: p.vezes, periodo: p.periodo === 'mês' ? 'mes' : 'semana', vezesDia: 1 });
+    }
+    return idealParaAtividade(x);
+  };
+  if (achados.length === 0) {
+    // "transforma X do ideal em atividade" com X fora do Ideal: cria igual
+    return idealParaAtividade({ txt: dito.charAt(0).toUpperCase() + dito.slice(1), pilar: p.pilar ? IU.PILARES.find(x => x.k === p.pilar) : null, k: p.pilar, id: null });
+  }
+  if (achados.length > 1 && _limpoTxt(achados[0].txt) !== _limpoTxt(dito)) {
+    addChoices('Qual deles?', achados.slice(0, 6).map(x => ({ label: x.txt, action: () => seguir(x) })));
+    return null;
+  }
+  return seguir(achados[0]);
+}
+
+// 📋 Só nas Atividades: cria a atividade na Home com o ícone e a cor do pilar
+async function idealParaAtividade(x) {
+  const cats = await getCategories().catch(() => []);
+  if (cats.some(c => _limpoTxt(c.name) === _limpoTxt(x.txt))) return `<b>${_esc(x.txt)}</b> já está nas tuas Atividades 📋`;
+  const icone = x.pilar?.ic || '⭐', cor = x.pilar?.cor || '#a78bfa';
+  cardConfirmarLista(`📋 Criar a atividade <strong>${icone} ${_esc(x.txt)}</strong> na Home?<br><small>Sem meta de constância. Pra acompanhar: <em>"acompanhar ${_esc(x.txt)} do ideal 3 vezes por semana"</em>.</small>`,
+    async () => {
+      const order = (cats.length ? Math.max(...cats.map(c => c.order || 0)) : 0) + 1;
+      await saveCategory(null, { name: x.txt, icon: icone, color: cor, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+      // marca no Ideal também, como na tela
+      const IU = await import('./ideal-ui.js');
+      if (x.id && !x.sel) await IU.idealGravar({ marcar: [x] });
+      else if (!x.id && x.k) await IU.idealGravar({ novos: [{ k: x.k, txt: x.txt }] });
+      document.dispatchEvent(new CustomEvent('falcon:cats-changed'));
+      _redesenharTela();
+      return '📋 Adicionado às Atividades da Home';
+    }, null);
+  return null;
+}
 
 async function tentarDesempenho(text) {
   const t = PR.semPedido(text);

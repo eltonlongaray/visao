@@ -169,6 +169,32 @@ export function fraseDoApp(j) {
       const itens = juntar(j.itens);
       return itens ? `marca ${itens} como feito${limpa(j.lista) ? ` na lista ${limpa(j.lista)}` : ''}` : null;
     }
+    case 'lista_organizar': {
+      const lista = limpa(j.lista), texto = limpa(j.texto);
+      switch (j.campo) {
+        case 'limpar_feitos': return j.todas || !lista ? 'limpa os itens feitos de todas as listas' : `limpa os feitos da lista ${lista}`;
+        case 'renomear': return lista && texto ? `renomeia a lista ${lista} pra ${texto}` : null;
+        case 'apagar': return lista ? `apaga a lista ${lista}` : null;
+        case 'criar_grupo': return (texto || lista) ? `cria o grupo ${texto || lista}` : null;
+        default: return null;
+      }
+    }
+    case 'ideal': {
+      const itens = juntar(j.itens), area = limpa(j.texto);
+      const no = `no meu ideal${area ? ' ' + area : ''}`;
+      switch (j.campo) {
+        case 'ver': return `mostra ${no.replace(/^no /, '')}`;
+        case 'marcar': return itens ? `marca ${itens} ${no}` : null;
+        case 'desmarcar': return itens ? `tira ${itens} do meu ideal` : null;
+        case 'atividade': return itens ? `transforma ${itens} do meu ideal em atividade` : null;
+        case 'constancia': {
+          if (!itens) return null;
+          const n = Number(j.numero) || 0;
+          return `acompanhar a constância de ${itens} do meu ideal${n ? ` ${n} vezes por ${/m[eê]s/i.test(j.quando || '') ? 'mês' : 'semana'}` : ''}`;
+        }
+        default: return null;
+      }
+    }
     case 'contas_pagar': {
       // Volta no formato que o leitor de contas entende: "contas a pagar: Luz - dia 10, Água - dia 15"
       const itens = (Array.isArray(j.itens) ? j.itens : []).map(limpa)

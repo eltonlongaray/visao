@@ -216,6 +216,7 @@ export function lerConverterTipo(texto) {
   const t = semAcento(orig);
   const m = t.match(/^(?:transform\w*|convert\w*|torn\w*|passa\w*|muda\w*|troca\w*|deixa\w*|coloca\w*|bota\w*|vira\w*|faz\w*)\s+(?:(?:o|a)\s+)?(?:(?:compromisso|tarefa|atividade)\s+)?(?:d[oa]\s+)?(.+?)\s+(?:em|pra|para|pro|como|num|numa)\s+(?:um\s+|uma\s+|o\s+|a\s+)?(compromisso|tarefa|atividade)\b(.*)$/d);
   if (!m) return null;
+  if (/\b(ideal|pilar|pilares)\b/.test(t)) return null;   // "ler do meu ideal em atividade" é o Ideal (BLOCO 8.15)
   // Nome com acento e maiúscula como a pessoa escreveu (pra mensagem "não encontrei")
   const bruto = orig.length === t.length ? orig.slice(m.indices[1][0], m.indices[1][1]) : m[1];
   const nome = bruto.replace(/\s+(?:de|do|da|na|no)\s+(?:hoje|amanh[aã]|ontem|(?:pr[oó]xim[ao]\s+)?(?:segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)(?:-feira)?|dia\s+\d{1,2}(?:\/\d{1,2})?)$/i, '').trim();
