@@ -3733,7 +3733,9 @@ async function ritualVarias(t) {
   if (id > _hojeId()) return undefined;
   const tasks = await getDayTasks(id).catch(() => []);
   const achados = PR.tarefasCitadas(tasks, t);
-  if (achados.length < 2) return undefined;
+  // O que a pessoa citou e não existe nas atividades dela: pergunta o nome certo
+  const faltam = PR.citacoesSemTarefa(tasks, t);
+  if (!achados.length || achados.length + faltam.length < 2) return undefined;
   const box = document.getElementById('pet-messages');
   if (!box) return undefined;
   const div = document.createElement('div');
@@ -3764,6 +3766,11 @@ async function ritualVarias(t) {
   });
   nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
   box.appendChild(div);
+  if (faltam.length) {
+    const nomes = faltam.map(f => `"${_esc(f)}"`);
+    const lista = nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}` : nomes[0];
+    addMessage(`🤔 Não encontrei ${lista} nas tuas atividades ${_de(data)}. Me diz o nome exato da atividade como tá no app (ou cria ela, se ainda não existe).`, 'bot');
+  }
   box.scrollTop = box.scrollHeight;
   const agua = PR.lerAgua(t);
   if (agua?.ml != null) await ritualAgua(t, agua);

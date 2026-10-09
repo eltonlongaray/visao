@@ -262,6 +262,26 @@ export function acharTarefas(tasks, texto, filtro = () => true) {
 // número, 1. "não fiz a academia" fica de fora.
 const SINAL_FEITO = /\b(fiz|feit[oa]s?|sim|terminei|conclui\w*|cumpri|consegui|tomei|bebi)\b/;
 export const temSinalFeito = (texto) => SINAL_FEITO.test(semAcento(semPedido(texto)));
+const bate = (r, w) => r === w || (w.length >= 4 && r.startsWith(w));
+// Onde um nome aparece na frase: { pos, n } ou null. O nome inteiro ou um pedaço
+// dele vale: "Mobilidade / alongamento" acha por "alongamento";
+// "Breathwork (respiração consciente)" por "respiração".
+function ondeCita(nome, raiz) {
+  let melhor = null;
+  const k = semAcento(nome).trim();
+  if (!k) return null;
+  for (const parte of [k, ...k.split(/[()\/|+,.;:-]/)]) {
+    const palavras = palavrasDoNome(parte);
+    if (!palavras.length) continue;
+    const pos = raiz.findIndex(r => palavras.some(w => bate(r, w)));
+    if (pos < 0) continue;
+    const n = palavras.filter(w => raiz.some(r => bate(r, w))).length;
+    if (n < Math.max(1, palavras.length - 1)) continue;
+    if (!melhor || pos < melhor.pos) melhor = { pos, n };
+  }
+  return melhor;
+}
+
 export function tarefasCitadas(tasks, texto) {
   const t = semAcento(semPedido(texto));
   if (!SINAL_FEITO.test(t)) return [];
@@ -276,21 +296,16 @@ export function tarefasCitadas(tasks, texto) {
     grupos.get(k).push(tk);
   }
   const achados = [];
-  const bate = (r, w) => r === w || (w.length >= 4 && r.startsWith(w));
-  for (const [k, lista] of grupos) {
-    // O título inteiro ou um pedaço dele vale: "Mobilidade / alongamento" acha
-    // por "alongamento"; "Breathwork (respiração consciente)" por "respiração"
-    let posPrimeira = -1, batem = 0;
-    for (const parte of [k, ...k.split(/[()\/|+,]/)]) {
-      const palavras = palavrasDoNome(parte);
-      if (!palavras.length) continue;
-      const pos = raiz.findIndex(r => palavras.some(w => bate(r, w)));
-      if (pos < 0) continue;
-      const n = palavras.filter(w => raiz.some(r => bate(r, w))).length;
-      if (n < Math.max(1, palavras.length - 1)) continue;
-      if (posPrimeira < 0 || pos < posPrimeira) { posPrimeira = pos; batem = n; }
+  for (const lista0 of grupos.values()) {
+    // Acha pelo nome da atividade (todas do grupo) ou pela descrição (só as
+    // que têm aquela descrição: "Contas a pagar" com "luz" na descrição)
+    let lista = lista0, achou = ondeCita(lista0[0].title, raiz), pelaDesc = false;
+    for (const desc of new Set(lista0.map(tk => String(tk.desc || '').trim()).filter(Boolean))) {
+      const c = ondeCita(desc, raiz);
+      if (c && (!achou || c.pos < achou.pos)) { achou = c; pelaDesc = true; lista = lista0.filter(tk => String(tk.desc || '').trim() === desc); }
     }
-    if (posPrimeira < 0) continue;
+    if (!achou) continue;
+    const { pos: posPrimeira, n: batem } = achou;
     // "não fiz a academia" / "academia não"
     const antes = tokens.slice(Math.max(0, posPrimeira - 3), posPrimeira);
     const depois = tokens.slice(posPrimeira + 1, posPrimeira + 1 + batem + 1);
@@ -303,7 +318,34 @@ export function tarefasCitadas(tasks, texto) {
       }
     }
     const ordem = [...lista].sort((a, b) => String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
-    achados.push({ titulo: lista[0].title, pos: posPrimeira, tarefas: ordem.slice(0, n), total: lista.length });
+    const titulo = pelaDesc ? `${lista[0].title} (${lista[0].desc})` : lista[0].title;
+    achados.push({ titulo, pos: posPrimeira, tarefas: ordem.slice(0, n), total: lista.length });
   }
   return achados.sort((a, b) => a.pos - b.pos);
+}
+
+// O que a pessoa disse que fez mas não bate com nenhuma atividade do dia (nem
+// nome, nem descrição, feita ou não): ["meditação", "leitura"]. A frase é
+// cortada em pedaços que terminam no sinal ("X sim", "fiz X"); pedaço sem
+// atividade vira pergunta. Água e números ficam de fora (têm leitor próprio).
+const NAO_E_ATIVIDADE = new Set(('sim tambem tb posso pude consegui fiz feito feita feitos feitas terminei cumpri tomei bebi ' +
+  'quantos quantas quanto foi foram ml litro litros copo copos agua garrafa mais menos ainda agora muito pouco bem tudo certo ' +
+  'isso aquilo coisa coisas resto hoje ontem nada nenhum nenhuma').split(' '));
+export function citacoesSemTarefa(tasks, texto) {
+  const t = semAcento(semPedido(texto));
+  if (!SINAL_FEITO.test(t)) return [];
+  // Corta a frase original (com acento, pra mostrar igual a pessoa falou)
+  const pedacos = semPedido(texto).toLowerCase().replace(/\b(sim|fiz|feit[oa]s?|terminei|cumpri|consegui)\b/g, '$1|').split(/[|.;,!?]|\be tambem\b/);
+  const todas = (tasks || []).filter(tk => String(tk.title || '').trim());
+  const faltam = [];
+  for (const original of pedacos) {
+    const pedaco = semAcento(original);
+    const raiz = pedaco.split(/[^a-z0-9]+/).filter(Boolean).map(radical);
+    if (!raiz.length || /\b(agua|ml|litros?|copos?|hidrat\w*)\b/.test(pedaco)) continue;
+    if (/\bnao\b/.test(pedaco)) continue;
+    if (todas.some(tk => ondeCita(tk.title, raiz) || (tk.desc && ondeCita(tk.desc, raiz)))) continue;
+    const palavras = original.split(/[^\p{L}\p{N}]+/u).filter(w => { const a = semAcento(w); return a.length >= 4 && !/^\d+$/.test(a) && !NAO_E_NOME.has(a) && !NAO_E_ATIVIDADE.has(a); });
+    if (palavras.length) faltam.push(palavras.slice(0, 3).join(' '));
+  }
+  return [...new Set(faltam)];
 }
