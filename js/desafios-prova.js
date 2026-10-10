@@ -23,6 +23,9 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // máximo. Resolve com o Blob do vídeo, ou null se a pessoa desistiu.
 const MAX_SEG = 30;
 const MAX_SEG_DEPOIMENTO = 120;
+// Sempre em pé (9:16): a câmera passa por um canvas em pé e é ele que grava.
+// O que aparece na tela é exatamente o que vai no vídeo.
+const REC_W = 540, REC_H = 960;
 
 function _mimeVideo() {
   if (typeof MediaRecorder === 'undefined') return null;
@@ -42,7 +45,8 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     ov.className = 'cam-guia-ov ds-rec-ov';
     ov.innerHTML = `
       <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>🔴 Gravação ao vivo · até ${maxSeg >= 60 ? `${Math.round(maxSeg / 60)} min` : `${maxSeg} s`}</small></div>
-      <video class="cam-guia-video ds-rec-video" autoplay playsinline muted></video>
+      <video class="cam-guia-video ds-rec-fonte" autoplay playsinline muted></video>
+      <canvas class="cam-guia-video ds-rec-video" width="${REC_W}" height="${REC_H}"></canvas>
       <div class="ds-rec-tempo" hidden>● <span>0</span>s</div>
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-rec="cancel">Cancelar</button>
@@ -57,13 +61,37 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         </div>
       </div>`;
     document.body.appendChild(ov);
-    const video = ov.querySelector('.ds-rec-video');
+    const video = ov.querySelector('.ds-rec-fonte');
+    const tela = ov.querySelector('.ds-rec-video');
+    const ctx = tela.getContext('2d');
+    const podeCanvas = typeof tela.captureStream === 'function';
+    let raf = 0;
+    // Câmera em pé: preenche (corta só um pouco). Câmera deitada: mostra
+    // inteira no meio, com a própria imagem escurecida atrás (sem zoom).
+    function desenhar() {
+      raf = requestAnimationFrame(desenhar);
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) return;
+      const cobre = Math.max(REC_W / vw, REC_H / vh);
+      const cabe = Math.min(REC_W / vw, REC_H / vh);
+      const emPe = vh >= vw;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, REC_W, REC_H);
+      if (emPe) {
+        ctx.drawImage(video, (REC_W - vw * cobre) / 2, (REC_H - vh * cobre) / 2, vw * cobre, vh * cobre);
+        return;
+      }
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(video, (REC_W - vw * cobre) / 2, (REC_H - vh * cobre) / 2, vw * cobre, vh * cobre);
+      ctx.globalAlpha = 1;
+      ctx.drawImage(video, (REC_W - vw * cabe) / 2, (REC_H - vh * cabe) / 2, vw * cabe, vh * cabe);
+    }
     const tempo = ov.querySelector('.ds-rec-tempo');
     const shot = ov.querySelector('[data-rec="go"]');
     const flip = ov.querySelector('[data-rec="flip"]');
     let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null;
 
-    const parar = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
+    const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
       if (fechado) return;
       fechado = true;
@@ -78,12 +106,13 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     async function abrir() {
       parar();
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: lado, width: { ideal: 720 }, height: { ideal: 1280 } },
-          audio: true,
-        });
+        // Sem pedir tamanho: cada aparelho entrega o formato natural dele (pedir
+        // 720x1280 fazia alguns Android abrirem a câmera deitada e com zoom)
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: lado }, audio: true });
         video.srcObject = stream;
-        video.classList.toggle('espelho', lado === 'user');
+        await video.play().catch(() => {});
+        tela.classList.toggle('espelho', lado === 'user');
+        if (!raf) desenhar();
       } catch {
         showToast('Não consegui abrir a câmera. Libera a câmera e o microfone pro Falcon.', 'error');
         fechar();
@@ -93,7 +122,11 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     function gravar() {
       if (!stream) return;
       pedacos = []; seg = 0;
-      mr = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 900000 });
+      // Grava o canvas em pé + o som do microfone (sem canvas: a câmera direto)
+      const fonte = podeCanvas
+        ? new MediaStream([...tela.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()])
+        : stream;
+      mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 900000 });
       mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
       mr.onstop = () => {
         if (fechado) return;

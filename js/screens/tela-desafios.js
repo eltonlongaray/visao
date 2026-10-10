@@ -58,8 +58,8 @@ function _ranking(desafio, parts, checks) {
 export async function renderDesafios(app, embedded = false) {
   app.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted)">${t('home.reminders.loading')}</div>`;
 
-  const _wrapO = embedded ? '' : '<div class="screen-pad">';
-  const _wrapC = embedded ? '' : '</div>';
+  const _wrapO = embedded ? '<div class="ds-embed">' : '<div class="screen-pad ds-embed">';
+  const _wrapC = '</div>';
   const _tit = embedded ? '' : `<div class="screen-title"><h1>🏆 ${t('nav.desafios')}</h1><div class="sub">${t('desafios.sub')}</div></div>`;
   const _nav = () => (embedded ? '' : bottomNav('desafios'));
 
