@@ -196,6 +196,26 @@ export function fraseDoApp(j) {
         default: return null;
       }
     }
+    case 'desafio': {
+      const nome = limpa(j.titulo), texto = limpa(j.texto), n = Number(j.numero) || 0;
+      const no = nome ? `no desafio ${/^(d[aoe]s?)\s/i.test(nome) ? nome : 'de ' + nome}` : 'no desafio';
+      const desafio = no.replace(/^no /, '');
+      switch (j.campo) {
+        case 'ver': return nome ? `como tô no ${desafio}` : 'meus desafios';
+        case 'ranking': return `ranking do ${desafio}`;
+        case 'entrar': return `entra ${no}`;
+        case 'codigo': return texto ? `entra no desafio com o código ${texto}` : null;
+        case 'sair': return `sai do ${desafio}`;
+        case 'checkin':
+          if (j.todas) return `bati a meta ${no}`;
+          return n ? `fiz ${n}${texto ? ' ' + texto : ''} ${no}` : `marca ${no.replace(/^no /, 'o ')} como feito`;
+        case 'criar': {
+          const mod = /amig|grupo|galera/i.test(texto) ? ' com amigos' : /sozinh|s[oó] meu|individual/i.test(texto) ? ' sozinho' : '';
+          return nome ? `cria um desafio de ${nome}${n ? ` de ${n} dias` : ''}${mod}` : `cria um desafio${mod}`;
+        }
+        default: return null;
+      }
+    }
     case 'contas_pagar': {
       // Volta no formato que o leitor de contas entende: "contas a pagar: Luz - dia 10, Água - dia 15"
       const itens = (Array.isArray(j.itens) ? j.itens : []).map(limpa)
