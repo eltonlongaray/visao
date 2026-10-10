@@ -4,8 +4,9 @@
 --   • Prova: 'video' (gravado ao vivo no app) | 'strava' (print do app de
 --     corrida + vídeo ao vivo) | 'depoimento' (vídeo ao vivo mais longo,
 --     falando: leitura, largar um vício) | 'honra' (só marca). null = como era.
---   • Largar um vício: o dia em que a pessoa conta que não conseguiu entra
---     com quantidade 0 (o depoimento fica, o dia não conta).
+--   • Largar um vício: a constância é o depoimento de todo dia. Conseguiu =
+--     quantidade 1 (dia limpo); não conseguiu = quantidade 0. Os dois contam
+--     como dia cumprido; quem não grava o depoimento perde o dia. Um por dia.
 --   • Exercícios: o dono monta uma lista (até 4 + corrida = 5), escolhe o
 --     máximo por dia e se pode repetir o exercício de ontem.
 --   • Hora limite (ex.: acordar às 5h): o check-in só entra até esse horário
@@ -67,6 +68,12 @@ begin
     raise exception 'A corrida pede o print do app de corrida';
   end if;
 
+  -- Largar um vício: um depoimento por dia
+  if d.tipo = 'largar' and exists (select 1 from public.desafio_checkins c
+             where c.desafio_id = new.desafio_id and c.user_id = new.user_id and c.dia = new.dia) then
+    raise exception 'O depoimento de hoje já foi enviado';
+  end if;
+
   -- Hora limite: só hoje e até o horário (Brasília)
   if d.hora_limite is not null then
     if new.dia <> (now() at time zone 'America/Sao_Paulo')::date
@@ -105,6 +112,32 @@ drop trigger if exists desafio_checkin_regras on public.desafio_checkins;
 create trigger desafio_checkin_regras
   before insert on public.desafio_checkins
   for each row execute function public.desafio_checkin_regras();
+
+-- ─── BLOCO 3b: PLACAR DOS OFICIAIS ─────────────────────────────
+-- Largar um vício: em dia = gravou o depoimento hoje (conseguindo ou não).
+create or replace function public.placar_oficiais()
+returns table (desafio_id uuid, participantes bigint, em_dia bigint)
+language sql security definer stable
+set search_path = public as $$
+  select
+    p.desafio_id,
+    count(*)::bigint,
+    count(*) filter (where case when d.tipo = 'largar' then t.n > 0
+                                else t.total >= coalesce(d.meta_diaria, 1) end)::bigint
+  from public.desafio_participantes p
+  join public.desafios d on d.id = p.desafio_id
+  left join lateral (
+    select coalesce(sum(c.quantidade), 0) as total, count(*) as n
+    from public.desafio_checkins c
+    where c.desafio_id = p.desafio_id
+      and c.user_id   = p.user_id
+      and c.dia       = (now() at time zone 'America/Sao_Paulo')::date
+  ) t on true
+  where d.modalidade = 'oficial'
+  group by p.desafio_id;
+$$;
+
+grant execute on function public.placar_oficiais() to authenticated;
 
 -- ─── BLOCO 4: BUCKET PRIVADO DAS PROVAS ────────────────────────
 -- 25 MB: depoimento de 2 min em 720p (~900 kbps) dá ~14 MB. Print entra como imagem.
