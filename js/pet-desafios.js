@@ -21,6 +21,8 @@ export function norm(s) {
 
 // Palavras que apontam pra um molde (o "tipo" salvo no desafio)
 const MOLDE_RE = [
+  ['largar', /\b(fum\w*|cigarr\w*|vicios?|viciad\w*|parar de \w+|larg\w* (?:o|a|de)? ?(?:cigarr\w*|vicio|bebida|alcool|refri\w*|acucar|doce\w*|celular|redes?)|sem (?:acucar|refri\w*|alcool|bebida|doces?))\b/],
+  ['acordar', /\b(acord\w*|madrug\w*)\b/],
   ['agua', /\b(agua|beb\w*|tom\w* agua|litros?|ml|hidrat\w*|garraf\w*|copos?)\b/],
   ['exercicio', /\b(exercicios?|exercitar|treino|treinar|treinei|flex(oes|ao)|abdomin\w*)\b/],
   ['flexibilidade', /\b(along\w*|flexibilidade)\b/],
@@ -54,7 +56,8 @@ function codigoDaFrase(texto) {
 }
 
 // { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda',
-//   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia } ou null.
+//   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
+//   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
 // como registrar a corrida / Strava).
 export function lerDesafio(texto) {
@@ -68,13 +71,21 @@ export function lerDesafio(texto) {
     || (/\bcorrida\b/.test(t) && /\b(como|passo a passo|explica|ensina)\b/.test(t) && /\b(registr\w*|grav\w*|fa[zc]\w*|comprov\w*|prova|mand\w*)\b/.test(t))) {
     return { acao: 'corrida_ajuda', abrir: /\b(abr\w*|bora|vou correr|correr com)\b/.test(t) && !/\bcomo\b/.test(t) };
   }
-  if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t))) return null;
+  // Largar um vício: "hoje fumei", "hoje não fumei", "tive uma recaída" (sem precisar falar "desafio")
+  const naoFumei = /\b(nao|nem) fumei\b/.test(t);
+  const fumei = /\bfumei\b/.test(t) && !naoFumei;
+  const recaida = /\b(recai\w*|tive (?:uma )?recaida|escorreguei)\b/.test(t);
+  if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t)) && !fumei && !naoFumei && !recaida) return null;
   // "abre os desafios" / "vai pros desafios": só abrir a tela (Config cuida)
   if (/^(abr\w*|vai|ir|leva|mostra a tela)\s+(?:a\s+tela\s+)?(?:d?[aoe]s?\s+|pr[ao]s?\s+)?desafios?$/.test(t)) return null;
 
   const molde = moldeDaFrase(t.replace(/\bdesafios?\b/g, ' '));
   const qtd = lerQuantidade(t);
-  const base = { codigo, qtd, molde, dias: null, modalidade: null, feitoHoje: false, metaToda: false, nome: nomeCitado(texto) };
+  const falhou = fumei || recaida || /\b(nao consegui|hoje nao deu|falhei)\b/.test(t);
+  const consegui = !falhou && (naoFumei || /\b(consegui|dia limpo|limpo hoje)\b/.test(t));
+  const base = { codigo, qtd, molde: molde || (fumei || naoFumei ? 'largar' : null), dias: null, modalidade: null, feitoHoje: false, metaToda: false,
+    nome: nomeCitado(texto), falhou, consegui };
+  if ((fumei || naoFumei || recaida) && !temDesafio) return { ...base, acao: 'checkin', feitoHoje: true };
 
   if (/\b(regras?|pode e o que nao pode|o que (?:nao )?pode)\b/.test(t) && !/\b(cri\w*|mud\w*|coloc\w*|bot\w*|adicion\w*)\b/.test(t)) return { ...base, acao: 'regras' };
   if (/\b(cri\w*|mont\w*|novo desafio|comec\w* um desafio|faz\w* um desafio|abr\w* um desafio)\b/.test(t) && !/\b(criei|criou|criado|criada|criaram)\b/.test(t)) {
@@ -85,16 +96,22 @@ export function lerDesafio(texto) {
       : /\b(sozinh\w*|so meu|so pra mim|individual|so eu)\b/.test(t) ? 'individual' : null;
     // "de 3 litros por dia" vira a meta; sem número fica a do molde
     const metaDita = qtd;
-    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: pd ? null : metaDita,
-      exercicios, maxPorDia: pd ? numDe(pd[1]) : null, molde: exercicios.length ? 'exercicio' : molde };
+    // "parar de fumar" / "largar o refrigerante" vira o título; "acordar às 6h" vira o horário
+    const vm = molde === 'largar' ? t.match(/\b(parar de [a-z]+(?: (?!com\b|de\b|por\b|em\b|durante\b|sozinh)[a-z]+){0,2}|larg\w* (?:o |a |de )?[a-z]+|sem [a-z]+)/) : null;
+    const hm = molde === 'acordar' ? t.match(/\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2}))?\s*(?:h|horas?)?\b/) : null;
+    const hora = hm && +hm[1] <= 12 ? `${String(+hm[1]).padStart(2, '0')}:${hm[2] || '00'}` : null;
+    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: pd || molde === 'acordar' || molde === 'largar' ? null : metaDita,
+      exercicios, maxPorDia: pd ? numDe(pd[1]) : null, molde: exercicios.length ? 'exercicio' : molde,
+      vicio: vm ? vm[1] : null, hora };
   }
   if (codigo) return { ...base, acao: 'codigo' };
-  if (/\b(sai|saia|sair|saio|desist\w*|larg\w*|abandon\w*|me tira)\b/.test(t)) return { ...base, acao: 'sair' };
+  // "largar" num desafio de largar um vício é o objetivo, não sair do desafio
+  if (/\b(sai|saia|sair|saio|desist\w*|abandon\w*|me tira)\b/.test(t) || (/\blarg\w*\b/.test(t) && molde !== 'largar')) return { ...base, acao: 'sair' };
   if (/\b(ranking|posicao|colocacao|lugar|placar|quem (ta|esta) (ganhando|na frente|liderando)|lideran\w*|em primeiro)\b/.test(t)) return { ...base, acao: 'ranking' };
   if (/\b(entra|entrar|entre|participar|participa|me inscreve\w*|inscrever|aceito|topo|bora entrar|quero (?:entrar|fazer|participar))\b/.test(t)
     && !/\b(entrei|participo|participando|tou|estou)\b/.test(t)) return { ...base, acao: 'entrar' };
-  const verboFeito = /\b(bebi|tomei|fiz|li|corri|meditei|alonguei|refleti|treinei|cumpri|bati|complet\w*|conclui|marc\w*|registr\w*|adicion\w*|soma\w*|bot\w*|poe|coloc\w*|anot\w*|lanc\w*|feito|check ?in)\b/.test(t);
-  if (verboFeito || qtd) {
+  const verboFeito = /\b(bebi|tomei|fiz|li|corri|meditei|alonguei|refleti|treinei|acordei|cumpri|bati|complet\w*|conclui|marc\w*|registr\w*|adicion\w*|soma\w*|bot\w*|poe|coloc\w*|anot\w*|lanc\w*|feito|check ?in|depoimento)\b/.test(t);
+  if (verboFeito || qtd || falhou || consegui) {
     return { ...base, acao: 'checkin', feitoHoje: true, metaToda: /\b(bati|cumpri|complet\w*|fechei|conclui)\b.*\bmeta\b|\bmeta\b.*\b(batida|completa|cumprida)\b/.test(t) };
   }
   return { ...base, acao: 'ver' };
@@ -219,7 +236,9 @@ export function ranking(desafio, parts, checks) {
   return parts.map(p => {
     const days = byUser[p.user_id] || {};
     let done = 0;
-    for (const d in days) if (meta ? days[d] >= meta : days[d] > 0) done++;
+    // Largar um vício: a constância é o depoimento de todo dia (conseguindo ou não)
+    const largar = desafio.tipo === 'largar';
+    for (const d in days) if (largar || (meta ? days[d] >= meta : days[d] > 0)) done++;
     return { user_id: p.user_id, nome: p.nome || 'Falcão', done };
   }).sort((a, b) => b.done - a.done);
 }

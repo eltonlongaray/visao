@@ -10,6 +10,7 @@
 import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { roteiroDepoimento, passouDoLimite, horaLimite } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -21,6 +22,7 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // único jeito de entregar a prova é gravando agora. Para sozinho no tempo
 // máximo. Resolve com o Blob do vídeo, ou null se a pessoa desistiu.
 const MAX_SEG = 30;
+const MAX_SEG_DEPOIMENTO = 120;
 
 function _mimeVideo() {
   if (typeof MediaRecorder === 'undefined') return null;
@@ -39,7 +41,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const ov = document.createElement('div');
     ov.className = 'cam-guia-ov ds-rec-ov';
     ov.innerHTML = `
-      <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>🔴 Gravação ao vivo · até ${maxSeg} s</small></div>
+      <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>🔴 Gravação ao vivo · até ${maxSeg >= 60 ? `${Math.round(maxSeg / 60)} min` : `${maxSeg} s`}</small></div>
       <video class="cam-guia-video ds-rec-video" autoplay playsinline muted></video>
       <div class="ds-rec-tempo" hidden>● <span>0</span>s</div>
       <div class="cam-guia-barra">
@@ -223,15 +225,36 @@ function _limparPendente() { try { localStorage.removeItem(PEND_KEY); } catch { 
 // ═══════════════════════════════════════════════════════════════
 // Registra o check-in pedindo a prova que o desafio exige. true = registrou.
 // O banco confere as regras de novo (gatilho) e devolve o erro em português.
-export async function registrarComProva(d, { quantidade = 1, exercicio = null } = {}) {
+// falhou = largar um vício, dia em que não conseguiu (entra com quantidade 0).
+export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false } = {}) {
   const corrida = d.prova === 'strava' || exercicio === 'Corrida';
+  if (falhou) quantidade = 0;
+  if (passouDoLimite(d)) {
+    showToast(`Esse desafio só aceita check-in até as ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'error');
+    return false;
+  }
   try {
+    if (d.prova === 'depoimento') {
+      const roteiro = roteiroDepoimento(d, { falhou });
+      const blob = await gravarVideoAoVivo({
+        titulo: falhou ? '🎙️ Como foi hoje' : `🎙️ ${d.titulo}`,
+        dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>`,
+        maxSeg: MAX_SEG_DEPOIMENTO,
+      });
+      if (!blob) return false;
+      showToast('Enviando o depoimento…', 'info');
+      const videoPath = await subirProva(blob, 'video');
+      await addCheckin(d.id, quantidade, { exercicio, videoPath });
+      showToast(falhou ? '💪 Depoimento enviado, dia contado. Amanhã é um novo dia.' : '🎙️ Depoimento enviado! 🦅', 'success');
+      return true;
+    }
     if (corrida) return await _registrarCorrida(d, { quantidade, exercicio });
     if (d.prova === 'video') {
       const nome = exercicio || d.titulo;
       const blob = await gravarVideoAoVivo({
         titulo: `🎥 ${nome}`,
-        dica: exercicio ? 'Grave você fazendo o exercício, do começo ao fim.' : 'Grave você cumprindo o desafio.',
+        dica: exercicio ? 'Grave você fazendo o exercício, do começo ao fim.'
+          : horaLimite(d) ? 'Mostre a hora na tela do celular e o seu rosto.' : 'Grave você cumprindo o desafio.',
       });
       if (!blob) return false;
       showToast('Enviando a prova…', 'info');

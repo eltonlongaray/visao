@@ -1,7 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // FALCON · Moldes de desafio (pré-formatos por tipo)
 // Admin escolhe um molde → formulário já vem preenchido com o formato certo.
-// prova: 'video' (grava ao vivo no app) | 'strava' (print do Strava + vídeo ao vivo) | 'honra' (marca sem vídeo).
+// prova: 'video' (grava ao vivo no app) | 'strava' (print do Strava + vídeo ao vivo)
+//        | 'depoimento' (vídeo ao vivo falando, até 2 min, com roteiro) | 'honra' (marca sem vídeo).
+// largar: true = desafio de largar um vício (todo dia: "consegui" ou "não consegui", os dois com depoimento).
+// horaLimite: check-in só até esse horário (o banco confere).
 // opcoes vazio = pessoa digita a quantidade. Tudo editável na criação.
 // ═══════════════════════════════════════════════════════════════
 export const MOLDES = [
@@ -16,11 +19,45 @@ export const MOLDES = [
     desc: 'Medite por 10 minutos por dia. (Prova por honra — meditação não se filma.)' },
   { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'strava',
     desc: 'Corra 5 km por dia. Meça no Strava e comprove com o print + um vídeo ao vivo correndo nos últimos minutos.' },
-  { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'video',
-    desc: 'Leia 20 páginas por dia.' },
+  { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'depoimento',
+    desc: 'Leia 20 páginas por dia e conte no grupo, num vídeo de depoimento, 5 coisas que você aprendeu ou que te marcaram.' },
+  { id: 'largar',        emoji: '🚭', nome: 'Largar um vício',    titulo: 'Parar de fumar',      unidade: '',           meta: null, dias: 30, opcoes: [],       prova: 'depoimento', largar: true,
+    desc: 'Todo dia você grava um depoimento contando como foi: conseguiu ou não, e como está sendo o processo. A constância é o depoimento: quem não grava perde o dia. Os dias limpos contam numa sequência à parte. Ninguém julga, todo mundo apoia.' },
+  { id: 'acordar',       emoji: '⏰', nome: 'Acordar cedo',       titulo: 'Acordar às 5h',       unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video', horaLimite: '05:30',
+    desc: 'Acorde às 5h e grave um vídeo ao vivo mostrando a hora no celular. O check-in só vale até o horário limite.' },
   { id: 'autoconhecimento', emoji: '🧠', nome: 'Autoconhecimento', titulo: 'Uma reflexão por dia', unidade: 'reflexão',  meta: 1,  dias: 21, opcoes: [1],        prova: 'honra',
     desc: 'Reserve um momento por dia pra se olhar por dentro: como foi seu dia, o que você sentiu e o que aprendeu. (Prova por honra — isso é seu.)' },
+  { id: 'livre',         emoji: '✏️', nome: 'Do seu jeito',       titulo: '',                    unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video',
+    desc: '' },
 ];
+
+// Roteiro do depoimento: aparece na tela de gravar, pra pessoa saber o que falar
+export function roteiroDepoimento(d, { falhou = false } = {}) {
+  if (d?.tipo === 'leitura') return ['Qual livro e quantas páginas você leu hoje', '5 coisas que você aprendeu ou que te marcaram', 'O que vai levar pra sua vida'];
+  if (ehLargar(d)) return falhou
+    ? ['O que aconteceu hoje e o que te levou a escorregar', 'Como você está se sentindo', 'O que vai fazer diferente amanhã']
+    : ['Como foi o dia sem o vício', 'Se deu vontade, o que você fez na hora', 'Como está sendo o processo pra você'];
+  return ['O que você fez hoje no desafio', 'Como está sendo o processo pra você'];
+}
+
+// Desafio de largar um vício (pelo molde)
+export function ehLargar(d) {
+  return d?.tipo === 'largar';
+}
+
+// Horário limite em 'HH:MM' (o banco guarda 'HH:MM:SS')
+export function horaLimite(d) {
+  const h = String(d?.hora_limite || '').slice(0, 5);
+  return /^\d\d:\d\d$/.test(h) ? h : '';
+}
+
+// Já passou do horário limite agora? (hora de Brasília, igual ao banco)
+export function passouDoLimite(d, agora = new Date()) {
+  const h = horaLimite(d);
+  if (!h) return false;
+  const now = agora.toLocaleTimeString('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+  return now > h;
+}
 
 export const MOLDE_BY_ID = Object.fromEntries(MOLDES.map(m => [m.id, m]));
 
@@ -64,7 +101,7 @@ export function emojiDoTipo(tipo) {
 // Fixas: valem pra todo desafio, o dono não muda. As do dono vêm em
 // desafio.regras_dono e aparecem logo abaixo.
 export const REGRAS_FIXAS = [
-  'Prova em vídeo é gravada ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
+  'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
   'Na corrida, vale o print do Strava junto com o vídeo ao vivo correndo nos últimos minutos.',
   'Os vídeos só aparecem pra quem está no desafio e somem em 7 dias.',
   'Prenda é leve e do bem, nunca constrangedora.',
@@ -75,6 +112,7 @@ export const REGRAS_FIXAS = [
 export function textoProva(d) {
   if (d.prova === 'video') return '🎥 Vídeo ao vivo';
   if (d.prova === 'strava') return '🏃 Print do Strava + vídeo ao vivo';
+  if (d.prova === 'depoimento') return '🎙️ Depoimento em vídeo';
   if (d.prova === 'honra') return '🤝 Por honra (só marcar)';
   return '';
 }

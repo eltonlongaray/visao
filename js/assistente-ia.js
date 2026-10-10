@@ -4865,6 +4865,8 @@ function desafioCheckin(d, p, c) {
   const somei = PDF.somaHoje(c.checks.filter(x => x.desafio_id === d.id), c.uid, hoje);
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
   const meta = d.meta_diaria;
+  if (c.M.ehLargar(d)) return desafioCheckinLargar(d, p, c);
+  if (c.M.passouDoLimite(d) && !somei) return `O <b>${nome}</b> só aceita check-in até as ${c.M.horaLimite(d)}. Amanhã tem de novo 🦅`;
   if (Array.isArray(d.exercicios) && d.exercicios.length) return desafioCheckinExercicio(d, p, c);
   // Corrida: print do Strava + vídeo ao vivo; a pessoa grava pelo botão
   if (d.prova === 'strava') {
@@ -4874,7 +4876,8 @@ function desafioCheckin(d, p, c) {
   }
   if (!meta) {
     if (somei > 0) return `<b>${nome}</b> já está marcado hoje ✅`;
-    if (d.prova === 'video') return _botaoProva(d, { quantidade: 1 }, `🎥 <b>${nome}</b> pede vídeo ao vivo. Grava agora que eu marco hoje.`, c);
+    if (d.prova === 'video') return _botaoProva(d, { quantidade: 1 }, `🎥 <b>${nome}</b> pede vídeo ao vivo${c.M.horaLimite(d) ? ' mostrando a hora no celular' : ''}. Grava agora que eu marco hoje.`, c);
+    if (d.prova === 'depoimento') return _botaoProva(d, { quantidade: 1 }, `🎙️ <b>${nome}</b> pede um depoimento em vídeo. Grava agora que eu marco hoje.`, c);
     cardConfirmarLista(`✅ Marcar <strong>${nome}</strong> como feito hoje?`, async () => {
       await c.D.addCheckin(d.id, 1);
       _redesenharDesafios();
@@ -4896,6 +4899,25 @@ function desafioCheckin(d, p, c) {
     return null;
   }
   return _cardSomar(d, q, somei, c);
+}
+
+// Largar um vício: todo dia um depoimento, conseguindo ou não (é ele que conta o dia)
+function desafioCheckinLargar(d, p, c) {
+  const hoje = _diaDesafio();
+  const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  const meusHoje = c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid && x.dia === hoje);
+  if (meusHoje.length) return `O depoimento de hoje no <b>${nome}</b> já foi enviado ✅ Amanhã tem outro.`;
+  const roteiro = (falhou) => c.M.roteiroDepoimento(d, { falhou }).map(x => `• ${_esc(x)}`).join('<br>');
+  const gravar = (falhou) => _botaoProva(d, { quantidade: falhou ? 0 : 1, falhou },
+    (falhou ? `💪 Tudo bem, faz parte do processo. Grava o depoimento de hoje no <b>${nome}</b>: é ele que conta o dia.`
+      : `🔥 Mais um dia limpo! Grava o depoimento de hoje no <b>${nome}</b>.`) + `<br><small>Fala sobre:<br>${roteiro(falhou)}</small>`, c);
+  if (p.falhou) return gravar(true);
+  if (p.consegui) return gravar(false);
+  addChoices(`Como foi hoje no <b>${nome}</b>? Nos dois casos tu grava um depoimento, e é ele que conta o dia.`, [
+    { label: '✅ Hoje consegui', action: () => gravar(false) },
+    { label: '😔 Hoje não consegui', action: () => gravar(true) },
+  ]);
+  return null;
 }
 
 // Exercício da lista: confere as regras do dia (limite, feito hoje, ontem)
@@ -4947,11 +4969,11 @@ function _botaoProva(d, extra, texto, c) {
   convState = null;
   const corrida = d.prova === 'strava' || extra.exercicio === 'Corrida';
   const pendente = corrida && _pendCorrida(d.id);
-  const ops = [{ label: pendente ? '📷 Enviar o print' : corrida ? '🎥 Gravar o final da corrida' : '🎥 Gravar a prova agora', action: async () => {
+  const ops = [{ label: pendente ? '📷 Enviar o print' : corrida ? '🎥 Gravar o final da corrida' : d.prova === 'depoimento' ? '🎙️ Gravar o depoimento' : '🎥 Gravar a prova agora', action: async () => {
     const P = await import('./desafios-prova.js');
     const ok = await P.registrarComProva(d, extra);
     _redesenharDesafios();
-    if (ok) return 'Prova enviada e registrada no desafio ✅ 🦅';
+    if (ok) return extra.falhou ? 'Depoimento enviado, dia contado 💪 Amanhã é um novo dia.' : d.prova === 'depoimento' ? 'Depoimento enviado e registrado no desafio ✅ 🦅' : 'Prova enviada e registrada no desafio ✅ 🦅';
     return P.corridaPendente(d.id) ? 'Vídeo guardado 🎥 Agora termina no Strava, tira o print e me fala <em>"manda o print da corrida"</em> (ou toca em 📷 Enviar o print no desafio).' : null;
   } }];
   if (corrida) ops.push({ label: '📋 Passo a passo', action: async () => { (await import('./desafios-prova.js')).passoAPassoCorrida(); return null; } });
@@ -4962,8 +4984,8 @@ function _botaoProva(d, extra, texto, c) {
 function _cardSomar(d, q, somei, c) {
   convState = null;
   const meta = d.meta_diaria, fica = somei + q;
-  if (d.prova === 'video') {
-    return _botaoProva(d, { quantidade: q }, `🎥 Esse desafio pede <b>vídeo ao vivo</b>. Grava agora que eu somo <b>${q}${_unDesafio(d)}</b> no <b>${_esc(d.titulo)}</b> (hoje fica ${fica}/${meta}${_unDesafio(d)}).`, c);
+  if (d.prova === 'video' || d.prova === 'depoimento') {
+    return _botaoProva(d, { quantidade: q }, `${d.prova === 'depoimento' ? '🎙️ Esse desafio pede um <b>depoimento em vídeo</b>' : '🎥 Esse desafio pede <b>vídeo ao vivo</b>'}. Grava agora que eu somo <b>${q}${_unDesafio(d)}</b> no <b>${_esc(d.titulo)}</b> (hoje fica ${fica}/${meta}${_unDesafio(d)}).`, c);
   }
   cardConfirmarLista(`${c.M.emojiDoTipo(d.tipo)} Somar <strong>${q}${_unDesafio(d)}</strong> no desafio <strong>${_esc(d.titulo)}</strong>?<br><small>Hoje fica ${fica}/${meta}${_unDesafio(d)}${fica >= meta ? ' 🎯' : ''}</small>`, async () => {
     await c.D.addCheckin(d.id, q);
@@ -4980,6 +5002,7 @@ function desafioCriar(p, c) {
     addChoices('Desafio de quê?', c.M.MOLDES.map(m => ({ label: `${m.emoji} ${m.nome}`, action: () => desafioCriar({ ...p, molde: m.id }, c) })));
     return null;
   }
+  if (molde?.id === 'livre') return '✏️ Qual vai ser o objetivo? Me fala assim: <em>"cria um desafio de dormir às 22h com amigos"</em> ou <em>"cria um desafio sem açúcar de 30 dias"</em>.';
   if (!p.modalidade) {
     addChoices('Vai ser só teu ou com amigos?', [
       { label: '🧍 Sozinho', action: () => desafioCriar({ ...p, modalidade: 'individual' }, c) },
@@ -4999,23 +5022,35 @@ function desafioCriar(p, c) {
   const meta = ehEx ? maxPorDia : molde ? (metaDita || molde.meta) : null;
   const unidade = molde ? molde.unidade : null;
   const dias = p.dias || molde?.dias || null;
-  let titulo = molde ? molde.titulo : p.nome.charAt(0).toUpperCase() + p.nome.slice(1);
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  let titulo = molde ? molde.titulo : cap(p.nome);
+  if (molde?.id === 'largar' && p.vicio) titulo = cap(p.vicio);
+  // Acordar às Xh: o check-in vale até meia hora depois
+  let horaLimite = molde?.horaLimite || null;
+  if (molde?.id === 'acordar' && p.hora) {
+    const [hh, mm] = p.hora.split(':').map(Number);
+    titulo = `Acordar às ${hh}h${mm ? String(mm).padStart(2, '0') : ''}`;
+    const fim = hh * 60 + mm + 30;
+    horaLimite = `${String(Math.floor(fim / 60)).padStart(2, '0')}:${String(fim % 60).padStart(2, '0')}`;
+  }
   if (molde && metaDita && metaDita !== molde.meta) {
     titulo = molde.id === 'agua' ? `Beber ${String(meta / 1000).replace('.', ',')}L de água` : `${molde.nome}: ${meta} ${unidade} por dia`;
   }
-  const descricao = molde ? molde.desc.replace(/\b2L\b/, `${String(meta / 1000).replace('.', ',')}L`) : `${titulo} todo dia.`;
+  const descricao = molde ? molde.desc.replace(/\b2L\b/, `${String(meta / 1000).replace('.', ',')}L`).replace(/às 5h/, titulo.replace(/^Acordar /, '')) : `${titulo} todo dia.`;
   const amigos = p.modalidade === 'amigos';
-  const prova = molde?.prova || 'honra';
+  const prova = molde?.prova || 'video';   // objetivo do seu jeito: vídeo ao vivo, igual à tela
   const resumo = `🏆 Criar o desafio <strong>${molde?.emoji || '🏆'} ${_esc(titulo)}</strong>?<br><small>` +
     (ehEx ? `Exercícios: ${exercicios.map(_esc).join(', ')} · até ${maxPorDia} por dia, sem repetir o de ontem · ` :
+      molde?.id === 'largar' ? 'Depoimento todo dia, conseguindo ou não (sem depoimento, perde o dia) · ' :
       `${meta ? `Meta: ${meta} ${_esc(unidade)} por dia · ` : 'Marcar feito 1x por dia · '}`) +
+    (horaLimite ? `⏰ check-in até ${horaLimite} · ` : '') +
     `${c.M.textoProva({ prova })} · ${dias ? `${dias} dias · ` : ''}${amigos ? '👥 com amigos (te dou o código pra convidar)' : '🧍 só teu'}</small>`;
   cardConfirmarLista(resumo, async () => {
     const codigo = amigos ? c.M.gerarCodigo() : null;
     const id = await c.D.createDesafio({
-      titulo, descricao, dias, meta, unidade, opcoes: molde?.opcoes || [], tipo: molde?.id || null,
+      titulo, descricao, dias, meta, unidade, opcoes: molde?.opcoes || [], tipo: molde?.id || 'livre',
       modalidade: p.modalidade, codigo, prenda: null, dataInicio: null, dataFim: null,
-      prova, ...(ehEx ? { exercicios, maxPorDia, naoRepetir: true, opcoes: [] } : {}),
+      prova, horaLimite, ...(ehEx ? { exercicios, maxPorDia, naoRepetir: true, opcoes: [] } : {}),
     });
     // Quem cria entra no próprio desafio, igual à tela
     try { await c.D.joinDesafio(id, await _meuNomeDesafio(c.email)); } catch { /* segue */ }

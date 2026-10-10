@@ -11,7 +11,8 @@ import {
   parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
-         REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior } from '../desafios-moldes.js';
+         REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
+         ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
@@ -44,7 +45,9 @@ function _ranking(desafio, parts, checks) {
   return parts.map(p => {
     const days = byUser[p.user_id] || {};
     let done = 0;
-    for (const d in days) if (meta ? days[d] >= meta : days[d] > 0) done++;
+    // Largar um vício: a constância é o depoimento de todo dia (conseguindo ou não)
+    const largar = desafio.tipo === 'largar';
+    for (const d in days) if (largar || (meta ? days[d] >= meta : days[d] > 0)) done++;
     return { user_id: p.user_id, nome: nomeById[p.user_id], done };
   }).sort((a, b) => b.done - a.done);
 }
@@ -117,6 +120,7 @@ export async function renderDesafios(app, embedded = false) {
             ${d.dias_total ? `<span class="ds-badge amber">${d.dias_total} dias</span>` : ''}
             ${meta ? `<span class="ds-badge teal">meta ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
             ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}
+            ${horaLimite(d) ? `<span class="ds-badge amber">⏰ até ${horaLimite(d)}</span>` : ''}
             ${textoProva(d) ? `<span class="ds-badge gray">${textoProva(d)}</span>` : ''}`;
 
           // Código de convite — só o dono de um desafio de amigos vê (pra compartilhar)
@@ -166,6 +170,20 @@ export async function renderDesafios(app, embedded = false) {
                 <input class="ds-inc-input" id="q-${d.id}" type="number" min="1" placeholder="${meta ? meta : ''} ${_esc(unidade)}" />
                 <button class="ds-inc" data-corrida="${d.id}">🎥 Gravar o final da corrida</button>
               </div>`}`;
+          } else if (ehLargar(d)) {
+            // Largar um vício: todo dia conta como foi, conseguindo ou não (com depoimento)
+            const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
+            const limpos = new Set(dChecks.filter(c => c.user_id === myUid && c.quantidade > 0).map(c => c.dia));
+            let seguidos = 0;
+            for (let dia = limpos.has(today) ? today : diaAnterior(today); limpos.has(dia); dia = diaAnterior(dia)) seguidos++;
+            const serie = seguidos ? `<div class="ds-serie">🔥 ${seguidos} ${seguidos === 1 ? 'dia limpo seguido' : 'dias limpos seguidos'}</div>` : '';
+            acao = meusHoje.length
+              ? `${serie}<div class="ds-done">${todaySum > 0 ? '✅ Mais um dia limpo! 🦅' : '💪 Depoimento de hoje enviado, dia contado. Amanhã é um novo dia.'}</div>`
+              : `${serie}<div class="ds-largar">
+                   <button class="ds-inc" data-add="${d.id}" data-qtd="1">✅ Consegui</button>
+                   <button class="ds-inc ds-falhei" data-falhei="${d.id}">😔 Não consegui</button>
+                 </div>
+                 <div class="ds-prova-dica">Nos dois casos você grava um depoimento. Sem depoimento, o dia não conta.</div>`;
           } else if (meta) {
             const pct = Math.min(100, Math.round((todaySum / meta) * 100));
             const done = todaySum >= meta;
@@ -188,6 +206,11 @@ export async function renderDesafios(app, embedded = false) {
             acao = done
               ? `<div class="ds-done">✅ Feito hoje! Volte amanhã 🦅</div>`
               : `<button class="ds-inc" data-add="${d.id}" data-qtd="1" style="width:100%">✅ Marcar feito hoje</button>`;
+          }
+
+          // Horário limite (ex.: acordar às 5h): passou e não marcou, fecha por hoje
+          if (joined && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
+            acao = `<div class="ds-prova-dica">⏰ Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅</div>`;
           }
 
           const rankHtml = joined && rank.length ? `
@@ -311,6 +334,8 @@ export async function renderDesafios(app, embedded = false) {
     };
     app.querySelectorAll('[data-add]').forEach(b => b.onclick = () =>
       comProva(b, b.dataset.add, { quantidade: parseInt(b.dataset.qtd, 10) || 1 }));
+    app.querySelectorAll('[data-falhei]').forEach(b => b.onclick = () =>
+      comProva(b, b.dataset.falhei, { falhou: true }));
     app.querySelectorAll('[data-addinput]').forEach(b => b.onclick = () => {
       const id = b.dataset.addinput;
       const inp = app.querySelector(`#q-${CSS.escape(id)}`);
@@ -356,6 +381,16 @@ export async function renderDesafios(app, embedded = false) {
     overlay.querySelector('#pv-close').onclick = close;
   }
 
+  // Abre o próximo modal só depois que o fechar do anterior voltou o histórico;
+  // senão esse "voltar" atrasado fecha o modal novo na hora.
+  function _depoisDoVoltar(fn) {
+    let feito = false;
+    const ir = () => { if (feito) return; feito = true; window.removeEventListener('popstate', onPop); fn(); };
+    const onPop = () => setTimeout(ir, 0);
+    window.addEventListener('popstate', onPop);
+    setTimeout(ir, 600);
+  }
+
   // ── Passo 1: escolher a modalidade ─────────────────────────
   function openModalidadePicker() {
     const opts = MODALIDADES.filter(m => !m.adminOnly || isAdmin);
@@ -380,7 +415,7 @@ export async function renderDesafios(app, embedded = false) {
     overlay.querySelector('#mod-close').onclick = close;
     overlay.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => {
       close();
-      openMoldePicker(b.dataset.mod);
+      _depoisDoVoltar(() => openMoldePicker(b.dataset.mod));
     });
   }
 
@@ -391,7 +426,7 @@ export async function renderDesafios(app, embedded = false) {
     overlay.innerHTML = `
       <div class="modal">
         <div class="modal-title">Novo desafio</div>
-        <div class="modal-hint">Escolha o tipo — o formato já vem pronto.</div>
+        <div class="modal-hint">Escolha um modelo: ele vem pronto e você muda o que quiser. Ou crie do seu jeito.</div>
         <div class="ds-molde-grid">
           ${MOLDES.map(m => `
             <button class="ds-molde" data-molde="${m.id}">
@@ -407,7 +442,7 @@ export async function renderDesafios(app, embedded = false) {
     overlay.querySelectorAll('[data-molde]').forEach(b => b.onclick = () => {
       const m = MOLDES.find(x => x.id === b.dataset.molde);
       close();
-      openDesafioForm({ molde: m, modalidade });
+      _depoisDoVoltar(() => openDesafioForm({ molde: m, modalidade }));
     });
   }
 
@@ -464,6 +499,9 @@ export async function renderDesafios(app, embedded = false) {
     const maxAtual = edit ? (desafio.max_por_dia || desafio.meta_diaria || 2) : (molde.maxPorDia || 2);
     const naoRepAtual = edit ? desafio.nao_repetir !== false : molde.naoRepetir !== false;
     const regrasAtual = edit ? (desafio.regras_dono || '') : '';
+    const largar = tipo === 'largar';
+    const horaAtual = edit ? horaLimite(desafio) : (molde.horaLimite || '');
+    const semMeta = temEx || largar;
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -471,7 +509,8 @@ export async function renderDesafios(app, embedded = false) {
       <div class="modal">
         <div class="modal-title">${emoji} ${edit ? 'Editar desafio' : _esc(molde.nome)}</div>
         <label class="input-field"><div class="input-field-label">Título</div>
-          <input id="f-titulo" maxlength="120" value="${_esc(edit ? desafio.titulo : molde.titulo)}" /></label>
+          <input id="f-titulo" maxlength="120" value="${_esc(edit ? desafio.titulo : molde.titulo)}"
+                 placeholder="${largar ? 'Ex.: Parar de fumar, Sem refrigerante' : 'Ex.: Acordar às 5h, Sem açúcar, Dormir às 22h'}" /></label>
         ${temEx ? `
         <div class="ds-form-sec">
           <div class="input-field-label">Exercícios (até 4)</div>
@@ -489,9 +528,10 @@ export async function renderDesafios(app, embedded = false) {
           <select id="f-prova">
             <option value="video"${provaAtual === 'video' ? ' selected' : ''}>🎥 Vídeo ao vivo</option>
             <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Print do Strava + vídeo ao vivo</option>
+            <option value="depoimento"${provaAtual === 'depoimento' ? ' selected' : ''}>🎙️ Depoimento em vídeo (até 2 min)</option>
             <option value="honra"${provaAtual === 'honra' ? ' selected' : ''}>🤝 Por honra (só marcar)</option>
           </select></label>
-        <div style="display:flex;gap:8px${temEx ? ';display:none' : ''}">
+        <div style="display:flex;gap:8px${semMeta ? ';display:none' : ''}">
           <label class="input-field" style="flex:1"><div class="input-field-label">Meta/dia</div>
             <input id="f-meta" type="number" min="1" value="${edit ? (desafio.meta_diaria ?? '') : molde.meta}" /></label>
           <label class="input-field" style="flex:1"><div class="input-field-label">Unidade</div>
@@ -500,11 +540,13 @@ export async function renderDesafios(app, embedded = false) {
         <div style="display:flex;gap:8px">
           <label class="input-field" style="flex:1"><div class="input-field-label">Duração (dias)</div>
             <input id="f-dias" type="number" min="1" value="${edit ? (desafio.dias_total ?? '') : molde.dias}" /></label>
-          <label class="input-field" style="flex:1${temEx ? ';display:none' : ''}"><div class="input-field-label">Incrementos</div>
+          <label class="input-field" style="flex:1${semMeta ? ';display:none' : ''}"><div class="input-field-label">Incrementos</div>
             <input id="f-opcoes" value="${_esc(opcoesStr)}" placeholder="250, 500 (vazio = digitar)" /></label>
         </div>
         <label class="input-field"><div class="input-field-label">Descrição</div>
-          <textarea id="f-desc" rows="3">${_esc(edit ? desafio.descricao : molde.desc)}</textarea></label>
+          <textarea id="f-desc" rows="3" placeholder="O que é pra fazer e como provar">${_esc(edit ? desafio.descricao : molde.desc)}</textarea></label>
+        ${largar ? '' : `<label class="input-field"><div class="input-field-label">⏰ Check-in só até (opcional)</div>
+          <input id="f-hora" type="time" value="${_esc(horaAtual)}" /></label>`}
         <label class="input-field"><div class="input-field-label">📜 Tuas regras (uma por linha, opcional)</div>
           <textarea id="f-regras" rows="3" maxlength="800" placeholder="Ex.: vale até 23h59&#10;O vídeo tem que mostrar o exercício inteiro">${_esc(regrasAtual)}</textarea></label>
         <div class="ds-prenda-aviso">As regras do Falcon valem sempre: vídeo só ao vivo, prenda leve e ninguém expõe quem falhou.</div>
@@ -584,8 +626,10 @@ export async function renderDesafios(app, embedded = false) {
         meta = maxPorDia; unidade = 'exercícios';   // o dia conta quando faz o máximo do dia
       }
       const dias = parseInt(overlay.querySelector('#f-dias').value, 10) || null;
-      const opcoes = temEx ? [] : parseOpcoes(overlay.querySelector('#f-opcoes').value);
-      const extras = { prova, regrasDono, ...(temEx ? { exercicios, maxPorDia, naoRepetir } : {}) };
+      if (largar) { meta = null; unidade = ''; }
+      const opcoes = semMeta ? [] : parseOpcoes(overlay.querySelector('#f-opcoes').value);
+      const horaLim = overlay.querySelector('#f-hora')?.value || null;
+      const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir } : {}) };
       const dataInicio = overlay.querySelector('#f-inicio')?.value || null;
       const dataFim = overlay.querySelector('#f-fim')?.value || null;
       const prenda = sel ? (sel.value === '__outra' ? txt.value.trim() : sel.value) : null;

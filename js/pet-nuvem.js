@@ -209,6 +209,7 @@ export function fraseDoApp(j) {
         case 'regras': return `quais as regras do ${desafio}`;
         case 'corrida_ajuda': return 'como registro a corrida?';
         case 'print': return 'manda o print da corrida';
+        case 'nao_consegui': return `hoje não consegui ${no}`;
         case 'checkin':
           if (j.todas) return `bati a meta ${no}`;
           if (juntar(j.itens)) return `fiz ${juntar(j.itens)} ${no}`;

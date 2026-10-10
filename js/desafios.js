@@ -39,13 +39,14 @@ export async function fetchDesafios() {
 }
 // Campos da prova/exercícios/regras (migration/desafios-provas.sql). Só entram
 // quando vêm definidos: um formulário antigo não manda e não quebra.
-function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono }) {
+function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite }) {
   const x = {};
   if (prova !== undefined) x.prova = prova || null;
   if (exercicios !== undefined) x.exercicios = (exercicios && exercicios.length) ? exercicios : null;
   if (maxPorDia !== undefined) x.max_por_dia = maxPorDia || null;
   if (naoRepetir !== undefined) x.nao_repetir = !!naoRepetir;
   if (regrasDono !== undefined) x.regras_dono = (regrasDono || '').trim() || null;
+  if (horaLimite !== undefined) x.hora_limite = horaLimite || null;
   return x;
 }
 export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
@@ -140,7 +141,7 @@ export async function leaveDesafio(desafioId) {
 // extra = { exercicio, videoPath, printPath } — as regras do desafio (prova,
 // limite por dia, não repetir) são conferidas no banco e voltam como erro.
 export async function addCheckin(desafioId, quantidade, extra = {}) {
-  const row = { desafio_id: desafioId, quantidade: quantidade || 1 };
+  const row = { desafio_id: desafioId, quantidade: quantidade === 0 ? 0 : (quantidade || 1) };   // 0 = largar um vício, dia que não conseguiu
   if (extra.exercicio) row.exercicio = extra.exercicio;
   if (extra.videoPath) row.video_path = extra.videoPath;
   if (extra.printPath) row.print_path = extra.printPath;
