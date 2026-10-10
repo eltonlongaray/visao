@@ -206,11 +206,18 @@ export function fraseDoApp(j) {
         case 'entrar': return `entra ${no}`;
         case 'codigo': return texto ? `entra no desafio com o código ${texto}` : null;
         case 'sair': return `sai do ${desafio}`;
+        case 'regras': return `quais as regras do ${desafio}`;
+        case 'corrida_ajuda': return 'como registro a corrida?';
+        case 'print': return 'manda o print da corrida';
+        case 'nao_consegui': return `hoje não consegui ${no}`;
         case 'checkin':
           if (j.todas) return `bati a meta ${no}`;
+          if (juntar(j.itens)) return `fiz ${juntar(j.itens)} ${no}`;
           return n ? `fiz ${n}${texto ? ' ' + texto : ''} ${no}` : `marca ${no.replace(/^no /, 'o ')} como feito`;
         case 'criar': {
           const mod = /amig|grupo|galera/i.test(texto) ? ' com amigos' : /sozinh|s[oó] meu|individual/i.test(texto) ? ' sozinho' : '';
+          const ex = juntar(j.itens);
+          if (ex) return `cria um desafio de exercício com ${ex}${n ? ` de ${n} dias` : ''}${mod}`;
           return nome ? `cria um desafio de ${nome}${n ? ` de ${n} dias` : ''}${mod}` : `cria um desafio${mod}`;
         }
         default: return null;

@@ -37,9 +37,22 @@ export async function fetchDesafios() {
   if (error) throw new Error(error.message || 'Erro ao carregar desafios');
   return data || [];
 }
+// Campos da prova/exercícios/regras (migration/desafios-provas.sql). Só entram
+// quando vêm definidos: um formulário antigo não manda e não quebra.
+function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite }) {
+  const x = {};
+  if (prova !== undefined) x.prova = prova || null;
+  if (exercicios !== undefined) x.exercicios = (exercicios && exercicios.length) ? exercicios : null;
+  if (maxPorDia !== undefined) x.max_por_dia = maxPorDia || null;
+  if (naoRepetir !== undefined) x.nao_repetir = !!naoRepetir;
+  if (regrasDono !== undefined) x.regras_dono = (regrasDono || '').trim() || null;
+  if (horaLimite !== undefined) x.hora_limite = horaLimite || null;
+  return x;
+}
 export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
-                                      modalidade, codigo, prenda, dataInicio, dataFim }) {
+                                      modalidade, codigo, prenda, dataInicio, dataFim, ...extras }) {
   const { data, error } = await supabase.from('desafios').insert({
+    ..._extrasDesafio(extras),
     titulo, descricao,
     dias_total: dias || null,
     meta_diaria: meta || null,
@@ -56,8 +69,9 @@ export async function createDesafio({ titulo, descricao, dias, meta, unidade, op
   return data?.id;
 }
 export async function updateDesafio(id, { titulo, descricao, dias, meta, unidade, opcoes, tipo,
-                                          prenda, dataInicio, dataFim }) {
+                                          prenda, dataInicio, dataFim, ...extras }) {
   const patch = {
+    ..._extrasDesafio(extras),
     titulo, descricao,
     dias_total: dias || null,
     meta_diaria: meta || null,
@@ -108,8 +122,12 @@ export async function fetchParticipantes() {
   return data || [];
 }
 export async function fetchCheckins() {
-  const { data } = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
-  return data || [];
+  const { data, error } = await supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+  if (!error) return data || [];
+  // Banco ainda sem as colunas da prova: lê o básico pra não zerar o ranking
+  const r = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
+  return r.data || [];
 }
 export async function joinDesafio(desafioId, nome) {
   const { error } = await supabase.from('desafio_participantes').insert({ desafio_id: desafioId, nome: nome || null });
@@ -120,9 +138,59 @@ export async function leaveDesafio(desafioId) {
   const { error } = await supabase.from('desafio_participantes').delete().eq('desafio_id', desafioId).eq('user_id', uid);
   if (error) throw new Error(error.message || 'Erro ao sair');
 }
-export async function addCheckin(desafioId, quantidade) {
-  const { error } = await supabase.from('desafio_checkins').insert({ desafio_id: desafioId, quantidade: quantidade || 1 });
+// extra = { exercicio, videoPath, printPath } — as regras do desafio (prova,
+// limite por dia, não repetir) são conferidas no banco e voltam como erro.
+export async function addCheckin(desafioId, quantidade, extra = {}) {
+  const row = { desafio_id: desafioId, quantidade: quantidade === 0 ? 0 : (quantidade || 1) };   // 0 = largar um vício, dia que não conseguiu
+  if (extra.exercicio) row.exercicio = extra.exercicio;
+  if (extra.videoPath) row.video_path = extra.videoPath;
+  if (extra.printPath) row.print_path = extra.printPath;
+  const { error } = await supabase.from('desafio_checkins').insert(row);
   if (error) throw new Error(error.message || 'Erro ao registrar');
+}
+
+// ── Provas (vídeo ao vivo e print da corrida) ────────────────
+// Bucket privado: guarda o caminho, a URL é assinada na hora de ver.
+export async function subirProva(blob, tipo) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sessão expirada');
+  if (blob.size > 25 * 1024 * 1024) throw new Error('Arquivo grande demais (máx 25 MB).');
+  const mime = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
+  const ext = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'image/png': '.png', 'image/webp': '.webp', 'image/jpeg': '.jpg' }[mime] || '.webm';
+  const caminho = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+  const { error } = await supabase.storage.from('desafio-provas').upload(caminho, blob, { contentType: mime });
+  if (error) throw new Error(error.message || 'Não deu pra enviar a prova');
+  return caminho;
+}
+export async function assinarProvas(caminhos) {
+  const unicos = [...new Set((caminhos || []).filter(Boolean))];
+  if (!unicos.length) return new Map();
+  const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(unicos, 60 * 60);
+  if (error) return new Map();
+  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+}
+// Apaga da MINHA pasta o que não está preso a um check-in que ainda vale
+// (o vídeo some em 7 dias; o check-in fica pro ranking).
+export async function faxinaProvas() {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  try {
+    const { data: arqs, error } = await supabase.storage.from('desafio-provas').list(uid, { limit: 200 });
+    if (error || !arqs?.length) return;
+    const { data: vivos } = await supabase.from('desafio_checkins')
+      .select('video_path, print_path, video_expira_em').eq('user_id', uid);
+    const agora = Date.now();
+    const usados = new Set();
+    (vivos || []).forEach(c => {
+      if (c.video_expira_em && new Date(c.video_expira_em).getTime() < agora) return;
+      if (c.video_path) usados.add(c.video_path);
+      if (c.print_path) usados.add(c.print_path);
+    });
+    // arquivo de menos de 1 dia pode ser a corrida pela metade (vídeo já subiu, falta o print)
+    const lixo = arqs.filter(a => !usados.has(`${uid}/${a.name}`) && agora - new Date(a.created_at || 0).getTime() > 864e5)
+      .map(a => `${uid}/${a.name}`);
+    if (lixo.length) await supabase.storage.from('desafio-provas').remove(lixo);
+  } catch { /* acessória */ }
 }
 
 // ── Bolinha de novo na Home ──────────────────────────────────

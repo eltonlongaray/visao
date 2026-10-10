@@ -1,25 +1,63 @@
 // ═══════════════════════════════════════════════════════════════
 // FALCON · Moldes de desafio (pré-formatos por tipo)
 // Admin escolhe um molde → formulário já vem preenchido com o formato certo.
-// prova: 'video' (grava comprovando) | 'honra' (marca sem vídeo).
+// prova: 'video' (grava ao vivo no app) | 'strava' (print do Strava + vídeo ao vivo)
+//        | 'depoimento' (vídeo ao vivo falando, até 2 min, com roteiro) | 'honra' (marca sem vídeo).
+// largar: true = desafio de largar um vício (todo dia: "consegui" ou "não consegui", os dois com depoimento).
+// horaLimite: check-in só até esse horário (o banco confere).
 // opcoes vazio = pessoa digita a quantidade. Tudo editável na criação.
 // ═══════════════════════════════════════════════════════════════
 export const MOLDES = [
   { id: 'agua',          emoji: '💧', nome: 'Água',               titulo: 'Beber 2L de água',   unidade: 'ml',         meta: 2000, dias: 21, opcoes: [250, 500], prova: 'video',
     desc: 'Beba 2L de água por dia. Grave um gole a cada garrafinha até fechar a meta.' },
-  { id: 'exercicio',     emoji: '🏋️', nome: 'Exercício físico',   titulo: '3 exercícios por dia', unidade: 'exercícios', meta: 3,  dias: 30, opcoes: [1],        prova: 'video',
-    desc: 'Faça 3 exercícios por dia e comprove cada um em vídeo.' },
+  { id: 'exercicio',     emoji: '🏋️', nome: 'Constância de exercício', titulo: 'Exercício todo dia', unidade: 'exercícios', meta: 2, dias: 30, opcoes: [1], prova: 'video',
+    exercicios: ['Flexão', 'Agachamento', 'Abdominal', 'Prancha'], maxPorDia: 2, naoRepetir: true,
+    desc: 'Até 2 exercícios por dia da lista, sem repetir o de ontem: hoje uns, amanhã outros. Cada um comprovado em vídeo ao vivo.' },
   { id: 'flexibilidade', emoji: '🤸', nome: 'Flexibilidade',      titulo: 'Alongar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [5, 10],    prova: 'video',
     desc: 'Alongue por 10 minutos por dia.' },
   { id: 'meditacao',     emoji: '🧘', nome: 'Meditação',          titulo: 'Meditar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [5, 10],    prova: 'honra',
     desc: 'Medite por 10 minutos por dia. (Prova por honra — meditação não se filma.)' },
-  { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'video',
-    desc: 'Corra 5 km por dia. Comprove com o print do app + um vídeo curto.' },
-  { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'video',
-    desc: 'Leia 20 páginas por dia.' },
+  { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'strava',
+    desc: 'Corra 5 km por dia. Meça no Strava e comprove com o print + um vídeo ao vivo correndo nos últimos minutos.' },
+  { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'depoimento',
+    desc: 'Leia 20 páginas por dia e conte no grupo, num vídeo de depoimento, 5 coisas que você aprendeu ou que te marcaram.' },
+  { id: 'largar',        emoji: '🚭', nome: 'Largar um vício',    titulo: 'Parar de fumar',      unidade: '',           meta: null, dias: 30, opcoes: [],       prova: 'depoimento', largar: true,
+    desc: 'Todo dia você grava um depoimento contando como foi: conseguiu ou não, e como está sendo o processo. A constância é o depoimento: quem não grava perde o dia. Os dias limpos contam numa sequência à parte. Ninguém julga, todo mundo apoia.' },
+  { id: 'acordar',       emoji: '⏰', nome: 'Acordar cedo',       titulo: 'Acordar às 5h',       unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video', horaLimite: '05:30',
+    desc: 'Acorde às 5h e grave um vídeo ao vivo mostrando a hora no celular. O check-in só vale até o horário limite.' },
   { id: 'autoconhecimento', emoji: '🧠', nome: 'Autoconhecimento', titulo: 'Uma reflexão por dia', unidade: 'reflexão',  meta: 1,  dias: 21, opcoes: [1],        prova: 'honra',
     desc: 'Reserve um momento por dia pra se olhar por dentro: como foi seu dia, o que você sentiu e o que aprendeu. (Prova por honra — isso é seu.)' },
+  { id: 'livre',         emoji: '✏️', nome: 'Do seu jeito',       titulo: '',                    unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video',
+    desc: '' },
 ];
+
+// Roteiro do depoimento: aparece na tela de gravar, pra pessoa saber o que falar
+export function roteiroDepoimento(d, { falhou = false } = {}) {
+  if (d?.tipo === 'leitura') return ['Qual livro e quantas páginas você leu hoje', '5 coisas que você aprendeu ou que te marcaram', 'O que vai levar pra sua vida'];
+  if (ehLargar(d)) return falhou
+    ? ['O que aconteceu hoje e o que te levou a escorregar', 'Como você está se sentindo', 'O que vai fazer diferente amanhã']
+    : ['Como foi o dia sem o vício', 'Se deu vontade, o que você fez na hora', 'Como está sendo o processo pra você'];
+  return ['O que você fez hoje no desafio', 'Como está sendo o processo pra você'];
+}
+
+// Desafio de largar um vício (pelo molde)
+export function ehLargar(d) {
+  return d?.tipo === 'largar';
+}
+
+// Horário limite em 'HH:MM' (o banco guarda 'HH:MM:SS')
+export function horaLimite(d) {
+  const h = String(d?.hora_limite || '').slice(0, 5);
+  return /^\d\d:\d\d$/.test(h) ? h : '';
+}
+
+// Já passou do horário limite agora? (hora de Brasília, igual ao banco)
+export function passouDoLimite(d, agora = new Date()) {
+  const h = horaLimite(d);
+  if (!h) return false;
+  const now = agora.toLocaleTimeString('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+  return now > h;
+}
 
 export const MOLDE_BY_ID = Object.fromEntries(MOLDES.map(m => [m.id, m]));
 
@@ -57,4 +95,64 @@ export function gerarCodigo() {
 // Emoji do desafio a partir do tipo salvo (fallback 🏆)
 export function emojiDoTipo(tipo) {
   return MOLDE_BY_ID[tipo]?.emoji || '🏆';
+}
+
+// ── Regras ───────────────────────────────────────────────────
+// Fixas: valem pra todo desafio, o dono não muda. As do dono vêm em
+// desafio.regras_dono e aparecem logo abaixo.
+export const REGRAS_FIXAS = [
+  'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
+  'Na corrida, vale o print do Strava junto com o vídeo ao vivo correndo nos últimos minutos.',
+  'Os vídeos só aparecem pra quem está no desafio e somem em 7 dias.',
+  'Prenda é leve e do bem, nunca constrangedora.',
+  'Celebra em público, cobra em particular: ninguém expõe quem falhou fora do grupo.',
+];
+
+// O que o desafio pede como prova, em palavras
+export function textoProva(d) {
+  if (d.prova === 'video') return '🎥 Vídeo ao vivo';
+  if (d.prova === 'strava') return '🏃 Print do Strava + vídeo ao vivo';
+  if (d.prova === 'depoimento') return '🎙️ Depoimento em vídeo';
+  if (d.prova === 'honra') return '🤝 Por honra (só marcar)';
+  return '';
+}
+
+// Regras do dono em linhas (texto livre, uma por linha)
+export function regrasDoDono(d) {
+  return String(d?.regras_dono || '').split(/\n+/).map(x => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean);
+}
+
+// Exercícios de hoje: cada um com ok/motivo, pelas regras do desafio.
+// meus = check-ins MEUS nesse desafio. Mesmas regras do gatilho do banco.
+export function exerciciosDeHoje(d, meus, hoje, ontem) {
+  const lista = Array.isArray(d?.exercicios) ? d.exercicios : [];
+  const deHoje = meus.filter(c => c.dia === hoje);
+  const feitosHoje = new Set(deHoje.map(c => c.exercicio));
+  const deOntem = new Set(meus.filter(c => c.dia === ontem).map(c => c.exercicio));
+  const cheio = d.max_por_dia && deHoje.length >= d.max_por_dia;
+  return lista.map(nome => {
+    if (feitosHoje.has(nome)) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
+    if (d.nao_repetir !== false && deOntem.has(nome)) return { nome, ok: false, motivo: 'feito ontem' };
+    if (cheio) return { nome, ok: false, motivo: 'limite do dia' };
+    return { nome, ok: true };
+  });
+}
+
+// A lista fecha com o limite? Sem repetir o de ontem, quem faz N por dia
+// precisa de pelo menos 2N exercícios (N hoje, outros N amanhã).
+export function avisoExercicios(lista, maxPorDia, naoRepetir) {
+  const n = lista.length;
+  if (!n) return '';
+  if (n > 5) return 'No máximo 5 opções (4 exercícios + corrida).';
+  if (naoRepetir && maxPorDia && n < maxPorDia * 2) {
+    return `Com ${maxPorDia} por dia e sem repetir o de ontem, a lista precisa de pelo menos ${maxPorDia * 2} exercícios.`;
+  }
+  return '';
+}
+
+// Dia anterior a 'YYYY-MM-DD' (sem fuso: conta só a data)
+export function diaAnterior(dia) {
+  const [y, m, d] = dia.split('-').map(Number);
+  const x = new Date(Date.UTC(y, m - 1, d - 1));
+  return x.toISOString().slice(0, 10);
 }
