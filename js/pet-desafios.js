@@ -53,13 +53,21 @@ function codigoDaFrase(texto) {
   return null;
 }
 
-// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar', codigo, qtd, molde,
-//   dias, modalidade, feitoHoje, metaToda, nome } ou null.
-// Só entra quando a frase fala em "desafio" (ou num código de convite).
+// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda',
+//   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia } ou null.
+// Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
+// como registrar a corrida / Strava).
 export function lerDesafio(texto) {
   const t = norm(texto);
   const codigo = codigoDaFrase(texto);
   const temDesafio = /\bdesafios?\b/.test(t);
+  // "manda o print da corrida": vídeo já gravado, falta o print
+  if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
+  // "como registro a corrida?", "abre o strava", "correr com o falcon"
+  if (/\bstrava\b|\bcorrer com o falcon\b/.test(t)
+    || (/\bcorrida\b/.test(t) && /\b(como|passo a passo|explica|ensina)\b/.test(t) && /\b(registr\w*|grav\w*|fa[zc]\w*|comprov\w*|prova|mand\w*)\b/.test(t))) {
+    return { acao: 'corrida_ajuda', abrir: /\b(abr\w*|bora|vou correr|correr com)\b/.test(t) && !/\bcomo\b/.test(t) };
+  }
   if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t))) return null;
   // "abre os desafios" / "vai pros desafios": só abrir a tela (Config cuida)
   if (/^(abr\w*|vai|ir|leva|mostra a tela)\s+(?:a\s+tela\s+)?(?:d?[aoe]s?\s+|pr[ao]s?\s+)?desafios?$/.test(t)) return null;
@@ -68,13 +76,17 @@ export function lerDesafio(texto) {
   const qtd = lerQuantidade(t);
   const base = { codigo, qtd, molde, dias: null, modalidade: null, feitoHoje: false, metaToda: false, nome: nomeCitado(texto) };
 
+  if (/\b(regras?|pode e o que nao pode|o que (?:nao )?pode)\b/.test(t) && !/\b(cri\w*|mud\w*|coloc\w*|bot\w*|adicion\w*)\b/.test(t)) return { ...base, acao: 'regras' };
   if (/\b(cri\w*|mont\w*|novo desafio|comec\w* um desafio|faz\w* um desafio|abr\w* um desafio)\b/.test(t) && !/\b(criei|criou|criado|criada|criaram)\b/.test(t)) {
     const d = t.match(new RegExp(`\\b${NUM_RE}\\s*dias?\\b`));
+    const pd = t.match(new RegExp(`\\b${NUM_RE}\\s*(?:exercicios?\\s*)?por dia\\b`));
+    const exercicios = molde === 'exercicio' || molde === null ? exerciciosDaFrase(texto) : [];
     const modalidade = /\b(amig\w*|galera|grupo|turma|familia|convid\w*|junto)\b/.test(t) ? 'amigos'
       : /\b(sozinh\w*|so meu|so pra mim|individual|so eu)\b/.test(t) ? 'individual' : null;
     // "de 3 litros por dia" vira a meta; sem número fica a do molde
     const metaDita = qtd;
-    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: metaDita };
+    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: pd ? null : metaDita,
+      exercicios, maxPorDia: pd ? numDe(pd[1]) : null, molde: exercicios.length ? 'exercicio' : molde };
   }
   if (codigo) return { ...base, acao: 'codigo' };
   if (/\b(sai|saia|sair|saio|desist\w*|larg\w*|abandon\w*|me tira)\b/.test(t)) return { ...base, acao: 'sair' };
@@ -86,6 +98,40 @@ export function lerDesafio(texto) {
     return { ...base, acao: 'checkin', feitoHoje: true, metaToda: /\b(bati|cumpri|complet\w*|fechei|conclui)\b.*\bmeta\b|\bmeta\b.*\b(batida|completa|cumprida)\b/.test(t) };
   }
   return { ...base, acao: 'ver' };
+}
+
+// "desafio de exercício com flexão, abdominal, agachamento e corrida, 2 por dia"
+// → ['Flexão', 'Abdominal', 'Agachamento', 'Corrida'] (até 5)
+export function exerciciosDaFrase(texto) {
+  const m = String(texto || '').match(/exerc[ií]cios?\b[^,]*?\b(?:com|:|sendo)\s*(.+)$/i);
+  if (!m) return [];
+  let s = ' ' + m[1] + ' ';
+  s = s.replace(/\s(?:com|pra|para)\s+(?:os\s+|as\s+|a\s+|o\s+|meus\s+|minha\s+)?(?:amig\w*|galera|grupo|turma|fam[ií]lia)\b.*$/i, ' ')
+    .replace(/\s(?:s[oó]\s+meu|sozinh\w*|individual)\b.*$/i, ' ')
+    .replace(/[,\s]+(?:de|por|em|durante)\s+\S+\s+dias?\b.*$/i, ' ')
+    .replace(/[,\s]+(?:no\s+m[aá]ximo\s+)?\S+\s+(?:exerc[ií]cios?\s+)?por\s+dia\b.*$/i, ' ');
+  const out = [];
+  for (const p of s.split(/\s*(?:,|;|\be\b|\+)\s*/i)) {
+    const x = p.replace(/^\s*(?:o|a|os|as|um|uma)\s+/i, '').replace(/[.!?]+$/, '').trim();
+    if (!x || x.length > 40) continue;
+    const nome = /^corrid|^correr/i.test(x) ? 'Corrida' : x.charAt(0).toUpperCase() + x.slice(1);
+    if (!out.some(y => norm(y) === norm(nome))) out.push(nome);
+  }
+  return out.slice(0, 5);
+}
+
+// Qual exercício da lista do desafio a frase cita ("fiz a flexão" → "Flexão")
+export function exercicioCitado(lista, texto) {
+  const t = norm(texto);
+  const ws = t.split(' ');
+  return (lista || []).find(ex => {
+    const e = norm(ex);
+    if (!e) return false;
+    if (t.includes(e)) return true;
+    if (e === 'corrida' && /\b(corri|correr|corrida)\b/.test(t)) return true;
+    const raiz = e.split(' ')[0].slice(0, 5);
+    return raiz.length >= 4 && ws.some(w => w.startsWith(raiz));
+  }) || null;
 }
 
 // O que a pessoa chamou o desafio: "desafio da água" → "água", "desafio Beber 2L" → "Beber 2L"
@@ -111,6 +157,7 @@ export function acharDesafio(lista, texto) {
     const doTit = norm(d.titulo).split(' ').filter(w => w.length >= 3 && !VAZIAS.has(w));
     let n = ws.filter(w => bate(w, doTit)).length * 2;
     if (molde && d.tipo === molde) n += 3;
+    if (Array.isArray(d.exercicios) && exercicioCitado(d.exercicios, t)) n += 3;
     return { d, n };
   }).filter(o => o.n > 0).sort((a, b) => b.n - a.n);
   if (!notas.length) return [];

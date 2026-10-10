@@ -2578,6 +2578,61 @@ body.time-picker-open { overflow: hidden; }
   color: var(--muted); font-family: inherit; font-size: 12px; cursor: pointer; padding: 6px;
 }
 
+/* ── Desafios: exercícios, corrida, regras e provas ── */
+.ds-ex-lista { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 4px; }
+.ds-ex {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  border: 1px solid rgba(245,158,11,0.35); background: rgba(245,158,11,0.12); color: var(--text);
+  border-radius: 12px; padding: 10px 12px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; text-align: left;
+}
+.ds-ex small { font-size: 11px; font-weight: 500; color: var(--muted); }
+.ds-ex:disabled { opacity: 0.55; cursor: default; background: var(--card-2); border-color: var(--border); }
+.ds-ex.feito { opacity: 1; background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.35); }
+.ds-corrida { display: flex; gap: 8px; margin: 10px 0 8px; }
+.ds-correr, .ds-passos-btn {
+  flex: 1; border-radius: 12px; padding: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.ds-correr { border: none; background: #f97316; color: #fff; }
+.ds-passos-btn { border: 1px solid var(--border); background: var(--card-2); color: var(--text); }
+.ds-print { margin-top: 4px; }
+.ds-prova-dica { font-size: 12px; color: var(--muted); margin: 6px 2px 0; }
+.ds-passos { margin: 6px 0 12px; padding-left: 20px; font-size: 14px; line-height: 1.55; color: var(--text); }
+.ds-passos li { margin-bottom: 8px; }
+.ds-regras { margin: 10px 0 4px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--text); }
+.ds-regras summary { cursor: pointer; font-weight: 800; }
+.ds-regras ul { margin: 4px 0 8px; padding-left: 18px; line-height: 1.5; }
+.ds-regras-tit { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 8px; }
+.ds-provas { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.ds-prova {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  border: 1px solid var(--border); background: var(--card-2); color: var(--text);
+  border-radius: 10px; padding: 8px 10px; font-family: inherit; font-size: 13px; cursor: pointer; text-align: left;
+}
+.ds-prova small { color: var(--muted); }
+.ds-prova-modal video, .ds-prova-modal img { width: 100%; max-height: 62vh; border-radius: 12px; background: #000; margin-bottom: 10px; object-fit: contain; }
+.ds-form-sec { border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+.ds-ex-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0; }
+.ds-ex-campos .aviso-input { margin: 0; }
+.ds-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin: 6px 0; }
+.ds-form-aviso { font-size: 12px; color: #f59e0b; line-height: 1.4; margin-top: 4px; }
+/* gravador ao vivo */
+.ds-rec-video.espelho { transform: scaleX(-1); }
+.ds-rec-tempo {
+  position: absolute; top: calc(90px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 3;
+  background: rgba(220,38,38,0.9); color: #fff; font-weight: 800; font-size: 14px; border-radius: 999px; padding: 4px 12px;
+}
+.ds-rec-shot { background: #ef4444; border-color: rgba(255,255,255,0.7); }
+.ds-rec-shot.gravando { border-radius: 14px; transform: scale(0.8); }
+.cam-guia-flip:disabled { opacity: 0.4; }
+.ds-rec-revisao {
+  position: absolute; inset: 0; z-index: 4; background: #000;
+  display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+}
+.ds-rec-revisao[hidden], .ds-form-aviso[hidden] { display: none; }
+.ds-rec-play { width: 100%; max-height: 72vh; object-fit: contain; }
+.ds-rec-acoes { display: flex; gap: 10px; }
+.ds-rec-acoes > * { flex: 1; }
+
 
 /* ─── Modal de Mensagens ─── */
 .morning-msgs-modal {
