@@ -4933,7 +4933,7 @@ function desafioCheckin(d, p, c) {
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
   const meta = d.meta_diaria;
   if (c.M.ehLargar(d)) return desafioCheckinLargar(d, p, c);
-  if (c.M.passouDoLimite(d) && !somei) return `O <b>${nome}</b> só aceita check-in até as ${c.M.horaLimite(d)}. Amanhã tem de novo 🦅`;
+  if (c.M.passouDoLimite(d) && !somei) return `O <b>${nome}</b> só aceita a prova do dia até as ${c.M.horaLimite(d)}. Amanhã tem de novo 🦅`;
   if (Array.isArray(d.exercicios) && d.exercicios.length) return desafioCheckinExercicio(d, p, c);
   // Corrida: print do Strava + vídeo ao vivo; a pessoa grava pelo botão
   if (d.prova === 'strava') {
@@ -5110,7 +5110,7 @@ function desafioCriar(p, c) {
     (ehEx ? `Exercícios: ${exercicios.map(_esc).join(', ')} · até ${maxPorDia} por dia, sem repetir o de ontem · ` :
       molde?.id === 'largar' ? 'Depoimento todo dia, conseguindo ou não (sem depoimento, perde o dia) · ' :
       `${meta ? `Meta: ${meta} ${_esc(unidade)} por dia · ` : 'Marcar feito 1x por dia · '}`) +
-    (horaLimite ? `⏰ check-in até ${horaLimite} · ` : '') +
+    (horaLimite ? `⏰ prova do dia até ${horaLimite} · ` : '') +
     `${c.M.textoProva({ prova })} · ${dias ? `${dias} dias · ` : ''}${amigos ? '👥 com amigos (te dou o código pra convidar)' : '🧍 só teu'}</small>`;
   cardConfirmarLista(resumo, async () => {
     const codigo = amigos ? c.M.gerarCodigo() : null;

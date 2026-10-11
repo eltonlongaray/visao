@@ -263,7 +263,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
   const corrida = d.prova === 'strava' || exercicio === 'Corrida';
   if (falhou) quantidade = 0;
   if (passouDoLimite(d)) {
-    showToast(`Esse desafio só aceita check-in até as ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'error');
+    showToast(`Esse desafio só aceita a prova do dia até as ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'error');
     return false;
   }
   try {

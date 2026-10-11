@@ -108,7 +108,7 @@ export function abrirRegras(d) {
     `Até ${d.max_por_dia || d.meta_diaria || 1} por dia, escolhidos da lista: ${ex.map(_esc).join(', ')}.`,
     ...(d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem.'] : []),
   ] : [];
-  if (horaLimite(d)) regrasEx.push(`Check-in só até as ${horaLimite(d)}.`);
+  if (horaLimite(d)) regrasEx.push(`Prova do dia só até as ${horaLimite(d)}.`);
   const dono = regrasDoDono(d);
   _modal(`
     <div class="modal-title">📜 Regras</div>
