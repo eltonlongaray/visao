@@ -8303,3 +8303,14 @@ body.rota-publica .bottom-nav { display: none !important; }
   background: var(--card-2); border: 1px solid var(--border);
   color: var(--muted); font-size: 13px; cursor: pointer;
 }
+
+/* Convidar participantes */
+.ds-conv-busca { margin: 6px 0 8px; }
+.ds-conv-lista { max-height: 34vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.ds-conv-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+  font-size: 14px; color: var(--text);
+}
+.ds-conv-item input { width: 18px; height: 18px; accent-color: #f59e0b; flex: 0 0 auto; }
+.ds-conv-modal .ds-codigo-grande { text-align: center; text-indent: 6px; /* compensa o letter-spacing do último caractere */ }

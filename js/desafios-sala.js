@@ -7,6 +7,7 @@
 // BLOCO 1 — DADOS DA SALA
 // BLOCO 2 — RANKING E REGRAS
 // BLOCO 3 — 📷 PROVA PELA SALA
+// BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
@@ -14,6 +15,7 @@ import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
+import { fetchMembros, enviarPrivado, meuNomeDeChat } from './chat.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -255,4 +257,98 @@ async function _registrar(d, extra) {
   const ok = await registrarComProva(d, extra);
   // Corrida guarda o vídeo e espera o print: também muda a sala
   return ok || d.prova === 'strava' || extra.exercicio === 'Corrida';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: CONVIDAR (WhatsApp e gente do Falcon)
+// ═══════════════════════════════════════════════════════════════
+export const LINK_APP = 'https://estilo-falcon.web.app';
+
+// Mesmo texto no WhatsApp e no privado do app
+export function textoConvite(d, { noApp = false } = {}) {
+  const como = noApp
+    ? 'Vai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ' + d.codigo + '".'
+    : `Baixa o Falcon (${LINK_APP}), vai em Desafios → 🔑 Entrar com código.`;
+  return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\n${como}\nCódigo: ${d.codigo}`;
+}
+
+export function convidarNoWhatsApp(d) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(textoConvite(d))}`, '_blank');
+}
+
+// Manda o convite no privado do app pra cada pessoa. Devolve quantos foram.
+export async function convidarNoApp(d, ids) {
+  const nome = await meuNomeDeChat();
+  let n = 0;
+  for (const id of ids) { await enviarPrivado(id, textoConvite(d, { noApp: true }), nome); n++; }
+  return n;
+}
+
+// Folha "📨 Convidar": WhatsApp (escolhe o contato lá) ou pessoas do Falcon
+// (quem já está no desafio não aparece). parts = participantes desse desafio.
+export async function abrirConvidar(d, parts = [], meuId = null) {
+  if (!d?.codigo) { showToast('Esse desafio não tem código de convite.', 'info'); return; }
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `
+    <div class="modal sala-modal ds-conv-modal">
+      <div class="modal-title">📨 Convidar participantes</div>
+      <div class="modal-hint">${_esc(d.titulo)}</div>
+      <div class="ds-codigo-grande">${_esc(d.codigo)}</div>
+      <button class="btn-primary ds-conv-wpp" data-conv-wpp style="width:100%">💬 Mandar no WhatsApp</button>
+      <button class="btn-secondary" data-conv-copiar style="width:100%;margin-top:8px">Copiar código</button>
+      <div class="ds-regras-tit" style="margin-top:16px">Pessoas do Falcon</div>
+      <input class="chat-busca ds-conv-busca" data-conv-busca placeholder="Buscar pessoa…" autocomplete="off" />
+      <div class="ds-conv-lista" data-conv-lista><div class="ds-prova-dica">Carregando…</div></div>
+      <div class="modal-actions" style="flex-direction:column;gap:8px">
+        <button class="btn-primary" data-conv-enviar style="width:100%" disabled>Mandar convite</button>
+        <button class="btn-secondary" data-sala-fechar style="width:100%">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.querySelector('[data-sala-fechar]').onclick = close;
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  ov.querySelector('[data-conv-wpp]').onclick = () => convidarNoWhatsApp(d);
+  ov.querySelector('[data-conv-copiar]').onclick = async () => {
+    try { await navigator.clipboard.writeText(d.codigo); showToast('🔑 Código copiado!', 'success'); }
+    catch { showToast(`Código: ${d.codigo}`, 'info'); }
+  };
+
+  const marcados = new Set();
+  const btnEnviar = ov.querySelector('[data-conv-enviar]');
+  const pintarBotao = () => {
+    btnEnviar.disabled = !marcados.size;
+    btnEnviar.textContent = marcados.size ? `Mandar convite (${marcados.size})` : 'Mandar convite';
+  };
+  const lista = ov.querySelector('[data-conv-lista]');
+  let membros = [];
+  try { membros = await fetchMembros(); }
+  catch { lista.innerHTML = '<div class="ds-prova-dica">Não consegui carregar as pessoas agora.</div>'; return; }
+  const dentro = new Set(parts.map(p => p.user_id));
+  const fora = membros.filter(m => m.user_id !== meuId && !dentro.has(m.user_id));
+  lista.innerHTML = fora.length ? fora.map(m => `
+    <label class="ds-conv-item" data-nome="${_esc((m.nome || '').toLowerCase())}">
+      <input type="checkbox" value="${_esc(m.user_id)}" />
+      <span>${_esc(m.nome || 'Falcão')}</span>
+    </label>`).join('') : '<div class="ds-prova-dica">Todo mundo do app já está nesse desafio 🦅</div>';
+  lista.addEventListener('change', (e) => {
+    const cb = e.target.closest('input[type=checkbox]');
+    if (!cb) return;
+    if (cb.checked) marcados.add(cb.value); else marcados.delete(cb.value);
+    pintarBotao();
+  });
+  const busca = ov.querySelector('[data-conv-busca]');
+  busca.addEventListener('input', () => {
+    const q = busca.value.trim().toLowerCase();
+    lista.querySelectorAll('.ds-conv-item').forEach(el => { el.style.display = el.dataset.nome.includes(q) ? '' : 'none'; });
+  });
+  btnEnviar.onclick = async () => {
+    btnEnviar.disabled = true; btnEnviar.textContent = 'Mandando…';
+    try {
+      const n = await convidarNoApp(d, [...marcados]);
+      showToast(`📨 Convite mandado pra ${n} ${n === 1 ? 'pessoa' : 'pessoas'} no privado`, 'success');
+      close();
+    } catch (e) { showToast(e.message || 'Não deu pra mandar', 'error'); pintarBotao(); }
+  };
 }

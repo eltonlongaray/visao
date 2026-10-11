@@ -135,6 +135,13 @@ export function lerDesafio(texto) {
       exercicios, maxPorDia: pd ? numDe(pd[1]) : null, molde: exercicios.length ? 'exercicio' : molde,
       vicio: vm ? vm[1] : null, hora };
   }
+  // "convida a Ana e o Bruno pro desafio de leitura", "manda o convite do desafio no zap"
+  if (/\b(convid\w*|convite)\b/.test(t) && !/\b(entr\w*|aceit\w*)\b/.test(t)) {
+    const pm = t.match(/\bconvid\w*\s+(?:o |a |os |as )?(.+?)\s+(?:pr[oa]s?|para (?:o|a)|no|na|ao)\s+(?:meu |minha |nosso |esse |o |a )?desafio/);
+    const pessoas = pm && !/\b(galera|amigos?|pessoal|gente|alguem|participantes?|pessoas?|todo mundo)\b/.test(pm[1])
+      ? pm[1].split(/\s*(?:,|\be\b)\s*/).map(x => x.replace(/^(o|a)\s+/, '').trim()).filter(Boolean) : [];
+    return { ...base, acao: 'convidar', pessoas, whatsapp: /\b(whats\w*|wpp|zap\w*)\b/.test(t) };
+  }
   if (codigo) return { ...base, acao: 'codigo' };
   // "largar" num desafio de largar um vício é o objetivo, não sair do desafio
   if (/\b(sai|saia|sair|saio|desist\w*|abandon\w*|me tira)\b/.test(t) || (/\blarg\w*\b/.test(t) && molde !== 'largar')) return { ...base, acao: 'sair' };

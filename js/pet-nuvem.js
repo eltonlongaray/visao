@@ -210,6 +210,12 @@ export function fraseDoApp(j) {
         case 'corrida_ajuda': return 'como registro a corrida?';
         case 'print': return 'manda o print da corrida';
         case 'nao_consegui': return `hoje não consegui ${no}`;
+        case 'convidar': {
+          const quem = juntar(j.itens);
+          const pro = nome ? `pro desafio ${/^(d[aoe]s?)\s/i.test(nome) ? nome : 'de ' + nome}` : 'pro desafio';
+          if (quem) return `convida ${quem} ${pro}`;
+          return j.todas ? `manda o convite do ${pro.replace(/^pro /, '')} no whatsapp` : `quero convidar pessoas ${pro}`;
+        }
         case 'grupo': {
           const grupo = nome ? `grupo do desafio ${/^(d[aoe]s?)\s/i.test(nome) ? nome : 'de ' + nome}` : 'grupo do desafio';
           if (texto) return `manda no ${grupo}: ${texto}`;

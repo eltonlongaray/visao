@@ -14,7 +14,7 @@ import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
-import { rankingDoDesafio } from '../desafios-sala.js';
+import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
 import { auth } from '../autenticacao.js';
@@ -66,10 +66,12 @@ export async function renderDesafios(app, embedded = false) {
       return;
     }
     markDesafiosSeen(desafios.map(d => d.id));
+    lastParts = parts;
     draw(desafios, parts, checks, placar);
     if (!_faxinou) { _faxinou = true; faxinaProvas(); }
   }
   let _faxinou = false;
+  let lastParts = [];
 
   function draw(desafios, parts, checks, placar) {
     const today = _today();
@@ -242,6 +244,9 @@ export async function renderDesafios(app, embedded = false) {
           const solo = d.modalidade === 'individual';
           // Grupo: abre a sala (conversa do desafio, com as provas e o ranking)
           const wpp = (joined && !solo) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
+          // Convidar: desafio com amigos, pra quem já está dentro
+          const convidar = (joined && d.modalidade === 'amigos' && d.codigo)
+            ? `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>` : '';
           const sair = joined ? `<button class="ds-leave" data-leave="${d.id}">Sair do desafio</button>` : '';
 
           return `
@@ -258,6 +263,7 @@ export async function renderDesafios(app, embedded = false) {
               ${regrasHtml}
               ${provasHtml}
               ${solo ? '' : rankHtml}
+              ${convidar}
               ${wpp}
               ${sair}
             </div>`;
@@ -344,6 +350,10 @@ export async function renderDesafios(app, embedded = false) {
     app.querySelectorAll('[data-correr]').forEach(b => b.onclick = abrirStrava);
     app.querySelectorAll('[data-passos]').forEach(b => b.onclick = passoAPassoCorrida);
     app.querySelectorAll('[data-video]').forEach(b => b.onclick = () => verProva(b.dataset.video, b.dataset.printp));
+    app.querySelectorAll('[data-convidar]').forEach(b => b.onclick = () => {
+      const d = desafios.find(x => x.id === b.dataset.convidar);
+      if (d) abrirConvidar(d, (lastParts || []).filter(p => p.desafio_id === d.id), myUid);
+    });
     // A sala vive na Comunidade (tela-chat.js): ela escuta e abre
     app.querySelectorAll('[data-sala]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.sala);
@@ -665,7 +675,7 @@ export async function renderDesafios(app, embedded = false) {
           // O criador entra automaticamente no próprio desafio
           try { await joinDesafio(novoId, meuNome); } catch { /* segue */ }
           close();
-          if (codigo) mostrarCodigo(codigo);
+          if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, { id: novoId, titulo, codigo }));
           else showToast('🏆 Desafio criado!', 'success');
           await refresh();
         }
@@ -677,7 +687,7 @@ export async function renderDesafios(app, embedded = false) {
   }
 
   // ── Mostra o código pro criador compartilhar ───────────────
-  function mostrarCodigo(codigo) {
+  function mostrarCodigo(codigo, d = null) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
@@ -688,6 +698,7 @@ export async function renderDesafios(app, embedded = false) {
         <div class="ds-codigo-grande">${_esc(codigo)}</div>
         <div class="modal-actions" style="flex-direction:column;gap:8px">
           <button class="btn-primary" id="cg-wpp" style="width:100%">💬 Mandar no WhatsApp</button>
+          ${d ? `<button class="btn-secondary" id="cg-app" style="width:100%">📨 Convidar gente do Falcon</button>` : ''}
           <button class="btn-secondary" id="cg-copy" style="width:100%">Copiar código</button>
           <button class="btn-secondary" id="cg-ok" style="width:100%">Fechar</button>
         </div>
@@ -699,10 +710,11 @@ export async function renderDesafios(app, embedded = false) {
       try { await navigator.clipboard.writeText(codigo); showToast('🔑 Código copiado!', 'success'); }
       catch { showToast(`Código: ${codigo}`, 'info'); }
     };
-    overlay.querySelector('#cg-wpp').onclick = () => {
-      const msg = encodeURIComponent(`Bora encarar um desafio comigo no Falcon? 🦅\nEntra com o código: ${codigo}`);
-      window.open(`https://wa.me/?text=${msg}`, '_blank');
-    };
+    overlay.querySelector('#cg-wpp').onclick = () => convidarNoWhatsApp(d || { titulo: 'um desafio', codigo });
+    overlay.querySelector('#cg-app')?.addEventListener('click', () => {
+      close();
+      _depoisDoVoltar(() => abrirConvidar(d, [], myUid));
+    });
   }
 
   await refresh();
