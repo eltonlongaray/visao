@@ -15,7 +15,8 @@ import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          REGRAS_FIXAS, regrasDoDono } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
-import { showToast, confirmModal } from './aviso-tela.js';
+import { showToast } from './aviso-tela.js';
+import { getProfile } from './banco-dados.js';
 import { fetchMembros, enviarPrivado, meuNomeDeChat } from './chat.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -379,25 +380,37 @@ export function temConvitePendente() {
   try { return !!localStorage.getItem(CHAVE_CONVITE); } catch { return false; }
 }
 
-// Na Home, logado: pergunta, entra pelo código e abre o grupo do desafio.
+// Na Home, logado. Já tem nome no perfil: entra e abre o grupo direto.
+// Conta nova (sem nome): o Pet abre e faz as perguntas básicas antes
+// (assistente-ia.js BLOCO 8.17, evento 'falcon:convite-boas-vindas'), e no fim
+// chama entrarNoConvite. Assim ninguém aparece no grupo como "Falcão".
 export async function entrarPeloConvite() {
   let cod = null;
   try { cod = localStorage.getItem(CHAVE_CONVITE); localStorage.removeItem(CHAVE_CONVITE); } catch { /* sem storage */ }
   if (!cod) return false;
-  const ok = await confirmModal({
-    title: 'Convite pra um desafio',
-    message: 'Te chamaram pra um desafio no Falcon. Quer entrar no grupo agora?',
-    confirmText: 'Entrar no grupo', cancelText: 'Agora não',
-    chainedFlow: true,   // não volta o histórico: senão desfaz a ida pros Desafios
-  });
-  if (!ok) { showToast(`Se mudar de ideia: Desafios → 🔑 Entrar com código ${cod}`, 'info'); return true; }
+  let p = null;
+  try { p = await getProfile(); } catch { /* segue sem perfil */ }
+  if (!(p?.preferredName || p?.fullName || '').trim()) {
+    window.dispatchEvent(new CustomEvent('falcon:convite-boas-vindas', { detail: { codigo: cod } }));
+    return true;
+  }
+  await entrarNoConvite(cod);
+  return true;
+}
+
+// Entra no desafio do código e abre a sala do grupo. true = deu certo.
+export async function entrarNoConvite(cod) {
   try {
     const id = await entrarPorCodigo(cod, await meuNomeDeChat());
     const d = (await fetchDesafios()).find(x => x.id === id);
     const detalhe = { id, titulo: d?.titulo || 'Desafio', tipo: d?.tipo };
-    try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
     showToast('🦅 Você entrou no desafio!', 'success');
+    if (document.getElementById('chat-corpo')) { window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: detalhe })); return true; }
+    try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
     location.hash = '#/desafios';
-  } catch (e) { showToast(e.message || 'Não deu pra entrar no desafio', 'error'); }
-  return true;
+    return true;
+  } catch (e) {
+    showToast(e.message || 'Não deu pra entrar no desafio', 'error');
+    return false;
+  }
 }

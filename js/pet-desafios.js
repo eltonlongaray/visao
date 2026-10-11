@@ -285,3 +285,45 @@ export function ranking(desafio, parts, checks) {
 export function somaHoje(checks, uid, hoje) {
   return checks.filter(c => c.user_id === uid && c.dia === hoje).reduce((s, c) => s + (c.quantidade || 0), 0);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: BOAS-VINDAS DE QUEM CHEGA PELO LINK DO CONVITE
+// ═══════════════════════════════════════════════════════════════
+// "meu nome é Ana Paula Souza" → "Ana Paula Souza"; "pode me chamar de Aninha" → "Aninha"
+export function lerNome(texto) {
+  let t = String(texto || '').trim().replace(/[.!🦅]+$/u, '').trim();
+  t = t.replace(/^(oi|olá|ola|opa|e aí|e ai)[,!\s]+/i, '')
+       .replace(/^(meu nome (é|e)|me chamo|eu sou|sou o|sou a|sou|pode me chamar de|me chama de|me chamam de|é|e)\s+/i, '')
+       .trim();
+  if (!t || t.length > 60 || /\d/.test(t)) return '';
+  return t.split(/\s+/).map(w => /^(da|de|do|das|dos|e)$/i.test(w) ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
+// "acordo 6h e durmo 23h30" / "6:00 e 22:30" → { acordar:'06:00', dormir:'23:30' }
+// Sem as duas palavras, o primeiro horário é o de acordar e o segundo o de dormir.
+export function lerHorarios(texto) {
+  const t = String(texto || '').toLowerCase().replace(/meia[\s-]*noite/g, '0h').replace(/meio[\s-]*dia/g, '12h');
+  const achados = [];
+  const re = /(\d{1,2})(?:\s*(?:h|:)\s*(\d{2})?|\s*horas?)?(?:\s*(da manh[aã]|da noite|da tarde))?/g;
+  let m;
+  while ((m = re.exec(t))) {
+    let h = +m[1]; const min = +(m[2] || 0);
+    if (m[3] && /noite|tarde/.test(m[3]) && h < 12) h += 12;
+    if (h > 23 || min > 59) continue;
+    achados.push({ pos: m.index, hhmm: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}` });
+  }
+  if (!achados.length) return {};
+  const pAcorda = t.search(/acord|levant/), pDorme = t.search(/d[ou]rm|deit/);
+  // O horário logo depois da palavra ("durmo 23h e acordo 7h"); senão o mais perto
+  const perto = (p) => achados.find(x => x.pos > p) || achados.reduce((a, b) => Math.abs(b.pos - p) < Math.abs(a.pos - p) ? b : a);
+  if (achados.length === 1) {
+    if (pDorme >= 0 && pAcorda < 0) return { dormir: achados[0].hhmm };
+    return { acordar: achados[0].hhmm };
+  }
+  if (pAcorda >= 0 && pDorme >= 0) {
+    const a = perto(pAcorda), d = achados.find(x => x !== a && x === perto(pDorme)) || achados.find(x => x !== a);
+    return { acordar: a.hhmm, dormir: d.hhmm };
+  }
+  if (pDorme >= 0 && pAcorda < 0 && pDorme < achados[0].pos) return { dormir: achados[0].hhmm, acordar: achados[1].hhmm };
+  return { acordar: achados[0].hhmm, dormir: achados[1].hhmm };
+}

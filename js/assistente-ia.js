@@ -51,7 +51,7 @@ import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261011a';
+import * as PDF from './pet-desafios.js?v=20261011c';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -5418,6 +5418,74 @@ async function desempenhoObjetivo(o) {
     return '✅ Objetivo criado. A contagem vem sozinha das tarefas feitas no Ritual.';
   }, null);
   return null;
+}
+
+// ── Boas-vindas de quem chega pelo link do convite (conta nova, sem nome) ──
+// O Pet abre sozinho e pergunta o básico (nome, como quer ser chamado,
+// acordar/dormir), grava no perfil e no fim entra no desafio e abre o grupo.
+// O tutorial fica pra próxima vez que a pessoa abrir a Home.
+async function boasVindasConvite(codigo) {
+  const guardados = _fila.splice(0);   // check-ins esperam: primeiro o convite
+  openPetChat();
+  await new Promise(r => setTimeout(r, 400));
+  diz('Oi! Eu sou o Pet, teu assistente aqui no Falcon 🦅 Te chamaram pra um desafio em grupo!');
+  perguntar('convite_nome', 'Antes de entrar no grupo, 3 perguntas rapidinhas. Qual é o teu nome?', [], { codigo, guardados },
+    'Qual é o teu nome?');
+}
+
+function perguntarApelido(d) {
+  const primeiro = d.nome.split(' ')[0];
+  return perguntar('convite_apelido', `Prazer, ${_esc(primeiro)}! Como tu quer que te chamem no grupo?`,
+    [BT('primeiro', `🙂 ${primeiro}`)], d, 'Como tu quer que te chamem no grupo?');
+}
+function perguntarHorarios(d) {
+  return perguntar('convite_horarios',
+    'Última: que horas tu costuma acordar e dormir? Tipo <em>"acordo 6h e durmo 23h"</em>.',
+    [PULAR], d, 'Que horas tu acorda e que horas dorme?');
+}
+async function fecharConvite(d) {
+  _conversa = null;
+  diz(`Pronto, ${_esc(d.apelido)}! Essas foram as informações básicas pra tu entrar no grupo. ` +
+    'Pra aproveitar o app inteiro, conclui as etapas do card <b>Complete seu Falcon</b> na Home 🦅');
+  _fila.push(...(d.guardados || []));
+  const S = await import('./desafios-sala.js');
+  setTimeout(async () => { if (await S.entrarNoConvite(d.codigo)) closeChatPanel(); }, 2500);
+  return 'Te levando pro grupo… 🚀';
+}
+
+Object.assign(PASSOS, {
+  async convite_nome({ texto }, d) {
+    const nome = PDF.lerNome(texto);
+    if (!nome) return perguntar('convite_nome', 'Me fala só o teu nome, tipo <em>"Ana Paula"</em> 🙂', [], d, 'Qual é o teu nome?');
+    d.nome = nome;
+    await setProfile({ fullName: nome }).catch(() => {});
+    return perguntarApelido(d);
+  },
+  async convite_apelido({ id, texto }, d) {
+    const ap = id === 'primeiro' ? d.nome.split(' ')[0] : (PDF.lerNome(texto) || d.nome.split(' ')[0]);
+    d.apelido = ap;
+    await setProfile({ preferredName: ap }).catch(() => {});
+    return perguntarHorarios(d);
+  },
+  async convite_horarios({ id, texto }, d) {
+    if (id === 'pular') return fecharConvite(d);
+    const h = PDF.lerHorarios(texto);
+    if (!h.acordar && !h.dormir) {
+      if (d.tentouHora) return fecharConvite(d);
+      d.tentouHora = true;
+      return perguntar('convite_horarios', 'Não peguei os horários 😅 Fala tipo <em>"acordo 7h e durmo 23h30"</em>.', [PULAR], d, 'Que horas tu acorda e dorme?');
+    }
+    const patch = {};
+    if (h.acordar) patch.defaultWakeTime = h.acordar;
+    if (h.dormir) patch.defaultSleepTime = h.dormir;
+    await setProfile(patch).catch(() => {});
+    diz(`Anotei: ${h.acordar ? `acorda às <b>${h.acordar}</b>` : ''}${h.acordar && h.dormir ? ' e ' : ''}${h.dormir ? `dorme às <b>${h.dormir}</b>` : ''} ⏰`);
+    return fecharConvite(d);
+  },
+});
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
 }
 
 // ═══════════════════════════════════════════════════════════════
