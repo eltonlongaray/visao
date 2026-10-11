@@ -527,12 +527,12 @@ export async function renderDesafios(app, embedded = false) {
         <div style="display:flex;gap:8px">
           <label class="input-field" style="flex:1"><div class="input-field-label">Duração (dias)</div>
             <input id="f-dias" type="number" min="1" value="${edit ? (desafio.dias_total ?? '') : molde.dias}" /></label>
-          <label class="input-field" style="flex:1${semMeta ? ';display:none' : ''}"><div class="input-field-label">Incrementos</div>
-            <input id="f-opcoes" value="${_esc(opcoesStr)}" placeholder="250, 500 (vazio = digitar)" /></label>
+          <label class="input-field" style="flex:1${semMeta ? ';display:none' : ''}"><div class="input-field-label">Botões de somar</div>
+            <input id="f-opcoes" value="${_esc(opcoesStr)}" placeholder="ex.: 1 ou 250, 500 (vazio = digitar)" /></label>
         </div>
         <label class="input-field"><div class="input-field-label">Descrição</div>
           <textarea id="f-desc" rows="3" placeholder="O que é pra fazer e como provar">${_esc(edit ? desafio.descricao : molde.desc)}</textarea></label>
-        ${largar ? '' : `<label class="input-field"><div class="input-field-label">⏰ Check-in só até (opcional)</div>
+        ${largar ? '' : `<label class="input-field"><div class="input-field-label">⏰ Prova do dia só até (opcional)</div>
           <input id="f-hora" type="time" value="${_esc(horaAtual)}" /></label>`}
         <label class="input-field"><div class="input-field-label">📜 Tuas regras (uma por linha, opcional)</div>
           <textarea id="f-regras" rows="3" maxlength="800" placeholder="Ex.: vale até 23h59&#10;O vídeo tem que mostrar o exercício inteiro">${_esc(regrasAtual)}</textarea></label>
@@ -567,6 +567,14 @@ export async function renderDesafios(app, embedded = false) {
     const close = trapModalBack(() => overlay.remove());
     overlay.querySelector('#f-cancel').onclick = close;
 
+    // A descrição do molde fala da prova ("Prova por honra"): trocou a prova,
+    // tira esse trecho pra não contradizer o que foi escolhido
+    overlay.querySelector('#f-prova')?.addEventListener('change', (e) => {
+      const desc = overlay.querySelector('#f-desc');
+      if (!desc || e.target.value === 'honra') return;
+      desc.value = desc.value.replace(/\s*\(Prova por honra[^)]*\)/i, '').trim();
+    });
+
     // Lista de exercícios x limite por dia: avisa na hora se não fecha
     const lerEx = () => {
       const lista = [...overlay.querySelectorAll('.ds-ex-in')].map(i => i.value.trim()).filter(Boolean)
@@ -597,10 +605,11 @@ export async function renderDesafios(app, embedded = false) {
 
     overlay.querySelector('#f-save').onclick = async () => {
       const titulo = overlay.querySelector('#f-titulo').value.trim();
-      const descricao = overlay.querySelector('#f-desc').value.trim();
+      const prova = overlay.querySelector('#f-prova').value;
+      let descricao = overlay.querySelector('#f-desc').value.trim();
+      if (prova !== 'honra') descricao = descricao.replace(/\s*\(Prova por honra[^)]*\)/i, '').trim();
       let meta = parseInt(overlay.querySelector('#f-meta').value, 10) || null;
       let unidade = overlay.querySelector('#f-unidade').value.trim();
-      const prova = overlay.querySelector('#f-prova').value;
       const regrasDono = overlay.querySelector('#f-regras').value;
       let exercicios, maxPorDia, naoRepetir;
       if (temEx) {
