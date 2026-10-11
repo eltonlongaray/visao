@@ -45,13 +45,13 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261010b';
+import * as PN from './pet-nuvem.js?v=20261011a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261010b';
+import * as PDF from './pet-desafios.js?v=20261011a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -4725,6 +4725,10 @@ async function tentarDesafios(text) {
       return escolher(citou ? c.desafios : (meus.length ? meus : c.desafios), (d) => desafioRegras(d, c),
         `📜 <b>Regras do Falcon (valem pra todo desafio)</b><br>${c.M.REGRAS_FIXAS.map(x => `• ${_esc(x)}`).join('<br>')}`, 'Não achei esse desafio 🤔 Fala <em>"quais desafios tem?"</em> que eu te mostro.');
     case 'codigo': return desafioCodigo(p.codigo, c);
+    case 'convidar':
+      return escolher(meus.filter(d => d.modalidade === 'amigos' && d.codigo), (d) => desafioConvidar(d, p, c),
+        'Convite é pra desafio com amigos, e tu não está em nenhum agora. Fala <em>"cria um desafio de leitura com os amigos"</em> que eu monto.',
+        'Não achei esse desafio com amigos entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
     case 'entrar': {
       const jaEstou = citou ? PDF.acharDesafio(meus, text) : [];
       if (jaEstou.length === 1 && !PDF.acharDesafio(fora, text).length) return `Tu já está no desafio <b>${_esc(jaEstou[0].titulo)}</b> 🦅`;
@@ -4803,6 +4807,41 @@ function desafioGrupoEnviar(d, p, c) {
     const C = await import('./chat.js');
     await C.enviarNoDesafio(d.id, msg, await C.meuNomeDeChat());
     return 'Mandei no grupo 🦅';
+  }, null);
+  return null;
+}
+
+// Convidar: pessoas do Falcon pelo nome (privado do app) ou WhatsApp
+async function desafioConvidar(d, p, c) {
+  const S = await import('./desafios-sala.js');
+  const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  const parts = c.parts.filter(x => x.desafio_id === d.id);
+  const botoes = [
+    { label: '💬 Mandar no WhatsApp', action: () => { S.convidarNoWhatsApp(d); return null; } },
+    { label: '📨 Escolher pessoas do Falcon', action: () => { S.abrirConvidar(d, parts, c.uid); return null; } },
+  ];
+  if (p.whatsapp && !p.pessoas?.length) { S.convidarNoWhatsApp(d); return `Abrindo o WhatsApp com o convite do <b>${nome}</b> 💬 (código <b>${_esc(d.codigo)}</b>).`; }
+  if (!p.pessoas?.length) { addChoices(`📨 Convidar pro <b>${nome}</b> · código <b>${_esc(d.codigo)}</b>`, botoes); return null; }
+  const C = await import('./chat.js');
+  let membros = [];
+  try { membros = await C.fetchMembros(); } catch { /* sem lista */ }
+  const dentro = new Set(parts.map(x => x.user_id));
+  const sem = (x) => PDF.norm(x || '');
+  const achados = [], faltou = [], jaEsta = [];
+  for (const pessoa of p.pessoas) {
+    const q = sem(pessoa);
+    const m = membros.filter(x => x.user_id !== c.uid && (sem(x.nome) === q || sem(x.nome).split(' ')[0] === q || sem(x.nome).startsWith(q + ' ')));
+    if (m.length !== 1) { faltou.push(pessoa); continue; }
+    if (dentro.has(m[0].user_id)) jaEsta.push(m[0].nome); else achados.push(m[0]);
+  }
+  const avisos = [
+    jaEsta.length ? `${jaEsta.map(_esc).join(', ')} já está no desafio.` : '',
+    faltou.length ? `Não achei no app: ${faltou.map(_esc).join(', ')}.` : '',
+  ].filter(Boolean).join(' ');
+  if (!achados.length) { addChoices(`${avisos || 'Não achei essas pessoas no app.'}<br>Dá pra convidar pelo WhatsApp ou escolher na lista:`, botoes); return null; }
+  cardConfirmarLista(`📨 Convidar pro <strong>${nome}</strong>: ${achados.map(x => `<b>${_esc(x.nome)}</b>`).join(', ')}?<br><small>Vai no privado do app, com o código ${_esc(d.codigo)}.${avisos ? ' ' + avisos : ''}</small>`, async () => {
+    const n = await S.convidarNoApp(d, achados.map(x => x.user_id));
+    return `📨 Convite mandado pra ${n} ${n === 1 ? 'pessoa' : 'pessoas'} 🦅`;
   }, null);
   return null;
 }
