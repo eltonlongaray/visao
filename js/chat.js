@@ -65,6 +65,41 @@ export async function enviarNoMural(texto, nome, imagemPath = null, respondeA = 
   _falha(error);
 }
 
+// ─── SALA DO DESAFIO ───────────────────────────────────────────
+// Conversa do grupo de um desafio (escopo 'desafio'). Só quem está no
+// desafio lê e escreve (RLS em migration/desafios-sala.sql). As provas
+// entram aqui sozinhas, por gatilho no banco, com prova_video/prova_print.
+export async function fetchSalaDesafio(desafioId) {
+  if (!desafioId) return [];
+  const { data, error } = await supabase
+    .from('chat_mensagens')
+    .select('id, autor_id, autor_nome, texto, imagem_path, arquivo_path, arquivo_nome, arquivo_mime, responde_a, created_at, expira_em, editada_em, checkin_id, prova_video, prova_print')
+    .eq('escopo', 'desafio')
+    .eq('desafio_id', desafioId)
+    .order('created_at', { ascending: false })
+    .limit(LIMITE);
+  _falha(error);
+  return (data || []).reverse();
+}
+
+export async function enviarNoDesafio(desafioId, texto, nome, imagemPath = null, respondeA = null, arquivo = null) {
+  const t = (texto || '').trim();
+  if ((!t && !imagemPath && !arquivo?.path) || !desafioId) return;
+  const { error } = await supabase.from('chat_mensagens').insert({
+    escopo: 'desafio',
+    desafio_id: desafioId,
+    autor_id: auth.currentUser?.uid,
+    autor_nome: nome,
+    texto: t ? t.slice(0, 2000) : null,
+    imagem_path: imagemPath,
+    responde_a: respondeA,
+    arquivo_path: arquivo?.path || null,
+    arquivo_nome: arquivo?.nome || null,
+    arquivo_mime: arquivo?.mime || null,
+  });
+  _falha(error);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: CONVERSAS PRIVADAS
 // ═══════════════════════════════════════════════════════════════

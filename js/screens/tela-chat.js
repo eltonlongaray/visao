@@ -16,6 +16,7 @@
 // Sem anexos: não há upload de arquivo nem de imagem nesta versão.
 import {
   fetchMural, enviarNoMural, fetchConversas, fetchConversa, enviarPrivado,
+  fetchSalaDesafio, enviarNoDesafio,
   fetchMembros, fetchPerfis, apagarMensagem, editarMensagem, faxinaChat, meuNomeDeChat, tempoRestante,
   subirFotoDoChat, assinarFotos, faxinaFotos, espelharFotoDoGoogle,
   subirArquivoDoChat, assinarArquivos, faxinaArquivos,
@@ -28,11 +29,16 @@ import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
+import { assinarProvas } from '../desafios.js';
+import { emojiDoTipo } from '../desafios-moldes.js';
+import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala } from '../desafios-sala.js';
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
 // Permite a rota /desafios abrir a Comunidade já na aba Desafios.
 export function setAbaChat(a) { aba = a; }
-let conversaCom = null;   // { id, nome } quando aberta
+let conversaCom = null;   // { id, nome } quando aberta; { id, nome, desafio: true } = sala do desafio
+let sala = null;          // { d, parts, checks } da sala do desafio aberta (desafios-sala.js)
+let provaUrls = new Map(); // caminho do vídeo/print da prova -> URL assinada (1h)
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
 let editando = null;      // id da mensagem em edição
@@ -145,6 +151,19 @@ function abrirConversa(id, nome) {
   return recarregar();
 }
 
+// Sala do desafio: a conversa do grupo, aberta pelo card na aba Desafios.
+// Mesma tela da conversa (cabeçalho de grupo, campo, áudio, foto); a 📷 do
+// lado da mensagem grava a prova em vez de tirar foto.
+function abrirSala({ id, titulo, tipo }) {
+  if (!id) return;
+  aba = 'desafios';
+  sala = null;
+  conversaCom = { id, nome: titulo || 'Desafio', tipo, desafio: true };
+  history.pushState({ falconConversa: 1 }, '');
+  entradaNoHistorico = true;
+  return recarregar();
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
     // Fora da tela de chat o voltar não é nosso.
@@ -164,7 +183,11 @@ if (typeof window !== 'undefined') {
       return;
     }
     if (conversaCom) {
+      // Ainda na entrada da conversa: quem voltou foi um modal por cima
+      // (gravador da prova, ranking, regras — trapModalBack), não a conversa.
+      if (history.state?.falconConversa) return;
       conversaCom = null;
+      sala = null;
       entradaNoHistorico = false;
       recarregar();
       return;
@@ -173,6 +196,10 @@ if (typeof window !== 'undefined') {
     // representa nada na interface, então passo o voltar adiante em vez de
     // engolir o toque.
     if (entradaOrfa) { entradaOrfa = false; history.back(); }
+  });
+  // O card do desafio (tela-desafios.js) pede pra abrir a sala do grupo
+  window.addEventListener('falcon:sala-desafio', (e) => {
+    if (document.getElementById('chat-corpo')) abrirSala(e.detail || {});
   });
 }
 
@@ -188,6 +215,17 @@ export async function renderChat(app) {
   faxinaArquivos();
   espelharFotoDoGoogle();   // uma vez só: traz a foto do Google pro nosso bucket
 
+  // O Pet pediu pra abrir a sala de um desafio ("abre o grupo do desafio")
+  let pendente = null;
+  try { pendente = JSON.parse(sessionStorage.getItem('falcon_sala_pendente') || 'null'); sessionStorage.removeItem('falcon_sala_pendente'); } catch { pendente = null; }
+  if (pendente?.id) {
+    aba = 'desafios';
+    sala = null;
+    conversaCom = { id: pendente.id, nome: pendente.titulo || 'Desafio', tipo: pendente.tipo, desafio: true };
+    history.pushState({ falconConversa: 1 }, '');
+    entradaNoHistorico = true;
+  }
+
   desenharCasca(app);
   ajustarConversaAoTeclado();   // dimensiona pela tela visível já na entrada
   await recarregar();
@@ -199,19 +237,22 @@ export async function renderChat(app) {
   // apagaria o destaque e a barra ficaria apontando pra um elemento que não
   // existe mais.
   recarga = setInterval(() => {
-    if (selecionados.size || aba === 'desafios') return;   // não redesenha os desafios a cada 12s
+    // não redesenha a lista de desafios a cada 12s; a sala do grupo sim
+    if (selecionados.size || (aba === 'desafios' && !conversaCom?.desafio)) return;
     if (document.getElementById('chat-corpo')) recarregar();
   }, 12000);
   return () => {
     clearInterval(recarga); recarga = null;
     DIG.sairDaSala();
     conversaCom = null;
+    sala = null;
     limparSelecao();
     limparAnexo();
     // URLs assinadas valem 1h e morrem com a sessão da tela: guardar entre
     // visitas devolveria link vencido na volta
     fotos.clear();
     arquivos.clear();
+    provaUrls.clear();
     entradaOrfa = entradaNoHistorico;
     entradaNoHistorico = false;
   };
@@ -268,6 +309,10 @@ async function recarregar() {
   if (!corpo) return;
   // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
   // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
+  if (aba === 'desafios' && conversaCom?.desafio) {
+    perfis = await fetchPerfis();
+    return desenharSalaDesafio(corpo);
+  }
   if (aba === 'desafios') { DIG.sairDaSala(); return renderDesafios(corpo, true); }
   // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
   // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
@@ -435,6 +480,94 @@ async function desenharConversa(corpo) {
     </button>
     ${avatar(conversaCom.id, conversaCom.nome, 'chat-conv-av')}
     <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5B: SALA DO DESAFIO — a conversa do grupo
+// ═══════════════════════════════════════════════════════════════
+// Igual a um grupo de WhatsApp: nome do desafio no topo, quem fez o quê no
+// subtítulo e dois atalhos finos (🏅 Ranking, 📜 Regras). A prova sai pela
+// 📷 do lado da mensagem e entra na conversa com o vídeo e o horário.
+async function desenharSalaDesafio(corpo) {
+  const id = conversaCom.id;
+  let msgs = [];
+  try {
+    const [m, s] = await Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id)]);
+    msgs = m;
+    if (!s) {   // saiu ou o desafio foi apagado
+      showToast('Esse desafio não está mais disponível.', 'info');
+      if (conversaCom?.id === id) history.back();
+      return;
+    }
+    sala = s;
+    if (sala.d.titulo) conversaCom.nome = sala.d.titulo;
+  } catch (e) { corpo.innerHTML = erro(e); return; }
+  if (conversaCom?.id !== id) return;   // fechou enquanto carregava
+
+  const meu = auth.currentUser?.uid;
+  await Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)]);
+  const lista = msgs.length
+    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('')
+    : `<div class="chat-vazio">Grupo do desafio.<br>Toque na 📷 pra mandar a prova de hoje.</div>`;
+
+  const sub = resumoHoje(sala, meu);
+  pintar(corpo, lista, 'Mensagem pro grupo', `
+    <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">
+      <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
+        stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+    </button>
+    <span class="chat-conv-av sala-av">${emojiDoTipo(sala.d.tipo || conversaCom.tipo)}</span>
+    <span class="sala-tit">
+      <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>
+      <span class="sala-sub" id="sala-sub">${esc(sub)}</span>
+    </span>`, false, `
+    <div class="sala-faixa">
+      <button type="button" class="sala-chip" data-sala-ranking>🏅 Ranking</button>
+      <button type="button" class="sala-chip" data-sala-regras>📜 Regras</button>
+    </div>`);
+  // Atualização em pé não remonta o cabeçalho: o subtítulo muda aqui
+  const subEl = corpo.querySelector('#sala-sub');
+  if (subEl && subEl.textContent !== sub) subEl.textContent = sub;
+}
+
+// 📷 na sala: escolhe o que provar, grava ao vivo e o banco posta na conversa
+async function provaNaSala() {
+  if (!sala) return;
+  const mudou = await provaPelaSala(sala, auth.currentUser?.uid);
+  if (!mudou || !conversaCom?.desafio) return;
+  try { sala = await carregarSala(conversaCom.id) || sala; } catch { /* segue com o que tinha */ }
+  await recarregar();
+  const l = document.getElementById('chat-lista');
+  if (l) l.scrollTop = l.scrollHeight;
+}
+
+// URLs dos vídeos/prints das provas (bucket desafio-provas, somem em 7 dias).
+// O #t=0.1 no vídeo faz o celular mostrar o primeiro quadro em vez de tela preta.
+async function carregarProvas(msgs) {
+  const faltam = msgs.flatMap(m => [m.prova_video, m.prova_print]).filter(c => c && !provaUrls.has(c));
+  if (!faltam.length) return;
+  const urls = await assinarProvas(faltam);
+  // Sem URL = venceu: guarda vazio pra não perguntar de novo a cada 12s
+  faltam.forEach(c => provaUrls.set(c, urls.get(c) || ''));
+}
+
+function blocoProva(m) {
+  if (!m.prova_video && !m.prova_print) return '';
+  const v = m.prova_video ? provaUrls.get(m.prova_video) : '';
+  const p = m.prova_print ? provaUrls.get(m.prova_print) : '';
+  if (!v && !p) return `<div class="msg-prova-vencida">🎥 Prova (o vídeo já venceu)</div>`;
+  return `<div class="msg-prova">
+    ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata"></video>` : ''}
+    ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
+  </div>`;
+}
+
+// Manda pra conversa aberta, seja ela qual for
+function enviarAqui(texto, caminho = null, respondeA = null, arq = null) {
+  if (aba === 'mural') return enviarNoMural(texto, meuNome, caminho, respondeA, arq);
+  if (conversaCom?.desafio) return enviarNoDesafio(conversaCom.id, texto, meuNome, caminho, respondeA, arq);
+  if (conversaCom) return enviarPrivado(conversaCom.id, texto, meuNome, caminho, respondeA, arq);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1509,7 +1642,7 @@ function guardarRascunho() {
   else rascunhos.delete(modoAtual());
 }
 
-function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
+function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false, faixa = '') {
   const modo = modoAtual();
 
   // ── Atualização em pé: só a LISTA é reescrita ──
@@ -1521,6 +1654,11 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   if (corpo.dataset.modo === modo && listaEl && corpo.querySelector('#chat-texto')) {
     // Só puxa pro fim se a pessoa JÁ estava no fim. Quem subiu pra ler o
     // histórico era jogado de volta pra baixo a cada atualização.
+    // Vídeo de prova tocando: reescrever a lista cortaria no meio
+    if ([...listaEl.querySelectorAll('video')].some(v => !v.paused && !v.ended)) return;
+    // Nada mudou: não mexe (senão os vídeos recarregam e piscam)
+    if (listaEl._html === lista) return;
+    listaEl._html = lista;
     const noFim = listaEl.scrollHeight - listaEl.scrollTop - listaEl.clientHeight < 60;
     listaEl.innerHTML = lista;
     montarPlayersAudio(listaEl);
@@ -1533,7 +1671,8 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   // ocupando o meio e o campo colado no rodapé. Presa embaixo das abas ela
   // ficava com um terço da altura e não parecia uma conversa.
   const corpoHtml = `
-    ${cabecalho ? `<div class="chat-cab">${cabecalho}</div>` : ''}
+    ${cabecalho ? `<div class="chat-cab ${faixa ? 'com-faixa' : ''}">${cabecalho}</div>` : ''}
+    ${faixa}
     <div class="chat-lista ${cabecalho || comFundo ? 'wa-fundo' : ''}" id="chat-lista">${lista}</div>
     <div class="chat-digitando" id="chat-digitando" hidden></div>
     <div class="chat-grava" id="chat-grava" hidden></div>
@@ -1587,7 +1726,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
   atualizarBotaoEnvio();
 
   const l = corpo.querySelector('#chat-lista');
-  if (l) { l.scrollTop = l.scrollHeight; montarPlayersAudio(l); }
+  if (l) { l._html = lista; l.scrollTop = l.scrollHeight; montarPlayersAudio(l); }
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
   pintarRespondendo();
@@ -1599,8 +1738,10 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false) {
 let _buscaAgendada = null;
 function entrarNaSalaDoModo() {
   const meu = auth.currentUser?.uid;
-  const sala = aba === 'mural' ? 'mural' : conversaCom ? DIG.salaPrivada(meu, conversaCom.id) : null;
-  DIG.entrarNaSala(sala, { id: meu, nome: meuNome }, {
+  const salaDig = aba === 'mural' ? 'mural'
+    : conversaCom?.desafio ? `desafio:${conversaCom.id}`
+    : conversaCom ? DIG.salaPrivada(meu, conversaCom.id) : null;
+  DIG.entrarNaSala(salaDig, { id: meu, nome: meuNome }, {
     mudou: pintarDigitando,
     // quem digitava enviou: busca a mensagem já (junta avisos seguidos)
     chegou: () => { clearTimeout(_buscaAgendada); _buscaAgendada = setTimeout(() => { if (!selecionados.size) recarregar(); }, 400); },
@@ -1612,7 +1753,7 @@ function pintarDigitando(nomes) {
   if (!el) return;
   if (!nomes.length) { el.hidden = true; el.innerHTML = ''; return; }
   // No privado são só dois: basta a bolinha. No mural diz quem é.
-  const quem = aba === 'mural' ? `<em>${esc(DIG.textoDeQuem(nomes))}</em>` : '';
+  const quem = aba === 'mural' || conversaCom?.desafio ? `<em>${esc(DIG.textoDeQuem(nomes))}</em>` : '';
   el.innerHTML = `<span class="chat-dig-bolha"><i></i><i></i><i></i></span>${quem}`;
   el.hidden = false;
   const l = document.getElementById('chat-lista');
@@ -1675,13 +1816,14 @@ function balao(m, minha, mostrarAutor) {
   // dele, roubava largura do texto e da foto.
   return `
     <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''} ${comRosto ? 'com-rosto' : ''}"
-      data-id="${m.id}" data-editavel="${minha ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
+      data-id="${m.id}" data-editavel="${minha && !m.checkin_id ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       ${comRosto ? avatar(m.autor_id, nome, 'wa-av') : ''}
       <div class="wa-col">
         <div class="wa-bolha ${m.imagem_path && !m.texto ? 'bolha-foto' : ''} ${m.imagem_path && m.texto ? 'bolha-legenda' : ''}">
           ${comRosto ? `<span class="wa-autor">${esc(nome)}</span>` : ''}
           ${citacao(m)}
           ${blocoFoto(m)}
+          ${blocoProva(m)}
           ${blocoArquivo(m, minha)}
           ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
@@ -1959,7 +2101,10 @@ function ligarEventos(app) {
     // Barra estilo WhatsApp: clipe → arquivo, câmera → câmera direta. O mic NÃO
     // é clique — é segurar (tratado nos pointer events abaixo).
     if (t.closest('#chat-clipe-btn')) { app.querySelector('#chat-arquivo-arq')?.click(); return; }
-    if (t.closest('#chat-cam-btn')) { await abrirCamera(); return; }
+    // Na sala do desafio a câmera é a da PROVA (vídeo ao vivo)
+    if (t.closest('#chat-cam-btn')) { if (conversaCom?.desafio) await provaNaSala(); else await abrirCamera(); return; }
+    if (t.closest('[data-sala-ranking]')) { if (sala) abrirRanking(sala, auth.currentUser?.uid); return; }
+    if (t.closest('[data-sala-regras]')) { if (sala) abrirRegras(sala.d); return; }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
     if (t.closest('.au-vel')) { ciclarVelocidade(); return; }
     const play = t.closest('.au-play');
@@ -2191,8 +2336,7 @@ function ligarEventos(app) {
       campo.value = '';
       const alvo = fotoAberta.msgId;
       try {
-        if (aba === 'mural') await enviarNoMural(texto, meuNome, null, alvo);
-        else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, null, alvo);
+        await enviarAqui(texto, null, alvo);
         fecharVisualizador();
         await recarregar();
       } catch (e) { campo.value = texto; showToast(e.message, 'error'); }
@@ -2235,8 +2379,7 @@ function ligarEventos(app) {
         await editarMensagem(editando, texto);
         editando = null;
         app.querySelector('#chat-envio')?.classList.remove('editando');
-      } else if (aba === 'mural') await enviarNoMural(texto, meuNome, caminho, respondendoA?.id || null, arq);
-      else if (conversaCom) await enviarPrivado(conversaCom.id, texto, meuNome, caminho, respondendoA?.id || null, arq);
+      } else await enviarAqui(texto, caminho, respondendoA?.id || null, arq);
       if (paraEnviar) limparAnexo();   // só fecha depois que deu certo
       if (arqParaEnviar) limparAnexoArq();
       respondendoA = null; pintarRespondendo();

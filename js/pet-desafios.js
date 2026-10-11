@@ -55,6 +55,34 @@ function codigoDaFrase(texto) {
   return null;
 }
 
+// Sala do grupo do desafio: "manda no grupo do desafio X: bora", "o que falaram
+// no grupo?", "abre o grupo do desafio". A mensagem (depois do ":" ou do
+// "que") não entra na leitura do pedido: "manda no grupo: não fumei" é mandar.
+// { acao: 'grupo_enviar'|'grupo_ler'|'grupo_abrir', mensagem, pedido } ou null.
+export function grupoDaFrase(texto) {
+  const bruto = String(texto || '');
+  const doisPontos = bruto.indexOf(':');
+  const pedido = norm(doisPontos >= 0 ? bruto.slice(0, doisPontos) : bruto);
+  const fala = /\bgrupo\b/.test(pedido) || /\b(conversa|chat|mensage\w*) d[oa] desafio\b/.test(pedido);
+  if (!fala) return null;
+  // "grupo" sozinho só vale com desafio ou um tipo de desafio citado
+  if (!/\bdesafios?\b/.test(pedido) && !moldeDaFrase(pedido)) return null;
+  if (/\b(o que|que|quem|alguem)\b.*\b(mandaram|falaram|disseram|escreveram|postaram|mandou|falou|disse|escreveu|rolou|ta rolando)\b/.test(pedido)
+    || /\b(le|ler|leia|mostra|ver|ve)\b.*\b(mensage\w*|conversa)\b/.test(pedido)) return { acao: 'grupo_ler', pedido };
+  if (/\b(mand\w*|envi\w*|escrev\w*|post\w*|avis\w*|diz|dizer|fala|falar|fale)\b/.test(pedido)) {
+    let msg = doisPontos >= 0 ? bruto.slice(doisPontos + 1) : '';
+    let ped = pedido;
+    if (!msg) {
+      const m = bruto.match(/\b(?:grupo|desafio)\b.*?\b(?:que|dizendo|falando)\s+([\s\S]+)$/i);
+      msg = m ? m[1] : '';
+      if (m) ped = norm(bruto.slice(0, bruto.length - m[1].length).replace(/\s*\b(?:que|dizendo|falando)\s*$/i, ''));
+    }
+    return { acao: 'grupo_enviar', mensagem: msg.trim().replace(/^["“'«]+|["”'»]+$/g, '').trim(), pedido: ped };
+  }
+  if (/\b(abr\w*|entr\w*|vai|ir|leva|mostra)\b/.test(pedido)) return { acao: 'grupo_abrir', pedido };
+  return { acao: 'grupo_ler', pedido };
+}
+
 // { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda',
 //   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
@@ -65,6 +93,9 @@ export function lerDesafio(texto) {
   const codigo = codigoDaFrase(texto);
   const temDesafio = /\bdesafios?\b/.test(t);
   // "manda o print da corrida": vídeo já gravado, falta o print
+  // Conversa do grupo vem antes: a mensagem pode ter "fumei", "corri"...
+  const grupo = grupoDaFrase(texto);
+  if (grupo) return { ...grupo, molde: moldeDaFrase(grupo.pedido.replace(/\b(desafios?|grupo)\b/g, ' ')), nome: nomeCitado(grupo.pedido) };
   if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
   // "como registro a corrida?", "abre o strava", "correr com o falcon"
   if (/\bstrava\b|\bcorrer com o falcon\b/.test(t)

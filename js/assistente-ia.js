@@ -19,7 +19,7 @@
 // BLOCO 8.14 — DESEMPENHO, REFLEXÃO DA SEMANA E OBJETIVOS PELO PET
 // BLOCO 8.15 — IDEAL (OS 6 PILARES) PELO PET
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
-// BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar)
+// BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -45,13 +45,13 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261010a';
+import * as PN from './pet-nuvem.js?v=20261010b';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261010a';
+import * as PDF from './pet-desafios.js?v=20261010b';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -4682,6 +4682,22 @@ async function tentarDesafios(text) {
   const meus = c.desafios.filter(c.sou), fora = c.desafios.filter(d => !c.sou(d));
   const citou = !!(p.nome || p.molde);
 
+  // Conversa do grupo (sala do desafio): mandar, ler, abrir
+  if (/^grupo_/.test(p.acao)) {
+    const grupos = meus.filter(d => d.modalidade !== 'individual');
+    const fazer = (d) => p.acao === 'grupo_enviar' ? desafioGrupoEnviar(d, p, c)
+      : p.acao === 'grupo_abrir' ? desafioGrupoAbrir(d, c) : desafioGrupoLer(d, c);
+    if (!grupos.length) return 'Tu não está em nenhum desafio em grupo agora. Desafio só teu não tem conversa.';
+    let achados = PDF.acharDesafio(grupos, p.pedido || text);
+    if (!achados.length && grupos.length === 1) achados = grupos;
+    if (!achados.length && citou) return 'Não achei esse grupo entre os teus desafios 🤔 Fala <em>"meus desafios"</em> que eu te mostro.';
+    if (achados.length === 1) return fazer(achados[0]);
+    addChoices('Qual grupo?', (achados.length ? achados : grupos).slice(0, 6).map(d => ({
+      label: `${c.M.emojiDoTipo(d.tipo)} ${d.titulo}`, action: () => fazer(d),
+    })));
+    return null;
+  }
+
   // Escolhe o desafio citado na lista; se não citou e só tem um, é ele
   const escolher = (lista, fazer, vazio, naoAchei) => {
     if (!lista.length) return vazio;
@@ -4738,6 +4754,57 @@ async function tentarDesafios(text) {
       return desafiosVisao(meus, fora, c);
     }
   }
+}
+
+// ── Sala do grupo (conversa do desafio) ──
+// Abre a sala na Comunidade: na tela do chat avisa direto; fora dela deixa
+// o pedido guardado e a Comunidade abre a sala ao montar.
+function _abrirSalaDesafio(d) {
+  const detalhe = { id: d.id, titulo: d.titulo, tipo: d.tipo };
+  if (document.getElementById('chat-corpo')) {
+    window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: detalhe }));
+    return;
+  }
+  try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
+  location.hash = '#/desafios';
+}
+function _botaoAbrirGrupo(d) {
+  return { label: '💬 Abrir o grupo', action: () => { _abrirSalaDesafio(d); return null; } };
+}
+function desafioGrupoAbrir(d, c) {
+  _abrirSalaDesafio(d);
+  return `Abrindo o grupo do <b>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</b> 💬`;
+}
+// As últimas mensagens do grupo, com quem falou e a hora (prova vem com 🎥)
+async function desafioGrupoLer(d, c) {
+  const C = await import('./chat.js');
+  let msgs;
+  try { msgs = await C.fetchSalaDesafio(d.id); }
+  catch (e) { console.warn('[pet-grupo]', e); return 'Não consegui ler o grupo agora 😕 Tenta de novo daqui a pouco.'; }
+  const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  const ult = msgs.slice(-8);
+  if (!ult.length) { addChoices(`💬 Ninguém falou nada no grupo do <b>${nome}</b> ainda.`, [_botaoAbrirGrupo(d)]); return null; }
+  const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const linhas = ult.map(m => {
+    const quem = m.autor_id === c.uid ? 'Você' : _esc(m.autor_nome || 'Falcão');
+    const txt = m.texto || (m.imagem_path ? '📷 Foto' : m.arquivo_path ? '🎧 Áudio/arquivo' : '');
+    const corte = txt.length > 90 ? txt.slice(0, 88) + '…' : txt;
+    return `<b>${quem}</b> <small>${hora(m.created_at)}</small>: ${m.prova_video && !/🎥|🎙️|🏃/.test(txt) ? '🎥 ' : ''}${_esc(corte)}`;
+  });
+  addChoices(`💬 <b>Grupo · ${nome}</b><br>${linhas.join('<br>')}`, [_botaoAbrirGrupo(d)]);
+  return null;
+}
+// Manda uma mensagem no grupo, sempre com card antes
+function desafioGrupoEnviar(d, p, c) {
+  const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  if (!p.mensagem) return `O que eu mando no grupo do <b>${nome}</b>? Fala assim: <em>"manda no grupo do desafio: bora, galera"</em>.`;
+  const msg = p.mensagem.slice(0, 2000);
+  cardConfirmarLista(`💬 Mandar no grupo do <strong>${nome}</strong>?<br>“${_esc(msg)}”`, async () => {
+    const C = await import('./chat.js');
+    await C.enviarNoDesafio(d.id, msg, await C.meuNomeDeChat());
+    return 'Mandei no grupo 🦅';
+  }, null);
+  return null;
 }
 
 // Regras: as do desafio (exercícios), as do dono e as fixas do Falcon

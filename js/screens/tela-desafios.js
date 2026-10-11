@@ -14,6 +14,7 @@ import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
+import { rankingDoDesafio } from '../desafios-sala.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
 import { auth } from '../autenticacao.js';
@@ -33,24 +34,7 @@ function _today() {
 function _nomeFromProfile(p, email) {
   return (p?.preferredName || p?.fullName || (email || '').split('@')[0] || 'Falcão').trim();
 }
-function _ranking(desafio, parts, checks) {
-  const nomeById = {};
-  parts.forEach(p => { nomeById[p.user_id] = p.nome || 'Falcão'; });
-  const byUser = {};
-  checks.forEach(c => {
-    (byUser[c.user_id] ||= {});
-    byUser[c.user_id][c.dia] = (byUser[c.user_id][c.dia] || 0) + (c.quantidade || 0);
-  });
-  const meta = desafio.meta_diaria;
-  return parts.map(p => {
-    const days = byUser[p.user_id] || {};
-    let done = 0;
-    // Largar um vício: a constância é o depoimento de todo dia (conseguindo ou não)
-    const largar = desafio.tipo === 'largar';
-    for (const d in days) if (largar || (meta ? days[d] >= meta : days[d] > 0)) done++;
-    return { user_id: p.user_id, nome: nomeById[p.user_id], done };
-  }).sort((a, b) => b.done - a.done);
-}
+const _ranking = rankingDoDesafio;   // mesma conta da sala do grupo
 
 // ── Entry point ──────────────────────────────────────────────
 // embedded=true → renderiza SÓ o conteúdo (sem screen-pad/título/cinturão),
@@ -255,13 +239,14 @@ export async function renderDesafios(app, embedded = false) {
 
           // Individual é só seu: sem ranking, sem WhatsApp
           const solo = d.modalidade === 'individual';
-          const wpp = (joined && !solo) ? `<button class="ds-wpp" data-wpp="1">💬 Chamar alguém no WhatsApp</button>` : '';
+          // Grupo: abre a sala (conversa do desafio, com as provas e o ranking)
+          const wpp = (joined && !solo) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
           const sair = joined ? `<button class="ds-leave" data-leave="${d.id}">Sair do desafio</button>` : '';
 
           return `
             <div class="ds-card" data-id="${d.id}">
               <div class="ds-card-head">
-                <div class="ds-card-title">${emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</div>
+                <div class="ds-card-title" ${joined && !solo ? `data-sala="${d.id}" role="button"` : ''}>${emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</div>
                 ${adminCtrl}
               </div>
               <div class="ds-badges">${badges}</div>
@@ -358,8 +343,10 @@ export async function renderDesafios(app, embedded = false) {
     app.querySelectorAll('[data-correr]').forEach(b => b.onclick = abrirStrava);
     app.querySelectorAll('[data-passos]').forEach(b => b.onclick = passoAPassoCorrida);
     app.querySelectorAll('[data-video]').forEach(b => b.onclick = () => verProva(b.dataset.video, b.dataset.printp));
-    app.querySelectorAll('[data-wpp]').forEach(b => b.onclick = () => {
-      window.open('https://wa.me/', '_blank');
+    // A sala vive na Comunidade (tela-chat.js): ela escuta e abre
+    app.querySelectorAll('[data-sala]').forEach(b => b.onclick = () => {
+      const d = desafios.find(x => x.id === b.dataset.sala);
+      if (d) window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: { id: d.id, titulo: d.titulo, tipo: d.tipo } }));
     });
   }
 
