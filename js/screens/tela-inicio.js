@@ -42,6 +42,7 @@ import { montarPendencias } from '../pendencias-ui.js';
 import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
 import { abrirAgenda } from '../agenda-ui.js';
 import { abrirRifas } from '../rifas-ui.js';
+import { temConvitePendente, entrarPeloConvite } from '../desafios-sala.js';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -210,7 +211,11 @@ export async function renderHome(app) {
     }
   } catch {}
 
-  if (!tour.isCompleted()) {
+  // Chegou pelo link de convite de desafio: leva pro grupo antes de tudo
+  // (o tutorial e os avisos ficam pra próxima vez que abrir a Home).
+  if (temConvitePendente()) {
+    setTimeout(() => entrarPeloConvite(), 500);
+  } else if (!tour.isCompleted()) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
   } else {

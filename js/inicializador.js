@@ -32,6 +32,7 @@ import { showLock, hideLock, initAutoLock, isLocked } from './bloqueio.js';
 import { showToast } from './aviso-tela.js';
 import { playAlert } from './sons.js';
 import { hasTerms } from './lgpd-consentimentos.js';
+import { guardarConviteDoLink } from './desafios-sala.js';
 import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261011b';
 
 
@@ -175,6 +176,9 @@ document.addEventListener('visibilitychange', () => {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: AUTH STATE
 // ═══════════════════════════════════════════════════════════════
+// Link de convite de desafio (?convite=CODIGO): guarda antes do login/cadastro
+guardarConviteDoLink();
+
 setTimeout(() => {
   if ((location.hash === '' || location.hash === '#') && !location.pathname.startsWith('/agenda-online/')) {
     navigate('/login');

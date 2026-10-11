@@ -8306,7 +8306,12 @@ body.rota-publica .bottom-nav { display: none !important; }
 
 /* Convidar participantes */
 .ds-conv-busca { margin: 6px 0 8px; }
-.ds-conv-lista { max-height: 34vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+/* Pop-up em coluna: só a lista de pessoas rola; botões sempre inteiros embaixo */
+.modal.ds-conv-modal { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.ds-conv-modal > * { flex-shrink: 0; }
+.ds-conv-modal > .ds-conv-lista { flex: 1 1 auto; min-height: 96px; }
+.ds-conv-lista { overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 4px; }
+.ds-conv-modal .modal-actions { margin-top: 12px; border-top: 1px solid var(--border); padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .ds-conv-item {
   display: flex; align-items: center; gap: 10px; padding: 9px 10px;
   border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
