@@ -21,6 +21,7 @@ import { auth } from '../autenticacao.js';
 import { bottomNav } from '../components/menu-inferior.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { trapModalBack } from '../modal-voltar.js';
+import { openTimePicker } from '../seletor-horario.js';
 import { t } from '../idioma.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -514,8 +515,8 @@ export async function renderDesafios(app, embedded = false) {
         <label class="input-field"><div class="input-field-label">Prova</div>
           <select id="f-prova">
             <option value="video"${provaAtual === 'video' ? ' selected' : ''}>🎥 Vídeo ao vivo</option>
-            <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Print do Strava + vídeo ao vivo</option>
-            <option value="depoimento"${provaAtual === 'depoimento' ? ' selected' : ''}>🎙️ Depoimento em vídeo (até 2 min)</option>
+            <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Strava + vídeo ao vivo</option>
+            <option value="depoimento"${provaAtual === 'depoimento' ? ' selected' : ''}>🎙️ Depoimento em vídeo</option>
             <option value="honra"${provaAtual === 'honra' ? ' selected' : ''}>🤝 Por honra (só marcar)</option>
           </select></label>
         <div style="display:flex;gap:8px${semMeta ? ';display:none' : ''}">
@@ -532,8 +533,12 @@ export async function renderDesafios(app, embedded = false) {
         </div>
         <label class="input-field"><div class="input-field-label">Descrição</div>
           <textarea id="f-desc" rows="3" placeholder="O que é pra fazer e como provar">${_esc(edit ? desafio.descricao : molde.desc)}</textarea></label>
-        ${largar ? '' : `<label class="input-field"><div class="input-field-label">⏰ Prova do dia só até (opcional)</div>
-          <input id="f-hora" type="time" value="${_esc(horaAtual)}" /></label>`}
+        ${largar ? '' : `<div class="input-field"><div class="input-field-label">⏰ Prova do dia só até (opcional)</div>
+          <div class="ds-hora-row">
+            <button type="button" class="ds-hora-btn ${horaAtual ? '' : 'vazio'}" id="f-hora-btn">${horaAtual ? _esc(horaAtual) : 'Sem horário · vale o dia todo'}</button>
+            <button type="button" class="ds-hora-x" id="f-hora-limpar" aria-label="Tirar o horário" ${horaAtual ? '' : 'hidden'}>✕</button>
+          </div>
+          <input id="f-hora" type="hidden" value="${_esc(horaAtual)}" /></div>`}
         <label class="input-field"><div class="input-field-label">📜 Tuas regras (uma por linha, opcional)</div>
           <textarea id="f-regras" rows="3" maxlength="800" placeholder="Ex.: vale até 23h59&#10;O vídeo tem que mostrar o exercício inteiro">${_esc(regrasAtual)}</textarea></label>
         <div class="ds-prenda-aviso">As regras do Falcon valem sempre: vídeo só ao vivo, prenda leve e ninguém expõe quem falhou.</div>
@@ -566,6 +571,21 @@ export async function renderDesafios(app, embedded = false) {
     document.body.appendChild(overlay);
     const close = trapModalBack(() => overlay.remove());
     overlay.querySelector('#f-cancel').onclick = close;
+
+    // Horário limite pelo relógio do Falcon (o nativo do Android vinha verde
+    // e cortando o texto). Vazio = vale o dia todo.
+    const horaBtn = overlay.querySelector('#f-hora-btn');
+    const pintarHora = (h) => {
+      overlay.querySelector('#f-hora').value = h || '';
+      horaBtn.textContent = h || 'Sem horário · vale o dia todo';
+      horaBtn.classList.toggle('vazio', !h);
+      overlay.querySelector('#f-hora-limpar').hidden = !h;
+    };
+    horaBtn?.addEventListener('click', async () => {
+      const h = await openTimePicker(overlay.querySelector('#f-hora').value || '05:30', { title: 'Prova do dia só até' });
+      if (h) pintarHora(h);
+    });
+    overlay.querySelector('#f-hora-limpar')?.addEventListener('click', () => pintarHora(''));
 
     // A descrição do molde fala da prova ("Prova por honra"): trocou a prova,
     // tira esse trecho pra não contradizer o que foi escolhido
