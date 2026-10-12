@@ -182,9 +182,7 @@ export function resumoDoDesafio(d) {
   const regras = [
     ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
     ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
-    ...(ex && ex.includes('Corrida') && d.corridas_semana
-      ? [`🏃 Corrida: ${textoCorridasSemana(d.corridas_semana)}${d.km_corrida ? ` de ${d.km_corrida} km` : ''} (de segunda a domingo), na rua ou na esteira. No dia que correr, a corrida vale o dia todo, sem os outros exercícios`,
-         '❌ Quem fechar a semana sem a corrida perde o desafio'] : []),
+    ...regrasCorrida(d),
     ...regrasDoDono(d),
   ];
   return { info, regras };
@@ -207,7 +205,11 @@ export function exerciciosDeHoje(d, meus, hoje, ontem) {
   return lista.map(nome => {
     if (feitosHoje.has(nome)) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
     // Corrida fecha o dia sozinha: fora do limite e do "não repetir"
-    if (nome === 'Corrida') return { nome, ok: true };
+    if (nome === 'Corrida') {
+      const sem = corridaTroca(d) ? corridasDaSemana(d, meus, hoje) : null;
+      if (sem && !sem.falta) return { nome, ok: false, motivo: 'corrida da semana já feita' };
+      return { nome, ok: true };
+    }
     if (correuHoje) return { nome, ok: false, motivo: 'o dia fechou com a corrida' };
     if (d.nao_repetir !== false && deOntem.has(nome)) return { nome, ok: false, motivo: 'feito ontem' };
     if (cheio) return { nome, ok: false, motivo: 'limite do dia' };
@@ -232,9 +234,24 @@ export function corridasDaSemana(d, meus, hoje) {
   if (!meta || !(Array.isArray(d?.exercicios) && d.exercicios.includes('Corrida'))) return null;
   const seg = segundaDaSemana(hoje), dom = somarDias(seg, 6);
   const feitas = new Set(meus.filter(c => c.exercicio === 'Corrida' && c.dia >= seg && c.dia <= dom).map(c => c.dia)).size;
-  return { feitas, meta, falta: Math.max(0, meta - feitas), domingo: dom };
+  return { feitas, meta, falta: Math.max(0, meta - feitas), domingo: dom, troca: corridaTroca(d) };
 }
 export const textoCorridasSemana = (n) => `${n} ${n === 1 ? 'corrida' : 'corridas'} por semana`;
+// Modo da corrida no desafio de exercício:
+//   'obrigatoria' (padrão): X corridas por semana, quem não corre perde
+//   'troca': opcional, dá pra trocar um dia de exercício por corrida X vez(es) na semana
+export const corridaTroca = (d) => d?.corrida_modo === 'troca';
+export function regrasCorrida(d) {
+  const ex = Array.isArray(d?.exercicios) ? d.exercicios : [];
+  if (!ex.includes('Corrida') || !d.corridas_semana) return [];
+  const km = d.km_corrida ? ` de ${d.km_corrida} km` : '';
+  if (corridaTroca(d)) {
+    const n = d.corridas_semana === 1 ? '1 vez' : `${d.corridas_semana} vezes`;
+    return [`🔁 Corrida${km} ${n} por semana (de segunda a domingo), na rua ou na esteira, no lugar dos exercícios daquele dia. Se não correr, os exercícios de todo dia seguem valendo`];
+  }
+  return [`🏃 Corrida: ${textoCorridasSemana(d.corridas_semana)}${km} (de segunda a domingo), na rua ou na esteira. No dia que correr, a corrida vale o dia todo, sem os outros exercícios`,
+    '❌ Quem fechar a semana sem a corrida perde o desafio'];
+}
 // Distância de cada corrida: até 5 km, que cabe em 30 min pra quase todo mundo
 export const KM_CORRIDA = [2, 3, 4, 5];
 export const MAX_KM_CORRIDA = 5;
@@ -244,7 +261,7 @@ export const MAX_KM_CORRIDA = 5;
 // dessa semana, ou null. A mesma conta está no gatilho do banco.
 export function semanaSemCorrida(d, meus, joinedAt, hoje = _hojeBR()) {
   const meta = Number(d?.corridas_semana) || 0;
-  if (!meta || !(Array.isArray(d?.exercicios) && d.exercicios.includes('Corrida'))) return null;
+  if (!meta || corridaTroca(d) || !(Array.isArray(d?.exercicios) && d.exercicios.includes('Corrida'))) return null;
   const diaBR = (t) => (t ? new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '');
   const ini = [String(d.data_inicio || '').slice(0, 10) || diaBR(d.created_at), diaBR(joinedAt)].filter(Boolean).sort().pop();
   if (!ini) return null;

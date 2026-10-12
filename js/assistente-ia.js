@@ -3326,7 +3326,7 @@ async function _corridasDaSemana() {
     const joined = c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at;
     if (c.M.semanaSemCorrida(d, meus, joined, hoje)) return null;   // já perdeu: não cobra mais
     const sem = c.M.corridasDaSemana(d, meus, hoje);
-    return sem ? { titulo: d.titulo, falta: sem.falta } : null;
+    return sem ? { titulo: d.titulo, falta: sem.falta, troca: sem.troca } : null;
   }).filter(Boolean);
 }
 
@@ -3334,7 +3334,7 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261012c');
+    _CK = await import('./pet-checkin.js?v=20261012d');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([

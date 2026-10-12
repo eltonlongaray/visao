@@ -74,7 +74,7 @@ export function resumoHoje(sala, uid) {
     const f = feitosHoje(exerciciosDeHoje(d, meus, hoje, diaAnterior(hoje)), lim);
     st = f >= lim ? '✅ hoje feito' : `hoje ${f}/${lim}`;
     const sem = corridasDaSemana(d, meus, hoje);
-    if (sem) st += ` · 🏃 semana ${sem.feitas}/${sem.meta}`;
+    if (sem) st += sem.troca ? ` · 🏃 corrida ${sem.falta ? 'ainda dá' : 'feita'}` : ` · 🏃 semana ${sem.feitas}/${sem.meta}`;
   } else if (ehLargar(d)) {
     st = deHoje.length ? '✅ hoje contado' : 'falta o depoimento de hoje';
   } else if (d.meta_diaria) {
