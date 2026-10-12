@@ -5421,7 +5421,7 @@ async function desempenhoObjetivo(o) {
 }
 
 // ── Boas-vindas de quem chega pelo link do convite (conta nova, sem nome) ──
-// Depois do tutorial, o Pet abre sozinho e pede só o nome e o WhatsApp (o resto
+// Depois do tutorial, o Pet abre sozinho e pede só como quer ser chamado e o WhatsApp (o resto
 // a pessoa preenche quando for usar o resto do app), grava no perfil e no fim
 // entra no desafio e abre o grupo.
 async function boasVindasConvite(codigo) {
@@ -5429,16 +5429,16 @@ async function boasVindasConvite(codigo) {
   openPetChat();
   await new Promise(r => setTimeout(r, 400));
   diz('Bora pro desafio! 🦅 Pra tu entrar no grupo, só preciso de 2 coisas.');
-  perguntar('convite_nome', 'Qual é o teu nome?', [], { codigo, guardados }, 'Qual é o teu nome?');
+  perguntar('convite_nome', 'Como tu prefere ser chamado(a)?', [], { codigo, guardados }, 'Como tu prefere ser chamado(a)?');
 }
 
 function perguntarWhatsapp(d) {
-  return perguntar('convite_wpp', `Prazer, ${_esc(d.nome.split(' ')[0])}! E qual é o teu WhatsApp (com DDD)?`, [], d,
+  return perguntar('convite_wpp', `Prazer, ${_esc(d.nome)}! E qual é o teu WhatsApp (com DDD)?`, [], d,
     'Qual é o teu WhatsApp, com DDD?');
 }
 async function fecharConvite(d) {
   _conversa = null;
-  diz(`Pronto, ${_esc(d.nome.split(' ')[0])}! Essas foram as informações básicas pra tu entrar no grupo. ` +
+  diz(`Pronto, ${_esc(d.nome)}! Essas foram as informações básicas pra tu entrar no grupo. ` +
     'Pra aproveitar o app inteiro, conclui as etapas do card <b>Complete seu Falcon</b> na Home 🦅');
   _fila.push(...(d.guardados || []));
   const S = await import('./desafios-sala.js');
@@ -5449,9 +5449,9 @@ async function fecharConvite(d) {
 Object.assign(PASSOS, {
   async convite_nome({ texto }, d) {
     const nome = PDF.lerNome(texto);
-    if (!nome) return perguntar('convite_nome', 'Me fala só o teu nome, tipo <em>"Ana Paula"</em> 🙂', [], d, 'Qual é o teu nome?');
+    if (!nome) return perguntar('convite_nome', 'Me fala só como quer que te chamem, tipo <em>"Aninha"</em> 🙂', [], d, 'Como tu prefere ser chamado(a)?');
     d.nome = nome;
-    await setProfile({ fullName: nome }).catch(() => {});
+    await setProfile({ preferredName: nome }).catch(() => {});   // é o nome que aparece no grupo
     return perguntarWhatsapp(d);
   },
   async convite_wpp({ texto }, d) {

@@ -287,7 +287,6 @@ export function textoConvite(d, { noApp = false } = {}) {
     ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
     ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
     ...regrasDoDono(d),
-    ...(['video', 'depoimento', 'strava'].includes(d.prova) ? ['Vídeo gravado ao vivo, pela câmera do Falcon (da galeria não vale)'] : []),
   ];
   return [
     '⚠️ *ATENÇÃO: VOCÊ FOI DESAFIADO!* 🦅',
@@ -301,7 +300,7 @@ export function textoConvite(d, { noApp = false } = {}) {
     '👣 *Passo a passo*',
     `1. Toca no link: ${link}`,
     '2. Baixa o Falcon (ou faz login, se já tiver conta)',
-    '3. Faz o tutorial rapidinho e diz teu nome e WhatsApp pro Pet',
+    '3. Faz o tutorial rapidinho e diz pro Pet como quer ser chamado e teu WhatsApp',
     '4. Pronto: tu cai direto no grupo do desafio',
     '5. Todo dia manda a prova no grupo, no 📷 do lado da mensagem',
   ].join('\n');
