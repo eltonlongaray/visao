@@ -51,7 +51,7 @@ import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261011a';
+import * as PDF from './pet-desafios.js?v=20261012a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -5418,6 +5418,56 @@ async function desempenhoObjetivo(o) {
     return '✅ Objetivo criado. A contagem vem sozinha das tarefas feitas no Ritual.';
   }, null);
   return null;
+}
+
+// ── Boas-vindas de quem chega pelo link do convite (conta nova, sem nome) ──
+// Depois do tutorial, o Pet abre sozinho e pede só como quer ser chamado e o WhatsApp (o resto
+// a pessoa preenche quando for usar o resto do app), grava no perfil e no fim
+// entra no desafio e abre o grupo.
+async function boasVindasConvite(codigo) {
+  const guardados = _fila.splice(0);   // check-ins esperam: primeiro o convite
+  openPetChat();
+  await new Promise(r => setTimeout(r, 400));
+  diz('Bora pro desafio! 🦅 Pra tu entrar no grupo, só preciso de 2 coisas.');
+  perguntar('convite_nome', 'Como tu prefere ser chamado(a)?', [], { codigo, guardados }, 'Como tu prefere ser chamado(a)?');
+}
+
+function perguntarWhatsapp(d) {
+  return perguntar('convite_wpp', `Prazer, ${_esc(d.nome)}! E qual é o teu WhatsApp (com DDD)?`, [], d,
+    'Qual é o teu WhatsApp, com DDD?');
+}
+async function fecharConvite(d) {
+  _conversa = null;
+  diz(`Pronto, ${_esc(d.nome)}! Essas foram as informações básicas pra tu entrar no grupo. ` +
+    'Pra aproveitar o app inteiro, conclui as etapas do card <b>Complete seu Falcon</b> na Home 🦅');
+  _fila.push(...(d.guardados || []));
+  const S = await import('./desafios-sala.js');
+  setTimeout(async () => { if (await S.entrarNoConvite(d.codigo)) closeChatPanel(); }, 2500);
+  return 'Te levando pro grupo… 🚀';
+}
+
+Object.assign(PASSOS, {
+  async convite_nome({ texto }, d) {
+    const nome = PDF.lerNome(texto);
+    if (!nome) return perguntar('convite_nome', 'Me fala só como quer que te chamem, tipo <em>"Aninha"</em> 🙂', [], d, 'Como tu prefere ser chamado(a)?');
+    d.nome = nome;
+    await setProfile({ preferredName: nome }).catch(() => {});   // é o nome que aparece no grupo
+    return perguntarWhatsapp(d);
+  },
+  async convite_wpp({ texto }, d) {
+    const fone = PDF.lerWhatsapp(texto);
+    if (!fone) {
+      if (d.tentouFone) return fecharConvite(d);   // não trava a entrada no grupo
+      d.tentouFone = true;
+      return perguntar('convite_wpp', 'Não peguei o número 😅 Manda com DDD, tipo <em>51 99876-5432</em>.', [], d, 'Qual é o teu WhatsApp, com DDD?');
+    }
+    await setProfile({ phone: fone }).catch(() => {});
+    return fecharConvite(d);
+  },
+});
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
 }
 
 // ═══════════════════════════════════════════════════════════════

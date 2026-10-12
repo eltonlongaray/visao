@@ -285,3 +285,25 @@ export function ranking(desafio, parts, checks) {
 export function somaHoje(checks, uid, hoje) {
   return checks.filter(c => c.user_id === uid && c.dia === hoje).reduce((s, c) => s + (c.quantidade || 0), 0);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: BOAS-VINDAS DE QUEM CHEGA PELO LINK DO CONVITE
+// ═══════════════════════════════════════════════════════════════
+// "meu nome é Ana Paula Souza" → "Ana Paula Souza"; "pode me chamar de Aninha" → "Aninha"
+export function lerNome(texto) {
+  let t = String(texto || '').trim().replace(/[.!🦅]+$/u, '').trim();
+  t = t.replace(/^(oi|olá|ola|opa|e aí|e ai)[,!\s]+/i, '')
+       .replace(/^(meu nome (é|e)|me chamo|eu sou|sou o|sou a|sou|pode me chamar de|me chama de|me chamam de|é|e)\s+/i, '')
+       .trim();
+  if (!t || t.length > 60 || /\d/.test(t)) return '';
+  return t.split(/\s+/).map(w => /^(da|de|do|das|dos|e)$/i.test(w) ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
+// "51 99876-5432", "(51) 998765432", "+55 51 99876 5432" → "(51) 99876-5432"
+export function lerWhatsapp(texto) {
+  let n = String(texto || '').replace(/\D/g, '');
+  if (n.length >= 12 && n.startsWith('55')) n = n.slice(2);
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return '';
+}

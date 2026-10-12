@@ -8,13 +8,15 @@
 // BLOCO 2 — RANKING E REGRAS
 // BLOCO 3 — 📷 PROVA PELA SALA
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
+// BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         REGRAS_FIXAS, regrasDoDono } from './desafios-moldes.js';
+         REGRAS_FIXAS, regrasDoDono, textoProva } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
+import { getProfile } from './banco-dados.js';
 import { fetchMembros, enviarPrivado, meuNomeDeChat } from './chat.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -264,12 +266,44 @@ async function _registrar(d, extra) {
 // ═══════════════════════════════════════════════════════════════
 export const LINK_APP = 'https://estilo-falcon.web.app';
 
-// Mesmo texto no WhatsApp e no privado do app
+// Link que já leva pro grupo: ?convite=CODIGO (o app guarda e resolve depois do login)
+export const linkConvite = (d) => `${LINK_APP}/?convite=${encodeURIComponent(d.codigo)}`;
+
+// WhatsApp: "fui desafiado" + o desafio, as regras, o passo a passo e o link.
+// Privado do app: curto, com o código (a pessoa já está no app).
+// (WhatsApp: *negrito*)
 export function textoConvite(d, { noApp = false } = {}) {
-  const como = noApp
-    ? 'Vai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ' + d.codigo + '".'
-    : `Baixa o Falcon (${LINK_APP}), vai em Desafios → 🔑 Entrar com código.`;
-  return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\n${como}\nCódigo: ${d.codigo}`;
+  if (noApp) return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
+  const link = linkConvite(d);
+  const info = [
+    d.dias_total && `📅 ${d.dias_total} dias`,
+    d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
+    textoProva(d) && `✅ Prova: ${textoProva(d).replace(/^\S+\s/, '')}`,
+    horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
+    d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
+  ].filter(Boolean);
+  const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
+  const regras = [
+    ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
+    ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
+    ...regrasDoDono(d),
+  ];
+  return [
+    '⚠️ *ATENÇÃO: VOCÊ FOI DESAFIADO!* 🦅',
+    'Tu tem coragem pra topar esse desafio?',
+    '',
+    `🏆 *${d.titulo}*`,
+    ...(d.descricao ? [d.descricao] : []),
+    ...(info.length ? ['', ...info] : []),
+    ...(regras.length ? ['', '📜 *Regras*', ...regras.map(r => `• ${r}`)] : []),
+    '',
+    '👣 *Passo a passo*',
+    `1. Toca no link: ${link}`,
+    '2. Baixa o Falcon (ou faz login, se já tiver conta)',
+    '3. Faz o tutorial rapidinho e diz pro Pet como quer ser chamado e teu WhatsApp',
+    '4. Pronto: tu cai direto no grupo do desafio',
+    '5. Todo dia manda a prova no grupo, no 📷 do lado da mensagem',
+  ].join('\n');
 }
 
 export function convidarNoWhatsApp(d) {
@@ -351,4 +385,62 @@ export async function abrirConvidar(d, parts = [], meuId = null) {
       close();
     } catch (e) { showToast(e.message || 'Não deu pra mandar', 'error'); pintarBotao(); }
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: ENTRAR PELO LINK DO CONVITE
+// ═══════════════════════════════════════════════════════════════
+const CHAVE_CONVITE = 'falcon_convite';
+
+// Roda no carregamento do app: tira o ?convite= da barra e guarda até o login
+// (quem é novo passa pelo cadastro e pela configuração antes de chegar na Home).
+export function guardarConviteDoLink() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const cod = (q.get('convite') || '').trim().toUpperCase();
+    if (!cod) return;
+    localStorage.setItem(CHAVE_CONVITE, cod);
+    q.delete('convite');
+    const resto = q.toString();
+    history.replaceState(history.state, '', location.pathname + (resto ? '?' + resto : '') + location.hash);
+  } catch { /* sem storage: segue pelo código */ }
+}
+
+export function temConvitePendente() {
+  try { return !!localStorage.getItem(CHAVE_CONVITE); } catch { return false; }
+}
+
+// Na Home, logado. Já tem nome no perfil: entra e abre o grupo direto.
+// Conta nova (sem nome): o Pet abre e pede nome e WhatsApp antes
+// (assistente-ia.js BLOCO 8.17, evento 'falcon:convite-boas-vindas'), e no fim
+// chama entrarNoConvite. Assim ninguém aparece no grupo como "Falcão".
+export async function entrarPeloConvite() {
+  let cod = null;
+  try { cod = localStorage.getItem(CHAVE_CONVITE); localStorage.removeItem(CHAVE_CONVITE); } catch { /* sem storage */ }
+  if (!cod) return false;
+  let p = null;
+  try { p = await getProfile(); } catch { /* segue sem perfil */ }
+  if (!(p?.preferredName || p?.fullName || '').trim()) {
+    window.dispatchEvent(new CustomEvent('falcon:convite-boas-vindas', { detail: { codigo: cod } }));
+    return true;
+  }
+  await entrarNoConvite(cod);
+  return true;
+}
+
+// Entra no desafio do código e abre a sala do grupo. true = deu certo.
+export async function entrarNoConvite(cod) {
+  try {
+    const id = await entrarPorCodigo(cod, await meuNomeDeChat());
+    const d = (await fetchDesafios()).find(x => x.id === id);
+    const detalhe = { id, titulo: d?.titulo || 'Desafio', tipo: d?.tipo };
+    showToast('🦅 Você entrou no desafio!', 'success');
+    if (document.getElementById('chat-corpo')) { window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: detalhe })); return true; }
+    try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
+    location.hash = '#/desafios';
+    return true;
+  } catch (e) {
+    showToast(e.message || 'Não deu pra entrar no desafio', 'error');
+    return false;
+  }
 }

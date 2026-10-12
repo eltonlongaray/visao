@@ -54,6 +54,8 @@ export async function end(completed = false) {
   cleanupDom();
   // Falcon volta pro cantinho dele
   import('./assistente-ia.js').then(m => m.petGuideEnd?.()).catch(() => {});
+  // Quem espera o tutorial acabar (ex.: convite de desafio) segue daqui
+  window.dispatchEvent(new CustomEvent('falcon:tour-fim', { detail: { completed } }));
 }
 
 export async function next() {
