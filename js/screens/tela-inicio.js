@@ -211,10 +211,15 @@ export async function renderHome(app) {
     }
   } catch {}
 
-  // Chegou pelo link de convite de desafio: leva pro grupo antes de tudo
-  // (o tutorial e os avisos ficam pra próxima vez que abrir a Home).
+  // Chegou pelo link de convite de desafio: primeiro o tutorial (se ainda não
+  // fez), depois o Pet pede nome e WhatsApp e leva pro grupo. Os avisos da
+  // Home ficam pra próxima vez.
   if (temConvitePendente()) {
-    setTimeout(() => entrarPeloConvite(), 500);
+    if (!tour.isCompleted() && !tour.isActive()) {
+      tour.markDone();
+      window.addEventListener('falcon:tour-fim', () => setTimeout(entrarPeloConvite, 600), { once: true });
+      setTimeout(() => tour.start(ONBOARDING_STEPS), 800);
+    } else if (!tour.isActive()) setTimeout(() => entrarPeloConvite(), 500);
   } else if (!tour.isCompleted()) {
     tour.markDone();
     setTimeout(() => tour.start(ONBOARDING_STEPS), 800);

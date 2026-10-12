@@ -51,7 +51,7 @@ import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261011c';
+import * as PDF from './pet-desafios.js?v=20261012a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -5421,31 +5421,24 @@ async function desempenhoObjetivo(o) {
 }
 
 // ── Boas-vindas de quem chega pelo link do convite (conta nova, sem nome) ──
-// O Pet abre sozinho e pergunta o básico (nome, como quer ser chamado,
-// acordar/dormir), grava no perfil e no fim entra no desafio e abre o grupo.
-// O tutorial fica pra próxima vez que a pessoa abrir a Home.
+// Depois do tutorial, o Pet abre sozinho e pede só o nome e o WhatsApp (o resto
+// a pessoa preenche quando for usar o resto do app), grava no perfil e no fim
+// entra no desafio e abre o grupo.
 async function boasVindasConvite(codigo) {
   const guardados = _fila.splice(0);   // check-ins esperam: primeiro o convite
   openPetChat();
   await new Promise(r => setTimeout(r, 400));
-  diz('Oi! Eu sou o Pet, teu assistente aqui no Falcon 🦅 Te chamaram pra um desafio em grupo!');
-  perguntar('convite_nome', 'Antes de entrar no grupo, 3 perguntas rapidinhas. Qual é o teu nome?', [], { codigo, guardados },
-    'Qual é o teu nome?');
+  diz('Bora pro desafio! 🦅 Pra tu entrar no grupo, só preciso de 2 coisas.');
+  perguntar('convite_nome', 'Qual é o teu nome?', [], { codigo, guardados }, 'Qual é o teu nome?');
 }
 
-function perguntarApelido(d) {
-  const primeiro = d.nome.split(' ')[0];
-  return perguntar('convite_apelido', `Prazer, ${_esc(primeiro)}! Como tu quer que te chamem no grupo?`,
-    [BT('primeiro', `🙂 ${primeiro}`)], d, 'Como tu quer que te chamem no grupo?');
-}
-function perguntarHorarios(d) {
-  return perguntar('convite_horarios',
-    'Última: que horas tu costuma acordar e dormir? Tipo <em>"acordo 6h e durmo 23h"</em>.',
-    [PULAR], d, 'Que horas tu acorda e que horas dorme?');
+function perguntarWhatsapp(d) {
+  return perguntar('convite_wpp', `Prazer, ${_esc(d.nome.split(' ')[0])}! E qual é o teu WhatsApp (com DDD)?`, [], d,
+    'Qual é o teu WhatsApp, com DDD?');
 }
 async function fecharConvite(d) {
   _conversa = null;
-  diz(`Pronto, ${_esc(d.apelido)}! Essas foram as informações básicas pra tu entrar no grupo. ` +
+  diz(`Pronto, ${_esc(d.nome.split(' ')[0])}! Essas foram as informações básicas pra tu entrar no grupo. ` +
     'Pra aproveitar o app inteiro, conclui as etapas do card <b>Complete seu Falcon</b> na Home 🦅');
   _fila.push(...(d.guardados || []));
   const S = await import('./desafios-sala.js');
@@ -5459,27 +5452,16 @@ Object.assign(PASSOS, {
     if (!nome) return perguntar('convite_nome', 'Me fala só o teu nome, tipo <em>"Ana Paula"</em> 🙂', [], d, 'Qual é o teu nome?');
     d.nome = nome;
     await setProfile({ fullName: nome }).catch(() => {});
-    return perguntarApelido(d);
+    return perguntarWhatsapp(d);
   },
-  async convite_apelido({ id, texto }, d) {
-    const ap = id === 'primeiro' ? d.nome.split(' ')[0] : (PDF.lerNome(texto) || d.nome.split(' ')[0]);
-    d.apelido = ap;
-    await setProfile({ preferredName: ap }).catch(() => {});
-    return perguntarHorarios(d);
-  },
-  async convite_horarios({ id, texto }, d) {
-    if (id === 'pular') return fecharConvite(d);
-    const h = PDF.lerHorarios(texto);
-    if (!h.acordar && !h.dormir) {
-      if (d.tentouHora) return fecharConvite(d);
-      d.tentouHora = true;
-      return perguntar('convite_horarios', 'Não peguei os horários 😅 Fala tipo <em>"acordo 7h e durmo 23h30"</em>.', [PULAR], d, 'Que horas tu acorda e dorme?');
+  async convite_wpp({ texto }, d) {
+    const fone = PDF.lerWhatsapp(texto);
+    if (!fone) {
+      if (d.tentouFone) return fecharConvite(d);   // não trava a entrada no grupo
+      d.tentouFone = true;
+      return perguntar('convite_wpp', 'Não peguei o número 😅 Manda com DDD, tipo <em>51 99876-5432</em>.', [], d, 'Qual é o teu WhatsApp, com DDD?');
     }
-    const patch = {};
-    if (h.acordar) patch.defaultWakeTime = h.acordar;
-    if (h.dormir) patch.defaultSleepTime = h.dormir;
-    await setProfile(patch).catch(() => {});
-    diz(`Anotei: ${h.acordar ? `acorda às <b>${h.acordar}</b>` : ''}${h.acordar && h.dormir ? ' e ' : ''}${h.dormir ? `dorme às <b>${h.dormir}</b>` : ''} ⏰`);
+    await setProfile({ phone: fone }).catch(() => {});
     return fecharConvite(d);
   },
 });

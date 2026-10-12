@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         REGRAS_FIXAS, regrasDoDono } from './desafios-moldes.js';
+         REGRAS_FIXAS, regrasDoDono, textoProva } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -269,11 +269,42 @@ export const LINK_APP = 'https://estilo-falcon.web.app';
 // Link que já leva pro grupo: ?convite=CODIGO (o app guarda e resolve depois do login)
 export const linkConvite = (d) => `${LINK_APP}/?convite=${encodeURIComponent(d.codigo)}`;
 
-// WhatsApp: link direto pro grupo. Privado do app: código (já está no app).
+// WhatsApp: "fui desafiado" + o desafio, as regras, o passo a passo e o link.
+// Privado do app: curto, com o código (a pessoa já está no app).
+// (WhatsApp: *negrito*)
 export function textoConvite(d, { noApp = false } = {}) {
-  const abre = `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅`;
-  if (noApp) return `${abre}\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
-  return `${abre}\n\n👉 Toca aqui pra entrar direto no grupo:\n${linkConvite(d)}\n\nSe for tua primeira vez, cria tua conta que o app já te leva pro grupo.`;
+  if (noApp) return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
+  const link = linkConvite(d);
+  const info = [
+    d.dias_total && `📅 ${d.dias_total} dias`,
+    d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
+    textoProva(d) && `✅ Prova: ${textoProva(d).replace(/^\S+\s/, '')}`,
+    horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
+    d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
+  ].filter(Boolean);
+  const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
+  const regras = [
+    ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
+    ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
+    ...regrasDoDono(d),
+    ...(['video', 'depoimento', 'strava'].includes(d.prova) ? ['Vídeo gravado ao vivo, pela câmera do Falcon (da galeria não vale)'] : []),
+  ];
+  return [
+    '⚠️ *ATENÇÃO: VOCÊ FOI DESAFIADO!* 🦅',
+    'Tu tem coragem pra topar esse desafio?',
+    '',
+    `🏆 *${d.titulo}*`,
+    ...(d.descricao ? [d.descricao] : []),
+    ...(info.length ? ['', ...info] : []),
+    ...(regras.length ? ['', '📜 *Regras*', ...regras.map(r => `• ${r}`)] : []),
+    '',
+    '👣 *Passo a passo*',
+    `1. Toca no link: ${link}`,
+    '2. Baixa o Falcon (ou faz login, se já tiver conta)',
+    '3. Faz o tutorial rapidinho e diz teu nome e WhatsApp pro Pet',
+    '4. Pronto: tu cai direto no grupo do desafio',
+    '5. Todo dia manda a prova no grupo, no 📷 do lado da mensagem',
+  ].join('\n');
 }
 
 export function convidarNoWhatsApp(d) {
@@ -381,7 +412,7 @@ export function temConvitePendente() {
 }
 
 // Na Home, logado. Já tem nome no perfil: entra e abre o grupo direto.
-// Conta nova (sem nome): o Pet abre e faz as perguntas básicas antes
+// Conta nova (sem nome): o Pet abre e pede nome e WhatsApp antes
 // (assistente-ia.js BLOCO 8.17, evento 'falcon:convite-boas-vindas'), e no fim
 // chama entrarNoConvite. Assim ninguém aparece no grupo como "Falcão".
 export async function entrarPeloConvite() {

@@ -675,7 +675,11 @@ export async function renderDesafios(app, embedded = false) {
           // O criador entra automaticamente no próprio desafio
           try { await joinDesafio(novoId, meuNome); } catch { /* segue */ }
           close();
-          if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, { id: novoId, titulo, codigo }));
+          // Desafio completo: o convite do WhatsApp leva as regras junto
+          const novo = { id: novoId, titulo, codigo, descricao, dias_total: dias, meta_diaria: meta, unidade, tipo, prenda,
+                         prova: extras.prova, regras_dono: extras.regrasDono, hora_limite: extras.horaLimite,
+                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir };
+          if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, novo));
           else showToast('🏆 Desafio criado!', 'success');
           await refresh();
         }
