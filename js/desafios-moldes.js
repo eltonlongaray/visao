@@ -18,7 +18,7 @@ export const MOLDES = [
   { id: 'meditacao',     emoji: '🧘', nome: 'Meditação',          titulo: 'Meditar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [5, 10],    prova: 'honra',
     desc: 'Medite por 10 minutos por dia. (Prova por honra — meditação não se filma.)' },
   { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'strava',
-    desc: 'Corra 5 km por dia. Meça no Strava e comprove com o print + um vídeo ao vivo correndo nos últimos minutos.' },
+    desc: 'Corra 5 km por dia, na rua ou na esteira. Na rua, meça no Strava e mande o print; na esteira, foto do painel antes e depois. Nos dois, um vídeo ao vivo correndo nos últimos minutos.' },
   { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'depoimento',
     desc: 'Leia 20 páginas por dia e conte no grupo, num vídeo de depoimento, 5 coisas que você aprendeu ou que te marcaram.' },
   { id: 'largar',        emoji: '🚭', nome: 'Largar um vício',    titulo: 'Parar de fumar',      unidade: '',           meta: null, dias: 30, opcoes: [],       prova: 'depoimento', largar: true,
@@ -102,7 +102,7 @@ export function emojiDoTipo(tipo) {
 // desafio.regras_dono e aparecem logo abaixo.
 export const REGRAS_FIXAS = [
   'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
-  'Na corrida, vale o print do Strava junto com o vídeo ao vivo correndo nos últimos minutos.',
+  'Na corrida, vale o print do Strava (ou, na esteira, a foto do painel antes e depois, tirada pelo Falcon) junto com o vídeo ao vivo correndo nos últimos minutos.',
   'Os vídeos só aparecem pra quem está no desafio e somem em 7 dias.',
   'Prenda é leve e do bem, nunca constrangedora.',
   'Celebra em público, cobra em particular: ninguém expõe quem falhou fora do grupo.',
@@ -111,7 +111,7 @@ export const REGRAS_FIXAS = [
 // O que o desafio pede como prova, em palavras
 export function textoProva(d) {
   if (d.prova === 'video') return '🎥 Vídeo ao vivo';
-  if (d.prova === 'strava') return '🏃 Print do Strava + vídeo ao vivo';
+  if (d.prova === 'strava') return '🏃 Print do Strava (ou painel da esteira) + vídeo ao vivo';
   if (d.prova === 'depoimento') return '🎙️ Depoimento em vídeo';
   if (d.prova === 'honra') return '🤝 Por honra (só marcar)';
   return '';
@@ -183,7 +183,8 @@ export function resumoDoDesafio(d) {
     ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
     ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
     ...(ex && ex.includes('Corrida') && d.corridas_semana
-      ? [`🏃 Corrida: ${textoCorridasSemana(d.corridas_semana)} (de segunda a domingo). No dia que correr, a corrida vale o dia todo, sem os outros exercícios`] : []),
+      ? [`🏃 Corrida: ${textoCorridasSemana(d.corridas_semana)}${d.km_corrida ? ` de ${d.km_corrida} km` : ''} (de segunda a domingo), na rua ou na esteira. No dia que correr, a corrida vale o dia todo, sem os outros exercícios`,
+         '❌ Quem fechar a semana sem a corrida perde o desafio'] : []),
     ...regrasDoDono(d),
   ];
   return { info, regras };
@@ -234,6 +235,31 @@ export function corridasDaSemana(d, meus, hoje) {
   return { feitas, meta, falta: Math.max(0, meta - feitas), domingo: dom };
 }
 export const textoCorridasSemana = (n) => `${n} ${n === 1 ? 'corrida' : 'corridas'} por semana`;
+// Distância de cada corrida: até 5 km, que cabe em 30 min pra quase todo mundo
+export const KM_CORRIDA = [2, 3, 4, 5];
+export const MAX_KM_CORRIDA = 5;
+
+// Perdeu o desafio? Semana CHEIA (seg a dom, dentro do desafio e depois que a
+// pessoa entrou) que terminou sem as corridas pedidas. Devolve a segunda
+// dessa semana, ou null. A mesma conta está no gatilho do banco.
+export function semanaSemCorrida(d, meus, joinedAt, hoje = _hojeBR()) {
+  const meta = Number(d?.corridas_semana) || 0;
+  if (!meta || !(Array.isArray(d?.exercicios) && d.exercicios.includes('Corrida'))) return null;
+  const diaBR = (t) => (t ? new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '');
+  const ini = [String(d.data_inicio || '').slice(0, 10) || diaBR(d.created_at), diaBR(joinedAt)].filter(Boolean).sort().pop();
+  if (!ini) return null;
+  const fim = String(d.data_fim || '').slice(0, 10);
+  const corri = new Set(meus.filter(c => c.exercicio === 'Corrida').map(c => c.dia));
+  let seg = segundaDaSemana(ini);
+  if (seg < ini) seg = somarDias(seg, 7);
+  for (; somarDias(seg, 6) < hoje && (!fim || somarDias(seg, 6) <= fim); seg = somarDias(seg, 7)) {
+    let n = 0;
+    for (let i = 0; i < 7; i++) if (corri.has(somarDias(seg, i))) n++;
+    if (n < meta) return seg;
+  }
+  return null;
+}
+export const textoSemanaPerdida = (seg) => `a semana de ${dataCurta(seg).split(' ')[1]} a ${dataCurta(somarDias(seg, 6)).split(' ')[1]} fechou sem a corrida`;
 
 // A lista fecha com o limite? Sem repetir o de ontem, quem faz N por dia
 // precisa de pelo menos 2N exercícios (N hoje, outros N amanhã).

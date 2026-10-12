@@ -160,7 +160,7 @@ function regraCorrida({ corridas, agora }) {
   const quando = dow === 0 ? 'hoje é o último dia da semana' : 'vale até domingo';
   return {
     tipo: 'corrida_semana',
-    texto: `🏃 Essa semana ainda ${c.falta === 1 ? 'falta 1 corrida' : `faltam ${c.falta} corridas`} no desafio <strong>${limpa(c.titulo)}</strong> (${quando}). No dia que tu correr, a corrida vale o dia todo.`,
+    texto: `🏃 Essa semana ainda ${c.falta === 1 ? 'falta 1 corrida' : `faltam ${c.falta} corridas`} no desafio <strong>${limpa(c.titulo)}</strong> (${quando}, senão perde o desafio). Pode ser na rua ou na esteira, e no dia que tu correr ela vale o dia todo.`,
     botoes: [{ label: '📋 Como registrar', resp: 'corrida_passos' }, { label: '⏰ Depois', resp: 'depois' }],
   };
 }

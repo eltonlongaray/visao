@@ -7,14 +7,23 @@
 --     como o máximo do dia, fica fora do limite e do "não repetir o de
 --     ontem", e depois dela os outros exercícios do dia não entram mais.
 --   • De quebra: prova antes da data de início do desafio não entra.
+--   • 1 ou 2 corridas por semana, de até 5 km (desafios.km_corrida).
+--   • Quem fecha uma semana cheia sem a corrida perde: não entra mais prova.
 --
 -- Rodar no Supabase → SQL Editor. Depende de desafios-provas.sql.
 -- ═══════════════════════════════════════════════════════════════
 
 alter table public.desafios add column if not exists corridas_semana int;
+update public.desafios set corridas_semana = 2 where corridas_semana > 2;
 alter table public.desafios drop constraint if exists desafios_corridas_semana_ok;
 alter table public.desafios add constraint desafios_corridas_semana_ok
-  check (corridas_semana is null or corridas_semana between 1 and 7);
+  check (corridas_semana is null or corridas_semana between 1 and 2);
+
+-- Distância de cada corrida: até 5 km (cabe em 30 min)
+alter table public.desafios add column if not exists km_corrida int;
+alter table public.desafios drop constraint if exists desafios_km_corrida_ok;
+alter table public.desafios add constraint desafios_km_corrida_ok
+  check (km_corrida is null or km_corrida between 1 and 5);
 
 create or replace function public.desafio_checkin_regras()
 returns trigger
@@ -25,6 +34,9 @@ as $$
 declare
   d public.desafios;
   n int;
+  entrou date;
+  ini date;
+  seg date;
 begin
   select * into d from public.desafios where id = new.desafio_id;
   if not found then raise exception 'Desafio não encontrado'; end if;
@@ -40,6 +52,26 @@ begin
   -- Antes da data de início não vale
   if d.data_inicio is not null and new.dia < d.data_inicio then
     raise exception 'O desafio começa em %', to_char(d.data_inicio, 'DD/MM');
+  end if;
+
+  -- Corrida por semana: quem fechou uma semana cheia (seg a dom, dentro do
+  -- desafio e depois de entrar) sem as corridas pedidas perdeu o desafio
+  if d.corridas_semana is not null and d.exercicios is not null and 'Corrida' = any(d.exercicios) then
+    select (p.joined_at at time zone 'America/Sao_Paulo')::date into entrou
+      from public.desafio_participantes p
+     where p.desafio_id = new.desafio_id and p.user_id = new.user_id;
+    ini := greatest(coalesce(d.data_inicio, (d.created_at at time zone 'America/Sao_Paulo')::date), entrou);
+    seg := ini + ((8 - extract(isodow from ini)::int) % 7);   -- primeira segunda a partir do início
+    while seg + 6 < new.dia and (d.data_fim is null or seg + 6 <= d.data_fim) loop
+      select count(distinct c.dia) into n from public.desafio_checkins c
+       where c.desafio_id = new.desafio_id and c.user_id = new.user_id
+         and c.exercicio = 'Corrida' and c.dia between seg and seg + 6;
+      if n < d.corridas_semana then
+        raise exception 'Esse desafio acabou pra você: a semana de % a % fechou sem a corrida',
+          to_char(seg, 'DD/MM'), to_char(seg + 6, 'DD/MM');
+      end if;
+      seg := seg + 7;
+    end loop;
   end if;
 
   -- Largar um vício: um depoimento por dia

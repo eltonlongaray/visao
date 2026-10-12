@@ -97,6 +97,9 @@ export function lerDesafio(texto) {
   const grupo = grupoDaFrase(texto);
   if (grupo) return { ...grupo, molde: moldeDaFrase(grupo.pedido.replace(/\b(desafios?|grupo)\b/g, ' ')), nome: nomeCitado(grupo.pedido) };
   if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
+  // Esteira e corrida no meio: "foto do painel", "continua a corrida", "terminei na esteira"
+  if (/\b(painel|esteira)\b/.test(t) && /\b(foto|terminei|acabei|parei|fim|depois)\b/.test(t)) return { acao: 'print' };
+  if (/\b(continu\w*|segue|seguir)\b.*\bcorrida\b/.test(t)) return { acao: 'print' };
   // "como registro a corrida?", "abre o strava", "correr com o falcon"
   if (/\bstrava\b|\bcorrer com o falcon\b/.test(t)
     || (/\bcorrida\b/.test(t) && /\b(como|passo a passo|explica|ensina)\b/.test(t) && /\b(registr\w*|grav\w*|fa[zc]\w*|comprov\w*|prova|mand\w*)\b/.test(t))) {
