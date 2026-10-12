@@ -117,6 +117,41 @@ export function textoProva(d) {
   return '';
 }
 
+// ── Data de início ───────────────────────────────────────────
+// 'YYYY-MM-DD' ± n dias (meio-dia: sem susto de fuso)
+export function somarDias(iso, n) {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString('en-CA');
+}
+const _hojeBR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+// "seg 19/10"
+export function dataCurta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  const sem = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()];
+  return `${sem} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
+// Começa no futuro? (sem data = já está valendo)
+export function aindaNaoComecou(d, hoje = _hojeBR()) {
+  const ini = String(d?.data_inicio || '').slice(0, 10);
+  return !!ini && hoje < ini;
+}
+// Dia N do desafio (1 = primeiro dia). null sem data de início.
+export function diaDoDesafio(d, hoje = _hojeBR()) {
+  const ini = String(d?.data_inicio || '').slice(0, 10);
+  if (!ini) return null;
+  return Math.round((new Date(hoje + 'T12:00:00') - new Date(ini + 'T12:00:00')) / 86400000) + 1;
+}
+// "começa amanhã", "começa seg 19/10"
+export function textoComeca(d, hoje = _hojeBR()) {
+  const ini = String(d?.data_inicio || '').slice(0, 10);
+  if (!ini) return '';
+  if (ini === hoje) return 'começa hoje';
+  if (ini === somarDias(hoje, 1)) return 'começa amanhã';
+  return `começa ${dataCurta(ini)}`;
+}
+
 // Regras do Falcon que valem PRA ESSE desafio (sem falar de Strava num desafio de leitura)
 export function regrasFixasDo(d) {
   const ex = Array.isArray(d?.exercicios) ? d.exercicios : [];
@@ -135,8 +170,9 @@ export function regrasFixasDo(d) {
 // info = como funciona; regras = exercícios + o que o dono escreveu.
 export function resumoDoDesafio(d) {
   const prova = textoProva(d);
+  const ini = String(d.data_inicio || '').slice(0, 10);
   const info = [
-    d.dias_total && `📅 ${d.dias_total} dias`,
+    ini ? `📅 Começa ${dataCurta(ini)}${d.dias_total ? ` · ${d.dias_total} dias` : ''}` : (d.dias_total && `📅 ${d.dias_total} dias`),
     d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
     prova && `✅ Prova: ${prova.replace(/^\S+\s/, '')}`,
     horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,

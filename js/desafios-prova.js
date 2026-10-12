@@ -10,7 +10,7 @@
 import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { roteiroDepoimento, passouDoLimite, horaLimite } from './desafios-moldes.js';
+import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -262,6 +262,10 @@ function _limparPendente() { try { localStorage.removeItem(PEND_KEY); } catch { 
 export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false } = {}) {
   const corrida = d.prova === 'strava' || exercicio === 'Corrida';
   if (falhou) quantidade = 0;
+  if (aindaNaoComecou(d)) {
+    showToast(`Calma! O desafio ${textoComeca(d)}. Até lá, aquece 🦅`, 'info');
+    return false;
+  }
   if (passouDoLimite(d)) {
     showToast(`Esse desafio só aceita a prova do dia até as ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'error');
     return false;

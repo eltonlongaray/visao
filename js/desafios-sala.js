@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         regrasFixasDo, resumoDoDesafio } from './desafios-moldes.js';
+         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -57,6 +57,7 @@ export function resumoHoje(sala, uid) {
   const { d, parts, checks } = sala;
   const n = parts.length;
   const gente = `${n} ${n === 1 ? 'participante' : 'participantes'}`;
+  if (aindaNaoComecou(d)) return `${gente} · 📅 ${textoComeca(d)}`;
   if (!parts.some(p => p.user_id === uid)) return gente;
   const hoje = _hoje();
   const meus = checks.filter(c => c.user_id === uid);

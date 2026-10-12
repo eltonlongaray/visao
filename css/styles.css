@@ -8306,6 +8306,17 @@ body.rota-publica .bottom-nav { display: none !important; }
   color: var(--muted); font-size: 13px; cursor: pointer;
 }
 
+/* 📅 Começa (formulário do desafio) */
+.ds-ini-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.input-field .ds-ini-chip, .ds-ini-chip {
+  flex: 0 0 auto; width: auto; line-height: 1.2;
+  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--card-2); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ds-ini-chip.on { background: rgba(245,158,11,0.18); border-color: #f59e0b; color: #fbbf24; }
+.ds-ini-data { margin-top: 8px; }
+.ds-ini-txt { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
 /* Convidar participantes */
 .ds-conv-busca { margin: 6px 0 8px; }
 /* Pop-up em coluna: só a lista de pessoas rola; botões sempre inteiros embaixo */
