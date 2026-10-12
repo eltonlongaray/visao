@@ -11,7 +11,7 @@ import {
   parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
-         REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
+         regrasFixasDo, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
@@ -222,7 +222,7 @@ export async function renderDesafios(app, embedded = false) {
               ${regrasEx.length ? `<div class="ds-regras-tit">Deste desafio</div><ul>${regrasEx.map(r => `<li>${r}</li>`).join('')}</ul>` : ''}
               ${dono.length ? `<div class="ds-regras-tit">Do dono do desafio</div><ul>${dono.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>` : ''}
               <div class="ds-regras-tit">Do Falcon (valem sempre)</div>
-              <ul>${REGRAS_FIXAS.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>
+              <ul>${regrasFixasDo(d).map(r => `<li>${_esc(r)}</li>`).join('')}</ul>
             </details>`;
 
           // Provas de hoje e ontem (vídeo/print): só quem está dentro vê

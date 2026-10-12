@@ -117,6 +117,40 @@ export function textoProva(d) {
   return '';
 }
 
+// Regras do Falcon que valem PRA ESSE desafio (sem falar de Strava num desafio de leitura)
+export function regrasFixasDo(d) {
+  const ex = Array.isArray(d?.exercicios) ? d.exercicios : [];
+  const comVideo = ['video', 'depoimento', 'strava'].includes(d?.prova);
+  const corrida = d?.prova === 'strava' || d?.tipo === 'corrida' || ex.some(x => /corrida/i.test(x));
+  return [
+    comVideo && REGRAS_FIXAS[0],
+    corrida && REGRAS_FIXAS[1],
+    comVideo && REGRAS_FIXAS[2],
+    d?.prenda && REGRAS_FIXAS[3],
+    REGRAS_FIXAS[4],
+  ].filter(Boolean);
+}
+
+// O mesmo resumo no convite do WhatsApp e no 📜 Regras do grupo:
+// info = como funciona; regras = exercícios + o que o dono escreveu.
+export function resumoDoDesafio(d) {
+  const prova = textoProva(d);
+  const info = [
+    d.dias_total && `📅 ${d.dias_total} dias`,
+    d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
+    prova && `✅ Prova: ${prova.replace(/^\S+\s/, '')}`,
+    horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
+    d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
+  ].filter(Boolean);
+  const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
+  const regras = [
+    ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
+    ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
+    ...regrasDoDono(d),
+  ];
+  return { info, regras };
+}
+
 // Regras do dono em linhas (texto livre, uma por linha)
 export function regrasDoDono(d) {
   return String(d?.regras_dono || '').split(/\n+/).map(x => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean);

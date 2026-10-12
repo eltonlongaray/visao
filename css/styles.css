@@ -8289,6 +8289,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .sala-opcoes .ds-ex { width: 100%; }
 .sala-rank, .sala-regras { margin-top: 8px; max-height: 55vh; overflow-y: auto; }
 .sala-regras { display: block; }
+.sala-regras-desc { margin: 4px 0 6px; line-height: 1.5; }
+.ds-regras ul.sala-regras-info { list-style: none; padding-left: 0; }
 
 /* Horário limite do desafio: botão que abre o relógio do Falcon */
 .ds-hora-row { display: flex; align-items: center; gap: 8px; }

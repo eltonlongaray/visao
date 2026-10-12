@@ -4859,7 +4859,7 @@ function desafioRegras(d, c) {
   return `📜 <b>Regras · ${_esc(d.titulo)}</b>` +
     (linhas.length ? `<br>${linhas.map(x => `• ${x}`).join('<br>')}` : '') +
     (dono.length ? `<br><br><b>Do dono do desafio</b><br>${dono.map(x => `• ${_esc(x)}`).join('<br>')}` : '') +
-    `<br><br><b>Do Falcon (valem sempre)</b><br>${c.M.REGRAS_FIXAS.map(x => `• ${_esc(x)}`).join('<br>')}`;
+    `<br><br><b>Do Falcon (valem sempre)</b><br>${c.M.regrasFixasDo(d).map(x => `• ${_esc(x)}`).join('<br>')}`;
 }
 
 // Corrida: passo a passo + botões (Strava por enquanto; o corredor do Falcon vem com o app de loja)
