@@ -209,6 +209,8 @@ export function fraseDoApp(j) {
         case 'regras': return `quais as regras do ${desafio}`;
         case 'corrida_ajuda': return 'como registro a corrida?';
         case 'print': return 'manda o print da corrida';
+        case 'proposta': return texto === 'não' || texto === 'nao' ? 'não aceito a proposta de mudança'
+          : texto === 'sim' ? 'aceito a proposta de mudança' : 'tem proposta de mudança no desafio?';
         case 'nao_consegui': return `hoje não consegui ${no}`;
         case 'convidar': {
           const quem = juntar(j.itens);

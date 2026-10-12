@@ -73,7 +73,7 @@ export async function fetchSalaDesafio(desafioId) {
   if (!desafioId) return [];
   const { data, error } = await supabase
     .from('chat_mensagens')
-    .select('id, autor_id, autor_nome, texto, imagem_path, arquivo_path, arquivo_nome, arquivo_mime, responde_a, created_at, expira_em, editada_em, checkin_id, prova_video, prova_print')
+    .select('id, autor_id, autor_nome, texto, imagem_path, arquivo_path, arquivo_nome, arquivo_mime, responde_a, created_at, expira_em, editada_em, checkin_id, prova_video, prova_print, proposta_id')
     .eq('escopo', 'desafio')
     .eq('desafio_id', desafioId)
     .order('created_at', { ascending: false })
