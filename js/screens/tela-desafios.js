@@ -11,7 +11,7 @@ import {
   parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
-         REGRAS_FIXAS, textoProva, regrasDoDono, exerciciosDeHoje, avisoExercicios, diaAnterior,
+         regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
@@ -104,7 +104,8 @@ export async function renderDesafios(app, embedded = false) {
             ? (placar[d.id]?.total ?? dParts.length)
             : dParts.length;
           const badges = `
-            ${d.dias_total ? `<span class="ds-badge amber">${d.dias_total} dias</span>` : ''}
+            ${aindaNaoComecou(d) ? `<span class="ds-badge teal">📅 ${textoComeca(d)}</span>` : ''}
+            ${d.dias_total ? `<span class="ds-badge amber">${!aindaNaoComecou(d) && diaDoDesafio(d) && diaDoDesafio(d) <= d.dias_total ? `dia ${diaDoDesafio(d)} de ${d.dias_total}` : `${d.dias_total} dias`}</span>` : ''}
             ${meta ? `<span class="ds-badge teal">meta ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
             ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}
             ${horaLimite(d) ? `<span class="ds-badge amber">⏰ até ${horaLimite(d)}</span>` : ''}
@@ -222,7 +223,7 @@ export async function renderDesafios(app, embedded = false) {
               ${regrasEx.length ? `<div class="ds-regras-tit">Deste desafio</div><ul>${regrasEx.map(r => `<li>${r}</li>`).join('')}</ul>` : ''}
               ${dono.length ? `<div class="ds-regras-tit">Do dono do desafio</div><ul>${dono.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>` : ''}
               <div class="ds-regras-tit">Do Falcon (valem sempre)</div>
-              <ul>${REGRAS_FIXAS.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>
+              <ul>${regrasFixasDo(d).map(r => `<li>${_esc(r)}</li>`).join('')}</ul>
             </details>`;
 
           // Provas de hoje e ontem (vídeo/print): só quem está dentro vê
@@ -559,7 +560,12 @@ export async function renderDesafios(app, embedded = false) {
             <input id="f-inicio" type="date" value="${edit ? (desafio.data_inicio || '') : ''}" /></label>
           <label class="input-field" style="flex:1"><div class="input-field-label">Termina em</div>
             <input id="f-fim" type="date" value="${edit ? (desafio.data_fim || '') : ''}" /></label>
-        </div>` : ''}
+        </div>` : `
+        <div class="input-field"><div class="input-field-label">📅 Começa</div>
+          <div class="ds-ini-chips" id="f-ini-chips"></div>
+          <input id="f-inicio" type="date" class="ds-ini-data" hidden />
+          <div class="ds-ini-txt" id="f-ini-txt"></div>
+        </div>`}
 
         ${mod === 'individual' ? '' : `
         <label class="input-field"><div class="input-field-label">🎭 Prenda de quem não concluir</div>
@@ -596,6 +602,39 @@ export async function renderDesafios(app, embedded = false) {
       if (h) pintarHora(h);
     });
     overlay.querySelector('#f-hora-limpar')?.addEventListener('click', () => pintarHora(''));
+
+    // 📅 Começa (amigos/individual): Hoje · Amanhã · Segunda · Outra data.
+    // O fim sai sozinho: início + duração.
+    const iniChips = overlay.querySelector('#f-ini-chips');
+    if (iniChips) {
+      const hojeIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      const amanha = somarDias(hojeIso, 1);
+      const dow = new Date(hojeIso + 'T12:00:00').getDay();
+      const segunda = somarDias(hojeIso, ((8 - dow) % 7) || 7);
+      const opts = [['Hoje', hojeIso], ['Amanhã', amanha], ...(segunda !== amanha ? [[`Seg ${dataCurta(segunda).slice(4)}`, segunda]] : []), ['📆 Outra', '']];
+      const inp = overlay.querySelector('#f-inicio');
+      const txtIni = overlay.querySelector('#f-ini-txt');
+      inp.min = hojeIso;
+      const pintarIni = () => {
+        const v = inp.value;
+        const dias = parseInt(overlay.querySelector('#f-dias').value, 10) || 0;
+        iniChips.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.ini ? (inp.hidden && b.dataset.ini === v) : !inp.hidden));
+        txtIni.textContent = v ? `Começa ${dataCurta(v)}${dias ? ` · termina ${dataCurta(somarDias(v, dias - 1))}` : ''}` : '';
+      };
+      iniChips.innerHTML = opts.map(([l, v]) => `<button type="button" class="ds-ini-chip" data-ini="${v}">${l}</button>`).join('');
+      iniChips.addEventListener('click', (e) => {
+        const b = e.target.closest('.ds-ini-chip'); if (!b) return;
+        if (b.dataset.ini) { inp.value = b.dataset.ini; inp.hidden = true; }
+        else { inp.hidden = false; inp.focus(); try { inp.showPicker?.(); } catch { /* sem showPicker */ } }
+        pintarIni();
+      });
+      inp.addEventListener('change', pintarIni);
+      overlay.querySelector('#f-dias').addEventListener('input', pintarIni);
+      const atual = edit ? String(desafio.data_inicio || '').slice(0, 10) : '';
+      inp.value = atual || hojeIso;
+      if (atual && !opts.some(o => o[1] === atual)) inp.hidden = false;
+      pintarIni();
+    }
 
     // A descrição do molde fala da prova ("Prova por honra"): trocou a prova,
     // tira esse trecho pra não contradizer o que foi escolhido
@@ -657,7 +696,8 @@ export async function renderDesafios(app, embedded = false) {
       const horaLim = overlay.querySelector('#f-hora')?.value || null;
       const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir } : {}) };
       const dataInicio = overlay.querySelector('#f-inicio')?.value || null;
-      const dataFim = overlay.querySelector('#f-fim')?.value || null;
+      let dataFim = overlay.querySelector('#f-fim')?.value || null;
+      if (mod !== 'oficial' && dataInicio && dias) dataFim = somarDias(dataInicio, dias - 1);   // fim = início + duração
       const prenda = sel ? (sel.value === '__outra' ? txt.value.trim() : sel.value) : null;
       if (!titulo || !descricao) { showToast('Preencha título e descrição', 'error'); return; }
       const btn = overlay.querySelector('#f-save');
@@ -678,7 +718,7 @@ export async function renderDesafios(app, embedded = false) {
           // Desafio completo: o convite do WhatsApp leva as regras junto
           const novo = { id: novoId, titulo, codigo, descricao, dias_total: dias, meta_diaria: meta, unidade, tipo, prenda,
                          prova: extras.prova, regras_dono: extras.regrasDono, hora_limite: extras.horaLimite,
-                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir };
+                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir, data_inicio: dataInicio };
           if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, novo));
           else showToast('🏆 Desafio criado!', 'success');
           await refresh();

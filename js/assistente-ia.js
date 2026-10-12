@@ -4859,7 +4859,7 @@ function desafioRegras(d, c) {
   return `📜 <b>Regras · ${_esc(d.titulo)}</b>` +
     (linhas.length ? `<br>${linhas.map(x => `• ${x}`).join('<br>')}` : '') +
     (dono.length ? `<br><br><b>Do dono do desafio</b><br>${dono.map(x => `• ${_esc(x)}`).join('<br>')}` : '') +
-    `<br><br><b>Do Falcon (valem sempre)</b><br>${c.M.REGRAS_FIXAS.map(x => `• ${_esc(x)}`).join('<br>')}`;
+    `<br><br><b>Do Falcon (valem sempre)</b><br>${c.M.regrasFixasDo(d).map(x => `• ${_esc(x)}`).join('<br>')}`;
 }
 
 // Corrida: passo a passo + botões (Strava por enquanto; o corredor do Falcon vem com o app de loja)
@@ -4899,7 +4899,7 @@ function desafiosVisao(meus, fora, c) {
 function desafioDetalhe(d, c) {
   if (!c.sou(d)) {
     const meta = d.meta_diaria ? `Meta: <b>${d.meta_diaria}${_unDesafio(d)}</b> por dia` : 'Marcar feito uma vez por dia';
-    addChoices(`${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${_esc(d.descricao || '')}</small><br>${meta}${d.dias_total ? ` · ${d.dias_total} dias` : ''}${d.prenda ? `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}` : ''}<br>Tu ainda não está nele. Quer entrar?`,
+    addChoices(`${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${_esc(d.descricao || '')}</small><br>${meta}${d.dias_total ? ` · ${d.dias_total} dias` : ''}${d.data_inicio ? ` · ${c.M.textoComeca(d)}` : ''}${d.prenda ? `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}` : ''}<br>Tu ainda não está nele. Quer entrar?`,
       [{ label: '🙋 Entrar', action: () => desafioEntrar(d, c) }, { label: 'Agora não', action: () => 'Beleza 👍' }]);
     return null;
   }
@@ -4971,6 +4971,7 @@ function desafioCheckin(d, p, c) {
   const somei = PDF.somaHoje(c.checks.filter(x => x.desafio_id === d.id), c.uid, hoje);
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
   const meta = d.meta_diaria;
+  if (c.M.aindaNaoComecou(d)) return `Calma! O <b>${nome}</b> ${c.M.textoComeca(d)}. Até lá, aquece 🦅`;
   if (c.M.ehLargar(d)) return desafioCheckinLargar(d, p, c);
   if (c.M.passouDoLimite(d) && !somei) return `O <b>${nome}</b> só aceita a prova do dia até as ${c.M.horaLimite(d)}. Amanhã tem de novo 🦅`;
   if (Array.isArray(d.exercicios) && d.exercicios.length) return desafioCheckinExercicio(d, p, c);

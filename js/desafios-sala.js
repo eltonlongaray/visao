@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         REGRAS_FIXAS, regrasDoDono, textoProva } from './desafios-moldes.js';
+         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -57,6 +57,7 @@ export function resumoHoje(sala, uid) {
   const { d, parts, checks } = sala;
   const n = parts.length;
   const gente = `${n} ${n === 1 ? 'participante' : 'participantes'}`;
+  if (aindaNaoComecou(d)) return `${gente} · 📅 ${textoComeca(d)}`;
   if (!parts.some(p => p.user_id === uid)) return gente;
   const hoje = _hoje();
   const meus = checks.filter(c => c.user_id === uid);
@@ -107,21 +108,18 @@ export function abrirRanking(sala, uid) {
 }
 
 export function abrirRegras(d) {
-  const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
-  const regrasEx = ex ? [
-    `Até ${d.max_por_dia || d.meta_diaria || 1} por dia, escolhidos da lista: ${ex.map(_esc).join(', ')}.`,
-    ...(d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem.'] : []),
-  ] : [];
-  if (horaLimite(d)) regrasEx.push(`Prova do dia só até as ${horaLimite(d)}.`);
-  const dono = regrasDoDono(d);
+  const { info, regras } = resumoDoDesafio(d);
+  const ul = (xs) => `<ul>${xs.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>`;
   _modal(`
     <div class="modal-title">📜 Regras</div>
     <div class="modal-hint">${_esc(d.titulo)}</div>
     <div class="ds-regras sala-regras">
-      ${regrasEx.length ? `<div class="ds-regras-tit">Deste desafio</div><ul>${regrasEx.map(r => `<li>${r}</li>`).join('')}</ul>` : ''}
-      ${dono.length ? `<div class="ds-regras-tit">Do dono do desafio</div><ul>${dono.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>` : ''}
+      <div class="ds-regras-tit">O desafio</div>
+      ${d.descricao ? `<p class="sala-regras-desc">${_esc(d.descricao)}</p>` : ''}
+      ${info.length ? `<ul class="sala-regras-info">${info.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>` : ''}
+      ${regras.length ? `<div class="ds-regras-tit">Regras do desafio</div>${ul(regras)}` : ''}
       <div class="ds-regras-tit">Do Falcon (valem sempre)</div>
-      <ul>${REGRAS_FIXAS.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>
+      ${ul(regrasFixasDo(d))}
     </div>`);
 }
 
@@ -275,19 +273,7 @@ export const linkConvite = (d) => `${LINK_APP}/?convite=${encodeURIComponent(d.c
 export function textoConvite(d, { noApp = false } = {}) {
   if (noApp) return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
   const link = linkConvite(d);
-  const info = [
-    d.dias_total && `📅 ${d.dias_total} dias`,
-    d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
-    textoProva(d) && `✅ Prova: ${textoProva(d).replace(/^\S+\s/, '')}`,
-    horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
-    d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
-  ].filter(Boolean);
-  const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
-  const regras = [
-    ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
-    ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
-    ...regrasDoDono(d),
-  ];
+  const { info, regras } = resumoDoDesafio(d);
   return [
     '⚠️ *ATENÇÃO: VOCÊ FOI DESAFIADO!* 🦅',
     'Tu tem coragem pra topar esse desafio?',
@@ -298,11 +284,13 @@ export function textoConvite(d, { noApp = false } = {}) {
     ...(regras.length ? ['', '📜 *Regras*', ...regras.map(r => `• ${r}`)] : []),
     '',
     '👣 *Passo a passo*',
-    `1. Toca no link: ${link}`,
+    '1. Toca no link lá embaixo',
     '2. Baixa o Falcon (ou faz login, se já tiver conta)',
     '3. Faz o tutorial rapidinho e diz pro Pet como quer ser chamado e teu WhatsApp',
     '4. Pronto: tu cai direto no grupo do desafio',
     '5. Todo dia manda a prova no grupo, no 📷 do lado da mensagem',
+    '',
+    `✅ *ACEITO O DESAFIO* 👉 ${link}`,
   ].join('\n');
 }
 
