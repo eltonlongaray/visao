@@ -3317,11 +3317,21 @@ function lerCheckin() { try { return JSON.parse(localStorage.getItem(CK_KEY)) ||
 function gravarCheckin(st) { try { localStorage.setItem(CK_KEY, JSON.stringify(st)); } catch { /* sem storage: só não lembra */ } }
 const chatAberto = () => !!document.getElementById('pet-chat')?.classList.contains('pet-chat-open');
 
+// Desafios de exercício com corrida por semana em que a pessoa está (pro check-in)
+async function _corridasDaSemana() {
+  const c = await _carregarDesafios();
+  const hoje = _diaDesafio();
+  return c.desafios.filter(d => c.sou(d) && !c.M.aindaNaoComecou(d)).map(d => {
+    const sem = c.M.corridasDaSemana(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), hoje);
+    return sem ? { titulo: d.titulo, falta: sem.falta } : null;
+  }).filter(Boolean);
+}
+
 async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261006c');
+    _CK = await import('./pet-checkin.js?v=20261012c');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
@@ -3329,7 +3339,8 @@ async function prepararCheckin() {
       fetchDaysRange(new Date(agora - 60 * 86400000), new Date(agora)),
     ]);
     _ckDias = dias || [];
-    const ctx = { dias, prof, agora, ontemId: dayId(ontem), hojeId: dayId(new Date(agora)) };
+    const corridas = await _corridasDaSemana().catch(() => []);
+    const ctx = { dias, prof, agora, corridas, ontemId: dayId(ontem), hojeId: dayId(new Date(agora)) };
     _fila = _CK.listarPerguntas(ctx, lerCheckin())
       .map(p => ({ ...p, ontemId: dayId(ontem) }));
     agendarFimDoDia(ctx);
@@ -3450,6 +3461,11 @@ async function responderCheckin(p, b) {
       st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), adiadoAte: Date.now() + _CK.ADIA[p.tipo] * 86400000 } };
       gravarCheckin(st);
       return 'Combinado, deixo isso pra depois 👍';
+    }
+    case 'corrida_passos': {
+      const P = await import('./desafios-prova.js');
+      P.passoAPassoCorrida();
+      return 'Abri o passo a passo da corrida 🏃 Bora!';
     }
     case 'nao_marco':
       return 'Beleza! Pra marcar rápido, é só me falar <em>"fiz a academia"</em> que eu marco pra ti.';
@@ -5034,9 +5050,9 @@ function desafioCheckinExercicio(d, p, c) {
   const lista = c.M.exerciciosDeHoje(d, meus, hoje, c.M.diaAnterior(hoje));
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
   const lim = d.max_por_dia || d.meta_diaria || 1;
-  const feitos = lista.filter(x => x.feito).length;
-  if (feitos >= lim) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const livres = lista.filter(x => x.ok);
+  if (lista.some(x => x.nome === 'Corrida' && x.feito)) return `Hoje tu fechou o <b>${nome}</b> com a corrida 🏃✅ Amanhã tem mais.`;
+  if (!livres.length) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const dito = PDF.exercicioCitado(d.exercicios, p.texto || '');
   const fazer = (ex) => {
     const extra = { quantidade: 1, exercicio: ex };

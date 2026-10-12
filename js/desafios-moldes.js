@@ -182,6 +182,8 @@ export function resumoDoDesafio(d) {
   const regras = [
     ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
     ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
+    ...(ex && ex.includes('Corrida') && d.corridas_semana
+      ? [`🏃 Corrida: ${textoCorridasSemana(d.corridas_semana)} (de segunda a domingo). No dia que correr, a corrida vale o dia todo, sem os outros exercícios`] : []),
     ...regrasDoDono(d),
   ];
   return { info, regras };
@@ -200,13 +202,38 @@ export function exerciciosDeHoje(d, meus, hoje, ontem) {
   const feitosHoje = new Set(deHoje.map(c => c.exercicio));
   const deOntem = new Set(meus.filter(c => c.dia === ontem).map(c => c.exercicio));
   const cheio = d.max_por_dia && deHoje.length >= d.max_por_dia;
+  const correuHoje = feitosHoje.has('Corrida');
   return lista.map(nome => {
     if (feitosHoje.has(nome)) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
+    // Corrida fecha o dia sozinha: fora do limite e do "não repetir"
+    if (nome === 'Corrida') return { nome, ok: true };
+    if (correuHoje) return { nome, ok: false, motivo: 'o dia fechou com a corrida' };
     if (d.nao_repetir !== false && deOntem.has(nome)) return { nome, ok: false, motivo: 'feito ontem' };
     if (cheio) return { nome, ok: false, motivo: 'limite do dia' };
     return { nome, ok: true };
   });
 }
+
+// Quantos exercícios contam hoje: a corrida vale o dia todo (= o limite)
+export function feitosHoje(lista, lim) {
+  if (lista.some(x => x.nome === 'Corrida' && x.feito)) return lim;
+  return lista.filter(x => x.feito).length;
+}
+
+// ── Corrida por semana (desafio de exercício com Corrida na lista) ──
+// Semana de segunda a domingo. null quando o desafio não pede.
+export function segundaDaSemana(hoje) {
+  const dow = new Date(hoje + 'T12:00:00').getDay();
+  return somarDias(hoje, -((dow + 6) % 7));
+}
+export function corridasDaSemana(d, meus, hoje) {
+  const meta = Number(d?.corridas_semana) || 0;
+  if (!meta || !(Array.isArray(d?.exercicios) && d.exercicios.includes('Corrida'))) return null;
+  const seg = segundaDaSemana(hoje), dom = somarDias(seg, 6);
+  const feitas = new Set(meus.filter(c => c.exercicio === 'Corrida' && c.dia >= seg && c.dia <= dom).map(c => c.dia)).size;
+  return { feitas, meta, falta: Math.max(0, meta - feitas), domingo: dom };
+}
+export const textoCorridasSemana = (n) => `${n} ${n === 1 ? 'corrida' : 'corridas'} por semana`;
 
 // A lista fecha com o limite? Sem repetir o de ontem, quem faz N por dia
 // precisa de pelo menos 2N exercícios (N hoje, outros N amanhã).

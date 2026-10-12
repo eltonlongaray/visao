@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
+         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -67,7 +67,10 @@ export function resumoHoje(sala, uid) {
   let st;
   if (Array.isArray(d.exercicios) && d.exercicios.length) {
     const lim = d.max_por_dia || d.meta_diaria || 1;
-    st = deHoje.length >= lim ? '✅ hoje feito' : `hoje ${deHoje.length}/${lim}`;
+    const f = feitosHoje(exerciciosDeHoje(d, meus, hoje, diaAnterior(hoje)), lim);
+    st = f >= lim ? '✅ hoje feito' : `hoje ${f}/${lim}`;
+    const sem = corridasDaSemana(d, meus, hoje);
+    if (sem) st += ` · 🏃 semana ${sem.feitas}/${sem.meta}`;
   } else if (ehLargar(d)) {
     st = deHoje.length ? '✅ hoje contado' : 'falta o depoimento de hoje';
   } else if (d.meta_diaria) {
@@ -169,9 +172,8 @@ export function provaPelaSala(sala, uid) {
     dica = '🎥 Vídeo da corrida já guardado. Falta só o print do Strava.';
   } else if (ex) {
     const lista = exerciciosDeHoje(d, meus, hoje, diaAnterior(hoje));
-    const lim = d.max_por_dia || d.meta_diaria || 1;
-    if (lista.filter(x => x.feito).length >= lim) {
-      showToast('✅ Exercícios de hoje feitos! Amanhã são outros 🦅', 'info');
+    if (!lista.some(x => x.ok)) {
+      showToast(lista.some(x => x.nome === 'Corrida' && x.feito) ? '🏃 Hoje fechou com a corrida! Amanhã tem mais 🦅' : '✅ Exercícios de hoje feitos! Amanhã são outros 🦅', 'info');
       return Promise.resolve(false);
     }
     titulo = '📷 Qual exercício?';
