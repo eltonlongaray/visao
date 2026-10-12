@@ -97,3 +97,5 @@ drop trigger if exists desafio_checkin_regras on public.desafio_checkins;
 create trigger desafio_checkin_regras
   before insert on public.desafio_checkins
   for each row execute function public.desafio_checkin_regras();
+
+notify pgrst, 'reload schema';
