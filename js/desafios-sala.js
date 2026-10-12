@@ -12,8 +12,8 @@
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
-import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from './desafios-prova.js';
+         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida } from './desafios-moldes.js';
+import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
 import { getProfile } from './banco-dados.js';
@@ -48,8 +48,10 @@ export function rankingDoDesafio(desafio, parts, checks) {
     const days = byUser[p.user_id] || {};
     let done = 0;
     for (const d in days) if (largar || (meta ? days[d] >= meta : days[d] > 0)) done++;
-    return { user_id: p.user_id, nome: nomeById[p.user_id], done };
-  }).sort((a, b) => b.done - a.done);
+    // Semana sem a corrida pedida = perdeu (vai pro fim da lista)
+    const perdeu = semanaSemCorrida(desafio, checks.filter(c => c.user_id === p.user_id), p.joined_at);
+    return { user_id: p.user_id, nome: nomeById[p.user_id], done, perdeu };
+  }).sort((a, b) => (!!a.perdeu - !!b.perdeu) || b.done - a.done);
 }
 
 // Como estou hoje nesse desafio, numa linha (subtítulo da sala)
@@ -65,9 +67,14 @@ export function resumoHoje(sala, uid) {
   const soma = deHoje.reduce((s, c) => s + (c.quantidade || 0), 0);
   const un = d.unidade ? ' ' + d.unidade : '';
   let st;
-  if (Array.isArray(d.exercicios) && d.exercicios.length) {
+  if (Array.isArray(d.exercicios) && d.exercicios.length && semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at)) {
+    st = '❌ perdeu (semana sem corrida)';
+  } else if (Array.isArray(d.exercicios) && d.exercicios.length) {
     const lim = d.max_por_dia || d.meta_diaria || 1;
-    st = deHoje.length >= lim ? '✅ hoje feito' : `hoje ${deHoje.length}/${lim}`;
+    const f = feitosHoje(exerciciosDeHoje(d, meus, hoje, diaAnterior(hoje)), lim);
+    st = f >= lim ? '✅ hoje feito' : `hoje ${f}/${lim}`;
+    const sem = corridasDaSemana(d, meus, hoje);
+    if (sem) st += sem.troca ? ` · 🏃 corrida ${sem.falta ? 'ainda dá' : 'feita'}` : ` · 🏃 semana ${sem.feitas}/${sem.meta}`;
   } else if (ehLargar(d)) {
     st = deHoje.length ? '✅ hoje contado' : 'falta o depoimento de hoje';
   } else if (d.meta_diaria) {
@@ -102,7 +109,7 @@ export function abrirRanking(sala, uid) {
       ${rank.length ? rank.map((r, i) => `
         <div class="ds-rank-row ${r.user_id === uid ? 'me' : ''}">
           <span>${i + 1} · ${_esc(r.nome)}${r.user_id === uid ? ' (você)' : ''}</span>
-          <span class="ds-rank-days">${r.done} ${r.done === 1 ? 'dia' : 'dias'}${i === 0 && r.done > 0 ? ' 🔥' : ''}</span>
+          <span class="ds-rank-days">${r.perdeu ? '❌ ficou sem corrida' : `${r.done} ${r.done === 1 ? 'dia' : 'dias'}${i === 0 && r.done > 0 ? ' 🔥' : ''}`}</span>
         </div>`).join('') : '<div class="ds-prova-dica">Ninguém no desafio ainda.</div>'}
     </div>`);
 }
@@ -152,6 +159,7 @@ export function provaPelaSala(sala, uid) {
   const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
   const corrida = d.prova === 'strava' || (ex && ex.includes('Corrida'));
   const pend = corrida ? corridaPendente(d.id) : null;
+  const passo = pend ? proximoPassoCorrida(d.id) : null;
 
   if (!ehLargar(d) && !soma && passouDoLimite(d)) {
     showToast(`Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'info');
@@ -165,13 +173,15 @@ export function provaPelaSala(sala, uid) {
   let dica = '';
 
   if (pend) {
-    opcoes = [{ rotulo: '📷 Enviar o print da corrida', extra: { quantidade: pend.quantidade || 1, exercicio: pend.exercicio || null } }];
-    dica = '🎥 Vídeo da corrida já guardado. Falta só o print do Strava.';
+    opcoes = [{ rotulo: passo.rotulo, extra: { quantidade: pend.quantidade || 1, exercicio: pend.exercicio || null } }];
+    dica = passo.dica;
+  } else if (ex && semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at)) {
+    showToast(`❌ Tu perdeu esse desafio: ${textoSemanaPerdida(semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at))}.`, 'info');
+    return Promise.resolve(false);
   } else if (ex) {
     const lista = exerciciosDeHoje(d, meus, hoje, diaAnterior(hoje));
-    const lim = d.max_por_dia || d.meta_diaria || 1;
-    if (lista.filter(x => x.feito).length >= lim) {
-      showToast('✅ Exercícios de hoje feitos! Amanhã são outros 🦅', 'info');
+    if (!lista.some(x => x.ok)) {
+      showToast(lista.some(x => x.nome === 'Corrida' && x.feito) ? '🏃 Hoje fechou com a corrida! Amanhã tem mais 🦅' : '✅ Exercícios de hoje feitos! Amanhã são outros 🦅', 'info');
       return Promise.resolve(false);
     }
     titulo = '📷 Qual exercício?';
@@ -194,7 +204,7 @@ export function provaPelaSala(sala, uid) {
   } else if (d.prova === 'strava') {
     if (soma > 0) { showToast('✅ Corrida de hoje já registrada 🦅', 'info'); return Promise.resolve(false); }
     titulo = '🏃 Corrida de hoje';
-    comNumero = { placeholder: `${d.meta_diaria || ''} ${un}`.trim(), rotulo: '🎥 Gravar o final da corrida', padrao: d.meta_diaria || 1 };
+    comNumero = { placeholder: `${d.meta_diaria || ''} ${un}`.trim(), rotulo: '🏃 Registrar a corrida', padrao: d.meta_diaria || 1 };
   } else if (d.meta_diaria) {
     if (soma >= d.meta_diaria) { showToast('✅ Meta de hoje batida! 🦅', 'info'); return Promise.resolve(false); }
     const ops = Array.isArray(d.prova_opcoes) && d.prova_opcoes.length ? d.prova_opcoes : null;

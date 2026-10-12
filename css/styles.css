@@ -8306,6 +8306,12 @@ body.rota-publica .bottom-nav { display: none !important; }
   color: var(--muted); font-size: 13px; cursor: pointer;
 }
 
+/* 🏃 Corrida da semana (desafio de exercício) */
+.ds-corrida-semana { margin: 8px 0 2px; font-size: 13px; color: var(--muted); }
+.ds-corrida-semana b { color: #fbbf24; }
+.ds-corrida-semana.ok b { color: #34d399; }
+.ds-perdeu { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.35); font-size: 13px; line-height: 1.45; }
+
 /* 📅 Começa (formulário do desafio) */
 .ds-ini-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .input-field .ds-ini-chip, .ds-ini-chip {

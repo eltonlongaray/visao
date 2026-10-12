@@ -11,9 +11,9 @@ import {
   parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
-         regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
+         regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
-import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente } from '../desafios-prova.js';
+import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
@@ -121,29 +121,36 @@ export async function renderDesafios(app, embedded = false) {
 
           const exercicios = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
           const corrida = d.prova === 'strava' || (exercicios && exercicios.includes('Corrida'));
-          const pend = joined && corrida ? corridaPendente(d.id) : null;
+          const pend = joined && corrida ? proximoPassoCorrida(d.id) : null;
           const corridaBtns = (joined && corrida) ? `
               <div class="ds-corrida">
                 <button class="ds-correr" data-correr="1">🏃 Correr com o Falcon</button>
                 <button class="ds-passos-btn" data-passos="1">📋 Passo a passo</button>
               </div>
-              ${pend ? `<button class="ds-inc ds-print" data-print="${d.id}" style="width:100%">📷 Enviar o print da corrida</button>
-                        <div class="ds-prova-dica">🎥 Vídeo da corrida já guardado. Falta só o print do Strava.</div>` : ''}` : '';
+              ${pend ? `<button class="ds-inc ds-print" data-print="${d.id}" style="width:100%">${pend.rotulo}</button>
+                        <div class="ds-prova-dica">${pend.dica}</div>` : ''}` : '';
 
           let acao = '';
           if (!joined) {
             acao = `<button class="ds-join" data-join="${d.id}">🙋 Participar</button>`;
+          } else if (exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at)) {
+            // Semana fechou sem a corrida pedida: perdeu o desafio
+            const seg = semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at);
+            acao = `<div class="ds-perdeu">❌ Tu perdeu esse desafio: ${textoSemanaPerdida(seg)}.${d.prenda ? ` Prenda: ${_esc(d.prenda)}.` : ''} Bora no próximo 🦅</div>`;
           } else if (exercicios) {
             // Constância de exercício: um botão por exercício, com as regras do dia
             const meus = dChecks.filter(c => c.user_id === myUid);
             const lista = exerciciosDeHoje(d, meus, today, diaAnterior(today));
-            const feitos = lista.filter(x => x.feito).length;
-            const lim = d.max_por_dia || meta || feitos;
+            const lim = d.max_por_dia || meta || lista.filter(x => x.feito).length;
+            const feitos = feitosHoje(lista, lim);
+            const sem = corridasDaSemana(d, meus, today);
             const pct = lim ? Math.min(100, Math.round((feitos / lim) * 100)) : 0;
             acao = `
               <div class="ds-progress-head"><span>Hoje</span><span class="ds-progress-val">${feitos} / ${lim} ${lim === 1 ? 'exercício' : 'exercícios'}</span></div>
               <div class="ds-bar"><div class="ds-bar-fill" style="width:${pct}%"></div></div>
-              ${feitos >= lim ? `<div class="ds-done">✅ Exercícios de hoje feitos! Amanhã são outros 🦅</div>` : ''}
+              ${feitos >= lim ? `<div class="ds-done">✅ ${lista.some(x => x.nome === 'Corrida' && x.feito) ? 'Hoje fechou com a corrida! 🏃' : 'Exercícios de hoje feitos! Amanhã são outros 🦅'}</div>` : ''}
+              ${sem && sem.troca ? `<div class="ds-corrida-semana ${sem.falta ? '' : 'ok'}">🏃 Corrida da semana: <b>${sem.falta ? 'ainda dá' : 'feita ✅'}</b>${sem.falta ? ' · no lugar dos exercícios do dia' : ''}</div>`
+                : sem ? `<div class="ds-corrida-semana ${sem.falta ? '' : 'ok'}">🏃 Corrida da semana: <b>${sem.feitas}/${sem.meta}</b>${sem.falta ? ` · até domingo` : ' ✅'}</div>` : ''}
               <div class="ds-ex-lista">${lista.map(x => `
                 <button class="ds-ex ${x.feito ? 'feito' : ''}" data-ex="${d.id}" data-exnome="${_esc(x.nome)}" ${x.ok ? '' : 'disabled'}>
                   <span>${x.feito ? '✅' : x.nome === 'Corrida' ? '🏃' : d.prova === 'video' ? '🎥' : '▫️'} ${_esc(x.nome)}</span>
@@ -156,7 +163,7 @@ export async function renderDesafios(app, embedded = false) {
               ${corridaBtns}
               ${pend ? '' : `<div class="ds-inc-row">
                 <input class="ds-inc-input" id="q-${d.id}" type="number" min="1" placeholder="${meta ? meta : ''} ${_esc(unidade)}" />
-                <button class="ds-inc" data-corrida="${d.id}">🎥 Gravar o final da corrida</button>
+                <button class="ds-inc" data-corrida="${d.id}">🏃 Registrar a corrida</button>
               </div>`}`;
           } else if (ehLargar(d)) {
             // Largar um vício: todo dia conta como foi, conseguindo ou não (com depoimento)
@@ -207,7 +214,7 @@ export async function renderDesafios(app, embedded = false) {
               ${rank.slice(0, 8).map((r, i) => `
                 <div class="ds-rank-row ${r.user_id === myUid ? 'me' : ''}">
                   <span>${i + 1} · ${_esc(r.nome)}${r.user_id === myUid ? ' (você)' : ''}</span>
-                  <span class="ds-rank-days">${r.done} ${r.done === 1 ? 'dia' : 'dias'}${i === 0 && r.done > 0 ? ' 🔥' : ''}</span>
+                  <span class="ds-rank-days">${r.perdeu ? '❌ ficou sem corrida' : `${r.done} ${r.done === 1 ? 'dia' : 'dias'}${i === 0 && r.done > 0 ? ' 🔥' : ''}`}</span>
                 </div>`).join('')}
             </div>` : '';
 
@@ -215,6 +222,7 @@ export async function renderDesafios(app, embedded = false) {
           const regrasEx = exercicios ? [
             `Até ${d.max_por_dia || meta || 1} por dia, escolhidos da lista: ${exercicios.map(_esc).join(', ')}.`,
             ...(d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem.'] : []),
+            ...regrasCorrida(d),
           ] : [];
           const dono = regrasDoDono(d);
           const regrasHtml = `
@@ -480,6 +488,13 @@ export async function renderDesafios(app, embedded = false) {
     };
   }
 
+  // Explicação curta do modo da corrida no formulário
+  function textoModoCorrida(modo) {
+    return modo === 'troca'
+      ? `1 vez por semana a corrida entra no lugar dos exercícios do dia (até ${MAX_KM_CORRIDA} km, cabe em 30 min). Se não correr, os exercícios de todo dia seguem valendo e ninguém perde.`
+      : `Até ${MAX_KM_CORRIDA} km: cabe em 30 min. No dia que correr, a corrida vale o dia todo. Quem fechar a semana sem correr perde o desafio.`;
+  }
+
   // ── Admin: formulário (novo a partir de molde, ou edição) ──
   function openDesafioForm({ molde, desafio, modalidade }) {
     const edit = !!desafio;
@@ -497,6 +512,9 @@ export async function renderDesafios(app, embedded = false) {
     const comCorrida = exAtual.includes('Corrida');
     const maxAtual = edit ? (desafio.max_por_dia || desafio.meta_diaria || 2) : (molde.maxPorDia || 2);
     const naoRepAtual = edit ? desafio.nao_repetir !== false : molde.naoRepetir !== false;
+    const corrSemAtual = Math.min(2, (edit && desafio.corridas_semana) || 1);
+    const modoAtual = edit && desafio.corrida_modo === 'troca' ? 'troca' : 'obrigatoria';
+    const kmAtual = Math.min(MAX_KM_CORRIDA, (edit && Number(desafio.km_corrida)) || 3);
     const regrasAtual = edit ? (desafio.regras_dono || '') : '';
     const largar = tipo === 'largar';
     const horaAtual = edit ? horaLimite(desafio) : (molde.horaLimite || '');
@@ -515,7 +533,25 @@ export async function renderDesafios(app, embedded = false) {
           <div class="input-field-label">Exercícios (até 4)</div>
           <div class="ds-ex-campos">${[0, 1, 2, 3].map(i => `
             <input class="aviso-input ds-ex-in" maxlength="40" placeholder="Exercício ${i + 1}" value="${_esc(exSemCorrida[i] || '')}" />`).join('')}</div>
-          <label class="ds-check"><input type="checkbox" id="f-corrida" ${comCorrida ? 'checked' : ''}/> 🏃 Incluir corrida (print do Strava + vídeo ao vivo)</label>
+          <label class="ds-check"><input type="checkbox" id="f-corrida" ${comCorrida ? 'checked' : ''}/> 🏃 Incluir corrida (rua ou esteira, com vídeo ao vivo)</label>
+          <div class="input-field ds-corr-sem" id="f-corr-sem-box" ${comCorrida ? '' : 'hidden'}>
+            <div class="input-field-label">🏃 Como a corrida entra</div>
+            <div class="ds-ini-chips" data-chips="f-corr-modo">
+              <button type="button" class="ds-ini-chip ${modoAtual === 'obrigatoria' ? 'on' : ''}" data-v="obrigatoria">🏃 Obrigatória</button>
+              <button type="button" class="ds-ini-chip ${modoAtual === 'troca' ? 'on' : ''}" data-v="troca">🔁 Corrida ou exercícios</button></div>
+            <input type="hidden" id="f-corr-modo" value="${modoAtual}" />
+            <div id="f-corr-sem-sec" ${modoAtual === 'troca' ? 'hidden' : ''}>
+            <div class="input-field-label" style="margin-top:10px">🏃 Corridas por semana</div>
+            <div class="ds-ini-chips" data-chips="f-corr-sem">${[1, 2].map(n => `
+              <button type="button" class="ds-ini-chip ${n === corrSemAtual ? 'on' : ''}" data-v="${n}">${n}x por semana</button>`).join('')}</div>
+            <input type="hidden" id="f-corr-sem" value="${corrSemAtual}" />
+            </div>
+            <div class="input-field-label" style="margin-top:10px">📏 Distância de cada corrida</div>
+            <div class="ds-ini-chips" data-chips="f-km">${KM_CORRIDA.map(n => `
+              <button type="button" class="ds-ini-chip ${n === kmAtual ? 'on' : ''}" data-v="${n}">${n} km</button>`).join('')}</div>
+            <input type="hidden" id="f-km" value="${kmAtual}" />
+            <div class="ds-ini-txt" id="f-corr-txt">${textoModoCorrida(modoAtual)}</div>
+          </div>
           <div style="display:flex;gap:8px;align-items:center">
             <label class="input-field" style="flex:1"><div class="input-field-label">Máximo por dia</div>
               <select id="f-max">${[1, 2, 3].map(n => `<option value="${n}"${n === maxAtual ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -526,7 +562,7 @@ export async function renderDesafios(app, embedded = false) {
         <label class="input-field"><div class="input-field-label">Prova</div>
           <select id="f-prova">
             <option value="video"${provaAtual === 'video' ? ' selected' : ''}>🎥 Vídeo ao vivo</option>
-            <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Strava + vídeo ao vivo</option>
+            <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Corrida: Strava ou esteira + vídeo</option>
             <option value="depoimento"${provaAtual === 'depoimento' ? ' selected' : ''}>🎙️ Depoimento em vídeo</option>
             <option value="honra"${provaAtual === 'honra' ? ' selected' : ''}>🤝 Por honra (só marcar)</option>
           </select></label>
@@ -661,6 +697,18 @@ export async function renderDesafios(app, embedded = false) {
     };
     overlay.querySelectorAll('.ds-ex-in, #f-corrida, #f-max, #f-naorep').forEach(el => el.addEventListener('input', atualizarAviso));
     overlay.querySelectorAll('#f-corrida, #f-max, #f-naorep').forEach(el => el.addEventListener('change', atualizarAviso));
+    overlay.querySelector('#f-corrida')?.addEventListener('change', (e) => { overlay.querySelector('#f-corr-sem-box').hidden = !e.target.checked; });
+    // Chips da corrida (vezes por semana e km): marcam um e guardam no hidden
+    overlay.querySelectorAll('[data-chips]').forEach(box => box.addEventListener('click', (e) => {
+      const b = e.target.closest('.ds-ini-chip');
+      if (!b) return;
+      box.querySelectorAll('.ds-ini-chip').forEach(x => x.classList.toggle('on', x === b));
+      overlay.querySelector('#' + box.dataset.chips).value = b.dataset.v;
+      if (box.dataset.chips === 'f-corr-modo') {
+        overlay.querySelector('#f-corr-sem-sec').hidden = b.dataset.v === 'troca';
+        overlay.querySelector('#f-corr-txt').textContent = textoModoCorrida(b.dataset.v);
+      }
+    }));
     atualizarAviso();
 
     // "Escrever outra…" revela o campo livre da prenda
@@ -679,12 +727,22 @@ export async function renderDesafios(app, embedded = false) {
       if (prova !== 'honra') descricao = descricao.replace(/\s*\(Prova por honra[^)]*\)/i, '').trim();
       let meta = parseInt(overlay.querySelector('#f-meta').value, 10) || null;
       let unidade = overlay.querySelector('#f-unidade').value.trim();
+      // Corrida: no máximo 5 km por dia (cabe em 30 min, dá pra encaixar na rotina)
+      if (prova === 'strava' && /^km$/i.test(unidade) && meta > MAX_KM_CORRIDA) {
+        showToast(`Corrida até ${MAX_KM_CORRIDA} km por dia: cabe em 30 min e dá pra todo mundo encaixar na rotina`, 'info');
+        return;
+      }
       const regrasDono = overlay.querySelector('#f-regras').value;
-      let exercicios, maxPorDia, naoRepetir;
+      let exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo;
       if (temEx) {
         exercicios = lerEx();
         maxPorDia = parseInt(overlay.querySelector('#f-max').value, 10) || 1;
         naoRepetir = overlay.querySelector('#f-naorep').checked;
+        corridaModo = exercicios.includes('Corrida') ? overlay.querySelector('#f-corr-modo').value : null;
+        // Troca opcional: 1 vez por semana
+        corridasSemana = exercicios.includes('Corrida')
+          ? (corridaModo === 'troca' ? 1 : Math.min(2, parseInt(overlay.querySelector('#f-corr-sem').value, 10) || 1)) : null;
+        kmCorrida = exercicios.includes('Corrida') ? Math.min(MAX_KM_CORRIDA, parseInt(overlay.querySelector('#f-km').value, 10) || 3) : null;
         if (!exercicios.length) { showToast('Coloque pelo menos um exercício', 'error'); return; }
         const aviso = atualizarAviso();
         if (aviso) { showToast(aviso, 'error'); return; }
@@ -694,7 +752,7 @@ export async function renderDesafios(app, embedded = false) {
       if (largar) { meta = null; unidade = ''; }
       const opcoes = semMeta ? [] : parseOpcoes(overlay.querySelector('#f-opcoes').value);
       const horaLim = overlay.querySelector('#f-hora')?.value || null;
-      const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir } : {}) };
+      const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo } : {}) };
       const dataInicio = overlay.querySelector('#f-inicio')?.value || null;
       let dataFim = overlay.querySelector('#f-fim')?.value || null;
       if (mod !== 'oficial' && dataInicio && dias) dataFim = somarDias(dataInicio, dias - 1);   // fim = início + duração
@@ -718,7 +776,7 @@ export async function renderDesafios(app, embedded = false) {
           // Desafio completo: o convite do WhatsApp leva as regras junto
           const novo = { id: novoId, titulo, codigo, descricao, dias_total: dias, meta_diaria: meta, unidade, tipo, prenda,
                          prova: extras.prova, regras_dono: extras.regrasDono, hora_limite: extras.horaLimite,
-                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir, data_inicio: dataInicio };
+                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir, corridas_semana: extras.corridasSemana, km_corrida: extras.kmCorrida, corrida_modo: extras.corridaModo, data_inicio: dataInicio };
           if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, novo));
           else showToast('🏆 Desafio criado!', 'success');
           await refresh();

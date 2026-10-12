@@ -39,7 +39,7 @@ export async function fetchDesafios() {
 }
 // Campos da prova/exercícios/regras (migration/desafios-provas.sql). Só entram
 // quando vêm definidos: um formulário antigo não manda e não quebra.
-function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite }) {
+function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite, corridasSemana, kmCorrida, corridaModo }) {
   const x = {};
   if (prova !== undefined) x.prova = prova || null;
   if (exercicios !== undefined) x.exercicios = (exercicios && exercicios.length) ? exercicios : null;
@@ -47,6 +47,9 @@ function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, 
   if (naoRepetir !== undefined) x.nao_repetir = !!naoRepetir;
   if (regrasDono !== undefined) x.regras_dono = (regrasDono || '').trim() || null;
   if (horaLimite !== undefined) x.hora_limite = horaLimite || null;
+  if (corridasSemana !== undefined) x.corridas_semana = corridasSemana || null;   // migration/desafios-corrida-semana.sql
+  if (kmCorrida !== undefined) x.km_corrida = kmCorrida || null;
+  if (corridaModo !== undefined) x.corrida_modo = corridaModo || null;
   return x;
 }
 export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
@@ -118,8 +121,10 @@ export async function fetchPlacar() {
 }
 
 export async function fetchParticipantes() {
-  const { data } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
-  return data || [];
+  const { data, error } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at');
+  if (!error) return data || [];
+  const r = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
+  return r.data || [];
 }
 export async function fetchCheckins() {
   const { data, error } = await supabase.from('desafio_checkins')

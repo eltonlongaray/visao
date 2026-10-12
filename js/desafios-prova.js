@@ -177,8 +177,107 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: PRINT DA CORRIDA
+// BLOCO 2: PRINT DA CORRIDA E FOTO AO VIVO (ESTEIRA)
 // ═══════════════════════════════════════════════════════════════
+// Foto tirada AGORA pela câmera do app (sem galeria): o painel da esteira.
+// Resolve com um Blob JPEG, ou null se a pessoa desistiu.
+export function tirarFotoAoVivo({ titulo = 'Foto', dica = '' } = {}) {
+  return new Promise((resolve) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      showToast('Esse aparelho não deixa abrir a câmera pelo app. Tenta pelo Chrome atualizado.', 'error');
+      resolve(null);
+      return;
+    }
+    const ov = document.createElement('div');
+    ov.className = 'cam-guia-ov ds-rec-ov';
+    ov.innerHTML = `
+      <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>📸 Foto ao vivo, pela câmera do Falcon</small></div>
+      <video class="cam-guia-video" autoplay playsinline muted></video>
+      <div class="cam-guia-barra">
+        <button type="button" class="cam-guia-btn" data-ft="cancel">Cancelar</button>
+        <button type="button" class="cam-guia-shot" data-ft="shot" aria-label="Tirar foto"></button>
+        <button type="button" class="cam-guia-flip" data-ft="flip" aria-label="Virar câmera">🔄</button>
+      </div>`;
+    document.body.appendChild(ov);
+    const video = ov.querySelector('video');
+    let lado = 'environment', stream = null, fechado = false, entregue = null;
+    const parar = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
+    const fechar = trapModalBack(() => {
+      if (fechado) return;
+      fechado = true;
+      parar();
+      ov.remove();
+      resolve(entregue);
+    });
+    async function abrir() {
+      parar();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: lado }, audio: false });
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+      } catch {
+        showToast('Não consegui abrir a câmera. Libera a câmera pro Falcon.', 'error');
+        fechar();
+      }
+    }
+    ov.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-ft]');
+      if (!b) return;
+      if (b.dataset.ft === 'cancel') return fechar();
+      if (b.dataset.ft === 'flip') { lado = lado === 'user' ? 'environment' : 'user'; return abrir(); }
+      if (b.dataset.ft === 'shot' && video.videoWidth) {
+        const c = document.createElement('canvas');
+        const k = Math.min(1, 1080 / Math.max(video.videoWidth, video.videoHeight));
+        c.width = Math.round(video.videoWidth * k);
+        c.height = Math.round(video.videoHeight * k);
+        c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+        c.toBlob((bl) => { entregue = bl; fechar(); }, 'image/jpeg', 0.85);
+      }
+    });
+    abrir();
+  });
+}
+
+// Foto do painel "antes" fica no aparelho até o fim da corrida (pequena)
+function _blobParaDataURL(blob, larg = 540) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, larg / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => resolve(null);
+    img.src = URL.createObjectURL(blob);
+  });
+}
+function _carregar(src) {
+  return new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+}
+// Antes | Depois lado a lado numa imagem só (é ela que vai como "print")
+async function _juntarAntesDepois(antesURL, depoisBlob) {
+  const urlD = URL.createObjectURL(depoisBlob);
+  const [a, b] = await Promise.all([_carregar(antesURL), _carregar(urlD)]);
+  URL.revokeObjectURL(urlD);
+  if (!b) return depoisBlob;
+  const H = 900, faixa = 70;
+  const wa = a ? Math.round(a.width * H / a.height) : 0;
+  const wb = Math.round(b.width * H / b.height);
+  const c = document.createElement('canvas');
+  c.width = wa + wb + (a ? 12 : 0); c.height = H + faixa;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0b0b10'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.font = 'bold 40px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fbbf24';
+  if (a) { ctx.drawImage(a, 0, faixa, wa, H); ctx.fillText('ANTES', wa / 2, 50); }
+  const x = a ? wa + 12 : 0;
+  ctx.drawImage(b, x, faixa, wb, H);
+  ctx.fillText('DEPOIS', x + wb / 2, 50);
+  return await new Promise(r => c.toBlob(bl => r(bl || depoisBlob), 'image/jpeg', 0.85));
+}
+
 // Único caso em que vale a galeria: o print do Strava.
 export function escolherPrint() {
   return new Promise((resolve) => {
@@ -223,14 +322,24 @@ export const PASSOS_CORRIDA = [
   'Volte aqui e toque em <b>📷 Enviar o print</b>. Pronto, a corrida entra no desafio.',
 ];
 
+export const PASSOS_ESTEIRA = [
+  'Antes de começar, toque em <b>🏃 Corrida</b> no desafio e escolha <b>🏋️ Na esteira</b>. Tire a foto do <b>painel zerado</b> pelo Falcon.',
+  'Corra a distância do desafio.',
+  'Nos <b>últimos minutos</b>, toque em <b>🎥 Gravar o final da corrida</b> e grave você correndo, igual na rua (10 a 30 segundos, com o rosto).',
+  'Assim que parar, toque em <b>📸 Foto do painel no fim</b> com a distância e o tempo. Pronto, a corrida entra no desafio.',
+];
+
 export function passoAPassoCorrida() {
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.innerHTML = `
     <div class="modal" style="max-width:420px">
       <div class="modal-title">🏃 Como registrar a corrida</div>
+      <div class="ds-regras-tit">🛣️ Na rua</div>
       <ol class="ds-passos">${PASSOS_CORRIDA.map(p => `<li>${p}</li>`).join('')}</ol>
-      <div class="modal-hint">O corredor do próprio Falcon está chegando. Até lá, a distância é medida pelo Strava.</div>
+      <div class="ds-regras-tit">🏋️ Na esteira</div>
+      <ol class="ds-passos">${PASSOS_ESTEIRA.map(p => `<li>${p}</li>`).join('')}</ol>
+      <div class="modal-hint">O corredor do próprio Falcon está chegando. Até lá, na rua a distância é medida pelo Strava.</div>
       <div class="modal-actions" style="flex-direction:column;gap:8px">
         <button class="btn-primary" data-pp="strava" style="width:100%">🏃 Correr com o Falcon</button>
         <button class="btn-secondary" data-pp="ok" style="width:100%">Entendi</button>
@@ -249,6 +358,19 @@ export function corridaPendente(desafioId) {
     const p = JSON.parse(localStorage.getItem(PEND_KEY) || 'null');
     return p && p.desafioId === desafioId && p.dia === _hoje() ? p : null;
   } catch { return null; }
+}
+// O que falta na corrida começada hoje: { rotulo, dica } pro botão do card,
+// da sala e do Pet. null = nenhuma corrida no meio.
+export function proximoPassoCorrida(desafioId) {
+  const p = corridaPendente(desafioId);
+  if (!p) return null;
+  if (p.local === 'esteira' && !p.videoPath) {
+    return { rotulo: '🎥 Gravar o final da corrida', dica: '📸 Painel da esteira (antes) guardado. Nos últimos minutos, grava o vídeo correndo.' };
+  }
+  if (p.local === 'esteira') {
+    return { rotulo: '📸 Foto do painel no fim', dica: '🎥 Vídeo guardado. Falta a foto do painel da esteira com a distância e o tempo.' };
+  }
+  return { rotulo: '📷 Enviar o print da corrida', dica: '🎥 Vídeo da corrida já guardado. Falta só o print do Strava.' };
 }
 function _guardarPendente(p) { try { localStorage.setItem(PEND_KEY, JSON.stringify(p)); } catch { /* sem storage */ } }
 function _limparPendente() { try { localStorage.removeItem(PEND_KEY); } catch { /* sem storage */ } }
@@ -308,27 +430,84 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
   }
 }
 
-// Corrida em duas partes: vídeo ao vivo no fim da corrida, depois o print.
-// Se a pessoa sair pro Strava entre as duas, o vídeo fica guardado e o card
-// mostra "Enviar o print".
+// Corrida em partes, guardando o que já foi feito (a pessoa sai do app no meio):
+//   rua:     vídeo ao vivo no fim → print do Strava
+//   esteira: foto do painel antes → vídeo ao vivo no fim → foto do painel depois
+// O card mostra o próximo passo (proximoPassoCorrida).
+function _ondeCorrer() {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal" style="max-width:380px">
+        <div class="modal-title">🏃 Onde tu vai correr?</div>
+        <div class="modal-actions" style="flex-direction:column;gap:8px">
+          <button class="btn-primary" data-onde="rua" style="width:100%">🛣️ Na rua (Strava)</button>
+          <button class="btn-primary" data-onde="esteira" style="width:100%">🏋️ Na esteira</button>
+          <button class="btn-secondary" data-onde="" style="width:100%">Cancelar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    let escolha = null;
+    // Só segue depois que o "voltar" do modal passou: senão ele fecha a câmera que abre em seguida
+    const depois = () => {
+      let feito = false;
+      const ir = () => { if (feito) return; feito = true; window.removeEventListener('popstate', ir); setTimeout(() => resolve(escolha), 0); };
+      window.addEventListener('popstate', ir);
+      setTimeout(ir, 600);
+    };
+    const close = trapModalBack(() => { ov.remove(); depois(); });
+    ov.querySelectorAll('[data-onde]').forEach(b => b.onclick = () => { escolha = b.dataset.onde || null; close(); });
+  });
+}
+
+async function _gravarFinal() {
+  return gravarVideoAoVivo({
+    titulo: '🏃 Final da corrida',
+    dica: 'Grave você correndo, com o rosto aparecendo: o fôlego e o suor contam.',
+  });
+}
+
 async function _registrarCorrida(d, { quantidade, exercicio }) {
   let pend = corridaPendente(d.id);
   if (!pend) {
-    const blob = await gravarVideoAoVivo({
-      titulo: '🏃 Final da corrida',
-      dica: 'Grave você correndo, com o rosto aparecendo. Depois termine no Strava e tire o print.',
-    });
+    const local = await _ondeCorrer();
+    if (!local) return false;
+    if (local === 'esteira') {
+      const foto = await tirarFotoAoVivo({ titulo: '📸 Painel da esteira (antes)', dica: 'Mostre o painel <b>zerado</b>, antes de começar.' });
+      if (!foto) return false;
+      const antes = await _blobParaDataURL(foto);
+      _guardarPendente({ desafioId: d.id, dia: _hoje(), local, antes, quantidade, exercicio });
+      showToast('📸 Painel guardado! Bora correr. Nos últimos minutos, grava o vídeo 🏃', 'success');
+      return false;
+    }
+    const blob = await _gravarFinal();
     if (!blob) return false;
     showToast('Enviando o vídeo…', 'info');
     const videoPath = await subirProva(blob, 'video');
-    pend = { desafioId: d.id, dia: _hoje(), videoPath, quantidade, exercicio };
-    _guardarPendente(pend);
+    _guardarPendente({ desafioId: d.id, dia: _hoje(), local, videoPath, quantidade, exercicio });
     showToast('🎥 Vídeo guardado! Agora termine no Strava e mande o print.', 'success');
     return false;   // falta o print: ainda não registrou
   }
-  const foto = await escolherPrint();
-  if (!foto) return false;
-  showToast('Enviando o print…', 'info');
+  if (pend.local === 'esteira' && !pend.videoPath) {
+    const blob = await _gravarFinal();
+    if (!blob) return false;
+    showToast('Enviando o vídeo…', 'info');
+    pend.videoPath = await subirProva(blob, 'video');
+    _guardarPendente(pend);
+    showToast('🎥 Vídeo guardado! Agora a foto do painel com a distância e o tempo.', 'success');
+    return false;
+  }
+  let foto;
+  if (pend.local === 'esteira') {
+    const depois = await tirarFotoAoVivo({ titulo: '📸 Painel da esteira (depois)', dica: 'Mostre a <b>distância</b> e o <b>tempo</b> no painel.' });
+    if (!depois) return false;
+    foto = await _juntarAntesDepois(pend.antes, depois);
+  } else {
+    foto = await escolherPrint();
+    if (!foto) return false;
+  }
+  showToast(pend.local === 'esteira' ? 'Enviando as fotos do painel…' : 'Enviando o print…', 'info');
   const printPath = await subirProva(foto, 'print');
   await addCheckin(d.id, pend.quantidade || quantidade, { exercicio: pend.exercicio || exercicio, videoPath: pend.videoPath, printPath });
   _limparPendente();

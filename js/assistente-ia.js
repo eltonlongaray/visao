@@ -51,7 +51,7 @@ import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261012a';
+import * as PDF from './pet-desafios.js?v=20261012d';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -3317,11 +3317,24 @@ function lerCheckin() { try { return JSON.parse(localStorage.getItem(CK_KEY)) ||
 function gravarCheckin(st) { try { localStorage.setItem(CK_KEY, JSON.stringify(st)); } catch { /* sem storage: só não lembra */ } }
 const chatAberto = () => !!document.getElementById('pet-chat')?.classList.contains('pet-chat-open');
 
+// Desafios de exercício com corrida por semana em que a pessoa está (pro check-in)
+async function _corridasDaSemana() {
+  const c = await _carregarDesafios();
+  const hoje = _diaDesafio();
+  return c.desafios.filter(d => c.sou(d) && !c.M.aindaNaoComecou(d)).map(d => {
+    const meus = c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid);
+    const joined = c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at;
+    if (c.M.semanaSemCorrida(d, meus, joined, hoje)) return null;   // já perdeu: não cobra mais
+    const sem = c.M.corridasDaSemana(d, meus, hoje);
+    return sem ? { titulo: d.titulo, falta: sem.falta, troca: sem.troca } : null;
+  }).filter(Boolean);
+}
+
 async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261006c');
+    _CK = await import('./pet-checkin.js?v=20261012d');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
@@ -3329,7 +3342,8 @@ async function prepararCheckin() {
       fetchDaysRange(new Date(agora - 60 * 86400000), new Date(agora)),
     ]);
     _ckDias = dias || [];
-    const ctx = { dias, prof, agora, ontemId: dayId(ontem), hojeId: dayId(new Date(agora)) };
+    const corridas = await _corridasDaSemana().catch(() => []);
+    const ctx = { dias, prof, agora, corridas, ontemId: dayId(ontem), hojeId: dayId(new Date(agora)) };
     _fila = _CK.listarPerguntas(ctx, lerCheckin())
       .map(p => ({ ...p, ontemId: dayId(ontem) }));
     agendarFimDoDia(ctx);
@@ -3450,6 +3464,11 @@ async function responderCheckin(p, b) {
       st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), adiadoAte: Date.now() + _CK.ADIA[p.tipo] * 86400000 } };
       gravarCheckin(st);
       return 'Combinado, deixo isso pra depois 👍';
+    }
+    case 'corrida_passos': {
+      const P = await import('./desafios-prova.js');
+      P.passoAPassoCorrida();
+      return 'Abri o passo a passo da corrida 🏃 Bora!';
     }
     case 'nao_marco':
       return 'Beleza! Pra marcar rápido, é só me falar <em>"fiz a academia"</em> que eu marco pra ti.';
@@ -4717,9 +4736,9 @@ async function tentarDesafios(text) {
     case 'print': {
       const P = await import('./desafios-prova.js');
       const pend = c.desafios.find(d => P.corridaPendente(d.id));
-      if (!pend) return 'Não tem corrida esperando print hoje. Primeiro grava o vídeo no fim da corrida: <em>"corri no desafio"</em>.';
+      if (!pend) return 'Não tem corrida no meio hoje. Pra começar: <em>"corri no desafio"</em>.';
       const x = P.corridaPendente(pend.id);
-      return _botaoProva(pend, { quantidade: x.quantidade || 1, exercicio: x.exercicio || null }, `📷 Teu vídeo da corrida já está guardado. Falta o print do Strava pro <b>${_esc(pend.titulo)}</b>.`, c);
+      return _botaoProva(pend, { quantidade: x.quantidade || 1, exercicio: x.exercicio || null }, `${P.proximoPassoCorrida(pend.id).dica} (<b>${_esc(pend.titulo)}</b>)`, c);
     }
     case 'regras':
       return escolher(citou ? c.desafios : (meus.length ? meus : c.desafios), (d) => desafioRegras(d, c),
@@ -4974,12 +4993,17 @@ function desafioCheckin(d, p, c) {
   if (c.M.aindaNaoComecou(d)) return `Calma! O <b>${nome}</b> ${c.M.textoComeca(d)}. Até lá, aquece 🦅`;
   if (c.M.ehLargar(d)) return desafioCheckinLargar(d, p, c);
   if (c.M.passouDoLimite(d) && !somei) return `O <b>${nome}</b> só aceita a prova do dia até as ${c.M.horaLimite(d)}. Amanhã tem de novo 🦅`;
-  if (Array.isArray(d.exercicios) && d.exercicios.length) return desafioCheckinExercicio(d, p, c);
-  // Corrida: print do Strava + vídeo ao vivo; a pessoa grava pelo botão
+  if (Array.isArray(d.exercicios) && d.exercicios.length) {
+    const joined = c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at;
+    const perdeu = c.M.semanaSemCorrida(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), joined, hoje);
+    if (perdeu) return `❌ Tu perdeu o <b>${nome}</b>: ${c.M.textoSemanaPerdida(perdeu)}.${d.prenda ? ` A prenda combinada é: ${_esc(d.prenda)}.` : ''} Bora no próximo 🦅`;
+    return desafioCheckinExercicio(d, p, c);
+  }
+  // Corrida: print do Strava (ou painel da esteira) + vídeo ao vivo; a pessoa grava pelo botão
   if (d.prova === 'strava') {
     if (somei > 0) return `A corrida de hoje já está registrada no <b>${nome}</b> ✅`;
     const q = PDF.naUnidade(p.qtd, d.unidade) || meta || 1;
-    return _botaoProva(d, { quantidade: q }, `🏃 Pra contar no <b>${nome}</b>, a corrida vai com o <b>print do Strava</b> e um <b>vídeo ao vivo</b> correndo nos últimos minutos.`, c);
+    return _botaoProva(d, { quantidade: q }, `🏃 Pra contar no <b>${nome}</b>, a corrida vai com o <b>print do Strava</b> (na esteira, a <b>foto do painel</b> antes e depois) e um <b>vídeo ao vivo</b> correndo nos últimos minutos.`, c);
   }
   if (!meta) {
     if (somei > 0) return `<b>${nome}</b> já está marcado hoje ✅`;
@@ -5034,9 +5058,9 @@ function desafioCheckinExercicio(d, p, c) {
   const lista = c.M.exerciciosDeHoje(d, meus, hoje, c.M.diaAnterior(hoje));
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
   const lim = d.max_por_dia || d.meta_diaria || 1;
-  const feitos = lista.filter(x => x.feito).length;
-  if (feitos >= lim) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const livres = lista.filter(x => x.ok);
+  if (lista.some(x => x.nome === 'Corrida' && x.feito)) return `Hoje tu fechou o <b>${nome}</b> com a corrida 🏃✅ Amanhã tem mais.`;
+  if (!livres.length) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const dito = PDF.exercicioCitado(d.exercicios, p.texto || '');
   const fazer = (ex) => {
     const extra = { quantidade: 1, exercicio: ex };
@@ -5065,10 +5089,15 @@ function desafioCheckinExercicio(d, p, c) {
   return null;
 }
 
-// Corrida com vídeo já enviado esperando o print (mesma chave do desafios-prova.js)
+// Corrida no meio (mesma chave do desafios-prova.js): devolve o próximo passo
+// { rotulo } ou null. Rua: vídeo → print. Esteira: painel antes → vídeo → painel depois.
 function _pendCorrida(id) {
-  try { const p = JSON.parse(localStorage.getItem('falcon_corrida_pendente') || 'null'); return !!p && p.desafioId === id && p.dia === _diaDesafio(); }
-  catch { return false; }
+  try {
+    const p = JSON.parse(localStorage.getItem('falcon_corrida_pendente') || 'null');
+    if (!p || p.desafioId !== id || p.dia !== _diaDesafio()) return null;
+    if (p.local === 'esteira') return { rotulo: p.videoPath ? '📸 Foto do painel no fim' : '🎥 Gravar o final da corrida' };
+    return { rotulo: '📷 Enviar o print' };
+  } catch { return null; }
 }
 
 // Prova em vídeo não dá pra mandar falando: o Pet mostra o botão que abre o gravador
@@ -5076,12 +5105,13 @@ function _botaoProva(d, extra, texto, c) {
   convState = null;
   const corrida = d.prova === 'strava' || extra.exercicio === 'Corrida';
   const pendente = corrida && _pendCorrida(d.id);
-  const ops = [{ label: pendente ? '📷 Enviar o print' : corrida ? '🎥 Gravar o final da corrida' : d.prova === 'depoimento' ? '🎙️ Gravar o depoimento' : '🎥 Gravar a prova agora', action: async () => {
+  const ops = [{ label: pendente ? pendente.rotulo : corrida ? '🏃 Registrar a corrida' : d.prova === 'depoimento' ? '🎙️ Gravar o depoimento' : '🎥 Gravar a prova agora', action: async () => {
     const P = await import('./desafios-prova.js');
     const ok = await P.registrarComProva(d, extra);
     _redesenharDesafios();
     if (ok) return extra.falhou ? 'Depoimento enviado, dia contado 💪 Amanhã é um novo dia.' : d.prova === 'depoimento' ? 'Depoimento enviado e registrado no desafio ✅ 🦅' : 'Prova enviada e registrada no desafio ✅ 🦅';
-    return P.corridaPendente(d.id) ? 'Vídeo guardado 🎥 Agora termina no Strava, tira o print e me fala <em>"manda o print da corrida"</em> (ou toca em 📷 Enviar o print no desafio).' : null;
+    const passo = P.proximoPassoCorrida(d.id);
+    return passo ? `${passo.dica} Quando for a hora, me fala <em>"continua a corrida"</em> (ou toca em <b>${passo.rotulo}</b> no desafio).` : null;
   } }];
   if (corrida) ops.push({ label: '📋 Passo a passo', action: async () => { (await import('./desafios-prova.js')).passoAPassoCorrida(); return null; } });
   addChoices(texto, ops);

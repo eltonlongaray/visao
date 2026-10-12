@@ -147,12 +147,36 @@ function regraNotaHoje({ dias, hojeId, agora }) {
   };
 }
 
+// Corrida da semana: desafio de exercício que pede X corridas por semana.
+// De sexta a domingo, se ainda falta, o Pet lembra (só bolinha, sem som).
+// ctx.corridas = [{ titulo, falta }] (montado no assistente-ia.js)
+function regraCorrida({ corridas, agora }) {
+  const dow = new Date(agora).getDay();
+  if (![5, 6, 0].includes(dow)) return null;
+  const faltando = (corridas || []).filter(c => c.falta > 0);
+  if (!faltando.length) return null;
+  const limpa = (x) => String(x || '').replace(/[&<>"']/g, '').trim();
+  const c = faltando[0];
+  const quando = dow === 0 ? 'hoje é o último dia da semana' : 'vale até domingo';
+  // Modo "corrida ou exercícios": só incentiva, ninguém perde
+  if (c.troca) return {
+    tipo: 'corrida_semana',
+    texto: `🏃 Essa semana ainda dá pra correr no <strong>${limpa(c.titulo)}</strong> no lugar dos exercícios do dia (${quando}). Se não der, os exercícios de todo dia seguem valendo 💪`,
+    botoes: [{ label: '📋 Como registrar', resp: 'corrida_passos' }, { label: '⏰ Depois', resp: 'depois' }],
+  };
+  return {
+    tipo: 'corrida_semana',
+    texto: `🏃 Essa semana ainda ${c.falta === 1 ? 'falta 1 corrida' : `faltam ${c.falta} corridas`} no desafio <strong>${limpa(c.titulo)}</strong> (${quando}, senão perde o desafio). Pode ser na rua ou na esteira, e no dia que tu correr ela vale o dia todo.`,
+    botoes: [{ label: '📋 Como registrar', resp: 'corrida_passos' }, { label: '⏰ Depois', resp: 'depois' }],
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: ESCOLHER A PERGUNTA DO DIA
 // ═══════════════════════════════════════════════════════════════
-const ORDEM = [regraParou, regraRitmo, regraOntem, regraNota, regraNotaHoje, regraPeso];
-export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1, nota: 1, nota_hoje: 0.5 };       // dias depois de perguntar
-export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1, nota: 1, nota_hoje: 0.5 };     // dias depois do "Depois"
+const ORDEM = [regraParou, regraRitmo, regraOntem, regraCorrida, regraNota, regraNotaHoje, regraPeso];
+export const FOLGA = { parou: 7, ritmo: 7, peso: 7, ontem: 1, nota: 1, nota_hoje: 0.5, corrida_semana: 1 };       // dias depois de perguntar
+export const ADIA = { parou: 30, ritmo: 30, peso: 30, ontem: 1, nota: 1, nota_hoje: 0.5, corrida_semana: 1 };     // dias depois do "Depois"
 
 // `estado` = { tipos: { [tipo]: { perguntadoEm, adiadoAte } } }
 // Devolve a fila de perguntas pendentes, na ordem de prioridade.
