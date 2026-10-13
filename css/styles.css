@@ -8352,3 +8352,14 @@ body.rota-publica .bottom-nav { display: none !important; }
 .prop-nao { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.10); }
 .prop-cancelar { flex: 0 0 auto; font-weight: 600; font-size: 13px; }
 .prop-meu { font-size: 13px; color: var(--muted); }
+.prop-cmp { display: flex; flex-direction: column; gap: 10px; }
+.prop-cmp-tit { font-weight: 700; }
+.prop-campo { display: flex; flex-direction: column; gap: 6px; }
+.prop-rotulo { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .85; }
+.prop-lado { padding: 8px 10px; border-radius: 10px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.prop-antes { background: rgba(0,0,0,0.22); border-left: 3px solid rgba(239,68,68,0.7); opacity: .9; }
+.prop-depois { background: rgba(0,0,0,0.22); border-left: 3px solid rgba(52,211,153,0.8); }
+.prop-tag { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; opacity: .75; }
+.prop-saiu { background: rgba(239,68,68,0.35); color: inherit; text-decoration: line-through; border-radius: 4px; padding: 0 2px; }
+.prop-vazio { opacity: .6; font-style: italic; }
+.prop-entrou { background: rgba(52,211,153,0.38); color: inherit; border-radius: 4px; padding: 0 2px; font-weight: 600; }

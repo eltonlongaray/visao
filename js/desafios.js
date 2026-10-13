@@ -105,7 +105,7 @@ export async function proporMudanca(desafioId, mudancas, resumo) {
 // Propostas do desafio com os votos: [{ ..., votos: [{ user_id, aceito }] }]
 export async function fetchPropostas(desafioId) {
   const { data, error } = await supabase.from('desafio_propostas')
-    .select('id, desafio_id, autor_id, resumo, status, expira_em, created_at, desafio_proposta_votos(user_id, aceito)')
+    .select('id, desafio_id, autor_id, mudancas, resumo, status, expira_em, created_at, desafio_proposta_votos(user_id, aceito)')
     .eq('desafio_id', desafioId);
   if (error) return [];
   return (data || []).map(p => ({ ...p, votos: p.desafio_proposta_votos || [] }));

@@ -326,15 +326,56 @@ const _normCampo = (k, v) => {
   if (typeof v === 'string') return v.trim() || null;
   return v;
 };
-function _textoCampo(k, v) {
+function _textoCampo(k, v, inteiro = false) {
   if (v === null) return '—';
   if (Array.isArray(v)) return v.join(', ');
   if (typeof v === 'boolean') return v ? 'sim' : 'não';
   if (k === 'data_inicio' || k === 'data_fim') return dataCurta(v);
   if (k === 'prova') return textoProva({ prova: v }).replace(/^\S+\s/, '') || v;
   if (k === 'corrida_modo') return v === 'troca' ? 'corrida ou exercícios' : 'obrigatória';
-  const t = String(v).replace(/\s+/g, ' ');
-  return t.length > 60 ? t.slice(0, 57) + '…' : t;
+  const t = String(v).replace(/[ \t]+/g, ' ').trim();
+  return inteiro || t.length <= 60 ? t : t.slice(0, 57) + '…';
+}
+// Compara palavra por palavra: devolve os pedaços do antes e do depois, cada um
+// marcado se saiu/entrou. Texto grande demais vira "tudo mudou" (a conta é n×m).
+function _diffPalavras(a, b) {
+  const A = a.split(/(\s+)/).filter(Boolean), B = b.split(/(\s+)/).filter(Boolean);
+  if (A.length * B.length > 250000) return { antes: [[a, true]], depois: [[b, true]] };
+  const L = Array.from({ length: A.length + 1 }, () => new Uint16Array(B.length + 1));
+  for (let i = A.length - 1; i >= 0; i--)
+    for (let j = B.length - 1; j >= 0; j--)
+      L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const antes = [], depois = [];
+  const poe = (lista, t, mudou) => {
+    const u = lista[lista.length - 1];
+    // espaço entre duas palavras mudadas fica junto do destaque
+    if (u && (u[1] === mudou || (/^\s+$/.test(t) && mudou === false && u[1]))) u[0] += t;
+    else lista.push([t, mudou]);
+  };
+  let i = 0, j = 0;
+  while (i < A.length && j < B.length) {
+    if (A[i] === B[j]) { poe(antes, A[i], false); poe(depois, B[j], false); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) poe(antes, A[i++], true);
+    else poe(depois, B[j++], true);
+  }
+  while (i < A.length) poe(antes, A[i++], true);
+  while (j < B.length) poe(depois, B[j++], true);
+  return { antes, depois };
+}
+// O que a proposta muda, campo por campo, com o antes e o depois inteiros.
+// Cada lado vem em pedaços [texto, mudou] pra tela destacar só o que mudou.
+export function comparacaoProposta(atual, mudancas) {
+  const out = [];
+  for (const k of Object.keys(ROTULO_COLUNA)) {
+    if (!mudancas || !(k in mudancas)) continue;
+    if (k === 'data_fim' && ('data_inicio' in mudancas || 'dias_total' in mudancas)) continue;
+    const a = _textoCampo(k, _normCampo(k, atual?.[k]), true);
+    const n = _textoCampo(k, _normCampo(k, mudancas[k]), true);
+    const texto = (k === 'descricao' || k === 'regras_dono' || k === 'titulo' || k === 'exercicios') && a !== '—' && n !== '—';
+    const d = texto ? _diffPalavras(a, n) : { antes: [[a, true]], depois: [[n, true]] };
+    out.push({ rotulo: ROTULO_COLUNA[k], ...d });
+  }
+  return out;
 }
 export function diffDesafio(atual, patch) {
   const mudancas = {}, resumo = [];
@@ -345,7 +386,7 @@ export function diffDesafio(atual, patch) {
     mudancas[k] = n;
     // data_fim acompanha a data de início/dias: não precisa de linha própria
     if (k === 'data_fim' && ('data_inicio' in mudancas || 'dias_total' in mudancas)) continue;
-    resumo.push(`• ${ROTULO_COLUNA[k]}: ${_textoCampo(k, a)} → ${_textoCampo(k, n)}`);
+    resumo.push(`• ${ROTULO_COLUNA[k]}: ${_textoCampo(k, a, true)} → ${_textoCampo(k, n, true)}`);
   }
   return { mudancas, resumo };
 }
