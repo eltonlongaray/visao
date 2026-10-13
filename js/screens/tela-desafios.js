@@ -67,11 +67,13 @@ export async function renderDesafios(app, embedded = false) {
     }
     markDesafiosSeen(desafios.map(d => d.id));
     lastParts = parts;
+    lastChecks = checks;
     draw(desafios, parts, checks, placar);
     if (!_faxinou) { _faxinou = true; faxinaProvas(); }
   }
   let _faxinou = false;
   let lastParts = [];
+  let lastChecks = [];
 
   function draw(desafios, parts, checks, placar) {
     const today = _today();
@@ -305,8 +307,8 @@ export async function renderDesafios(app, embedded = false) {
     });
     app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.edit);
-      if (d && modoEdicao(d, lastParts) === 'travada') {
-        showToast('O desafio já começou: as regras não mudam mais 🔒', 'info');
+      if (d && modoEdicao(d, lastParts, lastChecks) === 'travada') {
+        showToast('Já mandaram prova no desafio: as regras não mudam mais 🔒', 'info');
         return;
       }
       if (d) openDesafioForm({ desafio: d });
@@ -503,7 +505,7 @@ export async function renderDesafios(app, embedded = false) {
   function openDesafioForm({ molde, desafio, modalidade }) {
     const edit = !!desafio;
     // Com gente no grupo (antes de começar), salvar vira proposta pro grupo aceitar
-    const proposta = edit && modoEdicao(desafio, lastParts) === 'proposta';
+    const proposta = edit && modoEdicao(desafio, lastParts, lastChecks) === 'proposta';
     const emoji = edit ? emojiDoTipo(desafio.tipo) : molde.emoji;
     const tipo = edit ? desafio.tipo : molde.id;
     const mod = edit ? desafio.modalidade : modalidade;
@@ -532,7 +534,7 @@ export async function renderDesafios(app, embedded = false) {
     overlay.innerHTML = `
       <div class="modal">
         <div class="modal-title">${emoji} ${edit ? 'Editar desafio' : _esc(molde.nome)}</div>
-        ${proposta ? `<div class="ds-proposta-aviso">👥 Já tem gente no grupo. O que tu mudar vai como <b>proposta</b> e só vale se <b>todo mundo aceitar</b>. Depois que o desafio começa, as regras não mudam mais.</div>` : ''}
+        ${proposta ? `<div class="ds-proposta-aviso">👥 Já tem gente no grupo. O que tu mudar vai como <b>proposta</b> e só vale se <b>todo mundo aceitar</b>. Depois que alguém manda a primeira prova, as regras não mudam mais.</div>` : ''}
         <label class="input-field"><div class="input-field-label">Título</div>
           <input id="f-titulo" maxlength="120" value="${_esc(edit ? desafio.titulo : molde.titulo)}"
                  placeholder="${largar ? 'Ex.: Parar de fumar, Sem refrigerante' : 'Ex.: Acordar às 5h, Sem açúcar, Dormir às 22h'}" /></label>
