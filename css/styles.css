@@ -2628,6 +2628,9 @@ body.time-picker-open { overflow: hidden; }
 .ds-rec-shot { background: #ef4444; border-color: rgba(255,255,255,0.7); }
 .ds-rec-shot.gravando { border-radius: 14px; transform: scale(0.8); }
 .cam-guia-flip:disabled { opacity: 0.4; }
+.ds-rec-pausa { font-size: 20px; }
+.ds-rec-tempo.pausado { background: rgba(75,85,99,0.95); }
+.ds-rec-tempo.pausado::after { content: ' · pausado'; }
 .ds-rec-revisao {
   position: absolute; inset: 0; z-index: 4; background: #000;
   display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));

@@ -56,6 +56,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         <button type="button" class="cam-guia-btn" data-rec="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot ds-rec-shot" data-rec="go" aria-label="Gravar"></button>
         <button type="button" class="cam-guia-flip" data-rec="flip" aria-label="Virar câmera">🔄</button>
+        <button type="button" class="cam-guia-flip ds-rec-pausa" data-rec="pause" aria-label="Pausar" hidden>⏸</button>
       </div>
       <div class="ds-rec-revisao" hidden>
         <video class="ds-rec-play" playsinline controls></video>
@@ -94,7 +95,8 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const tempo = ov.querySelector('.ds-rec-tempo');
     const shot = ov.querySelector('[data-rec="go"]');
     const flip = ov.querySelector('[data-rec="flip"]');
-    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0;
+    const pausa = ov.querySelector('[data-rec="pause"]');
+    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false;
 
     const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
@@ -149,22 +151,48 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         rev.hidden = false;
       };
       mr.start(500);
-      t0 = performance.now(); durMs = 0;
+      t0 = performance.now(); durMs = 0; acum = 0; pausado = false;
       shot.classList.add('gravando');
       flip.disabled = true;
+      flip.hidden = true;
+      pausa.hidden = false;
+      pausa.textContent = '⏸';
       tempo.hidden = false;
       tempo.querySelector('span').textContent = '0';
       // Conta pelo relógio, não por "tique": com o celular ocupado os tiques
       // atrasam e a gravação passava do limite sem o contador ver
       timer = setInterval(() => {
-        seg = Math.floor((performance.now() - t0) / 1000);
+        seg = Math.floor(_gravado() / 1000);
         tempo.querySelector('span').textContent = String(seg);
         if (seg >= maxSeg) pararGravacao();
       }, 250);
     }
+    // Tempo gravado de verdade: o que ficou em pausa não conta
+    const _gravado = () => acum + (pausado || !t0 ? 0 : performance.now() - t0);
+    function pausarOuContinuar() {
+      if (!mr || mr.state === 'inactive') return;
+      if (!pausado) {
+        acum += performance.now() - t0;
+        pausado = true;
+        try { mr.pause(); } catch { /* sem pausa nesse aparelho */ }
+        pausa.textContent = '▶';
+        pausa.setAttribute('aria-label', 'Continuar');
+        tempo.classList.add('pausado');
+      } else {
+        t0 = performance.now();
+        pausado = false;
+        try { mr.resume(); } catch { /* idem */ }
+        pausa.textContent = '⏸';
+        pausa.setAttribute('aria-label', 'Pausar');
+        tempo.classList.remove('pausado');
+      }
+    }
     function pararGravacao() {
       clearInterval(timer);
-      if (t0 && !durMs) durMs = performance.now() - t0;
+      if (t0 && !durMs) durMs = _gravado();
+      pausa.hidden = true;
+      flip.hidden = false;
+      tempo.classList.remove('pausado');
       shot.classList.remove('gravando');
       tempo.hidden = true;
       if (mr && mr.state !== 'inactive') mr.stop();
@@ -176,8 +204,9 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       const act = b.dataset.rec;
       if (act === 'cancel') return fechar();
       if (act === 'flip') { lado = lado === 'user' ? 'environment' : 'user'; return abrir(); }
+      if (act === 'pause') return pausarOuContinuar();
       if (act === 'go') {
-        if (mr && mr.state === 'recording') { if (seg >= 2) pararGravacao(); return; }
+        if (mr && (mr.state === 'recording' || mr.state === 'paused')) { if (seg >= 2) pararGravacao(); return; }
         return gravar();
       }
       if (act === 'again') {
