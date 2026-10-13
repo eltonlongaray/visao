@@ -203,6 +203,16 @@ if (typeof window !== 'undefined') {
   window.addEventListener('falcon:sala-desafio', (e) => {
     if (document.getElementById('chat-corpo')) abrirSala(e.detail || {});
   });
+  // Vídeos de prova gravados antes da v754 não têm a duração no arquivo: o
+  // player mostra o tempo errado. Truque: pula pro "fim" pra ele medir e volta.
+  document.addEventListener('loadedmetadata', (e) => {
+    const v = e.target;
+    if (!(v instanceof HTMLVideoElement) || !v.closest?.('.msg-prova') || Number.isFinite(v.duration) || v._medindo) return;
+    v._medindo = true;
+    const volta = () => { if (!Number.isFinite(v.duration)) return; v.removeEventListener('durationchange', volta); v.currentTime = 0.1; };
+    v.addEventListener('durationchange', volta);
+    try { v.currentTime = 1e101; } catch { /* sem jeito */ }
+  }, true);
   // Salvou rascunho de prova (pela 📷, pelo card ou pelo Pet): aparece na sala aberta
   window.addEventListener('falcon:rascunho', (e) => {
     if (conversaCom?.desafio && conversaCom.id === e.detail?.desafioId) recarregar();
