@@ -139,12 +139,13 @@ export function aindaNaoComecou(d, hoje = _hojeBR()) {
 }
 // Dá pra mudar a regra? (mesma conta do banco, migration/desafios-propostas.sql)
 //   'livre'    = ninguém além do dono (ou não é de amigos): edita direto
-//   'proposta' = tem gente e ainda não começou: vai pro grupo aceitar
-//   'travada'  = tem gente e já começou: não muda mais
-export function modoEdicao(d, parts) {
+//   'proposta' = tem gente e ninguém mandou prova ainda: vai pro grupo aceitar
+//   'travada'  = alguém já mandou a primeira prova: não muda mais
+export function modoEdicao(d, parts, checks) {
   const temGente = (parts || []).some(p => p.desafio_id === d.id && p.user_id !== d.author_id);
   if (d.modalidade !== 'amigos' || !temGente) return 'livre';
-  return aindaNaoComecou(d) ? 'proposta' : 'travada';
+  const temProva = (checks || []).some(c => c.desafio_id === d.id);
+  return temProva ? 'travada' : 'proposta';
 }
 // Dia N do desafio (1 = primeiro dia). null sem data de início.
 export function diaDoDesafio(d, hoje = _hojeBR()) {

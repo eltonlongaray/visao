@@ -8,9 +8,9 @@
 --     Sem resposta de todos em 48h, ela cai sozinha.
 --   • Aprovada, a mudança entra no desafio na hora e o grupo é avisado.
 --   • Uma proposta aberta por vez em cada desafio.
---   • Mudar só ANTES DE COMEÇAR. Depois que o desafio começou (data de
---     início, ou a criação quando não tem data), com gente dentro, a regra
---     trava de vez: nem proposta.
+--   • Mudar só ATÉ A PRIMEIRA PROVA. Depois que alguém mandou a primeira
+--     prova (vídeo/check-in), com gente dentro, a regra trava de vez: nem
+--     proposta. (Élton, 13/10: antes travava na data de início.)
 --
 -- Rodar no Supabase → SQL Editor. Depende de desafios-sala.sql e
 -- desafios-corrida-semana.sql. Pode rodar de novo sem problema.
@@ -93,14 +93,11 @@ set search_path = public as $$
                  where p.desafio_id = d_id and p.user_id <> d.author_id);
 $$;
 
--- Primeiro dia do desafio (data de início, ou o dia em que foi criado)
-create or replace function public.desafio_primeiro_dia(d public.desafios)
-returns date language sql stable as $$
-  select coalesce(d.data_inicio, (d.created_at at time zone 'America/Sao_Paulo')::date);
-$$;
-create or replace function public.desafio_comecou(d public.desafios)
-returns boolean language sql stable as $$
-  select public.desafio_primeiro_dia(d) <= (now() at time zone 'America/Sao_Paulo')::date;
+-- Já mandaram prova no desafio? (a partir daí a regra trava)
+create or replace function public.desafio_tem_prova(d_id uuid)
+returns boolean language sql security definer stable
+set search_path = public as $$
+  select exists (select 1 from public.desafio_checkins c where c.desafio_id = d_id);
 $$;
 
 -- ─── BLOCO 4: NOVA PROPOSTA ────────────────────────────────────
@@ -113,11 +110,9 @@ set search_path = public
 as $$
 declare
   k text;
-  d public.desafios;
 begin
-  select * into d from public.desafios where id = new.desafio_id;
-  if public.desafio_comecou(d) then
-    raise exception 'O desafio já começou: as regras não mudam mais';
+  if public.desafio_tem_prova(new.desafio_id) then
+    raise exception 'Já mandaram prova no desafio: as regras não mudam mais';
   end if;
   -- Só colunas da regra
   for k in select jsonb_object_keys(new.mudancas) loop
@@ -128,9 +123,7 @@ begin
   if new.mudancas = '{}'::jsonb then raise exception 'Nada mudou'; end if;
 
   new.status := 'aberta';
-  -- 48h, ou até o desafio começar (o que vier antes)
-  new.expira_em := least(now() + interval '48 hours',
-                         public.desafio_primeiro_dia(d)::timestamp at time zone 'America/Sao_Paulo');
+  new.expira_em := now() + interval '48 hours';
   new.decidida_em := null;
   new.created_at := now();
 
@@ -235,8 +228,8 @@ begin
   if pr.status <> 'aberta' or pr.expira_em <= now() then
     raise exception 'Essa proposta já foi encerrada';
   end if;
-  if public.desafio_comecou((select d from public.desafios d where d.id = pr.desafio_id)) then
-    raise exception 'O desafio já começou: as regras não mudam mais';
+  if public.desafio_tem_prova(pr.desafio_id) then
+    raise exception 'Já mandaram prova no desafio: as regras não mudam mais';
   end if;
   select coalesce(nullif(btrim(p.nome), ''), 'Falcão') into nome
     from public.desafio_participantes p where p.desafio_id = pr.desafio_id and p.user_id = new.user_id limit 1;
@@ -288,7 +281,7 @@ grant execute on function public.desafio_proposta_cancelar(uuid) to authenticate
 
 -- ─── BLOCO 7: NINGUÉM MUDA A REGRA POR FORA ────────────────────
 -- Desafio de amigos com gente dentro: mudar coluna da regra só pela proposta,
--- e só antes de começar.
+-- e só até a primeira prova.
 create or replace function public.desafio_regra_trancada()
 returns trigger
 language plpgsql
@@ -306,8 +299,8 @@ begin
     if (to_jsonb(new) -> k) is distinct from (to_jsonb(old) -> k) then mudou := true; end if;
   end loop;
   if not mudou then return new; end if;
-  if public.desafio_comecou(old) then
-    raise exception 'O desafio já começou: as regras não mudam mais';
+  if public.desafio_tem_prova(old.id) then
+    raise exception 'Já mandaram prova no desafio: as regras não mudam mais';
   end if;
   if coalesce(current_setting('falcon.proposta', true), 'off') <> 'on' then
     raise exception 'Já tem gente no desafio: a mudança vai pro grupo aprovar';
@@ -349,5 +342,9 @@ begin
   new.editada_em := now();
   return new;
 end $$;
+
+-- Versão antiga travava pela data de início (não usa mais)
+drop function if exists public.desafio_comecou(public.desafios);
+drop function if exists public.desafio_primeiro_dia(public.desafios);
 
 notify pgrst, 'reload schema';
