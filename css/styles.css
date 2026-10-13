@@ -8372,3 +8372,22 @@ body.rota-publica .bottom-nav { display: none !important; }
 .prop-saiu { background: rgba(239,68,68,0.35); color: inherit; text-decoration: line-through; border-radius: 4px; padding: 0 2px; }
 .prop-vazio { opacity: .6; font-style: italic; }
 .prop-entrou { background: rgba(52,211,153,0.38); color: inherit; border-radius: 4px; padding: 0 2px; font-weight: 600; }
+
+/* ── Links no chat (js/chat-links.js): clicável + prévia estilo WhatsApp ── */
+.msg-link { color: #93c5fd; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
+.link-prev {
+  display: flex; flex-direction: column; margin: 6px 0 2px; border-radius: 10px; overflow: hidden;
+  background: rgba(0,0,0,0.25); color: inherit; text-decoration: none; max-width: 300px;
+}
+.link-prev[hidden] { display: none; }
+.lp-img { position: relative; display: block; aspect-ratio: 16 / 9; background: #000; }
+.lp-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lp-video::after {
+  content: '▶'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 52px; height: 52px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff;
+  display: grid; place-items: center; font-size: 22px; padding-left: 4px; box-sizing: border-box;
+}
+.lp-txt { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 9px; }
+.lp-tit { font-weight: 700; font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lp-desc { font-size: 12.5px; opacity: .8; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lp-site { font-size: 12px; opacity: .7; }

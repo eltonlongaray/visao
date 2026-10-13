@@ -29,6 +29,7 @@ import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
+import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
 import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta } from '../desafios-moldes.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
@@ -381,7 +382,7 @@ function linhaDiscord(m, anterior, minha) {
     <div class="dc-msg ${agrupa ? 'dc-cont' : ''}" data-id="${m.id}"
       data-editavel="${minha ? 1 : 0}" data-apagavel="${minha || souAdmin ? 1 : 0}">
       ${agrupa ? '<div class="dc-av"></div>' : avatar(m.autor_id, nome, 'dc-av')}
-      <div class="dc-body">${cabecalho}${blocoFoto(m)}${blocoArquivo(m, minha)}${m.texto ? `<div class="dc-txt">${esc(m.texto)}</div>` : ''}</div>
+      <div class="dc-body">${cabecalho}${blocoFoto(m)}${blocoArquivo(m, minha)}${m.texto ? `<div class="dc-txt">${linkificar(m.texto)}</div>${blocoPrevia(m.texto)}` : ''}</div>
     </div>`;
 }
 
@@ -1797,6 +1798,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false, fai
     const noFim = listaEl.scrollHeight - listaEl.scrollTop - listaEl.clientHeight < 60;
     listaEl.innerHTML = lista;
     montarPlayersAudio(listaEl);
+    hidratarPrevias(listaEl);
     if (noFim) listaEl.scrollTop = listaEl.scrollHeight;
     return;
   }
@@ -1861,7 +1863,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false, fai
   atualizarBotaoEnvio();
 
   const l = corpo.querySelector('#chat-lista');
-  if (l) { l._html = lista; l.scrollTop = l.scrollHeight; montarPlayersAudio(l); }
+  if (l) { l._html = lista; l.scrollTop = l.scrollHeight; montarPlayersAudio(l); hidratarPrevias(l); }
   if (cabecalho) ajustarConversaAoTeclado();   // o teclado pode já estar aberto
   // O botão de enviar mudou de lugar; o pet precisa se reposicionar.
   pintarRespondendo();
@@ -1960,7 +1962,7 @@ function balao(m, minha, mostrarAutor) {
           ${blocoFoto(m)}
           ${blocoProva(m)}
           ${blocoArquivo(m, minha)}
-          ${m.texto && !comparaProposta(m) ? `<span class="wa-txt">${esc(m.texto)}</span>` : comparaProposta(m)}
+          ${m.texto && !comparaProposta(m) ? `<span class="wa-txt">${linkificar(m.texto)}</span>${blocoPrevia(m.texto)}` : comparaProposta(m)}
           ${blocoProposta(m)}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
         </div>
