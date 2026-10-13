@@ -30,7 +30,7 @@ import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
 import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
-import { emojiDoTipo } from '../desafios-moldes.js';
+import { emojiDoTipo, comparacaoProposta } from '../desafios-moldes.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala } from '../desafios-sala.js';
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
@@ -567,6 +567,35 @@ function blocoProva(m) {
 
 // Proposta de mudança nas regras (desafios-propostas.sql): o placar e os
 // botões ✅ Aceito / ❌ Não aceito. Só passa se todo mundo aceitar.
+// Proposta aberta: mostra cada campo com o antes e o depois inteiros, o que
+// saiu riscado em vermelho e o que entrou em verde. Enquanto está aberta a
+// regra do desafio ainda é a de antes (só muda se todo mundo aceitar), então
+// o "antes" sai do desafio. Fechada, fica o texto gravado na mensagem.
+function comparaProposta(m) {
+  if (!m.proposta_id || !sala) return '';
+  const p = propostas.get(m.proposta_id);
+  if (!p || p.status !== 'aberta' || !p.mudancas) return '';
+  const linhas = comparacaoProposta(sala.d, p.mudancas);
+  if (!linhas.length) return '';
+  const lado = (pedacos, cls) => {
+    if (pedacos.length === 1 && pedacos[0][0] === '—') return '<span class="prop-vazio">(nada)</span>';
+    // o espaço depois da palavra fica fora do destaque
+    return pedacos.map(([t, mudou]) => {
+      if (!mudou) return esc(t);
+      const sp = t.match(/\s*$/)[0];
+      return `<mark class="${cls}">${esc(t.slice(0, t.length - sp.length))}</mark>${sp}`;
+    }).join('');
+  };
+  return `<div class="prop-cmp">
+    <div class="prop-cmp-tit">📝 Proposta de mudança nas regras</div>
+    ${linhas.map(l => `<div class="prop-campo">
+      <div class="prop-rotulo">${esc(l.rotulo)}</div>
+      <div class="prop-lado prop-antes"><span class="prop-tag">Antes</span>${lado(l.antes, 'prop-saiu')}</div>
+      <div class="prop-lado prop-depois"><span class="prop-tag">Agora</span>${lado(l.depois, 'prop-entrou')}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
 function blocoProposta(m) {
   if (!m.proposta_id || !sala) return '';
   const p = propostas.get(m.proposta_id);
@@ -1870,7 +1899,7 @@ function balao(m, minha, mostrarAutor) {
           ${blocoFoto(m)}
           ${blocoProva(m)}
           ${blocoArquivo(m, minha)}
-          ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
+          ${m.texto && !comparaProposta(m) ? `<span class="wa-txt">${esc(m.texto)}</span>` : comparaProposta(m)}
           ${blocoProposta(m)}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
         </div>
