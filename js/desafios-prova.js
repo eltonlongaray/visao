@@ -11,6 +11,7 @@ import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { salvarRascunho } from './desafios-rascunho.js';
+import './vendor/fix-webm-duration.js';   // window.ysFixWebmDuration
 import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -93,7 +94,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const tempo = ov.querySelector('.ds-rec-tempo');
     const shot = ov.querySelector('[data-rec="go"]');
     const flip = ov.querySelector('[data-rec="flip"]');
-    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null;
+    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0;
 
     const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
@@ -132,28 +133,38 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         : stream;
       mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 900000 });
       mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
-      mr.onstop = () => {
+      mr.onstop = async () => {
         if (fechado) return;
         blob = new Blob(pedacos, { type: (mr.mimeType || mime || 'video/webm').split(';')[0] });
         parar();
+        // O Chrome grava o WebM sem a duração: o player chutava o tempo e a barra
+        // andava fora do compasso. Escreve a duração real medida no relógio.
+        if (/webm/.test(blob.type) && window.ysFixWebmDuration) {
+          try { blob = await window.ysFixWebmDuration(blob, durMs, { logger: false }); } catch { /* fica como está */ }
+        }
+        if (fechado) return;
         const rev = ov.querySelector('.ds-rec-revisao');
         const play = rev.querySelector('video');
         play.src = URL.createObjectURL(blob);
         rev.hidden = false;
       };
       mr.start(500);
+      t0 = performance.now(); durMs = 0;
       shot.classList.add('gravando');
       flip.disabled = true;
       tempo.hidden = false;
       tempo.querySelector('span').textContent = '0';
+      // Conta pelo relógio, não por "tique": com o celular ocupado os tiques
+      // atrasam e a gravação passava do limite sem o contador ver
       timer = setInterval(() => {
-        seg++;
+        seg = Math.floor((performance.now() - t0) / 1000);
         tempo.querySelector('span').textContent = String(seg);
         if (seg >= maxSeg) pararGravacao();
-      }, 1000);
+      }, 250);
     }
     function pararGravacao() {
       clearInterval(timer);
+      if (t0 && !durMs) durMs = performance.now() - t0;
       shot.classList.remove('gravando');
       tempo.hidden = true;
       if (mr && mr.state !== 'inactive') mr.stop();
