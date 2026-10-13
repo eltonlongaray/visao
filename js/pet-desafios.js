@@ -97,6 +97,11 @@ export function lerDesafio(texto) {
   const grupo = grupoDaFrase(texto);
   if (grupo) return { ...grupo, molde: moldeDaFrase(grupo.pedido.replace(/\b(desafios?|grupo)\b/g, ' ')), nome: nomeCitado(grupo.pedido) };
   if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
+  // Proposta de mudança nas regras: "aceito a mudança", "não aceito a proposta", "tem proposta?"
+  if (/\b(proposta|mudanca|mudancas)\b/.test(t) && /\b(aceit\w*|concord\w*|recus\w*|topo|voto|votar|responder)\b/.test(t)) {
+    return { acao: 'proposta', aceito: /\b(nao (aceit|concord|topo)\w*|recus\w*)/.test(t) ? false : /\b(aceit\w*|concord\w*|topo)\b/.test(t) && !/\b(responder|votar)\b/.test(t) ? true : null };
+  }
+  if (/\b(proposta|propostas)\b/.test(t) && /\b(regra|regras|desafio|grupo|mudanca)\b/.test(t)) return { acao: 'proposta', aceito: null };
   // Esteira e corrida no meio: "foto do painel", "continua a corrida", "terminei na esteira"
   if (/\b(painel|esteira)\b/.test(t) && /\b(foto|terminei|acabei|parei|fim|depois)\b/.test(t)) return { acao: 'print' };
   if (/\b(continu\w*|segue|seguir)\b.*\bcorrida\b/.test(t)) return { acao: 'print' };

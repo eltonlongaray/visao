@@ -71,8 +71,13 @@ export async function createDesafio({ titulo, descricao, dias, meta, unidade, op
   if (error) throw new Error(error.message || 'Não foi possível publicar');
   return data?.id;
 }
-export async function updateDesafio(id, { titulo, descricao, dias, meta, unidade, opcoes, tipo,
-                                          prenda, dataInicio, dataFim, ...extras }) {
+export async function updateDesafio(id, campos) {
+  const { error } = await supabase.from('desafios').update(patchDesafio(campos)).eq('id', id);
+  if (error) throw new Error(error.message || 'Não foi possível editar');
+}
+// Os campos do formulário em colunas do banco (edição e proposta usam o mesmo)
+export function patchDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
+                               prenda, dataInicio, dataFim, ...extras }) {
   const patch = {
     ..._extrasDesafio(extras),
     titulo, descricao,
@@ -85,8 +90,33 @@ export async function updateDesafio(id, { titulo, descricao, dias, meta, unidade
     data_fim: dataFim || null,
   };
   if (tipo !== undefined) patch.tipo = tipo || null;
-  const { error } = await supabase.from('desafios').update(patch).eq('id', id);
-  if (error) throw new Error(error.message || 'Não foi possível editar');
+  return patch;
+}
+
+// ── Mudar a regra com gente dentro: proposta pro grupo aceitar ──
+// (migration/desafios-propostas.sql). Só vale com o aceite de todos.
+export async function proporMudanca(desafioId, mudancas, resumo) {
+  const { error } = await supabase.from('desafio_propostas').insert({ desafio_id: desafioId, mudancas, resumo });
+  if (error) {
+    if (/uma_aberta|duplicate/i.test(error.message || '')) throw new Error('Já tem uma proposta esperando o grupo responder.');
+    throw new Error(error.message || 'Não deu pra mandar a proposta');
+  }
+}
+// Propostas do desafio com os votos: [{ ..., votos: [{ user_id, aceito }] }]
+export async function fetchPropostas(desafioId) {
+  const { data, error } = await supabase.from('desafio_propostas')
+    .select('id, desafio_id, autor_id, resumo, status, expira_em, created_at, desafio_proposta_votos(user_id, aceito)')
+    .eq('desafio_id', desafioId);
+  if (error) return [];
+  return (data || []).map(p => ({ ...p, votos: p.desafio_proposta_votos || [] }));
+}
+export async function votarProposta(propostaId, aceito) {
+  const { error } = await supabase.from('desafio_proposta_votos').insert({ proposta_id: propostaId, aceito: !!aceito });
+  if (error) throw new Error(/duplicate/i.test(error.message || '') ? 'Tu já respondeu essa proposta.' : (error.message || 'Não deu pra responder'));
+}
+export async function cancelarProposta(propostaId) {
+  const { error } = await supabase.rpc('desafio_proposta_cancelar', { p_id: propostaId });
+  if (error) throw new Error(error.message || 'Não deu pra cancelar');
 }
 
 // Entra num desafio de amigos pelo código (RPC SECURITY DEFINER no banco —

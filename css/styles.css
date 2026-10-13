@@ -8338,3 +8338,17 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .ds-conv-item input { width: 18px; height: 18px; accent-color: #f59e0b; flex: 0 0 auto; }
 .ds-conv-modal .ds-codigo-grande { text-align: center; text-indent: 6px; /* compensa o letter-spacing do último caractere */ }
+
+/* ── Proposta de mudança nas regras (sala do desafio) ── */
+.ds-proposta-aviso { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.35); font-size: 13px; line-height: 1.45; }
+.msg-proposta { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 8px; }
+.prop-status { font-size: 13px; font-weight: 600; }
+.prop-aberta { color: #fbbf24; }
+.prop-aprovada { color: #34d399; }
+.prop-recusada, .prop-expirada, .prop-cancelada { color: var(--muted); }
+.prop-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.prop-btn { flex: 1 1 0; min-width: 0; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.prop-sim { border-color: rgba(52,211,153,0.55); background: rgba(52,211,153,0.14); }
+.prop-nao { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.10); }
+.prop-cancelar { flex: 0 0 auto; font-weight: 600; font-size: 13px; }
+.prop-meu { font-size: 13px; color: var(--muted); }

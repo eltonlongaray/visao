@@ -137,6 +137,15 @@ export function aindaNaoComecou(d, hoje = _hojeBR()) {
   const ini = String(d?.data_inicio || '').slice(0, 10);
   return !!ini && hoje < ini;
 }
+// Dá pra mudar a regra? (mesma conta do banco, migration/desafios-propostas.sql)
+//   'livre'    = ninguém além do dono (ou não é de amigos): edita direto
+//   'proposta' = tem gente e ainda não começou: vai pro grupo aceitar
+//   'travada'  = tem gente e já começou: não muda mais
+export function modoEdicao(d, parts) {
+  const temGente = (parts || []).some(p => p.desafio_id === d.id && p.user_id !== d.author_id);
+  if (d.modalidade !== 'amigos' || !temGente) return 'livre';
+  return aindaNaoComecou(d) ? 'proposta' : 'travada';
+}
 // Dia N do desafio (1 = primeiro dia). null sem data de início.
 export function diaDoDesafio(d, hoje = _hojeBR()) {
   const ini = String(d?.data_inicio || '').slice(0, 10);
@@ -295,4 +304,47 @@ export function diaAnterior(dia) {
   const [y, m, d] = dia.split('-').map(Number);
   const x = new Date(Date.UTC(y, m - 1, d - 1));
   return x.toISOString().slice(0, 10);
+}
+
+// ── Proposta de mudança: o que mudou, em palavras ────────────
+// atual = desafio como está; patch = colunas do formulário (patchDesafio).
+// Devolve { mudancas: {coluna: novo}, resumo: ['Prenda: X → Y', …] }.
+const ROTULO_COLUNA = {
+  titulo: 'Título', descricao: 'Descrição', dias_total: 'Dias', meta_diaria: 'Meta por dia',
+  unidade: 'Unidade', prova_opcoes: 'Botões de somar', prenda: 'Prenda', data_inicio: 'Começa',
+  data_fim: 'Termina', prova: 'Prova', exercicios: 'Exercícios', max_por_dia: 'Exercícios por dia',
+  nao_repetir: 'Não repetir o de ontem', regras_dono: 'Regras do dono', hora_limite: 'Prova do dia só até',
+  corridas_semana: 'Corridas por semana', km_corrida: 'Km por corrida', corrida_modo: 'Como a corrida entra',
+  tipo: 'Tipo',
+};
+const _normCampo = (k, v) => {
+  if (v === undefined || v === '' || (Array.isArray(v) && !v.length)) return null;
+  if (k === 'hora_limite' && v) return String(v).slice(0, 5);
+  if (k === 'corrida_modo' && v === 'obrigatoria') return null;   // sem modo = obrigatória
+  if (k === 'data_inicio' || k === 'data_fim') return v ? String(v).slice(0, 10) : null;
+  if (typeof v === 'string') return v.trim() || null;
+  return v;
+};
+function _textoCampo(k, v) {
+  if (v === null) return '—';
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'boolean') return v ? 'sim' : 'não';
+  if (k === 'data_inicio' || k === 'data_fim') return dataCurta(v);
+  if (k === 'prova') return textoProva({ prova: v }).replace(/^\S+\s/, '') || v;
+  if (k === 'corrida_modo') return v === 'troca' ? 'corrida ou exercícios' : 'obrigatória';
+  const t = String(v).replace(/\s+/g, ' ');
+  return t.length > 60 ? t.slice(0, 57) + '…' : t;
+}
+export function diffDesafio(atual, patch) {
+  const mudancas = {}, resumo = [];
+  for (const k of Object.keys(ROTULO_COLUNA)) {
+    if (!(k in patch)) continue;
+    const a = _normCampo(k, atual?.[k]), n = _normCampo(k, patch[k]);
+    if (JSON.stringify(a) === JSON.stringify(n)) continue;
+    mudancas[k] = n;
+    // data_fim acompanha a data de início/dias: não precisa de linha própria
+    if (k === 'data_fim' && ('data_inicio' in mudancas || 'dias_total' in mudancas)) continue;
+    resumo.push(`• ${ROTULO_COLUNA[k]}: ${_textoCampo(k, a)} → ${_textoCampo(k, n)}`);
+  }
+  return { mudancas, resumo };
 }

@@ -7,11 +7,11 @@
 import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo,
-  createDesafio, updateDesafio, deleteDesafio,
+  createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
   parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
-         regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
+         regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
@@ -305,6 +305,10 @@ export async function renderDesafios(app, embedded = false) {
     });
     app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.edit);
+      if (d && modoEdicao(d, lastParts) === 'travada') {
+        showToast('O desafio já começou: as regras não mudam mais 🔒', 'info');
+        return;
+      }
       if (d) openDesafioForm({ desafio: d });
     });
     app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
@@ -498,6 +502,8 @@ export async function renderDesafios(app, embedded = false) {
   // ── Admin: formulário (novo a partir de molde, ou edição) ──
   function openDesafioForm({ molde, desafio, modalidade }) {
     const edit = !!desafio;
+    // Com gente no grupo (antes de começar), salvar vira proposta pro grupo aceitar
+    const proposta = edit && modoEdicao(desafio, lastParts) === 'proposta';
     const emoji = edit ? emojiDoTipo(desafio.tipo) : molde.emoji;
     const tipo = edit ? desafio.tipo : molde.id;
     const mod = edit ? desafio.modalidade : modalidade;
@@ -514,7 +520,8 @@ export async function renderDesafios(app, embedded = false) {
     const naoRepAtual = edit ? desafio.nao_repetir !== false : molde.naoRepetir !== false;
     const corrSemAtual = Math.min(2, (edit && desafio.corridas_semana) || 1);
     const modoAtual = edit && desafio.corrida_modo === 'troca' ? 'troca' : 'obrigatoria';
-    const kmAtual = Math.min(MAX_KM_CORRIDA, (edit && Number(desafio.km_corrida)) || 3);
+    // Desafio antigo sem km: nenhum chip marcado (não inventa uma mudança)
+    const kmAtual = edit ? (Number(desafio.km_corrida) ? Math.min(MAX_KM_CORRIDA, Number(desafio.km_corrida)) : '') : 3;
     const regrasAtual = edit ? (desafio.regras_dono || '') : '';
     const largar = tipo === 'largar';
     const horaAtual = edit ? horaLimite(desafio) : (molde.horaLimite || '');
@@ -525,6 +532,7 @@ export async function renderDesafios(app, embedded = false) {
     overlay.innerHTML = `
       <div class="modal">
         <div class="modal-title">${emoji} ${edit ? 'Editar desafio' : _esc(molde.nome)}</div>
+        ${proposta ? `<div class="ds-proposta-aviso">👥 Já tem gente no grupo. O que tu mudar vai como <b>proposta</b> e só vale se <b>todo mundo aceitar</b>. Depois que o desafio começa, as regras não mudam mais.</div>` : ''}
         <label class="input-field"><div class="input-field-label">Título</div>
           <input id="f-titulo" maxlength="120" value="${_esc(edit ? desafio.titulo : molde.titulo)}"
                  placeholder="${largar ? 'Ex.: Parar de fumar, Sem refrigerante' : 'Ex.: Acordar às 5h, Sem açúcar, Dormir às 22h'}" /></label>
@@ -616,7 +624,7 @@ export async function renderDesafios(app, embedded = false) {
         <div class="ds-prenda-aviso">Combine antes de abrir: quem entra já aceita. Leve e do bem — nunca constrangedora.</div>`}
 
         <div class="modal-actions" style="flex-direction:column;gap:8px">
-          <button class="btn-primary" id="f-save" style="width:100%">${edit ? 'Salvar alterações' : 'Publicar desafio'}</button>
+          <button class="btn-primary" id="f-save" style="width:100%">${proposta ? 'Mandar proposta pro grupo' : edit ? 'Salvar alterações' : 'Publicar desafio'}</button>
           <button class="btn-secondary" id="f-cancel" style="width:100%">Cancelar</button>
         </div>
       </div>`;
@@ -742,7 +750,7 @@ export async function renderDesafios(app, embedded = false) {
         // Troca opcional: 1 vez por semana
         corridasSemana = exercicios.includes('Corrida')
           ? (corridaModo === 'troca' ? 1 : Math.min(2, parseInt(overlay.querySelector('#f-corr-sem').value, 10) || 1)) : null;
-        kmCorrida = exercicios.includes('Corrida') ? Math.min(MAX_KM_CORRIDA, parseInt(overlay.querySelector('#f-km').value, 10) || 3) : null;
+        kmCorrida = exercicios.includes('Corrida') ? (Math.min(MAX_KM_CORRIDA, parseInt(overlay.querySelector('#f-km').value, 10)) || null) : null;
         if (!exercicios.length) { showToast('Coloque pelo menos um exercício', 'error'); return; }
         const aviso = atualizarAviso();
         if (aviso) { showToast(aviso, 'error'); return; }
@@ -759,9 +767,20 @@ export async function renderDesafios(app, embedded = false) {
       const prenda = sel ? (sel.value === '__outra' ? txt.value.trim() : sel.value) : null;
       if (!titulo || !descricao) { showToast('Preencha título e descrição', 'error'); return; }
       const btn = overlay.querySelector('#f-save');
-      btn.disabled = true; btn.textContent = edit ? 'Salvando…' : 'Publicando…';
+      btn.disabled = true; btn.textContent = proposta ? 'Enviando…' : edit ? 'Salvando…' : 'Publicando…';
       try {
-        if (edit) {
+        if (proposta) {
+          const { mudancas, resumo } = diffDesafio(desafio, patchDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo, prenda, dataInicio, dataFim, ...extras }));
+          if (!Object.keys(mudancas).length) {
+            showToast('Nada mudou 🙂', 'info');
+            btn.disabled = false; btn.textContent = 'Mandar proposta pro grupo';
+            return;
+          }
+          await proporMudanca(desafio.id, mudancas, resumo);
+          close();
+          showToast('📝 Proposta enviada pro grupo. Só muda se todo mundo aceitar.', 'success');
+          await refresh();
+        } else if (edit) {
           await updateDesafio(desafio.id, { titulo, descricao, dias, meta, unidade, opcoes, tipo, prenda, dataInicio, dataFim, ...extras });
           close();
           showToast('✅ Desafio atualizado', 'success');
@@ -783,7 +802,7 @@ export async function renderDesafios(app, embedded = false) {
         }
       } catch (e) {
         showToast(e.message || 'Erro', 'error');
-        btn.disabled = false; btn.textContent = edit ? 'Salvar alterações' : 'Publicar desafio';
+        btn.disabled = false; btn.textContent = proposta ? 'Mandar proposta pro grupo' : edit ? 'Salvar alterações' : 'Publicar desafio';
       }
     };
   }

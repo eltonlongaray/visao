@@ -45,13 +45,13 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261011a';
+import * as PN from './pet-nuvem.js?v=20261012e';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
-import * as PDF from './pet-desafios.js?v=20261012d';
+import * as PDF from './pet-desafios.js?v=20261012e';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -4733,6 +4733,7 @@ async function tentarDesafios(text) {
 
   switch (p.acao) {
     case 'criar': return desafioCriar(p, c);
+    case 'proposta': return desafioProposta(p, c);
     case 'print': {
       const P = await import('./desafios-prova.js');
       const pend = c.desafios.find(d => P.corridaPendente(d.id));
@@ -5086,6 +5087,40 @@ function desafioCheckinExercicio(d, p, c) {
   }
   if (!livres.length) return `Hoje não sobrou exercício liberado no <b>${nome}</b>.`;
   addChoices(`Qual exercício tu fez no <b>${nome}</b>? (${feitos}/${lim} hoje)`, livres.map(x => ({ label: `${x.nome === 'Corrida' ? '🏃' : '🏋️'} ${x.nome}`, action: () => fazer(x.nome) })));
+  return null;
+}
+
+// Proposta de mudança nas regras (desafios-propostas.sql): o Pet mostra o que
+// muda e responde por quem pediu. Só passa se todo mundo do grupo aceitar.
+async function desafioProposta(p, c) {
+  const abertas = [];
+  for (const d of c.desafios.filter(x => c.sou(x) && x.modalidade === 'amigos')) {
+    const props = await c.D.fetchPropostas(d.id);
+    props.filter(x => x.status === 'aberta' && new Date(x.expira_em) > new Date() && x.autor_id !== c.uid
+                   && !x.votos.some(v => v.user_id === c.uid))
+      .forEach(x => abertas.push({ d, x }));
+  }
+  if (!abertas.length) return 'Não tem proposta de mudança esperando tua resposta 👍';
+  const votar = async ({ d, x }, aceito) => {
+    try { await c.D.votarProposta(x.id, aceito); }
+    catch (e) { return `Não deu: ${_esc(e.message || 'erro')}`; }
+    _redesenharDesafios();
+    return aceito ? `✅ Respondi que tu aceita a mudança no <b>${_esc(d.titulo)}</b>. Ela só vale quando todo mundo aceitar.`
+      : `❌ Respondi que tu não aceita. A proposta caiu e as regras do <b>${_esc(d.titulo)}</b> continuam as mesmas.`;
+  };
+  const mostrar = (item) => {
+    const txt = `📝 Proposta de mudança no <b>${_esc(item.d.titulo)}</b>:<br>${(item.x.resumo || []).map(_esc).join('<br>')}`;
+    if (p.aceito === true) return votar(item, true);
+    addChoices(p.aceito === false ? `${txt}<br><br>Basta um "não" pra proposta cair. Confirma?` : txt, [
+      ...(p.aceito === false ? [] : [{ label: '✅ Aceito', action: () => votar(item, true) }]),
+      { label: '❌ Não aceito', action: () => votar(item, false) },
+    ]);
+    return null;
+  };
+  if (abertas.length === 1) return mostrar(abertas[0]);
+  addChoices('Tem mais de uma proposta esperando. Qual?', abertas.slice(0, 6).map(a => ({
+    label: `${c.M.emojiDoTipo(a.d.tipo)} ${a.d.titulo}`, action: () => mostrar(a),
+  })));
   return null;
 }
 

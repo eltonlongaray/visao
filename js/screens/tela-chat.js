@@ -29,7 +29,7 @@ import { getProfile } from '../banco-dados.js';
 import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
-import { assinarProvas } from '../desafios.js';
+import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo } from '../desafios-moldes.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala } from '../desafios-sala.js';
 
@@ -39,6 +39,7 @@ export function setAbaChat(a) { aba = a; }
 let conversaCom = null;   // { id, nome } quando aberta; { id, nome, desafio: true } = sala do desafio
 let sala = null;          // { d, parts, checks } da sala do desafio aberta (desafios-sala.js)
 let provaUrls = new Map(); // caminho do vídeo/print da prova -> URL assinada (1h)
+let propostas = new Map(); // id -> proposta de mudança da sala aberta (com os votos)
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
 let editando = null;      // id da mensagem em edição
@@ -492,8 +493,9 @@ async function desenharSalaDesafio(corpo) {
   const id = conversaCom.id;
   let msgs = [];
   try {
-    const [m, s] = await Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id)]);
+    const [m, s, props] = await Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id), fetchPropostas(id)]);
     msgs = m;
+    propostas = new Map(props.map(p => [p.id, p]));
     if (!s) {   // saiu ou o desafio foi apagado
       showToast('Esse desafio não está mais disponível.', 'info');
       if (conversaCom?.id === id) history.back();
@@ -561,6 +563,49 @@ function blocoProva(m) {
     ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata"></video>` : ''}
     ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
   </div>`;
+}
+
+// Proposta de mudança nas regras (desafios-propostas.sql): o placar e os
+// botões ✅ Aceito / ❌ Não aceito. Só passa se todo mundo aceitar.
+function blocoProposta(m) {
+  if (!m.proposta_id || !sala) return '';
+  const p = propostas.get(m.proposta_id);
+  if (!p) return '';
+  const meu = auth.currentUser?.uid;
+  const status = p.status === 'aberta' && new Date(p.expira_em) <= new Date() ? 'expirada' : p.status;
+  const precisam = sala.parts.filter(x => x.user_id !== p.autor_id);
+  const aceitos = p.votos.filter(v => v.aceito).length;
+  const meuVoto = p.votos.find(v => v.user_id === meu);
+  const ate = new Date(p.expira_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const linha = {
+    aberta: `⏳ ${aceitos} de ${precisam.length} aceitaram · vale até ${ate}`,
+    aprovada: '✅ Aprovada: todo mundo aceitou',
+    recusada: '❌ Não passou',
+    expirada: '⌛ Venceu sem a resposta de todos',
+    cancelada: '↩️ Cancelada pelo dono',
+  }[status] || '';
+  let acoes = '';
+  if (status === 'aberta') {
+    if (p.autor_id === meu) acoes = `<button type="button" class="prop-btn prop-cancelar" data-prop-cancelar="${p.id}">Cancelar proposta</button>`;
+    else if (meuVoto) acoes = `<div class="prop-meu">Tu respondeu: ${meuVoto.aceito ? '✅ Aceito' : '❌ Não aceito'}</div>`;
+    else if (sala.parts.some(x => x.user_id === meu)) acoes = `
+      <button type="button" class="prop-btn prop-sim" data-prop-voto="${p.id}" data-aceito="1">✅ Aceito</button>
+      <button type="button" class="prop-btn prop-nao" data-prop-voto="${p.id}" data-aceito="0">❌ Não aceito</button>`;
+  }
+  return `<div class="msg-proposta"><div class="prop-status prop-${status}">${esc(linha)}</div>${acoes ? `<div class="prop-acoes">${acoes}</div>` : ''}</div>`;
+}
+
+async function responderProposta(id, aceito) {
+  if (!aceito) {
+    const ok = await confirmModal({ title: 'Não aceitar a mudança?', message: 'Basta um "não" pra proposta cair e as regras continuarem como estão.', confirmText: 'Não aceito', cancelText: 'Voltar' });
+    if (!ok) return;
+  }
+  try {
+    await votarProposta(id, aceito);
+    showToast(aceito ? '✅ Resposta enviada' : '❌ Tu não aceitou: as regras continuam as mesmas', aceito ? 'success' : 'info');
+  } catch (e) { showToast(e.message || 'Erro', 'error'); }
+  sala = null;   // a regra pode ter mudado: recarrega o desafio
+  await recarregar();
 }
 
 // Manda pra conversa aberta, seja ela qual for
@@ -1816,7 +1861,7 @@ function balao(m, minha, mostrarAutor) {
   // dele, roubava largura do texto e da foto.
   return `
     <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''} ${comRosto ? 'com-rosto' : ''}"
-      data-id="${m.id}" data-editavel="${minha && !m.checkin_id ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
+      data-id="${m.id}" data-editavel="${minha && !m.checkin_id && !m.proposta_id ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
       ${comRosto ? avatar(m.autor_id, nome, 'wa-av') : ''}
       <div class="wa-col">
         <div class="wa-bolha ${m.imagem_path && !m.texto ? 'bolha-foto' : ''} ${m.imagem_path && m.texto ? 'bolha-legenda' : ''}">
@@ -1826,6 +1871,7 @@ function balao(m, minha, mostrarAutor) {
           ${blocoProva(m)}
           ${blocoArquivo(m, minha)}
           ${m.texto ? `<span class="wa-txt">${esc(m.texto)}</span>` : ''}
+          ${blocoProposta(m)}
           <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
         </div>
         ${fitaReacoes(m)}
@@ -2105,6 +2151,16 @@ function ligarEventos(app) {
     if (t.closest('#chat-cam-btn')) { if (conversaCom?.desafio) await provaNaSala(); else await abrirCamera(); return; }
     if (t.closest('[data-sala-ranking]')) { if (sala) abrirRanking(sala, auth.currentUser?.uid); return; }
     if (t.closest('[data-sala-regras]')) { if (sala) abrirRegras(sala.d); return; }
+    const voto = t.closest('[data-prop-voto]');
+    if (voto) { voto.disabled = true; await responderProposta(voto.dataset.propVoto, voto.dataset.aceito === '1'); return; }
+    const canc = t.closest('[data-prop-cancelar]');
+    if (canc) {
+      const ok = await confirmModal({ title: 'Cancelar a proposta?', message: 'As regras continuam como estão.', confirmText: 'Cancelar proposta', cancelText: 'Voltar' });
+      if (!ok) return;
+      try { await cancelarProposta(canc.dataset.propCancelar); } catch (e) { showToast(e.message || 'Erro', 'error'); }
+      await recarregar();
+      return;
+    }
     if (t.closest('#chat-arq-x')) { limparAnexoArq(); return; }
     if (t.closest('.au-vel')) { ciclarVelocidade(); return; }
     const play = t.closest('.au-play');
