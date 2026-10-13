@@ -31,6 +31,7 @@ import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
 import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta } from '../desafios-moldes.js';
+import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala } from '../desafios-sala.js';
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
@@ -201,6 +202,10 @@ if (typeof window !== 'undefined') {
   // O card do desafio (tela-desafios.js) pede pra abrir a sala do grupo
   window.addEventListener('falcon:sala-desafio', (e) => {
     if (document.getElementById('chat-corpo')) abrirSala(e.detail || {});
+  });
+  // Salvou rascunho de prova (pela 📷, pelo card ou pelo Pet): aparece na sala aberta
+  window.addEventListener('falcon:rascunho', (e) => {
+    if (conversaCom?.desafio && conversaCom.id === e.detail?.desafioId) recarregar();
   });
 }
 
@@ -508,8 +513,9 @@ async function desenharSalaDesafio(corpo) {
 
   const meu = auth.currentUser?.uid;
   await Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)]);
-  const lista = msgs.length
-    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('')
+  provasRasc = await listarRascunhos(id);
+  const lista = (msgs.length || provasRasc.length)
+    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('') + provasRasc.map(balaoRascunho).join('')
     : `<div class="chat-vazio">Grupo do desafio.<br>Toque na 📷 pra mandar a prova de hoje.</div>`;
 
   const sub = resumoHoje(sala, meu);
@@ -531,6 +537,51 @@ async function desenharSalaDesafio(corpo) {
   // Atualização em pé não remonta o cabeçalho: o subtítulo muda aqui
   const subEl = corpo.querySelector('#sala-sub');
   if (subEl && subEl.textContent !== sub) subEl.textContent = sub;
+}
+
+// Rascunho da prova (desafios-rascunho.js): só existe no aparelho de quem
+// gravou. Fica apagado no fim da conversa, com a hora em que foi gravado e
+// o botão Enviar. A URL do vídeo é guardada pra lista não piscar a cada 12s.
+let provasRasc = [];
+const rascUrls = new Map();
+function balaoRascunho(r) {
+  if (!rascUrls.has(r.id)) rascUrls.set(r.id, URL.createObjectURL(r.blob));
+  const venceu = sala ? motivoRascunhoVencido(r, sala.d) : '';
+  const gravado = new Date(r.gravadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', ' às');
+  const nome = r.tipo === 'depoimento' ? '🎙️ Depoimento' : `🎥 ${r.exercicio || 'Prova'}`;
+  return `
+    <div class="wa-msg minha msg-rascunho" data-rascunho="${esc(r.id)}">
+      <div class="wa-col">
+        <div class="wa-bolha">
+          <span class="rasc-tag">💾 Rascunho · só tu vê</span>
+          <div class="msg-prova"><video src="${esc(rascUrls.get(r.id))}#t=0.1" controls playsinline preload="metadata"></video></div>
+          <span class="wa-txt">${esc(nome)}${r.falhou ? ' (não consegui)' : ''}</span>
+          <span class="rasc-hora">Gravado em ${esc(gravado)}</span>
+          ${venceu ? `<span class="rasc-venceu">${esc(venceu)}</span>` : ''}
+          <div class="rasc-acoes">
+            <button type="button" class="prop-btn prop-cancelar" data-rasc-apagar="${esc(r.id)}">🗑️ Apagar</button>
+            ${venceu ? '' : `<button type="button" class="prop-btn prop-sim" data-rasc-enviar="${esc(r.id)}">Enviar ➤</button>`}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+async function rascunhoAcao(id, enviar) {
+  const r = provasRasc.find(x => x.id === id);
+  if (!r || !sala) return;
+  if (enviar) {
+    if (!await enviarRascunho(r, sala.d)) return;
+    try { sala = await carregarSala(conversaCom.id) || sala; } catch { /* segue */ }
+  } else {
+    const ok = await confirmModal({ title: 'Apagar o rascunho?', message: 'O vídeo some do aparelho.', confirmText: 'Apagar', cancelText: 'Voltar' });
+    if (!ok) return;
+    try { await apagarRascunho(id); } catch (e) { showToast(e.message || 'Erro', 'error'); }
+  }
+  const u = rascUrls.get(id);
+  if (u) { URL.revokeObjectURL(u); rascUrls.delete(id); }
+  await recarregar();
+  const l = document.getElementById('chat-lista');
+  if (l && enviar) l.scrollTop = l.scrollHeight;
 }
 
 // 📷 na sala: escolhe o que provar, grava ao vivo e o banco posta na conversa
@@ -2180,6 +2231,10 @@ function ligarEventos(app) {
     if (t.closest('#chat-cam-btn')) { if (conversaCom?.desafio) await provaNaSala(); else await abrirCamera(); return; }
     if (t.closest('[data-sala-ranking]')) { if (sala) abrirRanking(sala, auth.currentUser?.uid); return; }
     if (t.closest('[data-sala-regras]')) { if (sala) abrirRegras(sala.d); return; }
+    const rEnv = t.closest('[data-rasc-enviar]');
+    if (rEnv) { rEnv.disabled = true; await rascunhoAcao(rEnv.dataset.rascEnviar, true); rEnv.disabled = false; return; }
+    const rApg = t.closest('[data-rasc-apagar]');
+    if (rApg) { await rascunhoAcao(rApg.dataset.rascApagar, false); return; }
     const voto = t.closest('[data-prop-voto]');
     if (voto) { voto.disabled = true; await responderProposta(voto.dataset.propVoto, voto.dataset.aceito === '1'); return; }
     const canc = t.closest('[data-prop-cancelar]');

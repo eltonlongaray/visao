@@ -10,6 +10,7 @@
 import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { salvarRascunho } from './desafios-rascunho.js';
 import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -33,7 +34,9 @@ function _mimeVideo() {
   return op.find(m => MediaRecorder.isTypeSupported?.(m)) || '';
 }
 
-export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG } = {}) {
+// rascunho = mostra "Salvar rascunho" na revisão: o Blob volta marcado com
+// __rascunho e quem chamou guarda no aparelho em vez de mandar.
+export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false } = {}) {
   return new Promise((resolve) => {
     const mime = _mimeVideo();
     if (mime === null || !navigator.mediaDevices?.getUserMedia) {
@@ -57,6 +60,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         <video class="ds-rec-play" playsinline controls></video>
         <div class="ds-rec-acoes">
           <button type="button" class="cam-guia-btn" data-rec="again">↺ Gravar de novo</button>
+          ${rascunho ? '<button type="button" class="cam-guia-btn" data-rec="draft">💾 Salvar rascunho</button>' : ''}
           <button type="button" class="btn-primary" data-rec="send">Enviar prova</button>
         </div>
       </div>`;
@@ -171,6 +175,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         return abrir();
       }
       if (act === 'send' && blob) { entregue = blob; fechar(); }
+      if (act === 'draft' && blob) { blob.__rascunho = true; entregue = blob; fechar(); }
     });
     abrir();
   });
@@ -399,8 +404,10 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
         titulo: falhou ? '🎙️ Como foi hoje' : `🎙️ ${d.titulo}`,
         dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>`,
         maxSeg: MAX_SEG_DEPOIMENTO,
+        rascunho: true,
       });
       if (!blob) return false;
+      if (blob.__rascunho) return await _guardarRascunho(d, blob, { quantidade, exercicio, falhou, tipo: 'depoimento' });
       showToast('Enviando o depoimento…', 'info');
       const videoPath = await subirProva(blob, 'video');
       await addCheckin(d.id, quantidade, { exercicio, videoPath });
@@ -414,8 +421,10 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
         titulo: `🎥 ${nome}`,
         dica: exercicio ? 'Grave você fazendo o exercício, do começo ao fim.'
           : horaLimite(d) ? 'Mostre a hora na tela do celular e o seu rosto.' : 'Grave você cumprindo o desafio.',
+        rascunho: true,
       });
       if (!blob) return false;
+      if (blob.__rascunho) return await _guardarRascunho(d, blob, { quantidade, exercicio, falhou, tipo: 'video' });
       showToast('Enviando a prova…', 'info');
       const videoPath = await subirProva(blob, 'video');
       await addCheckin(d.id, quantidade, { exercicio, videoPath });
@@ -428,6 +437,14 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
     showToast(e.message || 'Não deu pra registrar', 'error');
     return false;
   }
+}
+
+// Rascunho: fica só no aparelho, aparece apagado na conversa do grupo com a
+// hora em que foi gravado e o botão Enviar (desafios-rascunho.js).
+async function _guardarRascunho(d, blob, extra) {
+  await salvarRascunho({ desafioId: d.id, blob, ...extra });
+  showToast('💾 Rascunho salvo na conversa do grupo. Manda quando quiser, hoje.', 'success');
+  return false;
 }
 
 // Corrida em partes, guardando o que já foi feito (a pessoa sai do app no meio):
