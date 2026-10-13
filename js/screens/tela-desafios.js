@@ -8,13 +8,14 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas,
+  parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
-         ehLargar, horaLimite, passouDoLimite } from '../desafios-moldes.js';
+         ehLargar, horaLimite, passouDoLimite, devePrenda } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
+import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, prendasNoAr, abrirMural } from '../desafios-prendas.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
 import { auth } from '../autenticacao.js';
@@ -58,8 +59,8 @@ export async function renderDesafios(app, embedded = false) {
   async function refresh() {
     let desafios = [], parts = [], checks = [], placar = {};
     try {
-      [desafios, parts, checks, placar] = await Promise.all([
-        fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(),
+      [desafios, parts, checks, placar, prendas] = await Promise.all([
+        fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(), fetchPrendas(),
       ]);
     } catch (e) {
       app.innerHTML = `${_wrapO}<div class="ds-empty">${_esc(e.message)}</div>${_wrapC}${_nav()}`;
@@ -72,6 +73,7 @@ export async function renderDesafios(app, embedded = false) {
     if (!_faxinou) { _faxinou = true; faxinaProvas(); }
   }
   let _faxinou = false;
+  let prendas = [];   // mural das prendas (desafios-prendas.js)
   let lastParts = [];
   let lastChecks = [];
 
@@ -81,7 +83,22 @@ export async function renderDesafios(app, embedded = false) {
       <div class="ds-topo">
         <button class="ds-novo" id="ds-novo">＋ Novo desafio</button>
         <button class="ds-codigo-btn" id="ds-codigo">🔑 Entrar com código</button>
-      </div>`;
+      </div>
+      <button class="ds-mural-btn" id="ds-mural">🎭 Mural das Prendas${prendasNoAr(prendas).length ? ` <span class="ds-mural-n">${prendasNoAr(prendas).length}</span>` : ''}</button>`;
+
+    // Prenda: quem não concluiu grava; quem já pagou vê até quando fica no mural
+    const prendaDoCard = (d, joined, dChecks, dParts) => {
+      if (!joined || !d.prenda) return '';
+      const paga = minhaPrenda(prendas, d.id, myUid);
+      if (paga) {
+        const noAr = new Date(paga.expira_em).getTime() > Date.now();
+        return `<div class="ds-prenda-paga">✅ Prenda paga${noAr ? ` · no mural até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}</div>`;
+      }
+      const motivo = devePrenda(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today);
+      if (!motivo) return '';
+      return `<div class="ds-prenda-deve">🎭 ${_esc(motivo[0].toUpperCase() + motivo.slice(1))}: hora de pagar a prenda (<b>${_esc(d.prenda)}</b>). Ela vai pro Mural das Prendas por 7 dias.</div>
+              <button class="ds-inc ds-prenda-btn" data-prenda="${d.id}" style="width:100%">🎥 Gravar a prenda</button>`;
+    };
 
     const cardHtml = (d) => {
           const dParts = parts.filter(p => p.desafio_id === d.id);
@@ -271,6 +288,7 @@ export async function renderDesafios(app, embedded = false) {
               ${prendaHtml}
               ${codigoHtml}
               <div class="ds-card-acao">${acao}</div>
+              ${prendaDoCard(d, joined, dChecks, dParts)}
               ${regrasHtml}
               ${provasHtml}
               ${solo ? '' : rankHtml}
@@ -301,6 +319,11 @@ export async function renderDesafios(app, embedded = false) {
   function wire(desafios) {
     app.querySelector('#ds-novo')?.addEventListener('click', openModalidadePicker);
     app.querySelector('#ds-codigo')?.addEventListener('click', openEntrarCodigo);
+    app.querySelector('#ds-mural')?.addEventListener('click', abrirMural);
+    app.querySelectorAll('[data-prenda]').forEach(b => b.onclick = async () => {
+      const d = desafios.find(x => x.id === b.dataset.prenda);
+      if (d && await gravarPrenda(d)) await refresh();
+    });
     app.querySelectorAll('[data-cod]').forEach(b => b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.cod); showToast('🔑 Código copiado!', 'success'); }
       catch { showToast(`Código: ${b.dataset.cod}`, 'info'); }
@@ -320,6 +343,8 @@ export async function renderDesafios(app, embedded = false) {
       catch (e) { showToast(e.message || 'Erro ao apagar', 'error'); }
     });
     app.querySelectorAll('[data-join]').forEach(b => b.onclick = async () => {
+      const d = desafios.find(x => x.id === b.dataset.join);
+      if (!(await aceitarPrenda(d || {}))) return;
       b.disabled = true;
       try { await joinDesafio(b.dataset.join, meuNome); showToast('🦅 Você entrou no desafio!', 'success'); await refresh(); }
       catch (e) { showToast(e.message || 'Erro', 'error'); b.disabled = false; }
@@ -483,6 +508,7 @@ export async function renderDesafios(app, embedded = false) {
       if (!cod) { showToast('Digite o código', 'info'); return; }
       go.disabled = true; go.textContent = 'Entrando…';
       try {
+        if (!(await aceitarPrendaDoCodigo(cod))) { go.disabled = false; go.textContent = 'Entrar no desafio'; return; }
         await entrarPorCodigo(cod, meuNome);
         close();
         showToast('🦅 Você entrou no desafio!', 'success');
@@ -598,7 +624,7 @@ export async function renderDesafios(app, embedded = false) {
           <input id="f-hora" type="hidden" value="${_esc(horaAtual)}" /></div>`}
         <label class="input-field"><div class="input-field-label">📜 Tuas regras (uma por linha, opcional)</div>
           <textarea id="f-regras" rows="3" maxlength="800" placeholder="Ex.: vale até 23h59&#10;O vídeo tem que mostrar o exercício inteiro">${_esc(regrasAtual)}</textarea></label>
-        <div class="ds-prenda-aviso">As regras do Falcon valem sempre: vídeo só ao vivo, prenda leve e ninguém expõe quem falhou.</div>
+        <div class="ds-prenda-aviso">As regras do Falcon valem sempre: vídeo só ao vivo, prenda leve e do bem. A prenda paga vai pro Mural das Prendas por 7 dias.</div>
 
         ${mod === 'oficial' ? `
         <div style="display:flex;gap:8px">
@@ -623,7 +649,7 @@ export async function renderDesafios(app, embedded = false) {
         <input class="aviso-input" id="f-prenda-txt" placeholder="Escreva a prenda combinada"
                value="${_esc(prendaAtual && !PRENDAS.includes(prendaAtual) ? prendaAtual : '')}"
                style="${prendaAtual && !PRENDAS.includes(prendaAtual) ? '' : 'display:none'};margin-bottom:10px" />
-        <div class="ds-prenda-aviso">Combine antes de abrir: quem entra já aceita. Leve e do bem — nunca constrangedora.</div>`}
+        <div class="ds-prenda-aviso">Combine antes de abrir: quem entra já aceita. Leve e do bem, nunca constrangedora. Quem não concluir grava a prenda e ela fica no Mural das Prendas do app, pra todo mundo, por 7 dias, sem download.</div>`}
 
         <div class="modal-actions" style="flex-direction:column;gap:8px">
           <button class="btn-primary" id="f-save" style="width:100%">${proposta ? 'Mandar proposta pro grupo' : edit ? 'Salvar alterações' : 'Publicar desafio'}</button>

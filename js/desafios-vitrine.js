@@ -3,6 +3,7 @@
 // Mostra os desafios em oferta. Participar → entra e vai pra aba (a arena).
 // ═══════════════════════════════════════════════════════════════
 import { fetchDesafios, fetchParticipantes, fetchPlacar, joinDesafio, markDesafiosSeen } from './desafios.js';
+import { aceitarPrenda } from './desafios-prendas.js';
 import { emojiDoTipo } from './desafios-moldes.js';
 import { getProfile } from './banco-dados.js';
 import { auth } from './autenticacao.js';
@@ -80,13 +81,14 @@ export async function openDesafiosVitrine() {
       <button class="ds-join ${joined ? 'joined' : ''}" data-go="${d.id}" data-joined="${joined ? '1' : ''}">
         ${joined ? 'Ir pro desafio →' : '🙋 Participar'}
       </button>
-      ${!joined && d.prenda ? `<div class="vitrine-aceite">Ao participar, você aceita a prenda combinada.</div>` : ''}
+      ${!joined && d.prenda ? `<div class="vitrine-aceite">Ao participar, você aceita a prenda. Quem não concluir paga em vídeo no Mural das Prendas (todo mundo vê por 7 dias).</div>` : ''}
     </div>`;
   }).join('');
 
   listEl.querySelectorAll('[data-go]').forEach(b => b.onclick = async () => {
     const id = b.dataset.go;
     if (b.dataset.joined) { close(); navigate('/desafios'); return; }
+    if (!(await aceitarPrenda(desafios.find(x => x.id === id) || {}))) return;
     b.disabled = true;
     try {
       await joinDesafio(id, meuNome);

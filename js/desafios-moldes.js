@@ -103,10 +103,39 @@ export function emojiDoTipo(tipo) {
 export const REGRAS_FIXAS = [
   'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
   'Na corrida, vale o print do Strava (ou, na esteira, a foto do painel antes e depois, tirada pelo Falcon) junto com o vídeo ao vivo correndo nos últimos minutos.',
-  'Os vídeos só aparecem pra quem está no desafio e somem em 7 dias.',
-  'Prenda é leve e do bem, nunca constrangedora.',
-  'Celebra em público, cobra em particular: ninguém expõe quem falhou fora do grupo.',
+  'Os vídeos das provas só aparecem pra quem está no desafio e somem em 7 dias.',
+  'Prenda é leve e do bem, nunca constrangedora. Quem não concluir grava a prenda em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
+  'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
 ];
+
+// Aviso que quem é desafiado precisa ver ANTES de entrar (Élton, 13/10)
+export const AVISO_MURAL = 'A prenda é gravada em vídeo e fica no Mural das Prendas do app, pra todo mundo ver, por 7 dias, sem download.';
+
+// Deve a prenda? Devolve o motivo (texto) ou null.
+//   • perdeu a semana da corrida (na hora), ou
+//   • o desafio acabou e faltou dia com a meta batida, contando do dia em
+//     que a pessoa entrou (ou do início, se entrou antes).
+export function devePrenda(d, meus, joinedAt, hoje = _hojeBR()) {
+  if (!d?.prenda) return null;
+  const seg = semanaSemCorrida(d, meus, joinedAt, hoje);
+  if (seg) return `a semana fechou sem a corrida (${textoSemanaPerdida(seg)})`;
+  const fim = String(d.data_fim || '').slice(0, 10);
+  if (!fim || hoje <= fim) return null;
+  let ini = String(d.data_inicio || d.created_at || '').slice(0, 10);
+  const entrou = joinedAt ? new Date(joinedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
+  if (entrou > ini) ini = entrou;
+  if (!ini || ini > fim) return null;
+  const porDia = {};
+  (meus || []).forEach(c => { porDia[c.dia] = (porDia[c.dia] || 0) + (c.quantidade || 0); });
+  const largar = d.tipo === 'largar', meta = d.meta_diaria;
+  let faltou = 0;
+  for (let dia = ini; dia <= fim; dia = somarDias(dia, 1)) {
+    const q = porDia[dia];
+    const ok = q !== undefined && (largar || (meta ? q >= meta : q > 0));
+    if (!ok) faltou++;
+  }
+  return faltou ? `o desafio acabou e ${faltou === 1 ? 'faltou 1 dia' : `faltaram ${faltou} dias`}` : null;
+}
 
 // O que o desafio pede como prova, em palavras
 export function textoProva(d) {
@@ -187,6 +216,7 @@ export function resumoDoDesafio(d) {
     prova && `✅ Prova: ${prova.replace(/^\S+\s/, '')}`,
     horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
     d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
+    d.prenda && `📢 ${AVISO_MURAL}`,
   ].filter(Boolean);
   const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
   const regras = [

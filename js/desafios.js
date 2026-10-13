@@ -221,11 +221,40 @@ export async function faxinaProvas() {
       if (c.video_path) usados.add(c.video_path);
       if (c.print_path) usados.add(c.print_path);
     });
+    // Vídeo da prenda no mural (7 dias) também fica
+    const { data: prendas } = await supabase.from('desafio_prendas').select('video_path').eq('user_id', uid);
+    (prendas || []).forEach(p => p.video_path && usados.add(p.video_path));
     // arquivo de menos de 1 dia pode ser a corrida pela metade (vídeo já subiu, falta o print)
     const lixo = arqs.filter(a => !usados.has(`${uid}/${a.name}`) && agora - new Date(a.created_at || 0).getTime() > 864e5)
       .map(a => `${uid}/${a.name}`);
     if (lixo.length) await supabase.storage.from('desafio-provas').remove(lixo);
   } catch { /* acessória */ }
+}
+
+// ── Mural das prendas (migration/desafios-prendas.sql) ───────
+// Prendas no ar (7 dias) + as minhas (mesmo vencidas, pra saber que já
+// paguei), da mais nova pra mais velha. Todo mundo vê as do ar.
+export async function fetchPrendas() {
+  const { data, error } = await supabase.from('desafio_prendas')
+    .select('id, desafio_id, user_id, nome, titulo, prenda, video_path, created_at, expira_em')
+    .order('created_at', { ascending: false }).limit(80);
+  return error ? [] : (data || []);
+}
+// Nome e prenda de um desafio de amigos pelo código, antes de entrar
+export async function fetchPrevia(codigo) {
+  const { data, error } = await supabase.rpc('desafio_previa_codigo', { p_codigo: String(codigo || '').trim().toUpperCase() });
+  return error ? null : (Array.isArray(data) ? data[0] : data) || null;
+}
+// Manda a prenda gravada: sobe o vídeo e põe no mural
+export async function enviarPrenda(desafioId, blob) {
+  const videoPath = await subirProva(blob, 'prenda');
+  const { error } = await supabase.from('desafio_prendas').insert({ desafio_id: desafioId, video_path: videoPath });
+  if (error) {
+    supabase.storage.from('desafio-provas').remove([videoPath]).catch(() => {});
+    if (/duplicate|unique/i.test(error.message || '')) throw new Error('Tu já cumpriu essa prenda 🎭');
+    if (/relation|does not exist|schema cache/i.test(error.message || '')) throw new Error('O mural das prendas ainda não foi ligado no banco.');
+    throw new Error(error.message || 'Não deu pra enviar a prenda');
+  }
 }
 
 // ── Bolinha de novo na Home ──────────────────────────────────

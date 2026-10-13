@@ -4745,6 +4745,26 @@ async function tentarDesafios(text) {
       return escolher(citou ? c.desafios : (meus.length ? meus : c.desafios), (d) => desafioRegras(d, c),
         `📜 <b>Regras do Falcon (valem pra todo desafio)</b><br>${c.M.REGRAS_FIXAS.map(x => `• ${_esc(x)}`).join('<br>')}`, 'Não achei esse desafio 🤔 Fala <em>"quais desafios tem?"</em> que eu te mostro.');
     case 'codigo': return desafioCodigo(p.codigo, c);
+    case 'mural': {
+      (await import('./desafios-prendas.js')).abrirMural();
+      return '🎭 Abri o <b>Mural das Prendas</b>: quem não concluiu o desafio paga ali, e cada vídeo fica 7 dias.';
+    }
+    case 'prenda': {
+      const comPrenda = meus.filter(d => d.prenda);
+      // Sem citar o desafio: só os que a pessoa deve (e ainda não pagou)
+      if (!citou && comPrenda.length) {
+        const pagas = await c.D.fetchPrendas();
+        const devo = comPrenda.filter(d => !pagas.some(x => x.desafio_id === d.id && x.user_id === c.uid)
+          && c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at));
+        if (!devo.length) return 'Tu não deve prenda em nenhum desafio agora 🦅 Prenda é só pra quem não concluir.';
+        if (devo.length === 1) return desafioPrenda(devo[0], c);
+        addChoices('Tu deve prenda em mais de um. Qual vai pagar agora?', devo.slice(0, 6).map(d => ({ label: `${c.M.emojiDoTipo(d.tipo)} ${d.titulo}`, action: () => desafioPrenda(d, c) })));
+        return null;
+      }
+      return escolher(comPrenda, (d) => desafioPrenda(d, c),
+        'Tu não está em nenhum desafio com prenda agora 🦅',
+        'Não achei esse desafio com prenda entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
+    }
     case 'convidar':
       return escolher(meus.filter(d => d.modalidade === 'amigos' && d.codigo), (d) => desafioConvidar(d, p, c),
         'Convite é pra desafio com amigos, e tu não está em nenhum agora. Fala <em>"cria um desafio de leitura com os amigos"</em> que eu monto.',
@@ -4957,7 +4977,7 @@ async function desafioRanking(d, c) {
 
 async function desafioEntrar(d, c) {
   const meta = d.meta_diaria ? `<br><small>Meta: ${d.meta_diaria}${_unDesafio(d)} por dia${d.dias_total ? ` · ${d.dias_total} dias` : ''}</small>` : (d.dias_total ? `<br><small>${d.dias_total} dias</small>` : '');
-  const prenda = d.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(d.prenda)}. Entrando, tu topa.</small>` : '';
+  const prenda = d.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(d.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
   cardConfirmarLista(`🙋 Entrar no desafio <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>?${meta}${prenda}`, async () => {
     await c.D.joinDesafio(d.id, await _meuNomeDesafio(c.email));
     _redesenharDesafios();
@@ -4966,8 +4986,28 @@ async function desafioEntrar(d, c) {
   return null;
 }
 
-function desafioCodigo(codigo, c) {
-  cardConfirmarLista(`🔑 Entrar no desafio do código <strong>${_esc(codigo)}</strong>?`, async () => {
+// Prenda: já pagou, não deve, ou botão pra gravar (a câmera precisa do toque)
+async function desafioPrenda(d, c) {
+  const PP = await import('./desafios-prendas.js');
+  const paga = PP.minhaPrenda(await c.D.fetchPrendas(), d.id, c.uid);
+  if (paga) return `✅ Tu já pagou a prenda do <b>${_esc(d.titulo)}</b>.${new Date(paga.expira_em) > new Date() ? ` Ela fica no Mural das Prendas até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.` : ''}`;
+  const motivo = c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at);
+  if (!motivo) return `Tu não deve prenda no <b>${_esc(d.titulo)}</b> 🦅 Ela só vale pra quem não concluir: <b>${_esc(d.prenda)}</b>.`;
+  convState = null;
+  addChoices(`🎭 No <b>${_esc(d.titulo)}</b>, ${_esc(motivo)}. A prenda é: <b>${_esc(d.prenda)}</b>.<br><small>📢 Grava ao vivo e ela vai pro Mural das Prendas: todo mundo vê por 7 dias, sem download.</small>`, [
+    { label: '🎥 Gravar a prenda', action: async () => {
+      const ok = await PP.gravarPrenda(d);
+      _redesenharDesafios();
+      return ok ? 'Prenda paga 🎭 Tá no mural por 7 dias. Bora no próximo 🦅' : null;
+    } },
+  ]);
+  return null;
+}
+
+async function desafioCodigo(codigo, c) {
+  const prev = await c.D.fetchPrevia(codigo).catch(() => null);
+  const prenda = prev?.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(prev.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
+  cardConfirmarLista(`🔑 Entrar no desafio ${prev?.titulo ? `<strong>${_esc(prev.titulo)}</strong>` : `do código <strong>${_esc(codigo)}</strong>`}?${prenda}`, async () => {
     await c.D.entrarPorCodigo(codigo, await _meuNomeDesafio(c.email));
     _redesenharDesafios();
     return 'Tu entrou no desafio 🦅 Fala <em>"meus desafios"</em> pra ver como tá.';

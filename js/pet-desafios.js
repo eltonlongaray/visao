@@ -83,7 +83,7 @@ export function grupoDaFrase(texto) {
   return { acao: 'grupo_ler', pedido };
 }
 
-// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda',
+// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural',
 //   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
@@ -97,6 +97,10 @@ export function lerDesafio(texto) {
   const grupo = grupoDaFrase(texto);
   if (grupo) return { ...grupo, molde: moldeDaFrase(grupo.pedido.replace(/\b(desafios?|grupo)\b/g, ' ')), nome: nomeCitado(grupo.pedido) };
   if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
+  // Mural das Prendas: "mostra o mural das prendas", "quem pagou prenda?"
+  if (/\bmural\b/.test(t) && /\bprendas?\b/.test(t) || /\b(ver|mostra\w*|quem)\b.*\b(pag\w*|cumpr\w*)\b.*\bprendas?\b/.test(t) && !/\b(eu|minha)\b/.test(t)) return { acao: 'mural' };
+  // "pagar a prenda", "gravar a minha prenda", "devo prenda?"
+  if (/\bprendas?\b/.test(t) && /\b(pag\w*|cumpr\w*|grav\w*|dev\w*|minha|tenho)\b/.test(t)) return { acao: 'prenda', nome: nomeCitado(texto), molde: moldeDaFrase(t) };
   // Proposta de mudança nas regras: "aceito a mudança", "não aceito a proposta", "tem proposta?"
   if (/\b(proposta|mudanca|mudancas)\b/.test(t) && /\b(aceit\w*|concord\w*|recus\w*|topo|voto|votar|responder)\b/.test(t)) {
     return { acao: 'proposta', aceito: /\b(nao (aceit|concord|topo)\w*|recus\w*)/.test(t) ? false : /\b(aceit\w*|concord\w*|topo)\b/.test(t) && !/\b(responder|votar)\b/.test(t) ? true : null };

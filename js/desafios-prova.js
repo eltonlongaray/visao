@@ -37,7 +37,7 @@ function _mimeVideo() {
 
 // rascunho = mostra "Salvar rascunho" na revisão: o Blob volta marcado com
 // __rascunho e quem chamou guarda no aparelho em vez de mandar.
-export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false } = {}) {
+export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova' } = {}) {
   return new Promise((resolve) => {
     const mime = _mimeVideo();
     if (mime === null || !navigator.mediaDevices?.getUserMedia) {
@@ -63,7 +63,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         <div class="ds-rec-acoes">
           <button type="button" class="cam-guia-btn" data-rec="again">↺ Gravar de novo</button>
           ${rascunho ? '<button type="button" class="cam-guia-btn" data-rec="draft">💾 Salvar rascunho</button>' : ''}
-          <button type="button" class="btn-primary" data-rec="send">Enviar prova</button>
+          <button type="button" class="btn-primary" data-rec="send">${_esc(enviarTxt)}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
