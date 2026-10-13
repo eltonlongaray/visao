@@ -168,6 +168,70 @@ async function usuarioValido(req, env) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// BLOCO 3.5: PRÉVIA DE LINK (chat) — título, descrição e imagem do site
+// ═══════════════════════════════════════════════════════════════
+// O navegador não pode ler outro site (CORS), então o Worker busca a página
+// e devolve só o cartão: { url, titulo, descricao, imagem, site }.
+// YouTube vai pelo oEmbed oficial (a página deles é pesada e muda muito).
+const _ent = (t) => String(t || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).trim();
+function _meta(html, ...nomes) {
+  const val = `content=(?:"([^"]*)"|'([^']*)')`;
+  for (const n of nomes) {
+    const re1 = new RegExp(`<meta[^>]+(?:property|name)=["']${n}["'][^>]*${val}`, 'i');
+    const re2 = new RegExp(`<meta[^>]+${val}[^>]*(?:property|name)=["']${n}["']`, 'i');
+    const m = html.match(re1) || html.match(re2);
+    const v = m ? (m[1] ?? m[2] ?? '') : '';
+    if (v.trim()) return _ent(v);
+  }
+  return '';
+}
+function _ytId(u) {
+  const h = u.hostname.replace(/^www\.|^m\./, '');
+  if (h === 'youtu.be') return u.pathname.slice(1).split('/')[0];
+  if (h === 'youtube.com' || h === 'music.youtube.com') {
+    if (u.pathname === '/watch') return u.searchParams.get('v') || '';
+    const m = u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{6,})/);
+    return m ? m[1] : '';
+  }
+  return '';
+}
+async function previaLink(bruto) {
+  let u;
+  try { u = new URL(String(bruto).trim()); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol) || /^(localhost|\d+\.\d+\.\d+\.\d+|\[)/.test(u.hostname)) return null;
+  const site = u.hostname.replace(/^www\./, '');
+  const yt = _ytId(u);
+  if (yt) {
+    const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${yt}`)}`);
+    const o = r.ok ? await r.json() : {};
+    return { url: u.href, titulo: String(o.title || '').slice(0, 200), descricao: String(o.author_name || '').slice(0, 120),
+      imagem: `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`, site: 'YouTube', video: true };
+  }
+  const r = await fetch(u.href, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FalconPrevia/1.0)', Accept: 'text/html' }, signal: AbortSignal.timeout(6000) });
+  if (!r.ok || !/text\/html/.test(r.headers.get('content-type') || '')) return { url: u.href, titulo: '', descricao: '', imagem: '', site };
+  // Só o começo da página: as metas ficam no <head>
+  const leitor = r.body.getReader();
+  let html = '', n = 0;
+  while (n < 300000) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    n += value.length;
+    html += new TextDecoder().decode(value, { stream: true });
+    if (/<\/head>/i.test(html)) break;
+  }
+  try { leitor.cancel(); } catch { /* já fechou */ }
+  let imagem = _meta(html, 'og:image', 'twitter:image');
+  try { if (imagem) imagem = new URL(imagem, r.url).href; } catch { imagem = ''; }
+  return {
+    url: u.href,
+    titulo: (_meta(html, 'og:title', 'twitter:title') || _ent((html.match(/<title[^>]*>([^<]*)/i) || [])[1])).slice(0, 200),
+    descricao: _meta(html, 'og:description', 'twitter:description', 'description').slice(0, 300),
+    imagem: /^https:\/\//.test(imagem) ? imagem : '',
+    site: _meta(html, 'og:site_name') || site,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 4: HANDLER
 // ═══════════════════════════════════════════════════════════════
 function cors(req) {
@@ -190,6 +254,17 @@ export default {
 
     let body;
     try { body = await req.json(); } catch { return json(req, { erro: 'JSON inválido' }, 400); }
+    // Prévia de link do chat: guarda 1 dia no cache da Cloudflare
+    if (body?.previa) {
+      const chave = new Request(`https://previa.falcon/${encodeURIComponent(String(body.previa).slice(0, 1000))}`);
+      const guardada = await caches.default.match(chave);
+      if (guardada) return json(req, await guardada.json());
+      let p = null;
+      try { p = await previaLink(body.previa); } catch { p = null; }
+      if (!p) return json(req, { erro: 'link inválido' }, 400);
+      await caches.default.put(chave, new Response(JSON.stringify(p), { headers: { 'Cache-Control': 'max-age=86400' } }));
+      return json(req, p);
+    }
     const texto = String(body?.texto || '').trim().slice(0, MAX_TEXTO);
     if (!texto) return json(req, { erro: 'texto vazio' }, 400);
     const opcoes = Array.isArray(body?.opcoes)
