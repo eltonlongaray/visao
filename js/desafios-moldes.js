@@ -2,7 +2,7 @@
 // FALCON · Moldes de desafio (pré-formatos por tipo)
 // Admin escolhe um molde → formulário já vem preenchido com o formato certo.
 // prova: 'video' (grava ao vivo no app) | 'strava' (print do Strava + vídeo ao vivo)
-//        | 'depoimento' (vídeo ao vivo falando, até 2 min, com roteiro) | 'honra' (marca sem vídeo).
+//        | 'depoimento' (vídeo ao vivo falando, até 5 min, com roteiro) | 'honra' (marca sem vídeo).
 // largar: true = desafio de largar um vício (todo dia: "consegui" ou "não consegui", os dois com depoimento).
 // horaLimite: check-in só até esse horário (o banco confere).
 // opcoes vazio = pessoa digita a quantidade. Tudo editável na criação.

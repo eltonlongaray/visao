@@ -24,7 +24,7 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // único jeito de entregar a prova é gravando agora. Para sozinho no tempo
 // máximo. Resolve com o Blob do vídeo, ou null se a pessoa desistiu.
 const MAX_SEG = 30;
-const MAX_SEG_DEPOIMENTO = 120;
+const MAX_SEG_DEPOIMENTO = 300;   // 5 min (pedido do Élton)
 // Sempre em pé (9:16): a câmera passa por um canvas em pé e é ele que grava.
 // O que aparece na tela é exatamente o que vai no vídeo.
 const REC_W = 540, REC_H = 960;
@@ -133,7 +133,10 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       const fonte = podeCanvas
         ? new MediaStream([...tela.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()])
         : stream;
-      mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 900000 });
+      // Vídeo longo (depoimento de até 5 min) grava mais leve pra caber nos
+      // 25 MB do bucket: 5 min × (500k + 64k) ≈ 21 MB. Rosto falando fica bom assim.
+      const vbps = maxSeg > 60 ? 500000 : 900000;
+      mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: vbps, audioBitsPerSecond: 64000 });
       mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
       mr.onstop = async () => {
         if (fechado) return;
