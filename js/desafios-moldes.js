@@ -21,7 +21,7 @@ export const MOLDES = [
   { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'strava',
     desc: 'Corra 5 km por dia, na rua ou na esteira. Na rua, meça no Strava e mande o print; na esteira, foto do painel antes e depois. Nos dois, um vídeo ao vivo correndo nos últimos minutos.' },
   { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'depoimento',
-    desc: 'Leia no mínimo 20 páginas por dia. No vídeo de depoimento, conte quantas páginas leu e 5 coisas que você aprendeu ou que te marcaram.' },
+    desc: 'Leia no mínimo 20 páginas por dia. No vídeo de depoimento, conte quantas páginas leu e até 5 coisas que você aprendeu ou que te marcaram.' },
   { id: 'largar',        emoji: '🚭', nome: 'Largar um vício',    titulo: 'Parar de fumar',      unidade: '',           meta: null, dias: 30, opcoes: [],       prova: 'depoimento', largar: true,
     desc: 'Todo dia você grava um depoimento contando como foi: conseguiu ou não, e como está sendo o processo. A constância é o depoimento: quem não grava perde o dia. Os dias limpos contam numa sequência à parte. Ninguém julga, todo mundo apoia.' },
   { id: 'acordar',       emoji: '⏰', nome: 'Acordar cedo',       titulo: 'Acordar às 5h',       unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video', horaLimite: '05:30',
@@ -33,10 +33,21 @@ export const MOLDES = [
 ];
 
 // Roteiro do depoimento: aparece na tela de gravar, pra pessoa saber o que falar
+// Quantas coisas contar no depoimento: o número que o criador pôs na descrição
+// ou nas regras ("3 coisas", "duas lições"). Sem número, até 5.
+const NUM_EXTENSO = { uma: 1, um: 1, duas: 2, dois: 2, 'três': 3, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
+export function coisasDoDesafio(d) {
+  const t = `${d?.descricao || ''}\n${d?.regras_dono || ''}`.toLowerCase();
+  const m = t.match(/\b(\d{1,2}|uma|um|duas|dois|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s+(coisas?|ideias?|li[cç](?:ão|ões)|aprendizados?|pontos?|frases?|trechos?)\b/);
+  if (!m) return 5;
+  const n = /\d/.test(m[1]) ? parseInt(m[1], 10) : NUM_EXTENSO[m[1]];
+  return n >= 1 && n <= 20 ? n : 5;
+}
+
 export function roteiroDepoimento(d, { falhou = false } = {}) {
   if (d?.tipo === 'meditacao') return ['Quanto tempo você meditou hoje', 'Como você se sentiu antes e depois', 'O que passou pela sua cabeça'];
   if (d?.tipo === 'autoconhecimento') return ['Como foi o seu dia', 'O que você sentiu', 'O que você aprendeu sobre você'];
-  if (d?.tipo === 'leitura') return ['Qual livro e quantas páginas você leu hoje', '5 coisas que você aprendeu ou que te marcaram', 'O que vai levar pra sua vida'];
+  if (d?.tipo === 'leitura') return ['Qual livro e quantas páginas você leu hoje', (coisasDoDesafio(d) === 1 ? 'Uma coisa que você aprendeu ou que te marcou' : `Até ${coisasDoDesafio(d)} coisas que você aprendeu ou que te marcaram`), 'O que vai levar pra sua vida'];
   if (ehLargar(d)) return falhou
     ? ['O que aconteceu hoje e o que te levou a escorregar', 'Como você está se sentindo', 'O que vai fazer diferente amanhã']
     : ['Como foi o dia sem o vício', 'Se deu vontade, o que você fez na hora', 'Como está sendo o processo pra você'];
