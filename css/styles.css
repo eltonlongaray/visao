@@ -2548,6 +2548,7 @@ body.time-picker-open { overflow: hidden; }
 .ds-bar { height: 10px; background: rgba(148,163,184,0.18); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
 .ds-bar-fill { height: 100%; background: #f59e0b; transition: width 0.3s ease; }
 .ds-inc-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ds-inc.ds-copo-trocar { flex: 0 0 auto; background: transparent; border: 1px solid var(--border); color: var(--muted); }
 .ds-inc {
   flex: 1; min-width: 90px; border: none; border-radius: 10px; padding: 11px;
   font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer;
@@ -8453,7 +8454,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .ds-tp-texto {
   height: 30vh; overflow-y: auto; color: #fff; font-size: 22px; line-height: 1.45; font-weight: 600;
-  white-space: pre-wrap; overflow-wrap: anywhere; padding-bottom: 30vh; scrollbar-width: none;
+  white-space: pre-wrap; overflow-wrap: anywhere; padding-top: 15vh; padding-bottom: 30vh; scrollbar-width: none;
 }
 .ds-tp-texto::-webkit-scrollbar { display: none; }
 .ds-tp-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 6px; }

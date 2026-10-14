@@ -2,42 +2,68 @@
 // FALCON · Moldes de desafio (pré-formatos por tipo)
 // Admin escolhe um molde → formulário já vem preenchido com o formato certo.
 // prova: 'video' (grava ao vivo no app) | 'strava' (print do Strava + vídeo ao vivo)
-//        | 'depoimento' (vídeo ao vivo falando, até 5 min, com roteiro) | 'honra' (marca sem vídeo).
+//        | 'depoimento' (vídeo ao vivo falando, até 5 min, com roteiro)
+//        | 'honra' (marca sem vídeo: só desafios antigos, não se cria mais).
 // largar: true = desafio de largar um vício (todo dia: "consegui" ou "não consegui", os dois com depoimento).
 // horaLimite: check-in só até esse horário (o banco confere).
 // opcoes vazio = pessoa digita a quantidade. Tudo editável na criação.
 // ═══════════════════════════════════════════════════════════════
 export const MOLDES = [
-  { id: 'agua',          emoji: '💧', nome: 'Água',               titulo: 'Beber 2L de água',   unidade: 'ml',         meta: 2000, dias: 21, opcoes: [250, 500], prova: 'video',
-    desc: 'Beba 2L de água por dia. Grave um gole a cada garrafinha até fechar a meta.' },
+  { id: 'agua',          emoji: '💧', nome: 'Água',               titulo: 'Beber 2L de água',   unidade: 'ml',         meta: 2000, dias: 21, opcoes: [],         prova: 'video',
+    desc: 'Beba 2L de água por dia, no copo ou na garrafa. Em cada vídeo, diga quanto cabe e beba tudo, até fechar a meta.' },
   { id: 'exercicio',     emoji: '🏋️', nome: 'Constância de exercício', titulo: 'Exercício todo dia', unidade: 'exercícios', meta: 2, dias: 30, opcoes: [1], prova: 'video',
     exercicios: ['Flexão', 'Agachamento', 'Abdominal', 'Prancha'], maxPorDia: 2, naoRepetir: true,
     desc: 'Até 2 exercícios por dia da lista, sem repetir o de ontem: hoje uns, amanhã outros. Cada um comprovado em vídeo ao vivo.' },
   { id: 'flexibilidade', emoji: '🤸', nome: 'Flexibilidade',      titulo: 'Alongar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [5, 10],    prova: 'video',
     desc: 'Alongue por 10 minutos por dia.' },
-  { id: 'meditacao',     emoji: '🧘', nome: 'Meditação',          titulo: 'Meditar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [5, 10],    prova: 'honra',
-    desc: 'Medite por 10 minutos por dia. (Prova por honra — meditação não se filma.)' },
+  { id: 'meditacao',     emoji: '🧘', nome: 'Meditação',          titulo: 'Meditar todo dia',    unidade: 'min',        meta: 10, dias: 21, opcoes: [],         prova: 'depoimento',
+    desc: 'Medite no mínimo 10 minutos por dia. Depois, num vídeo de depoimento, conte quanto tempo meditou e como você se sentiu.' },
   { id: 'corrida',       emoji: '🏃', nome: 'Corrida',            titulo: 'Correr 5 km',         unidade: 'km',         meta: 5,  dias: 30, opcoes: [],         prova: 'strava',
     desc: 'Corra 5 km por dia, na rua ou na esteira. Na rua, meça no Strava e mande o print; na esteira, foto do painel antes e depois. Nos dois, um vídeo ao vivo correndo nos últimos minutos.' },
   { id: 'leitura',       emoji: '📖', nome: 'Leitura',            titulo: 'Ler 20 páginas',      unidade: 'páginas',    meta: 20, dias: 30, opcoes: [],         prova: 'depoimento',
-    desc: 'Leia 20 páginas por dia e conte no grupo, num vídeo de depoimento, 5 coisas que você aprendeu ou que te marcaram.' },
+    desc: 'Leia no mínimo 20 páginas por dia. No vídeo de depoimento, conte quantas páginas leu e 5 coisas que você aprendeu ou que te marcaram.' },
   { id: 'largar',        emoji: '🚭', nome: 'Largar um vício',    titulo: 'Parar de fumar',      unidade: '',           meta: null, dias: 30, opcoes: [],       prova: 'depoimento', largar: true,
     desc: 'Todo dia você grava um depoimento contando como foi: conseguiu ou não, e como está sendo o processo. A constância é o depoimento: quem não grava perde o dia. Os dias limpos contam numa sequência à parte. Ninguém julga, todo mundo apoia.' },
   { id: 'acordar',       emoji: '⏰', nome: 'Acordar cedo',       titulo: 'Acordar às 5h',       unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video', horaLimite: '05:30',
     desc: 'Acorde às 5h e grave um vídeo ao vivo mostrando a hora no celular. O check-in só vale até o horário limite.' },
-  { id: 'autoconhecimento', emoji: '🧠', nome: 'Autoconhecimento', titulo: 'Uma reflexão por dia', unidade: 'reflexão',  meta: 1,  dias: 21, opcoes: [1],        prova: 'honra',
-    desc: 'Reserve um momento por dia pra se olhar por dentro: como foi seu dia, o que você sentiu e o que aprendeu. (Prova por honra — isso é seu.)' },
+  { id: 'autoconhecimento', emoji: '🧠', nome: 'Autoconhecimento', titulo: 'Uma reflexão por dia', unidade: 'reflexão',  meta: 1,  dias: 21, opcoes: [],         prova: 'depoimento',
+    desc: 'Reserve um momento por dia pra se olhar por dentro. Num vídeo de depoimento, conte como foi seu dia, o que você sentiu e o que aprendeu.' },
   { id: 'livre',         emoji: '✏️', nome: 'Do seu jeito',       titulo: '',                    unidade: '',           meta: null, dias: 21, opcoes: [],       prova: 'video',
     desc: '' },
 ];
 
 // Roteiro do depoimento: aparece na tela de gravar, pra pessoa saber o que falar
 export function roteiroDepoimento(d, { falhou = false } = {}) {
+  if (d?.tipo === 'meditacao') return ['Quanto tempo você meditou hoje', 'Como você se sentiu antes e depois', 'O que passou pela sua cabeça'];
+  if (d?.tipo === 'autoconhecimento') return ['Como foi o seu dia', 'O que você sentiu', 'O que você aprendeu sobre você'];
   if (d?.tipo === 'leitura') return ['Qual livro e quantas páginas você leu hoje', '5 coisas que você aprendeu ou que te marcaram', 'O que vai levar pra sua vida'];
   if (ehLargar(d)) return falhou
     ? ['O que aconteceu hoje e o que te levou a escorregar', 'Como você está se sentindo', 'O que vai fazer diferente amanhã']
     : ['Como foi o dia sem o vício', 'Se deu vontade, o que você fez na hora', 'Como está sendo o processo pra você'];
   return ['O que você fez hoje no desafio', 'Como está sendo o processo pra você'];
+}
+
+// Depoimento com meta (Leitura): o dia conta pelo vídeo, a pessoa fala quanto
+// fez nele e não digita nada (entra com a meta, que é o mínimo do grupo)
+export function depoimentoConta(d) {
+  return d?.prova === 'depoimento' && !ehLargar(d);
+}
+export const MIN_PAGINAS = 2;
+
+// Água: cada vídeo é um copo ou garrafa. Quanto cabe fica guardado no aparelho
+const COPO_KEY = 'visao_copo_';
+export function ehAgua(d) {
+  return d?.tipo === 'agua';
+}
+export function copoDoDesafio(d) {
+  try { const v = parseInt(localStorage.getItem(COPO_KEY + d.id), 10); return v > 0 ? v : 0; } catch { return 0; }
+}
+export function guardarCopo(d, ml) {
+  try { if (ml) localStorage.setItem(COPO_KEY + d.id, String(ml)); else localStorage.removeItem(COPO_KEY + d.id); } catch { /* sem storage */ }
+}
+// Copo/garrafa aceito: de 50 ml a 3 litros
+export function copoValido(ml) {
+  return Number.isFinite(ml) && ml >= 50 && ml <= 3000;
 }
 
 // Desafio de largar um vício (pelo molde)
@@ -228,7 +254,7 @@ export function resumoDoDesafio(d) {
   const ini = String(d.data_inicio || '').slice(0, 10);
   const info = [
     ini ? `📅 Começa ${dataCurta(ini)}${d.dias_total ? ` · ${d.dias_total} dias` : ''}` : (d.dias_total && `📅 ${d.dias_total} dias`),
-    d.meta_diaria && `🎯 Meta: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
+    d.meta_diaria && `🎯 ${depoimentoConta(d) ? 'Mínimo' : 'Meta'}: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
     prova && `✅ Prova: ${prova.replace(/^\S+\s/, '')}`,
     horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
     d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
