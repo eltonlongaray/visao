@@ -115,8 +115,29 @@ function corrigirRota(out, texto) {
     out.campo = /\b(falt|nao veio|nao apareceu)/.test(t) ? 'faltou' : /\b(finaliz|conclu|termin|atendi)/.test(t) ? 'finalizar'
       : ['cancelar', 'excluir'].includes(era) ? 'cancelar' : 'ver';
   }
-  if (out.acao === 'rifa' && /\b(desmarc|tir)\w*\b.*\bpago\b/.test(t)) out.campo = 'nao_pago';
-  if (out.acao === 'rifa' && !out.texto) { const n = t.match(/\b\d{1,5}\b/g); if (n) out.texto = n.join(', '); }
+  if (out.acao === 'rifa') {
+    if (/\b(desmarc|tir)\w*\b.*\bpago\b/.test(t)) out.campo = 'nao_pago';
+    else if (/\bquem\b/.test(t) && !/\bpag/.test(t)) out.campo = 'quem';
+    // Números: só os ditos (o modelo copiava os do exemplo)
+    const n = t.replace(/\br\$?\s*\d+/g, ' ').match(/\b\d{1,5}\b/g);
+    out.texto = n ? n.join(', ') : '';
+    // Rifa citada pelo nome: "rifa da moto"
+    const m = texto.match(/\brifa (?:da |do |de )(.+?)(?:[?!.,]|$| com | e | pra )/i);
+    out.titulo = m ? m[1].trim() : '';
+  }
+  // Ver o perfil de treino é consulta (mudar fica no Preparo)
+  if (/\bperfil de treino\b/.test(t) && !/\b(muda|troca|coloca|bota|poe|altera)\w*/.test(t)) { out.acao = 'consultar'; out.consulta = 'perfil_treino'; out.campo = ''; }
+  // "comprei o arroz": marcar na lista, não adicionar
+  if (out.acao === 'lista_adicionar' && /\b(comprei|peguei|ja tenho|risca|achei)\b/.test(t)) out.acao = 'lista_marcar';
+  // Abrir tela: a tela dita na frase
+  if (out.acao === 'configurar' && out.campo === 'abrir_tela' && !out.texto) {
+    const m = t.match(/\b(home|ritual|desempenho|desafios?|preparo|chat|comunidade|ajustes|configuracoes)\b/);
+    if (m) out.texto = { desafio: 'desafios', comunidade: 'chat', configuracoes: 'ajustes' }[m[1]] || m[1];
+  }
+  if (out.acao === 'lista_organizar' && out.campo === 'renomear') {
+    const m = texto.match(/\blista (?:de |do |da )?(.+?) (?:pra|para) (.+?)[.!?]*$/i);
+    if (m) { out.lista = m[1].trim(); out.texto = m[2].trim(); }
+  }
   // Mexer na lista em si (nome, grupo, limpar)
   if (lista && out.acao !== 'lista_organizar' && !['lista_adicionar', 'lista_marcar'].includes(out.acao) || /\bgrupo de listas\b/.test(t)) {
     const campo = /grupo/.test(t) ? 'criar_grupo' : /\b(renome|muda o nome|troca o nome|chamar)\w*/.test(t) ? 'renomear'
