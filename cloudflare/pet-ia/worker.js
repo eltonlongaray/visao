@@ -188,6 +188,7 @@ function corrigirRota(out, texto) {
     }
   }
   // Código de convite: pega da frase (letras e números juntos)
+  if (out.acao === 'desafio' && /\bcodigo\b/.test(t) && /\b(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{5,10}\b/.test(t)) { out.campo = 'codigo'; if (!/\d/.test(out.texto || '')) out.texto = ''; }
   if (out.acao === 'desafio' && out.campo === 'codigo' && !out.texto) {
     const m = texto.match(/\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{5,10}\b/);
     if (m) out.texto = m[0].toUpperCase();
@@ -287,6 +288,7 @@ export function limparResposta(out, conteudo, texto = conteudo) {
       out.hora = `${String(h).padStart(2, '0')}:${m[2] || '00'}`;
     }
   }
+  if (out.acao === 'desempenho' && out.campo === 'reflexao_anotar' && !out.texto) { const m = texto.match(/\bque\s+(.+)$/i); if (m) out.texto = m[1].trim(); }
   // Nota: o que vem depois do "que" é o texto
   if (out.acao === 'nota' && !out.texto) { const m = texto.match(/\bque\s+(.+)$/i); if (m) out.texto = m[1].trim(); }
   // Contas: "internet dia 8 e o celular dia 20" (o modelo às vezes pega só a primeira)
