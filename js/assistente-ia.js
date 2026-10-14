@@ -3682,7 +3682,9 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
       _conversa = null;
       // Frase falada: a IA entende o pedido direto (o regex costuma pegar só um pedaço)
       const n = await entenderNaNuvem(texto);
-      return n === 'fora' ? undefined : n;
+      if (n !== 'fora' && n !== undefined) return n;
+      // Nem resposta nem pedido do app: não chuta, volta pra conversa e pergunta
+      _conversa = c;
     }
   } else if (texto) {
     // Sem nuvem: se o classificador reconhece um pedido do app, também sai
@@ -3692,7 +3694,10 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
     } catch { /* sem classificador: segue perguntando */ }
   }
   if (PADRAO_PASSO[c.passo]) return PASSOS[c.passo]({ id: PADRAO_PASSO[c.passo], texto }, c.dados);
-  if (++c.tentativas >= 2) return encerrarConversa('Tudo bem, deixa pra lá 👍 Se quiser falar disso depois, é só me chamar.');
+  if (++c.tentativas >= 2) {
+    if (texto) anotarNoDiario(texto, 'nao_entendi');
+    return encerrarConversa(NAO_CONSIGO_AINDA);
+  }
   addChoices(`Não peguei bem 😅 ${c.curta || c.texto}`, c.botoes.map(b => ({ label: b.label, action: () => continuarConversa(null, b.id, c.passo) })));
   return null;
 }
@@ -3885,6 +3890,26 @@ function _tirarPendentes(d, fn) {
   d.pendentes = (d.pendentes || treinosSemMarcar()).filter(x => !fn(x));
 }
 
+// O Pet NÃO adivinha (Élton, 14/10): antes de mexer na agenda ele diz como
+// entendeu e pergunta. "Não" → pede pra explicar de outro jeito; na 2ª vez
+// diz que não entendeu e anota no Diário do Pet pra aprender.
+function confirmarEntendimento(d, resumo, executar, texto, voltar) {
+  d.confirmar = { executar, texto, voltar };
+  return perguntar('confirmar', `Deixa eu ver se entendi: ${resumo}<br>Tá certo?`,
+    [BT('sim', '✅ Isso'), BT('nao', '🤔 Não é isso')], d, 'Entendi certo? É isso?');
+}
+
+const NAO_CONSIGO_AINDA = 'Essa é uma função que eu não consigo fazer no momento, mas anotei aqui 📝 Enquanto isso, dá pra fazer direto na tela.';
+
+function naoEntendiNaConversa(d, texto) {
+  d.naoEntendi = (d.naoEntendi || 0) + 1;
+  if (d.naoEntendi >= 2) {
+    anotarNoDiario(texto, 'nao_entendi');
+    return encerrarConversa(NAO_CONSIGO_AINDA);
+  }
+  return null;
+}
+
 async function compensarTreino(d, comp, texto) {
   if (comp.origem == null) return undefined;
   const origem = _diaPassado(comp.origem), oid = dayId(origem);
@@ -3893,10 +3918,10 @@ async function compensarTreino(d, comp, texto) {
   let treinos = (dia?.tasks || []).filter(t => !t.done && !t.cancelled && _CK?.TREINO_RE.test(t.title || ''));
   const citados = treinos.filter(t => semAcento(texto).includes(semAcento(t.title || '')));
   if (citados.length) treinos = citados;
-  if (!treinos.length) {
-    diz(`Não achei treino sem marcar de ${_esc(quando)} pra passar pra outro dia.`);
-  } else {
-    const novo = _diaFuturo(comp.destino), nid = dayId(novo);
+  if (!treinos.length) return undefined;   // nada a passar: segue o fluxo normal
+  const novo = _diaFuturo(comp.destino), nid = dayId(novo);
+  const nomes = treinos.map(t => `<strong>${_esc(t.title)}</strong>`).join(' e ');
+  const executar = async () => {
     const destino = (await fetchDaysRange(novo, novo).catch(() => []))[0];
     for (const tk of treinos) {
       // O dia novo já tem esse treino: não duplica, só risca a original
@@ -3904,14 +3929,15 @@ async function compensarTreino(d, comp, texto) {
       await updateDayTask(oid, tk.id, { cancelled: true, movedTo: nid });
       if (!jaTem) await addDayTask(nid, { ..._copiaAvulsa(tk), done: false, cancelled: false, rescheduled: true, rescheduleCount: (tk.rescheduleCount || 0) + 1, order: 0 });
     }
-    const nomes = treinos.map(t => `<strong>${_esc(t.title)}</strong>`).join(' e ');
     const la = typeof comp.origem === 'string' ? quando.charAt(0).toUpperCase() + quando.slice(1) : `Na ${quando}`;
-    diz(`Fechado, é substituição 👊 Passei ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong>. ${_esc(la)} fica riscado como transferido.`);
-  }
-  const ids = new Set(treinos.map(t => t.id));
-  _tirarPendentes(d, x => x.dia === oid && ids.has(x.id));
-  if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
-  return passoMarcar(d, false, 'E estes outros, tu fez?');
+    diz(`👊 Passei ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong>. ${_esc(la)} fica riscado como transferido.`);
+    const ids = new Set(treinos.map(t => t.id));
+    _tirarPendentes(d, x => x.dia === oid && ids.has(x.id));
+    if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
+    return passoMarcar(d, false, 'E estes outros, tu fez?');
+  };
+  return confirmarEntendimento(d, `tu quer passar ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong> (substituição).`,
+    executar, texto, () => passoMarcar(d, true, 'Beleza, me explica de outro jeito: quais treinos tu fez ou quer passar pra outro dia?'));
 }
 
 // "Semana passada o karate foi segunda, quarta e sexta": naquela semana o
@@ -3937,23 +3963,29 @@ async function moverSemana(d, mud, texto) {
   for (const x of dias) if (!alvoIds.includes(x.id)) for (const t of doDia(x.id)) if (!t.done) sobras.push({ dia: x.id, tk: t });
   const modelo = sobras[0]?.tk || dias.flatMap(x => doDia(x.id))[0];
   if (!modelo) return undefined;
-  for (const aid of alvoIds) {
-    const ja = doDia(aid)[0];
-    if (ja) { if (!ja.done) await updateDayTask(aid, ja.id, { done: true }); continue; }
-    const orig = sobras.shift();
-    if (orig) await updateDayTask(orig.dia, orig.tk.id, { cancelled: true, movedTo: aid });
-    await addDayTask(aid, { ..._copiaAvulsa(orig?.tk || modelo), done: true, cancelled: false, order: 0 });
-  }
-  // Sobrou dia antigo sem par: naquela semana ele não aconteceu
-  for (const o of sobras) await updateDayTask(o.dia, o.tk.id, { cancelled: true });
   const semana = mud.semana === 'essa' ? 'dessa semana' : mud.semana === 'retrasada' ? 'da semana retrasada' : 'da semana passada';
   const lista = alvos.map(rotData);
   const txtDias = lista.length > 1 ? `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}` : lista[0];
-  diz(`✅ Fechado: <strong>${_esc(titulo)}</strong> ${semana} ficou ${txtDias}, tudo feito. Mudei só aquela semana; teu modelo da semana segue igual.`);
-  const ini = dayId(seg), fim = dayId(dom);
-  _tirarPendentes(d, x => x.dia >= ini && x.dia <= fim && semAcento(x.title || '') === semAcento(titulo));
-  if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
-  return passoMarcar(d, false, 'E estes outros, tu fez?');
+  const executar = async () => {
+    const resto = [...sobras];
+    for (const aid of alvoIds) {
+      const ja = doDia(aid)[0];
+      if (ja) { if (!ja.done) await updateDayTask(aid, ja.id, { done: true }); continue; }
+      const orig = resto.shift();
+      if (orig) await updateDayTask(orig.dia, orig.tk.id, { cancelled: true, movedTo: aid });
+      await addDayTask(aid, { ..._copiaAvulsa(orig?.tk || modelo), done: true, cancelled: false, order: 0 });
+    }
+    // Sobrou dia antigo sem par: naquela semana ele não aconteceu
+    for (const o of resto) await updateDayTask(o.dia, o.tk.id, { cancelled: true });
+    diz(`✅ Fechado: <strong>${_esc(titulo)}</strong> ${semana} ficou ${txtDias}, tudo feito. Teu modelo da semana segue igual.`);
+    const ini = dayId(seg), fim = dayId(dom);
+    _tirarPendentes(d, x => x.dia >= ini && x.dia <= fim && semAcento(x.title || '') === semAcento(titulo));
+    if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
+    return passoMarcar(d, false, 'E estes outros, tu fez?');
+  };
+  return confirmarEntendimento(d,
+    `<strong>${_esc(titulo)}</strong> ${semana} foi ${txtDias}, e tu fez todos. Mudou só naquela semana, o modelo da semana fica igual.`,
+    executar, texto, () => passoMarcar(d, true, 'Beleza, me explica de outro jeito: quais treinos tu fez e em que dia?'));
 }
 
 // Resposta que ninguém entendeu, num passo onde qualquer coisa vale: usa esta opção
@@ -4030,6 +4062,20 @@ const PASSOS = {
     return undefined;
   },
 
+  // "Deixa eu ver se entendi… Tá certo?"
+  async confirmar({ id, texto }, d) {
+    const c = d.confirmar;
+    if (!c) return undefined;
+    const sn = id ? id === 'sim' : PC.simNao(texto);
+    if (sn === true) { d.confirmar = null; return c.executar(); }
+    if (sn === false || (!id && /\b(nao e isso|errado|nada a ver|nao foi isso|entendeu errado)\b/.test(PC.norm(texto)))) {
+      d.confirmar = null;
+      const fim = naoEntendiNaConversa(d, c.texto);
+      return fim !== null ? fim : c.voltar();
+    }
+    return undefined;
+  },
+
   // Marcar os treinos que ficaram sem marcar
   async marcar({ id, texto }, d) {
     if (!id) { const a = await ajustesDeTreino(d, texto); if (a !== undefined) return a; }
@@ -4048,10 +4094,16 @@ const PASSOS = {
       if (citados.length) alvos = citados;
     }
     if (!alvos.length) return undefined;
-    for (const x of alvos) await updateDayTask(x.dia, x.id, { done: true });
-    d.pendentes = d.pendentes.filter(x => !alvos.includes(x));
-    diz(`✅ Marquei como feito: ${alvos.map(x => `<strong>${_esc(rotuloTreino(x))}</strong>`).join(', ')}.`);
-    return passoMarcar(d, false);
+    const marcar = async () => {
+      for (const x of alvos) await updateDayTask(x.dia, x.id, { done: true });
+      d.pendentes = d.pendentes.filter(x => !alvos.includes(x));
+      diz(`✅ Marquei como feito: ${alvos.map(x => `<strong>${_esc(rotuloTreino(x))}</strong>`).join(', ')}.`);
+      return passoMarcar(d, false);
+    };
+    if (id) return marcar();   // tocou no botão: não tem o que adivinhar
+    // Pelo texto ("o de segunda e sexta") confirma antes: a frase pode estar falando de outra coisa
+    return confirmarEntendimento(d, `tu fez ${alvos.map(x => `<strong>${_esc(rotuloTreino(x))}</strong>`).join(', ')}.`,
+      marcar, texto, () => passoMarcar(d, false, 'Beleza, me diz de outro jeito: quais tu fez?'));
   },
 };
 
