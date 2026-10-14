@@ -3846,10 +3846,10 @@ function passoMarcar(d, primeira, pergunta = null) {
     d, 'Quais desses tu fez? Pode falar o dia, tipo "o de terça".');
 }
 
-// ─── Treino: feriado, compensar e mudar só aquela semana ─────
-// "ontem era feriado, vou compensar o treino de ontem na sexta" e "semana
-// passada o karate foi segunda, quarta e sexta": a pessoa explica o que
-// aconteceu e o Pet ajusta a agenda, sem mexer no modelo da semana.
+// ─── Treino: substituir dia e mudar só aquela semana ─────
+// "vou compensar o treino de ontem na sexta" (substituição, seja qual for o
+// motivo) e "semana passada o karate foi segunda, quarta e sexta": a pessoa
+// explica o que aconteceu e o Pet ajusta a agenda, sem mexer no modelo da semana.
 async function ajustesDeTreino(d, texto) {
   if (!texto) return undefined;
   const mud = PC.mudancaSemana(texto);
@@ -3893,10 +3893,9 @@ async function compensarTreino(d, comp, texto) {
   let treinos = (dia?.tasks || []).filter(t => !t.done && !t.cancelled && _CK?.TREINO_RE.test(t.title || ''));
   const citados = treinos.filter(t => semAcento(texto).includes(semAcento(t.title || '')));
   if (citados.length) treinos = citados;
-  const feriado = comp.feriado ? 'Feriado não conta como falta 👍 ' : '';
   if (!treinos.length) {
-    diz(`${feriado}Não achei treino sem marcar de ${_esc(quando)}.`);
-  } else if (comp.destino != null) {
+    diz(`Não achei treino sem marcar de ${_esc(quando)} pra passar pra outro dia.`);
+  } else {
     const novo = _diaFuturo(comp.destino), nid = dayId(novo);
     const destino = (await fetchDaysRange(novo, novo).catch(() => []))[0];
     for (const tk of treinos) {
@@ -3907,11 +3906,8 @@ async function compensarTreino(d, comp, texto) {
     }
     const nomes = treinos.map(t => `<strong>${_esc(t.title)}</strong>`).join(' e ');
     const la = typeof comp.origem === 'string' ? quando.charAt(0).toUpperCase() + quando.slice(1) : `Na ${quando}`;
-    diz(`${feriado}Passei ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong>. ${_esc(la)} fica riscado como transferido.`);
-  } else if (comp.feriado) {
-    for (const tk of treinos) await updateDayTask(oid, tk.id, { cancelled: true });
-    diz(`${feriado}Risquei ${treinos.map(t => `<strong>${_esc(t.title)}</strong>`).join(' e ')} de ${_esc(quando)}, não entra como falta. Se quiser compensar, me fala o dia.`);
-  } else return undefined;
+    diz(`Fechado, é substituição 👊 Passei ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong>. ${_esc(la)} fica riscado como transferido.`);
+  }
   const ids = new Set(treinos.map(t => t.id));
   _tirarPendentes(d, x => x.dia === oid && ids.has(x.id));
   if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');

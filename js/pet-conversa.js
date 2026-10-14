@@ -116,22 +116,21 @@ export function querManter(text) {
 const DIA_N = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
 const DIA_RE = '(domingo|segunda|terca|quarta|quinta|sexta|sabado)';
 
-// "ontem era feriado, vou compensar o treino de ontem na sexta"
-// → { origem: 'ontem'|'hoje'|'anteontem'|0..6|null, destino: 0..6|'amanha'|null, feriado }
-// null = a frase não fala de compensar nem de feriado
+// "vou compensar o treino de ontem na sexta", "troca o de terça pelo sábado":
+// SUBSTITUIÇÃO, seja qual for o motivo (feriado, viagem, academia fechada).
+// O motivo não muda nada: o que conta é o pedido de passar o treino pra outro dia.
+// → { origem: 'ontem'|'hoje'|'anteontem'|0..6|null, destino: 0..6|'amanha' } ou null
 export function compensacao(text) {
   const t = norm(text).replace(/-feira/g, '').replace(/\bfeira\b/g, '');
-  const feriado = /\bferiado\b/.test(t);
-  const verbo = /\b(compens\w*|repor|repo\w*|recuper\w*|pagar o treino|passa\w* (?:o|a|ele|ela)|jog\w* (?:o|a|ele|ela|pra)|empurr\w*|remarc\w*|vou fazer (?:ele|ela|o|a))\b/.test(t);
-  if (!feriado && !verbo) return null;
+  if (!/\b(compens\w*|repor|repo\w*|recuper\w*|substitu\w*|troc\w*|pagar o treino|passa\w* (?:o|a|ele|ela)|jog\w* (?:o|a|ele|ela|pra)|empurr\w*|remarc\w*|vou fazer (?:ele|ela|o|a))\b/.test(t)) return null;
   const mOri = t.match(new RegExp(`\\b(?:de|do|da)\\s+(ontem|anteontem|hoje|${DIA_RE.slice(1, -1)})\\b`));
-  const mDest = verbo && t.match(new RegExp(`\\b(?:na|no|pra|para|ate)\\s+(?:a\\s+|o\\s+)?(?:proxim[ao]\\s+)?(amanha|${DIA_RE.slice(1, -1)})\\b`));
-  let origem = mOri ? mOri[1] : (feriado && /\bontem\b/.test(t) ? 'ontem' : null);
+  const mDest = t.match(new RegExp(`\\b(?:na|no|pra|para|ate|pela|pelo)\\s+(?:a\\s+|o\\s+)?(?:proxim[ao]\\s+)?(amanha|${DIA_RE.slice(1, -1)})\\b`));
+  if (!mDest) return null;
+  let origem = mOri ? mOri[1] : null;
   if (origem in DIA_N) origem = DIA_N[origem];
-  let destino = mDest ? mDest[1] : null;
+  let destino = mDest[1];
   if (destino in DIA_N) destino = DIA_N[destino];
-  if (verbo && destino == null && !feriado) return null;
-  return { origem, destino, feriado };
+  return { origem, destino };
 }
 
 // "semana passada o karate foi segunda, quarta e sexta, precisou mudar só naquela semana"
