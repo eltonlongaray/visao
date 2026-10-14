@@ -24,7 +24,7 @@ const horaNorm = (h) => { const m = String(h || '').match(/(\d{1,2})[:h]?(\d{2})
 
 // Campo por campo: texto = "contém" (sem acento/maiúscula), hora e número exatos,
 // itens = cada item esperado aparece em algum item da resposta
-function conferir(esperado, r) {
+function conferir(esperado, r, frase = '') {
   const erros = [];
   for (const [k, v] of Object.entries(esperado)) {
     const got = r?.[k];
@@ -43,6 +43,11 @@ function conferir(esperado, r) {
     } else if (!norm(got).includes(norm(v))) {
       erros.push(`${k}: "${got ?? '—'}" (esperado conter "${v}")`);
     }
+  }
+  // Dado que a pessoa não falou e o app usaria (hora 00:00, itens inventados)
+  for (const k of ['hora', 'numero', 'itens']) {
+    if (k === 'numero' && /\d/.test(frase)) continue;   // "últimos 10 dias": número citado, sem problema
+    if (!(k in esperado) && r?.[k] != null && !(Array.isArray(r[k]) && !r[k].length)) erros.push(`${k} inventado: ${JSON.stringify(r[k])}`);
   }
   return erros;
 }
@@ -82,7 +87,7 @@ await Promise.all([0, 1, 2].map(async () => {
   while (prox < casos.length) {
     const i = prox++;
     const r = await perguntar(casos[i]);
-    resultados[i] = { ...casos[i], r, erros: r.erro ? [`erro: ${r.erro}`] : conferir(casos[i].e, r) };
+    resultados[i] = { ...casos[i], r, erros: r.erro ? [`erro: ${r.erro}`] : conferir(casos[i].e, r, casos[i].f) };
   }
 }));
 

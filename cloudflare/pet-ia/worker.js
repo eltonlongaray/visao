@@ -24,6 +24,8 @@ const SCHEMA = {
   type: 'object',
   properties: {
     acao: { type: 'string', enum: ACOES },
+    campo: { type: 'string' },
+    consulta: { type: 'string', enum: ['', ...CONSULTAS] },
     titulo: { type: 'string' },
     quando: { type: 'string' },
     hora: { type: 'string' },
@@ -31,20 +33,54 @@ const SCHEMA = {
     lista: { type: 'string' },
     itens: { type: 'array', items: { type: 'string' } },
     numero: { type: 'integer' },
-    campo: { type: 'string' },
     texto: { type: 'string' },
     todas: { type: 'boolean' },
-    consulta: { type: 'string', enum: ['', ...CONSULTAS] },
     opcao: { type: 'string' },
     resposta: { type: 'string' },
   },
   // Todos obrigatórios: com campo opcional o modelo pequeno fechava o JSON cedo
   // e esquecia título, hora, dia... Vazio ("", 0, [], false) = não disse; o
   // handler tira os vazios antes de devolver, então o app recebe igual antes.
-  required: ['acao', 'titulo', 'quando', 'hora', 'para', 'lista', 'itens', 'numero', 'campo', 'texto', 'todas', 'consulta', 'opcao', 'resposta'],
+  required: ['acao', 'campo', 'consulta', 'titulo', 'quando', 'hora', 'para', 'lista', 'itens', 'numero', 'texto', 'todas', 'opcao', 'resposta'],
 };
-// Tira os campos vazios (o schema obriga todos, vazio = a pessoa não disse)
-function semVazios(out) {
+// Campos que cada ação aceita em "campo" (o resto é invenção do modelo)
+const CAMPOS = {
+  configurar: ['acordar_padrao', 'dormir_padrao', 'tema', 'abrir_tela', 'atividades_listar', 'atividade_criar', 'atividade_renomear', 'atividade_icone', 'atividade_cor', 'atividade_excluir'],
+  desempenho: ['geral', 'atividade', 'recorde', 'sono', 'reflexao_ver', 'reflexao_anotar', 'objetivos_ver', 'objetivo_criar', 'objetivo_mudar', 'objetivo_apagar'],
+  desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'convidar', 'grupo'],
+  ideal: ['ver', 'marcar', 'desmarcar', 'atividade', 'constancia'],
+  lista_organizar: ['limpar_feitos', 'renomear', 'apagar', 'criar_grupo'],
+  nota: ['orgulho', 'melhorar', 'apagar', 'preencher'],
+  notas_periodo: ['falhas', 'melhorias', 'tudo'],
+  sono: ['acordei', 'dormi', 'cochilo', 'madrugada'],
+  agua: ['somar', 'tirar', 'definir'],
+  converter: ['compromisso', 'tarefa'],
+  consultar_dia: ['passado'],
+};
+const _sem = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// O dado aparece no que a pessoa escreveu? (compara o começo das palavras:
+// "meditar" acha "Meditação"). Palavras curtas não contam.
+function _citado(valor, falado) {
+  const palavras = _sem(valor).match(/[a-z0-9]{3,}/g) || [];
+  return palavras.some(p => falado.includes(p.slice(0, Math.min(p.length, 4))));
+}
+const NUM_FALADO = /\d|\b(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|meia|meio|copo|copos|garrafa|garrafas|litro|litros|hora|horas|dobro)\b/;
+// Limpa a resposta do modelo: tira o vazio (o schema obriga todos os campos)
+// e o que ele inventou (hora/número/itens/dia que a pessoa não falou).
+function limparResposta(out, conteudo) {
+  const falado = _sem(conteudo);
+  const permitidos = CAMPOS[out.acao] || [];
+  // Às vezes o modelo põe o "campo" no título ("titulo":"tema")
+  if (!permitidos.includes(out.campo) && permitidos.includes(out.titulo)) { out.campo = out.titulo; out.titulo = ''; }
+  if (!permitidos.includes(out.campo)) out.campo = '';
+  if (out.acao !== 'consultar') out.consulta = '';
+  if (!['excluir', 'lista_organizar', 'desafio'].includes(out.acao)) out.todas = false;
+  if (out.hora && !NUM_FALADO.test(falado)) out.hora = '';
+  if (out.numero && !NUM_FALADO.test(falado)) out.numero = 0;
+  if (out.numero < 0) out.numero = -out.numero;
+  if (Array.isArray(out.itens)) out.itens = out.itens.filter(i => _citado(i, falado));
+  for (const k of ['lista', 'para']) if (out[k] && !_citado(out[k], falado)) out[k] = '';
+  if (out.quando && _sem(out.quando) !== 'hoje' && !_citado(out.quando, falado)) out.quando = '';
   for (const [k, v] of Object.entries(out)) {
     if (k === 'acao' || k === 'resposta') continue;
     if (v === '' || v === null || v === false || (k === 'numero' && !v) || (Array.isArray(v) && !v.filter(x => String(x).trim()).length)) delete out[k];
@@ -67,7 +103,7 @@ REGRA DE OURO: todo dado que a pessoa falou vai pro JSON, no campo certo. Nunca 
 - nome de lista ou grupo → "lista"; nome novo, cor, emoji, tema, código ou frase pra anotar → "texto"
 Se a frase tem o dado, o campo NÃO pode ficar vazio.
 
-Campos (o JSON tem TODOS, nessa ordem): "acao", "titulo", "quando", "hora", "para", "lista", "itens", "numero", "campo", "texto", "todas", "consulta", "opcao", "resposta". O que a pessoa não disse fica vazio ("" / [] / 0 / false). Os exemplos abaixo mostram só os campos preenchidos.
+Campos (o JSON tem TODOS, nessa ordem): "acao", "campo", "consulta", "titulo", "quando", "hora", "para", "lista", "itens", "numero", "texto", "todas", "opcao", "resposta". O que a pessoa não disse fica vazio ("" / [] / 0 / false). Os exemplos abaixo mostram só os campos preenchidos.
 "resposta": uma frase curta, natural, em português do Brasil informal, usando "tu". Nunca inventa dado que a pessoa não disse.
 
 AÇÕES (campo "acao") e o que vai em cada uma:
@@ -425,7 +461,7 @@ export default {
       });
       const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
       if (!out?.acao) return json(req, { erro: 'sem resposta' }, 502);
-      semVazios(out);
+      limparResposta(out, conteudo);
       if (out.opcao && !opcoes.some(o => o.id === out.opcao)) delete out.opcao;   // só id que existe
       if (out.acao === 'conversa') out.resposta = '';   // fora do app: o app responde com texto fixo
       return json(req, out);
