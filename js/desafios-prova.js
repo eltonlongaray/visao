@@ -37,6 +37,9 @@ function _mimeVideo() {
 
 // rascunho = mostra "Salvar rascunho" na revisão: o Blob volta marcado com
 // __rascunho e quem chamou guarda no aparelho em vez de mandar.
+// 187 → "3:07": em segundos ninguém sabia quantos minutos já tinham passado
+const _mmss = (seg) => `${Math.floor(seg / 60)}:${String(Math.floor(seg % 60)).padStart(2, '0')}`;
+
 export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova' } = {}) {
   return new Promise((resolve) => {
     const mime = _mimeVideo();
@@ -51,7 +54,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>🔴 Gravação ao vivo · até ${maxSeg >= 60 ? `${Math.round(maxSeg / 60)} min` : `${maxSeg} s`}</small></div>
       <video class="cam-guia-video ds-rec-fonte" autoplay playsinline muted></video>
       <canvas class="cam-guia-video ds-rec-video" width="${REC_W}" height="${REC_H}"></canvas>
-      <div class="ds-rec-tempo" hidden>● <span>0</span>s</div>
+      <div class="ds-rec-tempo" hidden>● <span>0:00</span> / ${_mmss(maxSeg)}</div>
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-rec="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot ds-rec-shot" data-rec="go" aria-label="Gravar"></button>
@@ -161,12 +164,12 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       pausa.hidden = false;
       pausa.textContent = '⏸';
       tempo.hidden = false;
-      tempo.querySelector('span').textContent = '0';
+      tempo.querySelector('span').textContent = '0:00';
       // Conta pelo relógio, não por "tique": com o celular ocupado os tiques
       // atrasam e a gravação passava do limite sem o contador ver
       timer = setInterval(() => {
         seg = Math.floor(_gravado() / 1000);
-        tempo.querySelector('span').textContent = String(seg);
+        tempo.querySelector('span').textContent = _mmss(seg);
         if (seg >= maxSeg) pararGravacao();
       }, 250);
     }
