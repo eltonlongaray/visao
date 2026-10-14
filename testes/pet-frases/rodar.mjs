@@ -60,7 +60,7 @@ async function perguntar(c) {
   const body = { texto: c.f };
   if (c.h) body.historico = c.h;
   if (c.p) { body.pergunta = c.p.pergunta; body.opcoes = c.p.opcoes; }
-  for (let tentativa = 0; tentativa < 3; tentativa++) {
+  for (let tentativa = 0; tentativa < 5; tentativa++) {
     let res;
     try {
       res = await fetch(PET_URL, {
@@ -74,7 +74,8 @@ async function perguntar(c) {
     }
     const j = await res.json().catch(() => ({}));
     if (res.ok) return j;
-    if (res.status !== 503 && res.status !== 502) return { erro: `${res.status} ${j.erro || ''}` };
+    // 404/403 logo depois de publicar = o Worker de teste ainda está se espalhando
+    if (![502, 503, 404, 403].includes(res.status)) return { erro: `${res.status} ${j.erro || ''}` };
     await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
   }
   return { erro: 'ia indisponível' };
@@ -82,6 +83,12 @@ async function perguntar(c) {
 
 const casos = JSON.parse(readFileSync(new URL('./frases.json', import.meta.url), 'utf8'))
   .filter(c => !FILTRO || c.e.acao === FILTRO || c.f.includes(FILTRO));
+// Espera o Worker de teste responder antes de começar (até 1 min)
+for (let i = 0; i < 12; i++) {
+  const r = await fetch(PET_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Pet-Teste': CHAVE }, body: JSON.stringify({ texto: 'oi' }) }).catch(() => null);
+  if (r?.ok) break;
+  await new Promise(r => setTimeout(r, 5000));
+}
 const resultados = new Array(casos.length);
 let prox = 0;
 await Promise.all([0, 1, 2].map(async () => {
