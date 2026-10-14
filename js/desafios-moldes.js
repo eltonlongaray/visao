@@ -82,6 +82,22 @@ export const PRENDAS = [
   'Elogiar publicamente cada membro do grupo 💛',
   'Postar uma foto ridícula de criança 👶',
   'Mandar um áudio cantando o hino do Falcon 🦅',
+  // Do Élton (13/10)
+  'Fazer 30 agachamentos com um ovo na boca 🥚',
+  'Chupar 1 limão sem fazer careta 🍋',
+  'Fritar um ovo como se fosse um MasterChef 🍳',
+  'Se filmar soltando um pum barulhento 💨',
+  // Mais ideias
+  'Dançar 30 segundos de uma música que o grupo escolher 💃',
+  'Imitar um bicho por 15 segundos 🐔',
+  'Falar um trava-língua 3 vezes seguidas sem errar 👅',
+  'Narrar um lance de futebol como locutor de TV ⚽',
+  'Cantar uma música infantil com voz de ópera 🎶',
+  'Desfilar pela casa como modelo, com roupa improvisada 👗',
+  'Andar 20 passos como pinguim 🐧',
+  'Fazer uma declaração de amor pro espelho 🪞',
+  'Fazer 20 polichinelos cantando parabéns 🎂',
+  'Comer uma colher de mostarda sem beber nada depois 🌭',
 ];
 
 // Código de convite curto e legível (sem 0/O/1/I pra não confundir)
