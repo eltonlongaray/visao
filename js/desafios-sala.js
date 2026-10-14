@@ -11,6 +11,7 @@
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
 import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
+import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
@@ -429,6 +430,7 @@ export async function entrarPeloConvite() {
 // Entra no desafio do código e abre a sala do grupo. true = deu certo.
 export async function entrarNoConvite(cod) {
   try {
+    if (!(await aceitarPrendaDoCodigo(cod))) { showToast('Tudo bem, o convite fica pra depois 🦅', 'info'); return false; }
     const id = await entrarPorCodigo(cod, await meuNomeDeChat());
     const d = (await fetchDesafios()).find(x => x.id === id);
     const detalhe = { id, titulo: d?.titulo || 'Desafio', tipo: d?.tipo };
