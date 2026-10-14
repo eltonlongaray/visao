@@ -163,6 +163,7 @@ function corrigirRota(out, texto) {
   if (out.acao === 'configurar' && /\batividades?\b/.test(t) && apagar && !/\b(repeti|todas)/.test(t)) {
     out.campo = 'atividade_excluir';
   }
+  if (out.acao === 'treino_frequencia' && !out.numero) { const m = t.match(/\b([1-7])\s*(x|vezes)\b/); if (m) out.numero = +m[1]; }
   // Número dito em algarismo vence o chute ("pra 25 vezes" e veio 4)
   const nums = (t.match(/\b\d+\b/g) || []).map(Number);
   if (out.numero && nums.length === 1 && !nums.includes(Number(out.numero)) && !/\b(ml|litros?|h|horas?|min)\b/.test(t)) out.numero = nums[0];
