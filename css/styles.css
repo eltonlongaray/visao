@@ -8482,3 +8482,8 @@ body.rota-publica .bottom-nav { display: none !important; }
   padding: 10px; font-size: 15px; line-height: 1.4; font-family: inherit;
 }
 .ds-tp-ed-acoes { display: flex; gap: 8px; justify-content: flex-end; }
+/* Sugestões de prenda: regras no retrátil padrão (igual Ajustes) */
+.sg-acc { margin-bottom: 10px; }
+.sg-regras-lista { font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.sg-regras-lista ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.sg-falcon .sg-item-txt { font-size: 13px; }
