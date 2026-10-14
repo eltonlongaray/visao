@@ -221,26 +221,55 @@ function _pickShift(shifts, time) {
 // FASE C: cada agendamento confirmado vira um COMPROMISSO "Agenda Online" no Ritual
 // do dono, com lembrete (bolinha vermelha). Idempotente via extra.agendamentoId —
 // pode rodar quantas vezes quiser que não duplica. Retorna quantos criou.
-export async function sincronizarCompromissos() {
-  const ags = await getAgendamentos().catch(() => []);
+//
+// BUG de 09/10 (Larissa: "tem 3 compromissos e fica 6, aparece como cancelado"):
+// se a busca dos agendamentos ativos FALHAVA (rede fraca no celular), o .catch
+// devolvia [] → todo compromisso parecia de agendamento cancelado → marcava 🚫
+// e criava outro igual. Agora: sem a lista confiável, NÃO mexe em nada; só
+// marca cancelado o que o banco confirma como cancelado; e duas chamadas ao
+// mesmo tempo (boot + abrir a Agenda) viram uma só.
+let _syncEmAndamento = null;
+export function sincronizarCompromissos() {
+  return (_syncEmAndamento ||= _sincronizar().finally(() => { _syncEmAndamento = null; }));
+}
+
+// Status de agendamentos pelo id (só os que sumiram da lista de ativos)
+async function _statusPorId(ids) {
+  if (!ids.length) return {};
+  const { data, error } = await supabase.from('agendamentos').select('id, status').in('id', ids);
+  if (error) throw new Error(error.message);
+  const st = {};
+  for (const r of data || []) st[r.id] = r.status;
+  return st;
+}
+
+async function _sincronizar() {
+  const ags = await getAgendamentos();          // falhou → aborta (não adivinha)
+  const todos = await getAgendamentosTodos();   // idem
+  const ativos = new Set(todos.map(a => a.id));
+  await _limparDuplicadosUmaVez(todos, ativos).catch(e => console.warn('[agenda] limpeza:', e));
   if (!ags.length) return 0;
   const shifts = await getShifts().catch(() => []);
-  // Ids ainda ATIVOS (não cancelados) — pra remover compromisso de agendamento cancelado.
-  const todos = await getAgendamentosTodos().catch(() => []);
-  const ativos = new Set(todos.map(a => a.id));
   const porDia = {};
   for (const a of ags) (porDia[a.data] ||= []).push(a);
   let criados = 0;
   for (const dia of Object.keys(porDia)) {
-    const existentes = await getDayTasks(dia).catch(() => []);
+    let existentes;
+    try { existentes = await getDayTasks(dia); }
+    catch { continue; }   // não leu o dia → não cria nada nele (criaria duplicado)
     // Agendamento CANCELADO (ex.: cliente cancelou pelo link) → marca o compromisso
     // como cancelado (🚫 + riscado), sem excluir, pra o dono ver o que aconteceu.
-    for (const t of existentes) {
-      if (t.agendamentoId && !ativos.has(t.agendamentoId) && !t.cancelled) {
-        await updateDayTask(dia, t.id, { cancelled: true }).catch(() => {});
+    // Só quando o BANCO confirma "cancelado" (ou o agendamento não existe mais).
+    const sumidos = existentes.filter(t => t.agendamentoId && !ativos.has(t.agendamentoId) && !t.cancelled);
+    if (sumidos.length) {
+      const st = await _statusPorId(sumidos.map(t => t.agendamentoId)).catch(() => null);
+      if (st) for (const t of sumidos) {
+        if (st[t.agendamentoId] === 'cancelado' || !(t.agendamentoId in st)) {
+          await updateDayTask(dia, t.id, { cancelled: true }).catch(() => {});
+        }
       }
     }
-    const jaSync = new Set(existentes.filter(t => t.agendamentoId && ativos.has(t.agendamentoId)).map(t => t.agendamentoId));
+    const jaSync = new Set(existentes.filter(t => t.agendamentoId).map(t => t.agendamentoId));
     for (const a of porDia[dia]) {
       _agendarLembreteAtendimento(a);   // garante o lembrete da hora (novos E antigos)
       if (jaSync.has(a.id)) continue;
@@ -261,10 +290,34 @@ export async function sincronizarCompromissos() {
         done: false,
         agendamentoId: a.id,     // vai pro extra → idempotência
       });
+      jaSync.add(a.id);
       criados++;
     }
   }
   return criados;
+}
+
+// Conserto ÚNICO (por aparelho) do estrago do bug acima: no mesmo dia, dois
+// compromissos do MESMO agendamento (mesmo id, não é palpite pelo texto) e o
+// agendamento está ATIVO → apaga a cópia marcada 🚫 que não foi feita; se as
+// duas estão ativas, fica a feita (ou a primeira). Olha os últimos 60 dias.
+async function _limparDuplicadosUmaVez(todos, ativos) {
+  const CHAVE = 'visao_agenda_dedupe_v1';
+  try { if (localStorage.getItem(CHAVE)) return; } catch { return; }
+  const desde = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+  const dias = [...new Set(todos.filter(a => a.data >= desde).map(a => a.data))];
+  for (const dia of dias) {
+    const tasks = await getDayTasks(dia);   // falhou → tenta de novo na próxima abertura
+    const porAg = {};
+    for (const t of tasks) if (t.agendamentoId && ativos.has(t.agendamentoId)) (porAg[t.agendamentoId] ||= []).push(t);
+    for (const lista of Object.values(porAg)) {
+      if (lista.length < 2) continue;
+      const fica = lista.find(t => t.done && !t.cancelled) || lista.find(t => !t.cancelled) || lista[0];
+      for (const t of lista) if (t !== fica && !t.done) await deleteDayTask(dia, t.id);
+      if (fica.cancelled) await updateDayTask(dia, fica.id, { cancelled: false });
+    }
+  }
+  try { localStorage.setItem(CHAVE, '1'); } catch { /* sem storage */ }
 }
 
 // ── ESPELHO agendamento ↔ compromisso (Ritual) ────────────────────────────
