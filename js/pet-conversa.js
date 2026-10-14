@@ -8,6 +8,7 @@
 // BLOCO 2 — "MUDEI O PLANO, FALTEI OU NÃO MARQUEI?"
 // BLOCO 3 — MOTIVO DA FALTA
 // BLOCO 4 — RESPOSTAS CURTAS (sim/não, número, depois)
+// BLOCO 5 — FERIADO, COMPENSAR E MUDAR SÓ AQUELA SEMANA
 // ─────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════════════════════════════
@@ -107,4 +108,40 @@ export function numeroPorSemana(text) {
 // "manter", "continua 4", "deixa como tá"
 export function querManter(text) {
   return /\b(mant\w*|continua\w*|deixa como (ta|esta)|fica (como|assim)|nao muda\w*|foi so essa semana|so essa semana|semana atipica)\b/.test(norm(text));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 5: FERIADO, COMPENSAR E MUDAR SÓ AQUELA SEMANA
+// ═══════════════════════════════════════════════════════════════
+const DIA_N = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+const DIA_RE = '(domingo|segunda|terca|quarta|quinta|sexta|sabado)';
+
+// "ontem era feriado, vou compensar o treino de ontem na sexta"
+// → { origem: 'ontem'|'hoje'|'anteontem'|0..6|null, destino: 0..6|'amanha'|null, feriado }
+// null = a frase não fala de compensar nem de feriado
+export function compensacao(text) {
+  const t = norm(text).replace(/-feira/g, '').replace(/\bfeira\b/g, '');
+  const feriado = /\bferiado\b/.test(t);
+  const verbo = /\b(compens\w*|repor|repo\w*|recuper\w*|pagar o treino|passa\w* (?:o|a|ele|ela)|jog\w* (?:o|a|ele|ela|pra)|empurr\w*|remarc\w*|vou fazer (?:ele|ela|o|a))\b/.test(t);
+  if (!feriado && !verbo) return null;
+  const mOri = t.match(new RegExp(`\\b(?:de|do|da)\\s+(ontem|anteontem|hoje|${DIA_RE.slice(1, -1)})\\b`));
+  const mDest = verbo && t.match(new RegExp(`\\b(?:na|no|pra|para|ate)\\s+(?:a\\s+|o\\s+)?(?:proxim[ao]\\s+)?(amanha|${DIA_RE.slice(1, -1)})\\b`));
+  let origem = mOri ? mOri[1] : (feriado && /\bontem\b/.test(t) ? 'ontem' : null);
+  if (origem in DIA_N) origem = DIA_N[origem];
+  let destino = mDest ? mDest[1] : null;
+  if (destino in DIA_N) destino = DIA_N[destino];
+  if (verbo && destino == null && !feriado) return null;
+  return { origem, destino, feriado };
+}
+
+// "semana passada o karate foi segunda, quarta e sexta, precisou mudar só naquela semana"
+// → { semana: 'passada'|'essa', dias: [1, 3, 5] } (sem nome: quem chama acha a atividade)
+export function mudancaSemana(text) {
+  const t = norm(text).replace(/-feira/g, '');
+  const mSem = t.match(/\b(semana passada|semana retrasada|essa semana|esta semana|nessa semana|nesta semana)\b/);
+  if (!mSem) return null;
+  const dias = [...new Set([...t.matchAll(new RegExp(`\\b${DIA_RE}\\b`, 'g'))].map(m => DIA_N[m[1]]))];
+  if (!dias.length) return null;
+  if (!/\b(foi|foram|fiz|treinei|fui|teve|tive|mud\w*|troc\w*|precis\w*|rolou|aconteceu)\b/.test(t)) return null;
+  return { semana: /passada/.test(mSem[1]) ? 'passada' : /retrasada/.test(mSem[1]) ? 'retrasada' : 'essa', dias };
 }
