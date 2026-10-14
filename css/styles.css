@@ -8417,3 +8417,27 @@ body.rota-publica .bottom-nav { display: none !important; }
 .pr-item-some { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
 .pr-video { width: 100%; max-height: 60vh; border-radius: 10px; background: #000; display: block; -webkit-touch-callout: none; user-select: none; }
 .pr-vazio { text-align: center; color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+/* ── Sugestões de prenda (js/prendas-sugestoes.js) ───────────── */
+.ds-prendas-topo { display: flex; gap: 8px; }
+.ds-prendas-topo .ds-mural-btn { flex: 1; min-width: 0; padding: 10px 8px; font-size: 12.5px; line-height: 1.3; gap: 6px; }
+.ds-sug-btn { border-color: rgba(251,191,36,0.45); background: rgba(251,191,36,0.10); }
+.sg-modal { max-width: 420px; max-height: 90vh; overflow-y: auto; }
+.sg-regras { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
+.sg-regras summary { font-weight: 700; cursor: pointer; font-size: 13px; }
+.sg-regras ul { margin: 6px 0 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sg-form { display: flex; gap: 8px; align-items: stretch; }
+.sg-form textarea { flex: 1; min-width: 0; resize: none; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); padding: 8px 10px; font: inherit; font-size: 14px; }
+.sg-form .btn-primary { flex-shrink: 0; padding: 0 14px; }
+.sg-msg { font-size: 13px; line-height: 1.45; margin-top: 8px; padding: 8px 10px; border-radius: 10px; }
+.sg-msg.ok { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.4); }
+.sg-msg.erro { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.35); }
+.sg-lista-tit { font-size: 12px; font-weight: 800; color: var(--muted); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.sg-lista { display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
+.sg-item { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); }
+.sg-item-txt { flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; }
+.sg-item-txt small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sg-curtir, .sg-mini { flex-shrink: 0; border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.sg-mini { padding: 4px 8px; }
+.sg-curtir.on { border-color: #34d399; background: rgba(52,211,153,0.15); }
+.sg-mini.on { border-color: #ef4444; background: rgba(239,68,68,0.15); }

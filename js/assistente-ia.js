@@ -4745,6 +4745,7 @@ async function tentarDesafios(text) {
       return escolher(citou ? c.desafios : (meus.length ? meus : c.desafios), (d) => desafioRegras(d, c),
         `📜 <b>Regras do Falcon (valem pra todo desafio)</b><br>${c.M.REGRAS_FIXAS.map(x => `• ${_esc(x)}`).join('<br>')}`, 'Não achei esse desafio 🤔 Fala <em>"quais desafios tem?"</em> que eu te mostro.');
     case 'codigo': return desafioCodigo(p.codigo, c);
+    case 'sugerir_prenda': return desafioSugerirPrenda(p.sugestao);
     case 'mural': {
       (await import('./desafios-prendas.js')).abrirMural();
       return '🎭 Abri o <b>Mural das Prendas</b>: quem não concluiu o desafio paga ali, e cada vídeo fica 7 dias.';
@@ -4982,6 +4983,18 @@ async function desafioEntrar(d, c) {
     await c.D.joinDesafio(d.id, await _meuNomeDesafio(c.email));
     _redesenharDesafios();
     return `Tu entrou no desafio 🦅 Quando fizer, me fala: <em>"${d.tipo === 'agua' ? 'bebi 500 ml no desafio da água' : `marca o desafio ${_esc(d.titulo)}`}"</em>.`;
+  }, null);
+  return null;
+}
+
+// Sugestão de prenda: o app confere as regras (e a IA) e, se passar, entra
+// na lista pra todo mundo. Sem texto = abre as sugestões.
+async function desafioSugerirPrenda(sugestao) {
+  const S = await import('./prendas-sugestoes.js');
+  if (!sugestao) { S.abrirSugestoes(); return '💡 Abri as <b>sugestões de prenda</b>: dá pra mandar a tua e curtir as da galera.'; }
+  cardConfirmarLista(`💡 Sugerir a prenda <strong>"${_esc(sugestao)}"</strong> pra todo mundo?<br><small>O app confere as regras: leve, dentro da lei, sem nudez e sem envolver estranhos.</small>`, async () => {
+    const r = await S.sugerirPrenda(sugestao);
+    return r.ok ? '✅ Aprovada! Tua prenda já está na lista pra todo mundo usar 🦅' : `❌ ${_esc(r.motivo)}`;
   }, null);
   return null;
 }
