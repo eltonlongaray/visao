@@ -123,16 +123,22 @@ export function cartaoDoDia(data = new Date(), quem = auth.currentUser?.uid || '
 }
 
 // Cartão de hoje desta pessoa: o do sorteio, pulando os que ela já viu em
-// outros dias (Élton, 14/10: o Princípio 1 tinha repetido). "Outro cartão"
-// troca e a troca vale o dia todo.
+// outros dias (Élton, 14/10: o Princípio 1 tinha repetido). Não tem botão de
+// trocar: cada dia tem a sua mensagem, igual o dia todo.
 const CHAVE_HOJE = 'visao_cartao_hoje';     // { dia, i }
 const CHAVE_VISTOS = 'visao_cartoes_vistos'; // { i: 'dia em que viu' }
 const _diaTxt = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const _ler = (k, padrao) => { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } };
 const _gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
+// Quem já usava o app antes do sorteio viu o Princípio 1 (era o primeiro de todos)
+function _vistos() {
+  let v = _ler(CHAVE_VISTOS, null);
+  if (!v) { v = {}; const p1 = CARTOES.findIndex(c => c.rotulo === 'Princípio 1'); if (p1 >= 0) v[p1] = 'antes'; _gravar(CHAVE_VISTOS, v); }
+  return v;
+}
 function _registrar(i) {
   const hoje = _diaTxt();
-  let vistos = _ler(CHAVE_VISTOS, {});
+  let vistos = _vistos();
   if (Object.keys(vistos).length >= CARTOES.length) vistos = {};   // viu todos: começa outra volta
   vistos[i] ??= hoje;
   _gravar(CHAVE_VISTOS, vistos);
@@ -141,7 +147,7 @@ function _registrar(i) {
 }
 // Próximo da ordem que ainda não foi visto em outro dia
 function _proximoNaoVisto(inicio, quem, pular = []) {
-  const hoje = _diaTxt(), vistos = _ler(CHAVE_VISTOS, {}), n = CARTOES.length;
+  const hoje = _diaTxt(), vistos = _vistos(), n = CARTOES.length;
   const ordem = ordemDaVolta(quem, 0, n);
   const k0 = ordem.indexOf(inicio);
   for (let k = 0; k < n; k++) {
@@ -155,13 +161,6 @@ export function cartaoDeHoje(quem = auth.currentUser?.uid || 'anon') {
   const salvo = _ler(CHAVE_HOJE, null);
   if (salvo?.dia === _diaTxt() && CARTOES[salvo.i]) return CARTOES[salvo.i];
   return _registrar(_proximoNaoVisto(CARTOES.indexOf(cartaoDoDia(new Date(), quem)), quem));
-}
-export function outroCartao(quem = auth.currentUser?.uid || 'anon') {
-  const atual = CARTOES.indexOf(cartaoDeHoje(quem));
-  const vistos = _ler(CHAVE_VISTOS, {});
-  vistos[atual] = '_trocado';   // o que ela pulou também conta como visto
-  _gravar(CHAVE_VISTOS, vistos);
-  return _registrar(_proximoNaoVisto(atual, quem, [atual]));
 }
 
 const chaveHoje = () => { const d = new Date(); return `visao_cartao_visto_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -559,7 +558,7 @@ export async function compartilharCartao(cartao = cartaoDeHoje(), fundo = fundoD
 export async function abrirCartaoDoDia(aoFechar = null) {
   if (document.querySelector('.cartao-dia-ov')) return;
   marcarVisto();
-  let cartao = cartaoDeHoje();
+  const cartao = cartaoDeHoje();
   let fundo = fundoDoDia();
   const cv = await desenharCartao(cartao, fundo);
   const ov = document.createElement('div');
@@ -573,7 +572,6 @@ export async function abrirCartaoDoDia(aoFechar = null) {
       <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
-        <button class="cartao-dia-mais" data-outro aria-label="Outro cartão">🔀</button>
         <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente">⋯</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
@@ -599,14 +597,6 @@ export async function abrirCartaoDoDia(aoFechar = null) {
     trocando = false;
   };
   ov.querySelectorAll('[data-seta]').forEach(b => { b.onclick = () => trocar(Number(b.dataset.seta)); });
-  // Outro cartão (o fundo fica): pra quem já postou esse
-  ov.querySelector('[data-outro]').onclick = async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    cartao = outroCartao();
-    imgEl.alt = `${cartao.rotulo}: ${cartao.titulo ? cartao.titulo + ' ' : ''}${cartao.texto}${cartao.autor ? ' Inspirado em ' + cartao.autor : ''}`.replace(/"/g, '');
-    mostrar(await desenharCartao(cartao, fundo));
-    b.disabled = false;
-  };
   const moldura = ov.querySelector('.cartao-dia-moldura');
   let x0 = null, y0 = null;
   moldura.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });

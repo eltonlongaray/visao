@@ -1093,14 +1093,9 @@ async function routeCommand(text) {
       return `Troquei o fundo do cartão pra <strong>${_esc(f.nome)}</strong> 🖼️ No cartão, as setas ‹ › trocam e o botão <strong>⋯</strong> do meio mostra todas as fotos, deixa transparente ou importa uma imagem tua.`;
     }
   }
-  // "outro cartão", "já postei esse princípio": troca o cartão de hoje
-  if (/\b(outr[oa]|troc\w*|mud\w*|j[aá] (?:postei|vi|usei))\b.*\b(cart(?:ao|ão)|princ[ií]pio|pensamento)\b|\b(cart(?:ao|ão)|princ[ií]pio)\b.*\b(repetid\w*|repetindo|de novo|outr[oa])\b/i.test(text) && !/\bfundo\b/i.test(text)) {
-    const m = await import('./cartoes-dia.js?v=20261008l').catch(() => null);
-    if (m) {
-      const c = m.outroCartao();
-      m.abrirCartaoDoDia();
-      return `Troquei teu cartão de hoje pra <strong>${_esc(c.rotulo)}${c.titulo ? ' · ' + _esc(c.titulo) : ''}</strong> 🃏 Os que tu já viu não voltam até passar por todos. No cartão, o botão <strong>🔀</strong> troca de novo.`;
-    }
+  // "outro cartão", "já postei esse princípio": cada dia tem a sua mensagem
+  if (/\b(outr[oa]|troc\w*|mud\w*)\b.*\b(cart(?:ao|ão)|princ[ií]pio|pensamento)\b/i.test(text) && !/\bfundo\b/i.test(text)) {
+    return 'Cada dia tem a sua mensagem 🃏 Amanhã chega outra, e as que tu já viu não voltam até passar por todas. O que dá pra trocar é o <strong>fundo</strong>: <em>"troca o fundo do cartão"</em>.';
   }
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
