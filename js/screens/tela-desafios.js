@@ -13,7 +13,7 @@ import {
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrenda,
-         depoimentoConta, MIN_PAGINAS, ehAgua, copoDoDesafio, guardarCopo, copoValido } from '../desafios-moldes.js';
+         depoimentoConta, MIN_PAGINAS, ehAgua } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -200,31 +200,21 @@ export async function renderDesafios(app, embedded = false) {
                    <button class="ds-inc ds-falhei" data-falhei="${d.id}">😔 Não consegui</button>
                  </div>
                  <div class="ds-prova-dica">Nos dois casos você grava um depoimento. Sem depoimento, o dia não conta.</div>`;
-          } else if (depoimentoConta(d)) {
-            // Leitura: o dia conta pelo depoimento, quantas páginas a pessoa fala no vídeo
-            acao = todaySum >= (meta || 1)
-              ? `<div class="ds-done">✅ Depoimento de hoje enviado! 🦅</div>`
-              : `<button class="ds-inc" data-add="${d.id}" data-qtd="${meta || 1}" style="width:100%">🎙️ Gravar o depoimento</button>
-                 <div class="ds-prova-dica">${meta ? `Leia no mínimo ${meta} ${_esc(unidade)} e conte` : 'Conte'} no vídeo quanto leu e o que aprendeu.</div>`;
           } else if (meta) {
             const pct = Math.min(100, Math.round((todaySum / meta) * 100));
             const done = todaySum >= meta;
             const opcoes = Array.isArray(d.prova_opcoes) && d.prova_opcoes.length ? d.prova_opcoes : null;
-            const copo = ehAgua(d) ? copoDoDesafio(d) : 0;
+            // Água e depoimento (Leitura, Meditação): cada vídeo, a pessoa diz quanto foi nele e o app soma
+            const porVideo = ehAgua(d) ? { ph: 'ml nesse vídeo', bt: '🎥 Gravar', dica: 'Digite quantos ml vai beber nesse vídeo (copo, garrafa, o que for). O app soma até fechar a meta.' }
+              : depoimentoConta(d) ? { ph: `${unidade || 'quanto'} hoje`, bt: '🎙️ Gravar', dica: unidade === 'páginas' ? 'Digite quantas páginas leu e conte no vídeo o que aprendeu.' : 'Digite quanto fez e conte no vídeo como foi.' } : null;
             const controles = done
               ? `<div class="ds-done">✅ Meta de hoje batida! 🦅</div>`
-              : ehAgua(d)
-                ? (copo
-                  ? `<div class="ds-inc-row">
-                       <button class="ds-inc" data-add="${d.id}" data-qtd="${copo}">🎥 Bebi +${copo} ml</button>
-                       <button class="ds-inc ds-copo-trocar" data-copo-trocar="${d.id}">🥤 Trocar copo</button>
-                     </div>
-                     <div class="ds-prova-dica">Um vídeo por copo ou garrafa, até fechar a meta.</div>`
-                  : `<div class="ds-inc-row">
-                       <input class="ds-inc-input" id="copo-${d.id}" type="number" min="50" max="3000" inputmode="numeric" placeholder="ml do copo ou garrafa" />
-                       <button class="ds-inc" data-copo="${d.id}">Salvar</button>
-                     </div>
-                     <div class="ds-prova-dica">Quanto cabe no teu copo ou garrafa? Cada vídeo bebendo soma isso.</div>`)
+              : porVideo
+                ? `<div class="ds-inc-row">
+                     <input class="ds-inc-input" id="q-${d.id}" type="number" min="1" inputmode="numeric" placeholder="${_esc(porVideo.ph)}" />
+                     <button class="ds-inc" data-addinput="${d.id}">${porVideo.bt}</button>
+                   </div>
+                   <div class="ds-prova-dica">${_esc(porVideo.dica)}</div>`
               : opcoes
                 ? `<div class="ds-inc-row">${opcoes.map(o =>
                     `<button class="ds-inc" data-add="${d.id}" data-qtd="${o}">+${o}${unidade ? ' ' + _esc(unidade) : ''}</button>`).join('')}</div>`
@@ -388,19 +378,6 @@ export async function renderDesafios(app, embedded = false) {
     };
     app.querySelectorAll('[data-add]').forEach(b => b.onclick = () =>
       comProva(b, b.dataset.add, { quantidade: parseInt(b.dataset.qtd, 10) || 1 }));
-    // Água: guarda quanto cabe no copo/garrafa (cada vídeo soma isso)
-    app.querySelectorAll('[data-copo]').forEach(b => b.onclick = async () => {
-      const d = desafios.find(x => x.id === b.dataset.copo);
-      const ml = parseInt(app.querySelector(`#copo-${CSS.escape(b.dataset.copo)}`)?.value, 10);
-      if (!d) return;
-      if (!copoValido(ml)) { showToast('Diga quanto cabe em ml, de 50 a 3000', 'info'); return; }
-      guardarCopo(d, ml);
-      await refresh();
-    });
-    app.querySelectorAll('[data-copo-trocar]').forEach(b => b.onclick = async () => {
-      const d = desafios.find(x => x.id === b.dataset.copoTrocar);
-      if (d) { guardarCopo(d, 0); await refresh(); }
-    });
     app.querySelectorAll('[data-falhei]').forEach(b => b.onclick = () =>
       comProva(b, b.dataset.falhei, { falhou: true }));
     app.querySelectorAll('[data-addinput]').forEach(b => b.onclick = () => {

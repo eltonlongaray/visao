@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════
 export const MOLDES = [
   { id: 'agua',          emoji: '💧', nome: 'Água',               titulo: 'Beber 2L de água',   unidade: 'ml',         meta: 2000, dias: 21, opcoes: [],         prova: 'video',
-    desc: 'Beba 2L de água por dia, no copo ou na garrafa. Em cada vídeo, diga quanto cabe e beba tudo, até fechar a meta.' },
+    desc: 'Beba 2L de água por dia, no copo ou na garrafa. Em cada vídeo, diga quantos ml está bebendo; o app soma até fechar a meta.' },
   { id: 'exercicio',     emoji: '🏋️', nome: 'Constância de exercício', titulo: 'Exercício todo dia', unidade: 'exercícios', meta: 2, dias: 30, opcoes: [1], prova: 'video',
     exercicios: ['Flexão', 'Agachamento', 'Abdominal', 'Prancha'], maxPorDia: 2, naoRepetir: true,
     desc: 'Até 2 exercícios por dia da lista, sem repetir o de ontem: hoje uns, amanhã outros. Cada um comprovado em vídeo ao vivo.' },
@@ -54,27 +54,16 @@ export function roteiroDepoimento(d, { falhou = false } = {}) {
   return ['O que você fez hoje no desafio', 'Como está sendo o processo pra você'];
 }
 
-// Depoimento com meta (Leitura): o dia conta pelo vídeo, a pessoa fala quanto
-// fez nele e não digita nada (entra com a meta, que é o mínimo do grupo)
+// Depoimento com meta (Leitura, Meditação): a meta é o mínimo do grupo; a pessoa
+// digita quanto fez e conta no vídeo, e o app soma
 export function depoimentoConta(d) {
   return d?.prova === 'depoimento' && !ehLargar(d);
 }
 export const MIN_PAGINAS = 2;
 
-// Água: cada vídeo é um copo ou garrafa. Quanto cabe fica guardado no aparelho
-const COPO_KEY = 'visao_copo_';
+// Água: cada vídeo a pessoa diz quantos ml bebe nele e o app soma até a meta
 export function ehAgua(d) {
   return d?.tipo === 'agua';
-}
-export function copoDoDesafio(d) {
-  try { const v = parseInt(localStorage.getItem(COPO_KEY + d.id), 10); return v > 0 ? v : 0; } catch { return 0; }
-}
-export function guardarCopo(d, ml) {
-  try { if (ml) localStorage.setItem(COPO_KEY + d.id, String(ml)); else localStorage.removeItem(COPO_KEY + d.id); } catch { /* sem storage */ }
-}
-// Copo/garrafa aceito: de 50 ml a 3 litros
-export function copoValido(ml) {
-  return Number.isFinite(ml) && ml >= 50 && ml <= 3000;
 }
 
 // Desafio de largar um vício (pelo molde)

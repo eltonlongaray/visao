@@ -14,7 +14,7 @@ import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } fro
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua, copoDoDesafio, guardarCopo, copoValido } from './desafios-moldes.js';
+         depoimentoConta, ehAgua } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -207,22 +207,19 @@ export function provaPelaSala(sala, uid) {
     if (soma > 0) { showToast('✅ Corrida de hoje já registrada 🦅', 'info'); return Promise.resolve(false); }
     titulo = '🏃 Corrida de hoje';
     comNumero = { placeholder: `${d.meta_diaria || ''} ${un}`.trim(), rotulo: '🏃 Registrar a corrida', padrao: d.meta_diaria || 1 };
-  } else if (depoimentoConta(d)) {
-    // Leitura: grava direto, quanto leu a pessoa fala no vídeo
-    if (soma >= (d.meta_diaria || 1)) { showToast('✅ Depoimento de hoje já foi. Amanhã tem mais 🦅', 'info'); return Promise.resolve(false); }
-    return _registrar(d, { quantidade: d.meta_diaria || 1 });
-  } else if (ehAgua(d) && d.meta_diaria) {
-    if (soma >= d.meta_diaria) { showToast('✅ Meta de hoje batida! 🦅', 'info'); return Promise.resolve(false); }
-    const copo = copoDoDesafio(d);
-    titulo = `💧 Água de hoje (${soma}/${d.meta_diaria} ml)`;
-    if (copo) opcoes = [{ rotulo: `🎥 Bebi +${copo} ml`, extra: { quantidade: copo } }];
-    comNumero = { placeholder: 'ml do copo ou garrafa', rotulo: copo ? '🥤 Trocar e gravar' : 'Salvar e gravar', copo: true };
-    dica = 'Um vídeo por copo ou garrafa: diga quanto cabe e beba tudo, até fechar a meta.';
   } else if (d.meta_diaria) {
     if (soma >= d.meta_diaria) { showToast('✅ Meta de hoje batida! 🦅', 'info'); return Promise.resolve(false); }
     const ops = Array.isArray(d.prova_opcoes) && d.prova_opcoes.length ? d.prova_opcoes : null;
     titulo = `📷 Quanto você fez? (${soma}/${d.meta_diaria}${un ? ' ' + un : ''})`;
-    if (ops) opcoes = ops.map(o => ({ rotulo: `+${o}${un ? ' ' + un : ''}`, extra: { quantidade: o } }));
+    // Água e depoimento (Leitura, Meditação): cada vídeo, a pessoa diz quanto foi nele e o app soma
+    if (ehAgua(d)) {
+      titulo = `💧 Água de hoje (${soma}/${d.meta_diaria} ml)`;
+      comNumero = { placeholder: 'ml nesse vídeo', rotulo: '🎥 Gravar' };
+      dica = 'Copo, garrafa, o que for: digite quantos ml vai beber nesse vídeo. O app soma até fechar a meta.';
+    } else if (depoimentoConta(d)) {
+      titulo = `🎙️ Depoimento de hoje (${soma}/${d.meta_diaria}${un ? ' ' + un : ''})`;
+      comNumero = { placeholder: `${un || 'quanto'} hoje`, rotulo: '🎙️ Gravar' };
+    } else if (ops) opcoes = ops.map(o => ({ rotulo: `+${o}${un ? ' ' + un : ''}`, extra: { quantidade: o } }));
     else comNumero = { placeholder: 'quanto?', rotulo: 'Mandar' };
   } else {
     if (soma > 0) { showToast('✅ Feito hoje! Volte amanhã 🦅', 'info'); return Promise.resolve(false); }
@@ -268,11 +265,6 @@ export function provaPelaSala(sala, uid) {
     ov.querySelector('[data-num]')?.addEventListener('click', () => {
       const q = parseInt(ov.querySelector('#sala-qtd')?.value, 10);
       if (comNumero.padrao) return ir({ quantidade: q > 0 ? q : comNumero.padrao });
-      if (comNumero.copo) {
-        if (!copoValido(q)) { showToast('Diga quanto cabe em ml, de 50 a 3000', 'info'); return; }
-        guardarCopo(d, q);
-        return ir({ quantidade: q });
-      }
       if (!q || q <= 0) { showToast('Digite quanto você fez', 'info'); return; }
       ir({ quantidade: q });
     });
