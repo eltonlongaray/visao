@@ -2596,6 +2596,7 @@ body.time-picker-open { overflow: hidden; }
 .ds-passos-btn { border: 1px solid var(--border); background: var(--card-2); color: var(--text); }
 .ds-print { margin-top: 4px; }
 .ds-prova-dica { font-size: 12px; color: var(--muted); margin: 6px 2px 0; }
+.ds-prova-fixa { color: var(--text); font-size: 14px; font-weight: 600; }
 .ds-passos { margin: 6px 0 12px; padding-left: 20px; font-size: 14px; line-height: 1.55; color: var(--text); }
 .ds-passos li { margin-bottom: 8px; }
 .ds-regras { margin: 10px 0 4px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--text); }
@@ -8452,7 +8453,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .ds-tp-texto {
   height: 30vh; overflow-y: auto; color: #fff; font-size: 22px; line-height: 1.45; font-weight: 600;
-  white-space: pre-wrap; overflow-wrap: anywhere; padding-bottom: 30vh; scrollbar-width: none;
+  white-space: pre-wrap; overflow-wrap: anywhere; padding-top: 15vh; padding-bottom: 30vh; scrollbar-width: none;
 }
 .ds-tp-texto::-webkit-scrollbar { display: none; }
 .ds-tp-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 6px; }

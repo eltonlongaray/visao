@@ -8,11 +8,12 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  parseOpcoes, markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas,
+  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
-         ehLargar, horaLimite, passouDoLimite, devePrenda } from '../desafios-moldes.js';
+         ehLargar, horaLimite, passouDoLimite, devePrenda,
+         depoimentoConta, MIN_PAGINAS, ehAgua } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -126,7 +127,7 @@ export async function renderDesafios(app, embedded = false) {
           const badges = `
             ${aindaNaoComecou(d) ? `<span class="ds-badge teal">📅 ${textoComeca(d)}</span>` : ''}
             ${d.dias_total ? `<span class="ds-badge amber">${!aindaNaoComecou(d) && diaDoDesafio(d) && diaDoDesafio(d) <= d.dias_total ? `dia ${diaDoDesafio(d)} de ${d.dias_total}` : `${d.dias_total} dias`}</span>` : ''}
-            ${meta ? `<span class="ds-badge teal">meta ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
+            ${meta ? `<span class="ds-badge teal">${depoimentoConta(d) ? 'mínimo' : 'meta'} ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
             ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}
             ${horaLimite(d) ? `<span class="ds-badge amber">⏰ até ${horaLimite(d)}</span>` : ''}
             ${textoProva(d) ? `<span class="ds-badge gray">${textoProva(d)}</span>` : ''}`;
@@ -203,8 +204,17 @@ export async function renderDesafios(app, embedded = false) {
             const pct = Math.min(100, Math.round((todaySum / meta) * 100));
             const done = todaySum >= meta;
             const opcoes = Array.isArray(d.prova_opcoes) && d.prova_opcoes.length ? d.prova_opcoes : null;
+            // Água e depoimento (Leitura, Meditação): cada vídeo, a pessoa diz quanto foi nele e o app soma
+            const porVideo = ehAgua(d) ? { ph: 'ml nesse vídeo', bt: '🎥 Gravar', dica: 'Digite quantos ml vai beber nesse vídeo (copo, garrafa, o que for). O app soma até fechar a meta.' }
+              : depoimentoConta(d) ? { ph: `${unidade || 'quanto'} hoje`, bt: '🎙️ Gravar', dica: unidade === 'páginas' ? 'Digite quantas páginas leu e conte no vídeo o que aprendeu.' : 'Digite quanto fez e conte no vídeo como foi.' } : null;
             const controles = done
               ? `<div class="ds-done">✅ Meta de hoje batida! 🦅</div>`
+              : porVideo
+                ? `<div class="ds-inc-row">
+                     <input class="ds-inc-input" id="q-${d.id}" type="number" min="1" inputmode="numeric" placeholder="${_esc(porVideo.ph)}" />
+                     <button class="ds-inc" data-addinput="${d.id}">${porVideo.bt}</button>
+                   </div>
+                   <div class="ds-prova-dica">${_esc(porVideo.dica)}</div>`
               : opcoes
                 ? `<div class="ds-inc-row">${opcoes.map(o =>
                     `<button class="ds-inc" data-add="${d.id}" data-qtd="${o}">+${o}${unidade ? ' ' + _esc(unidade) : ''}</button>`).join('')}</div>`
@@ -529,6 +539,13 @@ export async function renderDesafios(app, embedded = false) {
       : `Até ${MAX_KM_CORRIDA} km: cabe em 30 min. No dia que correr, a corrida vale o dia todo. Quem fechar a semana sem correr perde o desafio.`;
   }
 
+  const PROVA_ROTULO = {
+    video: '🎥 Vídeo ao vivo',
+    strava: '🏃 Corrida: Strava ou esteira + vídeo',
+    depoimento: '🎙️ Depoimento em vídeo',
+  };
+  const PROVA_ANTIGA = { honra: '🤝 Por honra (só marcar)' };   // desafios antigos; não se cria mais
+
   // ── Admin: formulário (novo a partir de molde, ou edição) ──
   function openDesafioForm({ molde, desafio, modalidade }) {
     const edit = !!desafio;
@@ -537,11 +554,11 @@ export async function renderDesafios(app, embedded = false) {
     const emoji = edit ? emojiDoTipo(desafio.tipo) : molde.emoji;
     const tipo = edit ? desafio.tipo : molde.id;
     const mod = edit ? desafio.modalidade : modalidade;
-    const opcoesStr = (edit ? desafio.prova_opcoes : molde.opcoes)?.join(', ') || '';
+    const opcoesAtuais = (edit ? desafio.prova_opcoes : molde.opcoes) || [];
     const prendaAtual = edit ? (desafio.prenda || '') : '';
     // Prova, exercícios e regras do dono (desafios-provas.sql)
     const moldeBase = edit ? MOLDE_BY_ID[desafio.tipo] : molde;
-    const provaAtual = edit ? (desafio.prova || moldeBase?.prova || 'honra') : (molde.prova || 'honra');
+    const provaAtual = edit ? (desafio.prova || moldeBase?.prova || 'video') : (molde.prova || 'video');
     const exAtual = edit ? (desafio.exercicios || []) : (molde.exercicios || []);
     const temEx = exAtual.length > 0 || tipo === 'exercicio';
     const exSemCorrida = exAtual.filter(x => x !== 'Corrida');
@@ -552,10 +569,19 @@ export async function renderDesafios(app, embedded = false) {
     const modoAtual = edit && desafio.corrida_modo === 'troca' ? 'troca' : 'obrigatoria';
     // Desafio antigo sem km: nenhum chip marcado (não inventa uma mudança)
     const kmAtual = edit ? (Number(desafio.km_corrida) ? Math.min(MAX_KM_CORRIDA, Number(desafio.km_corrida)) : '') : 3;
-    const regrasAtual = edit ? (desafio.regras_dono || '') : '';
+    // Descrição e regras do dono num campo só: regras antigas entram no fim do texto
+    const descAtual = edit ? [desafio.descricao || '', desafio.regras_dono || ''].filter(x => x.trim()).join('\n') : (molde.desc || '');
     const largar = tipo === 'largar';
     const horaAtual = edit ? horaLimite(desafio) : (molde.horaLimite || '');
-    const semMeta = temEx || largar;
+    // Cada modelo já vem com prova e unidade fixas: só o "Do seu jeito" escolhe
+    const livre = tipo === 'livre' || !moldeBase;
+    const provaFixa = !livre;
+    const unidadeAtual = edit ? (desafio.unidade || '') : (molde.unidade || '');
+    const semMeta = temEx || largar || tipo === 'autoconhecimento' || (!livre && !unidadeAtual);
+    const ROTULO_UN = { ml: 'Água por dia (ml)', km: 'Km por dia', min: 'Minutos por dia', 'reflexão': 'Reflexões por dia', 'páginas': 'Mínimo de páginas por dia' };
+    if (tipo === 'meditacao') ROTULO_UN.min = 'Mínimo de minutos por dia';
+    const rotuloMeta = ROTULO_UN[unidadeAtual] || (unidadeAtual ? unidadeAtual.charAt(0).toUpperCase() + unidadeAtual.slice(1) + ' por dia' : 'Meta por dia');
+    const metaLivreAtual = edit && desafio.meta_diaria ? `${desafio.meta_diaria} ${desafio.unidade || ''}`.trim() : '';
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -597,35 +623,32 @@ export async function renderDesafios(app, embedded = false) {
           <label class="ds-check"><input type="checkbox" id="f-naorep" ${naoRepAtual ? 'checked' : ''}/> Não pode repetir o exercício de ontem</label>
           <div class="ds-form-aviso" id="f-ex-aviso" hidden></div>
         </div>` : ''}
+        ${provaFixa ? `
+        <div class="input-field"><div class="input-field-label">Prova</div>
+          <div class="ds-prova-fixa">${PROVA_ROTULO[provaAtual] || PROVA_ANTIGA[provaAtual] || provaAtual}</div>
+          <input type="hidden" id="f-prova" value="${provaAtual}" /></div>` : `
         <label class="input-field"><div class="input-field-label">Prova</div>
-          <select id="f-prova">
-            <option value="video"${provaAtual === 'video' ? ' selected' : ''}>🎥 Vídeo ao vivo</option>
-            <option value="strava"${provaAtual === 'strava' ? ' selected' : ''}>🏃 Corrida: Strava ou esteira + vídeo</option>
-            <option value="depoimento"${provaAtual === 'depoimento' ? ' selected' : ''}>🎙️ Depoimento em vídeo</option>
-            <option value="honra"${provaAtual === 'honra' ? ' selected' : ''}>🤝 Por honra (só marcar)</option>
-          </select></label>
-        <div style="display:flex;gap:8px${semMeta ? ';display:none' : ''}">
-          <label class="input-field" style="flex:1"><div class="input-field-label">Meta/dia</div>
-            <input id="f-meta" type="number" min="1" value="${edit ? (desafio.meta_diaria ?? '') : molde.meta}" /></label>
-          <label class="input-field" style="flex:1"><div class="input-field-label">Unidade</div>
-            <input id="f-unidade" value="${_esc(edit ? (desafio.unidade || '') : molde.unidade)}" /></label>
-        </div>
+          <select id="f-prova">${Object.entries(PROVA_ROTULO).map(([v, r]) => `
+            <option value="${v}"${provaAtual === v ? ' selected' : ''}>${r}</option>`).join('')}
+          </select></label>`}
+        <input type="hidden" id="f-unidade" value="${_esc(unidadeAtual)}" />
         <div style="display:flex;gap:8px">
+          ${semMeta ? '' : livre ? `
+          <label class="input-field" style="flex:1"><div class="input-field-label">Meta por dia (opcional)</div>
+            <input id="f-meta-livre" maxlength="40" value="${_esc(metaLivreAtual)}" placeholder="ex.: 10 flexões" /></label>` : `
+          <label class="input-field" style="flex:1"><div class="input-field-label">${_esc(rotuloMeta)}</div>
+            <input id="f-meta" type="number" min="${tipo === 'leitura' ? MIN_PAGINAS : 1}" value="${edit ? (desafio.meta_diaria ?? '') : molde.meta}" /></label>`}
           <label class="input-field" style="flex:1"><div class="input-field-label">Duração (dias)</div>
             <input id="f-dias" type="number" min="1" value="${edit ? (desafio.dias_total ?? '') : molde.dias}" /></label>
-          <label class="input-field" style="flex:1${semMeta ? ';display:none' : ''}"><div class="input-field-label">Botões de somar</div>
-            <input id="f-opcoes" value="${_esc(opcoesStr)}" placeholder="ex.: 1 ou 250, 500 (vazio = digitar)" /></label>
         </div>
-        <label class="input-field"><div class="input-field-label">Descrição</div>
-          <textarea id="f-desc" rows="3" placeholder="O que é pra fazer e como provar">${_esc(edit ? desafio.descricao : molde.desc)}</textarea></label>
+        <label class="input-field"><div class="input-field-label">📜 Descrição e regras</div>
+          <textarea id="f-desc" rows="5" maxlength="1500" placeholder="O que é pra fazer, como provar e as tuas regras (ex.: vale até 23h59)">${_esc(descAtual)}</textarea></label>
         ${largar ? '' : `<div class="input-field"><div class="input-field-label">⏰ Prova do dia só até (opcional)</div>
           <div class="ds-hora-row">
             <button type="button" class="ds-hora-btn ${horaAtual ? '' : 'vazio'}" id="f-hora-btn">${horaAtual ? _esc(horaAtual) : 'Sem horário · vale o dia todo'}</button>
             <button type="button" class="ds-hora-x" id="f-hora-limpar" aria-label="Tirar o horário" ${horaAtual ? '' : 'hidden'}>✕</button>
           </div>
           <input id="f-hora" type="hidden" value="${_esc(horaAtual)}" /></div>`}
-        <label class="input-field"><div class="input-field-label">📜 Tuas regras (uma por linha, opcional)</div>
-          <textarea id="f-regras" rows="3" maxlength="800" placeholder="Ex.: vale até 23h59&#10;O vídeo tem que mostrar o exercício inteiro">${_esc(regrasAtual)}</textarea></label>
         <div class="ds-prenda-aviso">As regras do Falcon valem sempre: vídeo só ao vivo, prenda leve e do bem. A prenda paga vai pro Mural das Prendas por 7 dias.</div>
 
         ${mod === 'oficial' ? `
@@ -774,14 +797,26 @@ export async function renderDesafios(app, embedded = false) {
       const prova = overlay.querySelector('#f-prova').value;
       let descricao = overlay.querySelector('#f-desc').value.trim();
       if (prova !== 'honra') descricao = descricao.replace(/\s*\(Prova por honra[^)]*\)/i, '').trim();
-      let meta = parseInt(overlay.querySelector('#f-meta').value, 10) || null;
+      let meta = parseInt(overlay.querySelector('#f-meta')?.value, 10) || null;
       let unidade = overlay.querySelector('#f-unidade').value.trim();
+      if (tipo === 'leitura' && !(meta >= MIN_PAGINAS)) { showToast(`Leitura: no mínimo ${MIN_PAGINAS} páginas por dia`, 'error'); return; }
+      // "Do seu jeito": um campo só ("10 flexões" = meta 10, unidade flexões)
+      const metaLivre = overlay.querySelector('#f-meta-livre');
+      if (metaLivre) {
+        const m = metaLivre.value.trim().match(/^(\d+)\s*(.*)$/);
+        if (metaLivre.value.trim() && !m) { showToast('Na meta, comece pelo número. Ex.: 10 flexões', 'error'); return; }
+        meta = m ? parseInt(m[1], 10) || null : null;
+        unidade = m ? m[2].trim() : '';
+      }
+      if (semMeta) meta = null;
       // Corrida: no máximo 5 km por dia (cabe em 30 min, dá pra encaixar na rotina)
       if (prova === 'strava' && /^km$/i.test(unidade) && meta > MAX_KM_CORRIDA) {
         showToast(`Corrida até ${MAX_KM_CORRIDA} km por dia: cabe em 30 min e dá pra todo mundo encaixar na rotina`, 'info');
         return;
       }
-      const regrasDono = overlay.querySelector('#f-regras').value;
+      // As regras agora vão junto na descrição. Editou sem mexer no texto: fica como estava
+      let regrasDono = '';
+      if (edit && descricao === descAtual.trim()) { descricao = (desafio.descricao || '').trim(); regrasDono = desafio.regras_dono || ''; }
       let exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo;
       if (temEx) {
         exercicios = lerEx();
@@ -799,7 +834,8 @@ export async function renderDesafios(app, embedded = false) {
       }
       const dias = parseInt(overlay.querySelector('#f-dias').value, 10) || null;
       if (largar) { meta = null; unidade = ''; }
-      const opcoes = semMeta ? [] : parseOpcoes(overlay.querySelector('#f-opcoes').value);
+      // Botões de somar saíram do formulário: valem os do modelo (ou os que o desafio já tinha)
+      const opcoes = semMeta || !meta ? [] : opcoesAtuais;
       const horaLim = overlay.querySelector('#f-hora')?.value || null;
       const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo } : {}) };
       const dataInicio = overlay.querySelector('#f-inicio')?.value || null;

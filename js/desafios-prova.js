@@ -12,7 +12,7 @@ import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { salvarRascunho } from './desafios-rascunho.js';
 import './vendor/fix-webm-duration.js';   // window.ysFixWebmDuration
-import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca } from './desafios-moldes.js';
+import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca, ehAgua } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -130,7 +130,10 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const tpTexto = ov.querySelector('.ds-tp-texto');
     const tpAbrir = ov.querySelector('.ds-tp-abrir');
     const tpEditor = ov.querySelector('.ds-tp-editor');
-    let tpVel = Math.min(120, Math.max(10, Number(_lerLS(TP_VEL, 30)) || 30));   // px por segundo
+    // Velocidades em px por segundo (as duas primeiras são bem devagar, pra quem lê com calma)
+    const TP_VELS = [4, 7, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+    const tpPerto = (v) => TP_VELS.reduce((m, x, i) => Math.abs(x - v) < Math.abs(TP_VELS[m] - v) ? i : m, 0);
+    let tpVel = TP_VELS[tpPerto(Number(_lerLS(TP_VEL, 30)) || 30)];
     let tpRaf = 0, tpUlt = 0, tpPos = 0;
     const tpTem = () => !!String(_lerLS(TP_TEXTO, '')).trim();
     function tpMostrar() {
@@ -139,7 +142,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       tp.hidden = !txt;
       tpAbrir.hidden = !!txt;
       ov.classList.toggle('com-texto', !!txt);
-      ov.querySelector('.ds-tp-vel').textContent = `${Math.round(tpVel / 10)}`;
+      ov.querySelector('.ds-tp-vel').textContent = `${tpPerto(tpVel) + 1}`;
     }
     // Sobe sozinho só enquanto grava (pausou, para junto). Dá pra arrastar com o dedo.
     function tpRolar(agora) {
@@ -286,7 +289,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       }
       if (act === 'tp-fechar') { _gravarLS(TP_TEXTO, ''); tpMostrar(); if (mr && mr.state !== 'inactive') tpAbrir.hidden = true; return; }
       if (act === 'tp-mais' || act === 'tp-menos') {
-        tpVel = Math.min(120, Math.max(10, tpVel + (act === 'tp-mais' ? 10 : -10)));
+        tpVel = TP_VELS[Math.min(TP_VELS.length - 1, Math.max(0, tpPerto(tpVel) + (act === 'tp-mais' ? 1 : -1)))];
         _gravarLS(TP_VEL, String(tpVel));
         return tpMostrar();
       }
@@ -547,6 +550,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       const blob = await gravarVideoAoVivo({
         titulo: `🎥 ${nome}`,
         dica: exercicio ? 'Grave você fazendo o exercício, do começo ao fim.'
+          : ehAgua(d) ? `Mostre o copo ou a garrafa e beba os ${quantidade} ml.`
           : horaLimite(d) ? 'Mostre a hora na tela do celular e o seu rosto.' : 'Grave você cumprindo o desafio.',
         rascunho: true,
       });
