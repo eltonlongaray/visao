@@ -18,7 +18,7 @@ const ORIGENS = ['https://estilo-falcon.web.app', 'https://estilo-falcon.firebas
 const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado por schema
 const MAX_TEXTO = 400;
 
-const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
+const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'atendimento', 'rifa', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
 const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
@@ -56,6 +56,8 @@ const CAMPOS = {
   agua: ['somar', 'tirar', 'definir'],
   converter: ['compromisso', 'tarefa'],
   consultar_dia: ['passado'],
+  atendimento: ['ver', 'cancelar', 'finalizar', 'faltou'],
+  rifa: ['ver', 'quem', 'pendentes', 'pago', 'nao_pago', 'liberar'],
 };
 const _sem = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 // O dado aparece no que a pessoa escreveu? (compara o começo das palavras:
@@ -70,9 +72,9 @@ const _N = '(\\d{1,2}|uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|do
 const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+${_N}\\b|\\bdas\\s+${_N}\\b|\\bpras?\\s+\\d{1,2}\\b|\\bumas?\\s+\\d{1,2}\\b|meia[- ]noite|meio[- ]dia|\\b${_N}\\s+(da|de)\\s+(manha|tarde|noite|madrugada)`);
 // Que ações usam cada campo (no resto, o valor é invenção do modelo)
 const USA = {
-  hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar'],
+  hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar', 'atendimento'],
   numero: ['agua', 'sono', 'desempenho', 'ideal', 'desafio', 'treino_frequencia', 'notas_periodo'],
-  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar'],
+  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar', 'rifa'],
   lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar'],
   para: ['remarcar', 'cancelar', 'reativar'],
 };
@@ -101,6 +103,20 @@ function corrigirRota(out, texto) {
     const nome = (t.match(/\bconta (?:da |do |de )?([a-z0-9 ]+?)(?:,|\.|$| que | porque | pois | cancel)/) || [])[1] || out.titulo || '';
     Object.assign(out, { acao: 'excluir', titulo: `conta a pagar ${nome.trim()}`, todas: true, itens: [] });
   }
+  // Rifa e atendimento: a palavra decide
+  if (/\brifas?\b/.test(t) && out.acao !== 'rifa') {
+    out.acao = 'rifa';
+    out.campo = /\bquem\b.*\b(nao|ainda nao)\s+pag|\bpendente/.test(t) ? 'pendentes' : /\bquem\b/.test(t) ? 'quem'
+      : /\b(liber|desist|solt)\w*/.test(t) ? 'liberar' : /\b(desmarc|tir)\w*\b.*\bpago\b/.test(t) ? 'nao_pago' : /\bpag(ou|aram)\b|\brecebi\b/.test(t) ? 'pago' : 'ver';
+  }
+  if (/\b(atendimentos?|agendamentos?|clientes?)\b/.test(t) && ['cancelar', 'excluir', 'marcar_feito', 'consultar_dia', 'consultar', 'agendar'].includes(out.acao) && !/\bagend(a|ar|e)\b(?! online)/.test(t)) {
+    const era = out.acao;
+    out.acao = 'atendimento';
+    out.campo = /\b(falt|nao veio|nao apareceu)/.test(t) ? 'faltou' : /\b(finaliz|conclu|termin|atendi)/.test(t) ? 'finalizar'
+      : ['cancelar', 'excluir'].includes(era) ? 'cancelar' : 'ver';
+  }
+  if (out.acao === 'rifa' && /\b(desmarc|tir)\w*\b.*\bpago\b/.test(t)) out.campo = 'nao_pago';
+  if (out.acao === 'rifa' && !out.texto) { const n = t.match(/\b\d{1,5}\b/g); if (n) out.texto = n.join(', '); }
   // Mexer na lista em si (nome, grupo, limpar)
   if (lista && out.acao !== 'lista_organizar' && !['lista_adicionar', 'lista_marcar'].includes(out.acao) || /\bgrupo de listas\b/.test(t)) {
     const campo = /grupo/.test(t) ? 'criar_grupo' : /\b(renome|muda o nome|troca o nome|chamar)\w*/.test(t) ? 'renomear'
@@ -308,6 +324,8 @@ desafio = Desafios do app (só quando fala em desafio, código de convite, prend
 ajuda_lembrar = esquece de marcar, de abrir o app ou de manter a constância e pede ajuda.
 contas_pagar = cadastrar contas do mês. itens = uma por posição "Nome - dia NN". Sem o dia do vencimento → "perguntar". Nunca copia contas dos exemplos.
 treino_frequencia = quantas vezes por semana vai treinar agora. numero.
+atendimento = Agenda Online do dono (clientes que agendaram pelo link). campo = "ver" (próximos atendimentos) | "cancelar" | "finalizar" (atendeu) | "faltou" (cliente não veio); titulo = nome do cliente; quando; hora. Só quando fala em atendimento, cliente, agendamento ou que um cliente faltou/não veio.
+rifa = rifas que a pessoa criou. campo = "ver" (quanto arrecadou, quantos números vendeu) | "quem" (quem pegou o número) | "pendentes" (quem não pagou) | "pago" (fulano pagou) | "nao_pago" (tirar o pago) | "liberar" (desistiu, liberar o número); titulo = a rifa citada; texto = os números ditos ("15" ou "3, 8, 21"); itens = nomes das pessoas.
 perguntar = é do app mas falta o essencial (o que agendar, o dia da conta). resposta = UMA pergunta curta. Não pergunta o que tem padrão (lista "mercado", "hoje").
 nao_sei_fazer = é do app mas nenhuma ação faz isso: mudar idioma, mexer em notificações, mudar a meta de água, excluir a conta do app, sair. Não inventa caminho.
 conversa = fora do app (política, receita, futebol, notícias, código, dever de casa, conselho médico, piada, perguntas sobre ti). Tudo que fala da rotina, agenda, trabalho, treino, sono, água, hábitos ou listas da pessoa É do app.
@@ -446,6 +464,18 @@ Mensagem nova: dia 22
 {"acao":"contas_pagar","itens":["Gás - dia 22"],"resposta":"Fechado, gás todo dia 22 💸"}
 Pessoa: vou conseguir treinar só umas 3 vezes por semana agora
 {"acao":"treino_frequencia","numero":3,"resposta":"Ajusto teu plano pra 3 treinos por semana."}
+Pessoa: quem eu atendo na quinta?
+{"acao":"atendimento","campo":"ver","quando":"quinta","resposta":"Vou ver teus atendimentos de quinta."}
+Pessoa: o Roberto das 10h não apareceu
+{"acao":"atendimento","campo":"faltou","titulo":"Roberto","hora":"10:00","resposta":"Marco a falta do Roberto."}
+Pessoa: já terminei com a Clara, pode dar baixa
+{"acao":"atendimento","campo":"finalizar","titulo":"Clara","resposta":"Finalizo o atendimento da Clara."}
+Pessoa: o Tiago pagou os números 40 e 41
+{"acao":"rifa","campo":"pago","texto":"40, 41","itens":["Tiago"],"resposta":"Marco o 40 e o 41 como pagos."}
+Pessoa: quanto já entrou na rifa da bicicleta?
+{"acao":"rifa","campo":"ver","titulo":"bicicleta","resposta":"Vou ver a rifa da bicicleta."}
+Pessoa: a Paula não quer mais o 9
+{"acao":"rifa","campo":"liberar","texto":"9","itens":["Paula"],"resposta":"Libero o número 9."}
 Pessoa: troca o idioma pra espanhol
 {"acao":"nao_sei_fazer","resposta":"Isso eu ainda não sei fazer."}
 Pessoa: para de me mandar notificação

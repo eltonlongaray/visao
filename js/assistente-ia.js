@@ -18,6 +18,7 @@
 // BLOCO 8.13 — CONFIGURAR O APP CONVERSANDO (horário padrão, tema, abrir tela, atividades)
 // BLOCO 8.14 — DESEMPENHO, REFLEXÃO DA SEMANA E OBJETIVOS PELO PET
 // BLOCO 8.15 — IDEAL (OS 6 PILARES) PELO PET
+// BLOCO 8.18 — AGENDA ONLINE E RIFAS (LADO DO DONO) PELO PET
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 9 — HELPERS DE MENSAGEM
@@ -45,13 +46,14 @@ import {
 import * as PL from './pet-listas.js?v=20261009f';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261012e';
+import * as PN from './pet-nuvem.js?v=20261014k';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
 import * as PDF from './pet-desafios.js?v=20261012e';
+import * as PNG from './pet-negocio.js?v=20261014a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -855,6 +857,11 @@ async function dispatchCommand(text) {
     if (reply === undefined && typeof text !== 'function' && PCF.lerPedidoLembrar(semChamado(text))) reply = ajudaLembrar();
     // "Como coloco um texto pra ler enquanto gravo?": o teleprompter do gravador
     if (reply === undefined && typeof text !== 'function' && LER_GRAVANDO_RE.test(semAcento(semChamado(text)))) reply = EXPLICA_LER_GRAVANDO;
+    // Agenda Online e Rifas do dono ("a Maria faltou", "o João pagou o 15"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarNegocio(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Desafios ("bebi 500 ml no desafio da água"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesafios(semChamado(text));
@@ -1123,6 +1130,10 @@ async function routeCommand(text) {
 
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
+
+  // Atendimentos e rifas do dono (BLOCO 8.18)
+  const rNeg = await tentarNegocio(text);
+  if (rNeg !== undefined) return rNeg;
 
   // Desafios antes do Ritual: "bebi 500 ml no desafio da água" não é a água do dia
   const rDesafio = await tentarDesafios(text);
@@ -5682,6 +5693,157 @@ async function tentarIdeal(text) {
     return null;
   }
   return seguir(achados[0]);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.18: AGENDA ONLINE E RIFAS (LADO DO DONO) PELO PET
+// A leitura do pedido fica em pet-negocio.js; grava pelas mesmas funções da
+// tela (agenda.js e rifas.js), sempre depois do card.
+// ═══════════════════════════════════════════════════════════════
+async function tentarNegocio(text) {
+  const t = PR.semPedido(text);
+  const a = PNG.lerAtendimento(t);
+  if (a) { const r = await negocioAtendimento(a); if (r !== undefined) return r; }
+  const r = PNG.lerRifa(t);
+  if (r) return negocioRifa(r);
+  return undefined;
+}
+
+const _horaAg = (a) => String(a.hora || '').slice(0, 5);
+const _diaAg = (a) => { const [y, m, d] = String(a.data).split('-').map(Number); return PR.nomeDia(new Date(y, m - 1, d)); };
+const _linhaAg = (a) => `<b>${_esc(_diaAg(a))} · ${_esc(_horaAg(a))}</b> ${_esc(a.cliente_nome || 'Cliente')}${a.servico ? ` · ${_esc(a.servico)}` : ''}`;
+
+async function negocioAtendimento(p) {
+  const AG = await import('./agenda.js');
+  let ags;
+  try { ags = (p.acao === 'ver' || p.acao === 'cancelar') ? await AG.getAgendamentos() : await AG.getAgendamentosTodos(); }
+  catch (e) { console.warn('[pet-negocio]', e); return p.semPalavraChave ? undefined : 'Não consegui abrir tua Agenda Online agora 😕 Tenta de novo daqui a pouco.'; }
+  const hoje = PNG.isoLocal(new Date());
+
+  if (p.acao === 'ver') {
+    let lista = ags;
+    if (p.palavras.length) { const c = PNG.acharAtendimentos(lista, { ...p, dia: null, hora: null }); if (c.length) lista = c; }
+    if (p.dia.dito) lista = lista.filter(x => x.data === PNG.isoLocal(p.dia.data));
+    else if (p.semana) { const fim = new Date(); fim.setDate(fim.getDate() + 7); lista = lista.filter(x => x.data <= PNG.isoLocal(fim)); }
+    const quando = p.dia.dito ? ` pra ${_esc(PR.nomeDia(p.dia.data))}` : p.semana ? ' nos próximos 7 dias' : '';
+    if (!lista.length) return `📅 Nenhum atendimento marcado${quando}.`;
+    const mostrar = lista.slice(0, 15);
+    return `📅 <b>Teus atendimentos${quando}</b><br>${mostrar.map(_linhaAg).join('<br>')}${lista.length > 15 ? `<br><small>…e mais ${lista.length - 15}. A lista toda fica na Agenda Online.</small>` : ''}`;
+  }
+
+  // cancelar: só os que ainda vão acontecer; finalizar/faltou: os confirmados até hoje
+  let base = p.acao === 'cancelar' ? ags : ags.filter(x => x.status === 'confirmado' && x.data <= hoje);
+  let achados = PNG.acharAtendimentos(base, p);
+  if (p.semPalavraChave && !achados.length) return undefined;   // "a reunião faltou": não é atendimento
+  // Sem dia dito em finalizar/faltou: o de hoje primeiro, senão o mais recente
+  if (p.acao !== 'cancelar' && !p.dia.dito && achados.length > 1) {
+    const deHoje = achados.filter(x => x.data === hoje);
+    achados = deHoje.length ? deHoje : achados.slice(0, 1);
+  }
+  const verbo = { cancelar: 'cancelar', finalizar: 'finalizar', faltou: 'marcar falta em' }[p.acao];
+  if (!achados.length) {
+    const quem = p.palavras.length ? ` de ${_esc(p.palavras.join(' '))}` : '';
+    return p.acao === 'cancelar'
+      ? `Não achei atendimento${quem} marcado daqui pra frente. Pra ver todos: <em>"meus próximos atendimentos"</em>.`
+      : `Não achei atendimento${quem} até hoje pra ${verbo}. Pra ver todos: <em>"meus próximos atendimentos"</em>.`;
+  }
+  const fazer = (ag) => {
+    const titulo = p.acao === 'cancelar' ? `🚫 Cancelar o atendimento?` : p.acao === 'finalizar' ? '✅ Finalizar o atendimento?' : '🚫 Marcar que faltou?';
+    cardConfirmarLista(`${titulo}<br>${_linhaAg(ag)}`, async () => {
+      if (p.acao === 'cancelar') {
+        await AG.cancelarAgendamento(ag.id);
+        await AG.sincronizarCompromissos().catch(() => {});
+        _redesenharTela();
+        const zap = String(ag.cliente_contato || '').replace(/\D/g, '');
+        return `Atendimento cancelado 🚫${zap ? ` <a href="https://wa.me/${zap.length <= 11 ? '55' + zap : zap}" target="_blank" rel="noopener">💬 Avisar ${_esc(ag.cliente_nome || 'o cliente')} no WhatsApp</a>` : ''}`;
+      }
+      await AG.atualizarStatusAgendamento(ag.id, p.acao === 'finalizar' ? 'finalizado' : 'faltou');
+      return p.acao === 'finalizar' ? '✅ Atendimento finalizado. Fica no histórico do cliente.' : '🚫 Falta marcada no histórico do cliente.';
+    }, null);
+    return null;
+  };
+  if (achados.length > 1) {
+    addChoices(`Qual atendimento tu quer ${verbo}?`, achados.slice(0, 8).map(ag => ({ label: `${_diaAg(ag)} ${_horaAg(ag)} · ${ag.cliente_nome || 'Cliente'}`, action: () => fazer(ag) })));
+    return null;
+  }
+  return fazer(achados[0]);
+}
+
+const _reais = (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+async function negocioRifa(p) {
+  const RF = await import('./rifas.js');
+  let rifas;
+  try { rifas = await RF.getMinhasRifas(); }
+  catch (e) { console.warn('[pet-negocio]', e); return 'Não consegui abrir tuas rifas agora 😕 Tenta de novo daqui a pouco.'; }
+  if (!rifas.length) return '🎟️ Tu ainda não tem rifa. Dá pra criar na Caixa de Ferramentas, em <b>Rifas</b>.';
+  const opcoes = PNG.acharRifa(rifas, p.palavras);
+  const seguir = async (rifa) => {
+    let parts;
+    try { parts = await RF.getParticipantes(rifa.id); }
+    catch (e) { console.warn('[pet-negocio]', e); addMessage('Não consegui ler os números dessa rifa agora 😕', 'bot'); return null; }
+    const msg = await rifaAcao(RF, rifa, parts, p);
+    if (msg) addMessage(msg, 'bot');
+    return null;
+  };
+  if (opcoes.length > 1) {
+    addChoices('Qual rifa?', opcoes.slice(0, 6).map(r => ({ label: r.titulo, action: () => { seguir(r); return null; } })));
+    return null;
+  }
+  const rifa = opcoes[0];
+  let parts;
+  try { parts = await RF.getParticipantes(rifa.id); }
+  catch (e) { console.warn('[pet-negocio]', e); return 'Não consegui ler os números dessa rifa agora 😕'; }
+  return rifaAcao(RF, rifa, parts, p);
+}
+
+async function rifaAcao(RF, rifa, parts, p) {
+  const nome = `<b>${_esc(rifa.titulo)}</b>`;
+  const valor = Number(rifa.valor_numero) || 0;
+  const pagos = parts.filter(x => x.pago), naoPagos = parts.filter(x => !x.pago);
+  const quem = (x) => `<b>${x.numero}</b> ${_esc(x.nome || 'sem nome')}${x.pago ? ' ✅' : ''}`;
+
+  if (p.acao === 'ver') {
+    const linhas = [
+      `🎟️ ${nome}`,
+      `Números pegos: <b>${parts.length}</b> de ${rifa.total_numeros || '?'}`,
+      `Pagos: <b>${pagos.length}</b>${naoPagos.length ? ` · faltam pagar: <b>${naoPagos.length}</b>` : ''}`,
+    ];
+    if (valor) {
+      linhas.push(`Arrecadado: <b>${_reais(pagos.length * valor)}</b>${naoPagos.length ? ` · a receber: ${_reais(naoPagos.length * valor)}` : ''}`);
+      if (rifa.valor_meta) linhas.push(`Meta: ${_reais(rifa.valor_meta)} (${Math.round((pagos.length * valor / rifa.valor_meta) * 100)}%)`);
+    }
+    return linhas.join('<br>');
+  }
+  if (p.acao === 'pendentes') {
+    if (!naoPagos.length) return `🎟️ Em ${nome} todo mundo já pagou ✅`;
+    return `🎟️ <b>Falta pagar</b> em ${nome}:<br>${naoPagos.slice(0, 30).map(quem).join('<br>')}${naoPagos.length > 30 ? `<br><small>…e mais ${naoPagos.length - 30}.</small>` : ''}`;
+  }
+  const alvo = PNG.acharParticipantes(parts, p);
+  if (p.acao === 'quem') {
+    if (!p.numeros.length) return 'Qual número? Ex.: <em>"quem pegou o número 15?"</em>';
+    const livres = p.numeros.filter(n => !alvo.some(x => Number(x.numero) === n));
+    return [...alvo.map(quem), ...livres.map(n => `<b>${n}</b> <em>livre</em>`)].join('<br>');
+  }
+  if (!alvo.length) {
+    if (p.numeros.length) return `Ninguém pegou o número ${p.numeros.join(', ')} em ${nome}.`;
+    return `Não achei esse nome em ${nome}. Me diz o número: <em>"o 15 pagou"</em>.`;
+  }
+  if (p.acao === 'liberar') {
+    cardConfirmarLista(`🎟️ Liberar em ${nome}?<br>${alvo.map(quem).join('<br>')}<br><small>O número volta a ficar livre pra outra pessoa pegar.</small>`, async () => {
+      for (const x of alvo) await RF.removerParticipante(x.id);
+      return `Liberado ✅ ${alvo.length > 1 ? 'Os números voltaram' : 'O número voltou'} a ficar livre.`;
+    }, null);
+    return null;
+  }
+  const pago = p.acao === 'pago';
+  const mudar = alvo.filter(x => !!x.pago !== pago);
+  if (!mudar.length) return `${alvo.map(quem).join('<br>')}<br>${pago ? 'Já está marcado como pago ✅' : 'Já está como não pago.'}`;
+  cardConfirmarLista(`🎟️ ${pago ? 'Marcar como pago' : 'Tirar o pago'} em ${nome}?<br>${mudar.map(quem).join('<br>')}`, async () => {
+    for (const x of mudar) await RF.marcarPago(x.id, pago);
+    return pago ? `Marcado como pago ✅${valor ? ` Arrecadado agora: <b>${_reais((pagos.length + mudar.length) * valor)}</b>.` : ''}` : 'Pronto, voltou pra não pago.';
+  }, null);
+  return null;
 }
 
 // 📋 Só nas Atividades: cria a atividade na Home com o ícone e a cor do pilar
