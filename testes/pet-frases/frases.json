@@ -162,7 +162,7 @@
   {"f": "a Bianca faltou no atendimento de hoje", "e": {"acao": "atendimento", "campo": "faltou", "titulo": "bianca"}},
   {"f": "finaliza o atendimento do Márcio", "e": {"acao": "atendimento", "campo": "finalizar", "titulo": "márcio"}},
   {"f": "quanto já arrecadei na rifa?", "e": {"acao": "rifa", "campo": "ver"}},
-  {"f": "o Lucas pagou o número 33 da rifa", "e": {"acao": "rifa", "campo": "pago", "texto": "33"}},
+  {"f": "o Lucas pagou o número 33 da rifa", "e": {"acao": "rifa", "campo": "pago", "texto": "33", "itens": ["lucas"]}},
   {"f": "quem ainda não pagou a rifa do celular?", "e": {"acao": "rifa", "campo": "pendentes", "titulo": "celular"}},
   {"f": "quem ficou com o número 18 da rifa?", "e": {"acao": "rifa", "campo": "quem", "texto": "18"}},
   {"f": "a Carol desistiu, libera o 5 da rifa", "e": {"acao": "rifa", "campo": "liberar", "texto": "5", "itens": ["carol"]}},

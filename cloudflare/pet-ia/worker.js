@@ -225,6 +225,22 @@ function corrigirRota(out, texto) {
     const m = texto.match(/\bdesafio (?:da |do |de )(.+?)(?:[?!.,]|$| com | e )/i);
     out.titulo = m ? m[1].trim() : '';
   }
+  // "ontem eu corri, esqueci de marcar": é marcar, não pedir ajuda pra lembrar
+  if (out.acao === 'ajuda_lembrar' && /\b(corri|fiz|treinei|li|meditei|fui|bebi|estudei)\b/.test(t) && /\besqueci de marcar\b/.test(t)) out.acao = 'marcar_feito';
+  // "preciso ir no mercado sábado": compromisso, mesmo quando o modelo pergunta
+  if (out.acao === 'perguntar') {
+    const m = t.match(/\b(?:ir|vou|tenho que ir|preciso ir)\s+(?:no|na|ao|pro|pra)\s+([a-z]{3,})/);
+    if (m && /\b(hoje|amanha|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/.test(t)) {
+      out.acao = 'agendar'; out.titulo = m[1][0].toUpperCase() + m[1].slice(1);
+    }
+  }
+  if (out.acao === 'configurar' && out.campo === 'tema') { const m = t.match(/\b(claro|escuro|dark|light)\b/); if (m) out.texto = m[1]; }
+  if (out.acao === 'desafio' && out.campo === 'sugerir_prenda' && !out.texto) { const m = texto.match(/\bprenda[:\s]+(.+)$/i); if (m) out.texto = m[1].trim(); }
+  // Nome de gente dito com maiúscula ("a Bianca faltou", "a Carol desistiu")
+  const nomes = (texto.match(/\b[A-ZÁÉÍÓÚÂÊÔÃÕ][a-záéíóúâêôãõç]{2,}\b/g) || []).filter(n => !/^(Rifa|Pet|Falcon|Agenda|Online|Atendimento|Cliente|Hoje|Amanhã|Ontem)$/.test(n));
+  if (out.acao === 'atendimento' && nomes.length && (!out.titulo || !_citado(out.titulo, t) || /atendiment|cliente/i.test(out.titulo))) out.titulo = nomes[0];
+  if (out.acao === 'atendimento' && out.titulo && (/atendiment|cliente|hoje|amanh/i.test(out.titulo) || !_citado(out.titulo, t))) out.titulo = '';
+  if (out.acao === 'rifa' && !(out.itens || []).length && nomes.length) out.itens = nomes;
   // "na verdade não fiz": tira a marcação
   if (out.acao === 'marcar_feito' && /\b(nao fiz|nao consegui fazer|marquei errado|desmarca)\b/.test(t)) out.acao = 'desmarcar_feito';
 }
@@ -243,6 +259,12 @@ export function limparResposta(out, conteudo, texto = conteudo) {
   if (out.hora && (!/^\d{1,2}:\d{2}$/.test(out.hora) || !HORA_FALADA.test(falado))) out.hora = '';
   if (out.numero && !NUM_FALADO.test(falado)) out.numero = 0;
   if (out.numero < 0) out.numero = -out.numero;
+  // "dia 10" respondendo "em que dia vence a conta de luz?"
+  if (out.acao === 'perguntar' && /\bconta\b/.test(falado) && /\bdia\s+\d{1,2}\b/.test(_sem(texto))) {
+    const m = falado.match(/\bconta (?:da |do |de )([a-z0-9 ]+?)(?:\n|$|\?|,| que | vence)/);
+    out.acao = 'contas_pagar';
+    out.itens = [m ? m[1].trim() : (out.titulo || '').replace(/^conta (de |da |do )?/i, '')].filter(Boolean);
+  }
   if (Array.isArray(out.itens)) {
     // Item igual ao título é cópia, não item dito (a não ser no Ideal/desafio, onde o item É o assunto)
     const tit = _sem(out.titulo).trim();
@@ -279,6 +301,9 @@ export function limparResposta(out, conteudo, texto = conteudo) {
     const m2 = tDia.match(/\b(essa|esta|nessa|nesta) (semana|mes)\b/);
     if (m2) out.quando = `${m2[1]} ${m2[2]}`.replace('mes', 'mês');
   }
+  // Dia escrito errado pelo modelo ("amanhça"): fica o dia dito na frase
+  { const d = tDia.match(/\b(hoje|amanha|ontem|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/);
+    if (d && out.quando && !falado.includes(_sem(out.quando).trim()) && !/semana|mes|dias/.test(_sem(out.quando))) out.quando = { amanha: 'amanhã', terca: 'terça', sabado: 'sábado' }[d[1]] || d[1]; }
   // Hora dita que o modelo esqueceu ("umas 9", "às 7 da noite", "19h30")
   if (!out.hora && ['agendar', 'remarcar'].includes(out.acao)) {
     const m = tDia.match(/\b(?:as|umas?|pras?|das)\s+(\d{1,2})(?:(?::|h)(\d{2}))?\b/) || tDia.match(/\b(\d{1,2})(?::|h)(\d{2})?\b/);
