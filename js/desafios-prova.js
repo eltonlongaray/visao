@@ -37,6 +37,12 @@ function _mimeVideo() {
 
 // rascunho = mostra "Salvar rascunho" na revisão: o Blob volta marcado com
 // __rascunho e quem chamou guarda no aparelho em vez de mandar.
+// Texto pra ler enquanto grava (teleprompter): fica guardado no aparelho
+const TP_TEXTO = 'visao_teleprompter';
+const TP_VEL = 'visao_teleprompter_vel';
+const _lerLS = (k, padrao) => { try { return localStorage.getItem(k) ?? padrao; } catch { return padrao; } };
+const _gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem armazenamento */ } };
+
 // 187 → "3:07": em segundos ninguém sabia quantos minutos já tinham passado
 const _mmss = (seg) => `${Math.floor(seg / 60)}:${String(Math.floor(seg % 60)).padStart(2, '0')}`;
 
@@ -55,6 +61,26 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       <video class="cam-guia-video ds-rec-fonte" autoplay playsinline muted></video>
       <canvas class="cam-guia-video ds-rec-video" width="${REC_W}" height="${REC_H}"></canvas>
       <div class="ds-rec-tempo" hidden>● <span>0:00</span> / ${_mmss(maxSeg)}</div>
+      <div class="ds-tp" hidden>
+        <div class="ds-tp-texto"></div>
+        <div class="ds-tp-ctrl">
+          <button type="button" data-rec="tp-menos" aria-label="Mais devagar">🐢</button>
+          <span class="ds-tp-vel"></span>
+          <button type="button" data-rec="tp-mais" aria-label="Mais rápido">🐇</button>
+          <button type="button" data-rec="texto" aria-label="Editar roteiro">✏️</button>
+          <button type="button" data-rec="tp-fechar" aria-label="Tirar roteiro">✕</button>
+        </div>
+      </div>
+      <button type="button" class="ds-tp-abrir" data-rec="texto">📝 Roteiro</button>
+      <div class="ds-tp-editor" hidden>
+        <div class="ds-tp-ed-tit">📝 Roteiro pra ler enquanto grava</div>
+        <small>Cola ou escreve aqui. O roteiro aparece no alto da tela e vai subindo sozinho enquanto tu grava. Ele não entra no vídeo.</small>
+        <textarea maxlength="5000" rows="8" placeholder="Ex: Hoje é o dia 5 do desafio. O que eu aprendi foi…"></textarea>
+        <div class="ds-tp-ed-acoes">
+          <button type="button" class="cam-guia-btn" data-rec="tp-cancelar">Cancelar</button>
+          <button type="button" class="btn-primary" data-rec="tp-usar">Usar roteiro</button>
+        </div>
+      </div>
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-rec="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot ds-rec-shot" data-rec="go" aria-label="Gravar"></button>
@@ -99,12 +125,41 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const shot = ov.querySelector('[data-rec="go"]');
     const flip = ov.querySelector('[data-rec="flip"]');
     const pausa = ov.querySelector('[data-rec="pause"]');
+    // ── Texto pra ler: fica por cima da imagem (fora do canvas, então não é gravado)
+    const tp = ov.querySelector('.ds-tp');
+    const tpTexto = ov.querySelector('.ds-tp-texto');
+    const tpAbrir = ov.querySelector('.ds-tp-abrir');
+    const tpEditor = ov.querySelector('.ds-tp-editor');
+    let tpVel = Math.min(120, Math.max(10, Number(_lerLS(TP_VEL, 30)) || 30));   // px por segundo
+    let tpRaf = 0, tpUlt = 0, tpPos = 0;
+    const tpTem = () => !!String(_lerLS(TP_TEXTO, '')).trim();
+    function tpMostrar() {
+      const txt = String(_lerLS(TP_TEXTO, '')).trim();
+      tpTexto.textContent = txt;
+      tp.hidden = !txt;
+      tpAbrir.hidden = !!txt;
+      ov.classList.toggle('com-texto', !!txt);
+      ov.querySelector('.ds-tp-vel').textContent = `${Math.round(tpVel / 10)}`;
+    }
+    // Sobe sozinho só enquanto grava (pausou, para junto). Dá pra arrastar com o dedo.
+    function tpRolar(agora) {
+      tpRaf = requestAnimationFrame(tpRolar);
+      const dt = tpUlt ? (agora - tpUlt) / 1000 : 0;
+      tpUlt = agora;
+      if (!mr || mr.state !== 'recording' || tp.hidden) return;
+      if (Math.abs(tpTexto.scrollTop - Math.round(tpPos)) > 2) tpPos = tpTexto.scrollTop;   // a pessoa arrastou
+      tpPos += tpVel * dt;
+      tpTexto.scrollTop = tpPos;
+    }
+    tpMostrar();
+
     let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false;
 
     const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
       if (fechado) return;
       fechado = true;
+      cancelAnimationFrame(tpRaf);
       clearInterval(timer);
       try { if (mr && mr.state !== 'inactive') mr.stop(); } catch { /* já parou */ }
       parar();
@@ -152,11 +207,15 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         }
         if (fechado) return;
         const rev = ov.querySelector('.ds-rec-revisao');
+        tp.hidden = true; tpAbrir.hidden = true;
         const play = rev.querySelector('video');
         play.src = URL.createObjectURL(blob);
         rev.hidden = false;
       };
       mr.start(500);
+      tpTexto.scrollTop = 0; tpPos = 0; tpUlt = 0;
+      tpAbrir.hidden = true;
+      if (!tpRaf) tpRaf = requestAnimationFrame(tpRolar);
       t0 = performance.now(); durMs = 0; acum = 0; pausado = false;
       shot.classList.add('gravando');
       flip.disabled = true;
@@ -211,6 +270,26 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       if (act === 'cancel') return fechar();
       if (act === 'flip') { lado = lado === 'user' ? 'environment' : 'user'; return abrir(); }
       if (act === 'pause') return pausarOuContinuar();
+      if (act === 'texto') {
+        tpEditor.querySelector('textarea').value = _lerLS(TP_TEXTO, '');
+        tpEditor.hidden = false;
+        return tpEditor.querySelector('textarea').focus();
+      }
+      if (act === 'tp-cancelar') { tpEditor.hidden = true; return; }
+      if (act === 'tp-usar') {
+        _gravarLS(TP_TEXTO, tpEditor.querySelector('textarea').value.trim());
+        tpEditor.hidden = true;
+        tpTexto.scrollTop = 0; tpPos = 0;
+        tpMostrar();
+        if (mr && mr.state !== 'inactive') tpAbrir.hidden = true;
+        return;
+      }
+      if (act === 'tp-fechar') { _gravarLS(TP_TEXTO, ''); tpMostrar(); if (mr && mr.state !== 'inactive') tpAbrir.hidden = true; return; }
+      if (act === 'tp-mais' || act === 'tp-menos') {
+        tpVel = Math.min(120, Math.max(10, tpVel + (act === 'tp-mais' ? 10 : -10)));
+        _gravarLS(TP_VEL, String(tpVel));
+        return tpMostrar();
+      }
       if (act === 'go') {
         if (mr && (mr.state === 'recording' || mr.state === 'paused')) { if (seg >= 2) pararGravacao(); return; }
         return gravar();
@@ -218,6 +297,8 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       if (act === 'again') {
         ov.querySelector('.ds-rec-revisao').hidden = true;
         blob = null; flip.disabled = false;
+        tpTexto.scrollTop = 0; tpPos = 0;
+        tpMostrar();
         return abrir();
       }
       if (act === 'send' && blob) { entregue = blob; fechar(); }

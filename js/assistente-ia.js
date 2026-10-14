@@ -853,6 +853,8 @@ async function dispatchCommand(text) {
     }
     // "Não tô conseguindo lembrar de marcar as coisas": orienta e oferece ajuda
     if (reply === undefined && typeof text !== 'function' && PCF.lerPedidoLembrar(semChamado(text))) reply = ajudaLembrar();
+    // "Como coloco um texto pra ler enquanto gravo?": o teleprompter do gravador
+    if (reply === undefined && typeof text !== 'function' && LER_GRAVANDO_RE.test(semAcento(semChamado(text)))) reply = EXPLICA_LER_GRAVANDO;
     // Desafios ("bebi 500 ml no desafio da água"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesafios(semChamado(text));
@@ -915,6 +917,10 @@ function mostrarDigitando() {
   obs.observe(box, { childList: true });
   return parar;
 }
+
+// Texto pra ler enquanto grava o vídeo do desafio (js/desafios-prova.js)
+const LER_GRAVANDO_RE = /\bteleprompter\b|\b(texto|roteiro|script)\b.*\b(ler|leitura|aparec\w*)\b.*\bgrav|\b(ler|leio)\b.*\b(enquanto|durante|na hora (de|que))\b.*\bgrav/;
+const EXPLICA_LER_GRAVANDO = 'Dá sim 🎥 Na tela de gravar o vídeo do desafio, toca em <strong>📝 Roteiro</strong>, cola ou escreve o teu roteiro e toca em <strong>Usar roteiro</strong>. Ele aparece no alto da tela, perto da câmera, e vai subindo sozinho enquanto tu grava (🐢 e 🐇 mudam a velocidade, e dá pra arrastar com o dedo). O roteiro não entra no vídeo e fica guardado pra próxima vez.';
 
 // Por voz a pessoa chama o pet pelo nome ("Falcon, qual meu próximo
 // compromisso"), e o ditado nem sempre põe a vírgula. O nome na frente

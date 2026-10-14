@@ -8443,3 +8443,42 @@ body.rota-publica .bottom-nav { display: none !important; }
 .sg-mini { padding: 4px 8px; }
 .sg-curtir.on { border-color: #34d399; background: rgba(52,211,153,0.15); }
 .sg-mini.on { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+
+/* Texto pra ler enquanto grava (teleprompter): por cima da imagem, perto da
+   câmera da frente pra o olhar não fugir. Não entra no vídeo (fica fora do canvas). */
+.ds-tp {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+  background: rgba(0,0,0,0.78); padding: calc(10px + env(safe-area-inset-top)) 16px 8px;
+}
+.ds-tp-texto {
+  height: 30vh; overflow-y: auto; color: #fff; font-size: 22px; line-height: 1.45; font-weight: 600;
+  white-space: pre-wrap; overflow-wrap: anywhere; padding-bottom: 30vh; scrollbar-width: none;
+}
+.ds-tp-texto::-webkit-scrollbar { display: none; }
+.ds-tp-ctrl { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 6px; }
+.ds-tp-ctrl button {
+  background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px; width: 38px; height: 34px; font-size: 16px;
+}
+.ds-tp-vel { color: #fff; font-weight: 800; font-size: 14px; min-width: 18px; text-align: center; }
+.ds-rec-ov.com-texto .ds-rec-tempo { top: calc(30vh + 70px + env(safe-area-inset-top)); }
+.ds-tp-abrir {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 3;
+  bottom: calc(112px + env(safe-area-inset-bottom));
+  background: rgba(0,0,0,0.55); color: #fff; border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 700; white-space: nowrap;
+}
+.ds-tp-editor {
+  position: absolute; left: 12px; right: 12px; top: calc(60px + env(safe-area-inset-top)); z-index: 6;
+  background: #111827; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+  padding: 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.ds-tp-editor[hidden], .ds-tp[hidden], .ds-tp-abrir[hidden] { display: none; }
+.ds-tp-ed-tit { font-weight: 800; font-size: 15px; }
+.ds-tp-editor small { color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.4; }
+.ds-tp-editor textarea {
+  width: 100%; box-sizing: border-box; min-height: 160px; max-height: 45vh; resize: vertical;
+  background: #0b1020; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;
+  padding: 10px; font-size: 15px; line-height: 1.4; font-family: inherit;
+}
+.ds-tp-ed-acoes { display: flex; gap: 8px; justify-content: flex-end; }
