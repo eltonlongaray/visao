@@ -34,12 +34,23 @@ const SCHEMA = {
     campo: { type: 'string' },
     texto: { type: 'string' },
     todas: { type: 'boolean' },
-    consulta: { type: 'string', enum: CONSULTAS },
+    consulta: { type: 'string', enum: ['', ...CONSULTAS] },
     opcao: { type: 'string' },
     resposta: { type: 'string' },
   },
-  required: ['acao', 'resposta'],
+  // Todos obrigatórios: com campo opcional o modelo pequeno fechava o JSON cedo
+  // e esquecia título, hora, dia... Vazio ("", 0, [], false) = não disse; o
+  // handler tira os vazios antes de devolver, então o app recebe igual antes.
+  required: ['acao', 'titulo', 'quando', 'hora', 'para', 'lista', 'itens', 'numero', 'campo', 'texto', 'todas', 'consulta', 'opcao', 'resposta'],
 };
+// Tira os campos vazios (o schema obriga todos, vazio = a pessoa não disse)
+function semVazios(out) {
+  for (const [k, v] of Object.entries(out)) {
+    if (k === 'acao' || k === 'resposta') continue;
+    if (v === '' || v === null || v === false || (k === 'numero' && !v) || (Array.isArray(v) && !v.filter(x => String(x).trim()).length)) delete out[k];
+  }
+  return out;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INSTRUÇÕES DO MODELO
@@ -56,7 +67,7 @@ REGRA DE OURO: todo dado que a pessoa falou vai pro JSON, no campo certo. Nunca 
 - nome de lista ou grupo → "lista"; nome novo, cor, emoji, tema, código ou frase pra anotar → "texto"
 Se a frase tem o dado, o campo NÃO pode ficar vazio.
 
-Campos: "acao", "titulo", "quando", "hora", "para", "lista", "itens", "numero", "campo", "texto", "todas", "consulta", "opcao", "resposta".
+Campos (o JSON tem TODOS, nessa ordem): "acao", "titulo", "quando", "hora", "para", "lista", "itens", "numero", "campo", "texto", "todas", "consulta", "opcao", "resposta". O que a pessoa não disse fica vazio ("" / [] / 0 / false). Os exemplos abaixo mostram só os campos preenchidos.
 "resposta": uma frase curta, natural, em português do Brasil informal, usando "tu". Nunca inventa dado que a pessoa não disse.
 
 AÇÕES (campo "acao") e o que vai em cada uma:
@@ -414,6 +425,7 @@ export default {
       });
       const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
       if (!out?.acao) return json(req, { erro: 'sem resposta' }, 502);
+      semVazios(out);
       if (out.opcao && !opcoes.some(o => o.id === out.opcao)) delete out.opcao;   // só id que existe
       if (out.acao === 'conversa') out.resposta = '';   // fora do app: o app responde com texto fixo
       return json(req, out);
