@@ -65,20 +65,117 @@ function _citado(valor, falado) {
   return palavras.some(p => falado.includes(p.slice(0, Math.min(p.length, 4))));
 }
 const NUM_FALADO = /\d|\b(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|meia|meio|copo|copos|garrafa|garrafas|litro|litros|hora|horas|dobro)\b/;
+// Horário dito de verdade: "às 9", "19h", "7:30", "8 da manhã", "meio-dia"
+const _N = '(\\d{1,2}|uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|meia)';
+const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+${_N}\\b|\\bdas\\s+${_N}\\b|\\bpras?\\s+\\d{1,2}\\b|meia[- ]noite|meio[- ]dia|\\b${_N}\\s+(da|de)\\s+(manha|tarde|noite|madrugada)`);
+// Que ações usam cada campo (no resto, o valor é invenção do modelo)
+const USA = {
+  hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar'],
+  numero: ['agua', 'sono', 'desempenho', 'ideal', 'desafio', 'treino_frequencia', 'notas_periodo'],
+  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar'],
+  lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar'],
+  para: ['remarcar', 'cancelar', 'reativar'],
+};
+// Correções de rota: o modelo pequeno às vezes erra a ação mesmo com a frase
+// clara. Só mexe quando a palavra-chave não deixa dúvida.
+function corrigirRota(out, texto) {
+  const t = _sem(texto);
+  const apagar = /\b(apag|exclu|delet|remov)\w*/.test(t);
+  const lista = /\blistas?\b/.test(t);
+  if (/\b(idioma|lingua|notifica\w*|excluir minha conta|apagar minha conta)\b/.test(t)) {
+    Object.assign(out, { acao: 'nao_sei_fazer', campo: '', titulo: '', texto: '' });
+    return;
+  }
+  // "apaga a reunião de quinta" é excluir, não cancelar
+  if (apagar && !lista && !/\bcancel/.test(t) && ['cancelar', 'configurar'].includes(out.acao) && !/\batividade\b/.test(t)) {
+    out.acao = 'excluir'; out.campo = '';
+  }
+  if (out.acao === 'excluir' && /\b(todas|todos|repeti\w*|sempre)\b/.test(t)) out.todas = true;
+  // "tira a conta da internet": tira das contas a pagar
+  if (['contas_pagar', 'cancelar', 'configurar'].includes(out.acao) && /\b(tira|apag|exclu|remov)\w*/.test(t) && /\bconta (da|do|de)\b/.test(t)) {
+    const nome = (t.match(/\bconta (?:da |do |de )?([a-z0-9 ]+?)(?:,|\.|$| que | porque | pois | cancel)/) || [])[1] || out.titulo || '';
+    Object.assign(out, { acao: 'excluir', titulo: `conta a pagar ${nome.trim()}`, todas: true, itens: [] });
+  }
+  // Mexer na lista em si (nome, grupo, limpar)
+  if (lista && out.acao !== 'lista_organizar' && !['lista_adicionar', 'lista_marcar'].includes(out.acao) || /\bgrupo de listas\b/.test(t)) {
+    const campo = /grupo/.test(t) ? 'criar_grupo' : /\b(renome|muda o nome|troca o nome|chamar)\w*/.test(t) ? 'renomear'
+      : /\b(limpa|tira os feitos|tira os marcados)\w*/.test(t) ? 'limpar_feitos' : apagar ? 'apagar' : '';
+    if (campo) {
+      out.acao = 'lista_organizar'; out.campo = campo;
+      if (campo === 'renomear') {
+        const m = texto.match(/\blista (?:de |do |da )?(.+?) (?:pra|para) (.+)$/i);
+        if (m) { out.lista = m[1].trim(); out.texto = m[2].trim(); }
+      }
+      if (campo === 'criar_grupo') {
+        const m = texto.match(/\b(?:chamado|chamada|de nome|com o nome)\s+(.+)$/i);
+        if (m) out.texto = m[1].trim();
+      }
+    }
+  }
+  // "do ideal" é sempre o Ideal
+  if (/\bideal\b/.test(t) && out.acao !== 'ideal') {
+    out.acao = 'ideal';
+    out.campo = /\batividade/.test(t) ? 'atividade' : /\bconstancia/.test(t) ? 'constancia' : /\b(tira|desmarc)/.test(t) ? 'desmarcar' : /\b(marca|fiz|cumpri)/.test(t) ? 'marcar' : 'ver';
+    if (!out.itens?.length && out.titulo) out.itens = [out.titulo];
+  }
+  if (out.acao === 'desafio' || /\bdesafio\b/.test(t)) {
+    if (/\bmural\b/.test(t)) { out.acao = 'desafio'; out.campo = 'mural'; }
+    else if (/\bproposta\b/.test(t)) { out.acao = 'desafio'; out.campo = 'proposta'; out.texto = /\b(nao|recuso|rejeit)\w*/.test(t) ? 'não' : 'sim'; }
+    else if (/\bcomo (eu )?(registr|marc|mand|coloc)\w* a corrida/.test(t)) { out.acao = 'desafio'; out.campo = 'corrida_ajuda'; }
+    else if (/\bgrupo\b/.test(t)) {
+      out.acao = 'desafio'; out.campo = 'grupo';
+      const m = texto.match(/\bgrupo[^:]*:\s*(.+)$/i) || texto.match(/\b(?:manda|escreve|fala|diz)\b.*?\bgrupo\b.*?\b(?:que|dizendo)\s+(.+)$/i);
+      out.texto = m ? m[1].trim() : '';
+    }
+  }
+  // Ver o que anotou (falhas/melhorias) é notas do período, não desempenho
+  if (/\b(anotei|disse que ia melhorar|falei que ia melhorar|minhas falhas|onde eu falhei|o que eu errei)\b/.test(t)) {
+    out.acao = 'notas_periodo';
+    out.campo = /melhor/.test(t) ? 'melhorias' : /falh|err/.test(t) ? 'falhas' : 'tudo';
+  }
+  if (/\bquantas vezes\b/.test(t) && !['desempenho', 'desafio', 'treino_frequencia'].includes(out.acao)) {
+    out.acao = 'desempenho'; out.campo = 'atividade'; out.consulta = '';
+  }
+  // Água sem número: copo 250, garrafa 500, litro 1000 (o modelo às vezes chuta)
+  if (out.acao === 'agua' && !/\d/.test(t)) {
+    const m = t.match(/\b(um|uma|dois|duas|tres|quatro|cinco|meio|meia)?\s*(copos?|garrafas?|garrafinhas?|litros?)\b/);
+    if (m) {
+      const qtd = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, meio: 0.5, meia: 0.5 }[m[1]] || 1;
+      const ml = /^cop/.test(m[2]) ? 250 : /^garraf/.test(m[2]) ? 500 : 1000;
+      out.numero = Math.round(qtd * ml);
+    }
+  }
+  // "na verdade não fiz": tira a marcação
+  if (out.acao === 'marcar_feito' && /\b(nao fiz|nao consegui fazer|marquei errado|desmarca)\b/.test(t)) out.acao = 'desmarcar_feito';
+}
 // Limpa a resposta do modelo: tira o vazio (o schema obriga todos os campos)
 // e o que ele inventou (hora/número/itens/dia que a pessoa não falou).
-function limparResposta(out, conteudo) {
+export function limparResposta(out, conteudo, texto = conteudo) {
   const falado = _sem(conteudo);
+  corrigirRota(out, texto);
   const permitidos = CAMPOS[out.acao] || [];
   // Às vezes o modelo põe o "campo" no título ("titulo":"tema")
   if (!permitidos.includes(out.campo) && permitidos.includes(out.titulo)) { out.campo = out.titulo; out.titulo = ''; }
   if (!permitidos.includes(out.campo)) out.campo = '';
   if (out.acao !== 'consultar') out.consulta = '';
   if (!['excluir', 'lista_organizar', 'desafio'].includes(out.acao)) out.todas = false;
-  if (out.hora && !NUM_FALADO.test(falado)) out.hora = '';
+  for (const [k, acoes] of Object.entries(USA)) if (!acoes.includes(out.acao)) out[k] = Array.isArray(out[k]) ? [] : (k === 'numero' ? 0 : '');
+  if (out.hora && (!/^\d{1,2}:\d{2}$/.test(out.hora) || !HORA_FALADA.test(falado))) out.hora = '';
   if (out.numero && !NUM_FALADO.test(falado)) out.numero = 0;
   if (out.numero < 0) out.numero = -out.numero;
-  if (Array.isArray(out.itens)) out.itens = out.itens.filter(i => _citado(i, falado));
+  if (Array.isArray(out.itens)) {
+    // Item igual ao título é cópia, não item dito (a não ser no Ideal/desafio, onde o item É o assunto)
+    const tit = _sem(out.titulo).trim();
+    out.itens = out.itens.filter(i => _citado(i, falado) && (['ideal'].includes(out.acao) || !tit || _sem(i).trim() !== tit));
+    if (out.acao === 'contas_pagar') {
+      // Formato que o app lê: "Nome - dia N", com o dia dito pela pessoa
+      const dias = falado.match(/\bdia\s+\d{1,2}\b/g) || [];
+      out.itens = out.itens.map(i => /\bdia\s+\d{1,2}\b/i.test(i) ? i
+        : (dias.length === 1 && out.itens.length === 1 ? `${i.replace(/^conta (de |da |do )?/i, '').replace(/^./, c => c.toUpperCase())} - ${dias[0]}` : i))
+        .filter(i => { const d = (_sem(i).match(/\bdia\s+\d{1,2}\b/) || [])[0]; return d && falado.includes(d); });
+      if (!out.itens.length) { out.acao = 'perguntar'; if (!out.resposta || !/\?/.test(out.resposta)) out.resposta = 'Qual conta e em que dia do mês ela vence?'; }
+    }
+  }
   for (const k of ['lista', 'para']) if (out[k] && !_citado(out[k], falado)) out[k] = '';
   if (out.quando && _sem(out.quando) !== 'hoje' && !_citado(out.quando, falado)) out.quando = '';
   for (const [k, v] of Object.entries(out)) {
@@ -461,7 +558,7 @@ export default {
       });
       const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
       if (!out?.acao) return json(req, { erro: 'sem resposta' }, 502);
-      limparResposta(out, conteudo);
+      limparResposta(out, conteudo, texto);
       if (out.opcao && !opcoes.some(o => o.id === out.opcao)) delete out.opcao;   // só id que existe
       if (out.acao === 'conversa') out.resposta = '';   // fora do app: o app responde com texto fixo
       return json(req, out);

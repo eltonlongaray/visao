@@ -57,7 +57,7 @@
   {"f": "qual meu próximo compromisso?", "e": {"acao": "consultar", "consulta": "proximo_compromisso"}},
   {"f": "o que falta fazer hoje?", "e": {"acao": "consultar", "consulta": "tarefas_hoje"}},
   {"f": "quanto de água eu já bebi hoje?", "e": {"acao": "consultar", "consulta": "agua"}},
-  {"f": "dormi bem essa semana?", "e": {"acao": "consultar", "consulta": "sono"}},
+  {"f": "dormi bem essa semana?", "e": {"acao": "consultar", "consulta": "sono"}, "ou": {"acao": "desempenho", "campo": "sono"}},
   {"f": "quantos dias seguidos eu tô mantendo?", "e": {"acao": "consultar", "consulta": "sequencia"}},
   {"f": "como tá meu perfil de treino?", "e": {"acao": "consultar", "consulta": "perfil_treino"}},
   {"f": "me mostra o cartão do dia", "e": {"acao": "consultar", "consulta": "cartao_dia"}},

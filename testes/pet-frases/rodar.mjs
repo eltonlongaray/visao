@@ -87,7 +87,10 @@ await Promise.all([0, 1, 2].map(async () => {
   while (prox < casos.length) {
     const i = prox++;
     const r = await perguntar(casos[i]);
-    resultados[i] = { ...casos[i], r, erros: r.erro ? [`erro: ${r.erro}`] : conferir(casos[i].e, r, casos[i].f) };
+    // "ou": outra resposta que também serve (ex.: média de sono pelo Desempenho)
+    let erros = r.erro ? [`erro: ${r.erro}`] : conferir(casos[i].e, r, casos[i].f);
+    if (erros.length && !r.erro && casos[i].ou && !conferir(casos[i].ou, r, casos[i].f).length) erros = [];
+    resultados[i] = { ...casos[i], r, erros };
   }
 }));
 
