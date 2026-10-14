@@ -95,9 +95,9 @@ export const PRENDAS = [
   'Cantar uma música infantil com voz de ópera 🎶',
   'Desfilar pela casa como modelo, com roupa improvisada 👗',
   'Andar 20 passos como pinguim 🐧',
-  'Fazer uma declaração de amor pro espelho 🪞',
+  'Comer batata frita com molho no umbigo de alguém da família 🍟',
   'Fazer 20 polichinelos cantando parabéns 🎂',
-  'Comer uma colher de mostarda sem beber nada depois 🌭',
+  'Comer uma colher BEM cheia de farofa, sem beber nada depois 🥄',
 ];
 
 // Código de convite curto e legível (sem 0/O/1/I pra não confundir)
