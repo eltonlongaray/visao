@@ -1,0 +1,61 @@
+# Testa o "entendimento" do Pet: manda as frases de testes/pet-frases/frases.json
+# pra um Worker de TESTE (pet-ia-teste, mesmo código e mesma IA do Worker de
+# verdade, na versão deste branch) e mostra quantas a IA acertou.
+# O Worker de teste é criado no começo e apagado no fim; o de verdade não muda.
+# Cada rodada completa gasta uns 3 a 4 mil "neurons" da cota grátis diária da
+# Cloudflare (10 mil por dia, a mesma que o Pet usa): rodar só quando precisar.
+# Rodar na mão: Actions → "Testar frases do Pet" → Run workflow (filtro opcional:
+# uma ação, ex.: agendar). Também roda sozinho em push de branch claude/** que
+# mexe nas frases ou no Worker.
+name: Testar frases do Pet
+
+on:
+  workflow_dispatch:
+    inputs:
+      filtro:
+        description: 'Só uma ação (ex.: agendar) ou um pedaço da frase. Vazio = todas.'
+        required: false
+        default: ''
+  push:
+    branches: ['claude/**']
+    paths: ['testes/pet-frases/**', 'cloudflare/pet-ia/**']
+
+concurrency:
+  group: pet-frases
+  cancel-in-progress: false
+
+jobs:
+  testar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Publicar o Worker de teste
+        working-directory: cloudflare/pet-ia
+        run: |
+          CHAVE=$(openssl rand -hex 24)
+          echo "::add-mask::$CHAVE"
+          echo "PET_TESTE_CHAVE=$CHAVE" >> "$GITHUB_ENV"
+          npx --yes wrangler@3 deploy --name pet-ia-teste
+          echo "$CHAVE" | npx --yes wrangler@3 secret put PET_TESTE_CHAVE --name pet-ia-teste
+          sleep 15
+      - name: Rodar as frases
+        env:
+          PET_URL: https://pet-ia-teste.eltonvisao.workers.dev
+        run: node testes/pet-frases/rodar.mjs "${{ inputs.filtro }}"
+      - name: Guardar o relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-pet
+          path: relatorio-pet.json
+          if-no-files-found: ignore
+      - name: Apagar o Worker de teste
+        if: always()
+        working-directory: cloudflare/pet-ia
+        run: npx --yes wrangler@3 delete --name pet-ia-teste --force || true

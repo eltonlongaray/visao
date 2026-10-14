@@ -280,8 +280,14 @@ export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
     if (req.method !== 'POST') return json(req, { erro: 'use POST' }, 405);
-    if (!ORIGENS.includes(req.headers.get('Origin') || '')) return json(req, { erro: 'origem não permitida' }, 403);
-    if (!(await usuarioValido(req, env))) return json(req, { erro: 'precisa estar logado' }, 401);
+    // Teste automático das frases (Actions → "Testar frases do Pet"): só vale no
+    // Worker de teste, que ganha uma chave nova a cada rodada e é apagado no fim.
+    // O Worker de verdade não tem PET_TESTE_CHAVE, então isso nunca passa lá.
+    const teste = !!env.PET_TESTE_CHAVE && req.headers.get('X-Pet-Teste') === env.PET_TESTE_CHAVE;
+    if (!teste) {
+      if (!ORIGENS.includes(req.headers.get('Origin') || '')) return json(req, { erro: 'origem não permitida' }, 403);
+      if (!(await usuarioValido(req, env))) return json(req, { erro: 'precisa estar logado' }, 401);
+    }
 
     let body;
     try { body = await req.json(); } catch { return json(req, { erro: 'JSON inválido' }, 400); }
