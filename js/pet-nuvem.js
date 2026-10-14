@@ -211,6 +211,7 @@ export function fraseDoApp(j) {
         case 'print': return 'manda o print da corrida';
         case 'prenda': return nome ? `quero pagar a prenda do ${desafio}` : 'quero pagar a minha prenda';
         case 'mural': return 'mostra o mural das prendas';
+        case 'sugerir_prenda': return texto ? `quero sugerir a prenda: ${texto}` : 'ver as sugestões de prenda';
         case 'proposta': return texto === 'não' || texto === 'nao' ? 'não aceito a proposta de mudança'
           : texto === 'sim' ? 'aceito a proposta de mudança' : 'tem proposta de mudança no desafio?';
         case 'nao_consegui': return `hoje não consegui ${no}`;

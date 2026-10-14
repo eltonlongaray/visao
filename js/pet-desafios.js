@@ -97,6 +97,13 @@ export function lerDesafio(texto) {
   const grupo = grupoDaFrase(texto);
   if (grupo) return { ...grupo, molde: moldeDaFrase(grupo.pedido.replace(/\b(desafios?|grupo)\b/g, ' ')), nome: nomeCitado(grupo.pedido) };
   if (/\bprint\b/.test(t) && /\b(corrida|strava|desafio)\b/.test(t)) return { acao: 'print' };
+  // Sugestão de prenda: "sugiro a prenda: chupar limão", "ver sugestões de prenda"
+  if (/\bsug(ir|est|ere|eri|iro)\w*/.test(t) && /\bprendas?\b/.test(t)) {
+    const m = String(texto).match(/prendas?\s*(?:[:\-–]|que (?:é|e|seria)|de)?\s*(.+)$/i);
+    let sug = m ? m[1].trim().replace(/^["“'«]+|["”'»]+$/g, '').trim() : '';
+    if (/^(da galera|dos usu[aá]rios|que tem|que existem|\??)$/i.test(sug) || sug.length < 8 || /^(ver|mostra|quais)\b/i.test(norm(texto))) sug = '';
+    return { acao: 'sugerir_prenda', sugestao: sug };
+  }
   // Mural das Prendas: "mostra o mural das prendas", "quem pagou prenda?"
   if (/\bmural\b/.test(t) && /\bprendas?\b/.test(t) || /\b(ver|mostra\w*|quem)\b.*\b(pag\w*|cumpr\w*)\b.*\bprendas?\b/.test(t) && !/\b(eu|minha)\b/.test(t)) return { acao: 'mural' };
   // "pagar a prenda", "gravar a minha prenda", "devo prenda?"

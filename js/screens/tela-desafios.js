@@ -16,6 +16,7 @@ import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, prendasNoAr, abrirMural } from '../desafios-prendas.js';
+import { abrirSugestoes, sugestoesTop } from '../prendas-sugestoes.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
 import { auth } from '../autenticacao.js';
@@ -84,7 +85,10 @@ export async function renderDesafios(app, embedded = false) {
         <button class="ds-novo" id="ds-novo">＋ Novo desafio</button>
         <button class="ds-codigo-btn" id="ds-codigo">🔑 Entrar com código</button>
       </div>
-      <button class="ds-mural-btn" id="ds-mural">🎭 Mural das Prendas${prendasNoAr(prendas).length ? ` <span class="ds-mural-n">${prendasNoAr(prendas).length}</span>` : ''}</button>`;
+      <div class="ds-prendas-topo">
+        <button class="ds-mural-btn" id="ds-mural">🎭 Mural das Prendas${prendasNoAr(prendas).length ? ` <span class="ds-mural-n">${prendasNoAr(prendas).length}</span>` : ''}</button>
+        <button class="ds-mural-btn ds-sug-btn" id="ds-sugestoes">💡 Sugerir prenda</button>
+      </div>`;
 
     // Prenda: quem não concluiu grava; quem já pagou vê até quando fica no mural
     const prendaDoCard = (d, joined, dChecks, dParts) => {
@@ -320,6 +324,7 @@ export async function renderDesafios(app, embedded = false) {
     app.querySelector('#ds-novo')?.addEventListener('click', openModalidadePicker);
     app.querySelector('#ds-codigo')?.addEventListener('click', openEntrarCodigo);
     app.querySelector('#ds-mural')?.addEventListener('click', abrirMural);
+    app.querySelector('#ds-sugestoes')?.addEventListener('click', abrirSugestoes);
     app.querySelectorAll('[data-prenda]').forEach(b => b.onclick = async () => {
       const d = desafios.find(x => x.id === b.dataset.prenda);
       if (d && await gravarPrenda(d)) await refresh();
@@ -750,6 +755,17 @@ export async function renderDesafios(app, embedded = false) {
     // "Escrever outra…" revela o campo livre da prenda
     const sel = overlay.querySelector('#f-prenda-sel');
     const txt = overlay.querySelector('#f-prenda-txt');
+    // Sugestões aprovadas da galera entram na lista (as mais curtidas)
+    if (sel) sugestoesTop(20).then(lista => {
+      const novas = lista.filter(p => !PRENDAS.includes(p));
+      if (!novas.length || !sel.isConnected) return;
+      const g = document.createElement('optgroup');
+      g.label = '💡 Sugestões da galera';
+      novas.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; g.appendChild(o); });
+      sel.insertBefore(g, sel.querySelector('option[value="__outra"]'));
+      // Editando um desafio cuja prenda veio de sugestão: seleciona ela
+      if (txt && novas.includes(txt.value.trim())) { sel.value = txt.value.trim(); txt.value = ''; txt.style.display = 'none'; }
+    }).catch(() => {});
     sel?.addEventListener('change', () => {
       const outra = sel.value === '__outra';
       txt.style.display = outra ? '' : 'none';

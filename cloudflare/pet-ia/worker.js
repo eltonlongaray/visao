@@ -78,7 +78,7 @@ Pessoa: já malhei hoje
 {"acao":"marcar_feito","titulo":"academia","quando":"hoje","resposta":"Boa! Vou marcar a academia de hoje como feita."}
 "lista_organizar" = mexer na lista em si (não num item): "campo" = "limpar_feitos" (apagar os itens já feitos; "todas": true se for de todas as listas) | "renomear" ("texto" = nome novo) | "apagar" (a lista ou o grupo inteiro) | "criar_grupo" ("texto" = nome do grupo); "lista" = nome da lista ou do grupo.
 "ajuda_lembrar" = a pessoa está esquecendo de marcar o que fez, de abrir o app ou de manter a constância, e pede ajuda pra lembrar (sem dizer o que fez). O app responde com as dicas e oferece lembretes.
-"desafio" = os Desafios do app (com amigos, sozinho ou oficiais): "campo" = "ver" (meus desafios ou um desafio) | "ranking" (posição/quem está ganhando) | "entrar" (num desafio aberto) | "codigo" (entrar com o código de convite: "texto" = o código) | "sair" | "checkin" (registrar o que fez no desafio: "numero" = quantidade, "texto" = unidade como ml, litros, minutos, km, páginas; "todas" = true se bateu a meta do dia) | "criar" (criar um desafio: "titulo" = do quê, "numero" = dias, "texto" = "amigos" ou "sozinho", "itens" = os exercícios se for desafio de exercício) | "regras" (o que pode e o que não pode no desafio) | "corrida_ajuda" (como registrar a corrida, Strava) | "print" (mandar o print da corrida, ou a foto do painel da esteira) | "prenda" (pagar/gravar a prenda de quem não concluiu o desafio, ou saber se deve prenda) | "mural" (ver o Mural das Prendas, onde ficam as prendas pagas por 7 dias) | "proposta" (responder a proposta de mudança nas regras do desafio: "texto" = "sim" se aceita, "não" se não aceita, vazio se só quer ver) | "nao_consegui" (desafio de largar um vício, como parar de fumar: hoje a pessoa não conseguiu, fumou ou teve recaída; "consegui"/"não fumei" é "checkin") | "convidar" (chamar pessoas pro desafio: "itens" = os nomes das pessoas do app, se disser; "todas" = true se for pelo WhatsApp) | "grupo" (a conversa do grupo do desafio: "texto" = a mensagem pra mandar no grupo, exatamente como a pessoa falou; sem "texto" = ler o que falaram no grupo; "todas" = true se for só abrir o grupo); no "criar", "titulo" pode ser um objetivo livre ("parar de fumar", "acordar às 5h", "sem açúcar", "dormir às 22h"); no "checkin" de desafio de exercício, "itens" = o exercício feito; "titulo" = o desafio citado (ex.: "água", "leitura"). Só use "desafio" quando a pessoa falar em desafio ou código de convite (ou disser que fumou / não fumou hoje); "bebi 500 ml" sem desafio é "agua".
+"desafio" = os Desafios do app (com amigos, sozinho ou oficiais): "campo" = "ver" (meus desafios ou um desafio) | "ranking" (posição/quem está ganhando) | "entrar" (num desafio aberto) | "codigo" (entrar com o código de convite: "texto" = o código) | "sair" | "checkin" (registrar o que fez no desafio: "numero" = quantidade, "texto" = unidade como ml, litros, minutos, km, páginas; "todas" = true se bateu a meta do dia) | "criar" (criar um desafio: "titulo" = do quê, "numero" = dias, "texto" = "amigos" ou "sozinho", "itens" = os exercícios se for desafio de exercício) | "regras" (o que pode e o que não pode no desafio) | "corrida_ajuda" (como registrar a corrida, Strava) | "print" (mandar o print da corrida, ou a foto do painel da esteira) | "prenda" (pagar/gravar a prenda de quem não concluiu o desafio, ou saber se deve prenda) | "mural" (ver o Mural das Prendas, onde ficam as prendas pagas por 7 dias) | "sugerir_prenda" (sugerir uma ideia de prenda pra todo mundo usar: "texto" = a prenda sugerida, exatamente como a pessoa falou; sem "texto" = ver as sugestões) | "proposta" (responder a proposta de mudança nas regras do desafio: "texto" = "sim" se aceita, "não" se não aceita, vazio se só quer ver) | "nao_consegui" (desafio de largar um vício, como parar de fumar: hoje a pessoa não conseguiu, fumou ou teve recaída; "consegui"/"não fumei" é "checkin") | "convidar" (chamar pessoas pro desafio: "itens" = os nomes das pessoas do app, se disser; "todas" = true se for pelo WhatsApp) | "grupo" (a conversa do grupo do desafio: "texto" = a mensagem pra mandar no grupo, exatamente como a pessoa falou; sem "texto" = ler o que falaram no grupo; "todas" = true se for só abrir o grupo); no "criar", "titulo" pode ser um objetivo livre ("parar de fumar", "acordar às 5h", "sem açúcar", "dormir às 22h"); no "checkin" de desafio de exercício, "itens" = o exercício feito; "titulo" = o desafio citado (ex.: "água", "leitura"). Só use "desafio" quando a pessoa falar em desafio ou código de convite (ou disser que fumou / não fumou hoje); "bebi 500 ml" sem desafio é "agua".
 "ideal" = o "Organizando meu ideal" (as 6 áreas da vida: físico, mental, emocional, espiritual, financeiro e profissional, social e lazer): "campo" = "ver" | "marcar" (marcar o que é importante) | "desmarcar" | "atividade" (levar o item pras Atividades da Home) | "constancia" (acompanhar com meta: "numero" = vezes, "quando" = "semana" ou "mês"); "itens" = os itens; "texto" = a área se a pessoa disser.
 Na lista_adicionar, "itens" tem UM produto por posição. A frase pode vir de ditado por voz, sem vírgula, com pedaço repetido ou palavra trocada ("ele" no lugar de "e"): separa os produtos, junta o que se repete e corrige o óbvio.
 Pessoa: bota na lista do mercado banana prata ele maçã verde e maçã verde e queijo ralado
@@ -232,6 +232,37 @@ async function previaLink(bruto) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// BLOCO 3.6: SUGESTÃO DE PRENDA — a IA confere contra as regras do Falcon
+// ═══════════════════════════════════════════════════════════════
+// Quem aprova é o app (pedido do Élton): ok=true entra no mural de
+// sugestões; ok=false volta com o motivo em linguagem simples.
+const SISTEMA_PRENDA = `Você confere sugestões de PRENDA para desafios entre amigos num app brasileiro. Prenda = o "castigo" engraçado que quem não concluiu o desafio grava em vídeo e que fica visível para todos os usuários do app por 7 dias.
+APROVE (ok=true) se for leve, engraçada e do bem: algo que a própria pessoa faz e grava, em casa ou com amigos/família que toparam (ex.: chupar limão sem careta, dançar uma música, imitar um bicho, comer uma colher cheia de farofa, pagar o café do grupo).
+REPROVE (ok=false) se tiver QUALQUER um destes:
+- nudez, roupa íntima, conteúdo sexual ou gesto obsceno;
+- algo ilegal ou perigoso: álcool em excesso, droga, cigarro, fogo, arma, risco de se machucar, mexer em coisa dos outros, pichar;
+- humilhar alguém, ou envolver pessoas estranhas / desconhecidas / na rua / em público;
+- ofensa ou preconceito (raça, religião, gênero, orientação, corpo, deficiência);
+- gastar muito dinheiro;
+- não for uma prenda (texto sem sentido, propaganda, link, xingamento).
+Se reprovar, "motivo" diz em uma frase curta e gentil, em português do Brasil e falando com "tu", qual regra quebrou. Se aprovar, "motivo" fica vazio.`;
+const SCHEMA_PRENDA = {
+  type: 'object',
+  properties: { ok: { type: 'boolean' }, motivo: { type: 'string' } },
+  required: ['ok', 'motivo'],
+};
+async function moderarPrenda(texto, env) {
+  const r = await env.AI.run(MODELO, {
+    messages: [{ role: 'system', content: SISTEMA_PRENDA }, { role: 'user', content: `Sugestão: "${texto}"` }],
+    response_format: { type: 'json_schema', json_schema: SCHEMA_PRENDA },
+    max_tokens: 80,
+    temperature: 0,
+  });
+  const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
+  return { ok: out?.ok === true, motivo: out?.ok === true ? '' : String(out?.motivo || 'Essa prenda não passa nas regras do Falcon.').slice(0, 200) };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 4: HANDLER
 // ═══════════════════════════════════════════════════════════════
 function cors(req) {
@@ -264,6 +295,13 @@ export default {
       if (!p) return json(req, { erro: 'link inválido' }, 400);
       await caches.default.put(chave, new Response(JSON.stringify(p), { headers: { 'Cache-Control': 'max-age=86400' } }));
       return json(req, p);
+    }
+    // Sugestão de prenda: a IA aprova ou reprova
+    if (body?.moderarPrenda) {
+      const t = String(body.moderarPrenda).replace(/\s+/g, ' ').trim().slice(0, 150);
+      if (t.length < 8) return json(req, { ok: false, motivo: 'Escreve um pouco mais a prenda.' });
+      try { return json(req, await moderarPrenda(t, env)); }
+      catch (err) { return json(req, { erro: 'ia indisponível', detalhe: String(err?.message || err).slice(0, 200) }, 503); }
     }
     const texto = String(body?.texto || '').trim().slice(0, MAX_TEXTO);
     if (!texto) return json(req, { erro: 'texto vazio' }, 400);
