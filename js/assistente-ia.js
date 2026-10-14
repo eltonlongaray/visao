@@ -3696,7 +3696,7 @@ async function continuarConversa(texto, id = null, passoBotao = null) {
   if (PADRAO_PASSO[c.passo]) return PASSOS[c.passo]({ id: PADRAO_PASSO[c.passo], texto }, c.dados);
   if (++c.tentativas >= 2) {
     if (texto) anotarNoDiario(texto, 'nao_entendi');
-    return encerrarConversa('Não consegui entender direito 😅 Anotei aqui pra eu aprender. Se quiser, me explica de outro jeito depois.');
+    return encerrarConversa(NAO_CONSIGO_AINDA);
   }
   addChoices(`Não peguei bem 😅 ${c.curta || c.texto}`, c.botoes.map(b => ({ label: b.label, action: () => continuarConversa(null, b.id, c.passo) })));
   return null;
@@ -3899,11 +3899,13 @@ function confirmarEntendimento(d, resumo, executar, texto, voltar) {
     [BT('sim', '✅ Isso'), BT('nao', '🤔 Não é isso')], d, 'Entendi certo? É isso?');
 }
 
+const NAO_CONSIGO_AINDA = 'Essa é uma função que eu não consigo fazer no momento, mas anotei aqui 📝 Enquanto isso, dá pra fazer direto na tela.';
+
 function naoEntendiNaConversa(d, texto) {
   d.naoEntendi = (d.naoEntendi || 0) + 1;
   if (d.naoEntendi >= 2) {
     anotarNoDiario(texto, 'nao_entendi');
-    return encerrarConversa('Não consegui entender direito 😅 Anotei aqui pra eu aprender. Enquanto isso, dá pra ajustar direto na tela.');
+    return encerrarConversa(NAO_CONSIGO_AINDA);
   }
   return null;
 }
