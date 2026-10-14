@@ -822,7 +822,12 @@ async function dispatchCommand(text) {
     // Conversa guiada em andamento (o Pet perguntou algo): a frase é RESPOSTA,
     // não comando novo. Se não for resposta e parecer comando, segue o roteador.
     let reply;
-    if (typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
+    // O card "qual atividade é essa?" é a última fala do Pet: a frase é a resposta dele
+    // (vem antes da conversa guiada, que pode ter ficado aberta lá em cima)
+    const gate = typeof text !== 'function' && convState?.type === 'gate_atividade';
+    if (gate && convState.ultimo()) reply = await tentarGateAtividade(semChamado(text));
+    if (reply === undefined && typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
+    if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
     // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
     // O Pet fez uma pergunta pra esclarecer o pedido: a resposta vai pra IA
@@ -2078,12 +2083,53 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const registrada = cats.some(c => _limpoTxt(c.name) === _limpoTxt(name));
   // Duas etapas: se o título ainda NÃO é atividade registrada, primeiro resolve
   // isso (escolher uma ou criar); só depois vem o card de marcação limpo.
-  if (registrada) _showMarcacao(name, done, date, time);
-  else _showGateAtividade(name, done, date, time, cats);
+  if (registrada) { _showMarcacao(name, done, date, time); return; }
+  // Frase com pessoa ou comprida ("Negócios com a Taimara, estrategista de
+  // marketing") não é nome de atividade: a frase vira a descrição e o Pet
+  // SUGERE um título curto (Élton, 14/10)
+  const sep = _separarTitulo(name);
+  if (sep) {
+    if (!ditado.descricao) ditado.descricao = sep.desc;
+    _showGateAtividade(name, done, date, time, cats, sep);
+  } else _showGateAtividade(name, done, date, time, cats);
+}
+
+// "Negócios com a Taimara…" → { curto: 'Negócios', desc: 'Negócios com a Taimara…',
+// sugestoes: ['Reunião de negócios', …] }. null = o nome já é curto, segue como está.
+function _separarTitulo(name) {
+  const txt = String(name || '').replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '');
+  const palavras = txt.split(' ');
+  const mCom = txt.match(/^(.+?)\s+(?:com|c\/)\s+(.+)$/i);
+  if (!mCom && palavras.length < 6) return null;
+  const antes = mCom ? mCom[1].trim() : '';
+  const curto = antes && antes.split(' ').length <= 3 ? antes.charAt(0).toUpperCase() + antes.slice(1) : '';
+  return { curto, desc: txt.charAt(0).toUpperCase() + txt.slice(1), sugestoes: _sugerirAtividade(txt, !!mCom) };
+}
+
+// Nomes de atividade pelo assunto da frase. Agenda Online é pra atendimento de
+// cliente, então não entra aqui.
+const _SUGESTOES_ATV = [
+  [/negoci|parceri|parceir|socio|investidor|estrategista|marketing|contrato|proposta|empresa/, ['Reunião de negócios', 'Reunião de parceiros']],
+  [/medic|consulta|dentista|exame|terapeut|psicolog|fisio|nutri/, ['Consulta médica', 'Saúde']],
+  [/aula|curso|faculdade|fiap|prova|estud|professor|mentor/, ['Estudo', 'Mentoria']],
+  [/entrevista|emprego|vaga|recrutador/, ['Entrevista de emprego']],
+  [/aniversari|festa|churrasco|amig|jantar|almoco|cafe|happy/, ['Encontro com amigos', 'Lazer']],
+  [/famil|\bmae\b|\bpai\b|filh|\bavo\b|\bvo\b|irma|esposa|marido|namorad/, ['Família']],
+  [/reuni|call|chamada|alinhamento/, ['Reunião']],
+];
+function _sugerirAtividade(texto, comPessoa) {
+  const t = semAcento(texto);
+  const out = [];
+  for (const [re, nomes] of _SUGESTOES_ATV) if (re.test(t)) out.push(...nomes);
+  if (!out.length && comPessoa) out.push('Reunião', 'Encontro');
+  return [...new Set(out)].slice(0, 3);
 }
 
 // Etapa 1 — a atividade não existe: avisa e deixa escolher uma das suas ou criar.
-function _showGateAtividade(name, done, date, time, cats) {
+// Com `sep` (frase comprida), sugere títulos curtos e a frase fica na descrição.
+// Enquanto o card está aberto, a pessoa pode RESPONDER por texto ("usa reunião
+// de negócios", "cria Parceiros") sem perder dia, hora e tipo (convState).
+function _showGateAtividade(name, done, date, time, cats, sep = null) {
   const box = document.getElementById('pet-messages');
   if (!box) return;
 
@@ -2091,46 +2137,71 @@ function _showGateAtividade(name, done, date, time, cats) {
   const aviso = document.createElement('div');
   aviso.className = 'pet-msg pet-msg-bot';
   const asp = document.createElement('span');
-  asp.innerHTML = `Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Crie essa ou escolha uma das suas. Se escolher uma, <b>“${_esc(name)}”</b> vai pra descrição.<br><small>💡 O título é a atividade (é ela que conta no Desempenho e nos Objetivos). A descrição é o detalhe daquela vez.</small>`;
+  asp.innerHTML = sep
+    ? `Bora separar 🙂 O <b>título</b> é a atividade (é ela que conta no Desempenho e nos Objetivos) e o resto vai pra <b>descrição</b>.<br>📝 Descrição: <b>“${_esc(ditado.descricao || sep.desc)}”</b><br>Qual atividade é essa?${sep.sugestoes.length ? ' Sugiro:' : ''}`
+    : `Opa, <b>“${_esc(name)}”</b> ainda não é uma atividade registrada 😅<br>Crie essa ou escolha uma das suas. Se escolher uma, <b>“${_esc(name)}”</b> vai pra descrição.<br><small>💡 O título é a atividade (é ela que conta no Desempenho e nos Objetivos). A descrição é o detalhe daquela vez.</small>`;
   aviso.appendChild(asp);
   box.appendChild(aviso);
 
-  // Criar = PRIMEIRA opção (topo); depois a lista das existentes (nome completo).
+  // Sugestões (as que a pessoa já tem viram atalho pra existente) e criar o
+  // nome curto. Sem `sep`: criar o nome falado, como antes.
+  const existe = (n) => cats.find(c => _limpoTxt(c.name) === _limpoTxt(n));
+  const criar = sep
+    ? [...sep.sugestoes, ...(sep.curto && !sep.sugestoes.some(x => _limpoTxt(x) === _limpoTxt(sep.curto)) ? [sep.curto] : [])]
+    : [name];
   const div = document.createElement('div');
   div.className = 'pet-msg pet-msg-bot pet-msg-wide';
   div.innerHTML = `
     <span class="pet-preview-card pet-preview-tight">
-      <button type="button" class="pet-atv-create pet-atv-create-full" data-create>➕ Criar “${_esc(name)}”</button>
-      ${cats.length ? '<span class="pet-reco-lbl pet-atv-lbl">ou escolha uma existente:</span><div class="pet-atv-grid" data-atv-grid></div>' : ''}
+      ${criar.map(n => existe(n)
+        ? `<button type="button" class="pet-atv-create pet-atv-create-full" data-atv="${_esc(existe(n).name)}">${existe(n).icon || '🏷️'} ${_esc(existe(n).name)}</button>`
+        : `<button type="button" class="pet-atv-create pet-atv-create-full" data-create="${_esc(n)}">➕ Criar “${_esc(n)}”</button>`).join('')}
+      ${cats.length ? `<span class="pet-reco-lbl pet-atv-lbl">ou escolha uma das tuas${sep ? ' (ou me diz outro nome)' : ''}:</span><div class="pet-atv-grid" data-atv-grid></div>` : ''}
     </span>`;
   const atvGrid = div.querySelector('[data-atv-grid]');
   if (atvGrid) atvGrid.innerHTML = cats.map(c =>
     `<button type="button" class="pet-reco-chip pet-atv-chip" data-atv="${_esc(c.name)}">${c.icon || '🏷️'} ${_esc(c.name)}</button>`
   ).join('');
 
+  let feito = false;
   const resolver = (nome) => {
+    if (feito) return;
+    feito = true;
+    if (convState?.type === 'gate_atividade') convState = null;
     aviso.remove();   // resolvido: o aviso e o card de escolha somem da tela,
     div.remove();     // deixando só o card de marcação que vem a seguir.
     _showMarcacao(nome, done, date, time);
   };
   // Escolheu uma atividade existente: o que a pessoa falou ("Aniversário da
   // Grazi") não se perde, vira a descrição dessa vez
-  if (atvGrid) atvGrid.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => {
-    if (!ditado.descricao && _limpoTxt(name) !== _limpoTxt(chip.dataset.atv)) ditado.descricao = name;
-    resolver(chip.dataset.atv);
-  }));
-  const cbtn = div.querySelector('[data-create]');
-  cbtn.addEventListener('click', async () => {
+  const usar = (nomeAtv) => {
+    if (!ditado.descricao && _limpoTxt(name) !== _limpoTxt(nomeAtv)) ditado.descricao = name;
+    resolver(nomeAtv);
+  };
+  const criarAtv = async (nome) => {
+    const ja = existe(nome);
+    if (ja) return usar(ja.name);
+    const icon  = _emojiAtividade(nome);
+    const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
+    const color = _CATCOLORS[cats.length % _CATCOLORS.length];
+    await saveCategory(null, { name: nome, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
+    showCenterToast(`${icon} Atividade criada!`);
+    if (_limpoTxt(nome) !== _limpoTxt(name) && !ditado.descricao) ditado.descricao = name;
+    resolver(nome);
+  };
+  div.querySelectorAll('[data-atv]').forEach(chip => chip.addEventListener('click', () => usar(chip.dataset.atv)));
+  div.querySelectorAll('[data-create]').forEach(cbtn => cbtn.addEventListener('click', async () => {
+    const txt = cbtn.textContent;
     cbtn.disabled = true; cbtn.textContent = 'Criando…';
-    try {
-      const icon  = _emojiAtividade(name);
-      const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
-      const color = _CATCOLORS[cats.length % _CATCOLORS.length];
-      await saveCategory(null, { name, icon, color, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
-      showCenterToast(`${icon} Atividade criada!`);
-      resolver(name);
-    } catch (e) { cbtn.disabled = false; cbtn.textContent = `➕ Criar “${_esc(name)}”`; console.error('[pet] criar atividade', e); }
-  });
+    try { await criarAtv(cbtn.dataset.create); }
+    catch (e) { cbtn.disabled = false; cbtn.textContent = txt; console.error('[pet] criar atividade', e); }
+  }));
+
+  // Resposta por texto enquanto o card está na tela (ver tentarGateAtividade)
+  convState = { type: 'gate_atividade', em: Date.now(), opcoes: criar, cats, usar, criarAtv,
+    vivo: () => !feito && div.isConnected,
+    // O card ainda é a última fala do Pet (a pessoa está respondendo a ele)
+    ultimo: () => [...box.querySelectorAll('.pet-msg-bot:not(.pet-digitando)')].pop() === div };
 
   box.appendChild(div);
   // Rola pra deixar o AVISO no topo da área visível (sem o usuário precisar subir).
@@ -2138,6 +2209,59 @@ function _showGateAtividade(name, done, date, time, cats) {
     const delta = aviso.getBoundingClientRect().top - box.getBoundingClientRect().top;
     box.scrollTop += delta - 8;
   });
+}
+
+// Resposta digitada pro card "qual atividade é essa?": "usa agenda online e o
+// restante como descrição", "cria reunião de parceiros", "a primeira", "Karate".
+// Mantém o dia, a hora, o tipo e a descrição do pedido. undefined = não era
+// resposta (o card sai de cena e o roteador segue normal).
+async function tentarGateAtividade(text) {
+  const g = convState;
+  if (g?.type !== 'gate_atividade') return undefined;
+  if (!g.vivo() || Date.now() - g.em > 15 * 60000) { convState = null; return undefined; }
+  const bruto = String(text || '').trim();
+  let t = semAcento(bruto).replace(/[.,;:!?]+/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/\s+e\s+(?:o|a)\s+(?:restante|resto)\b.*$/, '')
+    .replace(/\s+(?:o|a)\s+(?:restante|resto)\s+(?:como|na|pra|vai\s+(?:pra|na))\s+d[ei]scri\w*.*$/, '')
+    .trim();
+  const verbo = t.match(/^(?:(?:entao|pode|ok|beleza|blz)\s+)*(usa|use|usar|coloca|bota|poe|escolhe|escolho|seleciona|vai de|pode ser|cria|crie|criar|cadastra|registra)\b\s*/);
+  const criarPedido = verbo && /^(cria|crie|criar|cadastra|registra)$/.test(verbo[1]);
+  if (verbo) t = t.slice(verbo[0].length);
+  t = t.replace(/^(?:uma?\s+|a\s+|o\s+)?(?:nova\s+)?(?:atividade\s+)?(?:chamada\s+|com o nome\s+|de nome\s+)?/, '').trim();
+  if (/^(n[aã]o|cancela|deixa|esquece)\b/.test(t) && !verbo) { convState = null; return undefined; }
+  // "sim", "a primeira", "essa": a primeira sugestão
+  if (/^(sim|isso|pode|essa|esse|a primeira|primeira|o primeiro|bora)$/.test(t) || (verbo && !t)) {
+    const n = g.opcoes[0];
+    if (!n) return undefined;
+    convState = null;
+    await g.criarAtv(n);
+    return null;
+  }
+  if (/^(a segunda|segunda opcao|a outra|outra)$/.test(t) && g.opcoes[1]) { convState = null; await g.criarAtv(g.opcoes[1]); return null; }
+  if (!t) return undefined;
+  // Agenda Online é aceita direto, como no registro
+  if (/^agenda\s*online\b/.test(t)) { convState = null; g.usar('Agenda Online'); return null; }
+  const cat = g.cats.find(c => semAcento(c.name) === t) ||
+    (verbo && g.cats.find(c => t.startsWith(semAcento(c.name))));
+  if (cat && !criarPedido) { convState = null; g.usar(cat.name); return null; }
+  const sug = g.opcoes.find(n => semAcento(n) === t);
+  if (sug) { convState = null; await g.criarAtv(sug); return null; }
+  // Nome novo: com verbo ("cria Parceiros") ou resposta curta, sem cara de comando
+  // Nome solto ("Parceiros") só vale logo depois do card, sem número nem cara de pedido
+  // ("bebi 500 ml" não vira atividade)
+  const nomeSolto = t.split(' ').length <= 4 && g.ultimo() && !/\d|\?$/.test(bruto) && !pareceComando(bruto) && !ehPedido(bruto);
+  if (criarPedido || verbo || nomeSolto) {
+    convState = null;
+    const nome = bruto.replace(/[.!]+$/, '').trim()
+      .replace(/^(?:(?:ent[aã]o|pode|ok|beleza|blz)\s+)*(?:usa|use|usar|coloca|bota|p[oõ]e|escolhe|escolho|seleciona|vai de|pode ser|cria|crie|criar|cadastra|registra)\b\s*/i, '')
+      .replace(/\s+e\s+(?:o|a)\s+(?:restante|resto)\b.*$/i, '')
+      .replace(/^(?:uma?\s+|a\s+|o\s+)?(?:nova\s+)?(?:atividade\s+)?(?:chamada\s+|com o nome\s+|de nome\s+)?/i, '').trim();
+    if (!nome) return undefined;
+    await g.criarAtv(nome.charAt(0).toUpperCase() + nome.slice(1));
+    return null;
+  }
+  convState = null;
+  return undefined;
 }
 
 // Etapa 2 — marcação limpa: título grande, data, repetir (retrátil) e lembrete.
@@ -3708,7 +3832,7 @@ async function tratarMotivo(d, m, texto) {
 }
 
 // "Treinei, só não marquei": mostra os treinos sem marcar pra marcar ali mesmo
-function passoMarcar(d, primeira) {
+function passoMarcar(d, primeira, pergunta = null) {
   d.pendentes = d.pendentes || treinosSemMarcar();
   const lista = d.pendentes;
   if (!lista.length) {
@@ -3717,9 +3841,119 @@ function passoMarcar(d, primeira) {
       : 'Pronto, tudo marcado 💪 Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino.');
   }
   return perguntar('marcar',
-    primeira ? 'Beleza! Achei estes treinos agendados que ficaram sem marcar. Quais tu fez?' : 'Mais algum?',
+    pergunta || (primeira ? 'Beleza! Achei estes treinos agendados que ficaram sem marcar. Quais tu fez?' : 'Mais algum?'),
     [...lista.map(x => BT(`${x.dia}|${x.id}`, `✅ ${rotuloTreino(x)}`)), ...(lista.length > 1 ? [BT('todos', '✅ Todos')] : []), BT('pronto', '👍 Pronto')],
     d, 'Quais desses tu fez? Pode falar o dia, tipo "o de terça".');
+}
+
+// ─── Treino: substituir dia e mudar só aquela semana ─────
+// "vou compensar o treino de ontem na sexta" (substituição, seja qual for o
+// motivo) e "semana passada o karate foi segunda, quarta e sexta": a pessoa
+// explica o que aconteceu e o Pet ajusta a agenda, sem mexer no modelo da semana.
+async function ajustesDeTreino(d, texto) {
+  if (!texto) return undefined;
+  const mud = PC.mudancaSemana(texto);
+  if (mud) { const r = await moverSemana(d, mud, texto); if (r !== undefined) return r; }
+  const comp = PC.compensacao(texto);
+  if (comp) { const r = await compensarTreino(d, comp, texto); if (r !== undefined) return r; }
+  return undefined;
+}
+
+const _hoje0 = () => { const h = new Date(); h.setHours(0, 0, 0, 0); return h; };
+const _maisDias = (dt, n) => { const x = new Date(dt); x.setDate(x.getDate() + n); return x; };
+// 'ontem' / 'hoje' / dia da semana (o último que passou)
+function _diaPassado(o) {
+  const h = _hoje0();
+  if (o === 'hoje') return h;
+  if (o === 'ontem') return _maisDias(h, -1);
+  if (o === 'anteontem') return _maisDias(h, -2);
+  return _maisDias(h, -(((h.getDay() - o) + 7) % 7 || 7));
+}
+// 'amanha' / dia da semana (o próximo que vem)
+function _diaFuturo(o) {
+  const h = _hoje0();
+  if (o === 'amanha') return _maisDias(h, 1);
+  return _maisDias(h, ((o - h.getDay()) + 7) % 7 || 7);
+}
+// Cópia da tarefa pra outro dia, fora da repetição (o modelo da semana não muda)
+const _copiaAvulsa = (tk) => {
+  const { id: _i, movedTo: _m, rescheduled: _r, rescheduleCount: _c, recurrenceGroupId: _g, recurrenceType: _t, ...resto } = tk;
+  return resto;
+};
+// Tira dos pendentes da conversa o que já foi resolvido
+function _tirarPendentes(d, fn) {
+  d.pendentes = (d.pendentes || treinosSemMarcar()).filter(x => !fn(x));
+}
+
+async function compensarTreino(d, comp, texto) {
+  if (comp.origem == null) return undefined;
+  const origem = _diaPassado(comp.origem), oid = dayId(origem);
+  const quando = typeof comp.origem === 'string' ? comp.origem : rotData(origem);
+  const dia = (await fetchDaysRange(origem, origem).catch(() => []))[0];
+  let treinos = (dia?.tasks || []).filter(t => !t.done && !t.cancelled && _CK?.TREINO_RE.test(t.title || ''));
+  const citados = treinos.filter(t => semAcento(texto).includes(semAcento(t.title || '')));
+  if (citados.length) treinos = citados;
+  if (!treinos.length) {
+    diz(`Não achei treino sem marcar de ${_esc(quando)} pra passar pra outro dia.`);
+  } else {
+    const novo = _diaFuturo(comp.destino), nid = dayId(novo);
+    const destino = (await fetchDaysRange(novo, novo).catch(() => []))[0];
+    for (const tk of treinos) {
+      // O dia novo já tem esse treino: não duplica, só risca a original
+      const jaTem = (destino?.tasks || []).some(t => !t.cancelled && semAcento(t.title || '') === semAcento(tk.title || ''));
+      await updateDayTask(oid, tk.id, { cancelled: true, movedTo: nid });
+      if (!jaTem) await addDayTask(nid, { ..._copiaAvulsa(tk), done: false, cancelled: false, rescheduled: true, rescheduleCount: (tk.rescheduleCount || 0) + 1, order: 0 });
+    }
+    const nomes = treinos.map(t => `<strong>${_esc(t.title)}</strong>`).join(' e ');
+    const la = typeof comp.origem === 'string' ? quando.charAt(0).toUpperCase() + quando.slice(1) : `Na ${quando}`;
+    diz(`Fechado, é substituição 👊 Passei ${nomes} de ${_esc(quando)} pra <strong>${rotData(novo)}</strong>. ${_esc(la)} fica riscado como transferido.`);
+  }
+  const ids = new Set(treinos.map(t => t.id));
+  _tirarPendentes(d, x => x.dia === oid && ids.has(x.id));
+  if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
+  return passoMarcar(d, false, 'E estes outros, tu fez?');
+}
+
+// "Semana passada o karate foi segunda, quarta e sexta": naquela semana o
+// treino vai pros dias falados e fica feito; o que estava nos outros dias fica
+// riscado (transferido). Só aquela semana: as cópias saem da repetição.
+async function moverSemana(d, mud, texto) {
+  const h = _hoje0();
+  let seg = _maisDias(h, -((h.getDay() + 6) % 7));
+  if (mud.semana === 'passada') seg = _maisDias(seg, -7);
+  if (mud.semana === 'retrasada') seg = _maisDias(seg, -14);
+  const dom = _maisDias(seg, 6);
+  const dias = await fetchDaysRange(seg, dom).catch(() => []);
+  const tn = semAcento(texto);
+  const titulos = [...new Set(dias.flatMap(x => (x.tasks || []).map(t => t.title)).filter(Boolean))];
+  const titulo = titulos.filter(ti => tn.includes(semAcento(ti))).sort((a, b) => b.length - a.length)[0];
+  if (!titulo) return undefined;
+  const mesmo = (t) => !t.cancelled && semAcento(t.title || '') === semAcento(titulo);
+  const doDia = (id) => (dias.find(x => x.id === id)?.tasks || []).filter(mesmo);
+  const alvos = mud.dias.map(dw => _maisDias(seg, (dw + 6) % 7)).filter(x => x <= h).sort((a, b) => a - b);
+  if (!alvos.length) return undefined;
+  const alvoIds = alvos.map(dayId);
+  const sobras = [];
+  for (const x of dias) if (!alvoIds.includes(x.id)) for (const t of doDia(x.id)) if (!t.done) sobras.push({ dia: x.id, tk: t });
+  const modelo = sobras[0]?.tk || dias.flatMap(x => doDia(x.id))[0];
+  if (!modelo) return undefined;
+  for (const aid of alvoIds) {
+    const ja = doDia(aid)[0];
+    if (ja) { if (!ja.done) await updateDayTask(aid, ja.id, { done: true }); continue; }
+    const orig = sobras.shift();
+    if (orig) await updateDayTask(orig.dia, orig.tk.id, { cancelled: true, movedTo: aid });
+    await addDayTask(aid, { ..._copiaAvulsa(orig?.tk || modelo), done: true, cancelled: false, order: 0 });
+  }
+  // Sobrou dia antigo sem par: naquela semana ele não aconteceu
+  for (const o of sobras) await updateDayTask(o.dia, o.tk.id, { cancelled: true });
+  const semana = mud.semana === 'essa' ? 'dessa semana' : mud.semana === 'retrasada' ? 'da semana retrasada' : 'da semana passada';
+  const lista = alvos.map(rotData);
+  const txtDias = lista.length > 1 ? `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}` : lista[0];
+  diz(`✅ Fechado: <strong>${_esc(titulo)}</strong> ${semana} ficou ${txtDias}, tudo feito. Mudei só aquela semana; teu modelo da semana segue igual.`);
+  const ini = dayId(seg), fim = dayId(dom);
+  _tirarPendentes(d, x => x.dia >= ini && x.dia <= fim && semAcento(x.title || '') === semAcento(titulo));
+  if (!d.pendentes.length) return encerrarConversa('Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino 💪');
+  return passoMarcar(d, false, 'E estes outros, tu fez?');
 }
 
 // Resposta que ninguém entendeu, num passo onde qualquer coisa vale: usa esta opção
@@ -3728,6 +3962,7 @@ const PADRAO_PASSO = { motivo: 'outro' };
 const PASSOS = {
   // "Mudou o plano, faltou ou não marcou?"
   async plano({ id, texto }, d) {
+    if (!id) { const a = await ajustesDeTreino(d, texto); if (a !== undefined) return a; }
     const r = id ? { op: id } : PC.respostaPlano(texto);
     const f = await freqAtual(d);
     if (r.op === 'faltou' && r.feitos != null && r.feitos >= f) r.op = 'esqueci';   // fez tudo: só não marcou
@@ -3797,6 +4032,7 @@ const PASSOS = {
 
   // Marcar os treinos que ficaram sem marcar
   async marcar({ id, texto }, d) {
+    if (!id) { const a = await ajustesDeTreino(d, texto); if (a !== undefined) return a; }
     const t = PC.norm(texto);
     if (id === 'pronto' || (!id && (PC.simNao(texto) === false || /\b(pronto|so isso|so esse|so esses|nenhum mais|mais nenhum|era so)\b/.test(t)))) {
       return encerrarConversa('Fechado 👍 Pra próxima, é só me falar <em>"fiz a academia"</em> logo depois do treino.');
@@ -3807,6 +4043,9 @@ const PASSOS = {
     else {
       const dias = [...t.matchAll(/\b(domingo|segunda|terca|quarta|quinta|sexta|sabado)\b/g)].map(m => DOW_FALA[m[1]]);
       alvos = d.pendentes.filter(x => dias.includes(dataDoId(x.dia).getDay()));
+      // "o karate de segunda": só o karate, não tudo que caiu na segunda
+      const citados = alvos.filter(x => t.includes(PC.norm(x.title)));
+      if (citados.length) alvos = citados;
     }
     if (!alvos.length) return undefined;
     for (const x of alvos) await updateDayTask(x.dia, x.id, { done: true });
