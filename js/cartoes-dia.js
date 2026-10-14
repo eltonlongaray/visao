@@ -122,6 +122,47 @@ export function cartaoDoDia(data = new Date(), quem = auth.currentUser?.uid || '
   return CARTOES[ordem[d % n]];
 }
 
+// Cartão de hoje desta pessoa: o do sorteio, pulando os que ela já viu em
+// outros dias (Élton, 14/10: o Princípio 1 tinha repetido). Não tem botão de
+// trocar: cada dia tem a sua mensagem, igual o dia todo.
+const CHAVE_HOJE = 'visao_cartao_hoje';     // { dia, i }
+const CHAVE_VISTOS = 'visao_cartoes_vistos'; // { i: 'dia em que viu' }
+const _diaTxt = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const _ler = (k, padrao) => { try { return JSON.parse(localStorage.getItem(k)) ?? padrao; } catch { return padrao; } };
+const _gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
+// Quem já usava o app antes do sorteio viu o Princípio 1 (era o primeiro de todos)
+function _vistos() {
+  let v = _ler(CHAVE_VISTOS, null);
+  if (!v) { v = {}; const p1 = CARTOES.findIndex(c => c.rotulo === 'Princípio 1'); if (p1 >= 0) v[p1] = 'antes'; _gravar(CHAVE_VISTOS, v); }
+  return v;
+}
+function _registrar(i) {
+  const hoje = _diaTxt();
+  let vistos = _vistos();
+  if (Object.keys(vistos).length >= CARTOES.length) vistos = {};   // viu todos: começa outra volta
+  vistos[i] ??= hoje;
+  _gravar(CHAVE_VISTOS, vistos);
+  _gravar(CHAVE_HOJE, { dia: hoje, i });
+  return CARTOES[i];
+}
+// Próximo da ordem que ainda não foi visto em outro dia
+function _proximoNaoVisto(inicio, quem, pular = []) {
+  const hoje = _diaTxt(), vistos = _vistos(), n = CARTOES.length;
+  const ordem = ordemDaVolta(quem, 0, n);
+  const k0 = ordem.indexOf(inicio);
+  for (let k = 0; k < n; k++) {
+    const i = ordem[(k0 + k) % n];
+    if (pular.includes(i)) continue;
+    if (vistos[i] === undefined || vistos[i] === hoje) return i;
+  }
+  return ordem[(k0 + 1) % n];
+}
+export function cartaoDeHoje(quem = auth.currentUser?.uid || 'anon') {
+  const salvo = _ler(CHAVE_HOJE, null);
+  if (salvo?.dia === _diaTxt() && CARTOES[salvo.i]) return CARTOES[salvo.i];
+  return _registrar(_proximoNaoVisto(CARTOES.indexOf(cartaoDoDia(new Date(), quem)), quem));
+}
+
 const chaveHoje = () => { const d = new Date(); return `visao_cartao_visto_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 export const jaViuHoje = () => { try { return localStorage.getItem(chaveHoje()) === '1'; } catch { return true; } };
 const marcarVisto = () => { try { localStorage.setItem(chaveHoje(), '1'); } catch { /* sem storage */ } };
@@ -298,7 +339,18 @@ export const FUNDOS = [
 ];
 // Especiais (fora do sorteio do dia): sem fundo e a imagem da própria pessoa
 export const TRANSPARENTE = { id: 'transparente', nome: 'Sem fundo (transparente)', transparente: true };
-const CHAVE_FUNDO = 'visao_cartao_fundo';   // vazio = sorteio do dia
+const CHAVE_FUNDO = 'visao_cartao_fundo2';  // { id, dia }: a escolha vale só no dia
+// (Élton, 14/10: a escolha antiga ficava pra sempre e o fundo não mudava mais)
+function _escolhaDeHoje() {
+  try {
+    const e = JSON.parse(localStorage.getItem(CHAVE_FUNDO) || 'null');
+    return e && e.dia === _diaTxt() ? e.id : null;
+  } catch { return null; }
+}
+function _escolher(id) {
+  try { if (id) localStorage.setItem(CHAVE_FUNDO, JSON.stringify({ id, dia: _diaTxt() })); else localStorage.removeItem(CHAVE_FUNDO); } catch { /* sem storage */ }
+}
+try { localStorage.removeItem('visao_cartao_fundo'); } catch { /* sem storage */ }
 const CHAVE_MEU = 'visao_cartao_fundo_meu'; // imagem importada (dataURL, já reduzida)
 let _meuMemoria = null;                      // se o storage encher, vale até fechar o app
 function meuFundo() {
@@ -330,7 +382,7 @@ export function acharFundo(texto) {
 
 // Escolha pela grade: id vazio volta pro sorteio do dia
 export function escolherFundo(id) {
-  try { if (id) localStorage.setItem(CHAVE_FUNDO, id); else localStorage.removeItem(CHAVE_FUNDO); } catch { /* sem storage */ }
+  _escolher(id);
   return (id && fundoPorId(id)) || fundoDoDia();
 }
 
@@ -347,19 +399,19 @@ export async function importarFundo(arquivo) {
   const src = cv.toDataURL('image/jpeg', 0.85);
   _meuMemoria = src;
   try { localStorage.setItem(CHAVE_MEU, src); } catch { /* cheio: fica só na memória */ }
-  try { localStorage.setItem(CHAVE_FUNDO, 'meu'); } catch { /* sem storage */ }
+  _escolher('meu');
   return meuFundo();
 }
 // Escolha da pessoa (se fez) ou o sorteio do dia, igual pra ela o dia todo
 export function fundoDoDia(data = new Date(), quem = auth.currentUser?.uid || 'anon') {
-  try { const f = fundoPorId(localStorage.getItem(CHAVE_FUNDO)); if (f) return f; } catch { /* sem storage */ }
+  const f = fundoPorId(_escolhaDeHoje()); if (f) return f;
   return FUNDOS[hash(`${quem}:fundo:${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`) % FUNDOS.length];
 }
 // "Trocar fundo": vai pro próximo e lembra a escolha
 export function proximoFundo(atual = fundoDoDia(), passo = 1) {
   const n = FUNDOS.length;
   const f = FUNDOS[(((FUNDOS.indexOf(atual) + passo) % n) + n) % n];
-  try { localStorage.setItem(CHAVE_FUNDO, f.id); } catch { /* sem storage */ }
+  _escolher(f.id);
   return f;
 }
 
@@ -485,7 +537,7 @@ export async function desenharCartao(cartao, fundo = fundoDoDia()) {
 const comoArquivo = (cv) => new Promise((ok) => cv.toBlob(b => ok(new File([b], 'cartao-falcon.png', { type: 'image/png' })), 'image/png'));
 
 // Compartilhar: menu do celular (WhatsApp, Instagram…) ou, sem ele, baixa a imagem
-export async function compartilharCartao(cartao = cartaoDoDia(), fundo = fundoDoDia()) {
+export async function compartilharCartao(cartao = cartaoDeHoje(), fundo = fundoDoDia()) {
   const arq = await comoArquivo(await desenharCartao(cartao, fundo));
   if (navigator.canShare?.({ files: [arq] })) {
     try { await navigator.share({ files: [arq], text: 'Meu cartão do dia no Estilo Falcon 🦅 estilo-falcon.web.app' }); return 'compartilhado'; }
@@ -506,7 +558,7 @@ export async function compartilharCartao(cartao = cartaoDoDia(), fundo = fundoDo
 export async function abrirCartaoDoDia(aoFechar = null) {
   if (document.querySelector('.cartao-dia-ov')) return;
   marcarVisto();
-  const cartao = cartaoDoDia();
+  const cartao = cartaoDeHoje();
   let fundo = fundoDoDia();
   const cv = await desenharCartao(cartao, fundo);
   const ov = document.createElement('div');
