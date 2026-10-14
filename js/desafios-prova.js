@@ -67,18 +67,18 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
           <button type="button" data-rec="tp-menos" aria-label="Mais devagar">🐢</button>
           <span class="ds-tp-vel"></span>
           <button type="button" data-rec="tp-mais" aria-label="Mais rápido">🐇</button>
-          <button type="button" data-rec="texto" aria-label="Editar texto">✏️</button>
-          <button type="button" data-rec="tp-fechar" aria-label="Tirar texto">✕</button>
+          <button type="button" data-rec="texto" aria-label="Editar roteiro">✏️</button>
+          <button type="button" data-rec="tp-fechar" aria-label="Tirar roteiro">✕</button>
         </div>
       </div>
-      <button type="button" class="ds-tp-abrir" data-rec="texto">📝 Texto pra ler</button>
+      <button type="button" class="ds-tp-abrir" data-rec="texto">📝 Roteiro</button>
       <div class="ds-tp-editor" hidden>
-        <div class="ds-tp-ed-tit">📝 Texto pra ler enquanto grava</div>
-        <small>Cola ou escreve aqui. Ele aparece no alto da tela e vai subindo sozinho enquanto tu grava. O texto não entra no vídeo.</small>
+        <div class="ds-tp-ed-tit">📝 Roteiro pra ler enquanto grava</div>
+        <small>Cola ou escreve aqui. O roteiro aparece no alto da tela e vai subindo sozinho enquanto tu grava. Ele não entra no vídeo.</small>
         <textarea maxlength="5000" rows="8" placeholder="Ex: Hoje é o dia 5 do desafio. O que eu aprendi foi…"></textarea>
         <div class="ds-tp-ed-acoes">
           <button type="button" class="cam-guia-btn" data-rec="tp-cancelar">Cancelar</button>
-          <button type="button" class="btn-primary" data-rec="tp-usar">Usar texto</button>
+          <button type="button" class="btn-primary" data-rec="tp-usar">Usar roteiro</button>
         </div>
       </div>
       <div class="cam-guia-barra">
