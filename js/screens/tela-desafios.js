@@ -15,7 +15,7 @@ import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          ehLargar, horaLimite, passouDoLimite, devePrenda } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
-import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, prendasNoAr, abrirMural } from '../desafios-prendas.js';
+import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
 import { abrirSugestoes, sugestoesTop } from '../prendas-sugestoes.js';
 import { getProfile } from '../banco-dados.js';
 import { isAdminPreview } from '../avisos.js';
@@ -85,10 +85,7 @@ export async function renderDesafios(app, embedded = false) {
         <button class="ds-novo" id="ds-novo">＋ Novo desafio</button>
         <button class="ds-codigo-btn" id="ds-codigo">🔑 Entrar com código</button>
       </div>
-      <div class="ds-prendas-topo">
-        <button class="ds-mural-btn" id="ds-mural">🎭 Mural das Prendas${prendasNoAr(prendas).length ? ` <span class="ds-mural-n">${prendasNoAr(prendas).length}</span>` : ''}</button>
-        <button class="ds-mural-btn ds-sug-btn" id="ds-sugestoes">💡 Sugerir prenda</button>
-      </div>`;
+      ${muralCarrosselHtml(prendas)}`;
 
     // Prenda: quem não concluiu grava; quem já pagou vê até quando fica no mural
     const prendaDoCard = (d, joined, dChecks, dParts) => {
@@ -323,7 +320,7 @@ export async function renderDesafios(app, embedded = false) {
   function wire(desafios) {
     app.querySelector('#ds-novo')?.addEventListener('click', openModalidadePicker);
     app.querySelector('#ds-codigo')?.addEventListener('click', openEntrarCodigo);
-    app.querySelector('#ds-mural')?.addEventListener('click', abrirMural);
+    ligarMuralCarrossel(app, prendas);
     app.querySelector('#ds-sugestoes')?.addEventListener('click', abrirSugestoes);
     app.querySelectorAll('[data-prenda]').forEach(b => b.onclick = async () => {
       const d = desafios.find(x => x.id === b.dataset.prenda);

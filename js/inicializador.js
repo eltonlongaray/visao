@@ -33,7 +33,7 @@ import { showToast } from './aviso-tela.js';
 import { playAlert } from './sons.js';
 import { hasTerms } from './lgpd-consentimentos.js';
 import { guardarConviteDoLink } from './desafios-sala.js';
-import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261014g';
+import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261014i';
 
 
 // ═══════════════════════════════════════════════════════════════

@@ -15,6 +15,7 @@ import { auth } from './autenticacao.js';
 import { getProfile } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { PRENDAS } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -42,6 +43,9 @@ export function motivoLocal(texto) {
   if (t.length > 120) return 'Prenda grande demais (máx. 120 letras).';
   if (/https?:\/\/|www\./i.test(t)) return 'Sem link na prenda.';
   if (PROIBIDAS.test(_norm(t))) return 'Essa prenda não passa nas regras do Falcon. Dá uma olhada nas regras aqui em cima.';
+  // Já está nas ideias do Falcon (compara sem emoji, acento e pontuação)
+  const chave = (x) => _norm(x).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (PRENDAS.some(pr => chave(pr) === chave(t))) return 'Essa já está nas ideias do Falcon 😉';
   return '';
 }
 
@@ -127,25 +131,39 @@ export async function abrirSugestoes() {
     <div class="modal sg-modal">
       <div class="modal-title">💡 Sugestões de prenda</div>
       <div class="modal-hint">Tem uma ideia boa? Manda aí! O app confere as regras e, se passar, ela entra na lista de prendas pra todo mundo usar.</div>
-      <details class="sg-regras" open><summary>📜 Regras da prenda</summary>
-        <ul>${REGRAS_PRENDA.map(r => `<li>${_esc(r)}</li>`).join('')}</ul></details>
+      <section class="ajustes-acc sg-acc">
+        <button type="button" class="ajustes-row clickable ajustes-acc-head">
+          <div class="ajustes-row-main"><div class="ajustes-row-title">📜 Regras da prenda</div></div>
+          <span class="ajustes-acc-cta"><span class="ajustes-acc-hint">Toque para abrir</span><span class="ajustes-row-arrow ajustes-acc-chev">▾</span></span>
+        </button>
+        <div class="ajustes-acc-body sg-regras-lista" hidden><ul>${REGRAS_PRENDA.map(r => `<li>${_esc(r)}</li>`).join('')}</ul></div>
+      </section>
       <div class="sg-form">
         <textarea id="sg-txt" maxlength="120" rows="2" placeholder="Ex: Comer uma colher bem cheia de farofa 🥄"></textarea>
         <button class="btn-primary" id="sg-go">Sugerir</button>
       </div>
       <div class="sg-msg" id="sg-msg" hidden></div>
-      <div class="sg-lista-tit">🔥 Mais curtidas</div>
+      <div class="sg-lista-tit">🔥 Sugestões da galera</div>
       <div class="sg-lista"><div class="pr-vazio">Carregando…</div></div>
+      <div class="sg-lista-tit">🦅 Ideias do Falcon</div>
+      <div class="sg-lista sg-falcon">${PRENDAS.map(pr => `<div class="sg-item"><div class="sg-item-txt">${_esc(pr)}</div></div>`).join('')}</div>
       <button class="btn-secondary" id="sg-fechar" style="width:100%;margin-top:10px">Fechar</button>
     </div>`;
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => ov.remove());
   ov.querySelector('#sg-fechar').onclick = () => fechar();
+  // Regras no padrão retrátil do app (igual Ajustes): nasce fechado
+  ov.querySelector('.sg-acc .ajustes-acc-head').onclick = () => {
+    const sec = ov.querySelector('.sg-acc');
+    const aberto = !sec.classList.contains('open');
+    sec.classList.toggle('open', aberto);
+    sec.querySelector('.ajustes-acc-body').hidden = !aberto;
+  };
   const msg = ov.querySelector('#sg-msg');
   const aviso = (txt, ok) => { msg.hidden = false; msg.className = `sg-msg ${ok ? 'ok' : 'erro'}`; msg.textContent = txt; };
 
   async function lista() {
-    const el = ov.querySelector('.sg-lista');
+    const el = ov.querySelector('.sg-lista:not(.sg-falcon)');
     const [sugs, votos] = await Promise.all([fetchSugestoes(), meusVotos()]);
     if (!el.isConnected) return;
     el.innerHTML = sugs.length ? sugs.map(s => {
@@ -157,7 +175,7 @@ export async function abrirSugestoes() {
         ${minha || admin ? `<button class="sg-mini" data-apagar="${s.id}" aria-label="Apagar">🗑</button>`
           : `<button class="sg-mini ${denunciei ? 'on' : ''}" data-denunciar="${s.id}" data-on="${denunciei ? 1 : ''}" aria-label="Denunciar">🚩</button>`}
       </div>`;
-    }).join('') : '<div class="pr-vazio">Ainda não tem sugestão. Manda a primeira! 🦅</div>';
+    }).join('') : '<div class="pr-vazio">Ainda não tem sugestão da galera. Manda a primeira! 🦅</div>';
     el.querySelectorAll('[data-curtir]').forEach(b => b.onclick = async () => {
       b.disabled = true;
       try { await votar(b.dataset.curtir, 'curtir', !b.dataset.on); await lista(); } catch (e) { showToast(e.message, 'error'); b.disabled = false; }

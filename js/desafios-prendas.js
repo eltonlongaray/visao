@@ -7,6 +7,7 @@
 // BLOCO 1 — TOPAR A PRENDA ANTES DE ENTRAR
 // BLOCO 2 — GRAVAR A PRENDA
 // BLOCO 3 — MURAL DAS PRENDAS
+// BLOCO 4 — CARROSSEL DO MURAL E TELA CHEIA
 // ─────────────────────────────────────────────────────────────
 import { fetchPrendas, fetchPrevia, enviarPrenda, assinarProvas } from './desafios.js';
 import { gravarVideoAoVivo } from './desafios-prova.js';
@@ -94,39 +95,88 @@ function _someEm(p) {
   return dias <= 1 ? 'some amanhã' : `some em ${dias} dias`;
 }
 
-// Vídeo sem download: sem o botão de baixar, sem tela flutuante e sem o
-// menu do toque longo. (Print de tela nenhum app consegue impedir.)
-export function videoSemDownload(url) {
-  return `<video class="pr-video" src="${_esc(url)}" controls playsinline preload="metadata"
-            controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture
-            disableremoteplayback oncontextmenu="return false"></video>`;
+// Pet ("mostra o mural das prendas"): abre direto em tela cheia
+export async function abrirMural() {
+  const lista = prendasNoAr(await fetchPrendas());
+  if (!lista.length) { showToast('Ninguém pagando prenda agora 🦅', 'info'); return; }
+  abrirPrendaTelaCheia(lista, await assinarProvas(lista.map(p => p.video_path)), 0);
 }
 
-export async function abrirMural() {
-  const ov = document.createElement('div');
-  ov.className = 'modal-overlay pr-mural-ov';
-  ov.innerHTML = `
-    <div class="modal pr-mural">
-      <div class="modal-title">🎭 Mural das Prendas</div>
-      <div class="modal-hint">Quem não concluiu o desafio paga a prenda aqui. Cada vídeo fica 7 dias e some.</div>
-      <div class="pr-lista"><div class="pr-vazio">Carregando…</div></div>
-      <button class="btn-secondary" data-pr="fechar" style="width:100%;margin-top:10px">Fechar</button>
-    </div>`;
-  document.body.appendChild(ov);
-  const fechar = trapModalBack(() => ov.remove());
-  ov.querySelector('[data-pr="fechar"]').onclick = () => fechar();
-  ov.addEventListener('contextmenu', (e) => { if (e.target.closest('video')) e.preventDefault(); });
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 4: CARROSSEL DO MURAL E TELA CHEIA
+// ═══════════════════════════════════════════════════════════════
+// No topo da aba Desafios, antes dos Oficiais: as prendas no ar passam pro
+// lado como carrossel; tocar abre em tela cheia (Élton, 14/10).
+export function muralCarrosselHtml(prendas) {
+  const lista = prendasNoAr(prendas);
+  const cards = lista.length ? lista.map((p, i) => `
+      <button type="button" class="pr-card" data-pr-i="${i}" aria-label="Ver a prenda de ${_esc(p.nome || 'Falcão')}">
+        <video class="pr-card-video" data-path="${_esc(p.video_path)}" muted playsinline preload="metadata"
+               disablepictureinpicture oncontextmenu="return false"></video>
+        <span class="pr-card-some">⏳ ${_someEm(p).replace(/^some (em )?/, '')}</span>
+        <span class="pr-card-play">▶</span>
+        <span class="pr-card-info"><b>${_esc(p.nome || 'Falcão')}</b><small>🎭 ${_esc(p.prenda || '')}</small></span>
+      </button>`).join('')
+    : `<div class="pr-card-vazio">Ninguém pagando prenda agora 🦅<br><small>Quem não concluir um desafio aparece aqui, por 7 dias.</small></div>`;
+  return `
+    <div class="pr-mural-topo">
+      <div class="ds-grupo-title">🎭 Mural das Prendas</div>
+      <button type="button" class="pr-sugerir" id="ds-sugestoes">💡 Sugerir prenda</button>
+    </div>
+    <div class="pr-carrossel">${cards}</div>`;
+}
 
-  const lista = prendasNoAr(await fetchPrendas());
+// Assina os vídeos (aparece o 1º quadro) e liga o toque → tela cheia
+export async function ligarMuralCarrossel(root, prendas) {
+  const lista = prendasNoAr(prendas);
+  const box = root.querySelector('.pr-carrossel');
+  if (!box || !lista.length) return;
   const urls = await assinarProvas(lista.map(p => p.video_path));
-  const el = ov.querySelector('.pr-lista');
-  if (!el.isConnected) return;
-  el.innerHTML = lista.length ? lista.map(p => `
-    <div class="pr-item">
-      <div class="pr-item-topo"><b>${_esc(p.nome || 'Falcão')}</b> · <span>${_esc(p.titulo || 'Desafio')}</span></div>
-      <div class="pr-item-prenda">🎭 ${_esc(p.prenda || '')}</div>
-      ${urls.get(p.video_path) ? videoSemDownload(urls.get(p.video_path)) : '<div class="pr-vazio">Vídeo indisponível</div>'}
-      <div class="pr-item-some">⏳ ${_someEm(p)}</div>
-    </div>`).join('')
-    : '<div class="pr-vazio">Ninguém pagando prenda agora 🦅</div>';
+  if (!box.isConnected) return;
+  box.querySelectorAll('.pr-card-video').forEach(v => {
+    const u = urls.get(v.dataset.path);
+    if (u) v.src = `${u}#t=0.5`;   // #t: mostra um quadro em vez de tela preta
+  });
+  box.querySelectorAll('[data-pr-i]').forEach(b => b.onclick = () => abrirPrendaTelaCheia(lista, urls, Number(b.dataset.prI)));
+}
+
+// Tela cheia: um vídeo por vez, passa pro lado (arrastar ou ‹ ›), sem download
+export function abrirPrendaTelaCheia(lista, urls, i = 0) {
+  const ov = document.createElement('div');
+  ov.className = 'pr-tela';
+  ov.innerHTML = `
+    <video class="pr-tela-video" playsinline autoplay controls
+           controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture disableremoteplayback></video>
+    <div class="pr-tela-topo">
+      <div class="pr-tela-info"></div>
+      <button type="button" class="pr-tela-fechar" aria-label="Fechar">✕</button>
+    </div>
+    <button type="button" class="pr-tela-seta pr-ant" aria-label="Anterior">‹</button>
+    <button type="button" class="pr-tela-seta pr-prox" aria-label="Próxima">›</button>`;
+  document.body.appendChild(ov);
+  const video = ov.querySelector('video');
+  const fechar = trapModalBack(() => { video.pause(); ov.remove(); });
+  ov.addEventListener('contextmenu', (e) => e.preventDefault());
+  const mostrar = (n) => {
+    i = (n + lista.length) % lista.length;
+    const p = lista[i];
+    video.src = urls.get(p.video_path) || '';
+    video.play().catch(() => {});
+    ov.querySelector('.pr-tela-info').innerHTML =
+      `<b>${_esc(p.nome || 'Falcão')}</b> · <span>${_esc(p.titulo || 'Desafio')}</span><div>🎭 ${_esc(p.prenda || '')}</div><small>⏳ ${_someEm(p)}${lista.length > 1 ? ` · ${i + 1} de ${lista.length}` : ''}</small>`;
+    ov.querySelectorAll('.pr-tela-seta').forEach(b => { b.hidden = lista.length < 2; });
+  };
+  ov.querySelector('.pr-tela-fechar').onclick = () => fechar();
+  ov.querySelector('.pr-ant').onclick = () => mostrar(i - 1);
+  ov.querySelector('.pr-prox').onclick = () => mostrar(i + 1);
+  // Arrastar pro lado passa a prenda
+  let x0 = null;
+  video.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  video.addEventListener('touchend', (e) => {
+    if (x0 == null || lista.length < 2) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) > 60) mostrar(i + (dx < 0 ? 1 : -1));
+  });
+  mostrar(i);
 }
