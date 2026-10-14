@@ -91,8 +91,13 @@ function corrigirRota(out, texto) {
     out.acao = 'excluir'; out.campo = '';
   }
   if (out.acao === 'excluir' && /\b(todas|todos|repeti\w*|sempre)\b/.test(t)) out.todas = true;
+  // Título que a pessoa não falou ("Tarefas"): pega o que vem depois de "do/da/de"
+  if (out.acao === 'excluir' && !_citado(out.titulo, t)) {
+    const m = texto.match(/\b(?:repeti\S*|todas|todos)\s+(?:as |os )?(?:d[aoe]s?\s+)(.+?)[.!?]*$/i) || texto.match(/\b(?:apaga|exclui|deleta|remove)\s+(?:o |a |os |as )?(.+?)(?:\s+de\s+(?:hoje|amanh\S*|ontem|segunda|ter\S*|quarta|quinta|sexta|s\S*bado|domingo))?[.!?]*$/i);
+    out.titulo = m ? m[1].trim() : '';
+  }
   // "tira a conta da internet": tira das contas a pagar
-  if (['contas_pagar', 'cancelar', 'configurar'].includes(out.acao) && /\b(tira|apag|exclu|remov)\w*/.test(t) && /\bconta (da|do|de)\b/.test(t)) {
+  if (['contas_pagar', 'cancelar', 'configurar', 'perguntar'].includes(out.acao) && /\b(tira|apag|exclu|remov)\w*/.test(t) && /\bconta (da|do|de)\b/.test(t)) {
     const nome = (t.match(/\bconta (?:da |do |de )?([a-z0-9 ]+?)(?:,|\.|$| que | porque | pois | cancel)/) || [])[1] || out.titulo || '';
     Object.assign(out, { acao: 'excluir', titulo: `conta a pagar ${nome.trim()}`, todas: true, itens: [] });
   }
