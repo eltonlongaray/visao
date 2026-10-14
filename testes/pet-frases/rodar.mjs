@@ -55,11 +55,17 @@ async function perguntar(c) {
   if (c.h) body.historico = c.h;
   if (c.p) { body.pergunta = c.p.pergunta; body.opcoes = c.p.opcoes; }
   for (let tentativa = 0; tentativa < 3; tentativa++) {
-    const res = await fetch(PET_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Pet-Teste': CHAVE },
-      body: JSON.stringify(body),
-    });
+    let res;
+    try {
+      res = await fetch(PET_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Pet-Teste': CHAVE },
+        body: JSON.stringify(body),
+      });
+    } catch {   // conexão caiu (Worker recém-publicado): tenta de novo
+      await new Promise(r => setTimeout(r, 2000 * (tentativa + 1)));
+      continue;
+    }
     const j = await res.json().catch(() => ({}));
     if (res.ok) return j;
     if (res.status !== 503 && res.status !== 502) return { erro: `${res.status} ${j.erro || ''}` };
