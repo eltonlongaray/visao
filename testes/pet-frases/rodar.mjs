@@ -38,7 +38,8 @@ function conferir(esperado, r, frase = '') {
       if (!!got !== v) erros.push(`todas: ${got ?? '—'} (esperado ${v})`);
     } else if (k === 'itens') {
       const lista = Array.isArray(got) ? got.map(norm) : [];
-      const falta = v.filter(x => !lista.some(y => y.includes(norm(x))));
+      // "meditar" vale por "Meditação": compara o começo da palavra
+      const falta = v.filter(x => !lista.some(y => y.includes(norm(x)) || y.includes(norm(x).slice(0, 5))));
       if (falta.length) erros.push(`itens: ${JSON.stringify(got ?? [])} (faltou ${falta.join(', ')})`);
     } else if (!norm(got).includes(norm(v))) {
       erros.push(`${k}: "${got ?? '—'}" (esperado conter "${v}")`);

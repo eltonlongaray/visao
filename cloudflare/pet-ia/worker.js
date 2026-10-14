@@ -67,7 +67,7 @@ function _citado(valor, falado) {
 const NUM_FALADO = /\d|\b(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte|trinta|meia|meio|copo|copos|garrafa|garrafas|litro|litros|hora|horas|dobro)\b/;
 // Horário dito de verdade: "às 9", "19h", "7:30", "8 da manhã", "meio-dia"
 const _N = '(\\d{1,2}|uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|meia)';
-const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+${_N}\\b|\\bdas\\s+${_N}\\b|\\bpras?\\s+\\d{1,2}\\b|meia[- ]noite|meio[- ]dia|\\b${_N}\\s+(da|de)\\s+(manha|tarde|noite|madrugada)`);
+const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+${_N}\\b|\\bdas\\s+${_N}\\b|\\bpras?\\s+\\d{1,2}\\b|\\bumas?\\s+\\d{1,2}\\b|meia[- ]noite|meio[- ]dia|\\b${_N}\\s+(da|de)\\s+(manha|tarde|noite|madrugada)`);
 // Que ações usam cada campo (no resto, o valor é invenção do modelo)
 const USA = {
   hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar'],
@@ -81,13 +81,13 @@ const USA = {
 function corrigirRota(out, texto) {
   const t = _sem(texto);
   const apagar = /\b(apag|exclu|delet|remov)\w*/.test(t);
-  const lista = /\blistas?\b/.test(t);
+  const lista = /\blistas?\b/.test(t) && !/\blista de atividades\b/.test(t);
   if (/\b(idioma|lingua|notifica\w*|excluir minha conta|apagar minha conta)\b/.test(t)) {
     Object.assign(out, { acao: 'nao_sei_fazer', campo: '', titulo: '', texto: '' });
     return;
   }
   // "apaga a reunião de quinta" é excluir, não cancelar
-  if (apagar && !lista && !/\bcancel/.test(t) && ['cancelar', 'configurar'].includes(out.acao) && !/\batividade\b/.test(t)) {
+  if (apagar && !lista && !/\bcancel/.test(t) && ['cancelar', 'configurar', 'lista_organizar'].includes(out.acao) && !/\batividade\b/.test(t)) {
     out.acao = 'excluir'; out.campo = '';
   }
   if (out.acao === 'excluir' && /\b(todas|todos|repeti\w*|sempre)\b/.test(t)) out.todas = true;
@@ -145,6 +145,42 @@ function corrigirRota(out, texto) {
       out.numero = Math.round(qtd * ml);
     }
   }
+  // Código de convite: pega da frase (letras e números juntos)
+  if (out.acao === 'desafio' && out.campo === 'codigo' && !out.texto) {
+    const m = texto.match(/\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{5,10}\b/);
+    if (m) out.texto = m[0].toUpperCase();
+  }
+  // "renomeia a atividade X pra Y": o nome novo é o que vem depois do "pra"
+  if (out.acao === 'configurar' && out.campo === 'atividade_renomear') {
+    const m = texto.match(/\b(?:pra|para)\s+(.+?)[.!?]*$/i);
+    if (m) out.texto = m[1].trim();
+  }
+  if (out.acao === 'configurar' && /\batividades?\b/.test(t) && apagar && !/\b(repeti|todas)/.test(t)) {
+    out.campo = 'atividade_excluir';
+  }
+  // Número dito em algarismo vence o chute ("pra 25 vezes" e veio 4)
+  const nums = (t.match(/\b\d+\b/g) || []).map(Number);
+  if (out.numero && nums.length === 1 && !nums.includes(Number(out.numero)) && !/\b(ml|litros?|h|horas?|min)\b/.test(t)) out.numero = nums[0];
+  // Consultas que o modelo manda pra "sequencia" por engano
+  if (out.acao === 'consultar') {
+    if (/\b(dormi|sono|dormindo)\b/.test(t)) out.consulta = 'sono';
+    else if (/\bperfil de treino\b/.test(t)) out.consulta = 'perfil_treino';
+    else if (/\b(agua|bebi)\b/.test(t)) out.consulta = 'agua';
+  }
+  if (out.acao === 'consultar_dia' && out.campo === 'passado' && !/\b(fiz|fez|fui|foi|teve|tive|aconteceu|fizemos)\b/.test(t)) out.campo = '';
+  if (out.acao === 'desmarcar_feito' && /\b(terminei|acabei|conclui|fiz|cumpri)\b/.test(t) && !/\b(nao|desmarca|errado|engano)\b/.test(t)) out.acao = 'marcar_feito';
+  // "preciso ir no mercado sábado": é compromisso, não item de lista
+  if (out.acao === 'lista_adicionar' && !/\blista\b/.test(t) && /\b(ir|vou|tenho que ir|preciso ir)\s+(no|na|ao|a|pro|pra)\b/.test(t) && !/\b(compra|adiciona|bota|poe|coloca)\w*/.test(t)) {
+    out.acao = 'agendar'; out.itens = []; out.lista = '';
+  }
+  if (out.acao === 'agendar' && !_citado(out.titulo, t)) {
+    Object.assign(out, { acao: 'perguntar', titulo: '', resposta: 'O que tu quer agendar, e pra quando?' });
+  }
+  // Desafio citado pelo nome: "desafio da água"
+  if (out.acao === 'desafio' && !_citado(out.titulo, t)) {
+    const m = texto.match(/\bdesafio (?:da |do |de )(.+?)(?:[?!.,]|$| com | e )/i);
+    out.titulo = m ? m[1].trim() : '';
+  }
   // "na verdade não fiz": tira a marcação
   if (out.acao === 'marcar_feito' && /\b(nao fiz|nao consegui fazer|marquei errado|desmarca)\b/.test(t)) out.acao = 'desmarcar_feito';
 }
@@ -166,7 +202,13 @@ export function limparResposta(out, conteudo, texto = conteudo) {
   if (Array.isArray(out.itens)) {
     // Item igual ao título é cópia, não item dito (a não ser no Ideal/desafio, onde o item É o assunto)
     const tit = _sem(out.titulo).trim();
-    out.itens = out.itens.filter(i => _citado(i, falado) && (['ideal'].includes(out.acao) || !tit || _sem(i).trim() !== tit));
+    // No desafio, itens só no check-in (exercício), criar (exercícios) e convidar (nomes)
+    if (out.acao === 'desafio' && !['checkin', 'criar', 'convidar'].includes(out.campo)) out.itens = [];
+    out.itens = out.itens.filter(i => _citado(i, falado) && !/^(amigos|sozinho)$/i.test(String(i).trim())
+      && !/^\d/.test(String(i).trim()) && (['ideal'].includes(out.acao) || !tit || _sem(i).trim() !== tit));
+    // "risca o leite": o modelo pôs o item no título
+    if (['lista_marcar', 'lista_adicionar'].includes(out.acao) && out.titulo && _citado(out.titulo, falado)
+      && !out.itens.some(i => _sem(i).trim() === tit)) out.itens.unshift(out.titulo);
     if (out.acao === 'contas_pagar') {
       // Formato que o app lê: "Nome - dia N", com o dia dito pela pessoa
       const dias = falado.match(/\bdia\s+\d{1,2}\b/g) || [];
@@ -177,7 +219,40 @@ export function limparResposta(out, conteudo, texto = conteudo) {
     }
   }
   for (const k of ['lista', 'para']) if (out[k] && !_citado(out[k], falado)) out[k] = '';
-  if (out.quando && _sem(out.quando) !== 'hoje' && !_citado(out.quando, falado)) out.quando = '';
+  // Texto que a pessoa não falou ("ml" na nota, "azul" no nome novo)
+  if (out.texto && ['nota', 'configurar', 'lista_organizar'].includes(out.acao) && !_citado(out.texto, falado)) out.texto = '';
+  if (out.acao === 'configurar' && out.campo === 'abrir_tela' && !out.texto && out.titulo) out.texto = out.titulo;
+  if (out.acao === 'desafio' && out.campo === 'criar' && /\bamig/.test(falado)) out.texto = 'amigos';
+  if (out.acao === 'desafio' && out.titulo && !_citado(out.titulo, falado)) out.titulo = '';
+  // Dia: todas as palavras têm que ter sido ditas ("semana passada" quando falou "essa semana" não vale)
+  const tDia = _sem(texto);
+  const todasDitas = (v) => (_sem(v).match(/[a-z0-9]{3,}/g) || []).every(p => falado.includes(p.slice(0, Math.min(p.length, 5))));
+  if (out.quando && !(_sem(out.quando) === 'hoje' && !/\b(amanha|ontem|segunda|terca|quarta|quinta|sexta|sabado|domingo|semana|mes)\b/.test(tDia)) && !todasDitas(out.quando)) out.quando = '';
+  if (!out.quando && ['consultar_dia', 'agendar', 'marcar_feito', 'desmarcar_feito', 'excluir', 'nota', 'reativar', 'cancelar', 'notas_periodo', 'desempenho'].includes(out.acao)) {
+    const m = tDia.match(/\b(hoje|amanha|ontem|anteontem|(?:essa|esta|nesta|nessa|semana|mes)\s?(?:semana|passad[ao]|que vem)?|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/);
+    if (m && !(m[1] === 'semana' || m[1] === 'mes') || m && /passad|que vem/.test(m[0])) out.quando = m[0].trim();
+    if (out.quando) out.quando = out.quando.replace(/\bamanha\b/, 'amanhã').replace(/\bterca\b/, 'terça').replace(/\bsabado\b/, 'sábado').replace(/\bmes\b/, 'mês');
+    const m2 = tDia.match(/\b(essa|esta|nessa|nesta) (semana|mes)\b/);
+    if (m2) out.quando = `${m2[1]} ${m2[2]}`.replace('mes', 'mês');
+  }
+  // Hora dita que o modelo esqueceu ("umas 9", "às 7 da noite", "19h30")
+  if (!out.hora && ['agendar', 'remarcar'].includes(out.acao)) {
+    const m = tDia.match(/\b(?:as|umas?|pras?|das)\s+(\d{1,2})(?:(?::|h)(\d{2}))?\b/) || tDia.match(/\b(\d{1,2})(?::|h)(\d{2})?\b/);
+    if (m && +m[1] <= 23) {
+      let h = +m[1];
+      if (h < 12 && /\b(da tarde|da noite)\b/.test(tDia)) h += 12;
+      out.hora = `${String(h).padStart(2, '0')}:${m[2] || '00'}`;
+    }
+  }
+  // Nota: o que vem depois do "que" é o texto
+  if (out.acao === 'nota' && !out.texto) { const m = texto.match(/\bque\s+(.+)$/i); if (m) out.texto = m[1].trim(); }
+  // Contas: "internet dia 8 e o celular dia 20" (o modelo às vezes pega só a primeira)
+  if (out.acao === 'contas_pagar') {
+    const achadas = [...texto.matchAll(/([A-Za-zÀ-ú]{3,})\s+(?:no\s+|todo\s+)?dia\s+(\d{1,2})\b/g)]
+      .filter(m => !/^(conta|contas|pago|vence|todo|cada)$/i.test(m[1]))
+      .map(m => `${m[1][0].toUpperCase()}${m[1].slice(1)} - dia ${m[2]}`);
+    if (achadas.length > (out.itens || []).length) out.itens = achadas;
+  }
   for (const [k, v] of Object.entries(out)) {
     if (k === 'acao' || k === 'resposta') continue;
     if (v === '' || v === null || v === false || (k === 'numero' && !v) || (Array.isArray(v) && !v.filter(x => String(x).trim()).length)) delete out[k];
@@ -560,6 +635,13 @@ export default {
       if (!out?.acao) return json(req, { erro: 'sem resposta' }, 502);
       limparResposta(out, conteudo, texto);
       if (out.opcao && !opcoes.some(o => o.id === out.opcao)) delete out.opcao;   // só id que existe
+      if (!out.opcao && opcoes.length) {
+        // O modelo entendeu mas esqueceu a opção: procura pelas palavras de cada uma
+        const tt = _sem(texto);
+        const SIN = { dor: /\b(dor|doi|doend|machuc|lesao|joelho|costas)\w*/, cansaco: /\b(cansad|exaust|morto|esgotad)\w*/, preguica: /\b(pregui|desanim|sem vontade)\w*/, rotina: /\b(trabalho|corrid|sem tempo|rotina|compromisso)\w*/, imprevisto: /\b(imprevist|emergencia|aconteceu)\w*/ };
+        const o = opcoes.find(o => SIN[o.id]?.test(tt)) || opcoes.find(o => _citado(o.label, tt));
+        if (o) { out.opcao = o.id; out.acao = 'responder_pergunta'; }
+      }
       if (out.acao === 'conversa') out.resposta = '';   // fora do app: o app responde com texto fixo
       return json(req, out);
     } catch (err) {
