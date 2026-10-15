@@ -8303,6 +8303,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rasc-venceu { display: block; font-size: 12px; color: #fbbf24; margin-top: 2px; }
 .rasc-acoes { display: flex; gap: 8px; margin-top: 8px; }
 .msg-prova-vencida { font-size: 12px; color: var(--muted); margin: 2px 0 4px; }
+.msg-prova-salvar { align-self: flex-start; background: none; border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.msg-prova-salvar:disabled { opacity: .6; }
 .sala-opcoes { display: grid; gap: 8px; margin: 10px 0 6px; }
 .sala-opcoes .ds-ex { width: 100%; }
 .sala-rank, .sala-regras { margin-top: 8px; max-height: 55vh; overflow-y: auto; }

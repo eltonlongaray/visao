@@ -205,15 +205,17 @@ export async function assinarProvas(caminhos) {
   return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
 }
 // Apaga da MINHA pasta o que não está preso a um check-in que ainda vale
-// (o vídeo some em 7 dias; o check-in fica pro ranking).
+// (o vídeo fica até 3 dias depois do fim do desafio; o check-in fica pro ranking).
 export async function faxinaProvas() {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
   try {
     const { data: arqs, error } = await supabase.storage.from('desafio-provas').list(uid, { limit: 200 });
     if (error || !arqs?.length) return;
-    const { data: vivos } = await supabase.from('desafio_checkins')
+    const { data: vivos, error: e1 } = await supabase.from('desafio_checkins')
       .select('video_path, print_path, video_expira_em').eq('user_id', uid);
+    // Sem a lista dos check-ins não dá pra saber o que está em uso: não apaga nada
+    if (e1 || !Array.isArray(vivos)) return;
     const agora = Date.now();
     const usados = new Set();
     (vivos || []).forEach(c => {
@@ -222,7 +224,8 @@ export async function faxinaProvas() {
       if (c.print_path) usados.add(c.print_path);
     });
     // Vídeo da prenda no mural (7 dias) também fica
-    const { data: prendas } = await supabase.from('desafio_prendas').select('video_path').eq('user_id', uid);
+    const { data: prendas, error: e2 } = await supabase.from('desafio_prendas').select('video_path').eq('user_id', uid);
+    if (e2) return;
     (prendas || []).forEach(p => p.video_path && usados.add(p.video_path));
     // arquivo de menos de 1 dia pode ser a corrida pela metade (vídeo já subiu, falta o print)
     const lixo = arqs.filter(a => !usados.has(`${uid}/${a.name}`) && agora - new Date(a.created_at || 0).getTime() > 864e5)

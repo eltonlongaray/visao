@@ -41,6 +41,7 @@ export function setAbaChat(a) { aba = a; }
 let conversaCom = null;   // { id, nome } quando aberta; { id, nome, desafio: true } = sala do desafio
 let sala = null;          // { d, parts, checks } da sala do desafio aberta (desafios-sala.js)
 let provaUrls = new Map(); // caminho do vídeo/print da prova -> URL assinada (1h)
+let provaUrlsEm = new Map(); // caminho -> quando foi assinada (pra assinar de novo antes de vencer)
 let propostas = new Map(); // id -> proposta de mudança da sala aberta (com os votos)
 let meuNome = 'Falcão';
 let recarga = null;       // timer de atualização enquanto a tela está aberta
@@ -270,6 +271,7 @@ export async function renderChat(app) {
     fotos.clear();
     arquivos.clear();
     provaUrls.clear();
+    provaUrlsEm.clear();
     entradaOrfa = entradaNoHistorico;
     entradaNoHistorico = false;
   };
@@ -606,14 +608,25 @@ async function provaNaSala() {
   if (l) l.scrollTop = l.scrollHeight;
 }
 
-// URLs dos vídeos/prints das provas (bucket desafio-provas, somem em 7 dias).
+// URLs dos vídeos/prints das provas (bucket desafio-provas, ficam até o fim do desafio).
 // O #t=0.1 no vídeo faz o celular mostrar o primeiro quadro em vez de tela preta.
+// A URL vale 1h: com a sala aberta muito tempo, assina de novo aos 50 min.
+// Falhou (sem internet, vídeo vencido): tenta de novo depois de 1 min, em vez
+// de mostrar "venceu" até fechar a conversa.
 async function carregarProvas(msgs) {
-  const faltam = msgs.flatMap(m => [m.prova_video, m.prova_print]).filter(c => c && !provaUrls.has(c));
+  const agora = Date.now();
+  const velha = (c) => {
+    const t = provaUrlsEm.get(c) || 0;
+    return provaUrls.get(c) ? agora - t > 50 * 60e3 : agora - t > 60e3;
+  };
+  const faltam = [...new Set(msgs.flatMap(m => [m.prova_video, m.prova_print]))].filter(c => c && (!provaUrls.has(c) || velha(c)));
   if (!faltam.length) return;
   const urls = await assinarProvas(faltam);
-  // Sem URL = venceu: guarda vazio pra não perguntar de novo a cada 12s
-  faltam.forEach(c => provaUrls.set(c, urls.get(c) || ''));
+  faltam.forEach(c => {
+    const nova = urls.get(c) || '';
+    if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
+    provaUrlsEm.set(c, agora);
+  });
 }
 
 function blocoProva(m) {
@@ -624,7 +637,37 @@ function blocoProva(m) {
   return `<div class="msg-prova">
     ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata"></video>` : ''}
     ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
+    ${v ? `<button type="button" class="msg-prova-salvar" data-salvar-prova="${esc(m.prova_video)}">⬇️ Salvar vídeo</button>` : ''}
   </div>`;
+}
+
+// ⬇️ Salvar o vídeo da prova: no celular abre o "Compartilhar" do sistema,
+// onde dá pra mandar direto pro Google Drive (ou "Salvar no Arquivos" no
+// iPhone) sem ocupar a galeria. Sem isso, baixa o arquivo.
+async function salvarVideoProva(btn) {
+  const caminho = btn.dataset.salvarProva;
+  const url = provaUrls.get(caminho);
+  if (!url || btn.disabled) return;
+  const texto = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Preparando…';
+  try {
+    const blob = await (await fetch(url)).blob();
+    const ext = (caminho.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    const nome = `prova-falcon-${new Date().toISOString().slice(0, 10)}${ext}`;
+    const arq = new File([blob], nome, { type: blob.type || (ext === '.webm' ? 'video/webm' : 'video/mp4') });
+    if (navigator.canShare?.({ files: [arq] })) {
+      try { await navigator.share({ files: [arq], title: 'Prova do desafio' }); return; }
+      catch (e) { if (e?.name === 'AbortError') return; }   // cancelou: tudo bem
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60e3);
+  } catch {
+    showToast('Não deu pra salvar o vídeo agora. Tenta de novo.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = texto;
+  }
 }
 
 // Proposta de mudança nas regras (desafios-propostas.sql): o placar e os
@@ -2200,6 +2243,9 @@ function ligarEventos(app) {
       pintarMarcados();
       return;
     }
+
+    const salvarProva = t.closest('[data-salvar-prova]');
+    if (salvarProva) { await salvarVideoProva(salvarProva); return; }
 
     const abrirFoto = t.closest('[data-abrir-foto]');
     if (abrirFoto) {
