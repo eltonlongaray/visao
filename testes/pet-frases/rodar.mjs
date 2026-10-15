@@ -60,6 +60,7 @@ async function perguntar(c) {
   const body = { texto: c.f };
   if (c.h) body.historico = c.h;
   if (c.p) { body.pergunta = c.p.pergunta; body.opcoes = c.p.opcoes; }
+  let ultimo = 'sem resposta';
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     let res;
     try {
@@ -76,9 +77,11 @@ async function perguntar(c) {
     if (res.ok) return j;
     // 404/403 logo depois de publicar = o Worker de teste ainda está se espalhando
     if (![502, 503, 404, 403].includes(res.status)) return { erro: `${res.status} ${j.erro || ''}` };
+    ultimo = `${res.status} ${j.erro || ''} ${j.detalhe || ''}`.trim();
     await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
   }
-  return { erro: 'ia indisponível' };
+  // Guarda o motivo da última tentativa (cota do dia, Worker fora do ar...)
+  return { erro: `ia indisponível (${ultimo})` };
 }
 
 const casos = JSON.parse(readFileSync(new URL('./frases.json', import.meta.url), 'utf8'))
