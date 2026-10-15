@@ -204,14 +204,17 @@ export async function renderDesafios(app, embedded = false) {
             const pct = Math.min(100, Math.round((todaySum / meta) * 100));
             const done = todaySum >= meta;
             const opcoes = Array.isArray(d.prova_opcoes) && d.prova_opcoes.length ? d.prova_opcoes : null;
-            // Água: cada vídeo, a pessoa diz quantos ml bebe nele e o app soma.
-            // Depoimento (reflexão, leitura): sem número, o vídeo fecha o dia (Élton, 15/10)
-            const porVideo = ehAgua(d) ? { ph: 'ml nesse vídeo', bt: '🎥 Gravar', dica: 'Digite quantos ml vai beber nesse vídeo (copo, garrafa, o que for). O app soma até fechar a meta.' } : null;
+            // Água e Leitura: cada vídeo, a pessoa diz quanto foi nele e o app soma.
+            // Depoimento de reflexão: sem número, o vídeo fecha o dia (Élton, 15/10)
+            const leitura = depoimentoConta(d) && unidade === 'páginas';
+            const semNumero = depoimentoConta(d) && !leitura;
+            const porVideo = ehAgua(d) ? { ph: 'ml nesse vídeo', bt: '🎥 Gravar', dica: 'Digite quantos ml vai beber nesse vídeo (copo, garrafa, o que for). O app soma até fechar a meta.' }
+              : leitura ? { ph: 'páginas hoje', bt: '🎙️ Gravar', dica: 'Digite quantas páginas leu e conte no vídeo o que aprendeu.' } : null;
             const controles = done
               ? `<div class="ds-done">✅ ${depoimentoConta(d) ? 'Depoimento de hoje enviado! 🦅' : 'Meta de hoje batida! 🦅'}</div>`
-              : depoimentoConta(d)
+              : semNumero
                 ? `<button class="ds-inc" data-add="${d.id}" data-qtd="${Math.max(1, meta - todaySum)}" style="width:100%">🎙️ Gravar depoimento</button>
-                   <div class="ds-prova-dica">${unidade === 'páginas' ? 'Conte no vídeo quantas páginas leu e o que aprendeu.' : 'Conte no vídeo como foi.'}</div>`
+                   <div class="ds-prova-dica">Conte no vídeo como foi.</div>`
               : porVideo
                 ? `<div class="ds-inc-row">
                      <input class="ds-inc-input" id="q-${d.id}" type="number" min="1" inputmode="numeric" placeholder="${_esc(porVideo.ph)}" />
