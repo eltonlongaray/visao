@@ -12,8 +12,8 @@ import {
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
-         ehLargar, horaLimite, passouDoLimite, devePrenda,
-         depoimentoConta, MIN_PAGINAS, ehAgua, diasSemProva, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
+         ehLargar, horaLimite, passouDoLimite, devePrendaNoGrupo, textoFalhas,
+         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio, pedirMotivoSaida } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -97,7 +97,7 @@ export async function renderDesafios(app, embedded = false) {
         const noAr = new Date(paga.expira_em).getTime() > Date.now();
         return `<div class="ds-prenda-paga">✅ Prenda paga${noAr ? ` · no mural até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}</div>`;
       }
-      const motivo = devePrenda(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today);
+      const motivo = devePrendaNoGrupo(d, myUid, dParts, dChecks, today);
       if (!motivo) return '';
       return `<div class="ds-prenda-deve">🎭 ${_esc(motivo[0].toUpperCase() + motivo.slice(1))}: hora de pagar a prenda (<b>${_esc(d.prenda)}</b>). Ela vai pro Mural das Prendas por 7 dias.</div>
               <button class="ds-inc ds-prenda-btn" data-prenda="${d.id}" style="width:100%">🎥 Gravar a prenda</button>`;
@@ -146,7 +146,7 @@ export async function renderDesafios(app, embedded = false) {
                  <button class="ds-copy-cod" data-cod="${_esc(d.codigo)}">copiar</button></div>` : '';
 
           const prendaHtml = d.prenda
-            ? `<div class="ds-prenda">🎭 <strong>Quem não concluir paga:</strong> ${_esc(d.prenda)}</div>` : '';
+            ? `<div class="ds-prenda">🎭 <strong>Quem mais falhar paga:</strong> ${_esc(d.prenda)}</div>` : '';
 
           const exercicios = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
           const corrida = d.prova === 'strava' || (exercicios && exercicios.includes('Corrida'));
@@ -159,10 +159,12 @@ export async function renderDesafios(app, embedded = false) {
               ${pend ? `<button class="ds-inc ds-print" data-print="${d.id}" style="width:100%">${pend.rotulo}</button>
                         <div class="ds-prova-dica">${pend.dica}</div>` : ''}` : '';
 
-          // 2 dias sem prova e hoje ainda nada: no 3º fica devendo a prenda (Élton, 15/10)
-          const semProva = joined && !acabou && d.prenda && !dChecks.some(c => c.user_id === myUid && c.dia === today)
-            ? diasSemProva(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today) : 0;
-          const sumindo = semProva === 2 && !minhaPrenda(prendas, d.id, myUid) ? `<div class="ds-perdeu">⚠️ Tu está há 2 dias sem mandar prova. Se hoje passar em branco, tu fica devendo a prenda.</div>` : '';
+          // Aviso já no 1º dia de falha: quem falha continua fazendo, e no fim paga
+          // a prenda quem mais falhou (empate = todos) (Élton, 15/10)
+          const relHoje = joined && !acabou ? relatorioDoDesafio(d, dParts, dChecks, [], today) : null;
+          const euHoje = relHoje?.gente.find(g => g.user_id === myUid);
+          const sumindo = euHoje?.falhas ? `<div class="ds-perdeu">⚠️ ${textoFalhas(euHoje)}. Continua fazendo${d.prenda
+            ? `: no fim, quem mais falhou paga a prenda.${euHoje.maisFalhou && relHoje.gente.length > 1 ? ' Hoje tu está entre os que mais falharam.' : ''}` : '.'}</div>` : '';
           let acao = '';
           if (acabou) {
             // Encerrado: o resumo do grupo + relatório + nova rodada (Élton, 15/10)
@@ -183,7 +185,7 @@ export async function renderDesafios(app, embedded = false) {
           } else if (exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at)) {
             // Semana fechou sem a corrida pedida: perdeu o desafio
             const seg = semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at);
-            acao = `<div class="ds-perdeu">❌ Tu perdeu esse desafio: ${textoSemanaPerdida(seg)}.${d.prenda ? ` Prenda: ${_esc(d.prenda)}.` : ''} Bora no próximo 🦅</div>`;
+            acao = `<div class="ds-perdeu">❌ Tu perdeu esse desafio: ${textoSemanaPerdida(seg)}.${d.prenda ? ' Conta como falha: no fim, quem mais falhou paga a prenda.' : ''} Bora no próximo 🦅</div>`;
           } else if (exercicios) {
             // Constância de exercício: um botão por exercício, com as regras do dia
             const meus = dChecks.filter(c => c.user_id === myUid);
@@ -718,7 +720,7 @@ export async function renderDesafios(app, embedded = false) {
         </div>`}
 
         ${mod === 'individual' ? '' : `
-        <label class="input-field"><div class="input-field-label">🎭 Prenda de quem não concluir</div>
+        <label class="input-field"><div class="input-field-label">🎭 Prenda de quem mais falhar</div>
           <select id="f-prenda-sel">
             <option value="">— sem prenda —</option>
             ${PRENDAS.map(p => `<option value="${_esc(p)}"${prendaAtual === p ? ' selected' : ''}>${_esc(p)}</option>`).join('')}
@@ -727,7 +729,7 @@ export async function renderDesafios(app, embedded = false) {
         <input class="aviso-input" id="f-prenda-txt" placeholder="Escreva a prenda combinada"
                value="${_esc(prendaAtual && !PRENDAS.includes(prendaAtual) ? prendaAtual : '')}"
                style="${prendaAtual && !PRENDAS.includes(prendaAtual) ? '' : 'display:none'};margin-bottom:10px" />
-        <div class="ds-prenda-aviso">Combine antes de abrir: quem entra já aceita. Leve e do bem, nunca constrangedora. Quem não concluir grava a prenda e ela fica no Mural das Prendas do app, pra todo mundo, por 7 dias, sem download.</div>`}
+        <div class="ds-prenda-aviso">Combine antes de abrir: quem entra já aceita. Leve e do bem, nunca constrangedora. No fim, quem mais falhou (empate = todos os empatados) grava a prenda e ela fica no Mural das Prendas do app, pra todo mundo, por 7 dias, sem download.</div>`}
 
         <div class="modal-actions" style="flex-direction:column;gap:8px">
           <button class="btn-primary" id="f-save" style="width:100%">${proposta ? 'Mandar proposta pro grupo' : edit ? 'Salvar alterações' : 'Publicar desafio'}</button>

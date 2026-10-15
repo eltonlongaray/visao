@@ -5153,8 +5153,8 @@ async function tentarDesafios(text) {
       if (!citou && comPrenda.length) {
         const pagas = await c.D.fetchPrendas();
         const devo = comPrenda.filter(d => !pagas.some(x => x.desafio_id === d.id && x.user_id === c.uid)
-          && c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at));
-        if (!devo.length) return 'Tu não deve prenda em nenhum desafio agora 🦅 Prenda é só pra quem não concluir.';
+          && c.M.devePrendaNoGrupo(d, c.uid, c.parts.filter(x => x.desafio_id === d.id), c.checks.filter(x => x.desafio_id === d.id)));
+        if (!devo.length) return 'Tu não deve prenda em nenhum desafio agora 🦅 No fim de cada desafio, paga só quem mais falhou (empate = todos os empatados).';
         if (devo.length === 1) return desafioPrenda(devo[0], c);
         addChoices('Tu deve prenda em mais de um. Qual vai pagar agora?', devo.slice(0, 6).map(d => ({ label: `${c.M.emojiDoTipo(d.tipo)} ${d.titulo}`, action: () => desafioPrenda(d, c) })));
         return null;
@@ -5339,8 +5339,9 @@ function desafiosVisao(meus, fora, c) {
     const dias = `${rk[eu]?.done || 0}${d.dias_total ? '/' + d.dias_total : ''} dias`;
     const pos = d.modalidade !== 'individual' && rk.length > 1 ? ` · ${_medalha(eu)} de ${rk.length}` : '';
     if (c.M.encerrado(d)) return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>🏁 encerrado · ${dias}${pos} · <em>"relatório do desafio ${_esc(d.titulo)}"</em></small>`;
-    const sem = somei > 0 || !d.prenda ? 0 : c.M.diasSemProva(d, ck.filter(x => x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at, hoje);
-    const aviso = sem === 2 ? '<br><small>⚠️ 2 dias sem prova: se hoje passar em branco, tu fica devendo a prenda.</small>' : '';
+    const relH = c.M.relatorioDoDesafio(d, c.parts.filter(x => x.desafio_id === d.id), ck, [], hoje);
+    const euH = relH.gente.find(g => g.user_id === c.uid);
+    const aviso = euH?.falhas ? `<br><small>⚠️ ${c.M.textoFalhas(euH)}. Continua fazendo${d.prenda ? ': no fim, quem mais falhou paga a prenda' : ''}.</small>` : '';
     return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${hojeTxt} · ${dias}${pos}</small>${aviso}`;
   });
   const abertos = fora.filter(d => d.modalidade === 'oficial');
@@ -5355,7 +5356,7 @@ function desafiosVisao(meus, fora, c) {
 function desafioDetalhe(d, c) {
   if (!c.sou(d)) {
     const meta = d.meta_diaria ? `Meta: <b>${d.meta_diaria}${_unDesafio(d)}</b> por dia` : 'Marcar feito uma vez por dia';
-    addChoices(`${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${_esc(d.descricao || '')}</small><br>${meta}${d.dias_total ? ` · ${d.dias_total} dias` : ''}${d.data_inicio ? ` · ${c.M.textoComeca(d)}` : ''}${d.prenda ? `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}` : ''}<br>Tu ainda não está nele. Quer entrar?`,
+    addChoices(`${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${_esc(d.descricao || '')}</small><br>${meta}${d.dias_total ? ` · ${d.dias_total} dias` : ''}${d.data_inicio ? ` · ${c.M.textoComeca(d)}` : ''}${d.prenda ? `<br>🎭 Quem mais falhar paga: ${_esc(d.prenda)}` : ''}<br>Tu ainda não está nele. Quer entrar?`,
       [{ label: '🙋 Entrar', action: () => desafioEntrar(d, c) }, { label: 'Agora não', action: () => 'Beleza 👍' }]);
     return null;
   }
@@ -5373,7 +5374,7 @@ function desafioDetalhe(d, c) {
   } else out += somei > 0 ? 'Hoje: feito ✅' : 'Hoje: ainda não marcou';
   out += `<br>Dias cumpridos: <b>${feitos}${d.dias_total ? ' de ' + d.dias_total : ''}</b>`;
   if (d.modalidade !== 'individual' && rk.length > 1) out += `<br>Posição: ${_medalha(eu)} de ${rk.length}`;
-  if (d.prenda) out += `<br>🎭 Quem não concluir paga: ${_esc(d.prenda)}`;
+  if (d.prenda) out += `<br>🎭 Quem mais falhar paga: ${_esc(d.prenda)}`;
   return out;
 }
 
@@ -5431,7 +5432,7 @@ async function desafioNovaRodada(d, p, c) {
 
 async function desafioEntrar(d, c) {
   const meta = d.meta_diaria ? `<br><small>Meta: ${d.meta_diaria}${_unDesafio(d)} por dia${d.dias_total ? ` · ${d.dias_total} dias` : ''}</small>` : (d.dias_total ? `<br><small>${d.dias_total} dias</small>` : '');
-  const prenda = d.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(d.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
+  const prenda = d.prenda ? `<br><small>🎭 Quem mais falhar paga: ${_esc(d.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
   cardConfirmarLista(`🙋 Entrar no desafio <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>?${meta}${prenda}`, async () => {
     await c.D.joinDesafio(d.id, await _meuNomeDesafio(c.email));
     _redesenharDesafios();
@@ -5457,8 +5458,8 @@ async function desafioPrenda(d, c) {
   const PP = await import('./desafios-prendas.js');
   const paga = PP.minhaPrenda(await c.D.fetchPrendas(), d.id, c.uid);
   if (paga) return `✅ Tu já pagou a prenda do <b>${_esc(d.titulo)}</b>.${new Date(paga.expira_em) > new Date() ? ` Ela fica no Mural das Prendas até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.` : ''}`;
-  const motivo = c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at);
-  if (!motivo) return `Tu não deve prenda no <b>${_esc(d.titulo)}</b> 🦅 Ela só vale pra quem não concluir: <b>${_esc(d.prenda)}</b>.`;
+  const motivo = c.M.devePrendaNoGrupo(d, c.uid, c.parts.filter(x => x.desafio_id === d.id), c.checks.filter(x => x.desafio_id === d.id));
+  if (!motivo) return `Tu não deve prenda no <b>${_esc(d.titulo)}</b> 🦅 No fim, ela vale só pra quem mais falhou (empate = todos os empatados): <b>${_esc(d.prenda)}</b>.`;
   convState = null;
   addChoices(`🎭 No <b>${_esc(d.titulo)}</b>, ${_esc(motivo)}. A prenda é: <b>${_esc(d.prenda)}</b>.<br><small>📢 Grava ao vivo e ela vai pro Mural das Prendas: todo mundo vê por 7 dias, sem download.</small>`, [
     { label: '🎥 Gravar a prenda', action: async () => {
@@ -5472,7 +5473,7 @@ async function desafioPrenda(d, c) {
 
 async function desafioCodigo(codigo, c) {
   const prev = await c.D.fetchPrevia(codigo).catch(() => null);
-  const prenda = prev?.prenda ? `<br><small>🎭 Quem não concluir paga: ${_esc(prev.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
+  const prenda = prev?.prenda ? `<br><small>🎭 Quem mais falhar paga: ${_esc(prev.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
   cardConfirmarLista(`🔑 Entrar no desafio ${prev?.titulo ? `<strong>${_esc(prev.titulo)}</strong>` : `do código <strong>${_esc(codigo)}</strong>`}?${prenda}`, async () => {
     await c.D.entrarPorCodigo(codigo, await _meuNomeDesafio(c.email));
     _redesenharDesafios();

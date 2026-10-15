@@ -140,15 +140,16 @@ export function linhaDoRelatorio(d, g, uid) {
   if (g.faltas.length) partes.push(`faltou ${g.faltas.slice(0, 6).map(_dm).join(', ')}${g.faltas.length > 6 ? ` e mais ${g.faltas.length - 6}` : ''}`);
   if (g.perdeuCorrida) partes.push('🏃 ficou sem a corrida da semana');
   if (g.sumiu) partes.push(`👻 sumiu 3 dias (${_dm(g.sumiu)} a ${_dm(somarDias(g.sumiu, 2))})`);
-  if (d.prenda && g.pagou) partes.push('🎭 prenda paga');
-  else if (g.deve) partes.push('🎭 deve a prenda');
+  if (d.prenda && g.paga && g.pagou) partes.push('🎭 prenda paga');
+  else if (g.deve) partes.push(`🎭 paga a prenda (${g.falhas} ${g.falhas === 1 ? 'falha' : 'falhas'}, a maior do grupo)`);
   return partes.join(' · ');
 }
 export function resumoDoRelatorio(d, rel) {
   if (!rel.gente.length) return 'Ninguém participou.';
   if (rel.gente.length === 1 && !rel.gente[0].desistiu) return '';
   if (rel.todosConcluiram) return `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`;
-  return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias${d.prenda ? `. Prenda: ${_esc(d.prenda)}` : ''}`;
+  const quem = rel.pagam.length ? ` Paga a prenda quem mais falhou: ${rel.pagam.map(g => _esc(g.nome)).join(', ')} (${rel.maxFalhas} ${rel.maxFalhas === 1 ? 'falha' : 'falhas'}).` : '';
+  return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias.${d.prenda ? (quem || ` Prenda: ${_esc(d.prenda)}.`) : ''}`;
 }
 export function periodoDoRelatorio(rel) {
   return rel.fim ? `${dataCurta(rel.ini)} a ${dataCurta(rel.fim)} · ${rel.total} dias` : '';
