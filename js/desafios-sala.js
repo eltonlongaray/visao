@@ -217,8 +217,8 @@ export function provaPelaSala(sala, uid) {
       comNumero = { placeholder: 'ml nesse vídeo', rotulo: '🎥 Gravar' };
       dica = 'Copo, garrafa, o que for: digite quantos ml vai beber nesse vídeo. O app soma até fechar a meta.';
     } else if (depoimentoConta(d)) {
-      titulo = `🎙️ Depoimento de hoje (${soma}/${d.meta_diaria}${un ? ' ' + un : ''})`;
-      comNumero = { placeholder: `${un || 'quanto'} hoje`, rotulo: '🎙️ Gravar' };
+      // Depoimento (reflexão, leitura): sem número, o vídeo fecha o dia (Élton, 15/10)
+      return _registrar(d, { quantidade: Math.max(1, d.meta_diaria - soma) });
     } else if (ops) opcoes = ops.map(o => ({ rotulo: `+${o}${un ? ' ' + un : ''}`, extra: { quantidade: o } }));
     else comNumero = { placeholder: 'quanto?', rotulo: 'Mandar' };
   } else {
