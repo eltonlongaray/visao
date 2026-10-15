@@ -9,6 +9,7 @@ import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
+import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha } from './ficha-ui.js';
 
 const DOWS = [
   { k: 1, lbl: 'Seg', full: 'Segunda' }, { k: 2, lbl: 'Ter', full: 'Terça' },
@@ -119,6 +120,13 @@ function _clientesHtml() {
     </div>`;
 }
 
+// Redesenha SÓ a seção da ficha (não perde o que foi digitado e não salvo na Agenda).
+function _redesenharFicha() {
+  const box = document.querySelector('#agenda-ov .fi-secao'); if (!box) return;
+  box.outerHTML = secaoFichaHtml(_cfg, _clientes());
+  wireSecaoFicha(document.querySelector('#agenda-ov .ag-corpo'), { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
+}
+
 // Perfil do cliente (popup): contato + ações + histórico retrátil.
 function _popupCliente(c) {
   const wa = _waLink(c.contato);
@@ -131,6 +139,7 @@ function _popupCliente(c) {
       ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
       <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
     </div>
+    ${perfilFichaHtml(_cfg, c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
     <div class="ag-hist-lista" id="agp-hist" hidden>
       ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
@@ -144,6 +153,7 @@ function _popupCliente(c) {
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
   ov.querySelector('#agp-ok').onclick = () => close();
   ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
+  wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
   ov.querySelector('#agp-hist-btn').onclick = () => {
     const h = ov.querySelector('#agp-hist'); const s = ov.querySelector('#agp-hist-seta');
     const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
@@ -331,6 +341,7 @@ export async function abrirAgenda() {
     sincronizarCompromissos().catch(() => {}); // garante que os recebidos viraram compromissos no Ritual
     _marcarVistos((_todos || []).map(a => a.id));   // abriu a agenda = viu os agendamentos
     await _carregarOcupados();   // slots já tomados (agendamentos + compromissos) pra marcar no editor
+    await carregarFichas(_cfg);  // fichas de atendimento (se a profissão estiver escolhida)
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
@@ -423,6 +434,8 @@ function desenhar() {
 
       <div class="input-field-label" style="margin-top:14px">📅 Próximos atendimentos</div>
       <div class="ag-lista">${_proximosHtml()}</div>
+
+      ${secaoFichaHtml(_cfg, _clientes())}
 
       <div class="ag-ags-top">
         <div class="input-field-label" style="margin:0">👥 Clientes</div>
@@ -532,6 +545,7 @@ function wireFixos(corpo) {
     pintarServicos();
   };
   corpo.querySelector('#ag-salvar').onclick = salvar;
+  wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
   // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
   // senão → o passo a passo pra configurar.
   const _mostrarNotif = (tem) => {

@@ -1,0 +1,318 @@
+// ─── ÍNDICE ──────────────────────────────────────────────────
+// FICHA DE ATENDIMENTO — lado da PROFISSIONAL (dentro da Agenda Online).
+//   secaoFichaHtml / wireSecaoFicha → bloco "📋 Ficha de atendimento" na Agenda
+//     (profissão, link geral, tipos de massagem, demonstração, novas fichas)
+//   perfilFichaHtml / wirePerfilFicha → botões da ficha no perfil do cliente
+//   abrirFicha → tela com a ficha respondida (respostas + mapa do corpo)
+// Dados: ficha.js · Modelos: ficha-modelo.js · Página do cliente: ficha-publica.js
+// ─────────────────────────────────────────────────────────────
+import { getFichas, criarConviteFicha, ligarFichaCliente, excluirFicha, salvarFichaCfg } from './ficha.js';
+import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero } from './ficha-modelo.js';
+import { showToast, confirmModal } from './aviso-tela.js';
+import { trapModalBack } from './modal-voltar.js';
+
+// === BLOCO 1: ESTADO E AJUDANTES ===
+let _fichas = [], _erroSql = false;
+const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const _dataBr = iso => { try { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; } catch { return ''; } };
+const _primeiro = s => String(s || '').trim().split(/\s+/)[0] || '';
+const _cfgFicha = cfg => (cfg && cfg.ficha_cfg && typeof cfg.ficha_cfg === 'object') ? cfg.ficha_cfg : {};
+export const fichaAtiva = cfg => !!MODELOS[_cfgFicha(cfg).profissao];
+const _linkGeral = cfg => `${location.origin}/ficha/${cfg.slug}`;
+const _linkCliente = (cfg, f) => `${location.origin}/ficha/${cfg.slug}/${f.codigo}`;
+function _waLink(zap, msg) {
+  let d = String(zap || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (!d.startsWith('55') && d.length <= 11) d = '55' + d;
+  return `https://wa.me/${d}${msg ? '?text=' + encodeURIComponent(msg) : ''}`;
+}
+// Fichas de um cliente da Agenda: pelo WhatsApp (ignora 9º dígito) ou, sem WhatsApp, pelo nome.
+function _fichasDoCliente(c) {
+  return _fichas.filter(f => c.contato
+    ? mesmoNumero(f.cliente_digitos || f.cliente_contato, c.contato)
+    : (!f.cliente_digitos && (f.cliente_nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase()));
+}
+// Fichas respondidas que não batem com nenhum cliente da Agenda → "Novas fichas".
+function _fichasSemCliente(clientes) {
+  return _fichas.filter(f => f.respondida_em && !clientes.some(c => c.contato
+    ? mesmoNumero(f.cliente_digitos || f.cliente_contato, c.contato)
+    : (!f.cliente_digitos && (f.cliente_nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase())));
+}
+
+export async function carregarFichas(cfg) {
+  _erroSql = false;
+  if (!fichaAtiva(cfg)) { _fichas = []; return; }
+  try { _fichas = await getFichas(); }
+  catch { _fichas = []; _erroSql = true; }
+}
+
+// === BLOCO 2: SEÇÃO NA AGENDA ===
+export function secaoFichaHtml(cfg, clientes) {
+  const fc = _cfgFicha(cfg);
+  if (!fichaAtiva(cfg)) {
+    return `<div class="fi-secao">
+      <div class="fi-secao-tit">📋 Ficha de atendimento</div>
+      <div class="fi-secao-sub">Seus clientes respondem uma ficha antes da sessão (onde dói, o que procuram, saúde) e ela aparece no perfil de cada um. Qual é a sua profissão?</div>
+      <div class="fi-prof">
+        ${PROFISSOES.map(p => `<button class="fi-prof-btn" data-fi-prof="${p.k}" type="button">${p.emoji} ${_esc(p.nome)}</button>`).join('')}
+        <div class="fi-prof-breve">Outras profissões em breve</div>
+      </div>
+    </div>`;
+  }
+  const novas = _fichasSemCliente(clientes);
+  const prof = PROFISSOES.find(p => p.k === fc.profissao);
+  return `<div class="fi-secao">
+    <div class="fi-secao-tit">📋 Ficha de atendimento <span class="fi-secao-prof">${prof ? prof.emoji + ' ' + _esc(prof.nome) : ''}</span></div>
+    ${_erroSql ? '<div class="fi-aviso">Falta rodar o SQL da ficha no Supabase (sql/ficha.sql).</div>' : ''}
+    <div class="fi-secao-sub">Pra mandar pra um cliente específico, abra o cliente em 👥 Clientes. O link geral serve pra quem ainda não é cliente: a ficha cai no perfil pelo WhatsApp.</div>
+    <div class="fi-botoes">
+      <button class="fi-btn" id="fi-demo" type="button">👁️ Ver como o cliente vê</button>
+      <button class="fi-btn" id="fi-tipos" type="button">💆 Tipos de massagem que você atende</button>
+    </div>
+    <div class="input-field-label" style="margin-top:10px">Link geral da ficha</div>
+    <div class="ag-link-box">
+      <input id="fi-link" readonly value="${_esc(_linkGeral(cfg))}">
+      <button id="fi-copiar" class="btn-secondary" type="button">Copiar</button>
+    </div>
+    ${novas.length ? `<div class="input-field-label" style="margin-top:12px">🆕 Novas fichas <span class="ag-lbl-opt">— de quem ainda não é cliente</span></div>
+      <div class="ag-lista">${novas.map(f => `<button class="ag-cli-row" data-fi-abrir="${_esc(f.id)}" type="button">
+        <div class="ag-cli-row-info"><b>${_esc(f.cliente_nome || 'Sem nome')}</b><small>${_esc(f.cliente_contato || '')} · ${_dataBr(f.respondida_em)}</small></div>
+        <span class="ag-cli-row-ch">›</span></button>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+export function wireSecaoFicha(corpo, { cfg, clientes, redesenhar }) {
+  corpo.querySelectorAll('[data-fi-prof]').forEach(b => b.addEventListener('click', async () => {
+    const novo = { ..._cfgFicha(cfg), profissao: b.dataset.fiProf };
+    b.disabled = true;
+    try { await salvarFichaCfg(novo); cfg.ficha_cfg = novo; await carregarFichas(cfg); redesenhar(); showToast('📋 Ficha ativada!', 'success'); }
+    catch (e) { showToast(e.message, 'error'); b.disabled = false; }
+  }));
+  corpo.querySelector('#fi-demo')?.addEventListener('click', () => abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração'));
+  corpo.querySelector('#fi-tipos')?.addEventListener('click', () => _popupTipos(cfg));
+  corpo.querySelector('#fi-copiar')?.addEventListener('click', async () => {
+    const inp = corpo.querySelector('#fi-link');
+    try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link da ficha copiado!', 'success'); }
+    catch { inp.focus(); inp.select(); showToast('Segure no link e copie', 'info'); }
+  });
+  corpo.querySelectorAll('[data-fi-abrir]').forEach(b => b.addEventListener('click', () => {
+    const f = _fichas.find(x => x.id === b.dataset.fiAbrir); if (f) abrirFicha(f, { cfg, clientes, redesenhar });
+  }));
+}
+
+// === BLOCO 3: TIPOS DE MASSAGEM (a única parte ajustável da ficha) ===
+function _popupTipos(cfg) {
+  const fc = { desligados: [], extras: [], ..._cfgFicha(cfg) };
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'fi-tipos-ov';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">💆 Tipos de massagem</div>
+    <div class="fi-secao-sub">Marque o que você atende. Desmarcado não aparece pro cliente. "Não sei, quero que a profissional indique" aparece sempre.</div>
+    <div class="fi-tipos" id="fi-tipos-lista"></div>
+    <div class="fi-tipo-add">
+      <input id="fi-tipo-novo" placeholder="Acrescentar: ex. Massagem com bambu" maxlength="60">
+      <button class="btn-secondary" id="fi-tipo-add" type="button">Adicionar</button>
+    </div>
+    <div class="ag-fbtns">
+      <button class="btn-secondary" id="fi-tipos-cancelar" type="button">Fechar</button>
+      <button class="btn-primary" id="fi-tipos-salvar" type="button">Salvar</button>
+    </div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  const pintar = () => {
+    ov.querySelector('#fi-tipos-lista').innerHTML =
+      SUGESTOES_TIPOS.map(t => `<button class="fi-tipo ${fc.desligados.includes(t) ? '' : 'on'}" data-t="${_esc(t)}" type="button"><span class="fi-chk"></span>${_esc(t)}</button>`).join('') +
+      fc.extras.map(t => `<div class="fi-tipo on extra"><span class="fi-chk"></span><span style="flex:1">${_esc(t)}</span><button class="fi-tipo-rm" data-rm="${_esc(t)}" type="button" aria-label="Remover">×</button></div>`).join('');
+  };
+  pintar();
+  ov.querySelector('#fi-tipos-lista').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { fc.extras = fc.extras.filter(x => x !== rm.dataset.rm); pintar(); return; }
+    const b = e.target.closest('[data-t]'); if (!b) return;
+    const t = b.dataset.t;
+    fc.desligados = fc.desligados.includes(t) ? fc.desligados.filter(x => x !== t) : fc.desligados.concat(t);
+    pintar();
+  });
+  const add = () => {
+    const inp = ov.querySelector('#fi-tipo-novo'); const v = inp.value.trim();
+    if (!v) return;
+    if (!SUGESTOES_TIPOS.includes(v) && !fc.extras.includes(v)) fc.extras.push(v);
+    inp.value = ''; pintar();
+  };
+  ov.querySelector('#fi-tipo-add').onclick = add;
+  ov.querySelector('#fi-tipo-novo').onkeydown = e => { if (e.key === 'Enter') add(); };
+  ov.querySelector('#fi-tipos-cancelar').onclick = () => close();
+  ov.querySelector('#fi-tipos-salvar').onclick = async () => {
+    const btn = ov.querySelector('#fi-tipos-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
+    try { await salvarFichaCfg(fc); cfg.ficha_cfg = fc; close(); showToast('✅ Tipos de massagem salvos', 'success'); }
+    catch (e) { showToast(e.message, 'error'); btn.disabled = false; btn.textContent = 'Salvar'; }
+  };
+}
+
+// === BLOCO 4: PÁGINA DA FICHA DENTRO DO APP (demonstração / preencher junto) ===
+export function abrirPaginaFicha(url, titulo, onFechar) {
+  const ov = document.createElement('div');
+  ov.className = 'fi-pagina-ov';
+  ov.innerHTML = `<div class="fi-pagina-top"><span>${_esc(titulo || 'Ficha')}</span>
+    <button class="fi-pagina-x" type="button" aria-label="Fechar">✕</button></div>
+    <iframe class="fi-pagina-frame" src="${_esc(url)}" title="Ficha de atendimento"></iframe>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => { ov.remove(); onFechar?.(); });
+  ov.querySelector('.fi-pagina-x').onclick = () => close();
+  return close;
+}
+
+// === BLOCO 5: FICHA NO PERFIL DO CLIENTE ===
+export function perfilFichaHtml(cfg, c) {
+  if (!fichaAtiva(cfg)) return '';
+  // Cada resposta é um registro (fase 1, 2, 3…): a mais recente em destaque, as anteriores embaixo.
+  const resps = _fichasDoCliente(c).filter(f => f.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
+  const resp = resps[resps.length - 1];
+  return `<div class="fi-perfil">
+    ${resp
+      ? `<button class="fi-perfil-ver" data-fi-ver="${_esc(resp.id)}" type="button"><span>📋 Ver ficha${resps.length > 1 ? ` · fase ${resps.length}` : ''}</span><small>respondida em ${_dataBr(resp.respondida_em)}</small></button>
+        ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
+      : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
+    <div class="fi-perfil-acoes">
+      ${c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 ${resp ? 'Pedir pra atualizar' : 'Enviar ficha'}</button>` : ''}
+      <button class="fi-btn" id="fi-junto" type="button">✍️ Preencher junto agora</button>
+    </div>
+  </div>`;
+}
+
+// Link do cliente: reaproveita o código de uma ficha dele; senão cria o convite.
+async function _fichaDoClienteOuNova(cfg, c) {
+  const fs = _fichasDoCliente(c);
+  const comCodigo = fs.find(f => !f.respondida_em) || fs[0];
+  if (comCodigo) return comCodigo;
+  const f = await criarConviteFicha({ nome: c.nome, contato: c.contato, modelo: _cfgFicha(cfg).profissao });
+  _fichas.unshift(f);
+  return f;
+}
+
+export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
+  if (!fichaAtiva(cfg)) return;
+  // redesenha só o pedaço da ficha dentro do perfil (o popup continua aberto)
+  const atualizar = () => {
+    const box = ov.querySelector('.fi-perfil'); if (!box) return;
+    box.outerHTML = perfilFichaHtml(cfg, c);
+    wirePerfilFicha(ov, cfg, c, { clientes, redesenhar });
+    redesenhar?.();
+  };
+  ov.querySelectorAll('.fi-perfil [data-fi-ver]').forEach(b => b.addEventListener('click', () => {
+    const f = _fichas.find(x => x.id === b.dataset.fiVer);
+    if (f) abrirFicha(f, { cfg, clientes, redesenhar: atualizar, cliente: c });
+  }));
+  ov.querySelector('#fi-enviar')?.addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    // abre a janela JÁ no clique (senão o navegador bloqueia o pop-up depois do await)
+    const w = window.open('', '_blank');
+    try {
+      const f = await _fichaDoClienteOuNova(cfg, c);
+      const msg = `Oi ${_primeiro(c.nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
+      const url = _waLink(c.contato, msg);
+      if (w) w.location.href = url; else location.href = url;
+    } catch (err) { try { w?.close(); } catch {} showToast('Erro: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
+  });
+  ov.querySelector('#fi-junto')?.addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const f = await _fichaDoClienteOuNova(cfg, c);
+      // ao fechar, recarrega pra ficha aparecer como respondida
+      abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
+        async () => { await carregarFichas(cfg); atualizar(); });
+    } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
+  });
+}
+
+// === BLOCO 6: VER A FICHA RESPONDIDA ===
+function _valorTxt(p, r) {
+  const v = r[p.id];
+  if (v == null || v === '') return '';
+  if (p.tipo === 'escala') return `${v} de 10`;
+  if (p.tipo === 'data') { const [y, m, d] = String(v).split('-'); return d ? `${d}/${m}/${y}` : v; }
+  let t = Array.isArray(v) ? v.join(' · ') : String(v);
+  if (r[p.id + '_outro']) t = t.replace('Outro', 'Outro: ' + r[p.id + '_outro']);
+  return t;
+}
+function _mapaSvg(lista, mapa, vista) {
+  const ladoEsq = vista === 'frente' ? '_d' : '_e', ladoDir = vista === 'frente' ? '_e' : '_d';
+  let out = '';
+  for (const r of lista) {
+    for (const [suf, esp] of (r.par ? [[ladoEsq, false], [ladoDir, true]] : [['', false]])) {
+      const m = mapa[r.id + suf];
+      let fill = '';
+      if (temMarca(m)) {
+        const t = (m.dor || 0) >= (m.inchaco || 0) ? 'dor' : 'inchaco';
+        fill = ` style="fill:color-mix(in srgb, ${t === 'dor' ? '#ef4444' : '#3e9bff'} ${[0, 40, 65, 92][m[t]]}%, transparent)"`;
+      }
+      out += `<path class="fi-r" d="${r.d}"${esp ? ' transform="translate(240,0) scale(-1,1)"' : ''}${fill}/>`;
+    }
+  }
+  return `<svg class="fi-mapa-svg" viewBox="0 0 240 500">${out}</svg>`;
+}
+
+export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) {
+  const modelo = MODELOS[f.modelo] || MODELOS.massoterapia;
+  const r = f.respostas || {};
+  const mapa = f.mapa || {};
+  const marcas = Object.keys(mapa).filter(k => temMarca(mapa[k]));
+  const semCliente = !cliente && !clientes.some(c => c.contato && mesmoNumero(f.cliente_digitos || f.cliente_contato, c.contato));
+  const blocos = modelo.blocos.map((b, bi) => {
+    const linhas = b.perguntas.filter(p => !['aviso', 'mapa'].includes(p.tipo) && !p.ident).map(p => {
+      const t = _valorTxt(p, r);
+      return t ? `<div class="fi-qa"><div class="fi-q">${_esc(p.q)}</div><div class="fi-a">${_esc(t)}</div></div>` : '';
+    }).join('');
+    const ehSaude = b.nome === 'Saúde e segurança';
+    const alerta = ehSaude && ((r.saude || []).some(x => x !== 'Nenhuma dessas') || r.alergia === 'Sim' || r.remedio === 'Sim');
+    const temMapa = b.perguntas.some(p => p.tipo === 'mapa');
+    const mapaHtml = temMapa ? `<div class="fi-q" style="margin-bottom:6px">Onde o corpo pede atenção</div>
+      <div class="fi-mapa">${_mapaSvg(FRENTE, mapa, 'frente')}${_mapaSvg(COSTAS, mapa, 'costas')}</div>
+      <div class="fi-mapa-leg"><span>Frente</span><span>Costas</span></div>
+      ${marcas.length ? marcas.map(k => { const m = mapa[k]; return `<div class="fi-marca">
+        <span>${_esc(nomeDa(k))}${ladoDa(k) ? ` <small>(${ladoDa(k)})</small>` : ''}${m.dor > 0 && (m.quando || []).length ? `<br><small>${_esc(m.quando.join(' · ').toLowerCase())}</small>` : ''}</span>
+        <span class="fi-marca-tags">${TIPOS_MARCA.filter(t => m[t.k] > 0).map(t => `<span class="fi-tag ${t.k}">${t.nome.split(' ')[0]} ${NIVEIS[m[t.k]].toLowerCase()}</span>`).join('')}</span></div>`; }).join('')
+        : '<div class="fi-vazio">Nada marcado no mapa.</div>'}` : '';
+    if (!linhas && !mapaHtml) return '';
+    return `<div class="fi-bloco${alerta ? ' alerta' : ''}"><div class="fi-bloco-tit">${bi + 1}. ${_esc(b.nome)}${alerta ? ' · ⚠️ atenção' : ''}</div>${mapaHtml}${linhas || (temMapa ? '' : '<div class="fi-vazio">Pulou essa parte.</div>')}</div>`;
+  }).join('');
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay fi-ver-ov'; ov.id = 'fi-ver-ov';
+  ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo">
+    <div class="ag-header">
+      <button class="fr-voltar" id="fi-ver-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
+      <div class="ag-title">📋 Ficha de ${_esc(_primeiro(f.cliente_nome) || 'cliente')}</div>
+    </div>
+    <div class="ag-scroll">
+      <div class="fi-cab"><b>${_esc(f.cliente_nome || '')}</b><small>${_esc(f.cliente_contato || '')}${f.respondida_em ? ' · respondida em ' + _dataBr(f.respondida_em) : ''}</small></div>
+      ${semCliente && clientes.length ? `<label class="input-field"><div class="input-field-label">Ligar a um cliente da Agenda</div>
+        <select id="fi-ligar"><option value="">— é um cliente novo —</option>
+          ${clientes.map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ' · ' + _esc(c.contato) : ''}</option>`).join('')}
+        </select></label>` : ''}
+      ${blocos}
+      <button class="fi-excluir" id="fi-excluir" type="button">🗑 Apagar essa ficha</button>
+    </div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.querySelector('#fi-ver-back').onclick = () => history.back();
+  ov.querySelector('#fi-ligar')?.addEventListener('change', async e => {
+    const c = clientes.find(x => x.key === e.target.value); if (!c) return;
+    try {
+      await ligarFichaCliente(f.id, { nome: c.nome, contato: c.contato });
+      Object.assign(f, { cliente_nome: c.nome, cliente_contato: c.contato, cliente_digitos: String(c.contato || '').replace(/\D/g, '') });
+      showToast(`✅ Ficha ligada a ${_primeiro(c.nome)}`, 'success'); close(); redesenhar?.();
+    } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+  });
+  ov.querySelector('#fi-excluir').onclick = async () => {
+    const ok = await confirmModal({ title: 'Apagar ficha?', message: 'As respostas dessa ficha somem pra sempre.', confirmText: 'Apagar', danger: true });
+    if (!ok) return;
+    try { await excluirFicha(f.id); _fichas = _fichas.filter(x => x.id !== f.id); close(); redesenhar?.(); showToast('Ficha apagada', 'info'); }
+    catch (err) { showToast('Erro: ' + err.message, 'error'); }
+  };
+}

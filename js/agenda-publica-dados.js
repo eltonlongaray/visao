@@ -129,3 +129,15 @@ async function _avisarDonoCancelou(ownerId, { nome, dataISO, hora }) {
     });
   } catch {}
 }
+
+// Push genérico pro dono (ex.: ficha de atendimento recebida). Fire-and-forget.
+export async function avisarDonoPush(ownerId, title, body, tag) {
+  if (!ownerId) return;
+  try {
+    await fetch(`${_WORKER_URL}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': _WORKER_API_KEY },
+      body: JSON.stringify({ userId: ownerId, title, body, tag: tag || `visao-ficha-${Date.now()}`, timestamp: Date.now() + 2000 }),
+    });
+  } catch {}
+}

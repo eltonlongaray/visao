@@ -21,6 +21,10 @@
         "destination": "/rifa.html"
       },
       {
+        "source": "/ficha/**",
+        "destination": "/ficha.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
