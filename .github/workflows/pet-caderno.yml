@@ -1,0 +1,66 @@
+# Caderno de estudo do Pet (FIAP Fase 6): a "prova" de cada versão.
+# Pega as frases do caderno (Supabase), manda pro Worker de TESTE (pet-ia-teste,
+# mesmo código e mesma IA do Worker de verdade), guarda no banco o que o Pet
+# respondeu e fecha uma versão nova com o placar. O log e o resumo mostram SÓ
+# os totais por ação: as frases nunca aparecem aqui (repositório público).
+# Precisa do segredo PET_DIARIO_CHAVE (a chave de leitura do Diário do Pet).
+# Gasta a cota grátis da IA (a mesma do Pet): por isso o limite de frases.
+# Rodar: Actions → "Estudar o caderno do Pet" → Run workflow. A revisão
+# semanal também roda sozinha.
+name: Estudar o caderno do Pet
+
+on:
+  workflow_dispatch:
+    inputs:
+      limite:
+        description: 'Quantas frases entram na prova (padrão 60).'
+        required: false
+        default: '60'
+      nota:
+        description: 'Anotação da versão (o que mudou no Pet), sem frase de usuário.'
+        required: false
+        default: ''
+
+concurrency:
+  group: pet-frases
+  cancel-in-progress: false
+
+jobs:
+  estudar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Conferir o segredo
+        env:
+          PET_DIARIO_CHAVE: ${{ secrets.PET_DIARIO_CHAVE }}
+        run: |
+          if [ -z "$PET_DIARIO_CHAVE" ]; then
+            echo "::error::Falta o segredo PET_DIARIO_CHAVE (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+      - name: Publicar o Worker de teste
+        working-directory: cloudflare/pet-ia
+        run: |
+          CHAVE=$(openssl rand -hex 24)
+          echo "::add-mask::$CHAVE"
+          echo "PET_TESTE_CHAVE=$CHAVE" >> "$GITHUB_ENV"
+          npx --yes wrangler@3 deploy --name pet-ia-teste
+          echo "$CHAVE" | npx --yes wrangler@3 secret put PET_TESTE_CHAVE --name pet-ia-teste
+          sleep 15
+      - name: Fazer a prova
+        env:
+          PET_URL: https://pet-ia-teste.eltonvisao.workers.dev
+          PET_DIARIO_CHAVE: ${{ secrets.PET_DIARIO_CHAVE }}
+          LIMITE: ${{ inputs.limite }}
+          NOTA: ${{ inputs.nota }}
+        run: node testes/pet-caderno/estudar.mjs "$LIMITE" "$NOTA"
+      - name: Apagar o Worker de teste
+        if: always()
+        working-directory: cloudflare/pet-ia
+        run: npx --yes wrangler@3 delete --name pet-ia-teste --force || true

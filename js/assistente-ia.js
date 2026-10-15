@@ -1124,6 +1124,9 @@ async function routeCommand(text) {
       : 'Aqui teu cartão do dia 🃏';
   }
 
+  // Caderno de estudo do Pet (só admin): como o Pet foi em cada versão
+  if (/\bcaderno (?:de estudos? )?do pet\b|\bcomo (?:o pet|tu|voc[eê]) (?:t[aá]|est[aá]) (?:aprendendo|evoluindo)\b/i.test(text)) return cadernoDoPet();
+
   // ── Ritual: água, acordei/dormi, nota de qualquer dia, excluir tarefa,
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
@@ -5755,6 +5758,25 @@ function desafioCriar(p, c) {
       : 'Desafio criado 🏆 Já te coloquei nele. Quando fizer, é só me falar.';
   }, null);
   return null;
+}
+
+// Caderno de estudo do Pet (FIAP Fase 6): as frases que ele não entendeu viram
+// uma prova com a resposta certa; cada revisão fecha uma versão com o placar
+// (sql/pet-caderno.sql). Aqui o admin vê a evolução, sem as frases.
+async function cadernoDoPet() {
+  const { supabase } = await import('./config-supabase.js');
+  const { data, error } = await supabase.rpc('pet_caderno_evolucao');
+  if (error) return 'O caderno de estudo do Pet ainda não foi criado no banco 📓';
+  if (!data?.length) return 'O caderno de estudo do Pet é só pro administrador, ou ainda não teve nenhuma prova 📓';
+  const linhas = data.slice(0, 8).map((v, i) => {
+    const pct = v.provadas ? Math.round((v.certas / v.provadas) * 100) : 0;
+    const ant = data[i + 1];
+    const pctAnt = ant?.provadas ? Math.round((ant.certas / ant.provadas) * 100) : null;
+    const seta = pctAnt == null ? '' : pct > pctAnt ? ' 📈' : pct < pctAnt ? ' 📉' : ' ➖';
+    const dia = new Date(v.criada_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    return `<b>v${v.versao}</b> · ${dia} · ${v.certas}/${v.provadas} certas (${pct}%)${seta}${v.nota ? `<br><small>${_esc(v.nota)}</small>` : ''}`;
+  });
+  return `📓 <b>Caderno de estudo do Pet</b><br><small>${data[0].frases} frases no caderno. Cada versão é uma prova com as frases que eu não tinha entendido.</small><br>${linhas.join('<br>')}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
