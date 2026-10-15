@@ -77,11 +77,11 @@ export async function openDesafiosVitrine() {
       </div>
       ${pl.total ? `<div class="vitrine-placar">🔥 <strong>${pl.pct}% do grupo</strong> está em dia hoje</div>` : ''}
       <div class="vitrine-desc">${_esc(d.descricao).replace(/\n/g, '<br>')}</div>
-      ${d.prenda ? `<div class="vitrine-prenda">🎭 <strong>Quem não concluir paga:</strong> ${_esc(d.prenda)}</div>` : ''}
+      ${d.prenda ? `<div class="vitrine-prenda">🎭 <strong>Quem mais falhar paga:</strong> ${_esc(d.prenda)}</div>` : ''}
       <button class="ds-join ${joined ? 'joined' : ''}" data-go="${d.id}" data-joined="${joined ? '1' : ''}">
         ${joined ? 'Ir pro desafio →' : '🙋 Participar'}
       </button>
-      ${!joined && d.prenda ? `<div class="vitrine-aceite">Ao participar, você aceita a prenda. Quem não concluir paga em vídeo no Mural das Prendas (todo mundo vê por 7 dias).</div>` : ''}
+      ${!joined && d.prenda ? `<div class="vitrine-aceite">Ao participar, você aceita a prenda. No fim, quem mais falhou paga em vídeo no Mural das Prendas (todo mundo vê por 7 dias).</div>` : ''}
     </div>`;
   }).join('');
 

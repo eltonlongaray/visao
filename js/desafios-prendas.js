@@ -32,7 +32,7 @@ export function aceitarPrenda({ titulo = '', prenda = '' } = {}) {
       <div class="modal pr-aceite" style="max-width:380px">
         <div class="modal-title">🎭 Topa a prenda?</div>
         ${titulo ? `<div class="pr-aceite-desafio">${_esc(titulo)}</div>` : ''}
-        <div class="pr-aceite-prenda"><span>Quem não concluir paga:</span><b>${_esc(prenda)}</b></div>
+        <div class="pr-aceite-prenda"><span>Quem mais falhar paga:</span><b>${_esc(prenda)}</b></div>
         <div class="pr-aceite-mural">📢 ${_esc(AVISO_MURAL)}</div>
         <div class="modal-actions" style="flex-direction:column;gap:8px">
           <button class="btn-primary" data-pr="sim" style="width:100%">Topo! Entrar no desafio</button>
@@ -117,7 +117,7 @@ export function muralCarrosselHtml(prendas) {
         <span class="pr-card-play">▶</span>
         <span class="pr-card-info"><b>${_esc(p.nome || 'Falcão')}</b><small>🎭 ${_esc(p.prenda || '')}</small></span>
       </button>`).join('')
-    : `<div class="pr-card-vazio">Ninguém pagando prenda agora 🦅<br><small>Quem não concluir um desafio aparece aqui, por 7 dias.</small></div>`;
+    : `<div class="pr-card-vazio">Ninguém pagando prenda agora 🦅<br><small>Quem mais falhou num desafio aparece aqui, por 7 dias.</small></div>`;
   return `
     <div class="pr-mural-topo">
       <div class="ds-grupo-title">🎭 Mural das Prendas</div>

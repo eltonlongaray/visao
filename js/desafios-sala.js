@@ -14,7 +14,7 @@ import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSa
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta } from './desafios-moldes.js';
+         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -139,15 +139,17 @@ export function linhaDoRelatorio(d, g, uid) {
   if (d.tipo === 'largar') partes.push(`🌱 dias limpos: ${g.limpos}`);
   if (g.faltas.length) partes.push(`faltou ${g.faltas.slice(0, 6).map(_dm).join(', ')}${g.faltas.length > 6 ? ` e mais ${g.faltas.length - 6}` : ''}`);
   if (g.perdeuCorrida) partes.push('🏃 ficou sem a corrida da semana');
-  if (d.prenda && g.pagou) partes.push('🎭 prenda paga');
-  else if (g.deve) partes.push('🎭 deve a prenda');
+  if (g.sumiu) partes.push(`👻 sumiu 3 dias (${_dm(g.sumiu)} a ${_dm(somarDias(g.sumiu, 2))})`);
+  if (d.prenda && g.paga && g.pagou) partes.push('🎭 prenda paga');
+  else if (g.deve) partes.push(`🎭 paga a prenda (${g.falhas} ${g.falhas === 1 ? 'falha' : 'falhas'}, a maior do grupo)`);
   return partes.join(' · ');
 }
 export function resumoDoRelatorio(d, rel) {
   if (!rel.gente.length) return 'Ninguém participou.';
   if (rel.gente.length === 1 && !rel.gente[0].desistiu) return '';
   if (rel.todosConcluiram) return `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`;
-  return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias${d.prenda ? `. Prenda: ${_esc(d.prenda)}` : ''}`;
+  const quem = rel.pagam.length ? ` Paga a prenda quem mais falhou: ${rel.pagam.map(g => _esc(g.nome)).join(', ')} (${rel.maxFalhas} ${rel.maxFalhas === 1 ? 'falha' : 'falhas'}).` : '';
+  return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias.${d.prenda ? (quem || ` Prenda: ${_esc(d.prenda)}.`) : ''}`;
 }
 export function periodoDoRelatorio(rel) {
   return rel.fim ? `${dataCurta(rel.ini)} a ${dataCurta(rel.fim)} · ${rel.total} dias` : '';
@@ -200,7 +202,7 @@ export function pedirMotivoSaida(d) {
     ov.innerHTML = `<div class="modal sala-modal">
       <div class="modal-title">🚪 Sair do desafio?</div>
       <div class="modal-hint">${_esc(d?.titulo || '')}</div>
-      <div class="ds-prova-dica">${grupo ? 'Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.' : 'O motivo fica no teu relatório.'}</div>
+      <div class="ds-prova-dica">${grupo ? `Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d?.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.'}</div>
       <div class="ds-regras-tit" style="margin-top:12px">Por que tu está saindo?</div>
       <div class="ds-ini-chips ds-saida-chips">${MOTIVOS_SAIDA.map(m => `<button class="ds-ini-chip" data-motivo="${_esc(m)}">${_esc(m)}</button>`).join('')}</div>
       <textarea class="ds-saida-txt" maxlength="300" rows="3" placeholder="Escreve o motivo"></textarea>

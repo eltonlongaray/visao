@@ -146,40 +146,56 @@ export const REGRAS_FIXAS = [
   'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
   'Na corrida, vale o print do Strava (ou, na esteira, a foto do painel antes e depois, tirada pelo Falcon) junto com o vídeo ao vivo correndo nos últimos minutos.',
   'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 7 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
-  'Prenda é leve e do bem, nunca constrangedora. Quem não concluir grava a prenda em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
+  'Prenda é leve e do bem, nunca constrangedora. No fim, só paga a prenda quem mais falhou (se der empate, pagam todos os empatados): grava em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
   'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
-  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
+  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo, sem pagar a prenda. Quem falha continua fazendo: no 3º dia seguido sem prova, recebe um aviso. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
 ];
 
 // Aviso que quem é desafiado precisa ver ANTES de entrar (Élton, 13/10)
 export const AVISO_MURAL = 'A prenda é gravada em vídeo e fica no Mural das Prendas do app, pra todo mundo ver, por 7 dias, sem download.';
 
-// Deve a prenda? Devolve o motivo (texto) ou null.
-//   • perdeu a semana da corrida (na hora), ou
-//   • o desafio acabou e faltou dia com a meta batida, contando do dia em
-//     que a pessoa entrou (ou do início, se entrou antes).
-export function devePrenda(d, meus, joinedAt, hoje = _hojeBR()) {
+// Deve a prenda? (Élton, 15/10) Quem falha continua fazendo; no fim do
+// desafio, só paga quem MAIS falhou, e em empate pagam todos os empatados.
+// Semana sem a corrida pedida conta como 1 falha. Devolve o motivo ou null.
+// parts/checks: desse desafio (todo o grupo).
+export function devePrendaNoGrupo(d, uid, parts, checks, hoje = _hojeBR()) {
   if (!d?.prenda) return null;
-  const seg = semanaSemCorrida(d, meus, joinedAt, hoje);
-  if (seg) return `a semana fechou sem a corrida (${textoSemanaPerdida(seg)})`;
-  const fim = String(d.data_fim || '').slice(0, 10);
-  if (!fim || hoje <= fim) return null;
+  const rel = relatorioDoDesafio(d, parts, checks, [], hoje);
+  const g = rel.gente.find(x => x.user_id === uid);
+  if (!g?.paga) return null;
+  const n = rel.maxFalhas;
+  const dias = `${n} ${n === 1 ? 'falha' : 'falhas'}`;
+  return rel.pagam.length > 1 ? `o desafio acabou e deu empate entre quem mais falhou (${dias}), e tu está nele`
+    : rel.gente.length > 1 ? `o desafio acabou e tu foi quem mais falhou (${dias})`
+    : `o desafio acabou e tu teve ${dias}`;
+}
+
+// "Tu falhou 2 dias (12/10 e 13/10)" pro aviso do card e do Pet
+export function textoFalhas(g) {
+  const dias = g.faltas.slice(-4).map(x => dataCurta(x).slice(4));
+  const txt = g.faltas.length ? `Tu falhou ${g.faltas.length === 1 ? '1 dia' : `${g.faltas.length} dias`} (${g.faltas.length > 4 ? '… ' : ''}${dias.join(', ')})` : 'Tu falhou';
+  return g.perdeuCorrida ? `${txt}${g.faltas.length ? ' e ' : ' '}ficou sem a corrida da semana` : txt;
+}
+
+// Sumiu: 3 dias seguidos sem prova nenhuma (desafio em grupo), contando até
+// ontem. Só marca no relatório; a prenda é de quem mais falhou no fim.
+// Devolve o 1º dia da sequência ou null.
+export function sumiuTresDias(d, meus, joinedAt, hoje = _hojeBR()) {
+  if (!d || d.modalidade === 'individual') return null;
   let ini = String(d.data_inicio || d.created_at || '').slice(0, 10);
   const entrou = joinedAt ? new Date(joinedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
   if (entrou > ini) ini = entrou;
-  if (!ini || ini > fim) return null;
-  const porDia = {};
-  (meus || []).forEach(c => { porDia[c.dia] = (porDia[c.dia] || 0) + (c.quantidade || 0); });
-  const largar = d.tipo === 'largar', meta = d.meta_diaria;
-  let faltou = 0;
-  for (let dia = ini; dia <= fim; dia = somarDias(dia, 1)) {
-    const q = porDia[dia];
-    const ok = q !== undefined && (largar || (meta ? q >= meta : q > 0));
-    if (!ok) faltou++;
+  const fim = fimDoDesafio(d);
+  const ate = fim && fim < diaAnterior(hoje) ? fim : diaAnterior(hoje);
+  if (!ini || ini > ate) return null;
+  const dias = new Set((meus || []).map(c => c.dia));
+  let seq = 0;
+  for (let dia = ini; dia <= ate; dia = somarDias(dia, 1)) {
+    seq = dias.has(dia) ? 0 : seq + 1;
+    if (seq === 3) return somarDias(dia, -2);
   }
-  return faltou ? `o desafio acabou e ${faltou === 1 ? 'faltou 1 dia' : `faltaram ${faltou} dias`}` : null;
+  return null;
 }
-
 // O que o desafio pede como prova, em palavras
 export function textoProva(d) {
   if (d.prova === 'video') return '🎥 Vídeo ao vivo';
@@ -291,13 +307,23 @@ export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeB
     }
     const pagou = (prendas || []).some(x => x.desafio_id === d.id && x.user_id === p.user_id);
     const perdeuCorrida = !!semanaSemCorrida(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, somarDias(ate, 1));
-    const deve = !saiu && !!d.prenda && hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida) && !pagou;
-    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, maiorSeq, limpos, perdeuCorrida, deve, pagou,
-             desistiu: saiu || null, motivo: p.saida?.motivo || '' };
+    const sumiu = saiu ? null : sumiuTresDias(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, hoje);
+    const falhas = saiu ? 0 : faltas.length + (perdeuCorrida ? 1 : 0);
+    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, falhas, maiorSeq, limpos, perdeuCorrida, pagou,
+             desistiu: saiu || null, motivo: p.saida?.motivo || '', sumiu };
   }).sort((a, b) => (!!a.desistiu - !!b.desistiu) || (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
+  // Prenda: quem mais falhou (empate = todos os empatados). Quem saiu com motivo não entra.
+  const maxFalhas = Math.max(0, ...gente.map(g => g.falhas));
+  const acabou = !!fim && hoje > fim;
+  gente.forEach(g => {
+    g.maisFalhou = maxFalhas > 0 && g.falhas === maxFalhas;
+    g.paga = !!d.prenda && acabou && g.maisFalhou;
+    g.deve = g.paga && !g.pagou;
+  });
+  const pagam = gente.filter(g => g.paga);
   const concluiram = gente.filter(g => !g.desistiu && g.total && !g.faltas.length && !g.perdeuCorrida).length;
   return { ini: iniDes, fim, total: fim && iniDes ? Math.round((new Date(fim + 'T12:00:00') - new Date(iniDes + 'T12:00:00')) / 864e5) + 1 : 0,
-           gente, concluiram, todosConcluiram: gente.length > 0 && concluiram === gente.length };
+           gente, concluiram, todosConcluiram: gente.length > 0 && concluiram === gente.length, maxFalhas, pagam };
 }
 // A turma (o mesmo grupo em várias rodadas): id da primeira rodada
 export const turmaDe = (d) => d?.turma_id || d?.id;
@@ -342,7 +368,7 @@ export function resumoDoDesafio(d) {
     d.meta_diaria && `🎯 ${depoimentoConta(d) ? 'Mínimo' : 'Meta'}: ${d.meta_diaria} ${d.unidade || ''} por dia`.replace(/\s+por/, ' por'),
     prova && `✅ Prova: ${prova.replace(/^\S+\s/, '')}`,
     horaLimite(d) && `⏰ Prova do dia só até as ${horaLimite(d)}`,
-    d.prenda && `🎭 Quem não concluir: ${d.prenda}`,
+    d.prenda && `🎭 Prenda de quem mais falhar: ${d.prenda}`,
     d.prenda && `📢 ${AVISO_MURAL}`,
   ].filter(Boolean);
   const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
