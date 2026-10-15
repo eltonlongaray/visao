@@ -168,5 +168,7 @@
   {"f": "quem ainda não pagou a rifa do celular?", "e": {"acao": "rifa", "campo": "pendentes", "titulo": "celular"}},
   {"f": "quem ficou com o número 18 da rifa?", "e": {"acao": "rifa", "campo": "quem", "texto": "18"}},
   {"f": "a Carol desistiu, libera o 5 da rifa", "e": {"acao": "rifa", "campo": "liberar", "texto": "5", "itens": ["carol"]}},
-  {"f": "tira o pago do número 12 da rifa, foi engano", "e": {"acao": "rifa", "campo": "nao_pago", "texto": "12"}}
+  {"f": "tira o pago do número 12 da rifa, foi engano", "e": {"acao": "rifa", "campo": "nao_pago", "texto": "12"}},
+  {"f": "fiquei doente e não vou conseguir continuar no desafio de leitura", "e": {"acao": "desafio", "campo": "sair"}},
+  {"f": "quero sair do desafio da água porque vou viajar", "e": {"acao": "desafio", "campo": "sair"}}
 ]

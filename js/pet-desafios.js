@@ -85,8 +85,24 @@ export function grupoDaFrase(texto) {
   return { acao: 'grupo_ler', pedido };
 }
 
+// Motivo de sair do desafio: "porque fiquei doente", ou o assunto citado
+const MOTIVOS = [
+  [/\b(doente|gripad\w*|gripe|resfriad\w*|febre|covid|dengue|virose|internad\w*|hospital)\b/, 'Fiquei doente'],
+  [/\b(machuc\w*|lesion\w*|lesao|torci|quebrei|cirurgia|operad\w*)\b/, 'Me machuquei'],
+  [/\b(viaj\w*|viagem)\b/, 'Vou viajar'],
+  [/\b(imprevisto|emergencia|urgencia)\b/, 'Tive um imprevisto'],
+];
+export function motivoDaSaida(texto) {
+  const m = String(texto || '').match(/\b(?:porque|porqu[eê]|pq|por causa d[eoa]s?|j[aá] que|pois|motivo\s*[:é]?)\s+(.{3,})$/i);
+  if (m) return m[1].trim().replace(/[.!]+$/, '').replace(/^./, x => x.toUpperCase()).slice(0, 300);
+  const t = norm(texto);
+  const achou = MOTIVOS.find(([re]) => re.test(t));
+  return achou ? achou[1] : '';
+}
+
 // { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural'|'relatorio'|'nova_rodada',
 //   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
+//   motivo/justificar (sair: o porquê; doente/imprevisto sem pedir pra sair),
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
 // como registrar a corrida / Strava).
@@ -172,8 +188,11 @@ export function lerDesafio(texto) {
     return { ...base, acao: 'convidar', pessoas, whatsapp: /\b(whats\w*|wpp|zap\w*)\b/.test(t) };
   }
   if (codigo) return { ...base, acao: 'codigo' };
-  // "largar" num desafio de largar um vício é o objetivo, não sair do desafio
-  if (/\b(sai|saia|sair|saio|desist\w*|abandon\w*|me tira)\b/.test(t) || (/\blarg\w*\b/.test(t) && molde !== 'largar')) return { ...base, acao: 'sair' };
+  // "largar" num desafio de largar um vício é o objetivo, não sair do desafio.
+  // Não tem dia justificado (Élton, 15/10): doente/imprevisto = sair, com o motivo.
+  const sairVerbo = /\b(sai|saia|sair|saio|desist\w*|abandon\w*|me tira)\b/.test(t) || (/\blarg\w*\b/.test(t) && molde !== 'largar');
+  const motivo = motivoDaSaida(texto);
+  if (sairVerbo || (motivo && /\b(nao (?:vou|vai|consigo|da)|sem condic\w*|justific\w*|falt\w*)\b/.test(t))) return { ...base, nome: base.nome ? base.nome.replace(/\s*\b(porque|porqu[eê]|pq|pois|j[aá] que|por causa)\b.*$/i, '') || null : null, acao: 'sair', motivo, justificar: !sairVerbo };
   if (/\b(ranking|posicao|colocacao|lugar|placar|quem (ta|esta) (ganhando|na frente|liderando)|lideran\w*|em primeiro)\b/.test(t)) return { ...base, acao: 'ranking' };
   if (/\b(entra|entrar|entre|participar|participa|me inscreve\w*|inscrever|aceito|topo|bora entrar|quero (?:entrar|fazer|participar))\b/.test(t)
     && !/\b(entrei|participo|participando|tou|estou)\b/.test(t)) return { ...base, acao: 'entrar' };

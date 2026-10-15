@@ -10,7 +10,7 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
@@ -129,6 +129,10 @@ export function rodadasDaTurma(d, desafios) {
 const _dm = (iso) => dataCurta(iso).slice(4);   // "12/10"
 // Uma linha por pessoa (texto simples com <b>, serve pro modal e pro Pet)
 export function linhaDoRelatorio(d, g, uid) {
+  if (g.desistiu) {
+    return `<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: 🚪 desistiu em ${_dm(g.desistiu)}${g.motivo ? `. Motivo: ${_esc(g.motivo)}` : ''}`
+      + (g.total ? ` · tinha cumprido ${g.cumpridos} de ${g.total} dias` : '');
+  }
   const tudo = g.total && !g.faltas.length && !g.perdeuCorrida;
   const partes = [`<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: ${g.cumpridos} de ${g.total} dias${tudo ? ' ✅' : ''}`];
   if (g.maiorSeq > 1) partes.push(`🔥 maior sequência: ${g.maiorSeq} dias`);
@@ -141,7 +145,7 @@ export function linhaDoRelatorio(d, g, uid) {
 }
 export function resumoDoRelatorio(d, rel) {
   if (!rel.gente.length) return 'Ninguém participou.';
-  if (rel.gente.length === 1) return '';
+  if (rel.gente.length === 1 && !rel.gente[0].desistiu) return '';
   if (rel.todosConcluiram) return `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`;
   return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias${d.prenda ? `. Prenda: ${_esc(d.prenda)}` : ''}`;
 }
@@ -152,7 +156,7 @@ export function periodoDoRelatorio(rel) {
 export function abrirRelatorio(d, tudo, uid) {
   const de = (id) => ({ parts: (tudo.parts || []).filter(p => p.desafio_id === id), checks: (tudo.checks || []).filter(c => c.desafio_id === id) });
   const { parts, checks } = de(d.id);
-  const rel = relatorioDoDesafio(d, parts, checks, tudo.prendas);
+  const rel = relatorioDoDesafio(d, parts, checks, tudo.prendas, undefined, tudo.saidas);
   const resumo = resumoDoRelatorio(d, rel);
   const rodadas = rodadasDaTurma(d, tudo.desafios);
   const ate = salaAte(d);
@@ -160,7 +164,7 @@ export function abrirRelatorio(d, tudo, uid) {
     <div class="ds-regras-tit" style="margin-top:14px">🔁 Rodadas desse grupo</div>
     ${rodadas.map(r => {
       const x = de(r.id);
-      const rr = relatorioDoDesafio(r, x.parts, x.checks, tudo.prendas);
+      const rr = relatorioDoDesafio(r, x.parts, x.checks, tudo.prendas, undefined, tudo.saidas);
       const st = !encerrado(r) ? 'em andamento' : `${rr.concluiram} de ${rr.gente.length} concluíram`;
       return `<div class="ds-rank-row ${r.id === d.id ? 'me' : ''}"><span>Rodada ${rodadaDe(r)} · ${_esc(r.titulo)}${rr.fim ? ` · ${_dm(rr.ini)} a ${_dm(rr.fim)}` : ''}</span><span class="ds-rank-days">${st}</span></div>`;
     }).join('')}` : '';
@@ -178,10 +182,43 @@ export function abrirRelatorio(d, tudo, uid) {
 
 // Da sala (ou de onde só tem o id): busca tudo e abre o relatório
 export async function abrirRelatorioDe(id, uid) {
-  const [desafios, parts, checks, prendas] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPrendas()]);
+  const [desafios, parts, checks, prendas, saidas] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPrendas(), fetchSaidas()]);
   const d = desafios.find(x => x.id === id);
   if (!d) { showToast('Não achei esse desafio 🤔', 'info'); return; }
-  abrirRelatorio(d, { parts, checks, prendas, desafios }, uid);
+  abrirRelatorio(d, { parts, checks, prendas, desafios, saidas }, uid);
+}
+
+// Sair do desafio só com motivo (Élton, 15/10). Devolve o motivo ou null.
+// Não tem dia justificado: quem sai perde o grupo até o fim e só volta na próxima rodada.
+export const MOTIVOS_SAIDA = ['Fiquei doente', 'Tive um imprevisto', 'Vou viajar', 'Não vou conseguir manter'];
+export function pedirMotivoSaida(d) {
+  return new Promise(resolve => {
+    let feito = false;
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    const grupo = d?.modalidade !== 'individual';
+    ov.innerHTML = `<div class="modal sala-modal">
+      <div class="modal-title">🚪 Sair do desafio?</div>
+      <div class="modal-hint">${_esc(d?.titulo || '')}</div>
+      <div class="ds-prova-dica">${grupo ? 'Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.' : 'O motivo fica no teu relatório.'}</div>
+      <div class="ds-regras-tit" style="margin-top:12px">Por que tu está saindo?</div>
+      <div class="ds-ini-chips ds-saida-chips">${MOTIVOS_SAIDA.map(m => `<button class="ds-ini-chip" data-motivo="${_esc(m)}">${_esc(m)}</button>`).join('')}</div>
+      <textarea class="ds-saida-txt" maxlength="300" rows="3" placeholder="Escreve o motivo"></textarea>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-ficar style="flex:1">Ficar</button>
+        <button class="btn-danger" data-sair disabled style="flex:1">Sair</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const txt = ov.querySelector('.ds-saida-txt');
+    const btn = ov.querySelector('[data-sair]');
+    const close = trapModalBack(() => { ov.remove(); if (!feito) resolve(null); });
+    const conferir = () => { btn.disabled = txt.value.trim().length < 3; };
+    txt.addEventListener('input', conferir);
+    ov.querySelectorAll('[data-motivo]').forEach(b => b.onclick = () => { txt.value = b.dataset.motivo; conferir(); txt.focus(); });
+    ov.querySelector('[data-ficar]').onclick = close;
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    btn.onclick = () => { feito = true; resolve(txt.value.trim()); close(); };
+  });
 }
 
 export function abrirRegras(d) {

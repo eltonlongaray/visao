@@ -148,6 +148,7 @@ export const REGRAS_FIXAS = [
   'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 7 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
   'Prenda é leve e do bem, nunca constrangedora. Quem não concluir grava a prenda em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
   'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
+  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
 ];
 
 // Aviso que quem é desafiado precisa ver ANTES de entrar (Élton, 13/10)
@@ -259,12 +260,19 @@ function _diaOk(d, q) {
 // Relatório do desafio: por pessoa, do dia em que entrou (ou do início) até o fim.
 // { ini, fim, total, gente: [{ user_id, nome, total, cumpridos, faltas: [dia], maiorSeq, limpos, deve, pagou }],
 //   concluiram, todosConcluiram }
-export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeBR()) {
+// saidas = quem desistiu ({ user_id, nome, motivo, saiu_em }): conta até a véspera
+// de sair e aparece no fim como "desistiu em dd/mm: motivo" (Élton, 15/10)
+export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeBR(), saidas = []) {
   const fim = fimDoDesafio(d);
   // Ainda rolando: conta até ontem (hoje ainda dá tempo)
-  const ate = fim && hoje > fim ? fim : diaAnterior(hoje);
+  const ateGeral = fim && hoje > fim ? fim : diaAnterior(hoje);
   const iniDes = String(d.data_inicio || d.created_at || '').slice(0, 10);
-  const gente = (parts || []).map(p => {
+  const dentro = new Set((parts || []).map(p => p.user_id));
+  const sairam = (saidas || []).filter(s => s.desafio_id === d.id && !dentro.has(s.user_id));
+  const todos = [...(parts || []), ...sairam.map(s => ({ user_id: s.user_id, nome: s.nome, saida: s }))];
+  const gente = todos.map(p => {
+    const saiu = p.saida ? String(p.saida.saiu_em || '').slice(0, 10) : '';
+    const ate = saiu && diaAnterior(saiu) < ateGeral ? diaAnterior(saiu) : ateGeral;
     const entrou = p.joined_at ? new Date(p.joined_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
     const ini = entrou > iniDes ? entrou : iniDes;
     const porDia = {};
@@ -283,10 +291,11 @@ export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeB
     }
     const pagou = (prendas || []).some(x => x.desafio_id === d.id && x.user_id === p.user_id);
     const perdeuCorrida = !!semanaSemCorrida(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, somarDias(ate, 1));
-    const deve = !!d.prenda && hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida) && !pagou;
-    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, maiorSeq, limpos, perdeuCorrida, deve, pagou };
-  }).sort((a, b) => (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
-  const concluiram = gente.filter(g => g.total && !g.faltas.length && !g.perdeuCorrida).length;
+    const deve = !saiu && !!d.prenda && hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida) && !pagou;
+    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, maiorSeq, limpos, perdeuCorrida, deve, pagou,
+             desistiu: saiu || null, motivo: p.saida?.motivo || '' };
+  }).sort((a, b) => (!!a.desistiu - !!b.desistiu) || (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
+  const concluiram = gente.filter(g => !g.desistiu && g.total && !g.faltas.length && !g.perdeuCorrida).length;
   return { ini: iniDes, fim, total: fim && iniDes ? Math.round((new Date(fim + 'T12:00:00') - new Date(iniDes + 'T12:00:00')) / 864e5) + 1 : 0,
            gente, concluiram, todosConcluiram: gente.length > 0 && concluiram === gente.length };
 }
@@ -319,6 +328,7 @@ export function regrasFixasDo(d) {
     comVideo && REGRAS_FIXAS[2],
     d?.prenda && REGRAS_FIXAS[3],
     REGRAS_FIXAS[4],
+    d?.modalidade !== 'individual' && REGRAS_FIXAS[5],
   ].filter(Boolean);
 }
 
