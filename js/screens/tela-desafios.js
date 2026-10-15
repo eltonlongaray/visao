@@ -13,9 +13,9 @@ import {
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrenda,
-         depoimentoConta, MIN_PAGINAS, ehAgua } from '../desafios-moldes.js';
+         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
-import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp } from '../desafios-sala.js';
+import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
 import { abrirSugestoes, sugestoesTop } from '../prendas-sugestoes.js';
 import { getProfile } from '../banco-dados.js';
@@ -115,8 +115,9 @@ export async function renderDesafios(app, embedded = false) {
 
           // Edita/apaga: o dono do desafio ou o admin
           const souDono = isAdmin || d.author_id === myUid;
+          const fechado = encerrado(d, today);   // acabou: não edita mais
           const adminCtrl = souDono ? `<div class="desafio-actions">
-              <button class="ds-edit" data-edit="${d.id}" title="Editar" aria-label="Editar">✏️</button>
+              ${fechado ? '' : `<button class="ds-edit" data-edit="${d.id}" title="Editar" aria-label="Editar">✏️</button>`}
               <button class="ds-del" data-del="${d.id}" title="Apagar" aria-label="Apagar">🗑</button>
             </div>` : '';
 
@@ -124,7 +125,13 @@ export async function renderDesafios(app, embedded = false) {
           const totalParts = d.modalidade === 'oficial'
             ? (placar[d.id]?.total ?? dParts.length)
             : dParts.length;
-          const badges = `
+          const acabou = encerrado(d, today);
+          const solo = d.modalidade === 'individual';
+          const badges = acabou ? `
+            <span class="ds-badge gray">🏁 encerrado ${dataCurta(fimDoDesafio(d)).slice(4)}</span>
+            ${rodadaDe(d) > 1 ? `<span class="ds-badge teal">🔁 rodada ${rodadaDe(d)}</span>` : ''}
+            ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}` : `
+            ${rodadaDe(d) > 1 ? `<span class="ds-badge teal">🔁 rodada ${rodadaDe(d)}</span>` : ''}
             ${aindaNaoComecou(d) ? `<span class="ds-badge teal">📅 ${textoComeca(d)}</span>` : ''}
             ${d.dias_total ? `<span class="ds-badge amber">${!aindaNaoComecou(d) && diaDoDesafio(d) && diaDoDesafio(d) <= d.dias_total ? `dia ${diaDoDesafio(d)} de ${d.dias_total}` : `${d.dias_total} dias`}</span>` : ''}
             ${meta ? `<span class="ds-badge teal">${depoimentoConta(d) ? 'mínimo' : 'meta'} ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
@@ -133,7 +140,7 @@ export async function renderDesafios(app, embedded = false) {
             ${textoProva(d) ? `<span class="ds-badge gray">${textoProva(d)}</span>` : ''}`;
 
           // Código de convite — só o dono de um desafio de amigos vê (pra compartilhar)
-          const codigoHtml = (d.modalidade === 'amigos' && d.codigo && souDono)
+          const codigoHtml = (d.modalidade === 'amigos' && d.codigo && souDono && !fechado)
             ? `<div class="ds-codigo-box">🔑 Código do convite: <strong>${_esc(d.codigo)}</strong>
                  <button class="ds-copy-cod" data-cod="${_esc(d.codigo)}">copiar</button></div>` : '';
 
@@ -152,7 +159,21 @@ export async function renderDesafios(app, embedded = false) {
                         <div class="ds-prova-dica">${pend.dica}</div>` : ''}` : '';
 
           let acao = '';
-          if (!joined) {
+          if (acabou) {
+            // Encerrado: o resumo do grupo + relatório + nova rodada (Élton, 15/10)
+            const rel = relatorioDoDesafio(d, dParts, dChecks, prendas);
+            const eu = rel.gente.find(g => g.user_id === myUid);
+            const ate = salaAte(d);
+            const resumo = solo || rel.gente.length < 2
+              ? (eu ? `Tu cumpriu <b>${eu.cumpridos} de ${eu.total}</b> dias${eu.faltas.length ? '' : ' 🎉'}` : '')
+              : rel.todosConcluiram ? `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`
+              : `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias`;
+            acao = `
+              <div class="ds-encerrado">🏁 <b>Desafio encerrado</b>${resumo ? `<br>${resumo}` : ''}
+                ${!solo && ate && today <= ate ? `<div class="ds-prova-dica">A conversa e os vídeos ficam até ${dataCurta(ate)}. Salva os teus no ⬇️ Salvar vídeo.</div>` : ''}</div>
+              <button class="ds-inc" data-relatorio="${d.id}" style="width:100%">📊 Ver o relatório</button>
+              ${souDono && d.modalidade === 'amigos' ? `<button class="ds-inc ds-rodada" data-rodada="${d.id}" style="width:100%;margin-top:8px">🔁 Nova rodada com esse grupo</button>` : ''}`;
+          } else if (!joined) {
             acao = `<button class="ds-join" data-join="${d.id}">🙋 Participar</button>`;
           } else if (exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at)) {
             // Semana fechou sem a corrida pedida: perdeu o desafio
@@ -240,7 +261,7 @@ export async function renderDesafios(app, embedded = false) {
           }
 
           // Horário limite (ex.: acordar às 5h): passou e não marcou, fecha por hoje
-          if (joined && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
+          if (!acabou && joined && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
             acao = `<div class="ds-prova-dica">⏰ Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅</div>`;
           }
 
@@ -271,7 +292,7 @@ export async function renderDesafios(app, embedded = false) {
             </details>`;
 
           // Provas de hoje e ontem (vídeo/print): só quem está dentro vê
-          const provas = joined ? dChecks
+          const provas = joined && !acabou ? dChecks
             .filter(c => (c.video_path || c.print_path) && (c.dia === today || c.dia === diaAnterior(today)))
             .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) : [];
           const nomeDe = (uid) => dParts.find(p => p.user_id === uid)?.nome || 'Falcão';
@@ -286,18 +307,18 @@ export async function renderDesafios(app, embedded = false) {
             </div>` : '';
 
           // Individual é só seu: sem ranking, sem WhatsApp
-          const solo = d.modalidade === 'individual';
           // Grupo: abre a sala (conversa do desafio, com as provas e o ranking)
-          const wpp = (joined && !solo) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
+          const salaViva = !acabou || today <= (salaAte(d) || '');
+          const wpp = (joined && !solo && salaViva) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
           // Convidar: desafio com amigos, pra quem já está dentro
-          const convidar = (joined && d.modalidade === 'amigos' && d.codigo)
+          const convidar = (joined && !acabou && d.modalidade === 'amigos' && d.codigo)
             ? `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>` : '';
           const sair = joined ? `<button class="ds-leave" data-leave="${d.id}">Sair do desafio</button>` : '';
 
           return `
             <div class="ds-card" data-id="${d.id}">
               <div class="ds-card-head">
-                <div class="ds-card-title" ${joined && !solo ? `data-sala="${d.id}" role="button"` : ''}>${emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</div>
+                <div class="ds-card-title" ${joined && !solo && salaViva ? `data-sala="${d.id}" role="button"` : ''}>${emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</div>
                 ${adminCtrl}
               </div>
               <div class="ds-badges">${badges}</div>
@@ -316,10 +337,16 @@ export async function renderDesafios(app, embedded = false) {
     };
 
     // Agrupa por modalidade — cada uma tem um papel diferente
+    // Encerrados vão pro fim, só pra quem participou (ou criou)
+    const hojeG = _today();
+    const ativos = desafios.filter(d => !encerrado(d, hojeG));
+    const meusEncerrados = desafios.filter(d => encerrado(d, hojeG)
+      && (d.author_id === myUid || parts.some(p => p.desafio_id === d.id && p.user_id === myUid)));
     const grupos = [
-      { titulo: '🏆 Oficiais',    lista: desafios.filter(d => d.modalidade === 'oficial') },
-      { titulo: '👥 Com amigos',  lista: desafios.filter(d => d.modalidade === 'amigos') },
-      { titulo: '🧍 Só meus',     lista: desafios.filter(d => d.modalidade === 'individual') },
+      { titulo: '🏆 Oficiais',    lista: ativos.filter(d => d.modalidade === 'oficial') },
+      { titulo: '👥 Com amigos',  lista: ativos.filter(d => d.modalidade === 'amigos') },
+      { titulo: '🧍 Só meus',     lista: ativos.filter(d => d.modalidade === 'individual') },
+      { titulo: '🏁 Encerrados',  lista: meusEncerrados },
     ].filter(g => g.lista.length);
 
     const corpo = grupos.length === 0
@@ -411,6 +438,15 @@ export async function renderDesafios(app, embedded = false) {
     app.querySelectorAll('[data-convidar]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.convidar);
       if (d) abrirConvidar(d, (lastParts || []).filter(p => p.desafio_id === d.id), myUid);
+    });
+    // Desafio encerrado: relatório (todos do grupo veem) e nova rodada (dono)
+    app.querySelectorAll('[data-relatorio]').forEach(b => b.onclick = () => {
+      const d = desafios.find(x => x.id === b.dataset.relatorio);
+      if (d) abrirRelatorio(d, { parts: lastParts, checks: lastChecks, prendas, desafios }, myUid);
+    });
+    app.querySelectorAll('[data-rodada]').forEach(b => b.onclick = () => {
+      const d = desafios.find(x => x.id === b.dataset.rodada);
+      if (d) openDesafioForm({ desafio: d, rodada: true });
     });
     // A sala vive na Comunidade (tela-chat.js): ela escuta e abre
     app.querySelectorAll('[data-sala]').forEach(b => b.onclick = () => {
@@ -553,50 +589,53 @@ export async function renderDesafios(app, embedded = false) {
   const PROVA_ANTIGA = { honra: '🤝 Por honra (só marcar)' };   // desafios antigos; não se cria mais
 
   // ── Admin: formulário (novo a partir de molde, ou edição) ──
-  function openDesafioForm({ molde, desafio, modalidade }) {
-    const edit = !!desafio;
+  // rodada = true: nova rodada com o mesmo grupo, partindo do desafio encerrado
+  function openDesafioForm({ molde, desafio, modalidade, rodada = false }) {
+    const edit = !!desafio && !rodada;
+    const src = desafio;   // de onde vêm os valores (editando ou nova rodada)
     // Com gente no grupo (antes de começar), salvar vira proposta pro grupo aceitar
     const proposta = edit && modoEdicao(desafio, lastParts, lastChecks) === 'proposta';
-    const emoji = edit ? emojiDoTipo(desafio.tipo) : molde.emoji;
-    const tipo = edit ? desafio.tipo : molde.id;
-    const mod = edit ? desafio.modalidade : modalidade;
-    const opcoesAtuais = (edit ? desafio.prova_opcoes : molde.opcoes) || [];
-    const prendaAtual = edit ? (desafio.prenda || '') : '';
+    const emoji = src ? emojiDoTipo(src.tipo) : molde.emoji;
+    const tipo = src ? src.tipo : molde.id;
+    const mod = src ? src.modalidade : modalidade;
+    const opcoesAtuais = (src ? src.prova_opcoes : molde.opcoes) || [];
+    const prendaAtual = src ? (src.prenda || '') : '';
     // Prova, exercícios e regras do dono (desafios-provas.sql)
-    const moldeBase = edit ? MOLDE_BY_ID[desafio.tipo] : molde;
-    const provaAtual = edit ? (desafio.prova || moldeBase?.prova || 'video') : (molde.prova || 'video');
-    const exAtual = edit ? (desafio.exercicios || []) : (molde.exercicios || []);
+    const moldeBase = src ? MOLDE_BY_ID[src.tipo] : molde;
+    const provaAtual = src ? (src.prova || moldeBase?.prova || 'video') : (molde.prova || 'video');
+    const exAtual = src ? (src.exercicios || []) : (molde.exercicios || []);
     const temEx = exAtual.length > 0 || tipo === 'exercicio';
     const exSemCorrida = exAtual.filter(x => x !== 'Corrida');
     const comCorrida = exAtual.includes('Corrida');
-    const maxAtual = edit ? (desafio.max_por_dia || desafio.meta_diaria || 2) : (molde.maxPorDia || 2);
-    const naoRepAtual = edit ? desafio.nao_repetir !== false : molde.naoRepetir !== false;
-    const corrSemAtual = Math.min(2, (edit && desafio.corridas_semana) || 1);
-    const modoAtual = edit && desafio.corrida_modo === 'troca' ? 'troca' : 'obrigatoria';
+    const maxAtual = src ? (src.max_por_dia || src.meta_diaria || 2) : (molde.maxPorDia || 2);
+    const naoRepAtual = src ? src.nao_repetir !== false : molde.naoRepetir !== false;
+    const corrSemAtual = Math.min(2, (src && src.corridas_semana) || 1);
+    const modoAtual = src && src.corrida_modo === 'troca' ? 'troca' : 'obrigatoria';
     // Desafio antigo sem km: nenhum chip marcado (não inventa uma mudança)
-    const kmAtual = edit ? (Number(desafio.km_corrida) ? Math.min(MAX_KM_CORRIDA, Number(desafio.km_corrida)) : '') : 3;
+    const kmAtual = src ? (Number(src.km_corrida) ? Math.min(MAX_KM_CORRIDA, Number(src.km_corrida)) : '') : 3;
     // Descrição e regras do dono num campo só: regras antigas entram no fim do texto
-    const descAtual = edit ? [desafio.descricao || '', desafio.regras_dono || ''].filter(x => x.trim()).join('\n') : (molde.desc || '');
+    const descAtual = src ? [src.descricao || '', src.regras_dono || ''].filter(x => x.trim()).join('\n') : (molde.desc || '');
     const largar = tipo === 'largar';
-    const horaAtual = edit ? horaLimite(desafio) : (molde.horaLimite || '');
+    const horaAtual = src ? horaLimite(src) : (molde.horaLimite || '');
     // Cada modelo já vem com prova e unidade fixas: só o "Do seu jeito" escolhe
     const livre = tipo === 'livre' || !moldeBase;
     const provaFixa = !livre;
-    const unidadeAtual = edit ? (desafio.unidade || '') : (molde.unidade || '');
+    const unidadeAtual = src ? (src.unidade || '') : (molde.unidade || '');
     const semMeta = temEx || largar || tipo === 'autoconhecimento' || (!livre && !unidadeAtual);
     const ROTULO_UN = { ml: 'Água por dia (ml)', km: 'Km por dia', min: 'Minutos por dia', 'reflexão': 'Reflexões por dia', 'páginas': 'Mínimo de páginas por dia' };
     if (tipo === 'meditacao') ROTULO_UN.min = 'Mínimo de minutos por dia';
     const rotuloMeta = ROTULO_UN[unidadeAtual] || (unidadeAtual ? unidadeAtual.charAt(0).toUpperCase() + unidadeAtual.slice(1) + ' por dia' : 'Meta por dia');
-    const metaLivreAtual = edit && desafio.meta_diaria ? `${desafio.meta_diaria} ${desafio.unidade || ''}`.trim() : '';
+    const metaLivreAtual = src && src.meta_diaria ? `${src.meta_diaria} ${src.unidade || ''}`.trim() : '';
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
       <div class="modal">
-        <div class="modal-title">${emoji} ${edit ? 'Editar desafio' : _esc(molde.nome)}</div>
+        <div class="modal-title">${emoji} ${edit ? 'Editar desafio' : rodada ? `Rodada ${rodadaDe(src) + 1} com o mesmo grupo` : _esc(molde.nome)}</div>
+        ${rodada ? `<div class="ds-proposta-aviso">🔁 Mesmas regras da rodada anterior (dá pra mudar aqui). Quem estava no grupo recebe o convite no privado do Falcon.</div>` : ''}
         ${proposta ? `<div class="ds-proposta-aviso">👥 Já tem gente no grupo. O que tu mudar vai como <b>proposta</b> e só vale se <b>todo mundo aceitar</b>. Depois que alguém manda a primeira prova, as regras não mudam mais.</div>` : ''}
         <label class="input-field"><div class="input-field-label">Título</div>
-          <input id="f-titulo" maxlength="120" value="${_esc(edit ? desafio.titulo : molde.titulo)}"
+          <input id="f-titulo" maxlength="120" value="${_esc(src ? src.titulo : molde.titulo)}"
                  placeholder="${largar ? 'Ex.: Parar de fumar, Sem refrigerante' : 'Ex.: Acordar às 5h, Sem açúcar, Dormir às 22h'}" /></label>
         ${temEx ? `
         <div class="ds-form-sec">
@@ -643,9 +682,9 @@ export async function renderDesafios(app, embedded = false) {
           <label class="input-field" style="flex:1"><div class="input-field-label">Meta por dia (opcional)</div>
             <input id="f-meta-livre" maxlength="40" value="${_esc(metaLivreAtual)}" placeholder="ex.: 10 flexões" /></label>` : `
           <label class="input-field" style="flex:1"><div class="input-field-label">${_esc(rotuloMeta)}</div>
-            <input id="f-meta" type="number" min="${tipo === 'leitura' ? MIN_PAGINAS : 1}" value="${edit ? (desafio.meta_diaria ?? '') : molde.meta}" /></label>`}
+            <input id="f-meta" type="number" min="${tipo === 'leitura' ? MIN_PAGINAS : 1}" value="${src ? (src.meta_diaria ?? '') : molde.meta}" /></label>`}
           <label class="input-field" style="flex:1"><div class="input-field-label">Duração (dias)</div>
-            <input id="f-dias" type="number" min="1" value="${edit ? (desafio.dias_total ?? '') : molde.dias}" /></label>
+            <input id="f-dias" type="number" min="1" value="${src ? (src.dias_total ?? '') : molde.dias}" /></label>
         </div>
         <label class="input-field"><div class="input-field-label">📜 Descrição e regras</div>
           <textarea id="f-desc" rows="5" maxlength="1500" placeholder="O que é pra fazer, como provar e as tuas regras (ex.: vale até 23h59)">${_esc(descAtual)}</textarea></label>
@@ -660,9 +699,9 @@ export async function renderDesafios(app, embedded = false) {
         ${mod === 'oficial' ? `
         <div style="display:flex;gap:8px">
           <label class="input-field" style="flex:1"><div class="input-field-label">Começa em</div>
-            <input id="f-inicio" type="date" value="${edit ? (desafio.data_inicio || '') : ''}" /></label>
+            <input id="f-inicio" type="date" value="${src ? (src.data_inicio || '') : ''}" /></label>
           <label class="input-field" style="flex:1"><div class="input-field-label">Termina em</div>
-            <input id="f-fim" type="date" value="${edit ? (desafio.data_fim || '') : ''}" /></label>
+            <input id="f-fim" type="date" value="${src ? (src.data_fim || '') : ''}" /></label>
         </div>` : `
         <div class="input-field"><div class="input-field-label">📅 Começa</div>
           <div class="ds-ini-chips" id="f-ini-chips"></div>
@@ -822,7 +861,7 @@ export async function renderDesafios(app, embedded = false) {
       }
       // As regras agora vão junto na descrição. Editou sem mexer no texto: fica como estava
       let regrasDono = '';
-      if (edit && descricao === descAtual.trim()) { descricao = (desafio.descricao || '').trim(); regrasDono = desafio.regras_dono || ''; }
+      if (src && descricao === descAtual.trim()) { descricao = (src.descricao || '').trim(); regrasDono = src.regras_dono || ''; }
       let exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo;
       if (temEx) {
         exercicios = lerEx();
@@ -843,7 +882,8 @@ export async function renderDesafios(app, embedded = false) {
       // Botões de somar saíram do formulário: valem os do modelo (ou os que o desafio já tinha)
       const opcoes = semMeta || !meta ? [] : opcoesAtuais;
       const horaLim = overlay.querySelector('#f-hora')?.value || null;
-      const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo } : {}) };
+      const extras = { prova, regrasDono, horaLimite: horaLim, ...(temEx ? { exercicios, maxPorDia, naoRepetir, corridasSemana, kmCorrida, corridaModo } : {}),
+                       ...(rodada ? { turmaId: turmaDe(src), rodada: rodadaDe(src) + 1 } : {}) };
       const dataInicio = overlay.querySelector('#f-inicio')?.value || null;
       let dataFim = overlay.querySelector('#f-fim')?.value || null;
       if (mod !== 'oficial' && dataInicio && dias) dataFim = somarDias(dataInicio, dias - 1);   // fim = início + duração
@@ -878,8 +918,15 @@ export async function renderDesafios(app, embedded = false) {
           // Desafio completo: o convite do WhatsApp leva as regras junto
           const novo = { id: novoId, titulo, codigo, descricao, dias_total: dias, meta_diaria: meta, unidade, tipo, prenda,
                          prova: extras.prova, regras_dono: extras.regrasDono, hora_limite: extras.horaLimite,
-                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir, corridas_semana: extras.corridasSemana, km_corrida: extras.kmCorrida, corrida_modo: extras.corridaModo, data_inicio: dataInicio };
-          if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, novo));
+                         exercicios: extras.exercicios, max_por_dia: extras.maxPorDia, nao_repetir: extras.naoRepetir, corridas_semana: extras.corridasSemana, km_corrida: extras.kmCorrida, corrida_modo: extras.corridaModo, data_inicio: dataInicio,
+                         rodada: extras.rodada || null };
+          if (rodada) {
+            // Nova rodada: quem estava no grupo recebe o convite no privado
+            const ids = lastParts.filter(p => p.desafio_id === src.id && p.user_id !== myUid).map(p => p.user_id);
+            let n = 0;
+            try { n = ids.length ? await convidarNoApp(novo, ids) : 0; } catch { /* segue com o código */ }
+            showToast(n ? `🔁 Rodada ${rodadaDe(src) + 1} criada! Convite mandado pra ${n} ${n === 1 ? 'pessoa' : 'pessoas'} do grupo.` : `🔁 Rodada ${rodadaDe(src) + 1} criada!`, 'success');
+          } else if (codigo) _depoisDoVoltar(() => mostrarCodigo(codigo, novo));
           else showToast('🏆 Desafio criado!', 'success');
           await refresh();
         }

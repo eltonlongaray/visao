@@ -203,6 +203,11 @@ export function fraseDoApp(j) {
       switch (j.campo) {
         case 'ver': return nome ? `como tô no ${desafio}` : 'meus desafios';
         case 'ranking': return `ranking do ${desafio}`;
+        case 'relatorio': return `relatório do ${desafio}`;
+        case 'nova_rodada': {
+          const q = /amanh/i.test(j.quando || '') ? ' amanhã' : /segunda/i.test(j.quando || '') ? ' segunda' : /hoje/i.test(j.quando || '') ? ' hoje' : '';
+          return `nova rodada do ${desafio} com o mesmo grupo${q}`;
+        }
         case 'entrar': return `entra ${no}`;
         case 'codigo': return texto ? `entra no desafio com o código ${texto}` : null;
         case 'sair': return `sai do ${desafio}`;

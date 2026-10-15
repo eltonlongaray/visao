@@ -31,9 +31,9 @@ import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
 import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
 import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
-import { emojiDoTipo, comparacaoProposta } from '../desafios-moldes.js';
+import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
-import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala } from '../desafios-sala.js';
+import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
 // Permite a rota /desafios abrir a Comunidade já na aba Desafios.
@@ -546,6 +546,7 @@ async function desenharSalaDesafio(corpo) {
     <div class="sala-faixa">
       <button type="button" class="sala-chip" data-sala-ranking>🏅 Ranking</button>
       <button type="button" class="sala-chip" data-sala-regras>📜 Regras</button>
+      ${encerrado(sala.d) ? '<button type="button" class="sala-chip" data-sala-relatorio>📊 Relatório</button>' : ''}
     </div>`);
   // Atualização em pé não remonta o cabeçalho: o subtítulo muda aqui
   const subEl = corpo.querySelector('#sala-sub');
@@ -2289,6 +2290,7 @@ function ligarEventos(app) {
     if (t.closest('#chat-cam-btn')) { if (conversaCom?.desafio) await provaNaSala(); else await abrirCamera(); return; }
     if (t.closest('[data-sala-ranking]')) { if (sala) abrirRanking(sala, auth.currentUser?.uid); return; }
     if (t.closest('[data-sala-regras]')) { if (sala) abrirRegras(sala.d); return; }
+    if (t.closest('[data-sala-relatorio]')) { if (sala) abrirRelatorioDe(sala.d.id, auth.currentUser?.uid); return; }
     const rEnv = t.closest('[data-rasc-enviar]');
     if (rEnv) { rEnv.disabled = true; await rascunhoAcao(rEnv.dataset.rascEnviar, true); rEnv.disabled = false; return; }
     const rApg = t.closest('[data-rasc-apagar]');

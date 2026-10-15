@@ -5,16 +5,16 @@
 // (migration/desafios-sala.sql) posta a mensagem com o vídeo na sala sozinho.
 // ⚠️ Mudou algo aqui? Atualizar o Pet junto (pet-desafios.js + BLOCO 8.17 + Worker).
 // BLOCO 1 — DADOS DA SALA
-// BLOCO 2 — RANKING E REGRAS
+// BLOCO 2 — RANKING, REGRAS E RELATÓRIO DO DESAFIO ENCERRADO
 // BLOCO 3 — 📷 PROVA PELA SALA
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, entrarPorCodigo } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua } from './desafios-moldes.js';
+         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -62,7 +62,12 @@ export function resumoHoje(sala, uid) {
   const n = parts.length;
   const gente = `${n} ${n === 1 ? 'participante' : 'participantes'}`;
   if (aindaNaoComecou(d)) return `${gente} · 📅 ${textoComeca(d)}`;
+  if (encerrado(d)) return `${gente} · 🏁 encerrado ${dataCurta(fimDoDesafio(d)).slice(4)}`;
   if (!parts.some(p => p.user_id === uid)) return gente;
+  if (encerrado(d)) {
+    showToast(`🏁 Esse desafio acabou em ${dataCurta(fimDoDesafio(d))}. O relatório está no 📊.`, 'info');
+    return Promise.resolve(false);
+  }
   const hoje = _hoje();
   const meus = checks.filter(c => c.user_id === uid);
   const deHoje = meus.filter(c => c.dia === hoje);
@@ -114,6 +119,69 @@ export function abrirRanking(sala, uid) {
           <span class="ds-rank-days">${r.perdeu ? '❌ ficou sem corrida' : `${r.done} ${r.done === 1 ? 'dia' : 'dias'}${i === 0 && r.done > 0 ? ' 🔥' : ''}`}</span>
         </div>`).join('') : '<div class="ds-prova-dica">Ninguém no desafio ainda.</div>'}
     </div>`);
+}
+
+// ── Relatório do desafio encerrado (todos do grupo veem; Élton, 15/10) ──
+// Rodadas do mesmo grupo, da primeira pra última
+export function rodadasDaTurma(d, desafios) {
+  return (desafios || []).filter(x => turmaDe(x) === turmaDe(d)).sort((a, b) => rodadaDe(a) - rodadaDe(b));
+}
+const _dm = (iso) => dataCurta(iso).slice(4);   // "12/10"
+// Uma linha por pessoa (texto simples com <b>, serve pro modal e pro Pet)
+export function linhaDoRelatorio(d, g, uid) {
+  const tudo = g.total && !g.faltas.length && !g.perdeuCorrida;
+  const partes = [`<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: ${g.cumpridos} de ${g.total} dias${tudo ? ' ✅' : ''}`];
+  if (g.maiorSeq > 1) partes.push(`🔥 maior sequência: ${g.maiorSeq} dias`);
+  if (d.tipo === 'largar') partes.push(`🌱 dias limpos: ${g.limpos}`);
+  if (g.faltas.length) partes.push(`faltou ${g.faltas.slice(0, 6).map(_dm).join(', ')}${g.faltas.length > 6 ? ` e mais ${g.faltas.length - 6}` : ''}`);
+  if (g.perdeuCorrida) partes.push('🏃 ficou sem a corrida da semana');
+  if (d.prenda && g.pagou) partes.push('🎭 prenda paga');
+  else if (g.deve) partes.push('🎭 deve a prenda');
+  return partes.join(' · ');
+}
+export function resumoDoRelatorio(d, rel) {
+  if (!rel.gente.length) return 'Ninguém participou.';
+  if (rel.gente.length === 1) return '';
+  if (rel.todosConcluiram) return `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`;
+  return `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias${d.prenda ? `. Prenda: ${_esc(d.prenda)}` : ''}`;
+}
+export function periodoDoRelatorio(rel) {
+  return rel.fim ? `${dataCurta(rel.ini)} a ${dataCurta(rel.fim)} · ${rel.total} dias` : '';
+}
+// tudo = { parts, checks, prendas, desafios } de todos os desafios (filtra aqui)
+export function abrirRelatorio(d, tudo, uid) {
+  const de = (id) => ({ parts: (tudo.parts || []).filter(p => p.desafio_id === id), checks: (tudo.checks || []).filter(c => c.desafio_id === id) });
+  const { parts, checks } = de(d.id);
+  const rel = relatorioDoDesafio(d, parts, checks, tudo.prendas);
+  const resumo = resumoDoRelatorio(d, rel);
+  const rodadas = rodadasDaTurma(d, tudo.desafios);
+  const ate = salaAte(d);
+  const hist = rodadas.length > 1 ? `
+    <div class="ds-regras-tit" style="margin-top:14px">🔁 Rodadas desse grupo</div>
+    ${rodadas.map(r => {
+      const x = de(r.id);
+      const rr = relatorioDoDesafio(r, x.parts, x.checks, tudo.prendas);
+      const st = !encerrado(r) ? 'em andamento' : `${rr.concluiram} de ${rr.gente.length} concluíram`;
+      return `<div class="ds-rank-row ${r.id === d.id ? 'me' : ''}"><span>Rodada ${rodadaDe(r)} · ${_esc(r.titulo)}${rr.fim ? ` · ${_dm(rr.ini)} a ${_dm(rr.fim)}` : ''}</span><span class="ds-rank-days">${st}</span></div>`;
+    }).join('')}` : '';
+  _modal(`
+    <div class="modal-title">📊 Relatório do desafio</div>
+    <div class="modal-hint">${_esc(d.titulo)}${rodadaDe(d) > 1 ? ` · rodada ${rodadaDe(d)}` : ''}<br>${periodoDoRelatorio(rel)}</div>
+    <div class="sala-rank">
+      ${encerrado(d) ? '' : '<div class="ds-prova-dica">O desafio ainda está rolando: o relatório vai até hoje.</div>'}
+      ${resumo ? `<div class="ds-rel-resumo ${rel.todosConcluiram ? '' : 'neutro'}">${resumo}</div>` : ''}
+      ${rel.gente.map(g => `<div class="ds-rel-linha ${g.user_id === uid ? 'me' : ''}">${linhaDoRelatorio(d, g, uid)}</div>`).join('')}
+      ${encerrado(d) && ate ? `<div class="ds-prova-dica" style="margin-top:10px">A conversa e os vídeos ${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) <= ate ? `ficam até ${dataCurta(ate)}` : 'já saíram do app'}. Esse registro fica.</div>` : ''}
+      ${hist}
+    </div>`);
+}
+
+// Da sala (ou de onde só tem o id): busca tudo e abre o relatório
+export async function abrirRelatorioDe(id, uid) {
+  const [desafios, parts, checks, prendas] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPrendas()]);
+  const d = desafios.find(x => x.id === id);
+  if (!d) { showToast('Não achei esse desafio 🤔', 'info'); return; }
+  abrirRelatorio(d, { parts, checks, prendas, desafios }, uid);
 }
 
 export function abrirRegras(d) {
@@ -295,6 +363,8 @@ export const linkConvite = (d) => `${LINK_APP}/?convite=${encodeURIComponent(d.c
 // Privado do app: curto, com o código (a pessoa já está no app).
 // (WhatsApp: *negrito*)
 export function textoConvite(d, { noApp = false } = {}) {
+  // Nova rodada com o mesmo grupo: convite de "bora de novo"
+  if (noApp && rodadaDe(d) > 1) return `🔁 Rodada ${rodadaDe(d)} do desafio "${d.titulo}"${d.data_inicio ? `, começa ${dataCurta(String(d.data_inicio).slice(0, 10))}` : ''}! Bora de novo? 🦅\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
   if (noApp) return `🏆 Bora encarar o desafio "${d.titulo}" comigo no Falcon? 🦅\nVai em Desafios → 🔑 Entrar com código, ou fala pro Pet: "entra com o código ${d.codigo}".\nCódigo: ${d.codigo}`;
   const link = linkConvite(d);
   const { info, regras } = resumoDoDesafio(d);
