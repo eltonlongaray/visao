@@ -205,7 +205,7 @@ export async function assinarProvas(caminhos) {
   return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
 }
 // Apaga da MINHA pasta o que não está preso a um check-in que ainda vale
-// (o vídeo fica até 3 dias depois do fim do desafio; o check-in fica pro ranking).
+// (o vídeo fica até 7 dias depois do fim do desafio; o check-in fica pro ranking).
 export async function faxinaProvas() {
   const uid = auth.currentUser?.uid;
   if (!uid) return;

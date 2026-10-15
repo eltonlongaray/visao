@@ -145,7 +145,7 @@ export function emojiDoTipo(tipo) {
 export const REGRAS_FIXAS = [
   'Prova em vídeo e depoimento são gravados ao vivo, pela câmera do Falcon. Vídeo da galeria não vale.',
   'Na corrida, vale o print do Strava (ou, na esteira, a foto do painel antes e depois, tirada pelo Falcon) junto com o vídeo ao vivo correndo nos últimos minutos.',
-  'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 3 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
+  'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 7 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
   'Prenda é leve e do bem, nunca constrangedora. Quem não concluir grava a prenda em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
   'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
 ];
