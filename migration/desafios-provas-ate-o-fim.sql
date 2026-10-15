@@ -3,7 +3,7 @@
 -- (Élton, 15/10)
 --
 -- Antes: o vídeo da prova e as mensagens da sala sumiam em 7 dias.
--- Agora ficam até 3 dias depois do último dia do desafio. Desafio sem data
+-- Agora ficam até 7 dias depois do último dia do desafio. Desafio sem data
 -- de fim (sem dias definidos) guarda por 1 ano. Se o fim mudar (editou os
 -- dias, mudou o início), a validade acompanha.
 --
@@ -11,7 +11,7 @@
 -- ═══════════════════════════════════════════════════════════════
 
 -- ─── BLOCO 1: ATÉ QUANDO VALE ──────────────────────────────────
--- Último dia = data_fim, ou início + dias - 1. Vale até 3 dias depois
+-- Último dia = data_fim, ou início + dias - 1. Vale até 7 dias depois
 -- (meia-noite de Brasília), nunca menos que 7 dias a partir de agora.
 create or replace function public.desafio_validade(p_desafio uuid)
 returns timestamptz
@@ -22,7 +22,7 @@ set search_path = public
 as $$
   select greatest(
     coalesce(
-      ((coalesce(d.data_fim, coalesce(d.data_inicio, d.created_at::date) + d.dias_total - 1) + 4)::timestamp
+      ((coalesce(d.data_fim, coalesce(d.data_inicio, d.created_at::date) + d.dias_total - 1) + 8)::timestamp
         at time zone 'America/Sao_Paulo'),
       now() + interval '365 days'),
     now() + interval '7 days')
