@@ -827,7 +827,8 @@ async function dispatchCommand(text) {
     // O card "qual atividade é essa?" é a última fala do Pet: a frase é a resposta dele
     // (vem antes da conversa guiada, que pode ter ficado aberta lá em cima)
     const gate = typeof text !== 'function' && convState?.type === 'gate_atividade';
-    if (gate && convState.ultimo()) reply = await tentarGateAtividade(semChamado(text));
+    if (typeof text !== 'function') reply = tentarDescricaoDoCard(semChamado(text));
+    if (reply === undefined && gate && convState.ultimo()) reply = await tentarGateAtividade(semChamado(text));
     if (reply === undefined && typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
     if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
@@ -2070,9 +2071,29 @@ function _recToKey(rec) {
   return 'custom';
 }
 
+// "… estrategista de marketing para" (sobrou do "para sexta às 14:30"): tira
+// a palavra de ligação solta no fim
+function _limparCauda(txt) {
+  let t = String(txt || '').replace(/\s+/g, ' ').trim().replace(/[.,;:!?]+$/, '');
+  for (let i = 0; i < 3; i++) t = t.replace(/\s+(para|pra|pro|na|no|em|de|do|da|as|às|dia|ate|até|com)$/i, '').trim();
+  return t;
+}
+// Descrição sem o título na frente: título "Reunião de negócios" e frase
+// "Reunião de negócios com a Tainara, estrategista" → "Tainara, estrategista"
+function _descSemTitulo(desc, titulo) {
+  const d = _limparCauda(desc);
+  const pd = d.split(' '), pt = String(titulo || '').trim().split(/\s+/);
+  let i = 0;
+  while (i < pt.length && i < pd.length && _limpoTxt(pd[i]) === _limpoTxt(pt[i])) i++;
+  if (i < pt.length) return d;   // não começa com o título: fica como está
+  const resto = pd.slice(i).join(' ').replace(/^[\s,.:;·-]+/, '').replace(/^(com|c\/)\s+((a|o|as|os)\s+)?/i, '').trim();
+  return resto ? resto.charAt(0).toUpperCase() + resto.slice(1) : d;
+}
+
 async function showRegistroPreview(name, done, date = new Date(), time = '') {
   const box = document.getElementById('pet-messages');
   if (!box) return;
+  name = _limparCauda(name) || name;
   const cats = await getCategories().catch(() => []);
   // "Agenda Online" (atendimento) é aceito direto, sem precisar ser atividade.
   if (_ehAgendaOnline(name)) {
@@ -2092,7 +2113,7 @@ async function showRegistroPreview(name, done, date = new Date(), time = '') {
     const ini = [...cats].sort((a, b) => b.name.length - a.name.length)
       .find(c => _limpoTxt(name).startsWith(_limpoTxt(c.name) + ' ') || _limpoTxt(name).startsWith(_limpoTxt(c.name) + ','));
     if (ini) {
-      const resto = String(name).trim().slice(ini.name.length).replace(/^[\s,.:;·-]+/, '').replace(/^(com|de|do|da|pra|para|no|na)\b\s*/i, '').trim();
+      const resto = String(name).trim().slice(ini.name.length).replace(/^[\s,.:;·-]+/, '').replace(/^(com|de|do|da|pra|para|no|na)\b\s*((a|o|as|os)\s+)?/i, '').trim();
       if (resto && !ditado.descricao) ditado.descricao = resto.charAt(0).toUpperCase() + resto.slice(1);
       name = ini.name;
     }
@@ -2187,6 +2208,7 @@ function _showGateAtividade(name, done, date, time, cats, sep = null) {
     if (convState?.type === 'gate_atividade') convState = null;
     aviso.remove();   // resolvido: o aviso e o card de escolha somem da tela,
     div.remove();     // deixando só o card de marcação que vem a seguir.
+    if (ditado.descricao) ditado.descricao = _descSemTitulo(ditado.descricao, nome);
     _showMarcacao(nome, done, date, time);
   };
   // Escolheu uma atividade existente: o que a pessoa falou ("Aniversário da
@@ -2232,6 +2254,29 @@ function _showGateAtividade(name, done, date, time, cats, sep = null) {
 // restante como descrição", "cria reunião de parceiros", "a primeira", "Karate".
 // Mantém o dia, a hora, o tipo e a descrição do pedido. undefined = não era
 // resposta (o card sai de cena e o roteador segue normal).
+// Card de registro ainda aberto (ver _showMarcacao) e a frase mexe na descrição:
+// "a descrição é apenas: Tainara", "muda a descrição pra X", "sem descrição".
+// undefined = não era isso.
+let cardRegistro = null;
+function tentarDescricaoDoCard(text) {
+  // Card "qual atividade é essa?" aberto: a descrição fica guardada pro próximo card
+  const card = cardRegistro?.vivo() ? cardRegistro
+    : (convState?.type === 'gate_atividade' && convState.vivo()) ? { setDesc: (d) => { ditado.descricao = d || null; } } : null;
+  if (!card) return undefined;
+  const bruto = String(text || '').trim();
+  const t = semAcento(bruto).toLowerCase();
+  if (/^(tira|apaga|remove|sem)\s+(a\s+)?d[ei]scri[cs]ao\b/.test(t)) {
+    card.setDesc('');
+    return 'Pronto, tirei a descrição.';
+  }
+  const m = bruto.match(/^(?:(?:muda|troca|coloca|bota|p[õo]e|corrige|altera)\s+)?(?:a\s+)?d[ei]scri[çcs][ãa]o\s*(?:(?:é|e|eh|ê|vai ser|fica|será|sera|pra|para|como|por)\s+)?(?:(?:apenas|s[óo]|somente)\s*)?[:\-–]?\s*(.+)$/i);
+  if (!m) return undefined;
+  const nova = m[1].trim().replace(/^["“'”]+|["“'”.]+$/g, '').trim();
+  if (!nova) return undefined;
+  card.setDesc(nova.charAt(0).toUpperCase() + nova.slice(1));
+  return `Pronto ✍️ Descrição: <b>${_esc(ditado.descricao)}</b>.${card === cardRegistro ? ' Agora é só tocar em <b>Registrar</b> 👆' : ''}`;
+}
+
 async function tentarGateAtividade(text) {
   const g = convState;
   if (g?.type !== 'gate_atividade') return undefined;
@@ -2350,6 +2395,20 @@ function _showMarcacao(curName, done, date = new Date(), time = '') {
   syncBell();
 
   const btn = div.querySelector('.pet-reg-btn');
+  // Card aberto: "a descrição é apenas X" troca a descrição aqui mesmo
+  cardRegistro = {
+    vivo: () => !btn.disabled && div.isConnected,
+    setDesc(nova) {
+      ditado.descricao = nova || null;
+      let el = div.querySelector('.pet-preview-desc');
+      if (!nova) { el?.remove(); return; }
+      if (!el) {
+        el = document.createElement('span'); el.className = 'pet-preview-desc';
+        div.querySelector('.pet-preview-title').after(el);
+      }
+      el.textContent = `(${nova})`;
+    },
+  };
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = t('pet.preview.registering');
@@ -3520,9 +3579,25 @@ function agendarFimDoDia(ctx) {
   }
 }
 
-function mostrarCheckin() {
-  const p = _fila.shift();
-  if (!p) return;
+// A fila é montada quando o app abre: até a pergunta aparecer, a nota pode ter
+// sido feita na tela (ou pelo Pet). Relê o dia antes de pedir de novo.
+async function _notaAindaFalta(p) {
+  if (p.tipo !== 'nota' && p.tipo !== 'nota_hoje') return true;
+  try {
+    const dia = await getDay(p.dados?.diaId);
+    const n = dia?.dayNote || {};
+    const temNota = !!(String(n.prideFail || '').trim() || String(n.improve || '').trim());
+    const temSono = !!dia?.sleepTime;
+    if (temNota) p.dados = { ...p.dados, semNota: false };
+    if (temSono) p.dados = { ...p.dados, semSono: false };
+    return !!(p.dados.semNota || p.dados.semSono);
+  } catch { return true; }
+}
+
+async function mostrarCheckin() {
+  let p = _fila.shift();
+  while (p && !(await _notaAindaFalta(p))) p = _fila.shift();
+  if (!p) { if (!chatAberto()) setBadge(_fila.length); return; }
   if (!p.repetida) {
     const st = lerCheckin();
     st.tipos = { ...(st.tipos || {}), [p.tipo]: { ...(st.tipos?.[p.tipo] || {}), perguntadoEm: Date.now() } };
