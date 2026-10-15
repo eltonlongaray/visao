@@ -5459,6 +5459,8 @@ function desafioCheckin(d, p, c) {
   }
   const falta = Math.max(0, meta - somei);
   if (!falta) return `Tu já bateu a meta de hoje no <b>${nome}</b> ✅ (${somei}/${meta}${_unDesafio(d)})`;
+  // Depoimento de reflexão: sem número, o vídeo fecha o dia (Leitura segue com páginas) (Élton, 15/10)
+  if (d.prova === 'depoimento' && d.unidade !== 'páginas') return _botaoProva(d, { quantidade: falta }, `🎙️ <b>${nome}</b> pede um depoimento em vídeo. Grava agora que eu marco hoje.`, c);
   let q = p.metaToda ? falta : PDF.naUnidade(p.qtd, d.unidade);
   // "fiz o desafio" num desafio de 1 por vez (exercícios, reflexão): soma 1
   const opcoes = Array.isArray(d.prova_opcoes) ? d.prova_opcoes : [];
