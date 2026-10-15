@@ -245,6 +245,30 @@ export function fraseDoApp(j) {
         .filter(i => /\bdia\s+\d{1,2}\b/i.test(i)).slice(0, 20);
       return itens.length ? `contas a pagar: ${itens.join(', ')}` : null;
     }
+    case 'atendimento': {
+      const cli = limpa(j.titulo), quando = limpa(j.quando), hora = limpa(j.hora);
+      const resto = [cli ? `de ${cli}` : '', quando, hora ? `às ${hora}` : ''].filter(Boolean).join(' ');
+      switch (j.campo) {
+        case 'cancelar': return `cancela o atendimento ${resto}`.trim();
+        case 'finalizar': return `finaliza o atendimento ${resto}`.trim();
+        case 'faltou': return `marca falta no atendimento ${resto}`.trim();
+        default: return `meus atendimentos ${quando}`.trim();
+      }
+    }
+    case 'rifa': {
+      const rifa = limpa(j.titulo) ? `rifa ${limpa(j.titulo)}` : 'rifa';
+      const nums = (String(j.texto || '').match(/\d{1,5}/g) || []).join(', ');
+      const quem = juntar(j.itens);
+      const alvo = nums ? `${nums.includes(',') ? 'os números' : 'o número'} ${nums}` : quem;
+      switch (j.campo) {
+        case 'quem': return nums ? `quem pegou o número ${nums} da ${rifa}` : null;
+        case 'pendentes': return `quem não pagou a ${rifa}`;
+        case 'pago': return alvo ? `marca ${alvo} como pago na ${rifa}` : null;
+        case 'nao_pago': return alvo ? `desmarca o pago ${nums ? 'd' + alvo.slice(1) : 'de ' + alvo} na ${rifa}` : null;
+        case 'liberar': return alvo ? `libera ${alvo} da ${rifa}` : null;
+        default: return `como tá minha ${rifa}`;
+      }
+    }
     case 'treino_frequencia':
       return j.numero >= 1 && j.numero <= 7 ? `treino ${j.numero} vezes por semana` : null;
     case 'consultar':

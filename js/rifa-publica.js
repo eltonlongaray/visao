@@ -284,6 +284,7 @@ export async function renderRifaPublica(app, slug) {
           <input id="rf-nome" placeholder="Nome completo" autocomplete="name"></label>
         <label class="input-field"><div class="input-field-label">Seu WhatsApp</div>
           <input id="rf-zap" inputmode="tel" placeholder="(DDD) 9 9999-9999" autocomplete="tel"></label>
+        <div class="rf-prazo">⏰ Depois de reservar, você tem <b>24h pra pagar</b>. Se não pagar, o número volta a ficar livre pra outra pessoa.</div>
         <button class="btn-primary" id="rf-confirmar" type="button">Reservar e pagar com Pix</button>
       </div>`;
   }
@@ -362,6 +363,7 @@ export async function renderRifaPublica(app, slug) {
         <div class="rf-pix-t">🎟️ Número${nums.length > 1 ? 's' : ''} ${nums.join(', ')} reservado${nums.length > 1 ? 's' : ''}!</div>
         ${rifa.data_sorteio ? `<div class="rf-pix-sorteio">📅 Sorteio: <b>${_dataBr(rifa.data_sorteio)}</b></div>` : ''}
         <div class="rf-pix-valor">Pague <b>R$ ${_preco(valor)}</b> no Pix</div>
+        ${dinamico ? '' : `<div class="rf-prazo">⏰ Pague em até <b>24h</b>. Depois disso o número volta a ficar livre e você precisa escolher de novo antes de pagar.</div>`}
         ${dinamico ? `<div class="rf-pix-status" id="rf-status">⏳ Aguardando o pagamento cair…</div>` : ''}
         ${!dinamico && codigo ? `<div class="rf-pix-doacao">💛 Na <b>descrição/mensagem</b> do Pix escreva: <b>Doação — ${_esc(rifa.titulo || 'rifa')}</b></div>` : ''}
         ${codigo ? `${qrImg ? `<div class="rf-qr"><img src="${qrImg}" alt="QR Code Pix" width="220" height="220" style="border-radius:12px;background:#fff;padding:8px"></div>` : '<div class="rf-qr" id="rf-qr"></div>'}

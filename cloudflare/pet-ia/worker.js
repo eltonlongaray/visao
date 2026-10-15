@@ -18,7 +18,7 @@ const ORIGENS = ['https://estilo-falcon.web.app', 'https://estilo-falcon.firebas
 const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado por schema
 const MAX_TEXTO = 400;
 
-const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
+const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'atendimento', 'rifa', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
 const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
@@ -56,6 +56,8 @@ const CAMPOS = {
   agua: ['somar', 'tirar', 'definir'],
   converter: ['compromisso', 'tarefa'],
   consultar_dia: ['passado'],
+  atendimento: ['ver', 'cancelar', 'finalizar', 'faltou'],
+  rifa: ['ver', 'quem', 'pendentes', 'pago', 'nao_pago', 'liberar'],
 };
 const _sem = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 // O dado aparece no que a pessoa escreveu? (compara o começo das palavras:
@@ -70,9 +72,9 @@ const _N = '(\\d{1,2}|uma|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|do
 const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+${_N}\\b|\\bdas\\s+${_N}\\b|\\bpras?\\s+\\d{1,2}\\b|\\bumas?\\s+\\d{1,2}\\b|meia[- ]noite|meio[- ]dia|\\b${_N}\\s+(da|de)\\s+(manha|tarde|noite|madrugada)`);
 // Que ações usam cada campo (no resto, o valor é invenção do modelo)
 const USA = {
-  hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar'],
+  hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar', 'atendimento'],
   numero: ['agua', 'sono', 'desempenho', 'ideal', 'desafio', 'treino_frequencia', 'notas_periodo'],
-  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar'],
+  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar', 'rifa'],
   lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar'],
   para: ['remarcar', 'cancelar', 'reativar'],
 };
@@ -100,6 +102,41 @@ function corrigirRota(out, texto) {
   if (['contas_pagar', 'cancelar', 'configurar', 'perguntar'].includes(out.acao) && /\b(tira|apag|exclu|remov)\w*/.test(t) && /\bconta (da|do|de)\b/.test(t)) {
     const nome = (t.match(/\bconta (?:da |do |de )?([a-z0-9 ]+?)(?:,|\.|$| que | porque | pois | cancel)/) || [])[1] || out.titulo || '';
     Object.assign(out, { acao: 'excluir', titulo: `conta a pagar ${nome.trim()}`, todas: true, itens: [] });
+  }
+  // Rifa e atendimento: a palavra decide
+  if (/\brifas?\b/.test(t) && out.acao !== 'rifa') {
+    out.acao = 'rifa';
+    out.campo = /\bquem\b.*\b(nao|ainda nao)\s+pag|\bpendente/.test(t) ? 'pendentes' : /\bquem\b/.test(t) ? 'quem'
+      : /\b(liber|desist|solt)\w*/.test(t) ? 'liberar' : /\b(desmarc|tir)\w*\b.*\bpago\b/.test(t) ? 'nao_pago' : /\bpag(ou|aram)\b|\brecebi\b/.test(t) ? 'pago' : 'ver';
+  }
+  if (/\b(atendimentos?|agendamentos?|clientes?)\b/.test(t) && ['cancelar', 'excluir', 'marcar_feito', 'consultar_dia', 'consultar', 'agendar'].includes(out.acao) && !/\bagend(a|ar|e)\b(?! online)/.test(t)) {
+    const era = out.acao;
+    out.acao = 'atendimento';
+    out.campo = /\b(falt|nao veio|nao apareceu)/.test(t) ? 'faltou' : /\b(finaliz|conclu|termin|atendi)/.test(t) ? 'finalizar'
+      : ['cancelar', 'excluir'].includes(era) ? 'cancelar' : 'ver';
+  }
+  if (out.acao === 'rifa') {
+    if (/\b(desmarc|tir)\w*\b.*\bpago\b/.test(t)) out.campo = 'nao_pago';
+    else if (/\bquem\b/.test(t) && !/\bpag/.test(t)) out.campo = 'quem';
+    // Números: só os ditos (o modelo copiava os do exemplo)
+    const n = t.replace(/\br\$?\s*\d+/g, ' ').match(/\b\d{1,5}\b/g);
+    out.texto = n ? n.join(', ') : '';
+    // Rifa citada pelo nome: "rifa da moto"
+    const m = texto.match(/\brifa (?:da |do |de )(.+?)(?:[?!.,]|$| com | e | pra )/i);
+    out.titulo = m ? m[1].trim() : '';
+  }
+  // Ver o perfil de treino é consulta (mudar fica no Preparo)
+  if (/\bperfil de treino\b/.test(t) && !/\b(muda|troca|coloca|bota|poe|altera)\w*/.test(t)) { out.acao = 'consultar'; out.consulta = 'perfil_treino'; out.campo = ''; }
+  // "comprei o arroz": marcar na lista, não adicionar
+  if (out.acao === 'lista_adicionar' && /\b(comprei|peguei|ja tenho|risca|achei)\b/.test(t)) out.acao = 'lista_marcar';
+  // Abrir tela: a tela dita na frase
+  if (out.acao === 'configurar' && out.campo === 'abrir_tela' && !out.texto) {
+    const m = t.match(/\b(home|ritual|desempenho|desafios?|preparo|chat|comunidade|ajustes|configuracoes)\b/);
+    if (m) out.texto = { desafio: 'desafios', comunidade: 'chat', configuracoes: 'ajustes' }[m[1]] || m[1];
+  }
+  if (out.acao === 'lista_organizar' && out.campo === 'renomear') {
+    const m = texto.match(/\blista (?:de |do |da )?(.+?) (?:pra|para) (.+?)[.!?]*$/i);
+    if (m) { out.lista = m[1].trim(); out.texto = m[2].trim(); }
   }
   // Mexer na lista em si (nome, grupo, limpar)
   if (lista && out.acao !== 'lista_organizar' && !['lista_adicionar', 'lista_marcar'].includes(out.acao) || /\bgrupo de listas\b/.test(t)) {
@@ -151,6 +188,7 @@ function corrigirRota(out, texto) {
     }
   }
   // Código de convite: pega da frase (letras e números juntos)
+  if (out.acao === 'desafio' && /\bcodigo\b/.test(t) && /\b(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{5,10}\b/.test(t)) { out.campo = 'codigo'; if (!/\d/.test(out.texto || '')) out.texto = ''; }
   if (out.acao === 'desafio' && out.campo === 'codigo' && !out.texto) {
     const m = texto.match(/\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{5,10}\b/);
     if (m) out.texto = m[0].toUpperCase();
@@ -187,6 +225,22 @@ function corrigirRota(out, texto) {
     const m = texto.match(/\bdesafio (?:da |do |de )(.+?)(?:[?!.,]|$| com | e )/i);
     out.titulo = m ? m[1].trim() : '';
   }
+  // "ontem eu corri, esqueci de marcar": é marcar, não pedir ajuda pra lembrar
+  if (out.acao === 'ajuda_lembrar' && /\b(corri|fiz|treinei|li|meditei|fui|bebi|estudei)\b/.test(t) && /\besqueci de marcar\b/.test(t)) out.acao = 'marcar_feito';
+  // "preciso ir no mercado sábado": compromisso, mesmo quando o modelo pergunta
+  if (out.acao === 'perguntar') {
+    const m = t.match(/\b(?:ir|vou|tenho que ir|preciso ir)\s+(?:no|na|ao|pro|pra)\s+([a-z]{3,})/);
+    if (m && /\b(hoje|amanha|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/.test(t)) {
+      out.acao = 'agendar'; out.titulo = m[1][0].toUpperCase() + m[1].slice(1);
+    }
+  }
+  if (out.acao === 'configurar' && out.campo === 'tema') { const m = t.match(/\b(claro|escuro|dark|light)\b/); if (m) out.texto = m[1]; }
+  if (out.acao === 'desafio' && out.campo === 'sugerir_prenda' && !out.texto) { const m = texto.match(/\bprenda[:\s]+(.+)$/i); if (m) out.texto = m[1].trim(); }
+  // Nome de gente dito com maiúscula ("a Bianca faltou", "a Carol desistiu")
+  const nomes = (texto.match(/\b[A-ZÁÉÍÓÚÂÊÔÃÕ][a-záéíóúâêôãõç]{2,}\b/g) || []).filter(n => !/^(Rifa|Pet|Falcon|Agenda|Online|Atendimento|Cliente|Hoje|Amanhã|Ontem)$/.test(n));
+  if (out.acao === 'atendimento' && nomes.length && (!out.titulo || !_citado(out.titulo, t) || /atendiment|cliente/i.test(out.titulo))) out.titulo = nomes[0];
+  if (out.acao === 'atendimento' && out.titulo && (/atendiment|cliente|hoje|amanh/i.test(out.titulo) || !_citado(out.titulo, t))) out.titulo = '';
+  if (out.acao === 'rifa' && !(out.itens || []).length && nomes.length) out.itens = nomes;
   // "na verdade não fiz": tira a marcação
   if (out.acao === 'marcar_feito' && /\b(nao fiz|nao consegui fazer|marquei errado|desmarca)\b/.test(t)) out.acao = 'desmarcar_feito';
 }
@@ -205,6 +259,12 @@ export function limparResposta(out, conteudo, texto = conteudo) {
   if (out.hora && (!/^\d{1,2}:\d{2}$/.test(out.hora) || !HORA_FALADA.test(falado))) out.hora = '';
   if (out.numero && !NUM_FALADO.test(falado)) out.numero = 0;
   if (out.numero < 0) out.numero = -out.numero;
+  // "dia 10" respondendo "em que dia vence a conta de luz?"
+  if (out.acao === 'perguntar' && /\bconta\b/.test(falado) && /\bdia\s+\d{1,2}\b/.test(_sem(texto))) {
+    const m = falado.match(/\bconta (?:da |do |de )([a-z0-9 ]+?)(?:\n|$|\?|,| que | vence)/);
+    out.acao = 'contas_pagar';
+    out.itens = [m ? m[1].trim() : (out.titulo || '').replace(/^conta (de |da |do )?/i, '')].filter(Boolean);
+  }
   if (Array.isArray(out.itens)) {
     // Item igual ao título é cópia, não item dito (a não ser no Ideal/desafio, onde o item É o assunto)
     const tit = _sem(out.titulo).trim();
@@ -241,6 +301,9 @@ export function limparResposta(out, conteudo, texto = conteudo) {
     const m2 = tDia.match(/\b(essa|esta|nessa|nesta) (semana|mes)\b/);
     if (m2) out.quando = `${m2[1]} ${m2[2]}`.replace('mes', 'mês');
   }
+  // Dia escrito errado pelo modelo ("amanhça"): fica o dia dito na frase
+  { const d = tDia.match(/\b(hoje|amanha|ontem|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b/);
+    if (d && out.quando && !falado.includes(_sem(out.quando).trim()) && !/semana|mes|dias/.test(_sem(out.quando))) out.quando = { amanha: 'amanhã', terca: 'terça', sabado: 'sábado' }[d[1]] || d[1]; }
   // Hora dita que o modelo esqueceu ("umas 9", "às 7 da noite", "19h30")
   if (!out.hora && ['agendar', 'remarcar'].includes(out.acao)) {
     const m = tDia.match(/\b(?:as|umas?|pras?|das)\s+(\d{1,2})(?:(?::|h)(\d{2}))?\b/) || tDia.match(/\b(\d{1,2})(?::|h)(\d{2})?\b/);
@@ -250,6 +313,7 @@ export function limparResposta(out, conteudo, texto = conteudo) {
       out.hora = `${String(h).padStart(2, '0')}:${m[2] || '00'}`;
     }
   }
+  if (out.acao === 'desempenho' && out.campo === 'reflexao_anotar' && !out.texto) { const m = texto.match(/\bque\s+(.+)$/i); if (m) out.texto = m[1].trim(); }
   // Nota: o que vem depois do "que" é o texto
   if (out.acao === 'nota' && !out.texto) { const m = texto.match(/\bque\s+(.+)$/i); if (m) out.texto = m[1].trim(); }
   // Contas: "internet dia 8 e o celular dia 20" (o modelo às vezes pega só a primeira)
@@ -308,6 +372,8 @@ desafio = Desafios do app (só quando fala em desafio, código de convite, prend
 ajuda_lembrar = esquece de marcar, de abrir o app ou de manter a constância e pede ajuda.
 contas_pagar = cadastrar contas do mês. itens = uma por posição "Nome - dia NN". Sem o dia do vencimento → "perguntar". Nunca copia contas dos exemplos.
 treino_frequencia = quantas vezes por semana vai treinar agora. numero.
+atendimento = Agenda Online do dono (clientes que agendaram pelo link). campo = "ver" (próximos atendimentos) | "cancelar" | "finalizar" (atendeu) | "faltou" (cliente não veio); titulo = nome do cliente; quando; hora. Só quando fala em atendimento, cliente, agendamento ou que um cliente faltou/não veio.
+rifa = rifas que a pessoa criou. campo = "ver" (quanto arrecadou, quantos números vendeu) | "quem" (quem pegou o número) | "pendentes" (quem não pagou) | "pago" (fulano pagou) | "nao_pago" (tirar o pago) | "liberar" (desistiu, liberar o número); titulo = a rifa citada; texto = os números ditos ("15" ou "3, 8, 21"); itens = nomes das pessoas.
 perguntar = é do app mas falta o essencial (o que agendar, o dia da conta). resposta = UMA pergunta curta. Não pergunta o que tem padrão (lista "mercado", "hoje").
 nao_sei_fazer = é do app mas nenhuma ação faz isso: mudar idioma, mexer em notificações, mudar a meta de água, excluir a conta do app, sair. Não inventa caminho.
 conversa = fora do app (política, receita, futebol, notícias, código, dever de casa, conselho médico, piada, perguntas sobre ti). Tudo que fala da rotina, agenda, trabalho, treino, sono, água, hábitos ou listas da pessoa É do app.
@@ -446,6 +512,18 @@ Mensagem nova: dia 22
 {"acao":"contas_pagar","itens":["Gás - dia 22"],"resposta":"Fechado, gás todo dia 22 💸"}
 Pessoa: vou conseguir treinar só umas 3 vezes por semana agora
 {"acao":"treino_frequencia","numero":3,"resposta":"Ajusto teu plano pra 3 treinos por semana."}
+Pessoa: quem eu atendo na quinta?
+{"acao":"atendimento","campo":"ver","quando":"quinta","resposta":"Vou ver teus atendimentos de quinta."}
+Pessoa: o Roberto das 10h não apareceu
+{"acao":"atendimento","campo":"faltou","titulo":"Roberto","hora":"10:00","resposta":"Marco a falta do Roberto."}
+Pessoa: já terminei com a Clara, pode dar baixa
+{"acao":"atendimento","campo":"finalizar","titulo":"Clara","resposta":"Finalizo o atendimento da Clara."}
+Pessoa: o Tiago pagou os números 40 e 41
+{"acao":"rifa","campo":"pago","texto":"40, 41","itens":["Tiago"],"resposta":"Marco o 40 e o 41 como pagos."}
+Pessoa: quanto já entrou na rifa da bicicleta?
+{"acao":"rifa","campo":"ver","titulo":"bicicleta","resposta":"Vou ver a rifa da bicicleta."}
+Pessoa: a Paula não quer mais o 9
+{"acao":"rifa","campo":"liberar","texto":"9","itens":["Paula"],"resposta":"Libero o número 9."}
 Pessoa: troca o idioma pra espanhol
 {"acao":"nao_sei_fazer","resposta":"Isso eu ainda não sei fazer."}
 Pessoa: para de me mandar notificação

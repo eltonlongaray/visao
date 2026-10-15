@@ -154,5 +154,17 @@
   {"f": "o que eu anotei de falha no mês passado?", "e": {"acao": "notas_periodo", "campo": "falhas", "quando": "mês passado"}},
   {"f": "o aluguel vence dia 5 todo mês", "e": {"acao": "contas_pagar", "itens": ["aluguel - dia 5"]}},
   {"f": "treino 4 vezes por semana", "e": {"acao": "treino_frequencia", "numero": 4}},
-  {"f": "qual meu próximo compromisso?", "e": {"acao": "consultar", "consulta": "proximo_compromisso"}}
+  {"f": "qual meu próximo compromisso?", "e": {"acao": "consultar", "consulta": "proximo_compromisso"}},
+  {"f": "quais são meus próximos atendimentos?", "e": {"acao": "atendimento", "campo": "ver"}},
+  {"f": "quem eu atendo amanhã na agenda online?", "e": {"acao": "atendimento", "campo": "ver", "quando": "amanhã"}},
+  {"f": "cancela o atendimento da Fernanda de sexta", "e": {"acao": "atendimento", "campo": "cancelar", "titulo": "fernanda", "quando": "sexta"}},
+  {"f": "o cliente das 11h não veio", "e": {"acao": "atendimento", "campo": "faltou", "hora": "11:00"}},
+  {"f": "a Bianca faltou no atendimento de hoje", "e": {"acao": "atendimento", "campo": "faltou", "titulo": "bianca"}},
+  {"f": "finaliza o atendimento do Márcio", "e": {"acao": "atendimento", "campo": "finalizar", "titulo": "márcio"}},
+  {"f": "quanto já arrecadei na rifa?", "e": {"acao": "rifa", "campo": "ver"}},
+  {"f": "o Lucas pagou o número 33 da rifa", "e": {"acao": "rifa", "campo": "pago", "texto": "33", "itens": ["lucas"]}},
+  {"f": "quem ainda não pagou a rifa do celular?", "e": {"acao": "rifa", "campo": "pendentes", "titulo": "celular"}},
+  {"f": "quem ficou com o número 18 da rifa?", "e": {"acao": "rifa", "campo": "quem", "texto": "18"}},
+  {"f": "a Carol desistiu, libera o 5 da rifa", "e": {"acao": "rifa", "campo": "liberar", "texto": "5", "itens": ["carol"]}},
+  {"f": "tira o pago do número 12 da rifa, foi engano", "e": {"acao": "rifa", "campo": "nao_pago", "texto": "12"}}
 ]

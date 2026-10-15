@@ -29,9 +29,12 @@ const MAX_SEG_DEPOIMENTO = 300;   // 5 min (pedido do Élton)
 // O que aparece na tela é exatamente o que vai no vídeo.
 const REC_W = 540, REC_H = 960;
 
+// MP4 (H.264) primeiro: o iPhone não toca WebM, e o Chrome do Android já
+// grava MP4. WebM só no celular que não grava MP4.
 function _mimeVideo() {
   if (typeof MediaRecorder === 'undefined') return null;
-  const op = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+  const op = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a', 'video/mp4',
+              'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
   return op.find(m => MediaRecorder.isTypeSupported?.(m)) || '';
 }
 
