@@ -148,7 +148,7 @@ export const REGRAS_FIXAS = [
   'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 7 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
   'Prenda é leve e do bem, nunca constrangedora. Quem não concluir grava a prenda em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
   'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
-  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo. Quem sai com motivo não paga a prenda. Quem passar 3 dias seguidos sem mandar prova sai automaticamente e paga a prenda. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
+  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo, sem pagar a prenda. Quem passar 3 dias seguidos sem mandar prova continua no grupo, mas fica devendo a prenda. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
 ];
 
 // Aviso que quem é desafiado precisa ver ANTES de entrar (Élton, 13/10)
@@ -162,6 +162,8 @@ export function devePrenda(d, meus, joinedAt, hoje = _hojeBR()) {
   if (!d?.prenda) return null;
   const seg = semanaSemCorrida(d, meus, joinedAt, hoje);
   if (seg) return `a semana fechou sem a corrida (${textoSemanaPerdida(seg)})`;
+  const sumiu = sumiuTresDias(d, meus, joinedAt, hoje);
+  if (sumiu) return `tu ficou 3 dias seguidos sem mandar prova (${dataCurta(sumiu).slice(4)} a ${dataCurta(somarDias(sumiu, 2)).slice(4)})`;
   const fim = String(d.data_fim || '').slice(0, 10);
   if (!fim || hoje <= fim) return null;
   let ini = String(d.data_inicio || d.created_at || '').slice(0, 10);
@@ -178,6 +180,37 @@ export function devePrenda(d, meus, joinedAt, hoje = _hojeBR()) {
     if (!ok) faltou++;
   }
   return faltou ? `o desafio acabou e ${faltou === 1 ? 'faltou 1 dia' : `faltaram ${faltou} dias`}` : null;
+}
+
+// Sumiu: 3 dias seguidos sem prova nenhuma (desafio em grupo), já contando
+// até ontem. A pessoa continua no grupo, mas fica devendo a prenda na hora
+// (Élton, 15/10). Devolve o 1º dia da sequência ou null.
+export function sumiuTresDias(d, meus, joinedAt, hoje = _hojeBR()) {
+  if (!d || d.modalidade === 'individual') return null;
+  let ini = String(d.data_inicio || d.created_at || '').slice(0, 10);
+  const entrou = joinedAt ? new Date(joinedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
+  if (entrou > ini) ini = entrou;
+  const fim = fimDoDesafio(d);
+  const ate = fim && fim < diaAnterior(hoje) ? fim : diaAnterior(hoje);
+  if (!ini || ini > ate) return null;
+  const dias = new Set((meus || []).map(c => c.dia));
+  let seq = 0;
+  for (let dia = ini; dia <= ate; dia = somarDias(dia, 1)) {
+    seq = dias.has(dia) ? 0 : seq + 1;
+    if (seq === 3) return somarDias(dia, -2);
+  }
+  return null;
+}
+// Quantos dias seguidos, até ontem, sem prova nenhuma (pro aviso do 2º dia)
+export function diasSemProva(d, meus, joinedAt, hoje = _hojeBR()) {
+  if (!d || d.modalidade === 'individual') return 0;
+  let ini = String(d.data_inicio || d.created_at || '').slice(0, 10);
+  const entrou = joinedAt ? new Date(joinedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
+  if (entrou > ini) ini = entrou;
+  const dias = new Set((meus || []).map(c => c.dia));
+  let n = 0;
+  for (let dia = diaAnterior(hoje); ini && dia >= ini && !dias.has(dia) && n < 3; dia = diaAnterior(dia)) n++;
+  return n;
 }
 
 // O que o desafio pede como prova, em palavras
@@ -291,25 +324,14 @@ export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeB
     }
     const pagou = (prendas || []).some(x => x.desafio_id === d.id && x.user_id === p.user_id);
     const perdeuCorrida = !!semanaSemCorrida(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, somarDias(ate, 1));
-    const deve = (!saiu || !!p.saida?.automatica) && !!d.prenda && hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida) && !pagou;
+    const sumiu = saiu ? null : sumiuTresDias(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, hoje);
+    const deve = !saiu && !!d.prenda && !pagou && (!!sumiu || (hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida)));
     return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, maiorSeq, limpos, perdeuCorrida, deve, pagou,
-             desistiu: saiu || null, motivo: p.saida?.motivo || '', automatica: !!p.saida?.automatica };
+             desistiu: saiu || null, motivo: p.saida?.motivo || '', sumiu };
   }).sort((a, b) => (!!a.desistiu - !!b.desistiu) || (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
   const concluiram = gente.filter(g => !g.desistiu && g.total && !g.faltas.length && !g.perdeuCorrida).length;
   return { ini: iniDes, fim, total: fim && iniDes ? Math.round((new Date(fim + 'T12:00:00') - new Date(iniDes + 'T12:00:00')) / 864e5) + 1 : 0,
            gente, concluiram, todosConcluiram: gente.length > 0 && concluiram === gente.length };
-}
-// Quantos dias seguidos, até ontem, a pessoa está sem mandar prova nenhuma
-// (só conta depois de o desafio começar e de ela entrar). 3 = sai sozinha.
-export function diasSemProva(d, meusChecks, joinedAt, hoje = _hojeBR()) {
-  if (!d || d.modalidade === 'individual') return 0;
-  const iniDes = String(d.data_inicio || d.created_at || '').slice(0, 10);
-  const entrou = joinedAt ? new Date(joinedAt).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
-  const ini = entrou > iniDes ? entrou : iniDes;
-  const dias = new Set((meusChecks || []).map(c => c.dia));
-  let n = 0;
-  for (let dia = diaAnterior(hoje); ini && dia >= ini && !dias.has(dia) && n < 3; dia = diaAnterior(dia)) n++;
-  return n;
 }
 // A turma (o mesmo grupo em várias rodadas): id da primeira rodada
 export const turmaDe = (d) => d?.turma_id || d?.id;

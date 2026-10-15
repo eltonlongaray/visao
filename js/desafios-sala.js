@@ -10,11 +10,11 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, tirarSumidos, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta } from './desafios-moldes.js';
+         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -29,7 +29,6 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // ═══════════════════════════════════════════════════════════════
 // { d, parts, checks } só desse desafio. null = não achou (saiu, apagado).
 export async function carregarSala(id) {
-  await tirarSumidos();
   const [ds, ps, cs] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins()]);
   const d = ds.find(x => x.id === id);
   if (!d) return null;
@@ -132,8 +131,7 @@ const _dm = (iso) => dataCurta(iso).slice(4);   // "12/10"
 export function linhaDoRelatorio(d, g, uid) {
   if (g.desistiu) {
     return `<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: 🚪 desistiu em ${_dm(g.desistiu)}${g.motivo ? `. Motivo: ${_esc(g.motivo)}` : ''}`
-      + (g.total ? ` · tinha cumprido ${g.cumpridos} de ${g.total} dias` : '')
-      + (d.prenda && g.pagou ? ' · 🎭 prenda paga' : g.deve ? ' · 🎭 deve a prenda' : '');
+      + (g.total ? ` · tinha cumprido ${g.cumpridos} de ${g.total} dias` : '');
   }
   const tudo = g.total && !g.faltas.length && !g.perdeuCorrida;
   const partes = [`<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: ${g.cumpridos} de ${g.total} dias${tudo ? ' ✅' : ''}`];
@@ -141,6 +139,7 @@ export function linhaDoRelatorio(d, g, uid) {
   if (d.tipo === 'largar') partes.push(`🌱 dias limpos: ${g.limpos}`);
   if (g.faltas.length) partes.push(`faltou ${g.faltas.slice(0, 6).map(_dm).join(', ')}${g.faltas.length > 6 ? ` e mais ${g.faltas.length - 6}` : ''}`);
   if (g.perdeuCorrida) partes.push('🏃 ficou sem a corrida da semana');
+  if (g.sumiu) partes.push(`👻 sumiu 3 dias (${_dm(g.sumiu)} a ${_dm(somarDias(g.sumiu, 2))})`);
   if (d.prenda && g.pagou) partes.push('🎭 prenda paga');
   else if (g.deve) partes.push('🎭 deve a prenda');
   return partes.join(' · ');

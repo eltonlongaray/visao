@@ -192,20 +192,10 @@ export async function leaveDesafio(desafioId, motivo) {
   }
   throw new Error(error.message || 'Erro ao sair');
 }
-// Quem passou 3 dias sem mandar prova sai sozinho (Élton, 15/10). Roda no banco;
-// banco sem a função: segue sem tirar ninguém.
-let _faxinaSumidos = 0;
-export async function tirarSumidos() {
-  if (Date.now() - _faxinaSumidos < 5 * 60e3) return;
-  _faxinaSumidos = Date.now();
-  try { await supabase.rpc('desafio_tirar_sumidos'); } catch { /* segue */ }
-}
 // Quem desistiu (com o motivo): pro relatório
 export async function fetchSaidas() {
-  const { data, error } = await supabase.from('desafio_saidas').select('desafio_id, user_id, nome, motivo, saiu_em, automatica');
-  if (!error) return data || [];
-  const r = await supabase.from('desafio_saidas').select('desafio_id, user_id, nome, motivo, saiu_em');
-  return r.error ? [] : (r.data || []);
+  const { data, error } = await supabase.from('desafio_saidas').select('desafio_id, user_id, nome, motivo, saiu_em');
+  return error ? [] : (data || []);
 }
 // extra = { exercicio, videoPath, printPath } — as regras do desafio (prova,
 // limite por dia, não repetir) são conferidas no banco e voltam como erro.
