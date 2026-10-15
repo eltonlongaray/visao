@@ -10,7 +10,7 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, tirarSumidos, entrarPorCodigo } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
@@ -29,6 +29,7 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // ═══════════════════════════════════════════════════════════════
 // { d, parts, checks } só desse desafio. null = não achou (saiu, apagado).
 export async function carregarSala(id) {
+  await tirarSumidos();
   const [ds, ps, cs] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins()]);
   const d = ds.find(x => x.id === id);
   if (!d) return null;
@@ -131,7 +132,8 @@ const _dm = (iso) => dataCurta(iso).slice(4);   // "12/10"
 export function linhaDoRelatorio(d, g, uid) {
   if (g.desistiu) {
     return `<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: 🚪 desistiu em ${_dm(g.desistiu)}${g.motivo ? `. Motivo: ${_esc(g.motivo)}` : ''}`
-      + (g.total ? ` · tinha cumprido ${g.cumpridos} de ${g.total} dias` : '');
+      + (g.total ? ` · tinha cumprido ${g.cumpridos} de ${g.total} dias` : '')
+      + (d.prenda && g.pagou ? ' · 🎭 prenda paga' : g.deve ? ' · 🎭 deve a prenda' : '');
   }
   const tudo = g.total && !g.faltas.length && !g.perdeuCorrida;
   const partes = [`<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: ${g.cumpridos} de ${g.total} dias${tudo ? ' ✅' : ''}`];
@@ -200,7 +202,7 @@ export function pedirMotivoSaida(d) {
     ov.innerHTML = `<div class="modal sala-modal">
       <div class="modal-title">🚪 Sair do desafio?</div>
       <div class="modal-hint">${_esc(d?.titulo || '')}</div>
-      <div class="ds-prova-dica">${grupo ? 'Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.' : 'O motivo fica no teu relatório.'}</div>
+      <div class="ds-prova-dica">${grupo ? `Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d?.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.'}</div>
       <div class="ds-regras-tit" style="margin-top:12px">Por que tu está saindo?</div>
       <div class="ds-ini-chips ds-saida-chips">${MOTIVOS_SAIDA.map(m => `<button class="ds-ini-chip" data-motivo="${_esc(m)}">${_esc(m)}</button>`).join('')}</div>
       <textarea class="ds-saida-txt" maxlength="300" rows="3" placeholder="Escreve o motivo"></textarea>

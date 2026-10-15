@@ -5064,11 +5064,14 @@ function _redesenharDesafios() {
 
 async function _carregarDesafios() {
   const [D, M, A] = await Promise.all([import('./desafios.js'), import('./desafios-moldes.js'), import('./autenticacao.js')]);
-  const [desafios, parts, checks] = await Promise.all([D.fetchDesafios(), D.fetchParticipantes(), D.fetchCheckins()]);
+  await D.tirarSumidos?.();
+  const [desafios, parts, checks, saidas] = await Promise.all([D.fetchDesafios(), D.fetchParticipantes(), D.fetchCheckins(), D.fetchSaidas?.() || []]);
   const uid = A.auth.currentUser?.uid;
   const email = A.auth.currentUser?.email || '';
   const sou = (d) => parts.some(x => x.desafio_id === d.id && x.user_id === uid);
-  return { D, M, uid, email, desafios, parts, checks, sou };
+  // Sumiu 3 dias (saída automática): fica fora do grupo, mas paga a prenda depois do fim
+  const sumi = (d) => (saidas || []).some(x => x.desafio_id === d.id && x.user_id === uid && x.automatica);
+  return { D, M, uid, email, desafios, parts, checks, saidas, sou, sumi };
 }
 
 // Mesmo nome que a tela usa ao entrar (aparece no ranking dos participantes)
@@ -5148,12 +5151,12 @@ async function tentarDesafios(text) {
       return '🎭 Abri o <b>Mural das Prendas</b>: quem não concluiu o desafio paga ali, e cada vídeo fica 7 dias.';
     }
     case 'prenda': {
-      const comPrenda = meus.filter(d => d.prenda);
+      const comPrenda = c.desafios.filter(d => d.prenda && (c.sou(d) || c.sumi(d)));
       // Sem citar o desafio: só os que a pessoa deve (e ainda não pagou)
       if (!citou && comPrenda.length) {
         const pagas = await c.D.fetchPrendas();
         const devo = comPrenda.filter(d => !pagas.some(x => x.desafio_id === d.id && x.user_id === c.uid)
-          && c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at));
+          && (c.sumi(d) ? c.M.encerrado(d) : c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at)));
         if (!devo.length) return 'Tu não deve prenda em nenhum desafio agora 🦅 Prenda é só pra quem não concluir.';
         if (devo.length === 1) return desafioPrenda(devo[0], c);
         addChoices('Tu deve prenda em mais de um. Qual vai pagar agora?', devo.slice(0, 6).map(d => ({ label: `${c.M.emojiDoTipo(d.tipo)} ${d.titulo}`, action: () => desafioPrenda(d, c) })));
@@ -5339,7 +5342,9 @@ function desafiosVisao(meus, fora, c) {
     const dias = `${rk[eu]?.done || 0}${d.dias_total ? '/' + d.dias_total : ''} dias`;
     const pos = d.modalidade !== 'individual' && rk.length > 1 ? ` · ${_medalha(eu)} de ${rk.length}` : '';
     if (c.M.encerrado(d)) return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>🏁 encerrado · ${dias}${pos} · <em>"relatório do desafio ${_esc(d.titulo)}"</em></small>`;
-    return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${hojeTxt} · ${dias}${pos}</small>`;
+    const sem = somei > 0 ? 0 : c.M.diasSemProva(d, ck.filter(x => x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at, hoje);
+    const aviso = sem === 2 ? '<br><small>⚠️ 2 dias sem prova: se hoje passar em branco, tu sai do desafio automaticamente.</small>' : '';
+    return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${hojeTxt} · ${dias}${pos}</small>${aviso}`;
   });
   const abertos = fora.filter(d => d.modalidade === 'oficial');
   let out = meus.length ? `🏆 <b>Teus desafios</b><br>${linhas.join('<br>')}` : 'Tu ainda não está em nenhum desafio.';
@@ -5455,7 +5460,10 @@ async function desafioPrenda(d, c) {
   const PP = await import('./desafios-prendas.js');
   const paga = PP.minhaPrenda(await c.D.fetchPrendas(), d.id, c.uid);
   if (paga) return `✅ Tu já pagou a prenda do <b>${_esc(d.titulo)}</b>.${new Date(paga.expira_em) > new Date() ? ` Ela fica no Mural das Prendas até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.` : ''}`;
-  const motivo = c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at);
+  const sumi = c.sumi?.(d);
+  if (sumi && !c.M.encerrado(d)) return `Tu sumiu 3 dias sem mandar prova no <b>${_esc(d.titulo)}</b> e saiu do desafio. A prenda (<b>${_esc(d.prenda)}</b>) tu paga quando o desafio acabar.`;
+  const motivo = sumi ? 'tu sumiu 3 dias sem mandar prova'
+    : c.M.devePrenda(d, c.checks.filter(x => x.desafio_id === d.id && x.user_id === c.uid), c.parts.find(x => x.desafio_id === d.id && x.user_id === c.uid)?.joined_at);
   if (!motivo) return `Tu não deve prenda no <b>${_esc(d.titulo)}</b> 🦅 Ela só vale pra quem não concluir: <b>${_esc(d.prenda)}</b>.`;
   convState = null;
   addChoices(`🎭 No <b>${_esc(d.titulo)}</b>, ${_esc(motivo)}. A prenda é: <b>${_esc(d.prenda)}</b>.<br><small>📢 Grava ao vivo e ela vai pro Mural das Prendas: todo mundo vê por 7 dias, sem download.</small>`, [
@@ -5483,7 +5491,7 @@ async function desafioCodigo(codigo, c) {
 // imprevisto = sai do desafio, perde o grupo até o fim e volta na próxima rodada.
 function desafioSair(d, c, p = {}) {
   const grupo = d.modalidade !== 'individual';
-  const regra = grupo ? 'Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.' : 'O motivo fica no teu relatório.';
+  const regra = grupo ? `Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.';
   const intro = p.justificar ? 'No Falcon não tem dia justificado: ficou doente ou teve um imprevisto, quem não vai cumprir sai do desafio.<br>' : '';
   const nome = `<strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>`;
   if (!p.motivo) {

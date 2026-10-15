@@ -8,12 +8,12 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas,
+  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas, tirarSumidos,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrenda,
-         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
+         depoimentoConta, MIN_PAGINAS, ehAgua, diasSemProva, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio, pedirMotivoSaida } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -61,6 +61,7 @@ export async function renderDesafios(app, embedded = false) {
   async function refresh() {
     let desafios = [], parts = [], checks = [], placar = {};
     try {
+      await tirarSumidos();
       [desafios, parts, checks, placar, prendas, saidas] = await Promise.all([
         fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(), fetchPrendas(), fetchSaidas(),
       ]);
@@ -91,13 +92,15 @@ export async function renderDesafios(app, embedded = false) {
 
     // Prenda: quem não concluiu grava; quem já pagou vê até quando fica no mural
     const prendaDoCard = (d, joined, dChecks, dParts) => {
-      if (!joined || !d.prenda) return '';
+      const sumi = saidas.find(x => x.desafio_id === d.id && x.user_id === myUid && x.automatica);
+      if (!(joined || sumi) || !d.prenda) return '';
       const paga = minhaPrenda(prendas, d.id, myUid);
       if (paga) {
         const noAr = new Date(paga.expira_em).getTime() > Date.now();
         return `<div class="ds-prenda-paga">✅ Prenda paga${noAr ? ` · no mural até ${new Date(paga.expira_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}</div>`;
       }
-      const motivo = devePrenda(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today);
+      const motivo = sumi ? (encerrado(d, today) ? 'tu sumiu 3 dias sem mandar prova' : null)
+        : devePrenda(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today);
       if (!motivo) return '';
       return `<div class="ds-prenda-deve">🎭 ${_esc(motivo[0].toUpperCase() + motivo.slice(1))}: hora de pagar a prenda (<b>${_esc(d.prenda)}</b>). Ela vai pro Mural das Prendas por 7 dias.</div>
               <button class="ds-inc ds-prenda-btn" data-prenda="${d.id}" style="width:100%">🎥 Gravar a prenda</button>`;
@@ -159,6 +162,10 @@ export async function renderDesafios(app, embedded = false) {
               ${pend ? `<button class="ds-inc ds-print" data-print="${d.id}" style="width:100%">${pend.rotulo}</button>
                         <div class="ds-prova-dica">${pend.dica}</div>` : ''}` : '';
 
+          // 2 dias sem prova e hoje ainda nada: avisa que no 3º sai sozinho (Élton, 15/10)
+          const semProva = joined && !acabou && !dChecks.some(c => c.user_id === myUid && c.dia === today)
+            ? diasSemProva(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at, today) : 0;
+          const sumindo = semProva === 2 ? `<div class="ds-perdeu">⚠️ Tu está há 2 dias sem mandar prova. Se hoje passar em branco, tu sai do desafio automaticamente.</div>` : '';
           let acao = '';
           if (acabou) {
             // Encerrado: o resumo do grupo + relatório + nova rodada (Élton, 15/10)
@@ -326,6 +333,7 @@ export async function renderDesafios(app, embedded = false) {
               <div class="ds-card-desc">${_esc(d.descricao).replace(/\n/g, '<br>')}</div>
               ${prendaHtml}
               ${codigoHtml}
+              ${sumindo}
               <div class="ds-card-acao">${acao}</div>
               ${prendaDoCard(d, joined, dChecks, dParts)}
               ${regrasHtml}
