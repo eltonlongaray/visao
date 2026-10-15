@@ -176,10 +176,26 @@ export async function joinDesafio(desafioId, nome) {
   const { error } = await supabase.from('desafio_participantes').insert({ desafio_id: desafioId, nome: nome || null });
   if (error) throw new Error(error.message || 'Erro ao entrar');
 }
-export async function leaveDesafio(desafioId) {
-  const uid = auth.currentUser?.uid;
-  const { error } = await supabase.from('desafio_participantes').delete().eq('desafio_id', desafioId).eq('user_id', uid);
-  if (error) throw new Error(error.message || 'Erro ao sair');
+// Sair só com motivo (Élton, 15/10): o motivo vai pra sala e pro relatório,
+// e quem sai não volta nessa rodada (banco: sair_do_desafio).
+export async function leaveDesafio(desafioId, motivo) {
+  const m = String(motivo || '').trim();
+  if (m.length < 3) throw new Error('Escreve o motivo pra sair do desafio.');
+  const { error } = await supabase.rpc('sair_do_desafio', { p_desafio: desafioId, p_motivo: m });
+  if (!error) return;
+  // Banco ainda sem a função: sai do jeito antigo
+  if (/sair_do_desafio|PGRST202|function/i.test(error.message || '') && !/motivo|não está/i.test(error.message || '')) {
+    const uid = auth.currentUser?.uid;
+    const r = await supabase.from('desafio_participantes').delete().eq('desafio_id', desafioId).eq('user_id', uid);
+    if (r.error) throw new Error(r.error.message || 'Erro ao sair');
+    return;
+  }
+  throw new Error(error.message || 'Erro ao sair');
+}
+// Quem desistiu (com o motivo): pro relatório
+export async function fetchSaidas() {
+  const { data, error } = await supabase.from('desafio_saidas').select('desafio_id, user_id, nome, motivo, saiu_em');
+  return error ? [] : (data || []);
 }
 // extra = { exercicio, videoPath, printPath } — as regras do desafio (prova,
 // limite por dia, não repetir) são conferidas no banco e voltam como erro.

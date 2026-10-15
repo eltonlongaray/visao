@@ -210,7 +210,7 @@ export function fraseDoApp(j) {
         }
         case 'entrar': return `entra ${no}`;
         case 'codigo': return texto ? `entra no desafio com o código ${texto}` : null;
-        case 'sair': return `sai do ${desafio}`;
+        case 'sair': return `sai do ${desafio}${texto ? ` porque ${texto}` : ''}`;
         case 'regras': return `quais as regras do ${desafio}`;
         case 'corrida_ajuda': return 'como registro a corrida?';
         case 'print': return 'manda o print da corrida';

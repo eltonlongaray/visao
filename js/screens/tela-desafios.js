@@ -8,14 +8,14 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas,
+  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrenda,
          depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
-import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio } from '../desafios-sala.js';
+import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio, pedirMotivoSaida } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
 import { abrirSugestoes, sugestoesTop } from '../prendas-sugestoes.js';
 import { getProfile } from '../banco-dados.js';
@@ -61,8 +61,8 @@ export async function renderDesafios(app, embedded = false) {
   async function refresh() {
     let desafios = [], parts = [], checks = [], placar = {};
     try {
-      [desafios, parts, checks, placar, prendas] = await Promise.all([
-        fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(), fetchPrendas(),
+      [desafios, parts, checks, placar, prendas, saidas] = await Promise.all([
+        fetchDesafios(), fetchParticipantes(), fetchCheckins(), fetchPlacar(), fetchPrendas(), fetchSaidas(),
       ]);
     } catch (e) {
       app.innerHTML = `${_wrapO}<div class="ds-empty">${_esc(e.message)}</div>${_wrapC}${_nav()}`;
@@ -76,6 +76,7 @@ export async function renderDesafios(app, embedded = false) {
   }
   let _faxinou = false;
   let prendas = [];   // mural das prendas (desafios-prendas.js)
+  let saidas = [];    // quem desistiu, com o motivo (relatório)
   let lastParts = [];
   let lastChecks = [];
 
@@ -161,7 +162,7 @@ export async function renderDesafios(app, embedded = false) {
           let acao = '';
           if (acabou) {
             // Encerrado: o resumo do grupo + relatório + nova rodada (Élton, 15/10)
-            const rel = relatorioDoDesafio(d, dParts, dChecks, prendas);
+            const rel = relatorioDoDesafio(d, dParts, dChecks, prendas, undefined, saidas);
             const eu = rel.gente.find(g => g.user_id === myUid);
             const ate = salaAte(d);
             const resumo = solo || rel.gente.length < 2
@@ -341,7 +342,8 @@ export async function renderDesafios(app, embedded = false) {
     const hojeG = _today();
     const ativos = desafios.filter(d => !encerrado(d, hojeG));
     const meusEncerrados = desafios.filter(d => encerrado(d, hojeG)
-      && (d.author_id === myUid || parts.some(p => p.desafio_id === d.id && p.user_id === myUid)));
+      && (d.author_id === myUid || parts.some(p => p.desafio_id === d.id && p.user_id === myUid)
+          || saidas.some(x => x.desafio_id === d.id && x.user_id === myUid)));
     const grupos = [
       { titulo: '🏆 Oficiais',    lista: ativos.filter(d => d.modalidade === 'oficial') },
       { titulo: '👥 Com amigos',  lista: ativos.filter(d => d.modalidade === 'amigos') },
@@ -395,9 +397,10 @@ export async function renderDesafios(app, embedded = false) {
       catch (e) { showToast(e.message || 'Erro', 'error'); b.disabled = false; }
     });
     app.querySelectorAll('[data-leave]').forEach(b => b.onclick = async () => {
-      const ok = await confirmModal({ title: 'Sair do desafio?', message: 'Seu progresso de check-ins é mantido, mas você sai do ranking ativo.', confirmText: 'Sair', cancelText: 'Ficar' });
-      if (!ok) return;
-      try { await leaveDesafio(b.dataset.leave); await refresh(); }
+      const d = desafios.find(x => x.id === b.dataset.leave);
+      const motivo = await pedirMotivoSaida(d);
+      if (!motivo) return;
+      try { await leaveDesafio(b.dataset.leave, motivo); showToast('🚪 Tu saiu do desafio', 'info'); await refresh(); }
       catch (e) { showToast(e.message || 'Erro', 'error'); }
     });
     // Check-in: com prova (vídeo ao vivo) quando o desafio pede
@@ -442,7 +445,7 @@ export async function renderDesafios(app, embedded = false) {
     // Desafio encerrado: relatório (todos do grupo veem) e nova rodada (dono)
     app.querySelectorAll('[data-relatorio]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.relatorio);
-      if (d) abrirRelatorio(d, { parts: lastParts, checks: lastChecks, prendas, desafios }, myUid);
+      if (d) abrirRelatorio(d, { parts: lastParts, checks: lastChecks, prendas, desafios, saidas }, myUid);
     });
     app.querySelectorAll('[data-rodada]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.rodada);

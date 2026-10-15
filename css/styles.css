@@ -2574,6 +2574,8 @@ body.time-picker-open { overflow: hidden; }
 .ds-rel-resumo.neutro { color: var(--text); background: rgba(148,163,184,0.12); }
 .ds-rel-linha { font-size: 13px; line-height: 1.45; color: var(--text); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); margin-top: 6px; }
 .ds-rel-linha.me { background: rgba(167,139,250,0.12); }
+.ds-saida-chips { margin: 6px 0 8px; flex-wrap: wrap; }
+.ds-saida-txt { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card, transparent); color: var(--text); font: inherit; font-size: 14px; resize: vertical; margin-bottom: 4px; }
 .ds-rank { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
 .ds-rank-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
 .ds-rank-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 8px; border-radius: 8px; color: var(--text); }

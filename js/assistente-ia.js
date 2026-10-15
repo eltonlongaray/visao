@@ -5175,7 +5175,7 @@ async function tentarDesafios(text) {
         'Não achei esse desafio aberto 🤔 Se foi um amigo que criou, pede o código e me fala: <em>"entra com o código ABC123"</em>.');
     }
     case 'sair':
-      return escolher(meus, (d) => desafioSair(d, c),
+      return escolher(meus, (d) => desafioSair(d, c, p),
         'Tu não está em nenhum desafio agora.', 'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
     case 'relatorio': {
       // Sem citar: os encerrados primeiro (é pra isso que o relatório existe)
@@ -5392,8 +5392,8 @@ async function desafioRanking(d, c) {
 
 // ── Desafio encerrado: relatório e nova rodada (Élton, 15/10) ──
 async function desafioRelatorio(d, c) {
-  const [S, prendas] = await Promise.all([import('./desafios-sala.js'), c.D.fetchPrendas().catch(() => [])]);
-  const rel = c.M.relatorioDoDesafio(d, c.parts.filter(x => x.desafio_id === d.id), c.checks.filter(x => x.desafio_id === d.id), prendas);
+  const [S, prendas, saidas] = await Promise.all([import('./desafios-sala.js'), c.D.fetchPrendas().catch(() => []), c.D.fetchSaidas().catch(() => [])]);
+  const rel = c.M.relatorioDoDesafio(d, c.parts.filter(x => x.desafio_id === d.id), c.checks.filter(x => x.desafio_id === d.id), prendas, undefined, saidas);
   const resumo = S.resumoDoRelatorio(d, rel);
   const fim = c.M.encerrado(d);
   const dica = fim && d.modalidade === 'amigos' && d.author_id === c.uid
@@ -5479,11 +5479,25 @@ async function desafioCodigo(codigo, c) {
   return null;
 }
 
-function desafioSair(d, c) {
-  cardConfirmarLista(`🚪 Sair do desafio <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>?<br><small>Teus check-ins ficam guardados, mas tu sai do ranking.</small>`, async () => {
-    await c.D.leaveDesafio(d.id);
+// Sair só com motivo (Élton, 15/10). Não tem dia justificado: doente ou
+// imprevisto = sai do desafio, perde o grupo até o fim e volta na próxima rodada.
+function desafioSair(d, c, p = {}) {
+  const grupo = d.modalidade !== 'individual';
+  const regra = grupo ? 'Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.' : 'O motivo fica no teu relatório.';
+  const intro = p.justificar ? 'No Falcon não tem dia justificado: ficou doente ou teve um imprevisto, quem não vai cumprir sai do desafio.<br>' : '';
+  const nome = `<strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>`;
+  if (!p.motivo) {
+    import('./desafios-sala.js').then(S => S.pedirMotivoSaida(d)).then(async (motivo) => {
+      if (!motivo) return;
+      try { await c.D.leaveDesafio(d.id, motivo); _redesenharDesafios(); showCenterToast('🚪 Tu saiu do desafio'); }
+      catch (e) { showCenterToast(e.message || 'Erro ao sair'); }
+    });
+    return `${intro}Pra sair do ${nome} tu precisa dizer o motivo. Abri aqui pra tu escrever.`;
+  }
+  cardConfirmarLista(`${intro}🚪 Sair do desafio ${nome}?<br>Motivo: <b>${_esc(p.motivo)}</b><br><small>${regra}</small>`, async () => {
+    await c.D.leaveDesafio(d.id, p.motivo);
     _redesenharDesafios();
-    return 'Pronto, tu saiu do desafio.';
+    return 'Pronto, tu saiu do desafio. Bora na próxima rodada 🦅';
   }, null);
   return null;
 }
