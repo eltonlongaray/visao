@@ -85,17 +85,51 @@ function _normalizar(d) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: PARTICIPANTES (quem pegou cada número)
 // ═══════════════════════════════════════════════════════════════
+// Prazo pra pagar: quem não paga em 24h perde o número (sql/rifa-prazo-24h.sql).
+// O banco libera os vencidos e guarda quem perdeu em rifa_expirados.
+export const PRAZO_PAGAR_H = 24;
+export function prazoPagar(p) {
+  if (!p || p.pago) return null;
+  const t = Date.parse(p.reservado_em || p.created_at || '');
+  return isNaN(t) ? null : new Date(t + PRAZO_PAGAR_H * 3600e3);
+}
+
 export async function getParticipantes(rifaId) {
-  const { data, error } = await supabase.from('rifa_numeros')
-    .select('id, numero, nome, contato, pago, created_at')
+  try { await supabase.rpc('rifa_liberar_vencidos', { p_rifa: rifaId }); } catch {}
+  let { data, error } = await supabase.from('rifa_numeros')
+    .select('id, numero, nome, contato, pago, created_at, reservado_em')
     .eq('rifa_id', rifaId).order('numero', { ascending: true });
+  if (error) {   // SQL do prazo ainda não rodado: lista sem o prazo
+    ({ data, error } = await supabase.from('rifa_numeros')
+      .select('id, numero, nome, contato, pago, created_at')
+      .eq('rifa_id', rifaId).order('numero', { ascending: true }));
+  }
   if (error) throw new Error(error.message);
   return data || [];
 }
 
+// Quem perdeu o número por não pagar no prazo (mais recentes primeiro)
+export async function getExpirados(rifaId) {
+  try {
+    const { data, error } = await supabase.from('rifa_expirados')
+      .select('id, numero, nome, contato, expirou_em')
+      .eq('rifa_id', rifaId).order('expirou_em', { ascending: false }).limit(100);
+    return error ? [] : (data || []);
+  } catch { return []; }
+}
+
+// Tira da lista "Perderam o número" (o dono já avisou a pessoa)
+export async function apagarExpirado(id) {
+  const { error } = await supabase.from('rifa_expirados').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 // Marca/desmarca um número como PAGO (o criador confirma quem pagou).
+// Desmarcar ("foi engano") dá 24h de novo pra pessoa pagar.
 export async function marcarPago(id, pago) {
-  const { error } = await supabase.from('rifa_numeros').update({ pago: !!pago }).eq('id', id);
+  const dados = pago ? { pago: true } : { pago: false, reservado_em: new Date().toISOString() };
+  let { error } = await supabase.from('rifa_numeros').update(dados).eq('id', id);
+  if (error && !pago) ({ error } = await supabase.from('rifa_numeros').update({ pago: false }).eq('id', id));
   if (error) throw new Error(error.message);
 }
 

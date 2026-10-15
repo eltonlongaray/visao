@@ -24,7 +24,7 @@ const COMUNS = new Set(('atendimento atendimentos agendamento agendamentos clien
   'veio apareceu compareceu marca marcar como pago pagou pagaram paga libera liberar desistiu solta quem qual quais quanto quantos ' +
   'mostra meus minhas proximo proximos proxima tenho hoje amanha ontem segunda terca quarta quinta sexta sabado domingo depois ' +
   'das dos para pra com que uma tem ver nao sim ainda hora horas manha tarde noite todos todas falta favor pode esse essa este esta ' +
-  'arrecadei arrecadou arrecadacao vendi vendeu vendidos pegou pegaram semana exclui apaga minha minhas meu meus atendo atende atender').split(' '));
+  'perdeu perderam perdido expirou expiraram expirado vencido venceu prazo arrecadei arrecadou arrecadacao vendi vendeu vendidos pegou pegaram semana exclui apaga minha minhas meu meus atendo atende atender').split(' '));
 export function palavrasNome(texto) {
   return norm(texto).split(' ').filter(p => p.length >= 3 && !COMUNS.has(p) && !/^\d/.test(p));
 }
@@ -86,7 +86,8 @@ export function numerosDaFrase(texto) {
   return [...new Set((base.match(/\b\d{1,5}\b/g) || []).map(Number))];
 }
 
-// { tipo:'rifa', acao:'ver'|'quem'|'pendentes'|'pago'|'nao_pago'|'liberar', numeros, palavras } ou null
+// { tipo:'rifa', acao:'ver'|'quem'|'pendentes'|'expirados'|'pago'|'nao_pago'|'liberar', numeros, palavras } ou null
+// 'expirados' = quem perdeu o número por não pagar em 24h
 export function lerRifa(texto) {
   const t = norm(texto);
   const temRifa = /\brifas?\b/.test(t);
@@ -94,7 +95,8 @@ export function lerRifa(texto) {
   if (!temRifa && !temNumero) return null;
   const numeros = numerosDaFrase(texto);
   let acao = null;
-  if (/\bquem\b.*\b(nao|ainda nao)\s+pag/.test(t) || /\b(pendentes?|falta pagar|nao pagaram|devendo)\b/.test(t)) acao = 'pendentes';
+  if (/\b(perd\w*|expir\w*|venc\w*|prazo)\b/.test(t)) acao = 'expirados';
+  else if (/\bquem\b.*\b(nao|ainda nao)\s+pag/.test(t) || /\b(pendentes?|falta pagar|nao pagaram|devendo)\b/.test(t)) acao = 'pendentes';
   else if (/\bquem\b.*\b(pegou|comprou|tem|ficou|escolheu)\b/.test(t)) acao = 'quem';
   else if (/\b(liber\w*|desist\w*|solt\w*|remov\w*|tir\w* (o|os) numero|apag\w*)\b/.test(t)) acao = 'liberar';
   else if (/\b(desmarc\w*|tir\w*)\b.*\bpago\b|\bnao pagou\b|\bnao e pago\b/.test(t)) acao = 'nao_pago';

@@ -53,7 +53,7 @@ import * as PCF from './pet-config.js?v=20261009g';
 import * as PDS from './pet-desempenho.js?v=20261009a';
 import * as PI from './pet-ideal.js?v=20261009f';
 import * as PDF from './pet-desafios.js?v=20261012e';
-import * as PNG from './pet-negocio.js?v=20261014a';
+import * as PNG from './pet-negocio.js?v=20261015a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
@@ -5802,6 +5802,13 @@ async function rifaAcao(RF, rifa, parts, p) {
   const valor = Number(rifa.valor_numero) || 0;
   const pagos = parts.filter(x => x.pago), naoPagos = parts.filter(x => !x.pago);
   const quem = (x) => `<b>${x.numero}</b> ${_esc(x.nome || 'sem nome')}${x.pago ? ' ✅' : ''}`;
+  // Prazo de 24h pra pagar: quanto falta e quem já perdeu o número
+  const falta = (x) => {
+    const fim = RF.prazoPagar(x); if (!fim) return '';
+    const min = Math.round((fim.getTime() - Date.now()) / 60000);
+    return min <= 0 ? ' <small>(prazo acabou)</small>' : ` <small>(faltam ${min < 60 ? `${min} min` : `${Math.floor(min / 60)}h`})</small>`;
+  };
+  const exp = ['ver', 'quem', 'expirados'].includes(p.acao) ? await RF.getExpirados(rifa.id) : [];
 
   if (p.acao === 'ver') {
     const linhas = [
@@ -5813,17 +5820,25 @@ async function rifaAcao(RF, rifa, parts, p) {
       linhas.push(`Arrecadado: <b>${_reais(pagos.length * valor)}</b>${naoPagos.length ? ` · a receber: ${_reais(naoPagos.length * valor)}` : ''}`);
       if (rifa.valor_meta) linhas.push(`Meta: ${_reais(rifa.valor_meta)} (${Math.round((pagos.length * valor / rifa.valor_meta) * 100)}%)`);
     }
+    if (exp.length) linhas.push(`⌛ Perderam o número por não pagar em ${RF.PRAZO_PAGAR_H}h: <b>${exp.length}</b>`);
     return linhas.join('<br>');
   }
   if (p.acao === 'pendentes') {
     if (!naoPagos.length) return `🎟️ Em ${nome} todo mundo já pagou ✅`;
-    return `🎟️ <b>Falta pagar</b> em ${nome}:<br>${naoPagos.slice(0, 30).map(quem).join('<br>')}${naoPagos.length > 30 ? `<br><small>…e mais ${naoPagos.length - 30}.</small>` : ''}`;
+    return `🎟️ <b>Falta pagar</b> em ${nome}:<br>${naoPagos.slice(0, 30).map(x => quem(x) + falta(x)).join('<br>')}${naoPagos.length > 30 ? `<br><small>…e mais ${naoPagos.length - 30}.</small>` : ''}`;
+  }
+  if (p.acao === 'expirados') {
+    if (!exp.length) return `🎟️ Em ${nome} ninguém perdeu o número por falta de pagamento.`;
+    return `⌛ <b>Perderam o número</b> em ${nome} (não pagaram em ${RF.PRAZO_PAGAR_H}h):<br>${exp.slice(0, 30).map(quem).join('<br>')}<br><small>Se a pessoa aparecer pra pagar, ela escolhe o número de novo no link. O aviso pronto pro WhatsApp está na tela da rifa.</small>`;
   }
   const alvo = PNG.acharParticipantes(parts, p);
   if (p.acao === 'quem') {
     if (!p.numeros.length) return 'Qual número? Ex.: <em>"quem pegou o número 15?"</em>';
     const livres = p.numeros.filter(n => !alvo.some(x => Number(x.numero) === n));
-    return [...alvo.map(quem), ...livres.map(n => `<b>${n}</b> <em>livre</em>`)].join('<br>');
+    const perdeu = (n) => exp.find(e => Number(e.numero) === n);
+    return [...alvo.map(x => quem(x) + falta(x)), ...livres.map(n => perdeu(n)
+      ? `<b>${n}</b> <em>livre</em> <small>(era de ${_esc(perdeu(n).nome || 'alguém')}, que não pagou em ${RF.PRAZO_PAGAR_H}h)</small>`
+      : `<b>${n}</b> <em>livre</em>`)].join('<br>');
   }
   if (!alvo.length) {
     if (p.numeros.length) return `Ninguém pegou o número ${p.numeros.join(', ')} em ${nome}.`;

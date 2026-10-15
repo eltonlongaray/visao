@@ -7,6 +7,7 @@
 import {
   getMinhasRifas, criarRifa, atualizarRifa, excluirRifa,
   getParticipantes, marcarPago, removerParticipante, sortearPremio, definirStatusSorteio,
+  getExpirados, apagarExpirado, prazoPagar, PRAZO_PAGAR_H,
   getMpConta, iniciarConexaoMp, desconectarMp,
 } from './rifas.js';
 import { showToast, confirmModal } from './aviso-tela.js';
@@ -18,7 +19,7 @@ const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 // Menu de 3 pontinhos (kebab) do card da rifa
 const SVG_KEBAB = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
 
-let _rifas = [], _sel = null, _parts = [], _premios = [], _close = null, _mpConta = null;
+let _rifas = [], _sel = null, _parts = [], _exp = [], _premios = [], _close = null, _mpConta = null;
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
@@ -46,7 +47,7 @@ const _linkDe = slug => `${location.origin}/rifa/${slug}`;
 // BLOCO 1: ABRIR + LISTA
 // ═══════════════════════════════════════════════════════════════
 export async function abrirRifas() {
-  _sel = null; _parts = []; _premios = [];
+  _sel = null; _parts = []; _exp = []; _premios = [];
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'rifas-ov';
   ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo rf-corpo"><div class="ag-load">Carregando…</div></div></div>`;
@@ -144,8 +145,11 @@ async function _excluirRifa(rifa) {
 async function abrirEditor(rifa) {
   _sel = rifa ? { ...rifa } : _novaRifaVazia();
   _premios = Array.isArray(_sel.premios) ? _sel.premios.slice() : [];
-  _parts = [];
-  if (rifa?.id) { try { _parts = await getParticipantes(rifa.id); } catch {} }
+  _parts = []; _exp = [];
+  if (rifa?.id) {
+    try { _parts = await getParticipantes(rifa.id); } catch {}
+    _exp = await getExpirados(rifa.id);
+  }
   desenharEditor();
 }
 
@@ -294,11 +298,41 @@ function _participantesHtml() {
         return `<div class="rf-part ${p.pago ? 'pago' : ''}" data-pid="${_esc(p.id)}">
           <button class="rf-part-check" data-toggle="${_esc(p.id)}" type="button" title="${p.pago ? 'Pago' : 'Marcar como pago'}">${p.pago ? '✅' : '⬜'}</button>
           <span class="rf-part-num">${p.numero}</span>
-          <div class="rf-part-info"><b>${_esc(p.nome || '—')}</b>${p.contato ? `<small>${_esc(p.contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}</div>
+          <div class="rf-part-info"><b>${_esc(p.nome || '—')}</b>${p.contato ? `<small>${_esc(p.contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}${_prazoHtml(p)}</div>
           ${wa ? `<a class="rf-part-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG}</a>` : ''}
           <button class="rf-part-x" data-rm-part="${_esc(p.id)}" type="button" aria-label="Remover">🗑</button>
         </div>`;
       }).join('') : '<div class="ag-vazio">Ninguém escolheu número ainda. Compartilhe o link!</div>'}
+    </div>
+    ${_expiradosHtml()}`;
+}
+
+// "⏳ faltam 5h pra pagar" no número ainda não pago
+function _prazoHtml(p) {
+  const fim = prazoPagar(p); if (!fim) return '';
+  const min = Math.round((fim.getTime() - Date.now()) / 60000);
+  if (min <= 0) return '<small class="rf-part-prazo fim">⌛ Prazo acabou: o número vai voltar a ficar livre</small>';
+  const falta = min < 60 ? `${min} min` : `${Math.floor(min / 60)}h`;
+  return `<small class="rf-part-prazo${min < 180 ? ' perto' : ''}">⏳ Faltam ${falta} pra pagar</small>`;
+}
+
+// Quem perdeu o número (não pagou em 24h): o dono avisa pra escolher outro
+function _expiradosHtml() {
+  if (!_exp.length) return '';
+  const link = _sel.slug ? _linkDe(_sel.slug) : '';
+  return `
+    <div class="rf-sec-lbl">⌛ Perderam o número <span class="ag-lbl-opt">— não pagaram em ${PRAZO_PAGAR_H}h, o número voltou a ficar livre</span></div>
+    <div class="rf-parts">
+      ${_exp.map(e => {
+        const msg = `Oi ${e.nome || ''}! O prazo de ${PRAZO_PAGAR_H}h pra pagar o número ${e.numero} da ${_sel.titulo || 'rifa'} acabou e ele voltou a ficar livre. Se ainda quiser participar, escolhe o número de novo antes de pagar (pode ser o mesmo, se ainda estiver livre): ${link}`;
+        const wa = _waLink(e.contato, msg);
+        return `<div class="rf-part expirado">
+          <span class="rf-part-num">${e.numero}</span>
+          <div class="rf-part-info"><b>${_esc(e.nome || '—')}</b>${e.contato ? `<small>${_esc(e.contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}</div>
+          ${wa ? `<a class="rf-part-wa" href="${wa}" target="_blank" rel="noopener" title="Avisar no WhatsApp">${WA_SVG}</a>` : ''}
+          <button class="rf-part-x" data-rm-exp="${_esc(e.id)}" type="button" aria-label="Tirar da lista">✕</button>
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
@@ -388,6 +422,10 @@ function wireEditor(corpo) {
     const p = _parts.find(x => x.id === b.dataset.rmPart); if (!p) return;
     if (!confirm(`Remover o número ${p.numero} (${p.nome})?`)) return;
     try { await removerParticipante(p.id); _parts = _parts.filter(x => x.id !== p.id); _refreshParts(); showToast('Número liberado', 'info'); }
+    catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  });
+  corpo.querySelectorAll('[data-rm-exp]').forEach(b => b.onclick = async () => {
+    try { await apagarExpirado(b.dataset.rmExp); _exp = _exp.filter(x => x.id !== b.dataset.rmExp); _refreshParts(); }
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   });
   // Sorteio — prêmio por prêmio
@@ -550,6 +588,7 @@ async function salvar() {
       _sel = { ...nova };
       _premios = Array.isArray(nova.premios) ? nova.premios.slice() : [];
       try { _parts = await getParticipantes(nova.id); } catch { _parts = []; }
+      _exp = [];
       showToast('✅ Rifa criada! Copie o link e compartilhe. 🎟️', 'success');
       desenharEditor();
     }
