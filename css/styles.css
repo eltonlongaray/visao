@@ -2563,6 +2563,17 @@ body.time-picker-open { overflow: hidden; }
   color: #34d399; background: rgba(52,211,153,0.12);
   border-radius: 12px; padding: 12px;
 }
+/* Desafio encerrado: resumo no card + relatório (Élton, 15/10) */
+.ds-encerrado {
+  font-size: 14px; color: var(--text); line-height: 1.45;
+  background: rgba(148,163,184,0.10); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; margin-bottom: 10px;
+}
+.ds-encerrado .ds-prova-dica { margin-top: 6px; }
+.ds-rel-resumo { font-weight: 700; font-size: 14px; color: #34d399; background: rgba(52,211,153,0.12); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.ds-rel-resumo.neutro { color: var(--text); background: rgba(148,163,184,0.12); }
+.ds-rel-linha { font-size: 13px; line-height: 1.45; color: var(--text); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); margin-top: 6px; }
+.ds-rel-linha.me { background: rgba(167,139,250,0.12); }
 .ds-rank { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
 .ds-rank-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
 .ds-rank-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 8px; border-radius: 8px; color: var(--text); }

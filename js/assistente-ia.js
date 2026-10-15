@@ -5077,6 +5077,15 @@ async function _meuNomeDesafio(email) {
   return (p?.preferredName || p?.fullName || (email || '').split('@')[0] || 'Falcão').trim();
 }
 
+// Rodadas do mesmo desafio têm o mesmo nome: entre iguais, fica a mais nova
+function _rodadaMaisNova(lista) {
+  const chave = (d) => `${PDF.norm(d.titulo)}|${d.tipo || ''}`;
+  const quando = (d) => String(d.data_inicio || d.created_at || '') + String(d.rodada || 0).padStart(4, '0');
+  const melhor = new Map();
+  for (const d of lista) { const k = chave(d); if (!melhor.has(k) || quando(d) > quando(melhor.get(k))) melhor.set(k, d); }
+  return lista.filter(d => melhor.get(chave(d)) === d);
+}
+
 async function tentarDesafios(text) {
   const p = PDF.lerDesafio(PR.semPedido(text));
   if (!p) return undefined;
@@ -5107,6 +5116,7 @@ async function tentarDesafios(text) {
   // Escolhe o desafio citado na lista; se não citou e só tem um, é ele
   const escolher = (lista, fazer, vazio, naoAchei) => {
     if (!lista.length) return vazio;
+    lista = _rodadaMaisNova(lista);   // rodadas antigas aparecem no relatório da nova
     let achados = PDF.acharDesafio(lista, text);
     if (!achados.length && !citou && lista.length === 1) achados = lista;
     if (!achados.length && citou) return naoAchei;
@@ -5167,8 +5177,23 @@ async function tentarDesafios(text) {
     case 'sair':
       return escolher(meus, (d) => desafioSair(d, c),
         'Tu não está em nenhum desafio agora.', 'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
-    case 'checkin':
-      return escolher(meus, (d) => desafioCheckin(d, p, c),
+    case 'relatorio': {
+      // Sem citar: os encerrados primeiro (é pra isso que o relatório existe)
+      const enc = meus.filter(d => c.M.encerrado(d));
+      return escolher(citou || !enc.length ? meus : enc, (d) => desafioRelatorio(d, c),
+        'Tu ainda não está em nenhum desafio, então não tem relatório pra mostrar.',
+        'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
+    }
+    case 'nova_rodada':
+      return escolher(meus.filter(d => c.M.encerrado(d) && d.modalidade === 'amigos' && d.author_id === c.uid), (d) => desafioNovaRodada(d, p, c),
+        'Nova rodada é pra desafio com amigos que já acabou e que tu criou, e não achei nenhum assim agora 🤔',
+        'Não achei esse desafio entre os encerrados que tu criou 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
+    case 'checkin': {
+      const acabou = citou ? _rodadaMaisNova(PDF.acharDesafio(meus, text)) : [];
+      if (acabou.length === 1 && c.M.encerrado(acabou[0])) return `🏁 O desafio <b>${_esc(acabou[0].titulo)}</b> acabou em ${c.M.dataCurta(c.M.fimDoDesafio(acabou[0]))}, não entra mais prova. Fala <em>"relatório do desafio"</em> que eu te mostro como foi.`;
+      if (meus.length && meus.every(d => c.M.encerrado(d))) return '🏁 Teus desafios já acabaram, não entra mais prova. Fala <em>"relatório do desafio"</em> que eu te mostro como foi.';
+    }
+      return escolher(meus.filter(d => !c.M.encerrado(d)), (d) => desafioCheckin(d, p, c),
         'Tu ainda não está em nenhum desafio. Fala <em>"quais desafios tem?"</em> que eu te mostro os abertos.',
         'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
     case 'ranking': {
@@ -5313,6 +5338,7 @@ function desafiosVisao(meus, fora, c) {
       : (somei > 0 ? 'hoje ✅' : 'hoje ainda não');
     const dias = `${rk[eu]?.done || 0}${d.dias_total ? '/' + d.dias_total : ''} dias`;
     const pos = d.modalidade !== 'individual' && rk.length > 1 ? ` · ${_medalha(eu)} de ${rk.length}` : '';
+    if (c.M.encerrado(d)) return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>🏁 encerrado · ${dias}${pos} · <em>"relatório do desafio ${_esc(d.titulo)}"</em></small>`;
     return `${c.M.emojiDoTipo(d.tipo)} <b>${_esc(d.titulo)}</b><br><small>${hojeTxt} · ${dias}${pos}</small>`;
   });
   const abertos = fora.filter(d => d.modalidade === 'oficial');
@@ -5331,6 +5357,7 @@ function desafioDetalhe(d, c) {
       [{ label: '🙋 Entrar', action: () => desafioEntrar(d, c) }, { label: 'Agora não', action: () => 'Beleza 👍' }]);
     return null;
   }
+  if (c.M.encerrado(d)) return desafioRelatorio(d, c);
   const hoje = _diaDesafio();
   const ck = c.checks.filter(x => x.desafio_id === d.id);
   const rk = PDF.ranking(d, c.parts.filter(x => x.desafio_id === d.id), ck);
@@ -5361,6 +5388,43 @@ async function desafioRanking(d, c) {
   const top = rk.slice(0, 8).map((r, i) => `${_medalha(i)} ${_esc(r.nome)}${r.user_id === c.uid ? ' <b>(tu)</b>' : ''} · ${r.done} ${r.done === 1 ? 'dia' : 'dias'}`);
   if (eu >= 8) top.push(`…<br>${eu + 1}º <b>tu</b> · ${rk[eu].done} dias`);
   return `🏅 <b>Ranking · ${_esc(d.titulo)}</b><br>${top.join('<br>')}`;
+}
+
+// ── Desafio encerrado: relatório e nova rodada (Élton, 15/10) ──
+async function desafioRelatorio(d, c) {
+  const [S, prendas] = await Promise.all([import('./desafios-sala.js'), c.D.fetchPrendas().catch(() => [])]);
+  const rel = c.M.relatorioDoDesafio(d, c.parts.filter(x => x.desafio_id === d.id), c.checks.filter(x => x.desafio_id === d.id), prendas);
+  const resumo = S.resumoDoRelatorio(d, rel);
+  const fim = c.M.encerrado(d);
+  const dica = fim && d.modalidade === 'amigos' && d.author_id === c.uid
+    ? '<br><small>Quer outra rodada com o mesmo grupo? Fala <em>"nova rodada desse desafio"</em>.</small>' : '';
+  return `📊 <b>Relatório · ${_esc(d.titulo)}</b>${c.M.rodadaDe(d) > 1 ? ` (rodada ${c.M.rodadaDe(d)})` : ''}<br>`
+    + `<small>${S.periodoDoRelatorio(rel)}${fim ? '' : ' · ainda rolando, conta até ontem'}</small>`
+    + (resumo ? `<br>${resumo}` : '')
+    + `<br>${rel.gente.map(g => S.linhaDoRelatorio(d, g, c.uid)).join('<br>')}${dica}`;
+}
+
+async function desafioNovaRodada(d, p, c) {
+  const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const dow = new Date(hoje + 'T12:00:00').getDay();
+  const ini = p.quando === 'hoje' ? hoje : p.quando === 'segunda' ? c.M.somarDias(hoje, ((8 - dow) % 7) || 7) : c.M.somarDias(hoje, 1);
+  const dados = c.M.dadosDaNovaRodada(d, ini);
+  const outros = c.parts.filter(x => x.desafio_id === d.id && x.user_id !== c.uid);
+  const n = c.M.rodadaDe(d) + 1;
+  cardConfirmarLista(`🔁 Começar a <b>rodada ${n}</b> do <strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong> com as mesmas regras?`
+    + `<br><small>Começa ${c.M.dataCurta(ini)}${dados.dataFim ? ` · termina ${c.M.dataCurta(dados.dataFim)}` : ''}.`
+    + `${outros.length ? ` Convite no privado pra: ${outros.map(x => _esc(x.nome || 'Falcão')).join(', ')}.` : ''}</small>`, async () => {
+    const id = await c.D.createDesafio(dados);
+    try { await c.D.joinDesafio(id, await _meuNomeDesafio(c.email)); } catch { /* segue */ }
+    let foram = 0;
+    if (outros.length) {
+      const S = await import('./desafios-sala.js');
+      try { foram = await S.convidarNoApp({ id, titulo: dados.titulo, codigo: dados.codigo, rodada: n, data_inicio: ini }, outros.map(x => x.user_id)); } catch { /* segue com o código */ }
+    }
+    _redesenharDesafios();
+    return `🔁 Rodada ${n} criada 🦅${foram ? ` Mandei o convite pra ${foram} ${foram === 1 ? 'pessoa' : 'pessoas'} no privado.` : ''} Código: <b>${_esc(dados.codigo)}</b>.`;
+  }, null);
+  return null;
 }
 
 async function desafioEntrar(d, c) {

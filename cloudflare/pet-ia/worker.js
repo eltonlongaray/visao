@@ -47,7 +47,7 @@ const SCHEMA = {
 const CAMPOS = {
   configurar: ['acordar_padrao', 'dormir_padrao', 'tema', 'abrir_tela', 'atividades_listar', 'atividade_criar', 'atividade_renomear', 'atividade_icone', 'atividade_cor', 'atividade_excluir'],
   desempenho: ['geral', 'atividade', 'recorde', 'sono', 'reflexao_ver', 'reflexao_anotar', 'objetivos_ver', 'objetivo_criar', 'objetivo_mudar', 'objetivo_apagar'],
-  desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'convidar', 'grupo'],
+  desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'convidar', 'grupo', 'relatorio', 'nova_rodada'],
   ideal: ['ver', 'marcar', 'desmarcar', 'atividade', 'constancia'],
   lista_organizar: ['limpar_feitos', 'renomear', 'apagar', 'criar_grupo'],
   nota: ['orgulho', 'melhorar', 'apagar', 'preencher'],
@@ -368,7 +368,7 @@ lista_adicionar = pôr itens numa lista. itens (um produto por posição; separa
 lista_marcar = comprou/riscou itens. itens.
 lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo); lista = a lista citada.
 ideal = "Organizando meu ideal" (6 áreas da vida). campo = "ver" | "marcar" | "desmarcar" | "atividade" (levar pro Home) | "constancia" (numero = vezes, quando = "semana" ou "mês"); itens = os itens citados (SEMPRE em itens, não em texto); texto = a área se disser.
-desafio = Desafios do app (só quando fala em desafio, código de convite, prenda, ou fumou/não fumou). campo = "ver" | "ranking" | "entrar" | "codigo" (texto = o código) | "sair" | "checkin" (numero = quantidade, texto = unidade, itens = exercício feito, todas = true se bateu a meta) | "criar" (titulo = do quê, numero = dias, texto = "amigos" ou "sozinho", itens = exercícios) | "regras" | "corrida_ajuda" | "print" | "prenda" (pagar prenda ou saber se deve) | "mural" (ver o Mural das Prendas) | "sugerir_prenda" (texto = a prenda, como ela falou) | "proposta" (texto = "sim" ou "não") | "nao_consegui" (largar vício: fumou, recaída) | "convidar" (itens = nomes; todas = true se for por WhatsApp) | "grupo" (texto = mensagem pro grupo; sem texto = ler). titulo = o desafio citado ("água", "leitura", "corrida").
+desafio = Desafios do app (só quando fala em desafio, código de convite, prenda, ou fumou/não fumou). campo = "ver" | "ranking" | "entrar" | "codigo" (texto = o código) | "sair" | "checkin" (numero = quantidade, texto = unidade, itens = exercício feito, todas = true se bateu a meta) | "criar" (titulo = do quê, numero = dias, texto = "amigos" ou "sozinho", itens = exercícios) | "regras" | "corrida_ajuda" | "print" | "prenda" (pagar prenda ou saber se deve) | "mural" (ver o Mural das Prendas) | "sugerir_prenda" (texto = a prenda, como ela falou) | "proposta" (texto = "sim" ou "não") | "nao_consegui" (largar vício: fumou, recaída) | "convidar" (itens = nomes; todas = true se for por WhatsApp) | "grupo" (texto = mensagem pro grupo; sem texto = ler) | "relatorio" (como foi o desafio, resultado de cada um) | "nova_rodada" (outro desafio com o mesmo grupo; quando = "hoje", "amanhã" ou "segunda"). titulo = o desafio citado ("água", "leitura", "corrida").
 ajuda_lembrar = esquece de marcar, de abrir o app ou de manter a constância e pede ajuda.
 contas_pagar = cadastrar contas do mês. itens = uma por posição "Nome - dia NN". Sem o dia do vencimento → "perguntar". Nunca copia contas dos exemplos.
 treino_frequencia = quantas vezes por semana vai treinar agora. numero.
@@ -485,6 +485,7 @@ Pessoa: quero acompanhar caminhar 4 vezes por semana
 {"acao":"ideal","campo":"constancia","itens":["caminhar"],"numero":4,"quando":"semana","resposta":"Vou acompanhar caminhar 4x por semana."}
 Pessoa: em que posição eu tô no desafio da leitura?
 {"acao":"desafio","campo":"ranking","titulo":"leitura","resposta":"Vou ver teu lugar no desafio da leitura."}
+{"acao":"desafio","campo":"relatorio","titulo":"autoconhecimento","resposta":"Vou montar o relatório do desafio de autoconhecimento."}
 Pessoa: me coloca no desafio da corrida
 {"acao":"desafio","campo":"entrar","titulo":"corrida","resposta":"Vou te colocar no desafio da corrida 🏃"}
 Pessoa: meu código de convite é XK72PQ

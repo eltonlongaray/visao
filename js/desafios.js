@@ -39,8 +39,10 @@ export async function fetchDesafios() {
 }
 // Campos da prova/exercícios/regras (migration/desafios-provas.sql). Só entram
 // quando vêm definidos: um formulário antigo não manda e não quebra.
-function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite, corridasSemana, kmCorrida, corridaModo }) {
+function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite, corridasSemana, kmCorrida, corridaModo, turmaId, rodada }) {
   const x = {};
+  if (turmaId) x.turma_id = turmaId;   // nova rodada do mesmo grupo (migration/desafios-rodadas.sql)
+  if (rodada) x.rodada = rodada;
   if (prova !== undefined) x.prova = prova || null;
   if (exercicios !== undefined) x.exercicios = (exercicios && exercicios.length) ? exercicios : null;
   if (maxPorDia !== undefined) x.max_por_dia = maxPorDia || null;
@@ -54,7 +56,7 @@ function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, 
 }
 export async function createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
                                       modalidade, codigo, prenda, dataInicio, dataFim, ...extras }) {
-  const { data, error } = await supabase.from('desafios').insert({
+  const linha = {
     ..._extrasDesafio(extras),
     titulo, descricao,
     dias_total: dias || null,
@@ -67,7 +69,13 @@ export async function createDesafio({ titulo, descricao, dias, meta, unidade, op
     prenda: prenda || null,
     data_inicio: dataInicio || null,
     data_fim: dataFim || null,
-  }).select('id').single();
+  };
+  let { data, error } = await supabase.from('desafios').insert(linha).select('id').single();
+  // Banco ainda sem as colunas da rodada: cria o desafio sem elas
+  if (error && /turma_id|rodada/.test(error.message || '') && ('turma_id' in linha || 'rodada' in linha)) {
+    delete linha.turma_id; delete linha.rodada;
+    ({ data, error } = await supabase.from('desafios').insert(linha).select('id').single());
+  }
   if (error) throw new Error(error.message || 'Não foi possível publicar');
   return data?.id;
 }

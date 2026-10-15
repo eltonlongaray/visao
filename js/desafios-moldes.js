@@ -233,6 +233,81 @@ export function textoComeca(d, hoje = _hojeBR()) {
   return `começa ${dataCurta(ini)}`;
 }
 
+// ── Desafio encerrado: relatório e nova rodada (Élton, 15/10) ──
+// Último dia: data_fim, ou início + dias - 1. null = não tem fim.
+export function fimDoDesafio(d) {
+  const fim = String(d?.data_fim || '').slice(0, 10);
+  if (fim) return fim;
+  const ini = String(d?.data_inicio || '').slice(0, 10);
+  return ini && d?.dias_total ? somarDias(ini, d.dias_total - 1) : null;
+}
+export function encerrado(d, hoje = _hojeBR()) {
+  const fim = fimDoDesafio(d);
+  return !!fim && hoje > fim;
+}
+// Até quando a conversa e os vídeos ficam (7 dias depois do fim; mesma conta do banco)
+export function salaAte(d) {
+  const fim = fimDoDesafio(d);
+  return fim ? somarDias(fim, 7) : null;
+}
+// Um dia conta? (mesma regra do ranking e da prenda)
+function _diaOk(d, q) {
+  if (q === undefined) return false;
+  if (d.tipo === 'largar') return true;
+  return d.meta_diaria ? q >= d.meta_diaria : q > 0;
+}
+// Relatório do desafio: por pessoa, do dia em que entrou (ou do início) até o fim.
+// { ini, fim, total, gente: [{ user_id, nome, total, cumpridos, faltas: [dia], maiorSeq, limpos, deve, pagou }],
+//   concluiram, todosConcluiram }
+export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeBR()) {
+  const fim = fimDoDesafio(d);
+  // Ainda rolando: conta até ontem (hoje ainda dá tempo)
+  const ate = fim && hoje > fim ? fim : diaAnterior(hoje);
+  const iniDes = String(d.data_inicio || d.created_at || '').slice(0, 10);
+  const gente = (parts || []).map(p => {
+    const entrou = p.joined_at ? new Date(p.joined_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
+    const ini = entrou > iniDes ? entrou : iniDes;
+    const porDia = {};
+    let limpos = 0;
+    (checks || []).filter(c => c.user_id === p.user_id).forEach(c => {
+      porDia[c.dia] = (porDia[c.dia] || 0) + (c.quantidade || 0);
+    });
+    let total = 0, cumpridos = 0, seq = 0, maiorSeq = 0;
+    const faltas = [];
+    if (fim && ini && ini <= ate) {
+      for (let dia = ini; dia <= ate; dia = somarDias(dia, 1)) {
+        total++;
+        if (_diaOk(d, porDia[dia])) { cumpridos++; seq++; maiorSeq = Math.max(maiorSeq, seq); if (d.tipo === 'largar' && porDia[dia] > 0) limpos++; }
+        else { faltas.push(dia); seq = 0; }
+      }
+    }
+    const pagou = (prendas || []).some(x => x.desafio_id === d.id && x.user_id === p.user_id);
+    const perdeuCorrida = !!semanaSemCorrida(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, somarDias(ate, 1));
+    const deve = !!d.prenda && hoje > (fim || hoje) && (faltas.length > 0 || perdeuCorrida) && !pagou;
+    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, maiorSeq, limpos, perdeuCorrida, deve, pagou };
+  }).sort((a, b) => (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
+  const concluiram = gente.filter(g => g.total && !g.faltas.length && !g.perdeuCorrida).length;
+  return { ini: iniDes, fim, total: fim && iniDes ? Math.round((new Date(fim + 'T12:00:00') - new Date(iniDes + 'T12:00:00')) / 864e5) + 1 : 0,
+           gente, concluiram, todosConcluiram: gente.length > 0 && concluiram === gente.length };
+}
+// A turma (o mesmo grupo em várias rodadas): id da primeira rodada
+export const turmaDe = (d) => d?.turma_id || d?.id;
+export const rodadaDe = (d) => Number(d?.rodada) || 1;
+
+// Campos da nova rodada (createDesafio) copiando as regras da anterior
+export function dadosDaNovaRodada(src, dataInicio) {
+  const dias = src.dias_total || null;
+  return {
+    titulo: src.titulo, descricao: src.descricao, dias, meta: src.meta_diaria, unidade: src.unidade,
+    opcoes: src.prova_opcoes || [], tipo: src.tipo, modalidade: src.modalidade, codigo: gerarCodigo(),
+    prenda: src.prenda || null, dataInicio, dataFim: dataInicio && dias ? somarDias(dataInicio, dias - 1) : null,
+    prova: src.prova, regrasDono: src.regras_dono || '', horaLimite: src.hora_limite || null,
+    ...(Array.isArray(src.exercicios) && src.exercicios.length ? { exercicios: src.exercicios, maxPorDia: src.max_por_dia,
+      naoRepetir: src.nao_repetir !== false, corridasSemana: src.corridas_semana, kmCorrida: src.km_corrida, corridaModo: src.corrida_modo } : {}),
+    turmaId: turmaDe(src), rodada: rodadaDe(src) + 1,
+  };
+}
+
 // Regras do Falcon que valem PRA ESSE desafio (sem falar de Strava num desafio de leitura)
 export function regrasFixasDo(d) {
   const ex = Array.isArray(d?.exercicios) ? d.exercicios : [];

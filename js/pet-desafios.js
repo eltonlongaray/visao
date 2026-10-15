@@ -65,6 +65,8 @@ export function grupoDaFrase(texto) {
   const pedido = norm(doisPontos >= 0 ? bruto.slice(0, doisPontos) : bruto);
   const fala = /\bgrupo\b/.test(pedido) || /\b(conversa|chat|mensage\w*) d[oa] desafio\b/.test(pedido);
   if (!fala) return null;
+  // "outro desafio com o mesmo grupo" é nova rodada, não a conversa
+  if (/\bmesm[oa]s? grupo\b|\brodadas?\b/.test(pedido)) return null;
   // "grupo" sozinho só vale com desafio ou um tipo de desafio citado
   if (!/\bdesafios?\b/.test(pedido) && !moldeDaFrase(pedido)) return null;
   if (/\b(o que|que|quem|alguem)\b.*\b(mandaram|falaram|disseram|escreveram|postaram|mandou|falou|disse|escreveu|rolou|ta rolando)\b/.test(pedido)
@@ -83,7 +85,7 @@ export function grupoDaFrase(texto) {
   return { acao: 'grupo_ler', pedido };
 }
 
-// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural',
+// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural'|'relatorio'|'nova_rodada',
 //   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
@@ -137,6 +139,14 @@ export function lerDesafio(texto) {
     nome: nomeCitado(texto), falhou, consegui };
   if ((fumei || naoFumei || recaida) && !temDesafio) return { ...base, acao: 'checkin', feitoHoje: true };
 
+  // Desafio encerrado: "nova rodada com o mesmo grupo", "começa outro desafio com a mesma galera"
+  if (/\b(nova rodada|outra rodada|proxima rodada|mais uma rodada|rodada \d+)\b/.test(t)
+    || (/\b(outro|novo|de novo|repet\w*|mesmo desafio)\b/.test(t) && /\bmesm[oa]s? (grupo|galera|turma|pessoal|gente|participantes)\b/.test(t))) {
+    const quando = /\bamanha\b/.test(t) ? 'amanha' : /\bsegunda\b/.test(t) ? 'segunda' : /\bhoje\b/.test(t) ? 'hoje' : null;
+    return { ...base, acao: 'nova_rodada', quando };
+  }
+  // "relatório do desafio", "como foi o desafio com a Larissa?", "resultado do desafio"
+  if (/\b(relatorio|resultado|resumo|balanco|desempenho)\b/.test(t) || /\bcomo (foi|se saiu|ficou)\b.*\bdesafio\b/.test(t)) return { ...base, acao: 'relatorio' };
   if (/\b(regras?|pode e o que nao pode|o que (?:nao )?pode)\b/.test(t) && !/\b(cri\w*|mud\w*|coloc\w*|bot\w*|adicion\w*)\b/.test(t)) return { ...base, acao: 'regras' };
   if (/\b(cri\w*|mont\w*|novo desafio|comec\w* um desafio|faz\w* um desafio|abr\w* um desafio)\b/.test(t) && !/\b(criei|criou|criado|criada|criaram)\b/.test(t)) {
     const d = t.match(new RegExp(`\\b${NUM_RE}\\s*dias?\\b`));

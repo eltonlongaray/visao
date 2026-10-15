@@ -145,6 +145,8 @@
   {"f": "já peguei o pão", "e": {"acao": "lista_marcar", "itens": ["pão"]}},
   {"f": "apaga a lista de viagem", "e": {"acao": "lista_organizar", "campo": "apagar", "lista": "viagem"}},
   {"f": "qual é o ranking do desafio de leitura?", "e": {"acao": "desafio", "campo": "ranking", "titulo": "leitura"}},
+  {"f": "como foi o desafio de meditação? quero ver o relatório", "e": {"acao": "desafio", "campo": "relatorio", "titulo": "meditação"}},
+  {"f": "começa outro desafio de leitura com o mesmo grupo amanhã", "e": {"acao": "desafio", "campo": "nova_rodada", "titulo": "leitura"}},
   {"f": "quero sair do desafio da corrida", "e": {"acao": "desafio", "campo": "sair", "titulo": "corrida"}},
   {"f": "recuso a proposta do desafio", "e": {"acao": "desafio", "campo": "proposta", "texto": "não"}},
   {"f": "cria a atividade Natação", "e": {"acao": "configurar", "campo": "atividade_criar", "titulo": "natação"}},
