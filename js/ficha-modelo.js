@@ -90,7 +90,7 @@ export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "
 export const FRENTE = [
   { id:"cabeca",     nome:"Cabeça e têmporas",       d:"M120,12 a24,30 0 1 0 0.1,0 Z" },
   { id:"mandibula",  nome:"Mandíbula (ATM)", par:true, d:"M99,52 Q100,68 117,73 L117,67 Q106,63 104,51 Z" },
-  { id:"pescoco",    nome:"Pescoço (frente e lateral)", d:"M109,76 h22 v18 q0,4 -4,4 h-14 q-4,0 -4,-4 Z" },
+  { id:"pescoco",    nome:"Pescoço (frente e lateral)", par:true, d:"M109,76 h9.5 v22 h-5.5 q-4,0 -4,-4 Z" },
   { id:"ombro",      nome:"Ombro", par:true,         d:"M86,100 Q68,98 63,112 L62,128 L80,128 Q80,110 88,104 Z" },
   { id:"peitoral",   nome:"Peitoral", par:true,      d:"M118,102 L94,102 Q85,103 84,112 L84,140 Q88,154 104,154 L118,152 Z" },
   { id:"abdomen",    nome:"Abdômen",                 d:"M86,158 L154,158 Q152,190 150,222 L90,222 Q88,190 86,158 Z" },
@@ -107,7 +107,7 @@ export const FRENTE = [
 ];
 export const COSTAS = [
   { id:"cabeca",     nome:"Cabeça e têmporas",       d:"M120,12 a24,30 0 1 0 0.1,0 Z" },
-  { id:"cervical",   nome:"Nuca e cervical",         d:"M109,76 h22 v18 q0,4 -4,4 h-14 q-4,0 -4,-4 Z" },
+  { id:"cervical",   nome:"Nuca e cervical", par:true, d:"M109,76 h9.5 v22 h-5.5 q-4,0 -4,-4 Z" },
   { id:"trapezio",   nome:"Trapézio", par:true,      d:"M112,96 L112,114 L90,114 Q82,111 86,104 Q98,98 112,96 Z" },
   { id:"ombro",      nome:"Ombro", par:true,         d:"M86,100 Q68,98 63,112 L62,128 L80,128 Q80,110 88,104 Z" },
   { id:"entre_escapulas", nome:"Entre as escápulas", d:"M114,102 h12 v52 h-12 Z" },
