@@ -32,7 +32,7 @@ import * as DIG from '../chat-digitando.js';
 import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
 import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
-import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda } from '../prova-conteudo.js';
+import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda, verVideoCheio } from '../prova-conteudo.js';
 import { avisoGuardarVideos } from '../provas-guardar.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
@@ -641,11 +641,6 @@ async function carregarProvas(msgs) {
   });
 }
 
-// Legenda automática (do 📄 Conteúdo) por cima do vídeo
-function _trilhaLegenda(ck) {
-  const u = ck ? urlDaLegenda(ck.id, ck.conteudo) : '';
-  return u ? `<track kind="subtitles" srclang="pt" label="Legenda" src="${esc(u)}" default>` : '';
-}
 
 function blocoProva(m) {
   if (!m.prova_video && !m.prova_print) return '';
@@ -658,7 +653,7 @@ function blocoProva(m) {
     return `<div class="msg-prova-vencida">🎥 Prova (o vídeo já saiu)</div>`;
   }
   return `<div class="msg-prova">
-    ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata">${_trilhaLegenda(ck)}</video>` : ''}
+    ${v ? `<button type="button" class="msg-prova-video" data-ver-prova="${esc(v)}" data-ck="${esc(ck?.id || '')}" aria-label="Ver vídeo"><video src="${esc(v)}#t=0.1" playsinline muted preload="metadata"></video><span class="msg-prova-play">▶</span></button>` : ''}
     ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
     ${v ? `<button type="button" class="msg-prova-salvar" data-salvar-prova="${esc(m.prova_video)}">⬇️ Salvar vídeo</button>` : ''}
   </div>`;
@@ -2269,6 +2264,13 @@ function ligarEventos(app) {
       return;
     }
 
+    // Vídeo da prova abre na tela cheia do app, com a legenda automática
+    const verProva = t.closest('[data-ver-prova]');
+    if (verProva) {
+      const ck = verProva.dataset.ck && sala?.checks?.find(c => c.id === verProva.dataset.ck);
+      verVideoCheio(verProva.dataset.verProva, ck ? urlDaLegenda(ck.id, ck.conteudo) : '');
+      return;
+    }
     const salvarProva = t.closest('[data-salvar-prova]');
     if (salvarProva) { await salvarVideoProva(salvarProva); return; }
 

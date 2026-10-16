@@ -11,6 +11,7 @@
 // BLOCO 3 — GERAR E GUARDAR
 // BLOCO 4 — MOSTRAR
 // BLOCO 5 — LEGENDA NO VÍDEO
+// BLOCO 6 — VÍDEO EM TELA CHEIA
 // ─────────────────────────────────────────────────────────────
 import { PET_IA_URL } from './pet-nuvem.js';
 import { trapModalBack } from './modal-voltar.js';
@@ -182,7 +183,8 @@ export function legendaVtt(conteudo, maxPalavras = 6) {
     const dur = (fim - ini) / blocos;
     for (let b = 0; b < blocos; b++) {
       const linha = pal.slice(b * maxPalavras, (b + 1) * maxPalavras).join(' ').replace(/-->/g, '→');
-      cues.push(`${_vttTempo(ini + b * dur)} --> ${_vttTempo(ini + (b + 1) * dur)}\n${linha}`);
+      // line:80% = a legenda fica acima do rodapé, não colada embaixo (Élton)
+      cues.push(`${_vttTempo(ini + b * dur)} --> ${_vttTempo(ini + (b + 1) * dur)} line:80%\n${linha}`);
     }
   }
   return cues.length ? `WEBVTT\n\n${cues.join('\n\n')}\n` : '';
@@ -196,4 +198,25 @@ export function urlDaLegenda(checkinId, conteudo) {
   const u = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
   _vttUrls.set(checkinId, u);
   return u;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 6: VÍDEO EM TELA CHEIA
+// ═══════════════════════════════════════════════════════════════
+// A tela cheia do navegador mostra o aviso "Para sair da tela cheia, arraste…"
+// por cima da legenda (Élton, 16/10). Aqui é uma camada do próprio app que
+// cobre a tela toda: sem aviso, e o Voltar do celular fecha.
+export function verVideoCheio(src, legendaUrl = '') {
+  if (!src) return;
+  const ov = document.createElement('div');
+  ov.className = 'prova-cheia';
+  ov.innerHTML = `
+    <video src="${_esc(src)}" controls autoplay playsinline controlslist="nofullscreen nodownload" disablepictureinpicture>
+      ${legendaUrl ? `<track kind="subtitles" srclang="pt" label="Legenda" src="${_esc(legendaUrl)}" default>` : ''}
+    </video>
+    <button type="button" class="prova-cheia-fechar" aria-label="Fechar">✕</button>`;
+  document.body.appendChild(ov);
+  const v = ov.querySelector('video');
+  const fechar = trapModalBack(() => { try { v.pause(); } catch { /* ok */ } ov.remove(); });
+  ov.querySelector('.prova-cheia-fechar').onclick = () => fechar();
 }
