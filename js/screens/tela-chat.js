@@ -30,10 +30,13 @@ import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
 import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
-import { assinarProvas, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
+import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
+
+// Dia no horário de Brasília (o dia da prova é contado assim)
+const _diaBR = (iso) => (iso ? new Date(iso) : new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
 let aba = 'mural';        // 'mural' | 'desafios' | 'privado'
 // Permite a rota /desafios abrir a Comunidade já na aba Desafios.
@@ -1997,7 +2000,7 @@ function balao(m, minha, mostrarAutor) {
   // dele, roubava largura do texto e da foto.
   return `
     <div class="wa-msg ${minha ? 'minha' : ''} ${m.imagem_path ? 'wa-com-foto' : ''} ${comRosto ? 'com-rosto' : ''}"
-      data-id="${m.id}" data-editavel="${minha && !m.checkin_id && !m.proposta_id ? 1 : 0}" data-apagavel="${minha ? 1 : 0}">
+      data-id="${m.id}" data-editavel="${minha && !m.checkin_id && !m.proposta_id ? 1 : 0}" data-apagavel="${minha ? 1 : 0}"${minha && m.checkin_id && _diaBR(m.created_at) === _diaBR() ? ` data-prova-hoje="${esc(m.checkin_id)}"` : ''}>
       ${comRosto ? avatar(m.autor_id, nome, 'wa-av') : ''}
       <div class="wa-col">
         <div class="wa-bolha ${m.imagem_path && !m.texto ? 'bolha-foto' : ''} ${m.imagem_path && m.texto ? 'bolha-legenda' : ''}">
@@ -2039,6 +2042,8 @@ function selecionarMensagem(el) {
       id,
       editavel: el.dataset.editavel === '1',
       apagavel: el.dataset.apagavel === '1',
+      provaHoje: el.dataset.provaHoje || '',
+      minha: el.classList.contains('minha'),
       texto: el.querySelector('.dc-txt, .wa-txt')?.textContent || '',
     });
     el.classList.add('msg-sel');
@@ -2374,20 +2379,26 @@ function ligarEventos(app) {
       // Alheia = posso apagar mas não editar, o que só acontece por
       // privilégio de administrador.
       const alvos = [...selecionados.values()];
-      const alheia = alvos.some(m => !m.editavel);
+      // (prova minha não é editável, mas não é alheia)
+      const alheia = alvos.some(m => !m.editavel && !m.minha);
       const n = alvos.length;
+      const provas = alvos.filter(m => m.provaHoje);
       limparSelecao();
       const ok = await confirmModal({
         title: n > 1 ? `Apagar ${n} mensagens?`
+             : provas.length ? 'Apagar a prova de hoje?'
              : alheia ? 'Apagar mensagem de outra pessoa?' : 'Apagar mensagem?',
         message: alheia
           ? 'Você está apagando como administrador. Some para todo mundo.'
+          : provas.length ? 'Some para todo mundo e o dia volta a ficar sem prova: dá pra gravar de novo.'
           : 'Some para todo mundo.',
         confirmText: 'Apagar', cancelText: 'Manter', danger: true,
       });
       if (!ok) return;
       try {
-        for (const m of alvos) await apagarMensagem(m.id);
+        // Prova de hoje: apaga o check-in (a mensagem vai junto no banco)
+        for (const m of alvos) await (m.provaHoje ? apagarCheckin(m.provaHoje) : apagarMensagem(m.id));
+        if (provas.length) sala = null;   // recarrega a sala: a 📷 volta a deixar gravar
         await recarregar();
       } catch (e) { showToast(e.message, 'error'); }
     }
