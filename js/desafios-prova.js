@@ -11,6 +11,7 @@ import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { salvarRascunho } from './desafios-rascunho.js';
+import { gerarConteudo } from './prova-conteudo.js';
 import './vendor/fix-webm-duration.js';   // window.ysFixWebmDuration
 import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca, ehAgua } from './desafios-moldes.js';
 
@@ -541,7 +542,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       const roteiro = roteiroDepoimento(d, { falhou });
       const blob = await gravarVideoAoVivo({
         titulo: falhou ? '🎙️ Como foi hoje' : `🎙️ ${d.titulo}`,
-        dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>`,
+        dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul><small>O vídeo fica 7 dias no grupo. Depois fica o texto do que tu falou (📄 Conteúdo).</small>`,
         maxSeg: MAX_SEG_DEPOIMENTO,
         rascunho: true,
       });
@@ -583,7 +584,9 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
 async function _enviarOuGuardar(d, blob, extra) {
   try {
     const videoPath = await subirProva(blob, 'video');
-    await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    const id = await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    // Depoimento: o que foi dito vira o "📄 Conteúdo" (em segundo plano)
+    if (extra.tipo === 'depoimento' && id) gerarConteudo(id, blob);
     return true;
   } catch (e) {
     try {

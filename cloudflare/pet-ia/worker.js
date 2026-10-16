@@ -649,6 +649,44 @@ async function moderarPrenda(texto, env) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// BLOCO 3.7: CONTEÚDO DA PROVA — o que foi dito no vídeo, organizado
+// ═══════════════════════════════════════════════════════════════
+// O vídeo do depoimento fica 7 dias; depois disso a sala mostra o botão
+// "📄 Conteúdo" com o que a pessoa disse (Élton, 16/10). O app manda o áudio
+// em pedaços de até 1 min (WAV 16 kHz) e depois pede pra organizar o texto.
+// Nada disso é guardado aqui nem vai pro log: o texto vai só pro banco.
+const MODELO_FALA = '@cf/openai/whisper-large-v3-turbo';
+async function transcrever(audioB64, env) {
+  const r = await env.AI.run(MODELO_FALA, { audio: audioB64, language: 'pt' });
+  return String(r?.text || '').replace(/\s+/g, ' ').trim();
+}
+const SISTEMA_CONTEUDO = `Você organiza a transcrição de um depoimento em vídeo que a pessoa gravou para o grupo de um desafio num app brasileiro. Escreva em português do Brasil, fiel ao que foi dito: NÃO invente nada, não dê conselho, não julgue. Corrija só erros óbvios de transcrição e tire repetições e vícios de fala ("é...", "tipo", "né").
+- "resumo": 1 ou 2 frases com a ideia principal, em primeira pessoa como a pessoa falou.
+- "pontos": de 1 a 8 tópicos na ordem em que apareceram; cada um com "titulo" (2 a 5 palavras) e "texto" (1 a 3 frases claras).
+Se a transcrição estiver vazia ou sem sentido, devolva resumo "" e pontos [].`;
+const SCHEMA_CONTEUDO = {
+  type: 'object',
+  properties: {
+    resumo: { type: 'string' },
+    pontos: { type: 'array', items: { type: 'object', properties: { titulo: { type: 'string' }, texto: { type: 'string' } }, required: ['titulo', 'texto'] } },
+  },
+  required: ['resumo', 'pontos'],
+};
+async function organizarConteudo(texto, env) {
+  const r = await env.AI.run(MODELO, {
+    messages: [{ role: 'system', content: SISTEMA_CONTEUDO }, { role: 'user', content: `Transcrição:\n${texto}` }],
+    response_format: { type: 'json_schema', json_schema: SCHEMA_CONTEUDO },
+    max_tokens: 900,
+    temperature: 0,
+  });
+  const out = typeof r?.response === 'string' ? JSON.parse(r.response) : r?.response;
+  const pontos = (Array.isArray(out?.pontos) ? out.pontos : []).slice(0, 8)
+    .map(p => ({ titulo: String(p?.titulo || '').slice(0, 60), texto: String(p?.texto || '').slice(0, 500) }))
+    .filter(p => p.texto);
+  return { resumo: String(out?.resumo || '').slice(0, 400), pontos };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BLOCO 4: HANDLER
 // ═══════════════════════════════════════════════════════════════
 function cors(req) {
@@ -687,6 +725,19 @@ export default {
       if (!p) return json(req, { erro: 'link inválido' }, 400);
       await caches.default.put(chave, new Response(JSON.stringify(p), { headers: { 'Cache-Control': 'max-age=86400' } }));
       return json(req, p);
+    }
+    // Conteúdo da prova: áudio → texto (um pedaço por vez) e texto → organizado
+    if (body?.transcrever) {
+      const a = String(body.transcrever);
+      if (a.length > 4_000_000) return json(req, { erro: 'pedaço grande demais' }, 413);
+      try { return json(req, { texto: await transcrever(a, env) }); }
+      catch (err) { return json(req, { erro: 'ia indisponível', detalhe: String(err?.message || err).slice(0, 200) }, 503); }
+    }
+    if (body?.organizarConteudo) {
+      const t = String(body.organizarConteudo).replace(/\s+/g, ' ').trim().slice(0, 12000);
+      if (t.length < 10) return json(req, { resumo: '', pontos: [], texto: t });
+      try { return json(req, { ...(await organizarConteudo(t, env)), texto: t }); }
+      catch (err) { return json(req, { erro: 'ia indisponível', detalhe: String(err?.message || err).slice(0, 200) }, 503); }
     }
     // Sugestão de prenda: a IA aprova ou reprova
     if (body?.moderarPrenda) {

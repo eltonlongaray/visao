@@ -166,8 +166,12 @@ export async function fetchParticipantes() {
 }
 export async function fetchCheckins() {
   const { data, error } = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo');
   if (!error) return data || [];
+  // Banco ainda sem o "Conteúdo" (migration/desafios-provas-conteudo.sql)
+  const r0 = await supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+  if (!r0.error) return r0.data || [];
   // Banco ainda sem as colunas da prova: lê o básico pra não zerar o ranking
   const r = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
   return r.data || [];
@@ -204,8 +208,10 @@ export async function addCheckin(desafioId, quantidade, extra = {}) {
   if (extra.exercicio) row.exercicio = extra.exercicio;
   if (extra.videoPath) row.video_path = extra.videoPath;
   if (extra.printPath) row.print_path = extra.printPath;
-  const { error } = await supabase.from('desafio_checkins').insert(row);
+  // Devolve o id do check-in (o "📄 Conteúdo" do depoimento grava nele)
+  const { data, error } = await supabase.from('desafio_checkins').insert(row).select('id').maybeSingle();
   if (error) throw new Error(error.message || 'Erro ao registrar');
+  return data?.id || null;
 }
 
 // Apagar a PRÓPRIA prova de hoje (Élton, 16/10): some o check-in, e com ele a
