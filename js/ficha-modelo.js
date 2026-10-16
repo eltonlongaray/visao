@@ -154,8 +154,8 @@ export function mesmoNumero(a, b) {
 // === BLOCO 5: MEDIDAS DA SESSÃO (antes/depois; a profissional pode acrescentar outras) ===
 export const MEDIDAS = [
   { k: 'braco_d', nome: 'Braço direito' }, { k: 'braco_e', nome: 'Braço esquerdo' },
-  { k: 'busto', nome: 'Abaixo do busto' }, { k: 'cintura', nome: 'Cintura' },
-  { k: 'abdomen', nome: 'Abdômen (umbigo)' }, { k: 'quadril', nome: 'Quadril' },
+  { k: 'busto', nome: 'Abaixo do busto' }, { k: 'cintura', nome: 'Cintura (parte mais fina, acima do umbigo)' },
+  { k: 'abdomen', nome: 'Abdômen (na linha do umbigo)' }, { k: 'quadril', nome: 'Quadril (glúteo, parte mais larga)' },
   { k: 'coxa_d', nome: 'Coxa direita' }, { k: 'coxa_e', nome: 'Coxa esquerda' },
   { k: 'panturrilha_d', nome: 'Panturrilha direita' }, { k: 'panturrilha_e', nome: 'Panturrilha esquerda' },
   { k: 'tornozelo_d', nome: 'Tornozelo direito' }, { k: 'tornozelo_e', nome: 'Tornozelo esquerdo' },
