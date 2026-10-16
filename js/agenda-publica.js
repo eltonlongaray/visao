@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -396,9 +396,11 @@ export async function renderAgendaPublica(app, slug) {
           ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
+          <div id="ap-ficha"></div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
+      _oferecerFicha(cfg.slug, nome, zap);
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
@@ -407,6 +409,31 @@ export async function renderAgendaPublica(app, slug) {
       selHora = null; desenhar();
     }
   }
+}
+
+// Depois de agendar: se a profissional usa ficha e esse WhatsApp ainda não respondeu,
+// oferece a ficha na hora, já com nome e WhatsApp (passados pelo rascunho do aparelho,
+// nunca pela URL).
+async function _oferecerFicha(slug, nome, zap) {
+  const st = await fichaStatusPublico(slug, zap);
+  const box = document.getElementById('ap-ficha');
+  if (!box || !st.ativa || st.tem) return;
+  box.innerHTML = `<div class="ap-ficha-card">
+    <div class="ap-ficha-t">📋 Um passo antes da sua sessão</div>
+    <div class="ap-ficha-d">Responda uma ficha rápida (uns 5 minutos) pra sua sessão ser preparada pro seu corpo.</div>
+    <button class="btn-primary" id="ap-ficha-btn" type="button">Preencher minha ficha</button>
+  </div>`;
+  box.querySelector('#ap-ficha-btn').onclick = () => {
+    const chave = `falcon_ficha_${slug}_geral`;
+    let d = {};
+    try { d = JSON.parse(localStorage.getItem(chave) || '{}') || {}; } catch {}
+    const dig = String(zap || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '').slice(0, 11);
+    const whats = dig.length >= 10 ? `(${dig.slice(0, 2)}) ${dig.slice(2, dig.length - 4)}-${dig.slice(-4)}` : zap;
+    d.R = { ...(d.R || {}), nome, whatsapp: whats };
+    d.marcas = d.marcas || {};
+    try { localStorage.setItem(chave, JSON.stringify(d)); } catch {}
+    location.href = `/ficha/${encodeURIComponent(slug)}`;
+  };
 }
 
 // wrapper visual + limpeza (remove a classe da rota ao sair)

@@ -7644,13 +7644,13 @@ body.sem-rolagem { overflow: hidden; }
 /* Agenda Online e Rifa Solidária abrem em TELA CHEIA, igual à Caixa de
    Ferramentas — não como popup centralizado. Sobrescreve o .modal-overlay
    (grid/place-items:center + 20px padding) e o .ag-modal (max-width 480). */
-#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov { padding: 0; place-items: stretch; }
-#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal {
+#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov, #fi-sessao-ov { padding: 0; place-items: stretch; }
+#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal, #fi-sessao-ov .ag-modal {
   width: 100%; max-width: 100%;
   height: 100vh; height: 100dvh; max-height: 100dvh;
   border: 0; border-radius: 0;
 }
-#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo {
+#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo, #fi-sessao-ov .ag-corpo {
   height: 100vh; height: 100dvh; max-height: 100dvh;
 }
 .ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
@@ -8637,3 +8637,66 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fi-pagina-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); background: var(--card); border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 800; color: var(--text); }
 .fi-pagina-x { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 16px; cursor: pointer; }
 .fi-pagina-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
+
+/* === BLOCO F6: SESSÕES (dor ao pressionar 0–10, medidas, observações) === */
+.fi-sess { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.fi-sess-tit { font-size: 14px; font-weight: 800; color: var(--text); }
+.fi-sess-tit small { font-size: 11px; font-weight: 800; background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.fi-fase small { font-weight: 400; color: var(--muted); }
+.fs-abas { display: flex; background: var(--card-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px; margin: 4px auto 6px; width: 210px; }
+.fs-abas button { flex: 1; border: none; background: none; color: var(--muted); font-family: inherit; font-weight: 700; font-size: 13px; padding: 7px 0; border-radius: 999px; cursor: pointer; }
+.fs-abas button.on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-2); }
+.fs-palco { position: relative; }
+.fs-lado { position: absolute; top: 46%; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.fs-lado.esq { left: 0; } .fs-lado.dir { right: 0; }
+.fs-svg { display: block; width: 100%; max-width: 300px; max-height: 56vh; margin: 0 auto; touch-action: manipulation; }
+.fs-r { fill: color-mix(in srgb, var(--text) 7%, transparent); stroke: color-mix(in srgb, var(--text) 24%, transparent); stroke-width: 1; cursor: pointer; }
+.fs-r.sel { stroke: var(--accent-2); stroke-width: 2; }
+.fs-num { font-size: 10px; font-weight: 800; fill: #fff; text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
+.fs-item { width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; font-family: inherit; }
+.fs-val { font-size: 13px; font-weight: 800; color: #fff; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.fs-val small { font-weight: 600; opacity: .85; }
+.fs-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; z-index: 1100; }
+.fs-fundo.on { display: block; }
+.fs-folha { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1101; max-width: 480px; margin: 0 auto; background: var(--card); border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; padding: 18px 16px calc(14px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform .22s ease; }
+.fs-folha.on { transform: none; }
+.fs-folha-nome { font-size: 17px; font-weight: 800; color: var(--text); }
+.fs-folha-lado { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.fs-notas { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.fs-notas button { padding: 11px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.fs-notas button.on { border-color: #fff; color: #fff; }
+.fs-folha-ant { font-size: 12.5px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+.fs-med-tog { width: 100%; display: flex; justify-content: space-between; background: none; border: none; color: var(--accent-2); font-family: inherit; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 0; cursor: pointer; }
+.fs-med-cab, .fs-med { display: grid; grid-template-columns: 1fr 72px 72px; gap: 6px; align-items: center; }
+.fs-med-cab { margin-top: 10px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; text-align: center; }
+.fs-med { padding: 5px 0; border-top: 1px solid var(--border); }
+.fs-med-nome { font-size: 13.5px; color: var(--text); }
+.fs-med-nome small { color: var(--muted); font-size: 11px; }
+.fs-med input { width: 100%; min-width: 0; text-align: center; padding: 8px 4px; }
+/* campos soltos da ficha/sessão (fora do .input-field) */
+.fi-tipo-add input, .fs-med input, #fs-obs { background: var(--card-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px; font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box; }
+.fi-tipo-add input:focus, .fs-med input:focus, #fs-obs:focus { border-color: var(--accent); }
+#fs-obs { width: 100%; min-height: 84px; resize: vertical; line-height: 1.4; }
+.fi-tipo-add .btn-secondary { flex: none; width: auto; padding: 10px 14px; }
+
+/* === BLOCO F7: O QUE FICOU EM BRANCO NA FICHA === */
+.fi-st { font-weight: 700; }
+.fi-st.ok { color: var(--green); }
+.fi-st.aviso { color: #f59e0b; }
+.fi-st.aviso.saude { color: var(--red); }
+.fi-perfil-ver.falta { border-left-color: #f59e0b; }
+.fi-perfil-ver.saude { border-left-color: var(--red); }
+.fi-perfil-rasc { font-size: 13px; color: var(--text); background: color-mix(in srgb, #f59e0b 14%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 45%, transparent); border-left: 4px solid #f59e0b; border-radius: 10px; padding: 9px 11px; line-height: 1.4; }
+.fi-falta { background: color-mix(in srgb, #f59e0b 10%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent); border-left: 4px solid #f59e0b; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.fi-falta.saude { border-left-color: var(--red); }
+.fi-falta-tit { font-size: 13px; font-weight: 800; color: #f59e0b; margin-bottom: 4px; }
+.fi-falta.saude .fi-falta-tit { color: var(--red); }
+.fi-falta-bl { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-top: 8px; }
+.fi-falta-q { font-size: 13.5px; color: var(--text); line-height: 1.4; margin-top: 3px; }
+.fi-completa { font-size: 13px; font-weight: 700; color: var(--green); background: color-mix(in srgb, var(--green) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--green) 35%, transparent); border-radius: 10px; padding: 9px 12px; margin-bottom: 12px; }
+.fi-perfil-falta { font-size: 13px; color: var(--text); line-height: 1.5; background: color-mix(in srgb, #f59e0b 10%, var(--card)); border-left: 3px solid #f59e0b; border-radius: 8px; padding: 8px 11px; }
+.fi-perfil-falta.saude { border-left-color: var(--red); }
+.fi-editar { width: 100%; margin-bottom: 12px; }
+.ap-ficha-card { margin: 18px 0 4px; text-align: left; background: var(--card); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-left: 4px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.ap-ficha-t { font-size: 15px; font-weight: 800; color: var(--text); }
+.ap-ficha-d { font-size: 13px; color: var(--muted); line-height: 1.45; }

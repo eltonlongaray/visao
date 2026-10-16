@@ -9,7 +9,7 @@ import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
-import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha } from './ficha-ui.js';
+import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
 const DOWS = [
   { k: 1, lbl: 'Seg', full: 'Segunda' }, { k: 2, lbl: 'Ter', full: 'Terça' },
@@ -113,7 +113,7 @@ function _clientesHtml() {
     <div class="ag-cli-lista" id="ag-cli-lista">
       ${cs.map(c => `<button class="ag-cli-row" data-cli-open="${_esc(c.key)}" data-nome="${_esc((c.nome || '').toLowerCase())}" type="button">
         <div class="ag-cli-row-info"><b>${_esc(c.nome)}</b>
-          <small>${c.ags.length} atend.${c.contato ? '' : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}</small></div>
+          <small>${c.ags.length} atend.${c.contato ? '' : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}${statusFichaClienteHtml(_cfg, c)}</small></div>
         <span class="ag-cli-row-ch">›</span>
       </button>`).join('')}
       <div class="ag-cli-vazio-busca" id="ag-cli-nada" hidden>Nenhum cliente com esse nome.</div>
@@ -210,6 +210,7 @@ export async function montarAgendaInline(container, { dataISO } = {}) {
       const novoId = await salvarAgendamentoManual(patch);
       marcarAgendamentoVisto(novoId);   // o dono criou → não é "novo" pra ele
       await sincronizarCompromissos().catch(() => {});
+      oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
       return patch;
     },
   };
@@ -870,6 +871,7 @@ async function _formAgendamento(ag, opts = {}) {
       close();
       if (opts.onSaved) { try { await opts.onSaved(); } catch {} } else { desenhar(); }
       showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');
+      if (!st.id) oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
       if (btn.isConnected) { btn.disabled = false; btn.textContent = st.id ? 'Salvar' : 'Adicionar'; }

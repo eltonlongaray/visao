@@ -25,6 +25,11 @@ create index if not exists fichas_owner_idx on fichas (owner_id);
 -- profissão + tipos de massagem desligados/acrescentados + nome de exibição
 alter table agenda_config add column if not exists ficha_cfg jsonb default '{}'::jsonb;
 
+-- rascunho do cliente (o que ele já respondeu e ainda não enviou) — só pelo link com código.
+-- O link público só GRAVA; quem lê é o app da profissional (RLS), no "Preencher junto".
+alter table fichas add column if not exists rascunho jsonb;
+alter table fichas add column if not exists rascunho_em timestamptz;
+
 -- === BLOCO 2: PERMISSÕES + RLS (só a dona lê/mexe nas fichas dela) ===
 grant select, insert, update, delete on fichas to authenticated;
 alter table fichas enable row level security;
@@ -99,6 +104,7 @@ begin
       returning id into v_id;
     end if;
     if v_id is null then raise exception 'Link de ficha inválido'; end if;
+    update fichas set rascunho = null, rascunho_em = null where codigo = p_codigo and owner_id = v_owner;
   else
     v_dig := regexp_replace(coalesce(p_contato, ''), '\D', '', 'g');
     if length(trim(coalesce(p_nome, ''))) < 2 or length(v_dig) < 10 then
@@ -114,3 +120,21 @@ begin
 end;
 $$;
 grant execute on function ficha_enviar(text, text, text, text, jsonb, jsonb) to anon, authenticated;
+
+
+-- === BLOCO 5: FUNÇÃO — rascunho enquanto o cliente preenche (só grava, nunca devolve) ===
+create or replace function ficha_rascunho(p_slug text, p_codigo text, p_dados jsonb)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+declare v_owner uuid;
+begin
+  if coalesce(p_codigo, '') = '' then return; end if;
+  if octet_length(coalesce(p_dados, '{}'::jsonb)::text) > 40000 then raise exception 'Rascunho grande demais'; end if;
+  select user_id into v_owner from agenda_config where slug = p_slug;
+  if v_owner is null then return; end if;
+  update fichas set rascunho = p_dados, rascunho_em = now()
+  where codigo = p_codigo and owner_id = v_owner;
+end;
+$$;
+grant execute on function ficha_rascunho(text, text, jsonb) to anon, authenticated;

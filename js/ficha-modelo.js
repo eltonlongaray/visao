@@ -73,9 +73,9 @@ const MASSOTERAPIA = {
     ]},
     { nome: "Do seu jeito", perguntas: [
       { id:"pressao", tipo:"unica", q:"Que pressão você prefere na massagem?", op:["Leve","Média","Forte","Não sei, quero descobrir"] },
-      { id:"nao_tocar", tipo:"texto", q:"Tem alguma parte do corpo que você prefere que eu não toque?", ph:"Ex: pés, rosto…" },
+      { id:"nao_tocar", tipo:"texto", opcional:true, q:"Tem alguma parte do corpo que você prefere que eu não toque?", ph:"Ex: pés, rosto…" },
       { id:"conversa", tipo:"unica", q:"Durante a sessão, você prefere…", op:["Conversar","Ficar em silêncio","Tanto faz"] },
-      { id:"ambiente", tipo:"texto", q:"Alguma preferência de aroma, música ou temperatura?", ph:"Ex: sem cheiro forte, sala mais quente…" },
+      { id:"ambiente", tipo:"texto", opcional:true, q:"Alguma preferência de aroma, música ou temperatura?", ph:"Ex: sem cheiro forte, sala mais quente…" },
       { id:"algo_mais", tipo:"longo", q:"Tem mais alguma coisa que eu deveria saber?", ph:"Fica à vontade" },
     ]},
   ],
@@ -90,7 +90,7 @@ export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "
 export const FRENTE = [
   { id:"cabeca",     nome:"Cabeça e têmporas",       d:"M120,12 a24,30 0 1 0 0.1,0 Z" },
   { id:"mandibula",  nome:"Mandíbula (ATM)", par:true, d:"M99,52 Q100,68 117,73 L117,67 Q106,63 104,51 Z" },
-  { id:"pescoco",    nome:"Pescoço (frente e lateral)", d:"M109,76 h22 v18 q0,4 -4,4 h-14 q-4,0 -4,-4 Z" },
+  { id:"pescoco",    nome:"Pescoço (frente e lateral)", par:true, d:"M109,76 h9.5 v22 h-5.5 q-4,0 -4,-4 Z" },
   { id:"ombro",      nome:"Ombro", par:true,         d:"M86,100 Q68,98 63,112 L62,128 L80,128 Q80,110 88,104 Z" },
   { id:"peitoral",   nome:"Peitoral", par:true,      d:"M118,102 L94,102 Q85,103 84,112 L84,140 Q88,154 104,154 L118,152 Z" },
   { id:"abdomen",    nome:"Abdômen",                 d:"M86,158 L154,158 Q152,190 150,222 L90,222 Q88,190 86,158 Z" },
@@ -107,7 +107,7 @@ export const FRENTE = [
 ];
 export const COSTAS = [
   { id:"cabeca",     nome:"Cabeça e têmporas",       d:"M120,12 a24,30 0 1 0 0.1,0 Z" },
-  { id:"cervical",   nome:"Nuca e cervical",         d:"M109,76 h22 v18 q0,4 -4,4 h-14 q-4,0 -4,-4 Z" },
+  { id:"cervical",   nome:"Nuca e cervical", par:true, d:"M109,76 h9.5 v22 h-5.5 q-4,0 -4,-4 Z" },
   { id:"trapezio",   nome:"Trapézio", par:true,      d:"M112,96 L112,114 L90,114 Q82,111 86,104 Q98,98 112,96 Z" },
   { id:"ombro",      nome:"Ombro", par:true,         d:"M86,100 Q68,98 63,112 L62,128 L80,128 Q80,110 88,104 Z" },
   { id:"entre_escapulas", nome:"Entre as escápulas", d:"M114,102 h12 v52 h-12 Z" },
@@ -149,4 +149,48 @@ export function mesmoNumero(a, b) {
   };
   const x = n(a), y = n(b);
   return !!x && x === y;
+}
+
+// === BLOCO 5: MEDIDAS DA SESSÃO (antes/depois; a profissional pode acrescentar outras) ===
+export const MEDIDAS = [
+  { k: 'braco_d', nome: 'Braço direito' }, { k: 'braco_e', nome: 'Braço esquerdo' },
+  { k: 'busto', nome: 'Abaixo do busto' }, { k: 'cintura', nome: 'Cintura (parte mais fina, alguns cm acima do umbigo)' },
+  { k: 'abdomen', nome: 'Abdômen (na linha do umbigo)' }, { k: 'quadril', nome: 'Quadril (glúteo, parte mais larga)' },
+  { k: 'coxa_d', nome: 'Coxa direita' }, { k: 'coxa_e', nome: 'Coxa esquerda' },
+  { k: 'panturrilha_d', nome: 'Panturrilha direita' }, { k: 'panturrilha_e', nome: 'Panturrilha esquerda' },
+  { k: 'tornozelo_d', nome: 'Tornozelo direito' }, { k: 'tornozelo_e', nome: 'Tornozelo esquerdo' },
+  { k: 'peso', nome: 'Peso', un: 'kg' },
+];
+
+// === BLOCO 6: O QUE FICOU EM BRANCO (aviso pra profissional antes de abrir a ficha) ===
+// Nome curto de cada pergunta, pra frase "Fulana não respondeu: sono, alergia…".
+export const CURTAS = {
+  nascimento: 'data de nascimento', conheceu: 'como te conheceu', motivo: 'o que procura', tipos: 'tipos de massagem',
+  frequencia: 'frequência de massagem', mapa: 'mapa do corpo', ja_fez: 'o que já fez pra dor', fadiga: 'fadiga muscular',
+  fadiga_onde: 'onde sente fadiga', estresse_causa: 'o que estressa', estresse_duracao: 'quanto dura o estresse',
+  estresse: 'nível de estresse', sono: 'sono', rotina: 'rotina', atividade: 'qual atividade física', inchaco: 'inchaço',
+  inchaco_quando: 'quando incha', refeicao: 'tipo de refeição', alimentacao: 'alimentação', saude: 'condições de saúde',
+  gestante_semanas: 'semanas de gestação', cirurgia_qual: 'qual cirurgia', alergia: 'alergia a óleo/creme/aroma',
+  alergia_qual: 'qual alergia', remedio: 'remédio contínuo', remedio_qual: 'qual remédio', pressao: 'pressão preferida',
+  conversa: 'conversa ou silêncio',
+};
+// Conta só o que a pessoa VIU (respeita as condicionais). Texto livre ("longo") e "opcional" não contam.
+export function faltando(modelo, r, mapa) {
+  r = r || {};
+  const out = [];
+  for (const b of modelo.blocos) for (const p of b.perguntas) {
+    if (p.tipo === 'aviso' || p.ident || p.opcional || p.tipo === 'longo') continue;
+    if (p.se && !p.se(r)) continue;
+    const saude = b.nome === 'Saúde e segurança';
+    if (p.tipo === 'mapa') {
+      if (!Object.values(mapa || {}).some(temMarca)) out.push({ id: 'mapa', curta: CURTAS.mapa, bloco: b.nome, q: 'Mapa do corpo: nenhuma região marcada', saude });
+      continue;
+    }
+    const v = r[p.id];
+    const curta = CURTAS[p.id] || p.q;
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) out.push({ id: p.id, curta, bloco: b.nome, q: p.q, saude });
+    else if (p.outro && (v === 'Outro' || (Array.isArray(v) && v.includes('Outro'))) && !String(r[p.id + '_outro'] || '').trim())
+      out.push({ id: p.id, curta: curta + ' (o "outro")', bloco: b.nome, q: p.q + ' (marcou "Outro" sem dizer qual)', saude });
+  }
+  return out;
 }

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0e1a">
+<title>Demonstração · Ficha e Sessões</title>
+<base href="/">
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="stylesheet" href="css/styles.css?v=20261016n">
+<style>
+  /* === BLOCO 1: PÁGINA DE DEMONSTRAÇÃO (lado da profissional, dados de exemplo) === */
+  html, body { margin: 0; background-color: #0a0e1a; }
+  .dm-wrap { max-width: 440px; margin: 0 auto; padding: 18px 16px 60px; color: var(--text); }
+  .dm-faixa { background: color-mix(in srgb, var(--accent) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); color: var(--accent-2); font-size: 12px; font-weight: 700; text-align: center; border-radius: 999px; padding: 7px 10px; margin-bottom: 16px; }
+  .dm-sub { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0 0 16px; }
+  .dm-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+  .dm-nome { font-size: 17px; font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="dm-wrap">
+  <div class="dm-faixa">👁️ Demonstração · cliente de exemplo · nada é salvo</div>
+  <p class="dm-sub">É assim que o perfil de um cliente aparece pra profissional na Agenda Online do Falcon. Toque em <b>📋 Ver ficha</b>, nas <b>sessões</b> ou em <b>➕ Registrar sessão de hoje</b>.</p>
+  <div class="dm-card" id="dm-perfil">
+    <div class="dm-nome">Maria Souza</div>
+    <div class="ag-cli-perfil-sub">3 atendimentos · (51) 98455-1613</div>
+    <div style="height:12px"></div>
+    <div id="dm-ficha"></div>
+  </div>
+</div>
+<script type="module">
+// === BLOCO 2: DADOS DE EXEMPLO + MONTAGEM ===
+import { demoFichas, perfilFichaHtml, wirePerfilFicha } from './js/ficha-ui.js';
+import { demoSessoes } from './js/ficha-sessoes-ui.js';
+
+const cfg = { slug: 'S29', ficha_cfg: { profissao: 'massoterapia', desligados: ['Pedras quentes'], extras: [] } };
+const c = { key: '51984551613', nome: 'Maria Souza', contato: '(51) 98455-1613', ags: [] };
+const dias = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+const contato = { cliente_nome: c.nome, cliente_contato: c.contato, cliente_digitos: '51984551613' };
+
+demoFichas([{ id: 'f1', codigo: 'demo', modelo: 'massoterapia', ...contato, respondida_em: dias(15) + 'T12:00:00Z',
+  respostas: { nascimento: '1990-05-12', conheceu: 'Indicação de alguém', motivo: ['Aliviar dor ou tensão', 'Inchaço ou retenção de líquido'],
+    tipos: ['Terapêutica', 'Drenagem linfática'], frequencia: 'Já fiz, mas raramente', ja_fez: ['Fisioterapia', 'Pomada ou gel'],
+    fadiga: 'Sim, com frequência', fadiga_onde: 'pernas e costas', estresse_causa: ['Trabalho', 'Falta de tempo pra mim'], estresse_duracao: 'Dura o dia todo',
+    estresse: 8, rotina: ['Muitas horas na cadeira', 'Celular ou computador o dia todo'],
+    inchaco: 'Sim, com frequência', inchaco_quando: ['No fim do dia', 'Depois das refeições'], refeicao: 'massa e comida salgada',
+    alimentacao: ['Bebo pouca água', 'Bastante café'], saude: ['Pressão alta'], remedio: 'Sim', remedio_qual: 'losartana',
+    pressao: 'Média', conversa: 'Ficar em silêncio', nao_tocar: 'pés' },
+  mapa: { lombar_d: { dor: 3, inchaco: 0, quando: ['Ao acordar', 'Muito tempo na cadeira'] }, trapezio_d: { dor: 3, inchaco: 0, quando: ['No fim do dia'] },
+    trapezio_e: { dor: 2, inchaco: 0, quando: [] }, panturrilha_d: { dor: 0, inchaco: 2, quando: [] }, panturrilha_e: { dor: 0, inchaco: 2, quando: [] } } }]);
+
+demoSessoes([
+  { id: 's1', ...contato, data: dias(14), created_at: dias(14) + 'T12:00:00Z', observacoes: 'Trapézio direito muito carregado. Indiquei 4 sessões.',
+    palpacao: { lombar_d: 8, cervical_d: 7, trapezio_d: 9, trapezio_e: 6, escapula_d: 5 },
+    medidas: { cintura: { antes: 78, depois: 76.5 }, abdomen: { antes: 92, depois: 90 }, panturrilha_d: { antes: 38, depois: 37 }, panturrilha_e: { antes: 38.5, depois: 37.5 } } },
+  { id: 's2', ...contato, data: dias(7), created_at: dias(7) + 'T12:00:00Z', observacoes: 'Melhorou bem o trapézio. Lombar ainda sensível.',
+    palpacao: { lombar_d: 6, cervical_d: 4, trapezio_d: 5, trapezio_e: 3, escapula_d: 2 },
+    medidas: { cintura: { antes: 76.5, depois: 75 }, abdomen: { antes: 90, depois: 88.5 }, panturrilha_d: { antes: 37, depois: 36 }, panturrilha_e: { antes: 37.5, depois: 36.5 } } },
+]);
+
+const perfil = document.getElementById('dm-perfil');
+document.getElementById('dm-ficha').innerHTML = perfilFichaHtml(cfg, c);
+wirePerfilFicha(perfil, cfg, c, { clientes: [c], redesenhar() {} });
+</script>
+</body>
+</html>

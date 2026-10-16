@@ -141,3 +141,13 @@ export async function avisarDonoPush(ownerId, title, body, tag) {
     });
   } catch {}
 }
+
+// Ficha de atendimento: a profissional usa ficha? Esse WhatsApp já respondeu?
+// (só sim/não — nada das respostas). Sem o SQL ainda → { ativa:false }.
+export async function fichaStatusPublico(slug, contato) {
+  try {
+    const { data, error } = await supabase.rpc('ficha_status_publico', { p_slug: slug, p_contato: contato || '' });
+    if (error) return { ativa: false, tem: false };
+    return data || { ativa: false, tem: false };
+  } catch { return { ativa: false, tem: false }; }
+}
