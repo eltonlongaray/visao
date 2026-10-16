@@ -239,8 +239,8 @@ export function perfilFichaHtml(cfg, c) {
         ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
       : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
     <div class="fi-perfil-acoes">
-      ${c.contato && !resp ? `<button class="fi-btn" id="fi-enviar" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
-      <button class="fi-btn" id="fi-junto" type="button">✍️ ${resp ? 'Atualizar a ficha junto' : 'Preencher junto agora'}</button>
+      ${!resp && c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
+      ${!resp ? `<button class="fi-btn" id="fi-junto" type="button">✍️ ${st.rasc ? 'Continuar junto agora' : 'Preencher junto agora'}</button>` : ''}
     </div>
     ${sessoesPerfilHtml(c)}
   </div>`;
@@ -353,6 +353,7 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
     </div>
     <div class="ag-scroll">
       <div class="fi-cab"><b>${_esc(f.cliente_nome || '')}</b><small>${_esc(f.cliente_contato || '')}${f.respondida_em ? ' · respondida em ' + _dataBr(f.respondida_em) : ''}</small></div>
+      ${cfg ? `<button class="fi-btn fi-editar" id="fi-editar" type="button">✏️ Editar ficha${falta.length ? ' e completar o que falta' : ''}</button>` : ''}
       ${semCliente && clientes.length ? `<label class="input-field"><div class="input-field-label">Ligar a um cliente da Agenda</div>
         <select id="fi-ligar"><option value="">— é um cliente novo —</option>
           ${clientes.map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ' · ' + _esc(c.contato) : ''}</option>`).join('')}
@@ -361,7 +362,6 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
         <div class="fi-falta-tit">⚠️ Ficou em branco (${falta.length})</div>
         ${[...new Set(falta.map(x => x.bloco))].map(bl => `<div class="fi-falta-bl">${_esc(bl)}</div>
           ${falta.filter(x => x.bloco === bl).map(x => `<div class="fi-falta-q">• ${_esc(x.q)}</div>`).join('')}`).join('')}
-        ${cfg ? '<button class="fi-btn" id="fi-completar" type="button" style="margin-top:10px">✍️ Completar junto agora</button>' : ''}
       </div>` : '<div class="fi-completa">✅ Ficha completa: todas as perguntas respondidas.</div>'}
       ${blocos}
       <button class="fi-excluir" id="fi-excluir" type="button">🗑 Apagar essa ficha</button>
@@ -378,10 +378,11 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
       showToast(`✅ Ficha ligada a ${_primeiro(c.nome)}`, 'success'); close(); redesenhar?.();
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   });
-  ov.querySelector('#fi-completar')?.addEventListener('click', async () => {
+  ov.querySelector('#fi-editar')?.addEventListener('click', async () => {
     const c = cliente || { nome: f.cliente_nome, contato: f.cliente_contato };
-    close();
-    try { await _abrirJunto(cfg, c, redesenhar); } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+    // abre por cima; ao terminar, fecha esta ficha (ficou velha) e atualiza o perfil
+    try { await _abrirJunto(cfg, c, () => { if (ov.isConnected) close(); redesenhar?.(); }); }
+    catch (err) { showToast('Erro: ' + err.message, 'error'); }
   });
   ov.querySelector('#fi-excluir').onclick = async () => {
     if (_demo) { showToast('Na demonstração não apaga nada 🙂', 'info'); return; }
