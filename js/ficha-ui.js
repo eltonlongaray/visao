@@ -189,8 +189,8 @@ export function perfilFichaHtml(cfg, c) {
         ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
       : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
     <div class="fi-perfil-acoes">
-      ${c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 ${resp ? 'Pedir pra responder de novo' : 'Enviar ficha'}</button>` : ''}
-      <button class="fi-btn" id="fi-junto" type="button">✍️ Preencher junto agora</button>
+      ${c.contato && !resp ? `<button class="fi-btn" id="fi-enviar" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
+      <button class="fi-btn" id="fi-junto" type="button">✍️ ${resp ? 'Atualizar a ficha junto' : 'Preencher junto agora'}</button>
     </div>
     ${sessoesPerfilHtml(c)}
   </div>`;
