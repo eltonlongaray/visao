@@ -158,14 +158,21 @@ function _popupTipos(cfg) {
 }
 
 // === BLOCO 4: PÁGINA DA FICHA DENTRO DO APP (demonstração / preencher junto) ===
-export function abrirPaginaFicha(url, titulo, onFechar) {
+// prefill (opcional): { R, marcas } mandados pra página assim que ela avisa que carregou.
+export function abrirPaginaFicha(url, titulo, onFechar, prefill) {
   const ov = document.createElement('div');
   ov.className = 'fi-pagina-ov';
   ov.innerHTML = `<div class="fi-pagina-top"><span>${_esc(titulo || 'Ficha')}</span>
     <button class="fi-pagina-x" type="button" aria-label="Fechar">✕</button></div>
     <iframe class="fi-pagina-frame" src="${_esc(url)}" title="Ficha de atendimento"></iframe>`;
   document.body.appendChild(ov);
-  const close = trapModalBack(() => { ov.remove(); onFechar?.(); });
+  const frame = ov.querySelector('iframe');
+  const aoPronto = e => {
+    if (e.source !== frame.contentWindow || e.data?.tipo !== 'ficha-pronta' || !prefill) return;
+    frame.contentWindow.postMessage({ tipo: 'ficha-prefill', R: prefill.R || {}, marcas: prefill.marcas || {} }, location.origin);
+  };
+  window.addEventListener('message', aoPronto);
+  const close = trapModalBack(() => { window.removeEventListener('message', aoPronto); ov.remove(); onFechar?.(); });
   ov.querySelector('.fi-pagina-x').onclick = () => close();
   return close;
 }
@@ -182,7 +189,7 @@ export function perfilFichaHtml(cfg, c) {
         ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
       : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
     <div class="fi-perfil-acoes">
-      ${c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 ${resp ? 'Pedir pra atualizar' : 'Enviar ficha'}</button>` : ''}
+      ${c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 ${resp ? 'Pedir pra responder de novo' : 'Enviar ficha'}</button>` : ''}
       <button class="fi-btn" id="fi-junto" type="button">✍️ Preencher junto agora</button>
     </div>
     ${sessoesPerfilHtml(c)}
@@ -227,13 +234,21 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     finally { btn.disabled = false; }
   });
   ov.querySelector('#fi-junto')?.addEventListener('click', async e => {
-    if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração'); return; }
     const btn = e.currentTarget; btn.disabled = true;
     try {
+      // busca o mais recente do banco (o cliente pode ter começado a preencher agora há pouco)
+      if (!_demo) try { _fichas = await getFichas(); } catch {}
+      // o que já foi respondido: rascunho em andamento (se mais novo) ou a última ficha enviada
+      const resps = _fichasDoCliente(c).filter(x => x.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
+      const ultima = resps[resps.length - 1];
+      const rasc = _fichasDoCliente(c).filter(x => x.rascunho && x.rascunho_em && (!ultima || x.rascunho_em > ultima.respondida_em))
+        .sort((a, b) => (a.rascunho_em < b.rascunho_em ? 1 : -1))[0];
+      const prefill = rasc ? rasc.rascunho : ultima ? { R: ultima.respostas || {}, marcas: ultima.mapa || {} } : null;
+      if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração', null, prefill); return; }
       const f = await _fichaDoClienteOuNova(cfg, c);
       // ao fechar, recarrega pra ficha aparecer como respondida
       abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
-        async () => { await carregarFichas(cfg); atualizar(); });
+        async () => { await carregarFichas(cfg); atualizar(); }, prefill);
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
   });

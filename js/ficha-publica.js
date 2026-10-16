@@ -2,6 +2,8 @@
 // Página PÚBLICA da ficha de atendimento (ficha.html) — abre SEM login.
 //   /ficha/<slug>           → link geral: pede nome + WhatsApp (o app liga ao cliente pelo número)
 //   /ficha/<slug>/<codigo>  → link do cliente: já sabe quem é, não pergunta nome/WhatsApp
+//   Pelo link com código, o rascunho vai pro servidor enquanto a pessoa preenche (só grava).
+//   Aberta dentro do Falcon ("Preencher junto"), recebe as respostas já salvas por postMessage.
 //   ?demo=1                 → modo demonstração (aberto de dentro do Falcon): sem preencher,
 //                             sem validar, sem salvar; passa as telas arrastando pro lado
 // Lê só o necessário via RPC (ficha_info) e envia via RPC (ficha_enviar).
@@ -21,7 +23,30 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const primeiro = s => String(s || '').trim().split(/\s+/)[0] || '';
 const proCurto = () => (INFO && INFO.nome ? primeiro(INFO.nome) : 'a profissional');
-function salvar() { if (DEMO) return; try { localStorage.setItem(CHAVE, JSON.stringify({ R, marcas, consentiu, tela })); } catch {} }
+let _timerRasc = null, PREENCHIDA = false;
+function salvar() {
+  if (DEMO) return;
+  try { localStorage.setItem(CHAVE, JSON.stringify({ R, marcas, consentiu, tela })); } catch {}
+  // link do cliente: guarda o rascunho no servidor (a profissional continua de onde parou na sessão)
+  if (CODIGO) {
+    clearTimeout(_timerRasc);
+    _timerRasc = setTimeout(() => {
+      supabase.rpc('ficha_rascunho', { p_slug: SLUG, p_codigo: CODIGO, p_dados: { R, marcas } }).then(() => {}, () => {});
+    }, 1500);
+  }
+}
+// "Preencher junto" (dentro do Falcon): o app manda o que já foi respondido.
+function ouvirPreenchimento() {
+  if (window.parent === window) return;
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || e.data?.tipo !== 'ficha-prefill') return;
+    R = { ...(e.data.R || {}) }; marcas = { ...(e.data.marcas || {}) };
+    if (CLIENTE && !R.nome) R.nome = CLIENTE;
+    PREENCHIDA = true;
+    desenharTela();
+  });
+  window.parent.postMessage({ tipo: 'ficha-pronta' }, location.origin);
+}
 function carregarRascunho() {
   try {
     const s = JSON.parse(localStorage.getItem(CHAVE) || 'null');
@@ -52,6 +77,7 @@ async function iniciar() {
   if (!DEMO) carregarRascunho();
   if (CLIENTE && !R.nome) R.nome = CLIENTE;
   desenharTela();
+  ouvirPreenchimento();
 }
 
 // === BLOCO 3: TELAS ===
@@ -92,6 +118,7 @@ function telaInicio(app) {
     <h1>${CLIENTE ? 'Oi, ' + esc(primeiro(CLIENTE)) + '!' : esc(MODELO.titulo)}</h1>
     <p class="sub">Essas respostas me ajudam a preparar uma sessão feita pro seu corpo. Leva uns 5 minutos.<br><br>
     O que você não souber, pode pular. A gente completa junto na sessão.</p>
+    ${PREENCHIDA ? '<div class="aviso">✅ As respostas que já tinham sido dadas estão carregadas. É só completar ou corrigir o que precisar.</div>' : ''}
     <div class="consent ${consentiu ? 'on' : ''}" id="consent" role="checkbox" aria-checked="${consentiu}" tabindex="0">
       <span class="mk"></span>
       <span>Autorizo guardar essas informações exclusivamente para meu atendimento.</span>

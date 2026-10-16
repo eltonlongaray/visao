@@ -18,7 +18,7 @@ const _dig = s => String(s || '').replace(/\D/g, '');
 // === BLOCO 2: LEITURA ===
 export async function getFichas() {
   const { data, error } = await supabase.from('fichas')
-    .select('id, codigo, modelo, cliente_nome, cliente_contato, cliente_digitos, respostas, mapa, respondida_em, created_at')
+    .select('*')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
