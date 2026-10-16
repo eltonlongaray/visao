@@ -140,9 +140,9 @@ $$;
 grant execute on function public.placar_oficiais() to authenticated;
 
 -- ─── BLOCO 4: BUCKET PRIVADO DAS PROVAS ────────────────────────
--- 25 MB: depoimento de 2 min em 720p (~900 kbps) dá ~14 MB. Print entra como imagem.
+-- 50 MB (desafios-provas-50mb.sql): depoimento de 5 min no Android passava de 25 MB.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('desafio-provas', 'desafio-provas', false, 26214400,
+values ('desafio-provas', 'desafio-provas', false, 52428800,
         array['video/webm', 'video/mp4', 'video/quicktime', 'image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do update
   set public = false,
