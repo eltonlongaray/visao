@@ -51,6 +51,9 @@ const _gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem
 const _mmss = (seg) => `${Math.floor(seg / 60)}:${String(Math.floor(seg % 60)).padStart(2, '0')}`;
 
 export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova' } = {}) {
+  // Vídeo longo grava menor (360×640): o Android ignora a taxa pedida e o
+  // tamanho do arquivo acompanha a resolução (Élton, 16/10: 5 min passou de 50 MB)
+  const W = maxSeg > 60 ? 360 : REC_W, H = maxSeg > 60 ? 640 : REC_H;
   return new Promise((resolve) => {
     const mime = _mimeVideo();
     if (mime === null || !navigator.mediaDevices?.getUserMedia) {
@@ -63,7 +66,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     ov.innerHTML = `
       <div class="cam-guia-msg"><b>${_esc(titulo)}</b>${dica ? `<br>${dica}` : ''}<br><small>🔴 Gravação ao vivo · até ${maxSeg >= 60 ? `${Math.round(maxSeg / 60)} min` : `${maxSeg} s`}</small></div>
       <video class="cam-guia-video ds-rec-fonte" autoplay playsinline muted></video>
-      <canvas class="cam-guia-video ds-rec-video" width="${REC_W}" height="${REC_H}"></canvas>
+      <canvas class="cam-guia-video ds-rec-video" width="${W}" height="${H}"></canvas>
       <div class="ds-rec-tempo" hidden>● <span>0:00</span> / ${_mmss(maxSeg)}</div>
       <div class="ds-tp" hidden>
         <div class="ds-tp-texto"></div>
@@ -111,19 +114,19 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       raf = requestAnimationFrame(desenhar);
       const vw = video.videoWidth, vh = video.videoHeight;
       if (!vw || !vh) return;
-      const cobre = Math.max(REC_W / vw, REC_H / vh);
-      const cabe = Math.min(REC_W / vw, REC_H / vh);
+      const cobre = Math.max(W / vw, H / vh);
+      const cabe = Math.min(W / vw, H / vh);
       const emPe = vh >= vw;
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, REC_W, REC_H);
+      ctx.fillRect(0, 0, W, H);
       if (emPe) {
-        ctx.drawImage(video, (REC_W - vw * cobre) / 2, (REC_H - vh * cobre) / 2, vw * cobre, vh * cobre);
+        ctx.drawImage(video, (W - vw * cobre) / 2, (H - vh * cobre) / 2, vw * cobre, vh * cobre);
         return;
       }
       ctx.globalAlpha = 0.35;
-      ctx.drawImage(video, (REC_W - vw * cobre) / 2, (REC_H - vh * cobre) / 2, vw * cobre, vh * cobre);
+      ctx.drawImage(video, (W - vw * cobre) / 2, (H - vh * cobre) / 2, vw * cobre, vh * cobre);
       ctx.globalAlpha = 1;
-      ctx.drawImage(video, (REC_W - vw * cabe) / 2, (REC_H - vh * cabe) / 2, vw * cabe, vh * cabe);
+      ctx.drawImage(video, (W - vw * cabe) / 2, (H - vh * cabe) / 2, vw * cabe, vh * cabe);
     }
     const tempo = ov.querySelector('.ds-rec-tempo');
     const shot = ov.querySelector('[data-rec="go"]');

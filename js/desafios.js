@@ -4,6 +4,7 @@
 // Sem dinheiro. RLS admin via profiles.is_admin.
 // ═══════════════════════════════════════════════════════════════
 import { supabase } from './config-supabase.js';
+import { deixarVideoLeve } from './video-leve.js';
 import { auth } from './autenticacao.js';
 
 const SEEN_KEY = 'visao_desafios_vistos';   // ids já vistos neste dispositivo
@@ -218,10 +219,17 @@ export async function apagarCheckin(id) {
 
 // ── Provas (vídeo ao vivo e print da corrida) ────────────────
 // Bucket privado: guarda o caminho, a URL é assinada na hora de ver.
+const LIMITE_PROVA = 50 * 1024 * 1024;   // bucket desafio-provas
 export async function subirProva(blob, tipo) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sessão expirada');
-  if (blob.size > 50 * 1024 * 1024) throw new Error('Vídeo grande demais (máx 50 MB).');
+  // Vídeo acima do limite: o app deixa mais leve antes (video-leve.js)
+  if (blob.size > LIMITE_PROVA && tipo !== 'print') {
+    const leve = await deixarVideoLeve(blob);
+    if (!leve) throw new Error('O vídeo ficou grande demais e não deu pra deixar mais leve. Grava de novo, ele sai menor.');
+    blob = leve;
+  }
+  if (blob.size > LIMITE_PROVA) throw new Error('Vídeo grande demais (máx 50 MB).');
   const mime = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
   const ext = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'image/png': '.png', 'image/webp': '.webp', 'image/jpeg': '.jpg' }[mime] || '.webm';
   const caminho = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
