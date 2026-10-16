@@ -658,7 +658,13 @@ async function moderarPrenda(texto, env) {
 const MODELO_FALA = '@cf/openai/whisper-large-v3-turbo';
 async function transcrever(audioB64, env) {
   const r = await env.AI.run(MODELO_FALA, { audio: audioB64, language: 'pt' });
-  return String(r?.text || '').replace(/\s+/g, ' ').trim();
+  const limpa = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  // Trechos com o tempo de cada fala: viram a legenda do vídeo
+  const segmentos = (Array.isArray(r?.segments) ? r.segments : [])
+    .map(g => ({ ini: Number(g?.start), fim: Number(g?.end), texto: limpa(g?.text) }))
+    .filter(g => g.texto && Number.isFinite(g.ini) && Number.isFinite(g.fim) && g.fim > g.ini)
+    .slice(0, 200);
+  return { texto: limpa(r?.text), segmentos };
 }
 const SISTEMA_CONTEUDO = `Você organiza a transcrição de um depoimento em vídeo que a pessoa gravou para o grupo de um desafio num app brasileiro. Escreva em português do Brasil, fiel ao que foi dito: NÃO invente nada, não dê conselho, não julgue. Corrija só erros óbvios de transcrição e tire repetições e vícios de fala ("é...", "tipo", "né").
 - "resumo": 1 ou 2 frases com a ideia principal, em primeira pessoa como a pessoa falou.
@@ -730,7 +736,7 @@ export default {
     if (body?.transcrever) {
       const a = String(body.transcrever);
       if (a.length > 4_000_000) return json(req, { erro: 'pedaço grande demais' }, 413);
-      try { return json(req, { texto: await transcrever(a, env) }); }
+      try { return json(req, await transcrever(a, env)); }
       catch (err) { return json(req, { erro: 'ia indisponível', detalhe: String(err?.message || err).slice(0, 200) }, 503); }
     }
     if (body?.organizarConteudo) {
