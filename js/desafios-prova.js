@@ -28,6 +28,7 @@ const MAX_SEG_DEPOIMENTO = 300;   // 5 min (pedido do Élton)
 // Sempre em pé (9:16): a câmera passa por um canvas em pé e é ele que grava.
 // O que aparece na tela é exatamente o que vai no vídeo.
 const REC_W = 540, REC_H = 960;
+const TETO_MB = 45;   // o envio aceita até 50 MB (bucket desafio-provas)
 
 // MP4 (H.264) primeiro: o iPhone não toca WebM, e o Chrome do Android já
 // grava MP4. WebM só no celular que não grava MP4.
@@ -159,7 +160,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     }
     tpMostrar();
 
-    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false;
+    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false, bytes = 0, avisouTeto = false;
 
     const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
@@ -192,17 +193,28 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
 
     function gravar() {
       if (!stream) return;
-      pedacos = []; seg = 0;
+      pedacos = []; seg = 0; bytes = 0; avisouTeto = false;
       // Grava o canvas em pé + o som do microfone (sem canvas: a câmera direto)
       const fonte = podeCanvas
-        ? new MediaStream([...tela.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()])
+        ? new MediaStream([...tela.captureStream(maxSeg > 60 ? 15 : 30).getVideoTracks(), ...stream.getAudioTracks()])
         : stream;
       // Vídeo longo (depoimento de até 5 min) grava mais leve pra caber nos
-      // 25 MB do bucket. Com 500k o Android passava do limite em 5 min (o
-      // aparelho não respeita o pedido à risca): 350k dá ~15 MB e folga.
+      // Vídeo longo grava mais leve (350k, 15 quadros/s). O Android não respeita
+      // o pedido à risca (Élton, 16/10: 5 min passou de 25 MB), então o
+      // tamanho também é vigiado durante a gravação (TETO_MB).
       const vbps = maxSeg > 60 ? 350000 : 900000;
       mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: vbps, audioBitsPerSecond: 64000 });
-      mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
+      mr.ondataavailable = (e) => {
+        if (!e.data?.size) return;
+        pedacos.push(e.data);
+        bytes += e.data.size;
+        // Chegou perto do limite do envio: para sozinho e guarda o que já tem
+        if (!avisouTeto && bytes >= TETO_MB * 1024 * 1024 && mr.state !== 'inactive') {
+          avisouTeto = true;
+          showToast('O vídeo chegou no tamanho máximo e parou aqui. O que tu gravou está salvo.', 'info');
+          pararGravacao();
+        }
+      };
       mr.onstop = async () => {
         if (fechado) return;
         blob = new Blob(pedacos, { type: (mr.mimeType || mime || 'video/webm').split(';')[0] });

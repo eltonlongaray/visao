@@ -221,7 +221,7 @@ export async function apagarCheckin(id) {
 export async function subirProva(blob, tipo) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sessão expirada');
-  if (blob.size > 25 * 1024 * 1024) throw new Error('Arquivo grande demais (máx 25 MB).');
+  if (blob.size > 50 * 1024 * 1024) throw new Error('Vídeo grande demais (máx 50 MB).');
   const mime = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
   const ext = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'image/png': '.png', 'image/webp': '.webp', 'image/jpeg': '.jpg' }[mime] || '.webm';
   const caminho = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
