@@ -1124,6 +1124,8 @@ async function routeCommand(text) {
       : 'Aqui teu cartão do dia 🃏';
   }
 
+  // Guardar os vídeos das provas no Drive antes de sumirem (7 dias)
+  if (/\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\b.*\b(?:prova|desafio|drive)|\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\s+(?:no|na)\s+(?:drive|nuvem)/i.test(text)) return guardarVideosProvas();
   // Caderno de estudo do Pet (só admin): como o Pet foi em cada versão
   if (/\bcaderno (?:de estudos? )?do pet\b|\bcomo (?:o pet|tu|voc[eê]) (?:t[aá]|est[aá]) (?:aprendendo|evoluindo)\b/i.test(text)) return cadernoDoPet();
 
@@ -5245,11 +5247,18 @@ async function desafioGrupoLer(d, c) {
   const ult = msgs.slice(-8);
   if (!ult.length) { addChoices(`💬 Ninguém falou nada no grupo do <b>${nome}</b> ainda.`, [_botaoAbrirGrupo(d)]); return null; }
   const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  // Depoimento com "📄 Conteúdo": o Pet mostra o resumo do que foi dito
+  let resumos = new Map();
+  if (ult.some(m => m.checkin_id)) {
+    try { resumos = new Map((await (await import('./desafios.js')).fetchCheckins()).filter(k => k.conteudo?.resumo).map(k => [k.id, k.conteudo.resumo])); }
+    catch { /* sem resumo */ }
+  }
   const linhas = ult.map(m => {
     const quem = m.autor_id === c.uid ? 'Você' : _esc(m.autor_nome || 'Falcão');
     const txt = m.texto || (m.imagem_path ? '📷 Foto' : m.arquivo_path ? '🎧 Áudio/arquivo' : '');
     const corte = txt.length > 90 ? txt.slice(0, 88) + '…' : txt;
-    return `<b>${quem}</b> <small>${hora(m.created_at)}</small>: ${m.prova_video && !/🎥|🎙️|🏃/.test(txt) ? '🎥 ' : ''}${_esc(corte)}`;
+    const res = resumos.get(m.checkin_id);
+    return `<b>${quem}</b> <small>${hora(m.created_at)}</small>: ${m.prova_video && !/🎥|🎙️|🏃/.test(txt) ? '🎥 ' : ''}${_esc(corte)}${res ? `<br>📄 <em>${_esc(res.length > 160 ? res.slice(0, 158) + '…' : res)}</em>` : ''}`;
   });
   addChoices(`💬 <b>Grupo · ${nome}</b><br>${linhas.join('<br>')}`, [_botaoAbrirGrupo(d)]);
   return null;
@@ -5763,6 +5772,20 @@ function desafioCriar(p, c) {
 // Caderno de estudo do Pet (FIAP Fase 6): as frases que ele não entendeu viram
 // uma prova com a resposta certa; cada revisão fecha uma versão com o placar
 // (sql/pet-caderno.sql). Aqui o admin vê a evolução, sem as frases.
+async function guardarVideosProvas() {
+  const uid = (await import('./autenticacao.js')).auth.currentUser?.uid;
+  const D = await import('./desafios.js');
+  const G = await import('./provas-guardar.js');
+  const checks = await D.fetchCheckins();
+  if (!G.videosParaGuardar(checks, uid).length) {
+    const meus = checks.filter(c => c.user_id === uid && c.video_path && c.video_expira_em && new Date(c.video_expira_em) > new Date());
+    return meus.length
+      ? 'Teus vídeos ainda têm mais de 3 dias. Se quiser guardar agora, abre o grupo e toca em <b>⬇️ Salvar vídeo</b> na prova 🦅'
+      : 'Tu não tem vídeo de prova no ar agora 🦅';
+  }
+  await G.avisoGuardarVideos(null, checks, uid, { forcar: true });
+  return 'Abri pra tu guardar os vídeos no Drive 📦';
+}
 async function cadernoDoPet() {
   const { supabase } = await import('./config-supabase.js');
   const { data, error } = await supabase.rpc('pet_caderno_evolucao');

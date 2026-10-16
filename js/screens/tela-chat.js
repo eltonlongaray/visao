@@ -32,6 +32,8 @@ import * as DIG from '../chat-digitando.js';
 import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
 import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
+import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda } from '../prova-conteudo.js';
+import { avisoGuardarVideos } from '../provas-guardar.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
 
@@ -530,6 +532,12 @@ async function desenharSalaDesafio(corpo) {
   const meu = auth.currentUser?.uid;
   await Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)]);
   provasRasc = await listarRascunhos(id);
+  // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
+  tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});
+  // 4º dia em diante: oferece guardar os meus vídeos desse desafio no Drive
+  setTimeout(() => {
+    if (conversaCom?.id === id && sala?.d?.id === id) avisoGuardarVideos(sala.d, sala.checks.filter(c => c.desafio_id === id), meu).catch(() => {});
+  }, 1200);
   const lista = (msgs.length || provasRasc.length)
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('') + provasRasc.map(balaoRascunho).join('')
     : `<div class="chat-vazio">Grupo do desafio.<br>Toque na 📷 pra mandar a prova de hoje.</div>`;
@@ -633,13 +641,24 @@ async function carregarProvas(msgs) {
   });
 }
 
+// Legenda automática (do 📄 Conteúdo) por cima do vídeo
+function _trilhaLegenda(ck) {
+  const u = ck ? urlDaLegenda(ck.id, ck.conteudo) : '';
+  return u ? `<track kind="subtitles" srclang="pt" label="Legenda" src="${esc(u)}" default>` : '';
+}
+
 function blocoProva(m) {
   if (!m.prova_video && !m.prova_print) return '';
   const v = m.prova_video ? provaUrls.get(m.prova_video) : '';
   const p = m.prova_print ? provaUrls.get(m.prova_print) : '';
-  if (!v && !p) return `<div class="msg-prova-vencida">🎥 Prova (o vídeo já venceu)</div>`;
+  const ck = m.checkin_id && sala?.checks?.find(c => c.id === m.checkin_id);
+  if (!v && !p) {
+    // O vídeo saiu (7 dias): fica o que foi dito, organizado
+    if (ck && temConteudo(ck.conteudo)) return `<button type="button" class="msg-prova-conteudo" data-conteudo="${esc(m.checkin_id)}">📄 Conteúdo</button>`;
+    return `<div class="msg-prova-vencida">🎥 Prova (o vídeo já saiu)</div>`;
+  }
   return `<div class="msg-prova">
-    ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata"></video>` : ''}
+    ${v ? `<video src="${esc(v)}#t=0.1" controls playsinline preload="metadata">${_trilhaLegenda(ck)}</video>` : ''}
     ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
     ${v ? `<button type="button" class="msg-prova-salvar" data-salvar-prova="${esc(m.prova_video)}">⬇️ Salvar vídeo</button>` : ''}
   </div>`;
@@ -2253,6 +2272,15 @@ function ligarEventos(app) {
     const salvarProva = t.closest('[data-salvar-prova]');
     if (salvarProva) { await salvarVideoProva(salvarProva); return; }
 
+    const btConteudo = t.closest('[data-conteudo]');
+    if (btConteudo) {
+      const ck = sala?.checks?.find(c => c.id === btConteudo.dataset.conteudo);
+      if (ck) abrirConteudo(ck.conteudo, {
+        quem: sala.parts?.find(x => x.user_id === ck.user_id)?.nome || '',
+        quando: ck.dia ? `Prova de ${ck.dia.split('-').reverse().slice(0, 2).join('/')}` : '',
+      });
+      return;
+    }
     const abrirFoto = t.closest('[data-abrir-foto]');
     if (abrirFoto) {
       verFoto(abrirFoto.dataset.abrirFoto, abrirFoto.closest('[data-id]')?.dataset.id);

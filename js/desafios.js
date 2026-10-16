@@ -4,7 +4,6 @@
 // Sem dinheiro. RLS admin via profiles.is_admin.
 // ═══════════════════════════════════════════════════════════════
 import { supabase } from './config-supabase.js';
-import { deixarVideoLeve } from './video-leve.js';
 import { auth } from './autenticacao.js';
 
 const SEEN_KEY = 'visao_desafios_vistos';   // ids já vistos neste dispositivo
@@ -167,8 +166,12 @@ export async function fetchParticipantes() {
 }
 export async function fetchCheckins() {
   const { data, error } = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo');
   if (!error) return data || [];
+  // Banco ainda sem o "Conteúdo" (migration/desafios-provas-conteudo.sql)
+  const r0 = await supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+  if (!r0.error) return r0.data || [];
   // Banco ainda sem as colunas da prova: lê o básico pra não zerar o ranking
   const r = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
   return r.data || [];
@@ -205,8 +208,10 @@ export async function addCheckin(desafioId, quantidade, extra = {}) {
   if (extra.exercicio) row.exercicio = extra.exercicio;
   if (extra.videoPath) row.video_path = extra.videoPath;
   if (extra.printPath) row.print_path = extra.printPath;
-  const { error } = await supabase.from('desafio_checkins').insert(row);
+  // Devolve o id do check-in (o "📄 Conteúdo" do depoimento grava nele)
+  const { data, error } = await supabase.from('desafio_checkins').insert(row).select('id').maybeSingle();
   if (error) throw new Error(error.message || 'Erro ao registrar');
+  return data?.id || null;
 }
 
 // Apagar a PRÓPRIA prova de hoje (Élton, 16/10): some o check-in, e com ele a
@@ -219,30 +224,63 @@ export async function apagarCheckin(id) {
 
 // ── Provas (vídeo ao vivo e print da corrida) ────────────────
 // Bucket privado: guarda o caminho, a URL é assinada na hora de ver.
-const LIMITE_PROVA = 50 * 1024 * 1024;   // bucket desafio-provas
+// Vídeo grande sobe em PARTES de até 45 MB (o plano grátis do Supabase aceita
+// 50 MB por arquivo): a primeira no caminho principal, que termina em -nN
+// (N = quantas partes), e as outras em <caminho>.p2, .p3... Juntando as
+// partes na ordem, volta o vídeo original, sem perder qualidade (Élton, 16/10).
+const PARTE = 45 * 1024 * 1024;
+const MAX_PARTES = 8;
+export const partesDoVideo = (caminho) => {
+  const n = Number((/-n(\d+)\.[a-z0-9]+$/i.exec(caminho || '') || [])[1] || 1);
+  return n > 1 ? [caminho, ...Array.from({ length: n - 1 }, (_, i) => `${caminho}.p${i + 2}`)] : [caminho];
+};
 export async function subirProva(blob, tipo) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sessão expirada');
-  // Vídeo acima do limite: o app deixa mais leve antes (video-leve.js)
-  if (blob.size > LIMITE_PROVA && tipo !== 'print') {
-    const leve = await deixarVideoLeve(blob);
-    if (!leve) throw new Error('O vídeo ficou grande demais e não deu pra deixar mais leve. Grava de novo, ele sai menor.');
-    blob = leve;
-  }
-  if (blob.size > LIMITE_PROVA) throw new Error('Vídeo grande demais (máx 50 MB).');
+  const n = Math.max(1, Math.ceil(blob.size / PARTE));
+  if (n > MAX_PARTES) throw new Error('Vídeo grande demais. Grava um mais curto.');
   const mime = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
   const ext = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'image/png': '.png', 'image/webp': '.webp', 'image/jpeg': '.jpg' }[mime] || '.webm';
-  const caminho = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
-  const { error } = await supabase.storage.from('desafio-provas').upload(caminho, blob, { contentType: mime });
-  if (error) throw new Error(error.message || 'Não deu pra enviar a prova');
+  const caminho = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${n > 1 ? `-n${n}` : ''}${ext}`;
+  const partes = partesDoVideo(caminho);
+  const feitas = [];
+  try {
+    for (let i = 0; i < partes.length; i++) {
+      const pedaco = n > 1 ? blob.slice(i * PARTE, (i + 1) * PARTE, mime) : blob;
+      const { error } = await supabase.storage.from('desafio-provas').upload(partes[i], pedaco, { contentType: mime });
+      if (error) throw new Error(error.message || 'Não deu pra enviar a prova');
+      feitas.push(partes[i]);
+    }
+  } catch (e) {
+    if (feitas.length) supabase.storage.from('desafio-provas').remove(feitas).catch(() => {});
+    throw e;
+  }
   return caminho;
+}
+// Vídeo em partes: baixa todas e junta num só (fica guardado enquanto o app está aberto)
+const _juntados = new Map();
+async function _juntar(caminho, urls) {
+  if (_juntados.has(caminho)) return _juntados.get(caminho);
+  const pedacos = await Promise.all(urls.map(async u => { const r = await fetch(u); if (!r.ok) throw new Error('parte'); return r.blob(); }));
+  const url = URL.createObjectURL(new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
+  _juntados.set(caminho, url);
+  return url;
 }
 export async function assinarProvas(caminhos) {
   const unicos = [...new Set((caminhos || []).filter(Boolean))];
   if (!unicos.length) return new Map();
-  const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(unicos, 60 * 60);
+  const todos = unicos.flatMap(partesDoVideo);
+  const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(todos, 60 * 60);
   if (error) return new Map();
-  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+  const assin = new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+  const res = new Map();
+  await Promise.all(unicos.map(async c => {
+    const partes = partesDoVideo(c);
+    if (partes.length === 1) { if (assin.has(c)) res.set(c, assin.get(c)); return; }
+    if (!partes.every(p => assin.has(p))) return;
+    try { res.set(c, await _juntar(c, partes.map(p => assin.get(p)))); } catch { /* sem o vídeo */ }
+  }));
+  return res;
 }
 // Apaga da MINHA pasta o que não está preso a um check-in que ainda vale
 // (o vídeo fica até 7 dias depois do fim do desafio; o check-in fica pro ranking).
@@ -260,13 +298,13 @@ export async function faxinaProvas() {
     const usados = new Set();
     (vivos || []).forEach(c => {
       if (c.video_expira_em && new Date(c.video_expira_em).getTime() < agora) return;
-      if (c.video_path) usados.add(c.video_path);
+      if (c.video_path) partesDoVideo(c.video_path).forEach(p => usados.add(p));
       if (c.print_path) usados.add(c.print_path);
     });
     // Vídeo da prenda no mural (7 dias) também fica
     const { data: prendas, error: e2 } = await supabase.from('desafio_prendas').select('video_path').eq('user_id', uid);
     if (e2) return;
-    (prendas || []).forEach(p => p.video_path && usados.add(p.video_path));
+    (prendas || []).forEach(p => p.video_path && partesDoVideo(p.video_path).forEach(x => usados.add(x)));
     // arquivo de menos de 1 dia pode ser a corrida pela metade (vídeo já subiu, falta o print)
     const lixo = arqs.filter(a => !usados.has(`${uid}/${a.name}`) && agora - new Date(a.created_at || 0).getTime() > 864e5)
       .map(a => `${uid}/${a.name}`);

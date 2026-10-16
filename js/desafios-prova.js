@@ -11,6 +11,7 @@ import { addCheckin, subirProva } from './desafios.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { salvarRascunho } from './desafios-rascunho.js';
+import { gerarConteudo } from './prova-conteudo.js';
 import './vendor/fix-webm-duration.js';   // window.ysFixWebmDuration
 import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca, ehAgua } from './desafios-moldes.js';
 
@@ -27,8 +28,15 @@ const MAX_SEG = 30;
 const MAX_SEG_DEPOIMENTO = 300;   // 5 min (pedido do Élton)
 // Sempre em pé (9:16): a câmera passa por um canvas em pé e é ele que grava.
 // O que aparece na tela é exatamente o que vai no vídeo.
-const REC_W = 540, REC_H = 960;
-const TETO_MB = 45;   // o envio aceita até 50 MB (bucket desafio-provas)
+// Qualidade (Élton, 16/10: "quero o vídeo em qualidade máxima"): 720p em pé,
+// 30 quadros/s, som 128k. Vídeo grande sobe em partes (subirProva), então o
+// tamanho não limita mais a qualidade.
+const QUALIDADE = {
+  alta:   { w: 720,  h: 1280, vbps: 2500000 },
+  maxima: { w: 1080, h: 1920, vbps: 6000000 },
+};
+const Q = QUALIDADE.alta;
+const REC_W = Q.w, REC_H = Q.h;
 
 // MP4 (H.264) primeiro: o iPhone não toca WebM, e o Chrome do Android já
 // grava MP4. WebM só no celular que não grava MP4.
@@ -51,9 +59,7 @@ const _gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem
 const _mmss = (seg) => `${Math.floor(seg / 60)}:${String(Math.floor(seg % 60)).padStart(2, '0')}`;
 
 export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova' } = {}) {
-  // Vídeo longo grava menor (360×640): o Android ignora a taxa pedida e o
-  // tamanho do arquivo acompanha a resolução (Élton, 16/10: 5 min passou de 50 MB)
-  const W = maxSeg > 60 ? 360 : REC_W, H = maxSeg > 60 ? 640 : REC_H;
+  const W = REC_W, H = REC_H;
   return new Promise((resolve) => {
     const mime = _mimeVideo();
     if (mime === null || !navigator.mediaDevices?.getUserMedia) {
@@ -163,7 +169,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     }
     tpMostrar();
 
-    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false, bytes = 0, avisouTeto = false;
+    let lado = 'user', stream = null, mr = null, pedacos = [], timer = null, seg = 0, blob = null, fechado = false, entregue = null, t0 = 0, durMs = 0, acum = 0, pausado = false;
 
     const parar = () => { cancelAnimationFrame(raf); raf = 0; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
     const fim = (v) => {
@@ -196,28 +202,13 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
 
     function gravar() {
       if (!stream) return;
-      pedacos = []; seg = 0; bytes = 0; avisouTeto = false;
+      pedacos = []; seg = 0;
       // Grava o canvas em pé + o som do microfone (sem canvas: a câmera direto)
       const fonte = podeCanvas
-        ? new MediaStream([...tela.captureStream(maxSeg > 60 ? 15 : 30).getVideoTracks(), ...stream.getAudioTracks()])
+        ? new MediaStream([...tela.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()])
         : stream;
-      // Vídeo longo (depoimento de até 5 min) grava mais leve pra caber nos
-      // Vídeo longo grava mais leve (350k, 15 quadros/s). O Android não respeita
-      // o pedido à risca (Élton, 16/10: 5 min passou de 25 MB), então o
-      // tamanho também é vigiado durante a gravação (TETO_MB).
-      const vbps = maxSeg > 60 ? 350000 : 900000;
-      mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: vbps, audioBitsPerSecond: 64000 });
-      mr.ondataavailable = (e) => {
-        if (!e.data?.size) return;
-        pedacos.push(e.data);
-        bytes += e.data.size;
-        // Chegou perto do limite do envio: para sozinho e guarda o que já tem
-        if (!avisouTeto && bytes >= TETO_MB * 1024 * 1024 && mr.state !== 'inactive') {
-          avisouTeto = true;
-          showToast('O vídeo chegou no tamanho máximo e parou aqui. O que tu gravou está salvo.', 'info');
-          pararGravacao();
-        }
-      };
+      mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: Q.vbps, audioBitsPerSecond: 128000 });
+      mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
       mr.onstop = async () => {
         if (fechado) return;
         blob = new Blob(pedacos, { type: (mr.mimeType || mime || 'video/webm').split(';')[0] });
@@ -551,7 +542,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       const roteiro = roteiroDepoimento(d, { falhou });
       const blob = await gravarVideoAoVivo({
         titulo: falhou ? '🎙️ Como foi hoje' : `🎙️ ${d.titulo}`,
-        dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul>`,
+        dica: `Fale sobre:<ul class="ds-rec-roteiro">${roteiro.map(r => `<li>${_esc(r)}</li>`).join('')}</ul><small>O vídeo fica 7 dias no grupo. Depois fica o texto do que tu falou (📄 Conteúdo).</small>`,
         maxSeg: MAX_SEG_DEPOIMENTO,
         rascunho: true,
       });
@@ -593,7 +584,9 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
 async function _enviarOuGuardar(d, blob, extra) {
   try {
     const videoPath = await subirProva(blob, 'video');
-    await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    const id = await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    // Depoimento: o que foi dito vira o "📄 Conteúdo" (em segundo plano)
+    if (extra.tipo === 'depoimento' && id) gerarConteudo(id, blob);
     return true;
   } catch (e) {
     try {

@@ -7,6 +7,7 @@
 // BLOCO 2 — ENVIAR / APAGAR
 // ─────────────────────────────────────────────────────────────
 import { addCheckin, subirProva } from './desafios.js';
+import { gerarConteudo } from './prova-conteudo.js';
 import { auth } from './autenticacao.js';
 import { showToast } from './aviso-tela.js';
 import { passouDoLimite, horaLimite } from './desafios-moldes.js';
@@ -78,7 +79,8 @@ export async function enviarRascunho(r, d) {
   try {
     showToast('Enviando a prova…', 'info');
     const videoPath = await subirProva(r.blob, 'video');
-    await addCheckin(d.id, r.falhou ? 0 : (r.quantidade || 1), { exercicio: r.exercicio || null, videoPath });
+    const id = await addCheckin(d.id, r.falhou ? 0 : (r.quantidade || 1), { exercicio: r.exercicio || null, videoPath });
+    if (r.tipo === 'depoimento' && id) gerarConteudo(id, r.blob);
     await apagarRascunho(r.id);
     showToast(r.tipo === 'depoimento' ? '🎙️ Depoimento enviado! 🦅' : '🎥 Prova enviada! 🦅', 'success');
     return true;
