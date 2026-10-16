@@ -73,9 +73,9 @@ const MASSOTERAPIA = {
     ]},
     { nome: "Do seu jeito", perguntas: [
       { id:"pressao", tipo:"unica", q:"Que pressão você prefere na massagem?", op:["Leve","Média","Forte","Não sei, quero descobrir"] },
-      { id:"nao_tocar", tipo:"texto", q:"Tem alguma parte do corpo que você prefere que eu não toque?", ph:"Ex: pés, rosto…" },
+      { id:"nao_tocar", tipo:"texto", opcional:true, q:"Tem alguma parte do corpo que você prefere que eu não toque?", ph:"Ex: pés, rosto…" },
       { id:"conversa", tipo:"unica", q:"Durante a sessão, você prefere…", op:["Conversar","Ficar em silêncio","Tanto faz"] },
-      { id:"ambiente", tipo:"texto", q:"Alguma preferência de aroma, música ou temperatura?", ph:"Ex: sem cheiro forte, sala mais quente…" },
+      { id:"ambiente", tipo:"texto", opcional:true, q:"Alguma preferência de aroma, música ou temperatura?", ph:"Ex: sem cheiro forte, sala mais quente…" },
       { id:"algo_mais", tipo:"longo", q:"Tem mais alguma coisa que eu deveria saber?", ph:"Fica à vontade" },
     ]},
   ],
@@ -161,3 +161,36 @@ export const MEDIDAS = [
   { k: 'tornozelo_d', nome: 'Tornozelo direito' }, { k: 'tornozelo_e', nome: 'Tornozelo esquerdo' },
   { k: 'peso', nome: 'Peso', un: 'kg' },
 ];
+
+// === BLOCO 6: O QUE FICOU EM BRANCO (aviso pra profissional antes de abrir a ficha) ===
+// Nome curto de cada pergunta, pra frase "Fulana não respondeu: sono, alergia…".
+export const CURTAS = {
+  nascimento: 'data de nascimento', conheceu: 'como te conheceu', motivo: 'o que procura', tipos: 'tipos de massagem',
+  frequencia: 'frequência de massagem', mapa: 'mapa do corpo', ja_fez: 'o que já fez pra dor', fadiga: 'fadiga muscular',
+  fadiga_onde: 'onde sente fadiga', estresse_causa: 'o que estressa', estresse_duracao: 'quanto dura o estresse',
+  estresse: 'nível de estresse', sono: 'sono', rotina: 'rotina', atividade: 'qual atividade física', inchaco: 'inchaço',
+  inchaco_quando: 'quando incha', refeicao: 'tipo de refeição', alimentacao: 'alimentação', saude: 'condições de saúde',
+  gestante_semanas: 'semanas de gestação', cirurgia_qual: 'qual cirurgia', alergia: 'alergia a óleo/creme/aroma',
+  alergia_qual: 'qual alergia', remedio: 'remédio contínuo', remedio_qual: 'qual remédio', pressao: 'pressão preferida',
+  conversa: 'conversa ou silêncio',
+};
+// Conta só o que a pessoa VIU (respeita as condicionais). Texto livre ("longo") e "opcional" não contam.
+export function faltando(modelo, r, mapa) {
+  r = r || {};
+  const out = [];
+  for (const b of modelo.blocos) for (const p of b.perguntas) {
+    if (p.tipo === 'aviso' || p.ident || p.opcional || p.tipo === 'longo') continue;
+    if (p.se && !p.se(r)) continue;
+    const saude = b.nome === 'Saúde e segurança';
+    if (p.tipo === 'mapa') {
+      if (!Object.values(mapa || {}).some(temMarca)) out.push({ id: 'mapa', curta: CURTAS.mapa, bloco: b.nome, q: 'Mapa do corpo: nenhuma região marcada', saude });
+      continue;
+    }
+    const v = r[p.id];
+    const curta = CURTAS[p.id] || p.q;
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) out.push({ id: p.id, curta, bloco: b.nome, q: p.q, saude });
+    else if (p.outro && (v === 'Outro' || (Array.isArray(v) && v.includes('Outro'))) && !String(r[p.id + '_outro'] || '').trim())
+      out.push({ id: p.id, curta: curta + ' (o "outro")', bloco: b.nome, q: p.q + ' (marcou "Outro" sem dizer qual)', saude });
+  }
+  return out;
+}

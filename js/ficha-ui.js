@@ -8,7 +8,7 @@
 // Dados: ficha.js · Modelos: ficha-modelo.js · Página do cliente: ficha-publica.js
 // ─────────────────────────────────────────────────────────────
 import { getFichas, criarConviteFicha, ligarFichaCliente, excluirFicha, salvarFichaCfg } from './ficha.js';
-import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero } from './ficha-modelo.js';
+import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero, faltando } from './ficha-modelo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
@@ -177,15 +177,65 @@ export function abrirPaginaFicha(url, titulo, onFechar, prefill) {
   return close;
 }
 
+// === BLOCO 4B: SITUAÇÃO DA FICHA (o que falta, sem precisar abrir) ===
+function _situacao(c) {
+  const fs = _fichasDoCliente(c);
+  const resps = fs.filter(f => f.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
+  const resp = resps[resps.length - 1] || null;
+  const rasc = fs.filter(f => f.rascunho && f.rascunho_em && (!resp || f.rascunho_em > resp.respondida_em))
+    .sort((a, b) => (a.rascunho_em < b.rascunho_em ? 1 : -1))[0] || null;
+  const falta = resp ? faltando(MODELOS[resp.modelo] || MODELOS.massoterapia, resp.respostas, resp.mapa) : [];
+  return { resps, resp, rasc, falta, saude: falta.some(x => x.saude) };
+}
+const _txtFalta = st => `${st.falta.length} em branco${st.saude ? ' · ⚠️ saúde' : ''}`;
+// "a, b e c"
+const _lista = arr => arr.length > 1 ? arr.slice(0, -1).join(', ') + ' e ' + arr[arr.length - 1] : (arr[0] || '');
+// Frase embaixo do botão da ficha: "Maria está com a ficha incompleta. Não respondeu: sono e alergia."
+function _fraseFalta(c, st) {
+  if (!st.resp || !st.falta.length) return '';
+  const saude = st.falta.filter(x => x.saude).map(x => x.curta);
+  const outras = st.falta.filter(x => !x.saude).map(x => x.curta);
+  return `<div class="fi-perfil-falta${saude.length ? ' saude' : ''}"><b>${_esc(_primeiro(c.nome))}</b> está com a ficha incompleta.
+    ${saude.length ? `<br>⚠️ <b>Saúde:</b> não respondeu ${_esc(_lista(saude))}.` : ''}
+    ${outras.length ? `<br>Não respondeu ${_esc(_lista(outras))}.` : ''}</div>`;
+}
+
+// Etiqueta pra lista de 👥 Clientes da Agenda.
+export function statusFichaClienteHtml(cfg, c) {
+  if (!fichaAtiva(cfg)) return '';
+  const st = _situacao(c);
+  if (st.resp) return st.falta.length
+    ? ` · <span class="fi-st aviso${st.saude ? ' saude' : ''}">📋 ${_txtFalta(st)}</span>`
+    : ' · <span class="fi-st ok">📋 ficha completa</span>';
+  if (st.rasc) return ' · <span class="fi-st aviso">📋 começou e não enviou</span>';
+  return ' · <span class="fi-st">📋 sem ficha</span>';
+}
+
+// "Preencher/Atualizar junto": abre a ficha do cliente dentro do app, já com o que ele respondeu.
+async function _abrirJunto(cfg, c, aoFechar) {
+  // busca o mais recente do banco (o cliente pode ter começado a preencher agora há pouco)
+  if (!_demo) try { _fichas = await getFichas(); } catch {}
+  const st = _situacao(c);
+  // o que já foi respondido: rascunho em andamento (se mais novo) ou a última ficha enviada
+  const prefill = st.rasc ? st.rasc.rascunho : st.resp ? { R: st.resp.respostas || {}, marcas: st.resp.mapa || {} } : null;
+  if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração', null, prefill); return; }
+  const f = await _fichaDoClienteOuNova(cfg, c);
+  // ao fechar, recarrega pra ficha aparecer como respondida
+  abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
+    async () => { await carregarFichas(cfg); aoFechar?.(); }, prefill);
+}
+
 // === BLOCO 5: FICHA NO PERFIL DO CLIENTE ===
 export function perfilFichaHtml(cfg, c) {
   if (!fichaAtiva(cfg)) return '';
   // Cada resposta é um registro (fase 1, 2, 3…): a mais recente em destaque, as anteriores embaixo.
-  const resps = _fichasDoCliente(c).filter(f => f.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
-  const resp = resps[resps.length - 1];
+  const st = _situacao(c);
+  const { resps, resp } = st;
   return `<div class="fi-perfil">
+    ${st.rasc ? `<div class="fi-perfil-rasc">✏️ Começou a preencher em ${_dataBr(st.rasc.rascunho_em)} e ainda não enviou. Dá pra continuar junto.</div>` : ''}
     ${resp
-      ? `<button class="fi-perfil-ver" data-fi-ver="${_esc(resp.id)}" type="button"><span>📋 Ver ficha${resps.length > 1 ? ` · fase ${resps.length}` : ''}</span><small>respondida em ${_dataBr(resp.respondida_em)}</small></button>
+      ? `<button class="fi-perfil-ver${st.falta.length ? ' falta' : ''}${st.saude ? ' saude' : ''}" data-fi-ver="${_esc(resp.id)}" type="button"><span>📋 Ver ficha${resps.length > 1 ? ` · fase ${resps.length}` : ''}</span><small>respondida em ${_dataBr(resp.respondida_em)} · ${st.falta.length ? '⚠️ ' + _txtFalta(st) : '✅ completa'}</small></button>
+        ${_fraseFalta(c, st)}
         ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
       : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
     <div class="fi-perfil-acoes">
@@ -235,21 +285,8 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
   });
   ov.querySelector('#fi-junto')?.addEventListener('click', async e => {
     const btn = e.currentTarget; btn.disabled = true;
-    try {
-      // busca o mais recente do banco (o cliente pode ter começado a preencher agora há pouco)
-      if (!_demo) try { _fichas = await getFichas(); } catch {}
-      // o que já foi respondido: rascunho em andamento (se mais novo) ou a última ficha enviada
-      const resps = _fichasDoCliente(c).filter(x => x.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
-      const ultima = resps[resps.length - 1];
-      const rasc = _fichasDoCliente(c).filter(x => x.rascunho && x.rascunho_em && (!ultima || x.rascunho_em > ultima.respondida_em))
-        .sort((a, b) => (a.rascunho_em < b.rascunho_em ? 1 : -1))[0];
-      const prefill = rasc ? rasc.rascunho : ultima ? { R: ultima.respostas || {}, marcas: ultima.mapa || {} } : null;
-      if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração', null, prefill); return; }
-      const f = await _fichaDoClienteOuNova(cfg, c);
-      // ao fechar, recarrega pra ficha aparecer como respondida
-      abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
-        async () => { await carregarFichas(cfg); atualizar(); }, prefill);
-    } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+    try { await _abrirJunto(cfg, c, atualizar); }
+    catch (err) { showToast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
   });
 }
@@ -287,6 +324,7 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
   const mapa = f.mapa || {};
   const marcas = Object.keys(mapa).filter(k => temMarca(mapa[k]));
   const semCliente = !cliente && !clientes.some(c => c.contato && mesmoNumero(f.cliente_digitos || f.cliente_contato, c.contato));
+  const falta = faltando(modelo, r, mapa);
   const blocos = modelo.blocos.map((b, bi) => {
     const linhas = b.perguntas.filter(p => !['aviso', 'mapa'].includes(p.tipo) && !p.ident).map(p => {
       const t = _valorTxt(p, r);
@@ -319,6 +357,12 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
         <select id="fi-ligar"><option value="">— é um cliente novo —</option>
           ${clientes.map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ' · ' + _esc(c.contato) : ''}</option>`).join('')}
         </select></label>` : ''}
+      ${falta.length ? `<div class="fi-falta${falta.some(x => x.saude) ? ' saude' : ''}">
+        <div class="fi-falta-tit">⚠️ Ficou em branco (${falta.length})</div>
+        ${[...new Set(falta.map(x => x.bloco))].map(bl => `<div class="fi-falta-bl">${_esc(bl)}</div>
+          ${falta.filter(x => x.bloco === bl).map(x => `<div class="fi-falta-q">• ${_esc(x.q)}</div>`).join('')}`).join('')}
+        ${cfg ? '<button class="fi-btn" id="fi-completar" type="button" style="margin-top:10px">✍️ Completar junto agora</button>' : ''}
+      </div>` : '<div class="fi-completa">✅ Ficha completa: todas as perguntas respondidas.</div>'}
       ${blocos}
       <button class="fi-excluir" id="fi-excluir" type="button">🗑 Apagar essa ficha</button>
     </div>
@@ -333,6 +377,11 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
       Object.assign(f, { cliente_nome: c.nome, cliente_contato: c.contato, cliente_digitos: String(c.contato || '').replace(/\D/g, '') });
       showToast(`✅ Ficha ligada a ${_primeiro(c.nome)}`, 'success'); close(); redesenhar?.();
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+  });
+  ov.querySelector('#fi-completar')?.addEventListener('click', async () => {
+    const c = cliente || { nome: f.cliente_nome, contato: f.cliente_contato };
+    close();
+    try { await _abrirJunto(cfg, c, redesenhar); } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   });
   ov.querySelector('#fi-excluir').onclick = async () => {
     if (_demo) { showToast('Na demonstração não apaga nada 🙂', 'info'); return; }
