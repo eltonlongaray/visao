@@ -365,6 +365,7 @@ export async function renderRifaPublica(app, slug) {
         <div class="rf-pix-valor">Pague <b>R$ ${_preco(valor)}</b> no Pix</div>
         ${dinamico ? '' : `<div class="rf-prazo">⏰ Pague em até <b>24h</b>. Depois disso o número volta a ficar livre e você precisa escolher de novo antes de pagar.</div>`}
         ${dinamico ? `<div class="rf-pix-status" id="rf-status">⏳ Aguardando o pagamento cair…</div>` : ''}
+        ${codigo ? `<div class="rf-golpe">🛡️ <b>Antes de pagar:</b> pague só por este código${!dinamico && rifa.pix_nome ? ` e confira se quem recebe é <b>${_esc(rifa.pix_nome)}</b>` : ''}. O Falcon nunca pede Pix por mensagem ou WhatsApp.</div>` : ''}
         ${!dinamico && codigo ? `<div class="rf-pix-doacao">💛 Na <b>descrição/mensagem</b> do Pix escreva: <b>Doação — ${_esc(rifa.titulo || 'rifa')}</b></div>` : ''}
         ${codigo ? `${qrImg ? `<div class="rf-qr"><img src="${qrImg}" alt="QR Code Pix" width="220" height="220" style="border-radius:12px;background:#fff;padding:8px"></div>` : '<div class="rf-qr" id="rf-qr"></div>'}
         <div class="rf-pix-lbl">Pix copia e cola</div>

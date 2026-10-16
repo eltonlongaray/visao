@@ -292,6 +292,7 @@ function _participantesHtml() {
   const disp = Math.max(0, (parseInt(_sel.total_numeros, 10) || 0) - _parts.length);
   return `
     <div class="rf-sec-lbl">👥 Participantes <span class="ag-lbl-opt">— ${disp} disponíveis · ${_parts.length} escolhidos · ${pagos} pagos${arrec != null ? ` · R$ ${_preco(arrec)}` : ''}</span></div>
+    <div class="rf-golpe">🛡️ Só marca ✅ depois de ver o dinheiro na tua conta: comprovante pode ser falso. Ninguém do Falcon vai te pedir senha nem código.</div>
     <div class="rf-parts">
       ${_parts.length ? _parts.map(p => {
         const wa = _waLink(p.contato, `Oi ${p.nome || ''}! Sobre a ${_sel.titulo || 'rifa'} — número ${p.numero} 🎟️`);

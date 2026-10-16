@@ -423,6 +423,8 @@ export function textoConvite(d, { noApp = false } = {}) {
     '4. Pronto: tu cai direto no grupo do desafio',
     '5. Todo dia manda a prova no grupo, no 📷 do lado da mensagem',
     '',
+    '🔒 Entrar é de graça. O Falcon nunca pede dinheiro, Pix nem código do WhatsApp, e o link é sempre estilo-falcon.web.app',
+    '',
     `✅ *ACEITO O DESAFIO* 👉 ${link}`,
   ].join('\n');
 }

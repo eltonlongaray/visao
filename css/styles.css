@@ -3602,6 +3602,8 @@ body.time-picker-open { overflow: hidden; }
   background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
   padding: 9px 11px; color: var(--text); font-size: 14px; cursor: pointer; font-family: inherit;
 }
+.chat-cuidado { display: flex; flex-direction: column; gap: 4px; margin: 8px 10px 12px; padding: 10px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; color: var(--text); background: color-mix(in srgb, #f59e0b 14%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border)); }
+.chat-cuidado b { font-size: 13px; }
 .chat-vazio { font-size: 13px; color: var(--muted); line-height: 1.6; text-align: center; padding: 26px 12px; }
 
 /* --- mural no estilo Discord: sem balão, texto corrido --- */
@@ -8106,6 +8108,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rf-sort-um { flex: none; white-space: nowrap; }
 .rf-sort-manual { flex: 1; min-width: 0; background: var(--bg, var(--card)); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; color: var(--text); font-size: 13px; }
 .rf-sort-rev { flex: none; padding: 8px 12px; }
+.rf-golpe { font-size: 12px; text-align: left; color: var(--text); background: color-mix(in srgb, #3b82f6 12%, var(--card)); border: 1px solid color-mix(in srgb, #3b82f6 36%, var(--border)); border-radius: 10px; padding: 9px 11px; margin: 0 0 12px; line-height: 1.4; }
 .rf-pix-doacao { font-size: 12px; color: var(--text); background: color-mix(in srgb, #f59e0b 16%, var(--card)); border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border)); border-radius: 10px; padding: 9px 11px; margin-bottom: 14px; line-height: 1.4; }
 .rf-qr { display: inline-block; padding: 12px; background: #fff; border-radius: 14px; }
 .rf-qr img, .rf-qr canvas { display: block; }

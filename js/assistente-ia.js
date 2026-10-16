@@ -1126,6 +1126,8 @@ async function routeCommand(text) {
 
   // Guardar os vídeos das provas no Drive antes de sumirem (7 dias)
   if (/\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\b.*\b(?:prova|desafio|drive)|\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\s+(?:no|na)\s+(?:drive|nuvem)/i.test(text)) return guardarVideosProvas();
+  // Golpe: "isso é golpe?", "me pediram pix no privado", "como evitar golpe na rifa"
+  if (/\bgolpe|\bgolpista|\b(?:me |t[aá] me )?pedi(?:u|ram|ndo) (?:um )?(?:pix|dinheiro|c[oó]digo)\b|\b[eé] (?:seguro|confi[aá]vel) (?:pagar|fazer o pix)/i.test(text)) return dicasGolpe(text);
   // Caderno de estudo do Pet (só admin): como o Pet foi em cada versão
   if (/\bcaderno (?:de estudos? )?do pet\b|\bcomo (?:o pet|tu|voc[eê]) (?:t[aá]|est[aá]) (?:aprendendo|evoluindo)\b/i.test(text)) return cadernoDoPet();
 
@@ -5785,6 +5787,17 @@ async function guardarVideosProvas() {
   }
   await G.avisoGuardarVideos(null, checks, uid, { forcar: true });
   return 'Abri pra tu guardar os vídeos no Drive 📦';
+}
+function dicasGolpe(text) {
+  if (/\brifa\b/i.test(text)) {
+    return '🛡️ Na rifa: paga só pelo código Pix que aparece na tela da rifa e confere se o nome de quem recebe é o do dono. '
+      + 'Se tu é o dono, só marca ✅ pago depois de ver o dinheiro na tua conta, porque comprovante pode ser falso. O Falcon nunca pede Pix por mensagem.';
+  }
+  if (/\b(?:convite|desafio)\b/i.test(text)) {
+    return '🛡️ Entrar num desafio é de graça. Desconfia se alguém pedir dinheiro, Pix, código do WhatsApp ou mandar link que não seja estilo-falcon.web.app.';
+  }
+  return '🛡️ Pra não cair em golpe: antes de fazer Pix, passar código ou abrir link de alguém que tu não conhece, confirma quem é por uma ligação ou pessoalmente. '
+    + 'O Falcon nunca pede dinheiro, senha nem código. No privado, quando alguém novo pede isso, aparece uma faixa de ⚠️ Cuidado no topo da conversa.';
 }
 async function cadernoDoPet() {
   const { supabase } = await import('./config-supabase.js');
