@@ -3,7 +3,7 @@
 // O vídeo da prova fica 7 dias. A partir do 4º dia (faltando 3 ou menos), ao
 // abrir o grupo, o app pergunta se a pessoa quer guardar os vídeos dela no
 // Drive (Élton, 16/10), junto com os mais novos. "Guardar" abre o Compartilhar do
-// celular, onde dá pra escolher o Google Drive. Cada vídeo é oferecido uma vez só.
+// celular, onde dá pra escolher o Google Drive. O aviso volta 1 vez por dia, até 3 dias; sem resposta, os vídeos somem no prazo.
 // BLOCO 1 — QUAIS VÍDEOS
 // BLOCO 2 — AVISO E GUARDAR
 // ─────────────────────────────────────────────────────────────
@@ -12,7 +12,8 @@ import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
 
 const DIA = 864e5;
-const CHAVE = 'falcon_provas_oferecidas';
+const CHAVE = 'falcon_provas_aviso';   // { caminho: { n: vezes, d: 'AAAA-MM-DD', ok: guardou } }
+const MAX_VEZES = 3;                   // um aviso por dia, até 3 dias (Élton, 16/10)
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: QUAIS VÍDEOS
@@ -23,9 +24,27 @@ export function videosParaGuardar(checks, uid, agora = Date.now()) {
     .filter(c => { const f = new Date(c.video_expira_em).getTime(); return f > agora && f - agora <= 3 * DIA; })
     .sort((a, b) => String(a.dia).localeCompare(String(b.dia)));
 }
-function _oferecidos() { try { return new Set(JSON.parse(localStorage.getItem(CHAVE) || '[]')); } catch { return new Set(); } }
-function _marcar(caminhos) {
-  try { localStorage.setItem(CHAVE, JSON.stringify([..._oferecidos(), ...caminhos].slice(-200))); } catch { /* sem storage */ }
+const _hoje = () => new Date().toLocaleDateString('sv-SE');
+function _estado() { try { return JSON.parse(localStorage.getItem(CHAVE) || '{}') || {}; } catch { return {}; } }
+function _gravar(est) {
+  const chaves = Object.keys(est);
+  if (chaves.length > 200) chaves.slice(0, chaves.length - 200).forEach(k => delete est[k]);
+  try { localStorage.setItem(CHAVE, JSON.stringify(est)); } catch { /* sem storage */ }
+}
+// Ainda pode avisar hoje: não guardou, não passou de 3 vezes e não avisou hoje
+function _podeAvisar(est, caminho) {
+  const e = est[caminho];
+  return !e || (!e.ok && (e.n || 0) < MAX_VEZES && e.d !== _hoje());
+}
+function _contarAviso(caminhos) {
+  const est = _estado();
+  for (const k of caminhos) est[k] = { n: (est[k]?.n || 0) + 1, d: _hoje(), ok: false };
+  _gravar(est);
+}
+function _guardou(caminhos) {
+  const est = _estado();
+  for (const k of caminhos) est[k] = { ...(est[k] || {}), ok: true };
+  _gravar(est);
 }
 const _diasAte = (iso) => Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / DIA));
 const _dataCurta = (dia) => String(dia || '').split('-').reverse().slice(0, 2).join('/');
@@ -38,14 +57,15 @@ const _dataCurta = (dia) => String(dia || '').split('-').reverse().slice(0, 2).j
 // oferecido chega no 4º dia, o aviso oferece ele JUNTO com os mais novos ainda não
 // oferecidos: assim tudo vai pro Drive de uma vez (Élton, 16/10).
 export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}) {
-  const ja = _oferecidos();
-  const vencendo = videosParaGuardar(checks, uid).filter(c => forcar || !ja.has(c.video_path));
+  const est = _estado();
+  const vencendo = videosParaGuardar(checks, uid).filter(c => forcar || _podeAvisar(est, c.video_path));
   if (!vencendo.length) return false;
   const agora = Date.now();
   const lista = (checks || []).filter(c => c.user_id === uid && c.video_path && c.video_expira_em
-      && new Date(c.video_expira_em).getTime() > agora && (forcar || !ja.has(c.video_path)))
+      && new Date(c.video_expira_em).getTime() > agora && (forcar || _podeAvisar(est, c.video_path)))
     .sort((a, b) => String(a.dia).localeCompare(String(b.dia)));
-  _marcar(lista.map(c => c.video_path));
+  const caminhos = lista.map(c => c.video_path);
+  if (!forcar) _contarAviso(caminhos);
 
   const n = lista.length;
   const falta = _diasAte(vencendo[0].video_expira_em);
@@ -87,6 +107,7 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
     try {
       if (navigator.canShare?.({ files: arquivos })) {
         await navigator.share({ files: arquivos, title: 'Provas do desafio' });
+        _guardou(caminhos);
       } else {
         // Sem Compartilhar (computador): baixa cada um
         for (const f of arquivos) {
@@ -95,6 +116,7 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
           document.body.appendChild(a); a.click(); a.remove();
           setTimeout(() => URL.revokeObjectURL(a.href), 60e3);
         }
+        _guardou(caminhos);
       }
       fechar();
     } catch (e) {
