@@ -8694,3 +8694,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fi-perfil-falta { font-size: 13px; color: var(--text); line-height: 1.5; background: color-mix(in srgb, #f59e0b 10%, var(--card)); border-left: 3px solid #f59e0b; border-radius: 8px; padding: 8px 11px; }
 .fi-perfil-falta.saude { border-left-color: var(--red); }
 .fi-editar { width: 100%; margin-bottom: 12px; }
+.ap-ficha-card { margin: 18px 0 4px; text-align: left; background: var(--card); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-left: 4px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.ap-ficha-t { font-size: 15px; font-weight: 800; color: var(--text); }
+.ap-ficha-d { font-size: 13px; color: var(--muted); line-height: 1.45; }

@@ -225,6 +225,43 @@ async function _abrirJunto(cfg, c, aoFechar) {
     async () => { await carregarFichas(cfg); aoFechar?.(); }, prefill);
 }
 
+// Depois que a PROFISSIONAL marca um atendimento: se o cliente ainda não respondeu a ficha,
+// pergunta se quer mandar o link pelo WhatsApp. Espera o popup do agendamento fechar antes.
+export async function oferecerFichaAposAgendar(cfg, { nome, contato } = {}) {
+  try {
+    if (!fichaAtiva(cfg) || String(contato || '').replace(/\D/g, '').length < 10) return;
+    await new Promise(r => setTimeout(r, 450));
+    if (!_demo) _fichas = await getFichas();
+    const c = { nome, contato };
+    if (_situacao(c).resp) return;   // já respondeu: nada a perguntar
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.id = 'fi-oferta-ov';
+    ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+      <div class="ag-fhead">📋 Enviar a ficha pra ${_esc(_primeiro(nome))} preencher?</div>
+      <div class="fi-secao-sub" style="margin-top:0">${_esc(_primeiro(nome))} responde pelo celular antes da sessão (uns 5 minutos) e as respostas aparecem no perfil, em 👥 Clientes.</div>
+      <div class="ag-fbtns">
+        <button class="btn-secondary" id="fi-oferta-nao" type="button">Agora não</button>
+        <button class="btn-primary" id="fi-oferta-sim" type="button">📤 Enviar pelo WhatsApp</button>
+      </div>
+    </div></div>`;
+    document.body.appendChild(ov);
+    const close = trapModalBack(() => ov.remove());
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('#fi-oferta-nao').onclick = () => close();
+    ov.querySelector('#fi-oferta-sim').onclick = async () => {
+      // abre a janela JÁ no clique (senão o navegador bloqueia depois do await)
+      const w = window.open('', '_blank');
+      try {
+        const f = await _fichaDoClienteOuNova(cfg, c);
+        const msg = `Oi ${_primeiro(nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
+        const url = _waLink(contato, msg);
+        if (w) w.location.href = url; else location.href = url;
+        close();
+      } catch (err) { try { w?.close(); } catch {} showToast('Erro: ' + err.message, 'error'); }
+    };
+  } catch { /* sem ficha/sem rede: não atrapalha o agendamento */ }
+}
+
 // === BLOCO 5: FICHA NO PERFIL DO CLIENTE ===
 export function perfilFichaHtml(cfg, c) {
   if (!fichaAtiva(cfg)) return '';
