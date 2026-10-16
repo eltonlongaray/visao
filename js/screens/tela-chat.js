@@ -34,6 +34,7 @@ import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarPr
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda, verVideoCheio } from '../prova-conteudo.js';
 import { avisoGuardarVideos } from '../provas-guardar.js';
+import { faixaCuidadoHtml } from '../chat-cuidado.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
 
@@ -492,8 +493,9 @@ async function desenharConversa(corpo) {
   await carregarFotos(msgs);
   await carregarArquivos(msgs);
   await carregarReacoes(msgs);
+  // Pessoa nova pedindo Pix, código ou mandando link de fora: faixa de cuidado no topo
   const lista = msgs.length
-    ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
+    ? faixaCuidadoHtml(msgs, meu) + msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, false)).join('')
     : `<div class="chat-vazio">Comece a conversa com ${esc(conversaCom.nome)}.</div>`;
 
   pintar(corpo, lista, 'Escrever mensagem', `
