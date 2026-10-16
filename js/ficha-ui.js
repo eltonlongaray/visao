@@ -4,12 +4,14 @@
 //     (profissão, link geral, tipos de massagem, demonstração, novas fichas)
 //   perfilFichaHtml / wirePerfilFicha → botões da ficha no perfil do cliente
 //   abrirFicha → tela com a ficha respondida (respostas + mapa do corpo)
+//   🩺 Sessões do cliente (dor ao pressionar, medidas, observações) → ficha-sessoes-ui.js
 // Dados: ficha.js · Modelos: ficha-modelo.js · Página do cliente: ficha-publica.js
 // ─────────────────────────────────────────────────────────────
 import { getFichas, criarConviteFicha, ligarFichaCliente, excluirFicha, salvarFichaCfg } from './ficha.js';
 import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero } from './ficha-modelo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _fichas = [], _erroSql = false;
@@ -42,8 +44,8 @@ function _fichasSemCliente(clientes) {
 export async function carregarFichas(cfg) {
   _erroSql = false;
   if (!fichaAtiva(cfg)) { _fichas = []; return; }
-  try { _fichas = await getFichas(); }
-  catch { _fichas = []; _erroSql = true; }
+  const [f] = await Promise.all([getFichas().catch(() => null), carregarSessoes()]);
+  if (f) _fichas = f; else { _fichas = []; _erroSql = true; }
 }
 
 // === BLOCO 2: SEÇÃO NA AGENDA ===
@@ -179,6 +181,7 @@ export function perfilFichaHtml(cfg, c) {
       ${c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 ${resp ? 'Pedir pra atualizar' : 'Enviar ficha'}</button>` : ''}
       <button class="fi-btn" id="fi-junto" type="button">✍️ Preencher junto agora</button>
     </div>
+    ${sessoesPerfilHtml(c)}
   </div>`;
 }
 
@@ -201,6 +204,7 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     wirePerfilFicha(ov, cfg, c, { clientes, redesenhar });
     redesenhar?.();
   };
+  wireSessoesPerfil(ov, c, atualizar);
   ov.querySelectorAll('.fi-perfil [data-fi-ver]').forEach(b => b.addEventListener('click', () => {
     const f = _fichas.find(x => x.id === b.dataset.fiVer);
     if (f) abrirFicha(f, { cfg, clientes, redesenhar: atualizar, cliente: c });

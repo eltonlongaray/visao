@@ -51,3 +51,26 @@ export async function salvarFichaCfg(cfg) {
   const { error } = await supabase.from('agenda_config').update({ ficha_cfg: cfg || {} }).eq('user_id', uid);
   if (error) throw new Error(/ficha_cfg/i.test(error.message || '') ? 'Falta rodar o SQL da ficha (sql/ficha.sql)' : error.message);
 }
+
+// === BLOCO 4: SESSÕES (registro de cada atendimento: palpação, medidas, observações) ===
+export async function getSessoes() {
+  const { data, error } = await supabase.from('ficha_sessoes')
+    .select('id, cliente_nome, cliente_contato, cliente_digitos, data, palpacao, medidas, observacoes, created_at')
+    .order('data', { ascending: true }).order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+export async function salvarSessao(s) {
+  const uid = _uid(); if (!uid) throw new Error('Sessão expirada');
+  const row = { owner_id: uid, cliente_nome: s.cliente_nome || null, cliente_contato: s.cliente_contato || null,
+    cliente_digitos: _dig(s.cliente_contato) || null, data: s.data, palpacao: s.palpacao || {}, medidas: s.medidas || {},
+    observacoes: (s.observacoes || '').trim() || null, updated_at: new Date().toISOString() };
+  const q = s.id ? supabase.from('ficha_sessoes').update(row).eq('id', s.id) : supabase.from('ficha_sessoes').insert(row);
+  const { data, error } = await q.select('*').single();
+  if (error) throw new Error(/ficha_sessoes/i.test(error.message || '') ? 'Falta rodar o SQL das sessões (sql/ficha-sessoes.sql)' : error.message);
+  return data;
+}
+export async function excluirSessao(id) {
+  const { error } = await supabase.from('ficha_sessoes').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
