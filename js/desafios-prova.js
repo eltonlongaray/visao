@@ -198,8 +198,9 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         ? new MediaStream([...tela.captureStream(30).getVideoTracks(), ...stream.getAudioTracks()])
         : stream;
       // Vídeo longo (depoimento de até 5 min) grava mais leve pra caber nos
-      // 25 MB do bucket: 5 min × (500k + 64k) ≈ 21 MB. Rosto falando fica bom assim.
-      const vbps = maxSeg > 60 ? 500000 : 900000;
+      // 25 MB do bucket. Com 500k o Android passava do limite em 5 min (o
+      // aparelho não respeita o pedido à risca): 350k dá ~15 MB e folga.
+      const vbps = maxSeg > 60 ? 350000 : 900000;
       mr = new MediaRecorder(fonte, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: vbps, audioBitsPerSecond: 64000 });
       mr.ondataavailable = (e) => { if (e.data?.size) pedacos.push(e.data); };
       mr.onstop = async () => {
@@ -542,8 +543,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       if (!blob) return false;
       if (blob.__rascunho) return await _guardarRascunho(d, blob, { quantidade, exercicio, falhou, tipo: 'depoimento' });
       showToast('Enviando o depoimento…', 'info');
-      const videoPath = await subirProva(blob, 'video');
-      await addCheckin(d.id, quantidade, { exercicio, videoPath });
+      if (!await _enviarOuGuardar(d, blob, { quantidade, exercicio, falhou, tipo: 'depoimento' })) return false;
       showToast(falhou ? '💪 Depoimento enviado, dia contado. Amanhã é um novo dia.' : '🎙️ Depoimento enviado! 🦅', 'success');
       return true;
     }
@@ -560,8 +560,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       if (!blob) return false;
       if (blob.__rascunho) return await _guardarRascunho(d, blob, { quantidade, exercicio, falhou, tipo: 'video' });
       showToast('Enviando a prova…', 'info');
-      const videoPath = await subirProva(blob, 'video');
-      await addCheckin(d.id, quantidade, { exercicio, videoPath });
+      if (!await _enviarOuGuardar(d, blob, { quantidade, exercicio, falhou, tipo: 'video' })) return false;
       showToast('🎥 Prova enviada! 🦅', 'success');
       return true;
     }
@@ -569,6 +568,25 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
     return true;
   } catch (e) {
     showToast(e.message || 'Não deu pra registrar', 'error');
+    return false;
+  }
+}
+
+// Sobe o vídeo e registra. Se falhar (internet caiu, vídeo pesado), o vídeo
+// NÃO se perde: vira rascunho na conversa do grupo pra tentar de novo
+// (Élton, 16/10: perdeu um depoimento de 5 min).
+async function _enviarOuGuardar(d, blob, extra) {
+  try {
+    const videoPath = await subirProva(blob, 'video');
+    await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    return true;
+  } catch (e) {
+    try {
+      await salvarRascunho({ desafioId: d.id, blob, ...extra });
+      showToast(`Não deu pra enviar agora${/grande/i.test(e.message || '') ? ' (vídeo grande demais)' : ''}. O vídeo ficou guardado na conversa do grupo: toca em Enviar pra tentar de novo.`, 'error');
+    } catch {
+      showToast(e.message || 'Não deu pra enviar a prova', 'error');
+    }
     return false;
   }
 }

@@ -208,6 +208,14 @@ export async function addCheckin(desafioId, quantidade, extra = {}) {
   if (error) throw new Error(error.message || 'Erro ao registrar');
 }
 
+// Apagar a PRÓPRIA prova de hoje (Élton, 16/10): some o check-in, e com ele a
+// mensagem na sala (cascade), e dá pra gravar de novo. O vídeo sai na faxina.
+export async function apagarCheckin(id) {
+  const uid = auth.currentUser?.uid;
+  const { error } = await supabase.from('desafio_checkins').delete().eq('id', id).eq('user_id', uid);
+  if (error) throw new Error(error.message || 'Não deu pra apagar a prova');
+}
+
 // ── Provas (vídeo ao vivo e print da corrida) ────────────────
 // Bucket privado: guarda o caminho, a URL é assinada na hora de ver.
 export async function subirProva(blob, tipo) {
