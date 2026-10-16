@@ -14,7 +14,7 @@ import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
-let _fichas = [], _erroSql = false;
+let _fichas = [], _erroSql = false, _demo = false;
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _dataBr = iso => { try { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; } catch { return ''; } };
 const _primeiro = s => String(s || '').trim().split(/\s+/)[0] || '';
@@ -41,7 +41,11 @@ function _fichasSemCliente(clientes) {
     : (!f.cliente_digitos && (f.cliente_nome || '').trim().toLowerCase() === (c.nome || '').trim().toLowerCase())));
 }
 
+// Demonstração (demo-profissional.html): fichas de exemplo, nada é enviado nem salvo.
+export function demoFichas(lista) { _fichas = lista; _demo = true; }
+
 export async function carregarFichas(cfg) {
+  if (_demo) return;
   _erroSql = false;
   if (!fichaAtiva(cfg)) { _fichas = []; return; }
   const [f] = await Promise.all([getFichas().catch(() => null), carregarSessoes()]);
@@ -210,6 +214,7 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     if (f) abrirFicha(f, { cfg, clientes, redesenhar: atualizar, cliente: c });
   }));
   ov.querySelector('#fi-enviar')?.addEventListener('click', async e => {
+    if (_demo) { showToast('Na demonstração não envia nada 🙂', 'info'); return; }
     const btn = e.currentTarget; btn.disabled = true;
     // abre a janela JÁ no clique (senão o navegador bloqueia o pop-up depois do await)
     const w = window.open('', '_blank');
@@ -222,6 +227,7 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     finally { btn.disabled = false; }
   });
   ov.querySelector('#fi-junto')?.addEventListener('click', async e => {
+    if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração'); return; }
     const btn = e.currentTarget; btn.disabled = true;
     try {
       const f = await _fichaDoClienteOuNova(cfg, c);
@@ -314,6 +320,7 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   });
   ov.querySelector('#fi-excluir').onclick = async () => {
+    if (_demo) { showToast('Na demonstração não apaga nada 🙂', 'info'); return; }
     const ok = await confirmModal({ title: 'Apagar ficha?', message: 'As respostas dessa ficha somem pra sempre.', confirmText: 'Apagar', danger: true });
     if (!ok) return;
     try { await excluirFicha(f.id); _fichas = _fichas.filter(x => x.id !== f.id); close(); redesenhar?.(); showToast('Ficha apagada', 'info'); }

@@ -12,7 +12,7 @@ import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
-let _sessoes = [], _erroSql = false;
+let _sessoes = [], _erroSql = false, _demo = false;
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _dataBr = iso => { const [y, m, d] = String(iso || '').split('-'); return d ? `${d}/${m}/${y}` : ''; };
 const _hoje = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -32,7 +32,11 @@ function _anterior(lista, s) {
   return antes[antes.length - 1] || null;
 }
 
+// Demonstração (demo-profissional.html): usa sessões de exemplo e não grava nada.
+export function demoSessoes(lista) { _sessoes = lista; _demo = true; }
+
 export async function carregarSessoes() {
+  if (_demo) return;
   _erroSql = false;
   try { _sessoes = await getSessoes(); }
   catch { _sessoes = []; _erroSql = true; }
@@ -244,7 +248,9 @@ export function abrirSessao(c, sessao, onSalvo) {
     const medidas = {};
     for (const [k, v] of Object.entries(st.medidas)) if (v && (v.antes != null || v.depois != null)) medidas[k] = v;
     try {
-      const salvo = await salvarSessao({ id: st.id, data: $('#fs-data').value || _hoje(), palpacao: st.palpacao, medidas,
+      const salvo = _demo ? { id: st.id || 'demo' + Date.now(), data: $('#fs-data').value || _hoje(), palpacao: st.palpacao, medidas,
+        observacoes: $('#fs-obs').value, cliente_nome: c.nome, cliente_contato: c.contato, created_at: new Date().toISOString() }
+        : await salvarSessao({ id: st.id, data: $('#fs-data').value || _hoje(), palpacao: st.palpacao, medidas,
         observacoes: $('#fs-obs').value, cliente_nome: c.nome, cliente_contato: c.contato });
       const i = _sessoes.findIndex(x => x.id === salvo.id);
       if (i >= 0) _sessoes[i] = salvo; else _sessoes.push(salvo);
@@ -255,7 +261,7 @@ export function abrirSessao(c, sessao, onSalvo) {
   $('#fs-excluir')?.addEventListener('click', async () => {
     const ok = await confirmModal({ title: 'Apagar sessão?', message: 'Os registros dessa sessão somem pra sempre.', confirmText: 'Apagar', danger: true });
     if (!ok) return;
-    try { await excluirSessao(st.id); _sessoes = _sessoes.filter(x => x.id !== st.id); close(); onSalvo?.(); showToast('Sessão apagada', 'info'); }
+    try { if (!_demo) await excluirSessao(st.id); _sessoes = _sessoes.filter(x => x.id !== st.id); close(); onSalvo?.(); showToast('Sessão apagada', 'info'); }
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   });
 
