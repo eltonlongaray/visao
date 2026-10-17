@@ -7,7 +7,9 @@
 //
 // Ações (POST com o JWT do Supabase, body.acao):
 //   iniciar     → devolve a URL do Google pra pessoa autorizar
-//   (GET)       → o Google volta aqui com ?code&state → guarda e cria a pasta
+//   callback    → { state, code } vindos da página drive.html (sem JWT: o state
+//                 prova quem é) → guarda e cria a pasta
+//   (GET)       → volta antiga do Google direto aqui (v796), mesmo fluxo
 //   status      → { conectado }
 //   enviar      → { checkin_id } manda o vídeo dessa prova pro Drive
 //   pendentes   → ids das minhas provas com vídeo ainda não guardadas
@@ -25,8 +27,11 @@ const SB_URL = Deno.env.get('SUPABASE_URL') || '';
 const SB_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
-const REDIRECT = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/drive-oauth';
+const REDIRECT = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/drive-oauth';   // antigo (v796)
 const APP_URL = 'https://estilo-falcon.web.app';
+// O Google volta pra uma página NOSSA (mostra estilo-falcon.web.app em vez do
+// endereço do servidor) e ela repassa o código pra cá (Élton, 17/10)
+const REDIRECT_APP = `${APP_URL}/drive.html`;
 const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
 const PASTA = 'Falcon · Provas dos desafios';
 const BUCKET = 'desafio-provas';
@@ -167,35 +172,43 @@ async function enviarProva(uid: string, checkinId: string) {
   return { ok: true };
 }
 
+// ── Fecha a conexão: troca o código pelo acesso e cria a pasta ──
+// Devolve 'ok' | 'erro' | 'cancelou' | 'sem_permissao'
+async function concluir(state: string, code: string, redirectUri: string): Promise<string> {
+  if (!state) return 'erro';
+  const { data: st } = await sb.from('drive_oauth_state').select('user_id, created_at').eq('state', state).maybeSingle();
+  await sb.from('drive_oauth_state').delete().eq('state', state);
+  if (!st || Date.now() - new Date(st.created_at).getTime() > 15 * 60_000) return 'erro';
+  if (!code) return 'cancelou';
+  const { ok, data } = await tokenGoogle({ grant_type: 'authorization_code', code, redirect_uri: redirectUri });
+  if (!ok || !data.refresh_token || !data.access_token) return 'erro';
+  if (!String(data.scope || '').includes(ESCOPO)) return 'sem_permissao';
+  const pasta = await criarPasta(data.access_token);
+  await sb.from('drive_contas').upsert({
+    user_id: st.user_id, refresh_token: data.refresh_token, pasta_id: pasta, atualizado_em: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+  return 'ok';
+}
+
 // ═══════════════════════════════════════════════════════════════
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const url = new URL(req.url);
 
-  // Volta do Google
+  // Volta do Google direto aqui (links antigos, da v796)
   if (req.method === 'GET' && (url.searchParams.get('code') || url.searchParams.get('error'))) {
-    const state = url.searchParams.get('state') || '';
-    const code = url.searchParams.get('code') || '';
-    if (!state) return voltarProApp('erro');
-    const { data: st } = await sb.from('drive_oauth_state').select('user_id, created_at').eq('state', state).maybeSingle();
-    await sb.from('drive_oauth_state').delete().eq('state', state);
-    if (!st || Date.now() - new Date(st.created_at).getTime() > 15 * 60_000) return voltarProApp('erro');
-    if (!code) return voltarProApp('cancelou');
-    const { ok, data } = await tokenGoogle({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT });
-    if (!ok || !data.refresh_token || !data.access_token) return voltarProApp('erro');
-    if (!String(data.scope || '').includes(ESCOPO)) return voltarProApp('sem_permissao');
-    const pasta = await criarPasta(data.access_token);
-    await sb.from('drive_contas').upsert({
-      user_id: st.user_id, refresh_token: data.refresh_token, pasta_id: pasta, atualizado_em: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
-    return voltarProApp('ok');
+    return voltarProApp(await concluir(url.searchParams.get('state') || '', url.searchParams.get('code') || '', REDIRECT));
   }
 
   if (req.method !== 'POST') return json({ ok: false, erro: 'método' }, 405);
   if (!G_ID || !G_SECRET) return json({ ok: false, erro: 'Google não configurado' }, 500);
+  const body = await req.json().catch(() => ({}));
+  // Volta do Google pela página drive.html: o "state" prova quem é, sem login
+  if (body.acao === 'callback') {
+    return json({ ok: true, r: await concluir(String(body.state || ''), String(body.code || ''), REDIRECT_APP) });
+  }
   const uid = await uidDoReq(req);
   if (!uid) return json({ ok: false, erro: 'Entre no app de novo' }, 401);
-  const body = await req.json().catch(() => ({}));
 
   try {
     switch (body.acao) {
@@ -205,7 +218,7 @@ Deno.serve(async (req) => {
         const { error } = await sb.from('drive_oauth_state').insert({ state, user_id: uid });
         if (error) return json({ ok: false, erro: 'Não deu pra começar' }, 500);
         const q = new URLSearchParams({
-          client_id: G_ID, redirect_uri: REDIRECT, response_type: 'code', scope: ESCOPO,
+          client_id: G_ID, redirect_uri: REDIRECT_APP, response_type: 'code', scope: ESCOPO,
           access_type: 'offline', prompt: 'consent', state,
         });
         return json({ ok: true, url: `https://accounts.google.com/o/oauth2/v2/auth?${q}` });
