@@ -263,12 +263,16 @@ export async function subirProva(blob, tipo) {
 }
 // Vídeo em partes: baixa todas e junta num só (fica guardado enquanto o app está aberto)
 const _juntados = new Map();
-async function _juntar(caminho, urls) {
+// Guarda a promessa: quem pedir o mesmo vídeo enquanto baixa espera o mesmo download
+function _juntar(caminho, urls) {
   if (_juntados.has(caminho)) return _juntados.get(caminho);
-  const pedacos = await Promise.all(urls.map(async u => { const r = await fetch(u); if (!r.ok) throw new Error('parte'); return r.blob(); }));
-  const url = URL.createObjectURL(new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
-  _juntados.set(caminho, url);
-  return url;
+  const p = (async () => {
+    const pedacos = await Promise.all(urls.map(async u => { const r = await fetch(u); if (!r.ok) throw new Error('parte'); return r.blob(); }));
+    return URL.createObjectURL(new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
+  })();
+  _juntados.set(caminho, p);
+  p.catch(() => _juntados.delete(caminho));
+  return p;
 }
 export async function assinarProvas(caminhos) {
   const unicos = [...new Set((caminhos || []).filter(Boolean))];

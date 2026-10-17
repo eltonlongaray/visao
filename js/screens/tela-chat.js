@@ -544,8 +544,14 @@ async function desenharSalaDesafio(corpo) {
   if (conversaCom?.id !== id) return;   // fechou enquanto carregava
 
   const meu = auth.currentUser?.uid;
-  await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)])
+  // Vídeo grande vem em partes e precisa baixar inteiro: não segura a sala.
+  // O que não chegar a tempo aparece "carregando" e entra quando terminar.
+  const provasP = carregarProvas(msgs).catch(e => console.warn('[Falcon] sala, provas:', e));
+  await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs)])
     .catch(e => console.warn('[Falcon] sala, anexos:', e)), 8000);
+  let provasProntas = false;
+  await _comPrazo(provasP.then(() => { provasProntas = true; }), 2500);
+  if (!provasProntas) provasP.then(() => { if (conversaCom?.id === id && aba === 'desafios') recarregar(); });
   [provasRasc, perfis] = await Promise.all([rascP, perfisP]);
   if (conversaCom?.id !== id) return;
   // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
@@ -647,19 +653,27 @@ async function carregarProvas(msgs) {
     const t = provaUrlsEm.get(c) || 0;
     return provaUrls.get(c) ? agora - t > 50 * 60e3 : agora - t > 60e3;
   };
-  const faltam = [...new Set(msgs.flatMap(m => [m.prova_video, m.prova_print]))].filter(c => c && (!provaUrls.has(c) || velha(c)));
+  const faltam = [...new Set(msgs.flatMap(m => [m.prova_video, m.prova_print]))].filter(c => c && !provaBuscando.has(c) && (!provaUrls.has(c) || velha(c)));
   if (!faltam.length) return;
-  const urls = await assinarProvas(faltam);
-  faltam.forEach(c => {
-    const nova = urls.get(c) || '';
-    if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
-    provaUrlsEm.set(c, agora);
-  });
+  faltam.forEach(c => provaBuscando.add(c));
+  try {
+    const urls = await assinarProvas(faltam);
+    faltam.forEach(c => {
+      const nova = urls.get(c) || '';
+      if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
+      provaUrlsEm.set(c, agora);
+    });
+  } finally { faltam.forEach(c => provaBuscando.delete(c)); }
 }
+const provaBuscando = new Set();   // caminhos sendo assinados/baixados agora
 
 
 function blocoProva(m) {
   if (!m.prova_video && !m.prova_print) return '';
+  // Ainda assinando/baixando (não é vídeo vencido)
+  if ((m.prova_video && !provaUrls.has(m.prova_video)) || (m.prova_print && !provaUrls.has(m.prova_print))) {
+    return `<div class="msg-prova-vencida">⏳ Carregando o vídeo…</div>`;
+  }
   const v = m.prova_video ? provaUrls.get(m.prova_video) : '';
   const p = m.prova_print ? provaUrls.get(m.prova_print) : '';
   const ck = m.checkin_id && sala?.checks?.find(c => c.id === m.checkin_id);
