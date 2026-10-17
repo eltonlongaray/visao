@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Estilo Falcon · Conectando o Drive</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0f1a; color: #e8eaf2; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; box-sizing: border-box; }
+  .giro { width: 38px; height: 38px; border: 4px solid #2a3150; border-top-color: #8b5cf6; border-radius: 50%; animation: g 0.9s linear infinite; }
+  @keyframes g { to { transform: rotate(360deg); } }
+  p { margin: 0; font-size: 17px; }
+  small { opacity: .7; }
+</style>
+</head>
+<body>
+<main>
+  <div class="giro" aria-hidden="true"></div>
+  <p id="msg">☁️ Conectando teu Google Drive…</p>
+  <small>Só um instante, já voltamos pro Falcon.</small>
+</main>
+<script>
+// FALCON · Volta do Google (Élton, 17/10): o Google traz ?code&state pra cá
+// (endereço do próprio Falcon) e esta página repassa pro servidor (Edge
+// Function drive-oauth). Se a internet falhar, tenta de novo. No fim volta
+// pro app com ?drive=ok|erro|cancelou|sem_permissao.
+(async () => {
+  const FN = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/drive-oauth';
+  const q = new URLSearchParams(location.search);
+  const voltar = (r) => location.replace('/?drive=' + encodeURIComponent(r));
+  const code = q.get('code') || '';
+  const state = q.get('state') || '';
+  if (q.get('error')) return voltar('cancelou');
+  if (!code || !state) return voltar('erro');
+  // Some o código da barra (e do histórico) logo de cara
+  history.replaceState(null, '', '/drive.html');
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await fetch(FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'callback', code, state }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j && j.r) return voltar(j.r);
+    } catch (e) { /* internet piscou: tenta de novo */ }
+    await new Promise((ok) => setTimeout(ok, 1500 * (i + 1)));
+  }
+  // Pode ter conectado e só a resposta se perdeu: o app confere
+  voltar('verificar');
+})();
+</script>
+</body>
+</html>

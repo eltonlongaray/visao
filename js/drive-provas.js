@@ -109,15 +109,17 @@ export async function aoEntrar() {
     p.delete('drive');
     const q = p.toString();
     history.replaceState(history.state, '', `${location.pathname}${q ? `?${q}` : ''}${location.hash}`);
-    if (r === 'ok') {
+    // Resposta perdida no caminho: confere no servidor se conectou mesmo
+    const conectou = r === 'ok' || ((r === 'verificar' || r === 'erro') && await driveConectado({ fresco: true }));
+    if (conectou) {
       _statusCache = true; _lembrar(true);
       showToast('✅ Drive conectado! Teus vídeos das provas vão sozinhos pra pasta "Falcon · Provas dos desafios".', 'success');
     } else if (r === 'cancelou') {
-      showToast('Drive não conectado. Se mudar de ideia, é só pedir pro Pet: "conecta meu Drive".', 'info');
+      showToast('Drive não conectado. Se mudar de ideia, toca em ☁️ Drive no grupo do desafio.', 'info');
     } else {
       showToast('Não deu pra conectar o Drive. Tenta de novo e marca a permissão de guardar arquivos.', 'error');
     }
   }
   const n = await sincronizarDrive();
-  if (n && r === 'ok') showToast(`☁️ ${n} vídeo${n > 1 ? 's' : ''} guardado${n > 1 ? 's' : ''} no teu Drive.`, 'success');
+  if (n && r) showToast(`☁️ ${n} vídeo${n > 1 ? 's' : ''} guardado${n > 1 ? 's' : ''} no teu Drive.`, 'success');
 }
