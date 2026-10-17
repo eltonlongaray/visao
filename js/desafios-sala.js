@@ -29,7 +29,7 @@ const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/
 // ═══════════════════════════════════════════════════════════════
 // { d, parts, checks } só desse desafio. null = não achou (saiu, apagado).
 export async function carregarSala(id) {
-  const [ds, ps, cs] = await Promise.all([fetchDesafios(), fetchParticipantes(), fetchCheckins()]);
+  const [ds, ps, cs] = await Promise.all([fetchDesafios(), fetchParticipantes(id), fetchCheckins(id)]);
   const d = ds.find(x => x.id === id);
   if (!d) return null;
   return { d, parts: ps.filter(p => p.desafio_id === id), checks: cs.filter(c => c.desafio_id === id) };

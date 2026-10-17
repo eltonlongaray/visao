@@ -158,22 +158,24 @@ export async function fetchPlacar() {
   return map;
 }
 
-export async function fetchParticipantes() {
-  const { data, error } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at');
+// desafioId: só os desse desafio (a sala do grupo não precisa dos outros)
+const _doDesafio = (q, desafioId) => (desafioId ? q.eq('desafio_id', desafioId) : q);
+export async function fetchParticipantes(desafioId) {
+  const { data, error } = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at'), desafioId);
   if (!error) return data || [];
-  const r = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
+  const r = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome'), desafioId);
   return r.data || [];
 }
-export async function fetchCheckins() {
-  const { data, error } = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo');
+export async function fetchCheckins(desafioId) {
+  const { data, error } = await _doDesafio(supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo'), desafioId);
   if (!error) return data || [];
   // Banco ainda sem o "Conteúdo" (migration/desafios-provas-conteudo.sql)
-  const r0 = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+  const r0 = await _doDesafio(supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at'), desafioId);
   if (!r0.error) return r0.data || [];
   // Banco ainda sem as colunas da prova: lê o básico pra não zerar o ranking
-  const r = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
+  const r = await _doDesafio(supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade'), desafioId);
   return r.data || [];
 }
 export async function joinDesafio(desafioId, nome) {
@@ -261,12 +263,16 @@ export async function subirProva(blob, tipo) {
 }
 // Vídeo em partes: baixa todas e junta num só (fica guardado enquanto o app está aberto)
 const _juntados = new Map();
-async function _juntar(caminho, urls) {
+// Guarda a promessa: quem pedir o mesmo vídeo enquanto baixa espera o mesmo download
+function _juntar(caminho, urls) {
   if (_juntados.has(caminho)) return _juntados.get(caminho);
-  const pedacos = await Promise.all(urls.map(async u => { const r = await fetch(u); if (!r.ok) throw new Error('parte'); return r.blob(); }));
-  const url = URL.createObjectURL(new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
-  _juntados.set(caminho, url);
-  return url;
+  const p = (async () => {
+    const pedacos = await Promise.all(urls.map(async u => { const r = await fetch(u); if (!r.ok) throw new Error('parte'); return r.blob(); }));
+    return URL.createObjectURL(new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
+  })();
+  _juntados.set(caminho, p);
+  p.catch(() => _juntados.delete(caminho));
+  return p;
 }
 export async function assinarProvas(caminhos) {
   const unicos = [...new Set((caminhos || []).filter(Boolean))];

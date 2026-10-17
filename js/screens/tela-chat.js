@@ -344,10 +344,7 @@ async function recarregar() {
   if (!corpo) return;
   // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
   // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
-  if (aba === 'desafios' && conversaCom?.desafio) {
-    perfis = await _comPrazo(fetchPerfis(), 5000, perfis || new Map());
-    return desenharSalaDesafio(corpo);
-  }
+  if (aba === 'desafios' && conversaCom?.desafio) return desenharSalaDesafio(corpo);
   if (aba === 'desafios') { DIG.sairDaSala(); return renderDesafios(corpo, true); }
   // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
   // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
@@ -527,6 +524,9 @@ async function desenharConversa(corpo) {
 async function desenharSalaDesafio(corpo) {
   const id = conversaCom.id;
   let msgs = [];
+  // Tudo que não depende das mensagens começa junto (antes era um de cada vez)
+  const rascP = _comPrazo(listarRascunhos(id), 3000, []);
+  const perfisP = _comPrazo(fetchPerfis(), 5000, perfis || new Map());
   try {
     const tudo = await _comPrazo(Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id), fetchPropostas(id)]), 20000, null);
     if (!tudo) throw new Error('a internet está lenta. Volta e toca de novo.');
@@ -544,9 +544,15 @@ async function desenharSalaDesafio(corpo) {
   if (conversaCom?.id !== id) return;   // fechou enquanto carregava
 
   const meu = auth.currentUser?.uid;
-  await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)])
+  // Vídeo grande vem em partes e precisa baixar inteiro: não segura a sala.
+  // O que não chegar a tempo aparece "carregando" e entra quando terminar.
+  const provasP = carregarProvas(msgs).catch(e => console.warn('[Falcon] sala, provas:', e));
+  await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs)])
     .catch(e => console.warn('[Falcon] sala, anexos:', e)), 8000);
-  provasRasc = await _comPrazo(listarRascunhos(id), 3000, []);
+  let provasProntas = false;
+  await _comPrazo(provasP.then(() => { provasProntas = true; }), 2500);
+  if (!provasProntas) provasP.then(() => { if (conversaCom?.id === id && aba === 'desafios') recarregar(); });
+  [provasRasc, perfis] = await Promise.all([rascP, perfisP]);
   if (conversaCom?.id !== id) return;
   // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
   tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});
@@ -647,19 +653,27 @@ async function carregarProvas(msgs) {
     const t = provaUrlsEm.get(c) || 0;
     return provaUrls.get(c) ? agora - t > 50 * 60e3 : agora - t > 60e3;
   };
-  const faltam = [...new Set(msgs.flatMap(m => [m.prova_video, m.prova_print]))].filter(c => c && (!provaUrls.has(c) || velha(c)));
+  const faltam = [...new Set(msgs.flatMap(m => [m.prova_video, m.prova_print]))].filter(c => c && !provaBuscando.has(c) && (!provaUrls.has(c) || velha(c)));
   if (!faltam.length) return;
-  const urls = await assinarProvas(faltam);
-  faltam.forEach(c => {
-    const nova = urls.get(c) || '';
-    if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
-    provaUrlsEm.set(c, agora);
-  });
+  faltam.forEach(c => provaBuscando.add(c));
+  try {
+    const urls = await assinarProvas(faltam);
+    faltam.forEach(c => {
+      const nova = urls.get(c) || '';
+      if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
+      provaUrlsEm.set(c, agora);
+    });
+  } finally { faltam.forEach(c => provaBuscando.delete(c)); }
 }
+const provaBuscando = new Set();   // caminhos sendo assinados/baixados agora
 
 
 function blocoProva(m) {
   if (!m.prova_video && !m.prova_print) return '';
+  // Ainda assinando/baixando (não é vídeo vencido)
+  if ((m.prova_video && !provaUrls.has(m.prova_video)) || (m.prova_print && !provaUrls.has(m.prova_print))) {
+    return `<div class="msg-prova-vencida">⏳ Carregando o vídeo…</div>`;
+  }
   const v = m.prova_video ? provaUrls.get(m.prova_video) : '';
   const p = m.prova_print ? provaUrls.get(m.prova_print) : '';
   const ck = m.checkin_id && sala?.checks?.find(c => c.id === m.checkin_id);
