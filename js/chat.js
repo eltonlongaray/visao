@@ -442,8 +442,9 @@ export async function faxinaChat() {
 
 // Quanto falta para a mensagem sumir — o chat é temporário e isso precisa
 // ficar visível, senão as pessoas contam com um histórico que não existe.
-export function tempoRestante(criadaEm) {
-  const fim = new Date(criadaEm).getTime() + 7 * 24 * 60 * 60 * 1000;
+// expiraEm: a data real de quando some (a conversa do grupo do desafio fica até o fim dele)
+export function tempoRestante(criadaEm, expiraEm) {
+  const fim = expiraEm ? new Date(expiraEm).getTime() : new Date(criadaEm).getTime() + 7 * 24 * 60 * 60 * 1000;
   const falta = fim - Date.now();
   if (falta <= 0) return 'expirando';
   const dias = Math.floor(falta / 86400000);
