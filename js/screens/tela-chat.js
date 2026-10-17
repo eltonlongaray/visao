@@ -158,8 +158,18 @@ function abrirConversa(id, nome) {
   conversaCom = { id, nome };
   history.pushState({ falconConversa: 1 }, '');
   entradaNoHistorico = true;
-  return recarregar();
+  // Mostra na hora que tocou; se algo travar, a pessoa vê o motivo (Élton, 17/10)
+  const corpo = document.getElementById('chat-corpo');
+  if (corpo) corpo.innerHTML = `<div class="chat-vazio">Abrindo o grupo…</div>`;
+  return recarregar().catch((e) => {
+    console.error('[Falcon] abrir grupo:', e);
+    const c = document.getElementById('chat-corpo');
+    if (c && conversaCom?.id === id) c.innerHTML = erro(e);
+  });
 }
+
+// Passo que não pode segurar a sala pra sempre: desiste depois de `ms`
+const _comPrazo = (p, ms, reserva) => Promise.race([p, new Promise(ok => setTimeout(() => ok(reserva), ms))]);
 
 // Sala do desafio: a conversa do grupo, aberta pelo card na aba Desafios.
 // Mesma tela da conversa (cabeçalho de grupo, campo, áudio, foto); a 📷 do
@@ -335,7 +345,7 @@ async function recarregar() {
   // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
   // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
   if (aba === 'desafios' && conversaCom?.desafio) {
-    perfis = await fetchPerfis();
+    perfis = await _comPrazo(fetchPerfis(), 5000, perfis || new Map());
     return desenharSalaDesafio(corpo);
   }
   if (aba === 'desafios') { DIG.sairDaSala(); return renderDesafios(corpo, true); }
@@ -518,7 +528,9 @@ async function desenharSalaDesafio(corpo) {
   const id = conversaCom.id;
   let msgs = [];
   try {
-    const [m, s, props] = await Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id), fetchPropostas(id)]);
+    const tudo = await _comPrazo(Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id), fetchPropostas(id)]), 20000, null);
+    if (!tudo) throw new Error('a internet está lenta. Volta e toca de novo.');
+    const [m, s, props] = tudo;
     msgs = m;
     propostas = new Map(props.map(p => [p.id, p]));
     if (!s) {   // saiu ou o desafio foi apagado
@@ -532,8 +544,10 @@ async function desenharSalaDesafio(corpo) {
   if (conversaCom?.id !== id) return;   // fechou enquanto carregava
 
   const meu = auth.currentUser?.uid;
-  await Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)]);
-  provasRasc = await listarRascunhos(id);
+  await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)])
+    .catch(e => console.warn('[Falcon] sala, anexos:', e)), 8000);
+  provasRasc = await _comPrazo(listarRascunhos(id), 3000, []);
+  if (conversaCom?.id !== id) return;
   // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
   tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});
   // 4º dia em diante: oferece guardar os meus vídeos desse desafio no Drive
