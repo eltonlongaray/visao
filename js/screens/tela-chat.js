@@ -2055,7 +2055,7 @@ function balao(m, minha, mostrarAutor) {
           ${blocoArquivo(m, minha)}
           ${m.texto && !comparaProposta(m) ? `<span class="wa-txt">${linkificar(m.texto)}</span>${blocoPrevia(m.texto)}` : comparaProposta(m)}
           ${blocoProposta(m)}
-          <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · ${tempoRestante(m.created_at)}</span>
+          <span class="wa-hora ${m.imagem_path && !m.texto ? 'hora-na-foto' : ''}">${hora(m.created_at)}${m.editada_em ? ' · editada' : ''} · some em ${tempoRestante(m.created_at, m.expira_em)}</span>
         </div>
         ${fitaReacoes(m)}
       </div>
