@@ -34,6 +34,7 @@ import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarPr
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda, verVideoCheio } from '../prova-conteudo.js';
 import { avisoGuardarVideos } from '../provas-guardar.js';
+import { driveLembradoConectado, driveConectado, conectarDrive, sincronizarDrive } from '../drive-provas.js';
 import { faixaCuidadoHtml } from '../chat-cuidado.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
 import { carregarSala, resumoHoje, abrirRanking, abrirRegras, provaPelaSala, abrirRelatorioDe } from '../desafios-sala.js';
@@ -579,6 +580,7 @@ async function desenharSalaDesafio(corpo) {
     <div class="sala-faixa">
       <button type="button" class="sala-chip" data-sala-ranking>🏅 Ranking</button>
       <button type="button" class="sala-chip" data-sala-regras>📜 Regras</button>
+      <button type="button" class="sala-chip" data-sala-drive>${driveLembradoConectado() ? '✅ Drive' : '☁️ Drive'}</button>
       ${encerrado(sala.d) ? '<button type="button" class="sala-chip" data-sala-relatorio>📊 Relatório</button>' : ''}
     </div>`);
   // Atualização em pé não remonta o cabeçalho: o subtítulo muda aqui
@@ -667,6 +669,24 @@ async function carregarProvas(msgs) {
 }
 const provaBuscando = new Set();   // caminhos sendo assinados/baixados agora
 
+
+// ☁️ Drive no topo do grupo: liga a cópia automática dos vídeos das provas a
+// qualquer hora, sem esperar o aviso do 4º dia (Élton, 17/10)
+async function botaoDrive(btn) {
+  if (await driveConectado({ fresco: true })) {
+    btn.textContent = '✅ Drive';
+    showToast('☁️ Teus vídeos das provas já vão sozinhos pra pasta "Falcon · Provas dos desafios" do teu Drive.', 'success');
+    sincronizarDrive();
+    return;
+  }
+  btn.textContent = '☁️ Drive';
+  const ok = await confirmModal({
+    title: '☁️ Guardar automaticamente no meu Drive',
+    message: 'Os vídeos das provas somem do Falcon em 7 dias. Conectando teu Google Drive, cada vídeo teu vai sozinho pra pasta "Falcon · Provas dos desafios", e o Falcon só mexe nessa pasta.',
+    confirmText: 'Conectar meu Drive', cancelText: 'Agora não',
+  });
+  if (ok) conectarDrive();
+}
 
 function blocoProva(m) {
   if (!m.prova_video && !m.prova_print) return '';
@@ -2355,6 +2375,7 @@ function ligarEventos(app) {
     if (t.closest('#chat-cam-btn')) { if (conversaCom?.desafio) await provaNaSala(); else await abrirCamera(); return; }
     if (t.closest('[data-sala-ranking]')) { if (sala) abrirRanking(sala, auth.currentUser?.uid); return; }
     if (t.closest('[data-sala-regras]')) { if (sala) abrirRegras(sala.d); return; }
+    if (t.closest('[data-sala-drive]')) { botaoDrive(t.closest('[data-sala-drive]')); return; }
     if (t.closest('[data-sala-relatorio]')) { if (sala) abrirRelatorioDe(sala.d.id, auth.currentUser?.uid); return; }
     const rEnv = t.closest('[data-rasc-enviar]');
     if (rEnv) { rEnv.disabled = true; await rascunhoAcao(rEnv.dataset.rascEnviar, true); rEnv.disabled = false; return; }

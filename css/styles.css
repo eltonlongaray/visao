@@ -8303,6 +8303,7 @@ body.rota-publica .bottom-nav { display: none !important; }
   flex: 1; height: 34px; border-radius: 17px;
   background: var(--card); border: 1px solid var(--border);
   color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1; cursor: pointer;
+  white-space: nowrap; min-width: 0; padding: 0 8px;
 }
 .sala-chip:active { background: var(--card-2); }
 .msg-prova { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 6px; }
