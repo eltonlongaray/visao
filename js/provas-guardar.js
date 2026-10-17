@@ -10,6 +10,7 @@
 import { assinarProvas } from './desafios.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
+import { driveLembradoConectado, conectarDrive, sincronizarDrive } from './drive-provas.js';
 
 const DIA = 864e5;
 const CHAVE = 'falcon_provas_aviso';   // { caminho: { n: vezes, d: 'AAAA-MM-DD', ok: guardou } }
@@ -57,6 +58,8 @@ const _dataCurta = (dia) => String(dia || '').split('-').reverse().slice(0, 2).j
 // oferecido chega no 4º dia, o aviso oferece ele JUNTO com os mais novos ainda não
 // oferecidos: assim tudo vai pro Drive de uma vez (Élton, 16/10).
 export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}) {
+  // Drive conectado: os vídeos já vão sozinhos, sem aviso nenhum
+  if (driveLembradoConectado()) { sincronizarDrive(); return false; }
   const est = _estado();
   const vencendo = videosParaGuardar(checks, uid).filter(c => forcar || _podeAvisar(est, c.video_path));
   if (!vencendo.length) return false;
@@ -78,14 +81,17 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
         <br><small>${lista.map(c => `Prova de ${_dataCurta(c.dia)}`).join(' · ')}</small>
         <br><small>Depois que sumir, no grupo fica o 📄 Conteúdo com o que foi dito.</small></div>
       <div class="modal-actions" style="flex-direction:column;gap:8px">
-        <button class="btn-primary" data-gv-ok style="width:100%" disabled>⏳ Preparando os vídeos…</button>
+        <button class="btn-primary" data-gv-auto style="width:100%">☁️ Guardar sempre sozinho no meu Drive</button>
+        <button class="btn-secondary" data-gv-ok style="width:100%" disabled>⏳ Preparando os vídeos…</button>
         <button class="btn-secondary" data-gv-nao style="width:100%">Agora não</button>
+        <small style="opacity:.75;text-align:center">Sempre sozinho: o Falcon cria a pasta "Falcon · Provas dos desafios" no teu Drive e só mexe nela.</small>
       </div>
     </div>`;
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => ov.remove());
   const ok = ov.querySelector('[data-gv-ok]');
   ov.querySelector('[data-gv-nao]').onclick = () => fechar();
+  ov.querySelector('[data-gv-auto]').onclick = () => { fechar(); conectarDrive(); };
 
   // Baixa antes: o Compartilhar do celular só abre logo depois do toque
   let arquivos = [];
@@ -102,7 +108,7 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
   if (!document.body.contains(ov)) return true;
   if (!arquivos.length) { ok.textContent = 'Não deu pra baixar agora'; return true; }
   ok.disabled = false;
-  ok.textContent = '📁 Guardar no Drive';
+  ok.textContent = '📁 Guardar só estes agora';
   ok.onclick = async () => {
     try {
       if (navigator.canShare?.({ files: arquivos })) {

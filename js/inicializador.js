@@ -33,7 +33,7 @@ import { showToast } from './aviso-tela.js';
 import { playAlert } from './sons.js';
 import { hasTerms } from './lgpd-consentimentos.js';
 import { guardarConviteDoLink } from './desafios-sala.js';
-import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261016p';
+import { initPet, showPet, hidePet } from './assistente-ia.js?v=20261016q';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -241,6 +241,8 @@ onAuthStateChanged(auth, async (user) => {
   sincronizarCompromissos()
     .then(() => import('./agenda-ui.js').then(m => m.checarNovosAgendamentos()))
     .catch(() => {});
+  // Drive das provas: volta do Google (?drive=ok) e vídeos que ficaram pra trás
+  setTimeout(() => import('./drive-provas.js').then(m => m.aoEntrar()).catch(() => {}), 2000);
   // Deep-link via IndexedDB (cold-start que perdeu o hash) — navega pro Ritual.
   if (!deepLink) _irParaAlvoNotif();
 

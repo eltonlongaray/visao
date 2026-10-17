@@ -211,6 +211,8 @@ export async function addCheckin(desafioId, quantidade, extra = {}) {
   // Devolve o id do check-in (o "📄 Conteúdo" do depoimento grava nele)
   const { data, error } = await supabase.from('desafio_checkins').insert(row).select('id').maybeSingle();
   if (error) throw new Error(error.message || 'Erro ao registrar');
+  // Quem conectou o Drive: o vídeo vai sozinho pra pasta dele (segundo plano)
+  if (row.video_path && data?.id) import('./drive-provas.js').then(m => m.enviarProvaDrive(data.id)).catch(() => {});
   return data?.id || null;
 }
 

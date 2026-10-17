@@ -1124,6 +1124,10 @@ async function routeCommand(text) {
       : 'Aqui teu cartão do dia 🃏';
   }
 
+  // Drive automático das provas: conectar, desconectar, ver se está ligado
+  if (/\b(?:desconect|deslig|tir)\w*\s+(?:o\s+)?(?:meu\s+)?(?:google\s+)?drive\b/i.test(text)) return driveDoPet('desconectar');
+  if (/\b(?:conect|lig|ativ)\w*\s+(?:o\s+)?(?:meu\s+)?(?:google\s+)?drive\b|\b(?:guard|salv)\w*\s+(?:sempre\s+)?(?:sozinho|autom[aá]tico|automaticamente)\b.*\bdrive\b|\bdrive\b.*\b(?:sozinho|autom[aá]tico|automaticamente)\b/i.test(text)) return driveDoPet('conectar');
+  if (/\b(?:meu\s+)?drive\b.*\b(?:conectado|ligado|funcionando)\b|\bt[aá]\s+(?:conectado|ligado)\b.*\bdrive\b/i.test(text)) return driveDoPet('status');
   // Guardar os vídeos das provas no Drive antes de sumirem (7 dias)
   if (/\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\b.*\b(?:prova|desafio|drive)|\b(?:guard|salv)\w*\s+(?:os\s+)?(?:meus\s+)?v[ií]deos?\s+(?:no|na)\s+(?:drive|nuvem)/i.test(text)) return guardarVideosProvas();
   // Golpe: "isso é golpe?", "me pediram pix no privado", "como evitar golpe na rifa"
@@ -5774,7 +5778,25 @@ function desafioCriar(p, c) {
 // Caderno de estudo do Pet (FIAP Fase 6): as frases que ele não entendeu viram
 // uma prova com a resposta certa; cada revisão fecha uma versão com o placar
 // (sql/pet-caderno.sql). Aqui o admin vê a evolução, sem as frases.
+async function driveDoPet(acao) {
+  const DR = await import('./drive-provas.js');
+  if (acao === 'desconectar') {
+    return (await DR.desconectarDrive())
+      ? 'Desconectei teu Drive. Os vídeos que já estão lá continuam lá; os novos não vão mais sozinhos ☁️'
+      : 'Não deu pra desconectar agora, tenta de novo daqui a pouco.';
+  }
+  const on = await DR.driveConectado({ fresco: true });
+  if (acao === 'status') {
+    return on
+      ? '☁️ Teu Drive está conectado: cada vídeo de prova vai sozinho pra pasta "Falcon · Provas dos desafios".'
+      : 'Teu Drive não está conectado. Quer que os vídeos das provas vão sozinhos pra lá? Fala "conecta meu Drive".';
+  }
+  if (on) { DR.sincronizarDrive(); return '☁️ Teu Drive já está conectado: os vídeos das provas vão sozinhos pra pasta "Falcon · Provas dos desafios".'; }
+  setTimeout(() => DR.conectarDrive(), 1200);
+  return 'Vou abrir o Google pra tu permitir uma vez só. O Falcon cria a pasta "Falcon · Provas dos desafios" no teu Drive e só mexe nela ☁️';
+}
 async function guardarVideosProvas() {
+  if (await (await import('./drive-provas.js')).driveConectado()) return driveDoPet('conectar');
   const uid = (await import('./autenticacao.js')).auth.currentUser?.uid;
   const D = await import('./desafios.js');
   const G = await import('./provas-guardar.js');
