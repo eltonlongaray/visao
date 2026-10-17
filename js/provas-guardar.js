@@ -81,10 +81,10 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
         <br><small>${lista.map(c => `Prova de ${_dataCurta(c.dia)}`).join(' · ')}</small>
         <br><small>Depois que sumir, no grupo fica o 📄 Conteúdo com o que foi dito.</small></div>
       <div class="modal-actions" style="flex-direction:column;gap:8px">
-        <button class="btn-primary" data-gv-auto style="width:100%">☁️ Guardar sempre sozinho no meu Drive</button>
+        <button class="btn-primary" data-gv-auto style="width:100%">☁️ Guardar automaticamente no meu Drive</button>
         <button class="btn-secondary" data-gv-ok style="width:100%" disabled>⏳ Preparando os vídeos…</button>
         <button class="btn-secondary" data-gv-nao style="width:100%">Agora não</button>
-        <small style="opacity:.75;text-align:center">Sempre sozinho: o Falcon cria a pasta "Falcon · Provas dos desafios" no teu Drive e só mexe nela.</small>
+        <small style="opacity:.75;text-align:center">Automático: o Falcon cria a pasta "Falcon · Provas dos desafios" no teu Drive e só mexe nela.</small>
       </div>
     </div>`;
   document.body.appendChild(ov);
