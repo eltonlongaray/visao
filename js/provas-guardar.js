@@ -10,7 +10,7 @@
 import { assinarProvas } from './desafios.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
-import { driveLembradoConectado, conectarDrive, sincronizarDrive } from './drive-provas.js';
+import { driveLembradoConectado, driveConectado, conectarDrive, sincronizarDrive } from './drive-provas.js';
 
 const DIA = 864e5;
 const CHAVE = 'falcon_provas_aviso';   // { caminho: { n: vezes, d: 'AAAA-MM-DD', ok: guardou } }
@@ -53,6 +53,39 @@ const _dataCurta = (dia) => String(dia || '').split('-').reverse().slice(0, 2).j
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: AVISO E GUARDAR
 // ═══════════════════════════════════════════════════════════════
+// Ao entrar no grupo: primeira coisa, explica que o vídeo some em 7 dias e
+// oferece guardar sozinho no Drive (Élton, 17/10). 1 vez por dia, até 3 dias;
+// conectou = nunca mais. Vale pra todos os desafios (o Drive é um só).
+const CHAVE_ENTRADA = 'falcon_drive_convite';   // { n: vezes, d: 'AAAA-MM-DD' }
+export async function avisoEntradaDrive() {
+  if (driveLembradoConectado()) return false;
+  let e = {};
+  try { e = JSON.parse(localStorage.getItem(CHAVE_ENTRADA) || '{}') || {}; } catch { /* sem storage */ }
+  if ((e.n || 0) >= MAX_VEZES || e.d === _hoje()) return false;
+  if (await driveConectado()) return false;   // conectou em outro aparelho
+  if (document.querySelector('.modal-overlay')) return false;
+  try { localStorage.setItem(CHAVE_ENTRADA, JSON.stringify({ n: (e.n || 0) + 1, d: _hoje() })); } catch { /* sem storage */ }
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `
+    <div class="modal" style="max-width:380px">
+      <div class="modal-title">☁️ Guarde os vídeos das tuas provas</div>
+      <div class="modal-hint">Aqui no grupo, cada vídeo de prova fica <b>7 dias</b>. Depois disso ele é apagado e fica só o 📄 Conteúdo com o que foi dito.
+        <br><br>Pra não perder nenhum, conecta teu Google Drive: cada vídeo teu vai <b>sozinho</b> pra pasta "Falcon · Provas dos desafios", logo depois de enviar.
+        <br><br><small>O Falcon só mexe nessa pasta. Dá pra desligar quando quiser pedindo pro Pet.</small></div>
+      <div class="modal-actions" style="flex-direction:column;gap:8px">
+        <button class="btn-primary" data-ge-sim style="width:100%">☁️ Guardar automaticamente no meu Drive</button>
+        <button class="btn-secondary" data-ge-nao style="width:100%">Agora não</button>
+        <small style="opacity:.75;text-align:center">Também dá pra ligar depois no botão ☁️ Drive aqui em cima.</small>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const fechar = trapModalBack(() => ov.remove());
+  ov.querySelector('[data-ge-nao]').onclick = () => fechar();
+  ov.querySelector('[data-ge-sim]').onclick = () => { fechar(); conectarDrive(); };
+  return true;
+}
+
 // Abre o aviso se tiver vídeo novo pra oferecer. forcar = o Pet pediu (mostra mesmo já oferecido).
 // Cada vídeo tem os seus 7 dias (some um por um). Quando o mais antigo ainda não
 // oferecido chega no 4º dia, o aviso oferece ele JUNTO com os mais novos ainda não

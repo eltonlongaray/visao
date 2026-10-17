@@ -33,7 +33,7 @@ import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
 import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda, verVideoCheio } from '../prova-conteudo.js';
-import { avisoGuardarVideos } from '../provas-guardar.js';
+import { avisoGuardarVideos, avisoEntradaDrive } from '../provas-guardar.js';
 import { driveLembradoConectado, driveConectado, conectarDrive, sincronizarDrive } from '../drive-provas.js';
 import { faixaCuidadoHtml } from '../chat-cuidado.js';
 import { listarRascunhos, apagarRascunho, enviarRascunho, motivoRascunhoVencido } from '../desafios-rascunho.js';
@@ -559,7 +559,9 @@ async function desenharSalaDesafio(corpo) {
   tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});
   // 4º dia em diante: oferece guardar os meus vídeos desse desafio no Drive
   setTimeout(() => {
-    if (conversaCom?.id === id && sala?.d?.id === id) avisoGuardarVideos(sala.d, sala.checks.filter(c => c.desafio_id === id), meu).catch(() => {});
+    if (conversaCom?.id !== id || sala?.d?.id !== id || document.querySelector('.modal-overlay')) return;
+    // Entrou no grupo: primeiro o convite do Drive; senão, o aviso do 4º dia
+    avisoEntradaDrive().then(abriu => abriu || avisoGuardarVideos(sala.d, sala.checks.filter(c => c.desafio_id === id), meu)).catch(() => {});
   }, 1200);
   const lista = (msgs.length || provasRasc.length)
     ? msgs.map((m, i) => separadorDeDia(m, msgs[i - 1]) + balao(m, m.autor_id === meu, true)).join('') + provasRasc.map(balaoRascunho).join('')
