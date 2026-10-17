@@ -344,10 +344,7 @@ async function recarregar() {
   if (!corpo) return;
   // Desafios: aba embutida na Comunidade. Renderiza o conteúdo dos desafios
   // aqui dentro (sem cinturão próprio) e não precisa dos rostos do chat.
-  if (aba === 'desafios' && conversaCom?.desafio) {
-    perfis = await _comPrazo(fetchPerfis(), 5000, perfis || new Map());
-    return desenharSalaDesafio(corpo);
-  }
+  if (aba === 'desafios' && conversaCom?.desafio) return desenharSalaDesafio(corpo);
   if (aba === 'desafios') { DIG.sairDaSala(); return renderDesafios(corpo, true); }
   // Rostos antes de desenhar. fetchPerfis tem cache de 5 min, então o
   // recarregamento de 12 em 12 segundos não vira uma chamada a cada ciclo.
@@ -527,6 +524,9 @@ async function desenharConversa(corpo) {
 async function desenharSalaDesafio(corpo) {
   const id = conversaCom.id;
   let msgs = [];
+  // Tudo que não depende das mensagens começa junto (antes era um de cada vez)
+  const rascP = _comPrazo(listarRascunhos(id), 3000, []);
+  const perfisP = _comPrazo(fetchPerfis(), 5000, perfis || new Map());
   try {
     const tudo = await _comPrazo(Promise.all([fetchSalaDesafio(id), sala ? sala : carregarSala(id), fetchPropostas(id)]), 20000, null);
     if (!tudo) throw new Error('a internet está lenta. Volta e toca de novo.');
@@ -546,7 +546,7 @@ async function desenharSalaDesafio(corpo) {
   const meu = auth.currentUser?.uid;
   await _comPrazo(Promise.all([carregarFotos(msgs), carregarArquivos(msgs), carregarReacoes(msgs), carregarProvas(msgs)])
     .catch(e => console.warn('[Falcon] sala, anexos:', e)), 8000);
-  provasRasc = await _comPrazo(listarRascunhos(id), 3000, []);
+  [provasRasc, perfis] = await Promise.all([rascP, perfisP]);
   if (conversaCom?.id !== id) return;
   // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
   tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});

@@ -158,22 +158,24 @@ export async function fetchPlacar() {
   return map;
 }
 
-export async function fetchParticipantes() {
-  const { data, error } = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at');
+// desafioId: só os desse desafio (a sala do grupo não precisa dos outros)
+const _doDesafio = (q, desafioId) => (desafioId ? q.eq('desafio_id', desafioId) : q);
+export async function fetchParticipantes(desafioId) {
+  const { data, error } = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at'), desafioId);
   if (!error) return data || [];
-  const r = await supabase.from('desafio_participantes').select('desafio_id, user_id, nome');
+  const r = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome'), desafioId);
   return r.data || [];
 }
-export async function fetchCheckins() {
-  const { data, error } = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo');
+export async function fetchCheckins(desafioId) {
+  const { data, error } = await _doDesafio(supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at, conteudo'), desafioId);
   if (!error) return data || [];
   // Banco ainda sem o "Conteúdo" (migration/desafios-provas-conteudo.sql)
-  const r0 = await supabase.from('desafio_checkins')
-    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at');
+  const r0 = await _doDesafio(supabase.from('desafio_checkins')
+    .select('id, desafio_id, user_id, dia, quantidade, exercicio, video_path, print_path, video_expira_em, created_at'), desafioId);
   if (!r0.error) return r0.data || [];
   // Banco ainda sem as colunas da prova: lê o básico pra não zerar o ranking
-  const r = await supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade');
+  const r = await _doDesafio(supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade'), desafioId);
   return r.data || [];
 }
 export async function joinDesafio(desafioId, nome) {
