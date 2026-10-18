@@ -220,6 +220,7 @@ export function fraseDoApp(j) {
         case 'proposta': return texto === 'não' || texto === 'nao' ? 'não aceito a proposta de mudança'
           : texto === 'sim' ? 'aceito a proposta de mudança' : 'tem proposta de mudança no desafio?';
         case 'nao_consegui': return `hoje não consegui ${no}`;
+        case 'doente': return `fiquei doente, quero justificar o dia ${no}`;
         case 'convidar': {
           const quem = juntar(j.itens);
           const pro = nome ? `pro desafio ${/^(d[aoe]s?)\s/i.test(nome) ? nome : 'de ' + nome}` : 'pro desafio';

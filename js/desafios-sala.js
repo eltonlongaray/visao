@@ -10,11 +10,11 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo, conviteAberto, MSG_CONVITE_FECHADO } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias } from './desafios-moldes.js';
+         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias, convitesFechados } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -41,6 +41,7 @@ export function rankingDoDesafio(desafio, parts, checks) {
   parts.forEach(p => { nomeById[p.user_id] = p.nome || 'Falcão'; });
   const byUser = {};
   checks.forEach(c => {
+    if (c.doente) return;   // dia justificado não pontua
     (byUser[c.user_id] ||= {});
     byUser[c.user_id][c.dia] = (byUser[c.user_id][c.dia] || 0) + (c.quantidade || 0);
   });
@@ -74,7 +75,9 @@ export function resumoHoje(sala, uid) {
   const soma = deHoje.reduce((s, c) => s + (c.quantidade || 0), 0);
   const un = d.unidade ? ' ' + d.unidade : '';
   let st;
-  if (Array.isArray(d.exercicios) && d.exercicios.length && semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at)) {
+  if (deHoje.some(c => c.doente)) {
+    st = '🤒 hoje justificado (doente)';
+  } else if (Array.isArray(d.exercicios) && d.exercicios.length && semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at)) {
     st = '❌ perdeu (semana sem corrida)';
   } else if (Array.isArray(d.exercicios) && d.exercicios.length) {
     const lim = d.max_por_dia || d.meta_diaria || 1;
@@ -137,6 +140,7 @@ export function linhaDoRelatorio(d, g, uid) {
   const partes = [`<b>${_esc(g.nome)}${g.user_id === uid ? ' (você)' : ''}</b>: ${g.cumpridos} de ${g.total} dias${tudo ? ' ✅' : ''}`];
   if (g.maiorSeq > 1) partes.push(`🔥 maior sequência: ${g.maiorSeq} dias`);
   if (d.tipo === 'largar') partes.push(`🌱 dias limpos: ${g.limpos}`);
+  if (g.justificados?.length) partes.push(`🤒 ${g.justificados.length === 1 ? '1 dia justificado' : `${g.justificados.length} dias justificados`} (doente)`);
   if (g.faltas.length) partes.push(`faltou ${g.faltas.slice(0, 6).map(_dm).join(', ')}${g.faltas.length > 6 ? ` e mais ${g.faltas.length - 6}` : ''}`);
   if (g.perdeuCorrida) partes.push('🏃 ficou sem a corrida da semana');
   if (g.sumiu) partes.push(`👻 sumiu 3 dias (${_dm(g.sumiu)} a ${_dm(somarDias(g.sumiu, 2))})`);
@@ -191,7 +195,8 @@ export async function abrirRelatorioDe(id, uid) {
 }
 
 // Sair do desafio só com motivo (Élton, 15/10). Devolve o motivo ou null.
-// Não tem dia justificado: quem sai perde o grupo até o fim e só volta na próxima rodada.
+// Quem sai perde o grupo até o fim e só volta na próxima rodada. Doente não precisa
+// sair: o botão 🤒 Fiquei doente justifica o dia (Élton, 18/10).
 export const MOTIVOS_SAIDA = ['Fiquei doente', 'Tive um imprevisto', 'Vou viajar', 'Não vou conseguir manter'];
 export function pedirMotivoSaida(d) {
   return new Promise(resolve => {
@@ -202,7 +207,7 @@ export function pedirMotivoSaida(d) {
     ov.innerHTML = `<div class="modal sala-modal">
       <div class="modal-title">🚪 Sair do desafio?</div>
       <div class="modal-hint">${_esc(d?.titulo || '')}</div>
-      <div class="ds-prova-dica">${grupo ? `Não existe dia justificado. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d?.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.'}</div>
+      <div class="ds-prova-dica">${grupo ? `Ficou doente? Não precisa sair: no desafio tem o botão 🤒 Fiquei doente, que justifica o dia. Se sair, tu perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d?.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.'}</div>
       <div class="ds-regras-tit" style="margin-top:12px">Por que tu está saindo?</div>
       <div class="ds-ini-chips ds-saida-chips">${MOTIVOS_SAIDA.map(m => `<button class="ds-ini-chip" data-motivo="${_esc(m)}">${_esc(m)}</button>`).join('')}</div>
       <textarea class="ds-saida-txt" maxlength="300" rows="3" placeholder="Escreve o motivo"></textarea>
@@ -270,18 +275,35 @@ export function provaPelaSala(sala, uid) {
   const pend = corrida ? corridaPendente(d.id) : null;
   const passo = pend ? proximoPassoCorrida(d.id) : null;
 
-  if (!ehLargar(d) && !soma && passouDoLimite(d)) {
-    showToast(`Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'info');
+  // Fiquei doente (Élton, 18/10): dia justificado, nada mais hoje
+  if (deHoje.some(c => c.doente)) {
+    showToast('🤒 Hoje está justificado. Melhoras! Amanhã, se estiver melhor, volta a gravar 🦅', 'info');
     return Promise.resolve(false);
   }
+  // Ainda não mandou nada hoje: dá pra justificar o dia (vale a qualquer hora)
+  const podeDoente = !deHoje.length && !aindaNaoComecou(d);
+  const OP_DOENTE = { rotulo: '🤒 Fiquei doente', extra: { doente: true }, doente: true };
 
   // Opções do dia: { rotulo, extra, motivo? (desabilita) }
   let opcoes = [];
   let comNumero = null;   // { placeholder, rotulo } quando a pessoa digita quanto fez
   let titulo = '📷 Mandar prova';
   let dica = '';
+  // Uma opção só: grava direto, a não ser que dê pra justificar o dia (aí vira escolha)
+  const direto = (extra, rotulo) => {
+    if (!podeDoente) return _registrar(d, extra);
+    opcoes = [{ rotulo, extra }];
+    return null;
+  };
 
-  if (pend) {
+  if (!ehLargar(d) && !soma && passouDoLimite(d)) {
+    if (!podeDoente) {
+      showToast(`Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'info');
+      return Promise.resolve(false);
+    }
+    titulo = `⏰ Passou das ${horaLimite(d)}`;
+    dica = 'A prova de hoje fechou. Se tu está doente, ainda dá pra justificar o dia.';
+  } else if (pend) {
     opcoes = [{ rotulo: passo.rotulo, extra: { quantidade: pend.quantidade || 1, exercicio: pend.exercicio || null } }];
     dica = passo.dica;
   } else if (ex && semanaSemCorrida(d, meus, parts.find(p => p.user_id === uid)?.joined_at)) {
@@ -329,14 +351,18 @@ export function provaPelaSala(sala, uid) {
       comNumero = { placeholder: 'páginas hoje', rotulo: '🎙️ Gravar' };
     } else if (depoimentoConta(d)) {
       // Depoimento (reflexão): sem número, o vídeo fecha o dia (Élton, 15/10)
-      return _registrar(d, { quantidade: Math.max(1, d.meta_diaria - soma) });
+      const r = direto({ quantidade: Math.max(1, d.meta_diaria - soma) }, '🎙️ Gravar o depoimento');
+      if (r) return r;
+      titulo = '🎙️ Depoimento de hoje';
     } else if (ops) opcoes = ops.map(o => ({ rotulo: `+${o}${un ? ' ' + un : ''}`, extra: { quantidade: o } }));
     else comNumero = { placeholder: 'quanto?', rotulo: 'Mandar' };
   } else {
     if (soma > 0) { showToast('✅ Feito hoje! Volte amanhã 🦅', 'info'); return Promise.resolve(false); }
     // Uma opção só: grava direto, sem escolher nada
-    return _registrar(d, { quantidade: 1 });
+    const r = direto({ quantidade: 1 }, d.prova === 'video' ? '🎥 Gravar a prova' : '✅ Marcar feito hoje');
+    if (r) return r;
   }
+  if (podeDoente) opcoes.push(OP_DOENTE);
 
   return new Promise((resolve) => {
     const ov = document.createElement('div');
@@ -346,7 +372,7 @@ export function provaPelaSala(sala, uid) {
         <div class="modal-title">${_esc(titulo)}</div>
         <div class="modal-hint">${_esc(d.titulo)}</div>
         <div class="sala-opcoes">
-          ${opcoes.map((o, i) => `
+          ${opcoes.map((o, i) => o.doente ? '' : `
             <button class="ds-ex ${o.motivo === 'feito hoje' ? 'feito' : ''}" data-op="${i}" ${o.motivo ? 'disabled' : ''}>
               <span>${_esc(o.rotulo)}</span>${o.motivo ? `<small>${_esc(o.motivo)}</small>` : ''}
             </button>`).join('')}
@@ -354,6 +380,7 @@ export function provaPelaSala(sala, uid) {
               <input class="ds-inc-input" id="sala-qtd" type="number" min="1" inputmode="numeric" placeholder="${_esc(comNumero.placeholder)}" />
               <button class="ds-inc" data-num="1">${_esc(comNumero.rotulo)}</button>
             </div>` : ''}
+          ${opcoes.map((o, i) => o.doente ? `<button class="ds-ex ds-doente-op" data-op="${i}"><span>${_esc(o.rotulo)}</span></button>` : '').join('')}
         </div>
         ${corrida && !pend ? `<div class="ds-corrida">
             <button class="ds-correr" data-correr="1">🏃 Correr com o Falcon</button>
@@ -445,6 +472,7 @@ export async function convidarNoApp(d, ids) {
 // (quem já está no desafio não aparece). parts = participantes desse desafio.
 export async function abrirConvidar(d, parts = [], meuId = null) {
   if (!d?.codigo) { showToast('Esse desafio não tem código de convite.', 'info'); return; }
+  if (convitesFechados(d)) { showToast('🔒 Convites fechados: o desafio já começou.', 'info'); return; }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.innerHTML = `
@@ -544,6 +572,8 @@ export async function entrarPeloConvite() {
   let p = null;
   try { p = await getProfile(); } catch { /* segue sem perfil */ }
   if (!(p?.preferredName || p?.fullName || '').trim()) {
+    // Conta nova nunca está dentro: desafio já começado acaba aqui
+    if (!(await conviteAberto(cod))) { showToast(MSG_CONVITE_FECHADO, 'info'); return true; }
     window.dispatchEvent(new CustomEvent('falcon:convite-boas-vindas', { detail: { codigo: cod } }));
     return true;
   }
@@ -554,11 +584,13 @@ export async function entrarPeloConvite() {
 // Entra no desafio do código e abre a sala do grupo. true = deu certo.
 export async function entrarNoConvite(cod) {
   try {
-    if (!(await aceitarPrendaDoCodigo(cod))) { showToast('Tudo bem, o convite fica pra depois 🦅', 'info'); return false; }
+    // Já começou: o banco só deixa passar quem já está dentro (abriu o link de novo)
+    const aberto = await conviteAberto(cod);
+    if (aberto && !(await aceitarPrendaDoCodigo(cod))) { showToast('Tudo bem, o convite fica pra depois 🦅', 'info'); return false; }
     const id = await entrarPorCodigo(cod, await meuNomeDeChat());
     const d = (await fetchDesafios()).find(x => x.id === id);
     const detalhe = { id, titulo: d?.titulo || 'Desafio', tipo: d?.tipo };
-    showToast('🦅 Você entrou no desafio!', 'success');
+    if (aberto) showToast('🦅 Você entrou no desafio!', 'success');
     if (document.getElementById('chat-corpo')) { window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: detalhe })); return true; }
     try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
     location.hash = '#/desafios';

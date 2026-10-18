@@ -2586,6 +2586,11 @@ body.time-picker-open { overflow: hidden; }
   border-radius: 10px; padding: 10px; font-family: inherit; font-weight: 700; font-size: 13px;
   color: var(--text); cursor: pointer;
 }
+.ds-doente { width: 100%; margin-top: 10px; border: 1px solid rgba(251,191,36,0.45); background: rgba(251,191,36,0.08); color: var(--text); border-radius: 10px; padding: 10px; font-family: inherit; font-weight: 700; font-size: 13px; cursor: pointer; }
+.ds-doente:active { transform: scale(0.97); background: rgba(251,191,36,0.18); }
+.ds-doente-ok { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.35); color: var(--text); font-size: 13px; line-height: 1.45; }
+.sala-opcoes .ds-doente-op { border-color: rgba(251,191,36,0.45); background: rgba(251,191,36,0.08); }
+.ds-conv-fechado { margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px dashed var(--border); color: var(--muted); font-size: 13px; text-align: center; }
 /* Toque no botão do grupo: afunda e acende na hora (Élton, 18/10) */
 .ds-wpp { transition: transform .08s, background-color .08s, border-color .08s; -webkit-tap-highlight-color: transparent; }
 .ds-wpp:active, .ds-wpp.tocado { transform: scale(0.97); background: rgba(52,211,153,0.18); border-color: #34d399; }

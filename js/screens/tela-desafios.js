@@ -6,14 +6,14 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
-  joinDesafio, leaveDesafio, entrarPorCodigo,
+  joinDesafio, leaveDesafio, entrarPorCodigo, conviteAberto,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
   markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrendaNoGrupo, textoFalhas,
-         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
+         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio, convitesFechados } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio, pedirMotivoSaida } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -218,8 +218,9 @@ export async function renderDesafios(app, embedded = false) {
             // Largar um vício: todo dia conta como foi, conseguindo ou não (com depoimento)
             const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
             const limpos = new Set(dChecks.filter(c => c.user_id === myUid && c.quantidade > 0).map(c => c.dia));
+            const doentes = new Set(dChecks.filter(c => c.user_id === myUid && c.doente).map(c => c.dia));   // não quebra a sequência
             let seguidos = 0;
-            for (let dia = limpos.has(today) ? today : diaAnterior(today); limpos.has(dia); dia = diaAnterior(dia)) seguidos++;
+            for (let dia = limpos.has(today) ? today : diaAnterior(today); limpos.has(dia) || doentes.has(dia); dia = diaAnterior(dia)) if (limpos.has(dia)) seguidos++;
             const serie = seguidos ? `<div class="ds-serie">🔥 ${seguidos} ${seguidos === 1 ? 'dia limpo seguido' : 'dias limpos seguidos'}</div>` : '';
             acao = meusHoje.length
               ? `${serie}<div class="ds-done">${todaySum > 0 ? '✅ Mais um dia limpo! 🦅' : '💪 Depoimento de hoje enviado, dia contado. Amanhã é um novo dia.'}</div>`
@@ -272,6 +273,18 @@ export async function renderDesafios(app, embedded = false) {
             acao = `<div class="ds-prova-dica">⏰ Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅</div>`;
           }
 
+          // Fiquei doente (Élton, 18/10): embaixo de gravar. O vídeo conta o que a
+          // pessoa tem e o dia fica justificado (nem falha, nem feito).
+          const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
+          const perdeuSemana = exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at);
+          if (!acabou && joined && !aindaNaoComecou(d) && !perdeuSemana) {
+            if (meusHoje.some(c => c.doente)) {
+              acao = `<div class="ds-doente-ok">🤒 <b>Dia justificado.</b> Melhoras! Amanhã, se estiver melhor, volta a gravar 🦅</div>`;
+            } else if (!meusHoje.length) {
+              acao += `<button class="ds-doente" data-doente="${d.id}">🤒 Fiquei doente</button>`;
+            }
+          }
+
           const rankHtml = joined && rank.length ? `
             <div class="ds-rank">
               <div class="ds-rank-title">🏅 Ranking</div>
@@ -317,9 +330,11 @@ export async function renderDesafios(app, embedded = false) {
           // Grupo: abre a sala (conversa do desafio, com as provas e o ranking)
           const salaViva = !acabou || today <= (salaAte(d) || '');
           const wpp = (joined && !solo && salaViva) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
-          // Convidar: desafio com amigos, pra quem já está dentro
-          const convidar = (joined && !acabou && d.modalidade === 'amigos' && d.codigo)
-            ? `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>` : '';
+          // Convidar: desafio com amigos, pra quem já está dentro, só até o 1º dia
+          const podeConvidar = joined && !acabou && d.modalidade === 'amigos' && d.codigo;
+          const convidar = !podeConvidar ? ''
+            : convitesFechados(d) ? `<div class="ds-conv-fechado">🔒 Convites fechados: o desafio já começou</div>`
+            : `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>`;
           const sair = joined ? `<button class="ds-leave" data-leave="${d.id}">Sair do desafio</button>` : '';
 
           return `
@@ -438,6 +453,7 @@ export async function renderDesafios(app, embedded = false) {
       const qtd = parseInt(app.querySelector(`#q-${CSS.escape(id)}`)?.value, 10) || d?.meta_diaria || 1;
       comProva(b, id, { quantidade: qtd });
     });
+    app.querySelectorAll('[data-doente]').forEach(b => b.onclick = () => comProva(b, b.dataset.doente, { doente: true }));
     app.querySelectorAll('[data-print]').forEach(b => b.onclick = () => {
       const pend = corridaPendente(b.dataset.print);
       comProva(b, b.dataset.print, { quantidade: pend?.quantidade || 1, exercicio: pend?.exercicio || null });
@@ -573,10 +589,12 @@ export async function renderDesafios(app, embedded = false) {
       if (!cod) { showToast('Digite o código', 'info'); return; }
       go.disabled = true; go.textContent = 'Entrando…';
       try {
-        if (!(await aceitarPrendaDoCodigo(cod))) { go.disabled = false; go.textContent = 'Entrar no desafio'; return; }
+        // Já começou: o banco só deixa passar quem já está dentro
+        const aberto = await conviteAberto(cod);
+        if (aberto && !(await aceitarPrendaDoCodigo(cod))) { go.disabled = false; go.textContent = 'Entrar no desafio'; return; }
         await entrarPorCodigo(cod, meuNome);
         close();
-        showToast('🦅 Você entrou no desafio!', 'success');
+        showToast(aberto ? '🦅 Você entrou no desafio!' : 'Tu já está nesse desafio 🦅', 'success');
         await refresh();
       } catch (e) {
         showToast(e.message || 'Erro', 'error');

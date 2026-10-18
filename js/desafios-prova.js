@@ -13,7 +13,7 @@ import { trapModalBack } from './modal-voltar.js';
 import { salvarRascunho } from './desafios-rascunho.js';
 import { gerarConteudo } from './prova-conteudo.js';
 import './vendor/fix-webm-duration.js';   // window.ysFixWebmDuration
-import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca, ehAgua } from './desafios-moldes.js';
+import { roteiroDepoimento, passouDoLimite, horaLimite, aindaNaoComecou, textoComeca, ehAgua, ROTEIRO_DOENTE } from './desafios-moldes.js';
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const _hoje = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -526,12 +526,35 @@ function _limparPendente() { try { localStorage.removeItem(PEND_KEY); } catch { 
 // Registra o check-in pedindo a prova que o desafio exige. true = registrou.
 // O banco confere as regras de novo (gatilho) e devolve o erro em português.
 // falhou = largar um vício, dia em que não conseguiu (entra com quantidade 0).
-export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false } = {}) {
+export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false, doente = false } = {}) {
   const corrida = d.prova === 'strava' || exercicio === 'Corrida';
   if (falhou) quantidade = 0;
   if (aindaNaoComecou(d)) {
     showToast(`Calma! O desafio ${textoComeca(d)}. Até lá, aquece 🦅`, 'info');
     return false;
+  }
+  // Fiquei doente (Élton, 18/10): vídeo contando o que tem, dia justificado.
+  // Vale a qualquer hora (sem o horário limite do desafio).
+  if (doente) {
+    try {
+      const blob = await gravarVideoAoVivo({
+        titulo: '🤒 Fiquei doente',
+        dica: `Grave um vídeo contando:<ul class="ds-rec-roteiro">${ROTEIRO_DOENTE.map(r => `<li>${_esc(r)}</li>`).join('')}</ul><small>O vídeo vai pro grupo e o dia fica justificado: não conta como falha nem como feito, e tu não perde a sequência.</small>`,
+        maxSeg: MAX_SEG_DEPOIMENTO,
+        rascunho: true,
+        enviarTxt: 'Enviar vídeo',
+      });
+      if (!blob) return false;
+      const extra = { quantidade: 0, exercicio: null, falhou: false, doente: true, tipo: 'depoimento' };
+      if (blob.__rascunho) return await _guardarRascunho(d, blob, extra);
+      showToast('Enviando o vídeo…', 'info');
+      if (!await _enviarOuGuardar(d, blob, extra)) return false;
+      showToast('🤒 Dia justificado. Melhoras! Quando estiver melhor, volta a gravar 🦅', 'success');
+      return true;
+    } catch (e) {
+      showToast(e.message || 'Não deu pra registrar', 'error');
+      return false;
+    }
   }
   if (passouDoLimite(d)) {
     showToast(`Esse desafio só aceita a prova do dia até as ${horaLimite(d)}. Amanhã tem de novo 🦅`, 'error');
@@ -584,7 +607,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
 async function _enviarOuGuardar(d, blob, extra) {
   try {
     const videoPath = await subirProva(blob, 'video');
-    const id = await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath });
+    const id = await addCheckin(d.id, extra.quantidade, { exercicio: extra.exercicio, videoPath, doente: extra.doente });
     // Depoimento: o que foi dito vira o "📄 Conteúdo" (em segundo plano)
     if (extra.tipo === 'depoimento' && id) gerarConteudo(id, blob);
     return true;
