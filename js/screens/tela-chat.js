@@ -522,9 +522,41 @@ async function desenharConversa(corpo) {
 // Igual a um grupo de WhatsApp: nome do desafio no topo, quem fez o quê no
 // subtítulo e dois atalhos finos (🏅 Ranking, 📜 Regras). A prova sai pela
 // 📷 do lado da mensagem e entra na conversa com o vídeo e o horário.
+// Esqueleto da sala: aparece no mesmo toque, com o nome do grupo, enquanto
+// as mensagens chegam (Élton, 18/10: tocava e parecia que nada acontecia)
+function esqueletoSala(corpo) {
+  const linhas = [['62%', 0], ['48%', 1], ['70%', 0], ['40%', 1], ['56%', 0]]
+    .map(([w, minha]) => `<div class="sk sala-sk-msg${minha ? ' minha' : ''}" style="width:${w}"></div>`).join('');
+  corpo.innerHTML = `<div class="chat-cheia sala-sk">
+    <div class="chat-cab com-faixa">
+      <button class="chat-voltar" id="chat-voltar" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor"
+          stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 12H4M11 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="chat-conv-av sala-av">${emojiDoTipo(conversaCom.tipo)}</span>
+      <span class="sala-tit">
+        <span class="chat-titulo-conv">${esc(conversaCom.nome)}</span>
+        <span class="sala-sub">Carregando o grupo…</span>
+      </span>
+    </div>
+    <div class="sala-faixa"><span class="sk sala-sk-chip"></span><span class="sk sala-sk-chip"></span><span class="sk sala-sk-chip"></span></div>
+    <div class="chat-lista wa-fundo" id="sala-sk-lista">${linhas}</div>
+    <div class="sk sala-sk-campo"></div>
+  </div>`;
+  delete corpo.dataset.modo;
+}
+
 async function desenharSalaDesafio(corpo) {
   const id = conversaCom.id;
   let msgs = [];
+  // Primeira vez nessa sala: mostra a forma dela já, sem esperar a internet
+  const comEsqueleto = corpo.dataset.modo !== modoAtual() || !corpo.querySelector('#chat-texto');
+  if (comEsqueleto) esqueletoSala(corpo);
+  const mostrarErro = (e) => {
+    const l = corpo.querySelector('#sala-sk-lista');
+    if (l) l.innerHTML = erro(e); else corpo.innerHTML = erro(e);
+  };
   // Tudo que não depende das mensagens começa junto (antes era um de cada vez)
   const rascP = _comPrazo(listarRascunhos(id), 3000, []);
   const perfisP = _comPrazo(fetchPerfis(), 5000, perfis || new Map());
@@ -541,7 +573,7 @@ async function desenharSalaDesafio(corpo) {
     }
     sala = s;
     if (sala.d.titulo) conversaCom.nome = sala.d.titulo;
-  } catch (e) { corpo.innerHTML = erro(e); return; }
+  } catch (e) { if (conversaCom?.id === id) mostrarErro(e); return; }
   if (conversaCom?.id !== id) return;   // fechou enquanto carregava
 
   const meu = auth.currentUser?.uid;

@@ -461,6 +461,7 @@ export async function renderDesafios(app, embedded = false) {
     // A sala vive na Comunidade (tela-chat.js): ela escuta e abre
     app.querySelectorAll('[data-sala]').forEach(b => b.onclick = () => {
       const d = desafios.find(x => x.id === b.dataset.sala);
+      b.classList.add('tocado');
       if (d) window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: { id: d.id, titulo: d.titulo, tipo: d.tipo } }));
     });
   }
