@@ -6,14 +6,14 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
-  joinDesafio, leaveDesafio, entrarPorCodigo,
+  joinDesafio, leaveDesafio, entrarPorCodigo, conviteAberto,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
   markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior,
          ehLargar, horaLimite, passouDoLimite, devePrendaNoGrupo, textoFalhas,
-         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio } from '../desafios-moldes.js';
+         depoimentoConta, MIN_PAGINAS, ehAgua, encerrado, fimDoDesafio, salaAte, turmaDe, rodadaDe, relatorioDoDesafio, convitesFechados } from '../desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from '../desafios-prova.js';
 import { rankingDoDesafio, abrirConvidar, convidarNoWhatsApp, convidarNoApp, abrirRelatorio, pedirMotivoSaida } from '../desafios-sala.js';
 import { aceitarPrenda, aceitarPrendaDoCodigo, gravarPrenda, minhaPrenda, muralCarrosselHtml, ligarMuralCarrossel } from '../desafios-prendas.js';
@@ -317,9 +317,11 @@ export async function renderDesafios(app, embedded = false) {
           // Grupo: abre a sala (conversa do desafio, com as provas e o ranking)
           const salaViva = !acabou || today <= (salaAte(d) || '');
           const wpp = (joined && !solo && salaViva) ? `<button class="ds-wpp ds-sala-btn" data-sala="${d.id}">💬 Abrir o grupo</button>` : '';
-          // Convidar: desafio com amigos, pra quem já está dentro
-          const convidar = (joined && !acabou && d.modalidade === 'amigos' && d.codigo)
-            ? `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>` : '';
+          // Convidar: desafio com amigos, pra quem já está dentro, só até o 1º dia
+          const podeConvidar = joined && !acabou && d.modalidade === 'amigos' && d.codigo;
+          const convidar = !podeConvidar ? ''
+            : convitesFechados(d) ? `<div class="ds-conv-fechado">🔒 Convites fechados: o desafio já começou</div>`
+            : `<button class="ds-wpp ds-convidar" data-convidar="${d.id}">📨 Convidar participantes</button>`;
           const sair = joined ? `<button class="ds-leave" data-leave="${d.id}">Sair do desafio</button>` : '';
 
           return `
@@ -573,10 +575,12 @@ export async function renderDesafios(app, embedded = false) {
       if (!cod) { showToast('Digite o código', 'info'); return; }
       go.disabled = true; go.textContent = 'Entrando…';
       try {
-        if (!(await aceitarPrendaDoCodigo(cod))) { go.disabled = false; go.textContent = 'Entrar no desafio'; return; }
+        // Já começou: o banco só deixa passar quem já está dentro
+        const aberto = await conviteAberto(cod);
+        if (aberto && !(await aceitarPrendaDoCodigo(cod))) { go.disabled = false; go.textContent = 'Entrar no desafio'; return; }
         await entrarPorCodigo(cod, meuNome);
         close();
-        showToast('🦅 Você entrou no desafio!', 'success');
+        showToast(aberto ? '🦅 Você entrou no desafio!' : 'Tu já está nesse desafio 🦅', 'success');
         await refresh();
       } catch (e) {
         showToast(e.message || 'Erro', 'error');

@@ -5286,6 +5286,8 @@ function desafioGrupoEnviar(d, p, c) {
 async function desafioConvidar(d, p, c) {
   const S = await import('./desafios-sala.js');
   const nome = `${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}`;
+  // Convite só até o 1º dia do desafio (Élton, 18/10)
+  if (c.M.convitesFechados(d)) return `🔒 O <b>${nome}</b> já começou, então os convites fecharam. Quem quiser entra na próxima rodada 🦅`;
   const parts = c.parts.filter(x => x.desafio_id === d.id);
   const botoes = [
     { label: '💬 Mandar no WhatsApp', action: () => { S.convidarNoWhatsApp(d); return null; } },
@@ -5490,6 +5492,11 @@ async function desafioPrenda(d, c) {
 }
 
 async function desafioCodigo(codigo, c) {
+  // Já começou: só passa quem já está dentro (o banco confere)
+  if (!(await c.D.conviteAberto(codigo))) {
+    try { await c.D.entrarPorCodigo(codigo, await _meuNomeDesafio(c.email)); return 'Tu já está nesse desafio 🦅 Fala <em>"meus desafios"</em> pra ver como tá.'; }
+    catch { return c.D.MSG_CONVITE_FECHADO; }
+  }
   const prev = await c.D.fetchPrevia(codigo).catch(() => null);
   const prenda = prev?.prenda ? `<br><small>🎭 Quem mais falhar paga: ${_esc(prev.prenda)}.<br>📢 ${_esc(c.M.AVISO_MURAL)} Entrando, tu topa.</small>` : '';
   cardConfirmarLista(`🔑 Entrar no desafio ${prev?.titulo ? `<strong>${_esc(prev.titulo)}</strong>` : `do código <strong>${_esc(codigo)}</strong>`}?${prenda}`, async () => {

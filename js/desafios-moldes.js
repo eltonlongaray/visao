@@ -235,6 +235,17 @@ export function modoEdicao(d, parts, checks) {
   const temProva = (checks || []).some(c => c.desafio_id === d.id);
   return temProva ? 'travada' : 'proposta';
 }
+// Convite fecha depois do 1º dia (Élton, 18/10). 1º dia = início, ou o dia
+// em que foi criado. Mesma conta do banco (migration/desafios-convite-prazo.sql)
+export function primeiroDia(d) {
+  const ini = String(d?.data_inicio || '').slice(0, 10);
+  if (ini) return ini;
+  return d?.created_at ? new Date(d.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : null;
+}
+export function convitesFechados(d, hoje = _hojeBR()) {
+  const p = primeiroDia(d);
+  return !!p && hoje > p;
+}
 // Dia N do desafio (1 = primeiro dia). null sem data de início.
 export function diaDoDesafio(d, hoje = _hojeBR()) {
   const ini = String(d?.data_inicio || '').slice(0, 10);

@@ -137,6 +137,13 @@ export async function entrarPorCodigo(codigo, nome) {
   if (error) throw new Error(error.message?.includes('Código inválido') ? 'Código inválido 🤔' : (error.message || 'Erro ao entrar'));
   return data;
 }
+// Convite ainda vale? Só até o 1º dia do desafio (Élton, 18/10).
+// false = já começou; true também quando o banco ainda não tem a função.
+export async function conviteAberto(codigo) {
+  const { data, error } = await supabase.rpc('desafio_convite_aberto', { p_codigo: String(codigo || '').trim().toUpperCase() });
+  return error ? true : data !== false;
+}
+export const MSG_CONVITE_FECHADO = 'Esse desafio já começou: não dá mais pra entrar. Fica pra próxima rodada 🦅';
 export async function deleteDesafio(id) {
   const { error } = await supabase.from('desafios').delete().eq('id', id);
   if (error) throw new Error(error.message || 'Não foi possível apagar');

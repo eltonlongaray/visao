@@ -10,11 +10,11 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo, conviteAberto, MSG_CONVITE_FECHADO } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
-         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias } from './desafios-moldes.js';
+         depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias, convitesFechados } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
@@ -445,6 +445,7 @@ export async function convidarNoApp(d, ids) {
 // (quem já está no desafio não aparece). parts = participantes desse desafio.
 export async function abrirConvidar(d, parts = [], meuId = null) {
   if (!d?.codigo) { showToast('Esse desafio não tem código de convite.', 'info'); return; }
+  if (convitesFechados(d)) { showToast('🔒 Convites fechados: o desafio já começou.', 'info'); return; }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.innerHTML = `
@@ -544,6 +545,8 @@ export async function entrarPeloConvite() {
   let p = null;
   try { p = await getProfile(); } catch { /* segue sem perfil */ }
   if (!(p?.preferredName || p?.fullName || '').trim()) {
+    // Conta nova nunca está dentro: desafio já começado acaba aqui
+    if (!(await conviteAberto(cod))) { showToast(MSG_CONVITE_FECHADO, 'info'); return true; }
     window.dispatchEvent(new CustomEvent('falcon:convite-boas-vindas', { detail: { codigo: cod } }));
     return true;
   }
@@ -554,11 +557,13 @@ export async function entrarPeloConvite() {
 // Entra no desafio do código e abre a sala do grupo. true = deu certo.
 export async function entrarNoConvite(cod) {
   try {
-    if (!(await aceitarPrendaDoCodigo(cod))) { showToast('Tudo bem, o convite fica pra depois 🦅', 'info'); return false; }
+    // Já começou: o banco só deixa passar quem já está dentro (abriu o link de novo)
+    const aberto = await conviteAberto(cod);
+    if (aberto && !(await aceitarPrendaDoCodigo(cod))) { showToast('Tudo bem, o convite fica pra depois 🦅', 'info'); return false; }
     const id = await entrarPorCodigo(cod, await meuNomeDeChat());
     const d = (await fetchDesafios()).find(x => x.id === id);
     const detalhe = { id, titulo: d?.titulo || 'Desafio', tipo: d?.tipo };
-    showToast('🦅 Você entrou no desafio!', 'success');
+    if (aberto) showToast('🦅 Você entrou no desafio!', 'success');
     if (document.getElementById('chat-corpo')) { window.dispatchEvent(new CustomEvent('falcon:sala-desafio', { detail: detalhe })); return true; }
     try { sessionStorage.setItem('falcon_sala_pendente', JSON.stringify(detalhe)); } catch { /* sem storage */ }
     location.hash = '#/desafios';
