@@ -100,9 +100,9 @@ export function motivoDaSaida(texto) {
   return achou ? achou[1] : '';
 }
 
-// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural'|'relatorio'|'nova_rodada',
+// { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'doente'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural'|'relatorio'|'nova_rodada',
 //   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
-//   motivo/justificar (sair: o porquê; doente/imprevisto sem pedir pra sair),
+//   motivo/justificar (sair: o porquê; imprevisto sem pedir pra sair), doente = dia justificado,
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
 // como registrar a corrida / Strava).
@@ -143,7 +143,9 @@ export function lerDesafio(texto) {
   const naoFumei = /\b(nao|nem) fumei\b/.test(t);
   const fumei = /\bfumei\b/.test(t) && !naoFumei;
   const recaida = /\b(recai\w*|tive (?:uma )?recaida|escorreguei)\b/.test(t);
-  if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t)) && !fumei && !naoFumei && !recaida) return null;
+  // "tô doente, não consigo gravar a prova hoje" (sem falar "desafio")
+  const doenteProva = /\b(doente|gripad\w*|gripe|resfriad\w*|febre|covid|dengue|virose|machuc\w*|lesion\w*)\b/.test(t) && /\b(grav\w*|prova|depoimento|video)\b/.test(t);
+  if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t)) && !fumei && !naoFumei && !recaida && !doenteProva) return null;
   // "abre os desafios" / "vai pros desafios": só abrir a tela (Config cuida)
   if (/^(abr\w*|vai|ir|leva|mostra a tela)\s+(?:a\s+tela\s+)?(?:d?[aoe]s?\s+|pr[ao]s?\s+)?desafios?$/.test(t)) return null;
 
@@ -189,9 +191,11 @@ export function lerDesafio(texto) {
   }
   if (codigo) return { ...base, acao: 'codigo' };
   // "largar" num desafio de largar um vício é o objetivo, não sair do desafio.
-  // Não tem dia justificado (Élton, 15/10): doente/imprevisto = sair, com o motivo.
+  // Doente ou machucado sem pedir pra sair = dia justificado com vídeo (Élton, 18/10).
+  // Imprevisto/viagem continuam: quem não vai cumprir sai, com o motivo.
   const sairVerbo = /\b(sai|saia|sair|saio|desist\w*|abandon\w*|me tira)\b/.test(t) || (/\blarg\w*\b/.test(t) && molde !== 'largar');
   const motivo = motivoDaSaida(texto);
+  if (!sairVerbo && (motivo === 'Fiquei doente' || motivo === 'Me machuquei' || doenteProva)) return { ...base, acao: 'doente', nome: /^(hoje|amanh[aã]|ontem|agora)\b/i.test(base.nome || '') ? null : base.nome };
   if (sairVerbo || (motivo && /\b(nao (?:vou|vai|consigo|da)|sem condic\w*|justific\w*|falt\w*)\b/.test(t))) return { ...base, nome: base.nome ? base.nome.replace(/\s*\b(porque|porqu[eê]|pq|pois|j[aá] que|por causa)\b.*$/i, '') || null : null, acao: 'sair', motivo, justificar: !sairVerbo };
   if (/\b(ranking|posicao|colocacao|lugar|placar|quem (ta|esta) (ganhando|na frente|liderando)|lideran\w*|em primeiro)\b/.test(t)) return { ...base, acao: 'ranking' };
   if (/\b(entra|entrar|entre|participar|participa|me inscreve\w*|inscrever|aceito|topo|bora entrar|quero (?:entrar|fazer|participar))\b/.test(t)

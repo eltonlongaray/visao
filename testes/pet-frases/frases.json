@@ -114,6 +114,7 @@
   {"f": "sugere a prenda dançar funk de pijama", "e": {"acao": "desafio", "campo": "sugerir_prenda", "texto": "dançar funk de pijama"}},
   {"f": "aceito a proposta de mudança do desafio", "e": {"acao": "desafio", "campo": "proposta", "texto": "sim"}},
   {"f": "hoje eu fumei, não consegui", "e": {"acao": "desafio", "campo": "nao_consegui"}},
+  {"f": "fiquei doente, não vou conseguir gravar a prova do desafio hoje", "e": {"acao": "desafio", "campo": "doente"}},
   {"f": "convida a Ana e o Bruno pro desafio", "e": {"acao": "desafio", "campo": "convidar", "itens": ["ana", "bruno"]}},
   {"f": "manda no grupo do desafio: bora galera", "e": {"acao": "desafio", "campo": "grupo", "texto": "bora galera"}},
   {"f": "o que o pessoal falou no grupo do desafio?", "e": {"acao": "desafio", "campo": "grupo"}},

@@ -148,7 +148,7 @@ export const REGRAS_FIXAS = [
   'Os vídeos das provas só aparecem pra quem está no desafio e ficam guardados até 7 dias depois do fim do desafio. Dá pra salvar o teu no Google Drive pelo botão ⬇️ Salvar vídeo.',
   'Prenda é leve e do bem, nunca constrangedora. No fim, só paga a prenda quem mais falhou (se der empate, pagam todos os empatados): grava em vídeo ao vivo e ela vai pro Mural das Prendas do app: todo mundo do Falcon vê, por 7 dias, sem opção de download.',
   'Fora o Mural das Prendas, ninguém expõe quem falhou fora do grupo.',
-  'Não existe dia justificado. Ficou doente, teve um imprevisto ou qualquer outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo, sem pagar a prenda. Quem falha continua fazendo: no 3º dia seguido sem prova, recebe um aviso. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
+  'Ficou doente? Toca em 🤒 Fiquei doente e grava um vídeo contando o que tem, como está e quando acha que volta: o dia fica justificado (não conta como falha nem como feito). Teve um imprevisto ou outro motivo: quem não vai cumprir sai do desafio e escreve o motivo pro grupo, sem pagar a prenda. Quem falha continua fazendo: no 3º dia seguido sem prova, recebe um aviso. Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada.',
 ];
 
 // Aviso que quem é desafiado precisa ver ANTES de entrar (Élton, 13/10)
@@ -278,6 +278,9 @@ export function salaAte(d) {
   const fim = fimDoDesafio(d);
   return fim ? somarDias(fim, 7) : null;
 }
+// Fiquei doente hoje? (dia justificado, Élton 18/10)
+export const doenteNoDia = (checks, uid, dia) => (checks || []).some(c => c.user_id === uid && c.dia === dia && c.doente);
+export const ROTEIRO_DOENTE = ['O que está acontecendo contigo', 'Como você está se sentindo', 'Quando acredita que vai estar melhor pra voltar a gravar'];
 // Um dia conta? (mesma regra do ranking e da prenda)
 function _diaOk(d, q) {
   if (q === undefined) return false;
@@ -303,14 +306,19 @@ export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeB
     const entrou = p.joined_at ? new Date(p.joined_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : '';
     const ini = entrou > iniDes ? entrou : iniDes;
     const porDia = {};
+    const doente = new Set();
     let limpos = 0;
     (checks || []).filter(c => c.user_id === p.user_id).forEach(c => {
+      if (c.doente) { doente.add(c.dia); return; }
       porDia[c.dia] = (porDia[c.dia] || 0) + (c.quantidade || 0);
     });
     let total = 0, cumpridos = 0, seq = 0, maiorSeq = 0;
-    const faltas = [];
+    const faltas = [], justificados = [];
     if (fim && ini && ini <= ate) {
       for (let dia = ini; dia <= ate; dia = somarDias(dia, 1)) {
+        // Doente (dia justificado): não conta nem como feito nem como falha,
+        // e não quebra a sequência (Élton, 18/10)
+        if (doente.has(dia)) { justificados.push(dia); continue; }
         total++;
         if (_diaOk(d, porDia[dia])) { cumpridos++; seq++; maiorSeq = Math.max(maiorSeq, seq); if (d.tipo === 'largar' && porDia[dia] > 0) limpos++; }
         else { faltas.push(dia); seq = 0; }
@@ -320,7 +328,7 @@ export function relatorioDoDesafio(d, parts, checks, prendas = [], hoje = _hojeB
     const perdeuCorrida = !!semanaSemCorrida(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, somarDias(ate, 1));
     const sumiu = saiu ? null : sumiuTresDias(d, (checks || []).filter(c => c.user_id === p.user_id), p.joined_at, hoje);
     const falhas = saiu ? 0 : faltas.length + (perdeuCorrida ? 1 : 0);
-    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, falhas, maiorSeq, limpos, perdeuCorrida, pagou,
+    return { user_id: p.user_id, nome: p.nome || 'Falcão', total, cumpridos, faltas, justificados, falhas, maiorSeq, limpos, perdeuCorrida, pagou,
              desistiu: saiu || null, motivo: p.saida?.motivo || '', sumiu };
   }).sort((a, b) => (!!a.desistiu - !!b.desistiu) || (b.cumpridos - a.cumpridos) || (b.maiorSeq - a.maiorSeq));
   // Prenda: quem mais falhou (empate = todos os empatados). Quem saiu com motivo não entra.
@@ -471,12 +479,14 @@ export function semanaSemCorrida(d, meus, joinedAt, hoje = _hojeBR()) {
   if (!ini) return null;
   const fim = String(d.data_fim || '').slice(0, 10);
   const corri = new Set(meus.filter(c => c.exercicio === 'Corrida').map(c => c.dia));
+  const doente = new Set(meus.filter(c => c.doente).map(c => c.dia));   // semana com dia justificado não cobra
   let seg = segundaDaSemana(ini);
   if (seg < ini) seg = somarDias(seg, 7);
   for (; somarDias(seg, 6) < hoje && (!fim || somarDias(seg, 6) <= fim); seg = somarDias(seg, 7)) {
     let n = 0;
-    for (let i = 0; i < 7; i++) if (corri.has(somarDias(seg, i))) n++;
-    if (n < meta) return seg;
+    let justificou = false;
+    for (let i = 0; i < 7; i++) { if (corri.has(somarDias(seg, i))) n++; if (doente.has(somarDias(seg, i))) justificou = true; }
+    if (n < meta && !justificou) return seg;
   }
   return null;
 }

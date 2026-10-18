@@ -217,6 +217,7 @@ export async function addCheckin(desafioId, quantidade, extra = {}) {
   if (extra.exercicio) row.exercicio = extra.exercicio;
   if (extra.videoPath) row.video_path = extra.videoPath;
   if (extra.printPath) row.print_path = extra.printPath;
+  if (extra.doente) { row.doente = true; row.quantidade = 0; }   // dia justificado
   // Devolve o id do check-in (o "📄 Conteúdo" do depoimento grava nele)
   const { data, error } = await supabase.from('desafio_checkins').insert(row).select('id').maybeSingle();
   if (error) throw new Error(error.message || 'Erro ao registrar');

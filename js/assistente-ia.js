@@ -5185,6 +5185,9 @@ async function tentarDesafios(text) {
         'Não tem desafio aberto pra entrar agora. Se um amigo te convidou, me fala o código: <em>"entra com o código ABC123"</em>.',
         'Não achei esse desafio aberto 🤔 Se foi um amigo que criou, pede o código e me fala: <em>"entra com o código ABC123"</em>.');
     }
+    case 'doente':
+      return escolher(meus.filter(d => !c.M.encerrado(d)), (d) => desafioDoente(d, c),
+        'Tu não está em nenhum desafio rolando agora. Melhoras! 🦅', 'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
     case 'sair':
       return escolher(meus, (d) => desafioSair(d, c, p),
         'Tu não está em nenhum desafio agora.', 'Não achei esse desafio entre os teus 🤔 Fala <em>"meus desafios"</em> que eu te mostro.');
@@ -5507,12 +5510,32 @@ async function desafioCodigo(codigo, c) {
   return null;
 }
 
-// Sair só com motivo (Élton, 15/10). Não tem dia justificado: doente ou
-// imprevisto = sai do desafio, perde o grupo até o fim e volta na próxima rodada.
+// Fiquei doente (Élton, 18/10): grava um vídeo contando o que tem, como está e
+// quando volta. O dia fica justificado: nem falha, nem feito, não quebra a sequência.
+function desafioDoente(d, c) {
+  const nome = `<strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>`;
+  const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  if (c.M.aindaNaoComecou(d)) return `O ${nome} ainda não começou (${c.M.textoComeca(d)}). Melhoras! 🦅`;
+  if (c.M.doenteNoDia(c.checks.filter(x => x.desafio_id === d.id), c.uid, hoje)) return `Hoje já está justificado no ${nome}. Melhoras! Amanhã, se estiver melhor, volta a gravar 🦅`;
+  if (c.checks.some(x => x.desafio_id === d.id && x.user_id === c.uid && x.dia === hoje)) return `Hoje tu já mandou prova no ${nome}, então o dia já contou. Descansa e melhoras! 🦅`;
+  convState = null;
+  addChoices(`🤒 Melhoras! Pra justificar o dia no ${nome}, grava um vídeo contando:<br>• ${c.M.ROTEIRO_DOENTE.map(_esc).join('<br>• ')}<br><small>O dia não conta como falha nem como feito, e tu não perde a sequência.</small>`, [
+    { label: '🤒 Gravar o vídeo', action: async () => {
+      const P = await import('./desafios-prova.js');
+      const ok = await P.registrarComProva(d, { doente: true });
+      _redesenharDesafios();
+      return ok ? 'Dia justificado ✅ Melhoras! Quando estiver melhor, volta a gravar 🦅' : null;
+    } },
+  ]);
+  return null;
+}
+
+// Sair só com motivo (Élton, 15/10): perde o grupo até o fim e volta na próxima
+// rodada. Doente/machucado tem o dia justificado (desafioDoente); imprevisto não.
 function desafioSair(d, c, p = {}) {
   const grupo = d.modalidade !== 'individual';
   const regra = grupo ? `Quem sai perde o acesso ao grupo até o desafio acabar e só volta na próxima rodada. O motivo aparece pro grupo e no relatório.${d.prenda ? ' Saindo com motivo, tu não paga a prenda.' : ''}` : 'O motivo fica no teu relatório.';
-  const intro = p.justificar ? 'No Falcon não tem dia justificado: ficou doente ou teve um imprevisto, quem não vai cumprir sai do desafio.<br>' : '';
+  const intro = p.justificar ? 'Dia justificado só vale pra quem ficou doente (com vídeo). Imprevisto ou viagem: quem não vai cumprir sai do desafio.<br>' : '';
   const nome = `<strong>${c.M.emojiDoTipo(d.tipo)} ${_esc(d.titulo)}</strong>`;
   if (!p.motivo) {
     import('./desafios-sala.js').then(S => S.pedirMotivoSaida(d)).then(async (motivo) => {

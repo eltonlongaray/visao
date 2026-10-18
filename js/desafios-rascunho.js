@@ -64,7 +64,7 @@ export async function apagarRascunho(id) {
 // Ainda dá pra mandar? '' = sim; senão o motivo
 export function motivoRascunhoVencido(r, d) {
   if (r.dia !== _hoje()) return 'Era de outro dia: não vale mais';
-  if (passouDoLimite(d)) return `Passou das ${horaLimite(d)}: não vale mais`;
+  if (!r.doente && passouDoLimite(d)) return `Passou das ${horaLimite(d)}: não vale mais`;
   return '';
 }
 
@@ -79,10 +79,10 @@ export async function enviarRascunho(r, d) {
   try {
     showToast('Enviando a prova…', 'info');
     const videoPath = await subirProva(r.blob, 'video');
-    const id = await addCheckin(d.id, r.falhou ? 0 : (r.quantidade || 1), { exercicio: r.exercicio || null, videoPath });
+    const id = await addCheckin(d.id, r.falhou ? 0 : (r.quantidade || 1), { exercicio: r.exercicio || null, videoPath, doente: !!r.doente });
     if (r.tipo === 'depoimento' && id) gerarConteudo(id, r.blob);
     await apagarRascunho(r.id);
-    showToast(r.tipo === 'depoimento' ? '🎙️ Depoimento enviado! 🦅' : '🎥 Prova enviada! 🦅', 'success');
+    showToast(r.doente ? '🤒 Dia justificado. Melhoras! 🦅' : r.tipo === 'depoimento' ? '🎙️ Depoimento enviado! 🦅' : '🎥 Prova enviada! 🦅', 'success');
     return true;
   } catch (e) {
     showToast(e.message || 'Não deu pra enviar', 'error');

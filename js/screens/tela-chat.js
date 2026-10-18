@@ -631,7 +631,7 @@ function balaoRascunho(r) {
   if (!rascUrls.has(r.id)) rascUrls.set(r.id, URL.createObjectURL(r.blob));
   const venceu = sala ? motivoRascunhoVencido(r, sala.d) : '';
   const gravado = new Date(r.gravadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(',', ' às');
-  const nome = r.tipo === 'depoimento' ? '🎙️ Depoimento' : `🎥 ${r.exercicio || 'Prova'}`;
+  const nome = r.doente ? '🤒 Fiquei doente' : r.tipo === 'depoimento' ? '🎙️ Depoimento' : `🎥 ${r.exercicio || 'Prova'}`;
   return `
     <div class="wa-msg minha msg-rascunho" data-rascunho="${esc(r.id)}">
       <div class="wa-col">

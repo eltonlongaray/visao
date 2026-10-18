@@ -218,8 +218,9 @@ export async function renderDesafios(app, embedded = false) {
             // Largar um vício: todo dia conta como foi, conseguindo ou não (com depoimento)
             const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
             const limpos = new Set(dChecks.filter(c => c.user_id === myUid && c.quantidade > 0).map(c => c.dia));
+            const doentes = new Set(dChecks.filter(c => c.user_id === myUid && c.doente).map(c => c.dia));   // não quebra a sequência
             let seguidos = 0;
-            for (let dia = limpos.has(today) ? today : diaAnterior(today); limpos.has(dia); dia = diaAnterior(dia)) seguidos++;
+            for (let dia = limpos.has(today) ? today : diaAnterior(today); limpos.has(dia) || doentes.has(dia); dia = diaAnterior(dia)) if (limpos.has(dia)) seguidos++;
             const serie = seguidos ? `<div class="ds-serie">🔥 ${seguidos} ${seguidos === 1 ? 'dia limpo seguido' : 'dias limpos seguidos'}</div>` : '';
             acao = meusHoje.length
               ? `${serie}<div class="ds-done">${todaySum > 0 ? '✅ Mais um dia limpo! 🦅' : '💪 Depoimento de hoje enviado, dia contado. Amanhã é um novo dia.'}</div>`
@@ -270,6 +271,18 @@ export async function renderDesafios(app, embedded = false) {
           // Horário limite (ex.: acordar às 5h): passou e não marcou, fecha por hoje
           if (!acabou && joined && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
             acao = `<div class="ds-prova-dica">⏰ Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅</div>`;
+          }
+
+          // Fiquei doente (Élton, 18/10): embaixo de gravar. O vídeo conta o que a
+          // pessoa tem e o dia fica justificado (nem falha, nem feito).
+          const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
+          const perdeuSemana = exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at);
+          if (!acabou && joined && !aindaNaoComecou(d) && !perdeuSemana) {
+            if (meusHoje.some(c => c.doente)) {
+              acao = `<div class="ds-doente-ok">🤒 <b>Dia justificado.</b> Melhoras! Amanhã, se estiver melhor, volta a gravar 🦅</div>`;
+            } else if (!meusHoje.length) {
+              acao += `<button class="ds-doente" data-doente="${d.id}">🤒 Fiquei doente</button>`;
+            }
           }
 
           const rankHtml = joined && rank.length ? `
@@ -440,6 +453,7 @@ export async function renderDesafios(app, embedded = false) {
       const qtd = parseInt(app.querySelector(`#q-${CSS.escape(id)}`)?.value, 10) || d?.meta_diaria || 1;
       comProva(b, id, { quantidade: qtd });
     });
+    app.querySelectorAll('[data-doente]').forEach(b => b.onclick = () => comProva(b, b.dataset.doente, { doente: true }));
     app.querySelectorAll('[data-print]').forEach(b => b.onclick = () => {
       const pend = corridaPendente(b.dataset.print);
       comProva(b, b.dataset.print, { quantidade: pend?.quantidade || 1, exercicio: pend?.exercicio || null });
