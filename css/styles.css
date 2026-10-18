@@ -2586,6 +2586,10 @@ body.time-picker-open { overflow: hidden; }
   border-radius: 10px; padding: 10px; font-family: inherit; font-weight: 700; font-size: 13px;
   color: var(--text); cursor: pointer;
 }
+/* Toque no botão do grupo: afunda e acende na hora (Élton, 18/10) */
+.ds-wpp { transition: transform .08s, background-color .08s, border-color .08s; -webkit-tap-highlight-color: transparent; }
+.ds-wpp:active, .ds-wpp.tocado { transform: scale(0.97); background: rgba(52,211,153,0.18); border-color: #34d399; }
+.ds-sala-btn { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.45); }
 .ds-leave {
   width: 100%; margin-top: 8px; border: none; background: none;
   color: var(--muted); font-family: inherit; font-size: 12px; cursor: pointer; padding: 6px;
@@ -8306,6 +8310,11 @@ body.rota-publica .bottom-nav { display: none !important; }
   white-space: nowrap; min-width: 0; padding: 0 8px;
 }
 .sala-chip:active { background: var(--card-2); }
+.sala-sk-chip { flex: 1; height: 34px; border-radius: 17px; }
+.sala-sk .chat-lista { display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 12px; }
+.sala-sk-msg { height: 44px; border-radius: 12px; align-self: flex-start; }
+.sala-sk-msg.minha { align-self: flex-end; }
+.sala-sk-campo { flex-shrink: 0; height: 46px; border-radius: 23px; margin: 8px 0 10px; }
 .msg-prova { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 6px; }
 .msg-prova video {
   display: block; width: 190px; max-width: 100%; aspect-ratio: 9 / 16;
