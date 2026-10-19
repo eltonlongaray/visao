@@ -2659,7 +2659,8 @@ body.time-picker-open { overflow: hidden; }
   position: absolute; inset: 0; z-index: 4; background: #000;
   display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
 }
-.ds-rec-revisao[hidden], .ds-form-aviso[hidden], .ds-corr-sem[hidden] { display: none; }
+.ds-rec-revisao[hidden], .ds-form-aviso[hidden] { display: none; }
+.ds-corr-sem[hidden] { display: none !important; }   /* .modal .input-field (display:block) ganhava */
 /* Largar um vício: consegui / não consegui + série de dias limpos */
 .ds-largar { display: flex; gap: 8px; }
 .ds-largar .ds-inc { background: rgba(52,211,153,0.14); color: #34d399; }

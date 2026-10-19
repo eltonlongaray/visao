@@ -357,7 +357,7 @@ export function dadosDaNovaRodada(src, dataInicio) {
     prenda: src.prenda || null, dataInicio, dataFim: dataInicio && dias ? somarDias(dataInicio, dias - 1) : null,
     prova: src.prova, regrasDono: src.regras_dono || '', horaLimite: src.hora_limite || null,
     ...(Array.isArray(src.exercicios) && src.exercicios.length ? { exercicios: src.exercicios, maxPorDia: src.max_por_dia,
-      naoRepetir: src.nao_repetir !== false, corridasSemana: src.corridas_semana, kmCorrida: src.km_corrida, corridaModo: src.corrida_modo } : {}),
+      naoRepetir: src.nao_repetir !== false, series: src.series, corridasSemana: src.corridas_semana, kmCorrida: src.km_corrida, corridaModo: src.corrida_modo } : {}),
     turmaId: turmaDe(src), rodada: rodadaDe(src) + 1,
   };
 }
@@ -393,6 +393,7 @@ export function resumoDoDesafio(d) {
   const ex = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
   const regras = [
     ...(ex ? [`Até ${d.max_por_dia || d.meta_diaria || 1} por dia, da lista: ${ex.join(', ')}`] : []),
+    ...(ex && seriesDe(d) > 1 ? [textoSeries(d)] : []),
     ...(ex && d.nao_repetir !== false ? ['Não pode repetir o exercício de ontem'] : []),
     ...regrasCorrida(d),
     ...regrasDoDono(d),
@@ -409,13 +410,19 @@ export function regrasDoDono(d) {
 // meus = check-ins MEUS nesse desafio. Mesmas regras do gatilho do banco.
 export function exerciciosDeHoje(d, meus, hoje, ontem) {
   const lista = Array.isArray(d?.exercicios) ? d.exercicios : [];
-  const deHoje = meus.filter(c => c.dia === hoje);
-  const feitosHoje = new Set(deHoje.map(c => c.exercicio));
+  const deHoje = meus.filter(c => c.dia === hoje && !c.doente);
+  const vezes = {};   // vídeos de hoje por exercício (séries)
+  deHoje.forEach(c => { vezes[c.exercicio] = (vezes[c.exercicio] || 0) + 1; });
   const deOntem = new Set(meus.filter(c => c.dia === ontem).map(c => c.exercicio));
-  const cheio = d.max_por_dia && deHoje.length >= d.max_por_dia;
-  const correuHoje = feitosHoje.has('Corrida');
+  // Limite do dia conta exercícios DIFERENTES: a próxima série do mesmo passa
+  const cheio = d.max_por_dia && Object.keys(vezes).length >= d.max_por_dia;
+  const correuHoje = !!vezes.Corrida;
+  const ns = seriesDe(d);
   return lista.map(nome => {
-    if (feitosHoje.has(nome)) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
+    const v = vezes[nome] || 0;
+    if (nome === 'Corrida' ? v > 0 : v >= ns) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
+    // Exercício começado (série 1 de 3 feita): a próxima série sempre pode
+    if (v > 0) return { nome, ok: true, serie: v + 1, series: ns };
     // Corrida fecha o dia sozinha: fora do limite e do "não repetir"
     if (nome === 'Corrida') {
       const sem = corridaTroca(d) ? corridasDaSemana(d, meus, hoje) : null;
@@ -425,9 +432,18 @@ export function exerciciosDeHoje(d, meus, hoje, ontem) {
     if (correuHoje) return { nome, ok: false, motivo: 'o dia fechou com a corrida' };
     if (d.nao_repetir !== false && deOntem.has(nome)) return { nome, ok: false, motivo: 'feito ontem' };
     if (cheio) return { nome, ok: false, motivo: 'limite do dia' };
-    return { nome, ok: true };
+    return ns > 1 ? { nome, ok: true, serie: 1, series: ns } : { nome, ok: true };
   });
 }
+
+// Séries por exercício (migration/desafios-series.sql): cada série é um vídeo,
+// o exercício só conta no dia depois da última. 1 = sem séries.
+export const seriesDe = (d) => Math.min(5, Math.max(1, parseInt(d?.series, 10) || 1));
+export const textoSeries = (d) => seriesDe(d) > 1
+  ? `${seriesDe(d)} séries de cada exercício, um vídeo por série`
+  : '';
+// Rótulo do exercício na hora de gravar: "Flexão · série 2 de 3"
+export const rotuloSerie = (x) => x?.series > 1 && x.serie ? `${x.nome} · série ${x.serie} de ${x.series}` : (x?.nome || '');
 
 // Quantos exercícios contam hoje: a corrida vale o dia todo (= o limite)
 export function feitosHoje(lista, lim) {
@@ -517,7 +533,7 @@ export function diaAnterior(dia) {
 const ROTULO_COLUNA = {
   titulo: 'Título', descricao: 'Descrição', dias_total: 'Dias', meta_diaria: 'Meta por dia',
   unidade: 'Unidade', prova_opcoes: 'Botões de somar', prenda: 'Prenda', data_inicio: 'Começa',
-  data_fim: 'Termina', prova: 'Prova', exercicios: 'Exercícios', max_por_dia: 'Exercícios por dia',
+  data_fim: 'Termina', prova: 'Prova', exercicios: 'Exercícios', max_por_dia: 'Exercícios por dia', series: 'Séries de cada exercício',
   nao_repetir: 'Não repetir o de ontem', regras_dono: 'Regras do dono', hora_limite: 'Prova do dia só até',
   corridas_semana: 'Corridas por semana', km_corrida: 'Km por corrida', corrida_modo: 'Como a corrida entra',
   tipo: 'Tipo',
@@ -526,6 +542,7 @@ const _normCampo = (k, v) => {
   if (v === undefined || v === '' || (Array.isArray(v) && !v.length)) return null;
   if (k === 'hora_limite' && v) return String(v).slice(0, 5);
   if (k === 'corrida_modo' && v === 'obrigatoria') return null;   // sem modo = obrigatória
+  if (k === 'series' && !(Number(v) > 1)) return null;              // 1 série = sem séries
   if (k === 'data_inicio' || k === 'data_fim') return v ? String(v).slice(0, 10) : null;
   if (typeof v === 'string') return v.trim() || null;
   return v;

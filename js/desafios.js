@@ -39,13 +39,14 @@ export async function fetchDesafios() {
 }
 // Campos da prova/exercícios/regras (migration/desafios-provas.sql). Só entram
 // quando vêm definidos: um formulário antigo não manda e não quebra.
-function _extrasDesafio({ prova, exercicios, maxPorDia, naoRepetir, regrasDono, horaLimite, corridasSemana, kmCorrida, corridaModo, turmaId, rodada }) {
+function _extrasDesafio({ prova, exercicios, maxPorDia, series, naoRepetir, regrasDono, horaLimite, corridasSemana, kmCorrida, corridaModo, turmaId, rodada }) {
   const x = {};
   if (turmaId) x.turma_id = turmaId;   // nova rodada do mesmo grupo (migration/desafios-rodadas.sql)
   if (rodada) x.rodada = rodada;
   if (prova !== undefined) x.prova = prova || null;
   if (exercicios !== undefined) x.exercicios = (exercicios && exercicios.length) ? exercicios : null;
   if (maxPorDia !== undefined) x.max_por_dia = maxPorDia || null;
+  if (series !== undefined) x.series = series > 1 ? Math.min(5, series) : null;   // migration/desafios-series.sql
   if (naoRepetir !== undefined) x.nao_repetir = !!naoRepetir;
   if (regrasDono !== undefined) x.regras_dono = (regrasDono || '').trim() || null;
   if (horaLimite !== undefined) x.hora_limite = horaLimite || null;
