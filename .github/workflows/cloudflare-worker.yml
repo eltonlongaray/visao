@@ -10,7 +10,7 @@ name: Publicar Worker do Pet
 on:
   push:
     branches: [main]
-    paths: ['cloudflare/pet-ia/**']
+    paths: ['cloudflare/pet-ia/**', 'cloudflare/provas/**']
   workflow_dispatch:
 
 jobs:
@@ -33,3 +33,35 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: cloudflare/pet-ia
+
+  # Worker "falcon-provas" (vídeos das provas no R2). Cria o balde e a regra de
+  # limpeza na primeira vez; depois só publica.
+  provas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir secrets
+        id: tem
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$CONTA" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
+          else echo "::warning::Faltam os secrets CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID; Worker das provas não publicado."; fi
+      - name: Balde e limpeza automática
+        if: steps.tem.outputs.ok == '1'
+        working-directory: cloudflare/provas
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 r2 bucket list | grep -q 'falcon-provas' || npx --yes wrangler@3 r2 bucket create falcon-provas
+          # Rede de segurança: nada fica mais de 120 dias (o app já apaga antes)
+          npx --yes wrangler@3 r2 bucket lifecycle add falcon-provas apagar-velhos --expire-days 120 --force || echo "::warning::regra de limpeza não aplicada"
+      - name: Publicar
+        if: steps.tem.outputs.ok == '1'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare/provas

@@ -35,6 +35,9 @@ const REDIRECT_APP = `${APP_URL}/drive.html`;
 const ESCOPO = 'https://www.googleapis.com/auth/drive.file';
 const PASTA = 'Falcon · Provas dos desafios';
 const BUCKET = 'desafio-provas';
+// Provas novas ficam no Cloudflare R2 (19/10): caminho com ".r2" antes da extensão
+const PROVAS_URL = 'https://falcon-provas.eltonvisao.workers.dev';
+const ehR2 = (c: string) => /\.r2\.[a-z0-9]+$/i.test(c);
 
 const sb = createClient(SB_URL, SB_SERVICE);
 
@@ -117,7 +120,7 @@ function partesDoVideo(caminho: string): string[] {
 }
 
 // ── Envia o vídeo de uma prova (upload retomável, parte por parte) ──
-async function enviarProva(uid: string, checkinId: string) {
+async function enviarProva(uid: string, checkinId: string, auth: string) {
   const { data: ck } = await sb.from('desafio_checkins')
     .select('id, user_id, dia, video_path, video_expira_em, drive_file_id, desafio_id')
     .eq('id', checkinId).eq('user_id', uid).maybeSingle();
@@ -149,8 +152,16 @@ async function enviarProva(uid: string, checkinId: string) {
   let pos = 0;
   let fileId: string | null = null;
   for (let i = 0; i < partes.length; i++) {
-    const { data: blob, error } = await sb.storage.from(BUCKET).download(partes[i]);
-    if (error || !blob) return { ok: false, motivo: 'sem_arquivo' };
+    let blob: Blob | null = null;
+    if (ehR2(partes[i])) {
+      // O Worker confere com o token de quem pediu (a prova é dela)
+      const r = await fetch(`${PROVAS_URL}/o/${partes[i].split('/').map(encodeURIComponent).join('/')}`, { headers: { Authorization: auth } });
+      if (r.ok) blob = await r.blob();
+    } else {
+      const { data, error } = await sb.storage.from(BUCKET).download(partes[i]);
+      if (!error) blob = data;
+    }
+    if (!blob) return { ok: false, motivo: 'sem_arquivo' };
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const ultima = i === partes.length - 1;
     const fim = pos + bytes.length - 1;
@@ -229,7 +240,7 @@ Deno.serve(async (req) => {
       }
       case 'enviar': {
         if (!body.checkin_id) return json({ ok: false, erro: 'checkin_id' }, 400);
-        return json(await enviarProva(uid, String(body.checkin_id)));
+        return json(await enviarProva(uid, String(body.checkin_id), req.headers.get('Authorization') || ''));
       }
       case 'pendentes': {
         const { data } = await sb.from('desafio_checkins').select('id')

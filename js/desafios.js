@@ -247,9 +247,38 @@ export const partesDoVideo = (caminho) => {
   const n = Number((/-n(\d+)\.[a-z0-9]+$/i.exec(caminho || '') || [])[1] || 1);
   return n > 1 ? [caminho, ...Array.from({ length: n - 1 }, (_, i) => `${caminho}.p${i + 2}`)] : [caminho];
 };
+// ─── Cloudflare R2 (19/10) ─────────────────────────────────────
+// Provas novas vão pro R2 (Worker cloudflare/provas): lá não tem cobrança de
+// tráfego de saída, que foi o que estourou o grátis do Supabase. O caminho
+// tem ".r2" antes da extensão. Se o R2 falhar, sobe no Supabase como antes.
+// Vazio = desligado.
+export const PROVAS_URL = 'https://falcon-provas.eltonvisao.workers.dev';
+const R2_MAX = 95 * 1024 * 1024;
+export const ehR2 = (caminho) => /\.r2\.[a-z0-9]+$/i.test(caminho || '');
+async function _r2(metodo, rota, corpo, tipo) {
+  const token = (await supabase.auth.getSession())?.data?.session?.access_token;
+  if (!token) throw new Error('Sessão expirada');
+  const headers = { Authorization: `Bearer ${token}` };
+  if (tipo) headers['Content-Type'] = tipo;
+  const r = await fetch(`${PROVAS_URL}${rota}`, { method: metodo, headers, body: corpo });
+  if (!r.ok) throw new Error(`R2 ${r.status}`);
+  return r;
+}
+const _rotaR2 = (caminho) => `/o/${caminho.split('/').map(encodeURIComponent).join('/')}`;
+
 export async function subirProva(blob, tipo) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sessão expirada');
+  if (PROVAS_URL && blob.size <= R2_MAX) {
+    const mimeR2 = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
+    const extR2 = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'image/png': '.png', 'image/webp': '.webp', 'image/jpeg': '.jpg' }[mimeR2] || '.webm';
+    const caminhoR2 = `${uid}/${tipo}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.r2${extR2}`;
+    try {
+      await _r2('PUT', _rotaR2(caminhoR2), blob, mimeR2);
+      if (tipo !== 'print') _guardarLocal(caminhoR2, blob).catch(() => {});
+      return caminhoR2;
+    } catch (e) { console.warn('[Falcon] prova no R2 falhou, vai pro Supabase:', e.message); }
+  }
   const n = Math.max(1, Math.ceil(blob.size / PARTE));
   if (n > MAX_PARTES) throw new Error('Vídeo grande demais. Grava um mais curto.');
   const mime = (blob.type || '').split(';')[0] || (tipo === 'print' ? 'image/jpeg' : 'video/webm');
@@ -288,13 +317,25 @@ function _juntar(caminho, urls) {
 // baixar:false só confere se ainda existe (não puxa o vídeo em partes): é o
 // que a sala usa pra listar, e o vídeo só desce quando tocam no ▶ (urlDaProva).
 export async function assinarProvas(caminhos, { baixar = true } = {}) {
-  const unicos = [...new Set((caminhos || []).filter(Boolean))];
-  if (!unicos.length) return new Map();
+  const todosUnicos = [...new Set((caminhos || []).filter(Boolean))];
+  const r2 = todosUnicos.filter(ehR2);
+  const unicos = todosUnicos.filter(c => !ehR2(c));
+  const res = new Map();
+  if (r2.length) {
+    // R2: confere se existe e se pode ver; print (imagem pequena) já vem baixado
+    try {
+      const { ok = [] } = await (await _r2('POST', '/conferir', JSON.stringify({ caminhos: r2 }), 'application/json')).json();
+      await Promise.all(ok.map(async c => {
+        const imagem = /\.(jpe?g|png|webp)$/i.test(c);
+        res.set(c, (baixar || imagem) ? await urlDaProva(c) : 'r2');
+      }));
+    } catch { /* sem o R2 agora: aparece como indisponível */ }
+  }
+  if (!unicos.length) return res;
   const todos = unicos.flatMap(partesDoVideo);
   const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(todos, 60 * 60);
-  if (error) return new Map();
+  if (error) return res;
   const assin = new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
-  const res = new Map();
   await Promise.all(unicos.map(async c => {
     const partes = partesDoVideo(c);
     if (partes.length === 1) { if (assin.has(c)) res.set(c, assin.get(c)); return; }
@@ -347,6 +388,11 @@ export function urlDaProva(caminho) {
   const p = (async () => {
     const local = await provaGuardada(caminho);
     if (local) return local;
+    if (ehR2(caminho)) {
+      let blob;
+      try { blob = await (await _r2('GET', _rotaR2(caminho))).blob(); } catch { return ''; }
+      return _guardarLocal(caminho, blob);
+    }
     const partes = partesDoVideo(caminho);
     const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(partes, 60 * 60);
     if (error) return '';
@@ -365,8 +411,12 @@ export async function faxinaProvas() {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
   try {
-    const { data: arqs, error } = await supabase.storage.from('desafio-provas').list(uid, { limit: 200 });
-    if (error || !arqs?.length) return;
+    const [{ data: arqs, error }, r2] = await Promise.all([
+      supabase.storage.from('desafio-provas').list(uid, { limit: 200 }),
+      PROVAS_URL ? _r2('GET', '/lista').then(r => r.json()).then(j => j.arquivos || []).catch(() => []) : [],
+    ]);
+    const noSupa = error ? [] : (arqs || []).map(a => ({ caminho: `${uid}/${a.name}`, criado: a.created_at }));
+    if (!noSupa.length && !r2.length) return;
     const { data: vivos, error: e1 } = await supabase.from('desafio_checkins')
       .select('video_path, print_path, video_expira_em').eq('user_id', uid);
     // Sem a lista dos check-ins não dá pra saber o que está em uso: não apaga nada
@@ -383,10 +433,17 @@ export async function faxinaProvas() {
     if (e2) return;
     (prendas || []).forEach(p => p.video_path && partesDoVideo(p.video_path).forEach(x => usados.add(x)));
     // arquivo de menos de 1 dia pode ser a corrida pela metade (vídeo já subiu, falta o print)
-    const lixo = arqs.filter(a => !usados.has(`${uid}/${a.name}`) && agora - new Date(a.created_at || 0).getTime() > 864e5)
-      .map(a => `${uid}/${a.name}`);
-    if (lixo.length) await supabase.storage.from('desafio-provas').remove(lixo);
+    const lixo = (lista) => lista.filter(a => !usados.has(a.caminho) && agora - new Date(a.criado || 0).getTime() > 864e5).map(a => a.caminho);
+    const lixoSupa = lixo(noSupa), lixoR2 = lixo(r2);
+    if (lixoSupa.length) await supabase.storage.from('desafio-provas').remove(lixoSupa);
+    for (const c of lixoR2) await _r2('DELETE', _rotaR2(c)).catch(() => {});
   } catch { /* acessória */ }
+}
+
+// Apaga um arquivo de prova meu (envio que não foi pra frente)
+function apagarArquivoProva(caminho) {
+  if (ehR2(caminho)) _r2('DELETE', _rotaR2(caminho)).catch(() => {});
+  else supabase.storage.from('desafio-provas').remove(partesDoVideo(caminho)).catch(() => {});
 }
 
 // ── Mural das prendas (migration/desafios-prendas.sql) ───────
@@ -408,7 +465,7 @@ export async function enviarPrenda(desafioId, blob) {
   const videoPath = await subirProva(blob, 'prenda');
   const { error } = await supabase.from('desafio_prendas').insert({ desafio_id: desafioId, video_path: videoPath });
   if (error) {
-    supabase.storage.from('desafio-provas').remove([videoPath]).catch(() => {});
+    apagarArquivoProva(videoPath);
     if (/duplicate|unique/i.test(error.message || '')) throw new Error('Tu já cumpriu essa prenda 🎭');
     if (/relation|does not exist|schema cache/i.test(error.message || '')) throw new Error('O mural das prendas ainda não foi ligado no banco.');
     throw new Error(error.message || 'Não deu pra enviar a prenda');

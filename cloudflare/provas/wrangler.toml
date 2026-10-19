@@ -1,0 +1,16 @@
+# Worker "falcon-provas": guarda os vídeos e prints das provas dos desafios no
+# Cloudflare R2 (sem cobrança de tráfego de saída). Publica sozinho pela Action
+# "Publicar Worker do Pet" (.github/workflows/cloudflare-worker.yml).
+name = "falcon-provas"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[[r2_buckets]]
+binding = "PROVAS"
+bucket_name = "falcon-provas"
+
+# Valores PÚBLICOS (os mesmos do app, js/config-supabase.js): servem só pra
+# conferir quem está logado e o que essa pessoa pode ver.
+[vars]
+SUPABASE_URL = "https://snbxaudykjpqqgocgaoz.supabase.co"
+SUPABASE_KEY = "sb_publishable_rObp-4IhXg33NkL3P-czVg_aNl9VaxG"
