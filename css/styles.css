@@ -8718,3 +8718,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ficha-card { margin: 18px 0 4px; text-align: left; background: var(--card); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-left: 4px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .ap-ficha-t { font-size: 15px; font-weight: 800; color: var(--text); }
 .ap-ficha-d { font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+/* Medidas com lado (braço, coxa, panturrilha): esquerdo em cima, direito embaixo */
+.cp-campo-par { display: flex; flex-direction: column; gap: 4px; }
+.cp-campo-par .cp-campo-in small { font-size: 11px; font-weight: 700; color: var(--muted); }
+.cp-campo-par .cp-campo-in { gap: 4px; }
+/* Medição do mês salva sem tudo: aviso pra completar */
+.cp-completar { background: var(--card-2); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 13px; color: var(--text); }
