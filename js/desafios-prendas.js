@@ -9,7 +9,7 @@
 // BLOCO 3 — MURAL DAS PRENDAS
 // BLOCO 4 — CARROSSEL DO MURAL E TELA CHEIA
 // ─────────────────────────────────────────────────────────────
-import { fetchPrendas, fetchPrevia, enviarPrenda, assinarProvas } from './desafios.js';
+import { fetchPrendas, fetchPrevia, enviarPrenda, urlDaProva, provaGuardada } from './desafios.js';
 import { gravarVideoAoVivo } from './desafios-prova.js';
 import { AVISO_MURAL } from './desafios-moldes.js';
 import { showToast } from './aviso-tela.js';
@@ -99,7 +99,7 @@ function _someEm(p) {
 export async function abrirMural() {
   const lista = prendasNoAr(await fetchPrendas());
   if (!lista.length) { showToast('Ninguém pagando prenda agora 🦅', 'info'); return; }
-  abrirPrendaTelaCheia(lista, await assinarProvas(lista.map(p => p.video_path)), 0);
+  abrirPrendaTelaCheia(lista, 0);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -126,22 +126,21 @@ export function muralCarrosselHtml(prendas) {
     <div class="pr-carrossel">${cards}</div>`;
 }
 
-// Assina os vídeos (aparece o 1º quadro) e liga o toque → tela cheia
+// Capa só com o vídeo que já está no celular (baixar só pra capa estourava o
+// tráfego do Supabase); o toque abre a tela cheia, que baixa uma vez e guarda.
 export async function ligarMuralCarrossel(root, prendas) {
   const lista = prendasNoAr(prendas);
   const box = root.querySelector('.pr-carrossel');
   if (!box || !lista.length) return;
-  const urls = await assinarProvas(lista.map(p => p.video_path));
-  if (!box.isConnected) return;
-  box.querySelectorAll('.pr-card-video').forEach(v => {
-    const u = urls.get(v.dataset.path);
-    if (u) v.src = `${u}#t=0.5`;   // #t: mostra um quadro em vez de tela preta
-  });
-  box.querySelectorAll('[data-pr-i]').forEach(b => b.onclick = () => abrirPrendaTelaCheia(lista, urls, Number(b.dataset.prI)));
+  box.querySelectorAll('[data-pr-i]').forEach(b => b.onclick = () => abrirPrendaTelaCheia(lista, Number(b.dataset.prI)));
+  for (const v of box.querySelectorAll('.pr-card-video')) {
+    const u = await provaGuardada(v.dataset.path);
+    if (u && v.isConnected) v.src = `${u}#t=0.5`;   // #t: mostra um quadro em vez de tela preta
+  }
 }
 
 // Tela cheia: um vídeo por vez, passa pro lado (arrastar ou ‹ ›), sem download
-export function abrirPrendaTelaCheia(lista, urls, i = 0) {
+export function abrirPrendaTelaCheia(lista, i = 0) {
   const ov = document.createElement('div');
   ov.className = 'pr-tela';
   ov.innerHTML = `
@@ -160,8 +159,13 @@ export function abrirPrendaTelaCheia(lista, urls, i = 0) {
   const mostrar = (n) => {
     i = (n + lista.length) % lista.length;
     const p = lista[i];
-    video.src = urls.get(p.video_path) || '';
-    video.play().catch(() => {});
+    video.removeAttribute('src');
+    urlDaProva(p.video_path).then(u => {
+      if (lista[i] !== p || !ov.isConnected) return;   // já passou pra outra
+      if (!u) { showToast('Não deu pra abrir esse vídeo agora.', 'error'); return; }
+      video.src = u;
+      video.play().catch(() => {});
+    }).catch(() => {});
     ov.querySelector('.pr-tela-info').innerHTML =
       `<b>${_esc(p.nome || 'Falcão')}</b> · <span>${_esc(p.titulo || 'Desafio')}</span><div>🎭 ${_esc(p.prenda || '')}</div><small>⏳ ${_someEm(p)}${lista.length > 1 ? ` · ${i + 1} de ${lista.length}` : ''}</small>`;
     ov.querySelectorAll('.pr-tela-seta').forEach(b => { b.hidden = lista.length < 2; });

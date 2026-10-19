@@ -2659,7 +2659,8 @@ body.time-picker-open { overflow: hidden; }
   position: absolute; inset: 0; z-index: 4; background: #000;
   display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
 }
-.ds-rec-revisao[hidden], .ds-form-aviso[hidden], .ds-corr-sem[hidden] { display: none; }
+.ds-rec-revisao[hidden], .ds-form-aviso[hidden] { display: none; }
+.ds-corr-sem[hidden] { display: none !important; }   /* .modal .input-field (display:block) ganhava */
 /* Largar um vício: consegui / não consegui + série de dias limpos */
 .ds-largar { display: flex; gap: 8px; }
 .ds-largar .ds-inc { background: rgba(52,211,153,0.14); color: #34d399; }
@@ -2671,6 +2672,8 @@ body.time-picker-open { overflow: hidden; }
 .ds-rec-acoes { display: flex; gap: 10px; }
 .ds-rec-acoes { align-items: stretch; }
 .ds-rec-acoes > * { flex: 1; margin: 0; min-height: 50px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.ds-rec-acoes:has(.ds-rec-prox) { flex-wrap: wrap; }
+.ds-rec-acoes .ds-rec-prox { flex-basis: 100%; }
 
 
 /* ─── Modal de Mensagens ─── */
@@ -8327,6 +8330,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .msg-prova-video { position: relative; display: block; padding: 0; border: none; background: none; cursor: pointer; line-height: 0; align-self: flex-start; }
 .msg-prova-video video { pointer-events: none; }
+.msg-prova-capa { display: flex; align-items: flex-end; justify-content: center; width: 190px; max-width: 100%; aspect-ratio: 9 / 16; border-radius: 8px; background: linear-gradient(160deg, #1f2937, #000); color: rgba(255,255,255,.7); font-size: 13px; line-height: 1.2; padding-bottom: 14px; box-sizing: border-box; }
+.msg-prova-video.baixando .msg-prova-play { animation: msgProvaBaixando 1s ease-in-out infinite; }
+@keyframes msgProvaBaixando { 50% { opacity: .35; } }
 .msg-prova-play { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 48px; text-align: center; padding-left: 3px; box-sizing: border-box; }
 .prova-cheia { position: fixed; inset: 0; z-index: 99000; background: #000; display: flex; align-items: center; justify-content: center; }
 .prova-cheia video { width: 100%; height: 100%; object-fit: contain; background: #000; }
@@ -8715,3 +8721,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ficha-card { margin: 18px 0 4px; text-align: left; background: var(--card); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-left: 4px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .ap-ficha-t { font-size: 15px; font-weight: 800; color: var(--text); }
 .ap-ficha-d { font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+/* Medidas com lado (braço, coxa, panturrilha): esquerdo em cima, direito embaixo */
+.cp-campo-par { display: flex; flex-direction: column; gap: 4px; }
+.cp-campo-par .cp-campo-in small { font-size: 11px; font-weight: 700; color: var(--muted); }
+.cp-campo-par .cp-campo-in { gap: 4px; }
+/* Medição do mês salva sem tudo: aviso pra completar */
+.cp-completar { background: var(--card-2); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 13px; color: var(--text); }

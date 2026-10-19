@@ -5,7 +5,7 @@
 // BLOCO 4 — WIRES
 // ─────────────────────────────────────────────────────────────
 import {
-  getDadosCorpo, gorduraNavy, carregarRegistros, salvarRegistro,
+  getDadosCorpo, gorduraNavy, carregarRegistros, salvarRegistro, atualizarRegistro,
   apagarRegistro, subirFotoCorpo, assinarFotos,
 } from './corpo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
@@ -21,10 +21,16 @@ const MEDIDAS = [
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
   { k: 'quadril',     lbl: 'Quadril',     un: 'cm' },
-  { k: 'braco',       lbl: 'Braço (músculo flexionado)', un: 'cm' },
-  { k: 'coxa',        lbl: 'Coxa',        un: 'cm' },
-  { k: 'panturrilha', lbl: 'Panturrilha', un: 'cm' },
+  { k: 'braco',       lbl: 'Braço (flexionado)', un: 'cm', par: true, hint: '(E esquerdo · D direito)' },
+  { k: 'coxa',        lbl: 'Coxa',        un: 'cm', par: true },
+  { k: 'panturrilha', lbl: 'Panturrilha', un: 'cm', par: true },
 ];
+// Braço, coxa e panturrilha: esquerdo e direito (Élton, 19/10). A coluna sem
+// lado (braco, coxa…) guarda o MAIOR dos dois e segue alimentando a análise.
+const LADO_ESQ = (k) => `${k}_esq`, LADO_DIR = (k) => `${k}_dir`;
+const temMedida = (m, med) => m.par
+  ? (med[LADO_ESQ(m.k)] != null || med[LADO_DIR(m.k)] != null || med[m.k] != null)
+  : med[m.k] != null;
 // 6 fotos: quadril PRA CIMA (tronco) e quadril PRA BAIXO (bunda/coxa/panturrilha),
 // em frente/lado/costas. `molde` = qual avatar guia; `crop` = enquadra tronco/pernas.
 const LADOS = [
@@ -40,7 +46,7 @@ let dados = { sexo: null, alturaCm: null, pesoKg: null };
 let ehAdmin = false;   // admin ignora a trava de 30 dias (pra testar à vontade)
 let registros = [];
 let urls = new Map();       // path -> signed url
-let novo = null;            // { medidas:{}, fotos:{frente,lado,costas} }
+let novo = null;            // { medidas:{}, fotos:{lado:{blob,previa}|{path,previa}}, id? }
 let carregado = false;
 
 const box = () => document.getElementById('cp-inline');
@@ -99,6 +105,23 @@ function diasParaLiberar() {
   return Math.max(0, DIAS_TRAVA - Math.floor((Date.now() - ultima) / 86400000));
 }
 
+// Medição salva sem tudo (Élton, 19/10: salva o que tiver, fotos depois).
+// Enquanto a trava do mês vale, ela fica aberta pra completar.
+function incompleto(r) {
+  if (!r) return false;
+  return LADOS.some(l => !r.fotos?.[l.k]) || MEDIDAS.some(m => !temMedida(m, r));
+}
+function abrirParaCompletar(r) {
+  const medidas = {};
+  for (const m of MEDIDAS) {
+    if (m.par) { medidas[LADO_ESQ(m.k)] = r[LADO_ESQ(m.k)] ?? null; medidas[LADO_DIR(m.k)] = r[LADO_DIR(m.k)] ?? null; }
+    medidas[m.k] = r[m.k] ?? null;   // medição antiga sem lado: mantém o valor
+  }
+  const fotos = {};
+  for (const l of LADOS) { const p = r.fotos?.[l.k]; if (p) fotos[l.k] = { path: p, previa: urls.get(p) || '' }; }
+  return { id: r.id, data: r.data, medidas, fotos };
+}
+
 // Bloco de status: última medição + quando liberam as próximas medidas (mensal)
 // e fotos (trimestral).
 function statusHtml() {
@@ -132,9 +155,11 @@ function desenhar() {
       const ult = registros.find(r => r.pescoco != null);
       if (ult) novo.medidas.pescoco = ult.pescoco;
     }
-  } else { novo = null; }   // travado: nada de editar (medida + fotos são um bloco)
-  c.innerHTML = telaPrincipal(pode);
-  if (pode) atualizarGordura();
+  } else if (incompleto(registros[0])) {
+    if (!novo || novo.id !== registros[0].id) novo = abrirParaCompletar(registros[0]);
+  } else { novo = null; }   // completa e no mês: trava até a próxima
+  c.innerHTML = telaPrincipal(pode || !!novo);
+  if (novo) atualizarGordura();
 }
 async function assinar() {
   const paths = registros.flatMap(r => r.fotos ? Object.values(r.fotos).filter(Boolean) : []);
@@ -423,10 +448,25 @@ function formHtml() {
     : '(H: no umbigo · M: acima, parte fina)';
   const hintDe = (m) => (m.k === 'cintura' ? cinturaHint : (m.hint || ''));
   const medidasVis = MEDIDAS;
+  const completar = novo?.id ? (() => {
+    const faltam = LADOS.filter(l => !novo.fotos[l.k]).length;
+    const dt = new Date(novo.data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' });
+    return `<div class="cp-completar">📝 Medição de <b>${dt}</b> salva${faltam ? `, faltam <b>${faltam} ${faltam === 1 ? 'foto' : 'fotos'}</b>` : ''}. Completa aqui quando puder.</div>`;
+  })() : '';
   return `
+    ${completar}
     <div class="cp-form-corpo">
       <div class="cp-medidas">
-        ${medidasVis.map(m => `
+        ${medidasVis.map(m => m.par ? `
+          <div class="cp-campo">
+            <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
+            <span class="cp-campo-par">${[['E', LADO_ESQ(m.k)], ['D', LADO_DIR(m.k)]].map(([t, k]) => `
+              <label class="cp-campo-in"><small>${t}</small>
+                <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${k}"
+                  value="${novo.medidas[k] ?? ''}" placeholder="0" aria-label="${m.lbl} ${t === 'E' ? 'esquerdo' : 'direito'}" />
+                <em>${m.un}</em></label>`).join('')}
+            </span>
+          </div>` : `
           <label class="cp-campo">
             <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
             <span class="cp-campo-in">
@@ -442,11 +482,11 @@ function formHtml() {
     <div class="cp-gordura" id="cp-gordura"></div>
 
     <div class="cp-secao-tit">Fotos de progresso — as 6</div>
-    <div class="cp-secao-sub">Frente / lado / costas, do <b>quadril ↑</b> e do <b>quadril ↓</b>. Salva tudo junto com a medição.</div>
+    <div class="cp-secao-sub">Frente / lado / costas, do <b>quadril ↑</b> e do <b>quadril ↓</b>. Dá pra salvar as medidas agora e completar as fotos depois.</div>
     <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
     ${fotosGridHtml()}
 
-    <button class="cp-salvar" data-salvar>Salvar medição + 6 fotos</button>`;
+    <button class="cp-salvar" data-salvar>${novo?.id ? 'Salvar' : 'Salvar medição'}</button>`;
 }
 
 // Grade dos 3 slots de foto (frente/lado/costas) + inputs de câmera/galeria.
@@ -513,7 +553,9 @@ function historicoHtml() {
         <div class="cp-reg-medidas">
           ${MEDIDAS.filter(m => r[m.k] != null).map(m => {
             const lbl = (m.k === 'quadril' && dados.sexo === 'F') ? 'Glúteo' : m.lbl;
-            return `<span>${lbl}: <b>${r[m.k]}${m.un}</b></span>`;
+            const e = m.par ? r[LADO_ESQ(m.k)] : null, d = m.par ? r[LADO_DIR(m.k)] : null;
+            if (e != null && d != null) return `<span>${lbl}: <b>E ${br(e)} · D ${br(d)}${m.un}</b></span>`;
+            return `<span>${lbl}: <b>${br(r[m.k])}${m.un}</b></span>`;
           }).join('')}
         </div>
         ${fotos.length ? `<div class="cp-reg-fotos">${fotos.map(p => urls.get(p)
@@ -591,28 +633,40 @@ async function apagarUI(id) {
 
 async function salvar() {
   const btn = document.querySelector('#cp-inline [data-salvar]');
-  // AMARRAÇÃO: só salva com as 6 fotos + as medidas — tudo na mesma data. Depois
-  // trava (não edita); no próximo ciclo refaz tudo.
-  const faltamFotos = LADOS.filter(l => !novo.fotos[l.k]?.blob);
-  if (faltamFotos.length) { showToast(`Faltam ${faltamFotos.length} foto(s): ${faltamFotos.map(l => l.lbl).join(', ')}.`, 'info'); return; }
-  const faltamMedidas = MEDIDAS.filter(m => novo.medidas[m.k] == null);
-  if (faltamMedidas.length) { showToast(`Preencha as medidas também (faltam ${faltamMedidas.length}).`, 'info'); return; }
+  // Salva o que tiver (Élton, 19/10): as fotos e o resto das medidas dá pra
+  // completar depois, enquanto a medição do mês está aberta.
+  const med = { ...novo.medidas };
+  for (const m of MEDIDAS.filter(x => x.par)) {
+    const e = med[LADO_ESQ(m.k)], d = med[LADO_DIR(m.k)];
+    if (e != null || d != null) med[m.k] = Math.max(e ?? -Infinity, d ?? -Infinity);
+  }
+  const temAlgo = MEDIDAS.some(m => med[m.k] != null) || LADOS.some(l => novo.fotos[l.k]);
+  if (!temAlgo) { showToast('Preencha pelo menos uma medida ou tire uma foto.', 'info'); return; }
   if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
   try {
     const fotos = {};
     for (const l of LADOS) {
-      if (novo.fotos[l.k]?.blob) fotos[l.k] = await subirFotoCorpo(novo.fotos[l.k].blob, l.k);
+      const f = novo.fotos[l.k];
+      if (f?.blob) fotos[l.k] = await subirFotoCorpo(f.blob, l.k);
+      else if (f?.path) fotos[l.k] = f.path;
     }
-    const pct = gorduraNavy({ sexo: dados.sexo, alturaCm: dados.alturaCm, pescoco: novo.medidas.pescoco, cintura: novo.medidas.cintura, quadril: novo.medidas.quadril });
-    const row = await salvarRegistro({ medidas: novo.medidas, gorduraPct: pct, fotos });
-    registros.unshift(row);
+    const pct = gorduraNavy({ sexo: dados.sexo, alturaCm: dados.alturaCm, pescoco: med.pescoco, cintura: med.cintura, quadril: med.quadril });
+    let row;
+    if (novo.id) {
+      row = await atualizarRegistro(novo.id, { medidas: med, gorduraPct: pct, fotos });
+      registros = registros.map(r => (r.id === row.id ? row : r));
+    } else {
+      row = await salvarRegistro({ medidas: med, gorduraPct: pct, fotos });
+      registros.unshift(row);
+    }
     await assinar();
     novo = null;
     desenhar();
-    showToast('✅ Medição registrada!', 'success');
+    const faltam = LADOS.filter(l => !row.fotos?.[l.k]).length;
+    showToast(faltam ? `✅ Salvo! Faltam ${faltam} ${faltam === 1 ? 'foto' : 'fotos'}: completa quando puder.` : '✅ Medição registrada!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar medição'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   }
 }
 

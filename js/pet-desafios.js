@@ -101,7 +101,7 @@ export function motivoDaSaida(texto) {
 }
 
 // { acao: 'ver'|'ranking'|'entrar'|'codigo'|'sair'|'doente'|'checkin'|'criar'|'regras'|'corrida_ajuda'|'prenda'|'mural'|'relatorio'|'nova_rodada',
-//   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia,
+//   codigo, qtd, molde, dias, modalidade, feitoHoje, metaToda, nome, exercicios, maxPorDia, series,
 //   motivo/justificar (sair: o porquê; imprevisto sem pedir pra sair), doente = dia justificado,
 //   falhou (largar um vício: hoje não conseguiu), consegui, vicio (o que larga), hora (acordar às Xh) } ou null.
 // Só entra quando a frase fala em "desafio" (ou num código de convite, ou em
@@ -169,6 +169,8 @@ export function lerDesafio(texto) {
   if (/\b(cri\w*|mont\w*|novo desafio|comec\w* um desafio|faz\w* um desafio|abr\w* um desafio)\b/.test(t) && !/\b(criei|criou|criado|criada|criaram)\b/.test(t)) {
     const d = t.match(new RegExp(`\\b${NUM_RE}\\s*dias?\\b`));
     const pd = t.match(new RegExp(`\\b${NUM_RE}\\s*(?:exercicios?\\s*)?por dia\\b`));
+    // "3 séries de cada" / "em 3 séries": cada série é um vídeo
+    const sr = t.match(new RegExp(`\\b${NUM_RE}\\s*series?\\b`));
     const exercicios = molde === 'exercicio' || molde === null ? exerciciosDaFrase(texto) : [];
     const modalidade = /\b(amig\w*|galera|grupo|turma|familia|convid\w*|junto)\b/.test(t) ? 'amigos'
       : /\b(sozinh\w*|so meu|so pra mim|individual|so eu)\b/.test(t) ? 'individual' : null;
@@ -179,7 +181,7 @@ export function lerDesafio(texto) {
     const hm = molde === 'acordar' ? t.match(/\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2}))?\s*(?:h|horas?)?\b/) : null;
     const hora = hm && +hm[1] <= 12 ? `${String(+hm[1]).padStart(2, '0')}:${hm[2] || '00'}` : null;
     return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: pd || molde === 'acordar' || molde === 'largar' ? null : metaDita,
-      exercicios, maxPorDia: pd ? numDe(pd[1]) : null, molde: exercicios.length ? 'exercicio' : molde,
+      exercicios, maxPorDia: pd ? numDe(pd[1]) : null, series: sr ? Math.min(5, numDe(sr[1]) || 1) : null, molde: exercicios.length ? 'exercicio' : molde,
       vicio: vm ? vm[1] : null, hora };
   }
   // "convida a Ana e o Bruno pro desafio de leitura", "manda o convite do desafio no zap"

@@ -30,7 +30,7 @@ import { showToast, confirmModal } from '../aviso-tela.js';
 import { CATEGORIAS, recentes, registrarUso } from '../emojis.js';
 import * as DIG from '../chat-digitando.js';
 import { linkificar, blocoPrevia, hidratarPrevias } from '../chat-links.js';
-import { assinarProvas, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
+import { assinarProvas, urlDaProva, provaGuardada, apagarCheckin, fetchPropostas, votarProposta, cancelarProposta } from '../desafios.js';
 import { emojiDoTipo, comparacaoProposta, encerrado } from '../desafios-moldes.js';
 import { temConteudo, abrirConteudo, tentarConteudosPendentes, urlDaLegenda, verVideoCheio } from '../prova-conteudo.js';
 import { avisoGuardarVideos, avisoEntradaDrive } from '../provas-guardar.js';
@@ -588,7 +588,7 @@ async function desenharSalaDesafio(corpo) {
   [provasRasc, perfis] = await Promise.all([rascP, perfisP]);
   if (conversaCom?.id !== id) return;
   // Depoimento meu que ainda não virou "📄 Conteúdo" (o envio fechou antes): tenta de novo
-  tentarConteudosPendentes(sala.d, sala.checks, meu, async (c) => (await assinarProvas([c])).get(c)).catch(() => {});
+  tentarConteudosPendentes(sala.d, sala.checks, meu, urlDaProva).catch(() => {});
   // 4º dia em diante: oferece guardar os meus vídeos desse desafio no Drive
   setTimeout(() => {
     if (conversaCom?.id !== id || sala?.d?.id !== id || document.querySelector('.modal-overlay')) return;
@@ -693,7 +693,9 @@ async function carregarProvas(msgs) {
   if (!faltam.length) return;
   faltam.forEach(c => provaBuscando.add(c));
   try {
-    const urls = await assinarProvas(faltam);
+    // Só confere se ainda existe: o vídeo desce quando tocam no ▶
+    const urls = await assinarProvas(faltam, { baixar: false });
+    await Promise.all(faltam.map(async c => { const l = await provaGuardada(c); if (l) provaLocal.set(c, l); }));
     faltam.forEach(c => {
       const nova = urls.get(c) || '';
       if (nova || !provaUrls.get(c)) provaUrls.set(c, nova);
@@ -702,6 +704,7 @@ async function carregarProvas(msgs) {
   } finally { faltam.forEach(c => provaBuscando.delete(c)); }
 }
 const provaBuscando = new Set();   // caminhos sendo assinados/baixados agora
+const provaLocal = new Map();      // caminho -> vídeo já guardado no celular (capa sem internet)
 
 
 // ☁️ Drive no topo do grupo: liga a cópia automática dos vídeos das provas a
@@ -737,10 +740,18 @@ function blocoProva(m) {
     return `<div class="msg-prova-vencida">🎥 Prova (o vídeo já saiu)</div>`;
   }
   return `<div class="msg-prova">
-    ${v ? `<button type="button" class="msg-prova-video" data-ver-prova="${esc(v)}" data-ck="${esc(ck?.id || '')}" aria-label="Ver vídeo"><video src="${esc(v)}#t=0.1" playsinline muted preload="metadata"></video><span class="msg-prova-play">▶</span></button>` : ''}
+    ${v ? `<button type="button" class="msg-prova-video" data-ver-prova="${esc(m.prova_video)}" data-ck="${esc(ck?.id || '')}" aria-label="Ver vídeo">${capaDaProva(m.prova_video)}<span class="msg-prova-play">▶</span></button>` : ''}
     ${p ? `<button type="button" class="msg-prova-print" data-abrir-foto="${esc(p)}"><img src="${esc(p)}" alt="Print da corrida" /></button>` : ''}
     ${v ? `<button type="button" class="msg-prova-salvar" data-salvar-prova="${esc(m.prova_video)}">⬇️ Salvar vídeo</button>` : ''}
   </div>`;
+}
+
+// Capa: o 1º quadro só se o vídeo já está no celular; senão um quadro escuro
+// (puxar o vídeo só pra mostrar a capa é o que estourava o tráfego)
+function capaDaProva(caminho) {
+  const l = provaLocal.get(caminho);
+  return l ? `<video src="${esc(l)}#t=0.1" playsinline muted preload="metadata"></video>`
+    : `<span class="msg-prova-capa">🎥 Prova</span>`;
 }
 
 // ⬇️ Salvar o vídeo da prova: no celular abre o "Compartilhar" do sistema,
@@ -748,11 +759,12 @@ function blocoProva(m) {
 // iPhone) sem ocupar a galeria. Sem isso, baixa o arquivo.
 async function salvarVideoProva(btn) {
   const caminho = btn.dataset.salvarProva;
-  const url = provaUrls.get(caminho);
-  if (!url || btn.disabled) return;
+  if (!provaUrls.get(caminho) || btn.disabled) return;
   const texto = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Preparando…';
   try {
+    const url = await urlDaProva(caminho);
+    if (!url) throw new Error('sem vídeo');
     const blob = await (await fetch(url)).blob();
     const ext = (caminho.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
     const nome = `prova-falcon-${new Date().toISOString().slice(0, 10)}${ext}`;
@@ -2351,8 +2363,21 @@ function ligarEventos(app) {
     // Vídeo da prova abre na tela cheia do app, com a legenda automática
     const verProva = t.closest('[data-ver-prova]');
     if (verProva) {
+      if (verProva.classList.contains('baixando')) return;
       const ck = verProva.dataset.ck && sala?.checks?.find(c => c.id === verProva.dataset.ck);
-      verVideoCheio(verProva.dataset.verProva, ck ? urlDaLegenda(ck.id, ck.conteudo) : '');
+      const caminho = verProva.dataset.verProva;
+      verProva.classList.add('baixando');
+      try {
+        const url = await urlDaProva(caminho);
+        if (!url) { showToast('Não deu pra abrir o vídeo agora. Tenta de novo.', 'error'); return; }
+        // Já baixou: a capa passa a mostrar o 1º quadro, sem internet
+        if (!provaLocal.has(caminho)) {
+          provaLocal.set(caminho, url);
+          const capa = verProva.querySelector('.msg-prova-capa');
+          if (capa) capa.outerHTML = capaDaProva(caminho);
+        }
+        verVideoCheio(url, ck ? urlDaLegenda(ck.id, ck.conteudo) : '');
+      } finally { verProva.classList.remove('baixando'); }
       return;
     }
     const salvarProva = t.closest('[data-salvar-prova]');

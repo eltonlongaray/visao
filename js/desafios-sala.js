@@ -13,7 +13,7 @@
 import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo, conviteAberto, MSG_CONVITE_FECHADO } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
-         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
+         regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, rotuloSerie, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
          depoimentoConta, ehAgua, encerrado, fimDoDesafio, salaAte, relatorioDoDesafio, turmaDe, rodadaDe, dataCurta, somarDias, convitesFechados } from './desafios-moldes.js';
 import { registrarComProva, abrirStrava, passoAPassoCorrida, corridaPendente, proximoPassoCorrida } from './desafios-prova.js';
 import { trapModalBack } from './modal-voltar.js';
@@ -317,8 +317,8 @@ export function provaPelaSala(sala, uid) {
     }
     titulo = '📷 Qual exercício?';
     opcoes = lista.map(x => ({
-      rotulo: `${x.feito ? '✅' : x.nome === 'Corrida' ? '🏃' : '🎥'} ${x.nome}`,
-      extra: { quantidade: 1, exercicio: x.nome },
+      rotulo: `${x.feito ? '✅' : x.nome === 'Corrida' ? '🏃' : '🎥'} ${x.ok ? rotuloSerie(x) : x.nome}`,
+      extra: { quantidade: 1, exercicio: x.nome, serie: x.serie || null, series: x.series || null },
       motivo: x.ok ? '' : x.motivo,
     }));
   } else if (ehLargar(d)) {

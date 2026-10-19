@@ -58,7 +58,9 @@ const _gravarLS = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sem
 // 187 → "3:07": em segundos ninguém sabia quantos minutos já tinham passado
 const _mmss = (seg) => `${Math.floor(seg / 60)}:${String(Math.floor(seg % 60)).padStart(2, '0')}`;
 
-export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova' } = {}) {
+// proximoTxt = mostra o botão da próxima série: o Blob volta marcado com
+// __proxima e quem chamou grava a próxima antes de mandar todas juntas.
+export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxSeg = MAX_SEG, rascunho = false, enviarTxt = 'Enviar prova', proximoTxt = '' } = {}) {
   const W = REC_W, H = REC_H;
   return new Promise((resolve) => {
     const mime = _mimeVideo();
@@ -106,6 +108,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
           <button type="button" class="cam-guia-btn" data-rec="again">↺ Gravar de novo</button>
           ${rascunho ? '<button type="button" class="cam-guia-btn" data-rec="draft">💾 Salvar rascunho</button>' : ''}
           <button type="button" class="btn-primary" data-rec="send">${_esc(enviarTxt)}</button>
+          ${proximoTxt ? `<button type="button" class="btn-primary ds-rec-prox" data-rec="next">${_esc(proximoTxt)}</button>` : ''}
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -316,6 +319,7 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       }
       if (act === 'send' && blob) { entregue = blob; fechar(); }
       if (act === 'draft' && blob) { blob.__rascunho = true; entregue = blob; fechar(); }
+      if (act === 'next' && blob) { blob.__proxima = true; entregue = blob; fechar(); }
     });
     abrir();
   });
@@ -526,7 +530,7 @@ function _limparPendente() { try { localStorage.removeItem(PEND_KEY); } catch { 
 // Registra o check-in pedindo a prova que o desafio exige. true = registrou.
 // O banco confere as regras de novo (gatilho) e devolve o erro em português.
 // falhou = largar um vício, dia em que não conseguiu (entra com quantidade 0).
-export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false, doente = false } = {}) {
+export async function registrarComProva(d, { quantidade = 1, exercicio = null, falhou = false, doente = false, serie = null, series = null } = {}) {
   const corrida = d.prova === 'strava' || exercicio === 'Corrida';
   if (falhou) quantidade = 0;
   if (aindaNaoComecou(d)) {
@@ -577,6 +581,7 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
       return true;
     }
     if (corrida) return await _registrarCorrida(d, { quantidade, exercicio });
+    if (d.prova === 'video' && exercicio && series > 1 && serie) return await _gravarSeries(d, { exercicio, serie, series });
     if (d.prova === 'video') {
       const nome = exercicio || d.titulo;
       const blob = await gravarVideoAoVivo({
@@ -599,6 +604,48 @@ export async function registrarComProva(d, { quantidade = 1, exercicio = null, f
     showToast(e.message || 'Não deu pra registrar', 'error');
     return false;
   }
+}
+
+// Séries (Élton, 19/10): grava a série de agora e, se quiser, as próximas em
+// sequência ("➡️ Gravar a série 2"); no fim manda todas juntas, na ordem.
+// Desistiu no meio: o que já foi gravado vira rascunho (não se perde).
+async function _gravarSeries(d, { exercicio, serie, series }) {
+  const blobs = [];
+  const extra = { quantidade: 1, exercicio, falhou: false, tipo: 'video' };
+  const guardarTodos = async () => {
+    for (const b of blobs) await salvarRascunho({ desafioId: d.id, blob: b, ...extra });
+    if (blobs.length) showToast(`💾 ${blobs.length === 1 ? 'A série gravada ficou' : `As ${blobs.length} séries gravadas ficaram`} como rascunho na conversa do grupo. Manda quando quiser, hoje.`, 'success');
+  };
+  for (let k = serie; k <= series; k++) {
+    if (blobs.length) await _esperarVoltar();   // o "voltar" do gravador anterior fecharia o próximo
+    const blob = await gravarVideoAoVivo({
+      titulo: `🎥 ${exercicio} · série ${k} de ${series}`,
+      dica: `Grave você fazendo a série ${k}, do começo ao fim.${blobs.length ? ` <small>Já gravada${blobs.length > 1 ? 's' : ''}: ${blobs.length} (vão juntas no envio).</small>` : ''}`,
+      rascunho: true,
+      enviarTxt: blobs.length ? `Enviar as ${blobs.length + 1} séries` : 'Enviar prova',
+      proximoTxt: k < series ? `➡️ Gravar a série ${k + 1}` : '',
+    });
+    if (!blob) { await guardarTodos(); return false; }
+    blobs.push(blob);
+    if (blob.__rascunho) { await guardarTodos(); return false; }
+    if (!blob.__proxima) break;
+  }
+  showToast(blobs.length > 1 ? `Enviando as ${blobs.length} séries…` : 'Enviando a prova…', 'info');
+  let ok = 0;
+  for (const b of blobs) if (await _enviarOuGuardar(d, b, extra)) ok++;
+  if (ok === blobs.length) showToast(ok > 1 ? `🎥 ${ok} séries enviadas! 🦅` : '🎥 Prova enviada! 🦅', 'success');
+  return ok > 0;
+}
+
+// Espera o histórico voltar do modal que acabou de fechar (ou 600 ms)
+function _esperarVoltar() {
+  return new Promise((resolve) => {
+    let feito = false;
+    const ir = () => { if (feito) return; feito = true; window.removeEventListener('popstate', onPop); resolve(); };
+    const onPop = () => setTimeout(ir, 0);
+    window.addEventListener('popstate', onPop);
+    setTimeout(ir, 600);
+  });
 }
 
 // Sobe o vídeo e registra. Se falhar (internet caiu, vídeo pesado), o vídeo

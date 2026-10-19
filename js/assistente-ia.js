@@ -5637,11 +5637,12 @@ function desafioCheckinExercicio(d, p, c) {
   if (!livres.length) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const dito = PDF.exercicioCitado(d.exercicios, p.texto || '');
   const fazer = (ex) => {
-    const extra = { quantidade: 1, exercicio: ex };
+    const st0 = lista.find(x => x.nome === ex);
+    const extra = { quantidade: 1, exercicio: ex, serie: st0?.serie || null, series: st0?.series || null };
     if (ex === 'Corrida' || d.prova === 'video' || d.prova === 'strava') {
       return _botaoProva(d, extra, ex === 'Corrida'
         ? '🏃 A corrida vai com o <b>print do Strava</b> e um <b>vídeo ao vivo</b> correndo nos últimos minutos.'
-        : `🎥 Grava <b>${_esc(ex)}</b> ao vivo que eu marco no <b>${nome}</b>.`, c);
+        : `🎥 Grava <b>${_esc(c.M.rotuloSerie(lista.find(x => x.nome === ex)) || ex)}</b> ao vivo que eu marco no <b>${nome}</b>.`, c);
     }
     cardConfirmarLista(`✅ Marcar <strong>${_esc(ex)}</strong> no desafio <strong>${nome}</strong>?`, async () => {
       await c.D.addCheckin(d.id, 1, { exercicio: ex });
@@ -5659,7 +5660,7 @@ function desafioCheckinExercicio(d, p, c) {
     return fazer(dito);
   }
   if (!livres.length) return `Hoje não sobrou exercício liberado no <b>${nome}</b>.`;
-  addChoices(`Qual exercício tu fez no <b>${nome}</b>? (${feitos}/${lim} hoje)`, livres.map(x => ({ label: `${x.nome === 'Corrida' ? '🏃' : '🏋️'} ${x.nome}`, action: () => fazer(x.nome) })));
+  addChoices(`Qual exercício tu fez no <b>${nome}</b>? (${feitos}/${lim} hoje)`, livres.map(x => ({ label: `${x.nome === 'Corrida' ? '🏃' : '🏋️'} ${c.M.rotuloSerie(x)}`, action: () => fazer(x.nome) })));
   return null;
 }
 
@@ -5759,6 +5760,7 @@ function desafioCriar(p, c) {
   const ehEx = molde?.id === 'exercicio';
   const exercicios = ehEx ? (p.exercicios?.length ? p.exercicios : molde.exercicios) : null;
   const maxPorDia = ehEx ? (p.maxPorDia || Math.min(molde.maxPorDia || 2, Math.max(1, Math.floor(exercicios.length / 2)))) : null;
+  const series = ehEx && p.series > 1 ? Math.min(5, p.series) : null;   // 3 séries = 3 vídeos de cada
   if (ehEx) {
     const aviso = c.M.avisoExercicios(exercicios, maxPorDia, true);
     if (aviso) return `⚠️ ${aviso} Me fala de novo com mais exercícios ou menos por dia. Ex.: <em>"cria um desafio de exercício com flexão, abdominal, agachamento e prancha, 2 por dia"</em>.`;
@@ -5785,7 +5787,7 @@ function desafioCriar(p, c) {
   const amigos = p.modalidade === 'amigos';
   const prova = molde?.prova || 'video';   // objetivo do seu jeito: vídeo ao vivo, igual à tela
   const resumo = `🏆 Criar o desafio <strong>${molde?.emoji || '🏆'} ${_esc(titulo)}</strong>?<br><small>` +
-    (ehEx ? `Exercícios: ${exercicios.map(_esc).join(', ')} · até ${maxPorDia} por dia, sem repetir o de ontem · ` :
+    (ehEx ? `Exercícios: ${exercicios.map(_esc).join(', ')} · até ${maxPorDia} por dia${series ? `, ${series} séries de cada (um vídeo por série)` : ''}, sem repetir o de ontem · ` :
       molde?.id === 'largar' ? 'Depoimento todo dia, conseguindo ou não (sem depoimento, perde o dia) · ' :
       `${meta ? `Meta: ${meta} ${_esc(unidade)} por dia · ` : 'Marcar feito 1x por dia · '}`) +
     (horaLimite ? `⏰ prova do dia até ${horaLimite} · ` : '') +
@@ -5795,7 +5797,7 @@ function desafioCriar(p, c) {
     const id = await c.D.createDesafio({
       titulo, descricao, dias, meta, unidade, opcoes: molde?.opcoes || [], tipo: molde?.id || 'livre',
       modalidade: p.modalidade, codigo, prenda: null, dataInicio: null, dataFim: null,
-      prova, horaLimite, ...(ehEx ? { exercicios, maxPorDia, naoRepetir: true, opcoes: [] } : {}),
+      prova, horaLimite, ...(ehEx ? { exercicios, maxPorDia, ...(series ? { series } : {}), naoRepetir: true, opcoes: [] } : {}),
     });
     // Quem cria entra no próprio desafio, igual à tela
     try { await c.D.joinDesafio(id, await _meuNomeDesafio(c.email)); } catch { /* segue */ }

@@ -77,9 +77,10 @@ export async function salvarDadosCorpo({ sexo, alturaCm, pesoKg }) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 4: REGISTROS (medições datadas — histórico de evolução)
 // ═══════════════════════════════════════════════════════════════
-const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha'];
+const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha',
+  'braco_esq', 'braco_dir', 'coxa_esq', 'coxa_dir', 'panturrilha_esq', 'panturrilha_dir'];   // lados: migration/corpo-lados.sql
 
-const _SEL = 'id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, gordura_pct, fotos';
+const _SEL = 'id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, braco_esq, braco_dir, coxa_esq, coxa_dir, panturrilha_esq, panturrilha_dir, gordura_pct, fotos';
 
 export async function carregarRegistros() {
   const { data, error } = await supabase
@@ -101,6 +102,18 @@ export async function salvarRegistro({ medidas, gorduraPct, fotos, data }) {
     .from('corpo_registros').insert(linha).select(_SEL).single();
   if (error) throw new Error(error.message);
   // peso mais recente vira o peso do perfil (pra meta de água acompanhar)
+  if (_num(medidas?.peso)) { try { await setProfile({ pesoKg: _num(medidas.peso) }); } catch {} }
+  return row;
+}
+
+// Completa uma medição salva sem tudo (medidas que faltavam e fotos depois).
+export async function atualizarRegistro(id, { medidas, gorduraPct, fotos }) {
+  const linha = { gordura_pct: gorduraPct ?? null, fotos: fotos && Object.keys(fotos).length ? fotos : null };
+  for (const c of CAMPOS) linha[c] = _num(medidas?.[c]);
+  const { data: row, error } = await supabase
+    .from('corpo_registros').update(linha).eq('id', id).select(_SEL).single();
+  if (error) throw new Error(error.message);
+  if (!row) throw new Error('Não achei essa medição pra completar');
   if (_num(medidas?.peso)) { try { await setProfile({ pesoKg: _num(medidas.peso) }); } catch {} }
   return row;
 }
