@@ -388,7 +388,9 @@ function buildPetHTML() {
         class="pet-input"
         placeholder="${t('pet.placeholder')}"
         autocomplete="off"
-        autocorrect="off"
+        autocorrect="on"
+        spellcheck="true"
+        lang="pt-BR"
         autocapitalize="sentences"
         rows="1"
       ></textarea>
