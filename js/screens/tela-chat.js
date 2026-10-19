@@ -678,7 +678,7 @@ async function provaNaSala() {
   if (l) l.scrollTop = l.scrollHeight;
 }
 
-// URLs dos vídeos/prints das provas (bucket desafio-provas, ficam até o fim do desafio).
+// URLs dos vídeos/prints das provas (R2 ou bucket desafio-provas, ficam até o fim do desafio).
 // O #t=0.1 no vídeo faz o celular mostrar o primeiro quadro em vez de tela preta.
 // A URL vale 1h: com a sala aberta muito tempo, assina de novo aos 50 min.
 // Falhou (sem internet, vídeo vencido): tenta de novo depois de 1 min, em vez
