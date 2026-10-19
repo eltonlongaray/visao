@@ -1,0 +1,56 @@
+# Backup do banco do Falcon (Supabase) toda semana, guardado no Cloudflare R2
+# (balde privado falcon-backup, fica 60 dias). Se o Supabase der problema,
+# os dados estão lá pra subir em outro lugar (19/10/2026).
+# Precisa do secret SUPABASE_DB_URL (Settings → Secrets and variables →
+# Actions): a "connection string" do Supabase, modo Session pooler, com a
+# senha do banco. Sem ele o job só avisa e não falha.
+# Também roda na mão: Actions → "Backup do banco" → Run workflow.
+name: Backup do banco
+
+on:
+  schedule:
+    - cron: '17 9 * * 0'   # domingo 06:17 em Brasília
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir secrets
+        id: tem
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$DB" ] && [ -n "$TOKEN" ] && [ -n "$CONTA" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
+          else echo "::warning::Falta o secret SUPABASE_DB_URL (ou os da Cloudflare); backup não feito."; fi
+      - name: Instalar pg_dump 17
+        if: steps.tem.outputs.ok == '1'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+      - name: Copiar o banco
+        if: steps.tem.outputs.ok == '1'
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # Só os dados do app e os logins (public + auth); sem dono nem permissões,
+          # pra dar pra restaurar em outro Postgres
+          /usr/lib/postgresql/17/bin/pg_dump "$DB" -Fc --no-owner --no-privileges \
+            -n public -n auth -f backup.dump
+          ls -lh backup.dump | awk '{print "Tamanho:", $5}'
+      - name: Guardar no R2
+        if: steps.tem.outputs.ok == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 r2 bucket list | grep -q 'falcon-backup' || {
+            npx --yes wrangler@4 r2 bucket create falcon-backup
+            npx --yes wrangler@4 r2 bucket lifecycle add falcon-backup apagar-velhos --expire-days 60 --force || true
+          }
+          npx --yes wrangler@4 r2 object put "falcon-backup/banco-$(date -u +%Y-%m-%d).dump" --file backup.dump --remote
+          rm -f backup.dump
