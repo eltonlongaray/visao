@@ -201,7 +201,7 @@ export async function renderDesafios(app, embedded = false) {
               ${sem && sem.troca ? `<div class="ds-corrida-semana ${sem.falta ? '' : 'ok'}">🏃 Corrida da semana: <b>${sem.falta ? 'ainda dá' : 'feita ✅'}</b>${sem.falta ? ' · no lugar dos exercícios do dia' : ''}</div>`
                 : sem ? `<div class="ds-corrida-semana ${sem.falta ? '' : 'ok'}">🏃 Corrida da semana: <b>${sem.feitas}/${sem.meta}</b>${sem.falta ? ` · até domingo` : ' ✅'}</div>` : ''}
               <div class="ds-ex-lista">${lista.map(x => `
-                <button class="ds-ex ${x.feito ? 'feito' : ''}" data-ex="${d.id}" data-exnome="${_esc(x.nome)}" ${x.ok ? '' : 'disabled'}>
+                <button class="ds-ex ${x.feito ? 'feito' : ''}" data-ex="${d.id}" data-exnome="${_esc(x.nome)}"${x.serie ? ` data-serie="${x.serie}" data-series="${x.series}"` : ''} ${x.ok ? '' : 'disabled'}>
                   <span>${x.feito ? '✅' : x.nome === 'Corrida' ? '🏃' : d.prova === 'video' ? '🎥' : '▫️'} ${_esc(x.ok ? rotuloSerie(x) : x.nome)}</span>
                   ${x.ok ? '' : `<small>${_esc(x.motivo)}</small>`}
                 </button>`).join('')}</div>
@@ -447,7 +447,7 @@ export async function renderDesafios(app, embedded = false) {
       comProva(b, id, { quantidade: qtd });
     });
     app.querySelectorAll('[data-ex]').forEach(b => b.onclick = () =>
-      comProva(b, b.dataset.ex, { quantidade: 1, exercicio: b.dataset.exnome }));
+      comProva(b, b.dataset.ex, { quantidade: 1, exercicio: b.dataset.exnome, serie: +b.dataset.serie || null, series: +b.dataset.series || null }));
     app.querySelectorAll('[data-corrida]').forEach(b => b.onclick = () => {
       const id = b.dataset.corrida;
       const d = desafios.find(x => x.id === id);

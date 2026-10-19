@@ -318,7 +318,7 @@ export function provaPelaSala(sala, uid) {
     titulo = '📷 Qual exercício?';
     opcoes = lista.map(x => ({
       rotulo: `${x.feito ? '✅' : x.nome === 'Corrida' ? '🏃' : '🎥'} ${x.ok ? rotuloSerie(x) : x.nome}`,
-      extra: { quantidade: 1, exercicio: x.nome },
+      extra: { quantidade: 1, exercicio: x.nome, serie: x.serie || null, series: x.series || null },
       motivo: x.ok ? '' : x.motivo,
     }));
   } else if (ehLargar(d)) {

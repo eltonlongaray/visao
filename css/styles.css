@@ -2672,6 +2672,8 @@ body.time-picker-open { overflow: hidden; }
 .ds-rec-acoes { display: flex; gap: 10px; }
 .ds-rec-acoes { align-items: stretch; }
 .ds-rec-acoes > * { flex: 1; margin: 0; min-height: 50px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.ds-rec-acoes:has(.ds-rec-prox) { flex-wrap: wrap; }
+.ds-rec-acoes .ds-rec-prox { flex-basis: 100%; }
 
 
 /* ─── Modal de Mensagens ─── */
