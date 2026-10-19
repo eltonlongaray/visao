@@ -8,7 +8,7 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo, conviteAberto,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  markDesafiosSeen, assinarProvas, faxinaProvas, fetchPrendas, fetchSaidas,
+  markDesafiosSeen, assinarProvas, urlDaProva, faxinaProvas, fetchPrendas, fetchSaidas,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior, seriesDe, textoSeries, rotuloSerie,
@@ -485,8 +485,8 @@ export async function renderDesafios(app, embedded = false) {
 
   // ── Ver a prova (vídeo + print) ────────────────────────────
   async function verProva(videoPath, printPath) {
-    const urls = await assinarProvas([videoPath, printPath]);
-    const v = urls.get(videoPath), p = urls.get(printPath);
+    const [v, urls] = await Promise.all([urlDaProva(videoPath), assinarProvas([printPath])]);
+    const p = urls.get(printPath);
     if (!v && !p) { showToast('Essa prova já venceu (os vídeos somem em 7 dias).', 'info'); return; }
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';

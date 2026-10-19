@@ -7,7 +7,7 @@
 // BLOCO 1 — QUAIS VÍDEOS
 // BLOCO 2 — AVISO E GUARDAR
 // ─────────────────────────────────────────────────────────────
-import { assinarProvas } from './desafios.js';
+import { urlDaProva } from './desafios.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
 import { driveLembradoConectado, driveConectado, conectarDrive, sincronizarDrive } from './drive-provas.js';
@@ -129,9 +129,9 @@ export async function avisoGuardarVideos(d, checks, uid, { forcar = false } = {}
   // Baixa antes: o Compartilhar do celular só abre logo depois do toque
   let arquivos = [];
   try {
-    const urls = await assinarProvas(lista.map(c => c.video_path));
+    // Do celular se já viu; senão baixa uma vez e fica guardado
     arquivos = (await Promise.all(lista.map(async (c) => {
-      const u = urls.get(c.video_path);
+      const u = await urlDaProva(c.video_path);
       if (!u) return null;
       const blob = await (await fetch(u)).blob();
       const ext = (c.video_path.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];

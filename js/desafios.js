@@ -268,6 +268,8 @@ export async function subirProva(blob, tipo) {
     if (feitas.length) supabase.storage.from('desafio-provas').remove(feitas).catch(() => {});
     throw e;
   }
+  // Quem gravou já tem o vídeo: não precisa baixar de volta pra ver no grupo
+  if (tipo !== 'print') _guardarLocal(caminho, blob).catch(() => {});
   return caminho;
 }
 // Vídeo em partes: baixa todas e junta num só (fica guardado enquanto o app está aberto)
@@ -283,7 +285,9 @@ function _juntar(caminho, urls) {
   p.catch(() => _juntados.delete(caminho));
   return p;
 }
-export async function assinarProvas(caminhos) {
+// baixar:false só confere se ainda existe (não puxa o vídeo em partes): é o
+// que a sala usa pra listar, e o vídeo só desce quando tocam no ▶ (urlDaProva).
+export async function assinarProvas(caminhos, { baixar = true } = {}) {
   const unicos = [...new Set((caminhos || []).filter(Boolean))];
   if (!unicos.length) return new Map();
   const todos = unicos.flatMap(partesDoVideo);
@@ -295,9 +299,65 @@ export async function assinarProvas(caminhos) {
     const partes = partesDoVideo(c);
     if (partes.length === 1) { if (assin.has(c)) res.set(c, assin.get(c)); return; }
     if (!partes.every(p => assin.has(p))) return;
+    if (!baixar) { res.set(c, assin.get(c)); return; }
     try { res.set(c, await _juntar(c, partes.map(p => assin.get(p)))); } catch { /* sem o vídeo */ }
   }));
   return res;
+}
+
+// ─── Vídeo guardado no celular ─────────────────────────────────
+// Cada vídeo de prova desce do servidor UMA vez e fica no cache do navegador
+// (o caminho nunca muda de conteúdo). Antes a sala baixava todos a cada
+// abertura e estourou o tráfego grátis do Supabase (19/10).
+const _CACHE = 'falcon-provas-v1';
+const _MAX_GUARDADOS = 30;
+const _locais = new Map();   // caminho -> blob: URL (enquanto o app está aberto)
+const _baixando = new Map();
+const _chave = (c) => `${location.origin}/__prova/${encodeURIComponent(c)}`;
+
+// Já está no celular? Não usa a internet.
+export async function provaGuardada(caminho) {
+  if (!caminho) return '';
+  if (_locais.has(caminho)) return _locais.get(caminho);
+  try {
+    const r = await (await caches.open(_CACHE)).match(_chave(caminho));
+    if (!r) return '';
+    const u = URL.createObjectURL(await r.blob());
+    _locais.set(caminho, u);
+    return u;
+  } catch { return ''; }
+}
+
+async function _guardarLocal(caminho, blob) {
+  try {
+    const cache = await caches.open(_CACHE);
+    await cache.put(_chave(caminho), new Response(blob, { headers: { 'Content-Type': blob.type || 'video/mp4' } }));
+    const chaves = await cache.keys();   // ordem de entrada: tira os mais antigos
+    for (const k of chaves.slice(0, Math.max(0, chaves.length - _MAX_GUARDADOS))) await cache.delete(k);
+  } catch { /* sem cache (aba anônima): só toca */ }
+  const u = URL.createObjectURL(blob);
+  _locais.set(caminho, u);
+  return u;
+}
+
+// URL pra tocar: do celular se já tem; senão baixa (uma vez) e guarda.
+export function urlDaProva(caminho) {
+  if (!caminho) return Promise.resolve('');
+  if (_baixando.has(caminho)) return _baixando.get(caminho);
+  const p = (async () => {
+    const local = await provaGuardada(caminho);
+    if (local) return local;
+    const partes = partesDoVideo(caminho);
+    const { data, error } = await supabase.storage.from('desafio-provas').createSignedUrls(partes, 60 * 60);
+    if (error) return '';
+    const assin = new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+    if (!partes.every(x => assin.has(x))) return '';
+    const pedacos = await Promise.all(partes.map(async x => { const r = await fetch(assin.get(x)); if (!r.ok) throw new Error('parte'); return r.blob(); }));
+    return _guardarLocal(caminho, new Blob(pedacos, { type: pedacos[0]?.type || 'video/mp4' }));
+  })();
+  _baixando.set(caminho, p);
+  p.finally(() => _baixando.delete(caminho)).catch(() => {});
+  return p;
 }
 // Apaga da MINHA pasta o que não está preso a um check-in que ainda vale
 // (o vídeo fica até 7 dias depois do fim do desafio; o check-in fica pro ranking).
