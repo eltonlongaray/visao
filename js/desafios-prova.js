@@ -115,7 +115,12 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
     const video = ov.querySelector('.ds-rec-fonte');
     const tela = ov.querySelector('.ds-rec-video');
     const ctx = tela.getContext('2d');
-    const podeCanvas = typeof tela.captureStream === 'function';
+    // iPhone/iPad: gravar o canvas (captureStream) trava o Safari e o vídeo sai
+    // congelado. Lá a câmera já vem em pé, então grava a câmera direto.
+    const ehIOS = /iP(hone|ad|od)/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const podeCanvas = typeof tela.captureStream === 'function' && !ehIOS;
+    if (!podeCanvas) ov.classList.add('ds-rec-direto');
     let raf = 0;
     // Câmera em pé: preenche (corta só um pouco). Câmera deitada: mostra
     // inteira no meio, com a própria imagem escurecida atrás (sem zoom).
@@ -192,11 +197,14 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
       try {
         // Sem pedir tamanho: cada aparelho entrega o formato natural dele (pedir
         // 720x1280 fazia alguns Android abrirem a câmera deitada e com zoom)
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: lado }, audio: true });
+        // No iPhone pede 720p (sem pedir, o Safari entrega 640x480); ele já gira pra em pé
+        const v = ehIOS ? { facingMode: lado, width: { ideal: 1280 }, height: { ideal: 720 } } : { facingMode: lado };
+        stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: true });
         video.srcObject = stream;
         await video.play().catch(() => {});
         tela.classList.toggle('espelho', lado === 'user');
-        if (!raf) desenhar();
+        video.classList.toggle('espelho', lado === 'user');
+        if (!raf && podeCanvas) desenhar();
       } catch {
         showToast('Não consegui abrir a câmera. Libera a câmera e o microfone pro Falcon.', 'error');
         fechar();
@@ -228,7 +236,8 @@ export function gravarVideoAoVivo({ titulo = 'Prova do desafio', dica = '', maxS
         play.src = URL.createObjectURL(blob);
         rev.hidden = false;
       };
-      mr.start(500);
+      // No Safari, gravar em pedaços (timeslice) pode estragar o MP4: lá vem tudo no fim
+      if (ehIOS) mr.start(); else mr.start(500);
       tpTexto.scrollTop = 0; tpPos = 0; tpUlt = 0;
       tpAbrir.hidden = true;
       if (!tpRaf) tpRaf = requestAnimationFrame(tpRolar);
