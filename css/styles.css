@@ -2642,6 +2642,10 @@ body.time-picker-open { overflow: hidden; }
 .ds-rec-video { object-fit: contain; }
 .ds-rec-video.espelho { transform: scaleX(-1); }
 .ds-rec-fonte { opacity: 0; pointer-events: none; }
+/* iPhone: mostra a câmera direto (sem o canvas) */
+.ds-rec-direto .ds-rec-video { display: none; }
+.ds-rec-direto .ds-rec-fonte { opacity: 1; object-fit: cover; }
+.ds-rec-fonte.espelho { transform: scaleX(-1); }
 /* Desafios dentro da Comunidade: espaço pro fim não ficar atrás da barra de baixo */
 .ds-embed { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .ds-rec-tempo {
