@@ -358,6 +358,20 @@ function meuFundo() {
   try { src ||= localStorage.getItem(CHAVE_MEU); } catch { /* sem storage */ }
   return src ? { id: 'meu', nome: 'Minha imagem', src, fy: 0.5, alvo: H / 2 } : null;
 }
+// Foto espelhada (o falcão olhando pro outro lado): vale por fundo, pra sempre
+const CHAVE_ESPELHO = 'visao_cartao_espelho';   // { [id do fundo]: true }
+export function espelhado(f) {
+  if (!f?.src) return false;
+  try { return !!JSON.parse(localStorage.getItem(CHAVE_ESPELHO) || '{}')[f.id]; } catch { return false; }
+}
+export function alternarEspelho(f) {
+  if (!f?.src) return false;
+  let m = {};
+  try { m = JSON.parse(localStorage.getItem(CHAVE_ESPELHO) || '{}') || {}; } catch { /* sem storage */ }
+  if (m[f.id]) delete m[f.id]; else m[f.id] = true;
+  try { localStorage.setItem(CHAVE_ESPELHO, JSON.stringify(m)); } catch { /* sem storage */ }
+  return !!m[f.id];
+}
 const fundoPorId = (id) => id === TRANSPARENTE.id ? TRANSPARENTE : id === 'meu' ? meuFundo() : FUNDOS.find(f => f.id === id);
 // Miniatura pra grade de escolha (a da pessoa usa a própria imagem)
 export const miniDoFundo = (f) => !f?.src ? null : f.src.startsWith('data:') ? f.src : f.src.replace('cartao-fundos/', 'cartao-fundos/mini/');
@@ -442,7 +456,10 @@ async function desenharFundo(ctx, fundo) {
   if (!img) { desenharCenario(ctx); return { vidro: 0.6 }; }   // sem foto (offline/erro): cenário desenhado
   const e = Math.max(W / img.width, H / img.height) * (fundo.z || 1), w = img.width * e, h = img.height * e;
   const y0 = Math.min(0, Math.max(H - h, (fundo.alvo || 0) - (fundo.fy || 0) * h));
+  const espelho = espelhado(fundo);
+  if (espelho) { ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); }
   ctx.drawImage(img, (W - w) / 2, y0, w, h);
+  if (espelho) ctx.restore();
   // Véu escuro em cima e embaixo, mais forte quanto mais clara a foto ali:
   // rótulo e marca leem bem em qualquer foto (pedido do Élton, 08/10)
   const luz = claridade(ctx.canvas);
@@ -572,7 +589,7 @@ export async function abrirCartaoDoDia(aoFechar = null) {
       <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
-        <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente">⋯</button>
+        <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente, espelhar foto">⋯</button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
     </div>`;
@@ -586,7 +603,12 @@ export async function abrirCartaoDoDia(aoFechar = null) {
   mostrar(cv);
   nomeFundo.textContent += ' · arraste pro lado pra trocar';
   document.body.appendChild(ov);
-  const fechar = trapModalBack(() => { ov.remove(); aoFechar?.(); });
+  // Botões com a mesma largura do cartão: o ⋯ fica bem no meio dele
+  const quadro = ov.querySelector('.cartao-dia-quadro'), btns = ov.querySelector('.cartao-dia-btns');
+  const alinhar = () => { const w = quadro.getBoundingClientRect().width; if (w) btns.style.width = `${Math.round(w)}px`; };
+  const ro = window.ResizeObserver ? new ResizeObserver(alinhar) : null;
+  ro?.observe(quadro); alinhar();
+  const fechar = trapModalBack(() => { ro?.disconnect(); ov.remove(); aoFechar?.(); });
   ov.querySelector('[data-fechar]').onclick = () => fechar();
   // Troca só o fundo: setas ‹ › nas laterais ou arrastar o cartão pro lado.
   let trocando = false;
@@ -638,6 +660,7 @@ function abrirEscolhaFundo(atual, aoEscolher) {
         <button data-importar>📥 Importar imagem</button>
         <button data-id="transparente"${atual.transparente ? ' class="atual"' : ''}>◻️ Transparente</button>
         <button data-id="">🎲 Sorteio do dia</button>
+        <button data-espelhar${atual.src ? '' : ' disabled'}${espelhado(atual) ? ' class="atual"' : ''}>↔️ Espelhar foto</button>
       </div>
       <input type="file" accept="image/*" hidden data-arquivo>
       <div class="cartao-fundos-grade">${[...(meu ? [meu] : []), ...FUNDOS].map(item).join('')}</div>
@@ -649,6 +672,8 @@ function abrirEscolhaFundo(atual, aoEscolher) {
   ov.querySelectorAll('[data-id]').forEach(b => {
     b.onclick = () => { const f = escolherFundo(b.dataset.id); fechar(); aoEscolher(f); };
   });
+  // Espelhar: vira a foto atual de lado (o falcão olha pro outro lado)
+  ov.querySelector('[data-espelhar]').onclick = () => { alternarEspelho(atual); fechar(); aoEscolher(atual); };
   const arq = ov.querySelector('[data-arquivo]');
   ov.querySelector('[data-importar]').onclick = () => arq.click();
   arq.onchange = async () => {

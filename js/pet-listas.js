@@ -26,7 +26,7 @@ const VAZIAS = new Set(('a o as os um uma uns umas de do da dos das no na nos na
   'deleta deletar troca trocar muda mudar edita editar corrige corrigir renomeia renomear ' +
   'adiciona adicionar coloca colocar bota botar poe por inclui incluir anota anotar acrescenta ' +
   'acrescentar add ja nao mais pet falcon favor pfv ai aqui la ok concluido concluida comprei ' +
-  'fiz resolvi terminei acabei pronto pronta caixa ferramentas dar hoje agora').split(' '));
+  'fiz resolvi terminei acabei pronto pronta caixa ferramentas dar hoje agora objetivo objetivos prioridade prioridades estrela').split(' '));
 
 function palavras(s) {
   return norm(s).split(' ').filter(p => p && !VAZIAS.has(p));
@@ -38,10 +38,19 @@ function palavras(s) {
 // Frase "de lista": fala em lista/check/caixa de ferramentas. Sem isso, só
 // entra se nomear uma lista da pessoa E não tiver data/hora (ver acharAlvo):
 // "marca academia amanhã às 7" é agenda, não a lista Academia.
-export const DICA_LISTA = /\blistas?\b|\bcheck\b|caixa de ferramentas|\bcomo (feit[oa]|conclu[ií]d[oa])\b|\bdesmarc/i;
+// "Objetivos" é o nome novo da tela das listas (Élton, 21/10); "metas" é o Desempenho.
+export const DICA_LISTA = /\blistas?\b|\bobjetivos\b|\bprioridades?\b|\bcheck\b|caixa de ferramentas|\bcomo (feit[oa]|conclu[ií]d[oa])\b|\bdesmarc/i;
 
 export function detectarAcao(text) {
   const t = norm(text);
+  // ⭐ "marca o cimento como prioridade", "tira o leite das prioridades", "quais minhas prioridades"
+  if (/\bprioridades?\b/.test(t)) {
+    if (/\b(tira|tirar|remove|remover|desmarca|desmarcar|nao e mais|deixa de ser)\b/.test(t)) return 'desprioridade';
+    if (/\b(marca|marcar|marque|coloca|colocar|bota|botar|poe|deixa|torna|vira|virar|adiciona|adicionar|e)\b/.test(t) && !/^(quais|qual|mostra|me mostra|ver|lista|o que)\b/.test(t)) return 'prioridade';
+    return 'ver_prioridades';
+  }
+  // "soma o valor do que preciso comprar", "quanto vou gastar no mercado"
+  if (/\b(soma|somar|some|somando|total|valor|valores|quanto (vou gastar|gasto|da|custa|fica|sai))\b/.test(t) && !/\b(adiciona|coloca|bota|marca|apaga|remove|troca)\w*\b/.test(t)) return 'somar';
   if (/\b(cria|criar|crie|nova|novo|faz|faca|monta|montar|abre|abrir)\b.*\blista\b/.test(t)) return 'criar';
   if (/\b(desmarca|desmarcar|desmarque|tira o check|tirar o check|volta|voltar|reabre|nao (fiz|comprei|resolvi)|como (nao feit[oa]|pendente))\b/.test(t)) return 'desmarcar';
   // "remove leite como feito da lista": verbo de apagar vale antes do "como

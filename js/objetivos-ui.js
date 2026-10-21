@@ -38,7 +38,7 @@ export async function abrirObjetivos() {
     <div class="modal ag-modal"><div class="ag-corpo">
       <div class="ag-header">
         <button class="fr-voltar" id="obj-back" type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
-        <div class="ag-title">🎯 Meus Objetivos</div>
+        <div class="ag-title">🏁 Minhas Metas</div>
       </div>
       <div class="ag-scroll">
         <button class="fr-hubcard obj-ideal-card" id="obj-ideal-abrir" type="button">

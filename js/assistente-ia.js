@@ -42,15 +42,16 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
   limparFeitos, renomearSecao, apagarSecao, criarGrupo, apagarGrupo, renomearGrupo,
+  valorDoItem, reais, marcarPrioridade,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261009f';
+import * as PL from './pet-listas.js?v=20261021a';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261014k';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261009g';
-import * as PDS from './pet-desempenho.js?v=20261009a';
+import * as PDS from './pet-desempenho.js?v=20261021a';
 import * as PI from './pet-ideal.js?v=20261009f';
 import * as PDF from './pet-desafios.js?v=20261012e';
 import * as PNG from './pet-negocio.js?v=20261015a';
@@ -1104,9 +1105,21 @@ async function routeCommand(text) {
   const rContas = await tentarContasLote(text);
   if (rContas !== undefined) return rContas;
 
+  // "espelha a foto do cartão", "inverte o falcão pro outro lado": vira a foto de hoje
+  if (/\b(espelh\w*|invert\w*|vir[ae]r?)\b/i.test(text) && /\b(cart(?:ao|ão)|fundo|falc(?:ao|ão))\b/i.test(text) && !/\b(lista|ordem|tarefa|atividade)\b/i.test(text)) {
+    const m = await import('./cartoes-dia.js?v=20261021a').catch(() => null);
+    if (m) {
+      const f = m.fundoDoDia();
+      if (!f?.src) return 'Esse fundo não é foto, então não tem como espelhar 😉 Troca o fundo (<em>"troca o fundo do cartão"</em>) e me pede de novo.';
+      const ligado = m.alternarEspelho(f);
+      m.abrirCartaoDoDia();
+      return ligado ? `↔️ Espelhei a foto <strong>${_esc(f.nome)}</strong>. Pra voltar, é só pedir de novo ou tocar em <strong>⋯</strong> › Espelhar foto.`
+        : `↔️ A foto <strong>${_esc(f.nome)}</strong> voltou pro lado original.`;
+    }
+  }
   // "troca o fundo do cartão", "fundo do cartão com a lua": muda o fundo e abre
   if (/\bfundo\b/i.test(text) && /\bcart(?:ao|ão)\b/i.test(text)) {
-    const m = await import('./cartoes-dia.js?v=20261008l').catch(() => null);
+    const m = await import('./cartoes-dia.js?v=20261021a').catch(() => null);
     if (m) {
       const pedido = m.acharFundo(text);
       const f = pedido ? m.escolherFundo(pedido.id) : m.proximoFundo();
@@ -1120,7 +1133,7 @@ async function routeCommand(text) {
   }
   // "cartão do dia" junto: "Cartão Nubank - dia 12" é conta, não o cartão
   if (/\bcart(?:ao|ão|oes|ões)\s+(?:do|de)\s+(?:dia|hoje)\b|princ[ií]pio (?:do dia|de hoje)/i.test(text)) {
-    import('./cartoes-dia.js?v=20261008l').then(m => m.abrirCartaoDoDia()).catch(() => {});
+    import('./cartoes-dia.js?v=20261021a').then(m => m.abrirCartaoDoDia()).catch(() => {});
     return /compartilh|manda|envia|posta|status|insta/i.test(text)
       ? 'Abri teu cartão do dia 🃏 Toca em <strong>📤 Compartilhar</strong> pra mandar no WhatsApp, Instagram ou onde quiser.'
       : 'Aqui teu cartão do dia 🃏';
@@ -3090,6 +3103,8 @@ async function tentarLista(text) {
   const acao = PL.detectarAcao(text);
   if (!acao) return undefined;
   const dica = PL.DICA_LISTA.test(text);
+  if (acao === 'somar') return listaSomar(text, dica);
+  if (acao === 'ver_prioridades' || acao === 'prioridade' || acao === 'desprioridade') return listaPrioridade(text, acao);
   // "fiz a academia", "marca academia como feita": se bate numa atividade de
   // hoje, marca ela (em vez de registrar outra igual). Vale mesmo com "hoje"
   // na frase; "marca academia amanhã" (sem fiz/feito/check) segue pra agenda.
@@ -3230,6 +3245,63 @@ function listaEstruturaEm(est, alvo, arvore) {
 }
 
 const _itemLinha = (it) => `${it.feito ? '✅' : '⬜'} ${_esc(it.texto)}`;
+
+// ⭐ Prioridades: ver a ordem, marcar ou tirar um item (com card)
+async function listaPrioridade(text, acao) {
+  let arvore;
+  try { arvore = await arvoreListas(); }
+  catch (err) { console.warn('[pet-listas]', err); return 'Não consegui abrir teus objetivos agora. Tenta de novo daqui a pouco.'; }
+  const todas = PL.todosItens(arvore).filter(x => x.item.prioridade != null).sort((a, b) => a.item.prioridade - b.item.prioridade);
+  if (acao === 'ver_prioridades') {
+    const pend = todas.filter(x => !x.item.feito);
+    if (!pend.length) return 'Tu ainda não tem prioridades ⭐ Me fala <em>"marca o cimento como prioridade"</em> ou toca na ☆ do item nos Objetivos.';
+    return '⭐ <strong>Tuas prioridades</strong><br>' + pend.map((x, i) => `${i + 1}. ${_esc(x.item.texto)} <small>(${_esc(PL.ondeTexto(x.grupo, x.secao))})</small>`).join('<br>') +
+      '<br><small>Pra mudar a ordem: Caixa de Ferramentas › ⭐ Prioridades, segura o ⠿ e arrasta.</small>';
+  }
+  const ligar = acao === 'prioridade';
+  const alvo = PL.acharAlvo(arvore, text);
+  const base = ligar ? arvore : arvore.map(g => ({ ...g, soltos: g.soltos.filter(i => i.prioridade != null), secoes: g.secoes.map(s => ({ ...s, itens: s.itens.filter(i => i.prioridade != null) })) }));
+  const achados = PL.acharItens(base, text, alvo, ligar ? 'pendentes' : null);
+  if (!achados.length) return ligar ? 'Não achei esse item nos teus Objetivos 🤔 Me diz o nome como tá na lista.' : 'Esse item não tá nas tuas prioridades 🤔';
+  const fazer = (x) => {
+    cardConfirmarLista(ligar ? `⭐ Marcar <strong>${_esc(x.item.texto)}</strong> como prioridade?` : `Tirar <strong>${_esc(x.item.texto)}</strong> das prioridades?`,
+      async () => { await marcarPrioridade(x.item.id, ligar); return ligar ? '⭐ Foi pras Prioridades. Lá tu arrasta pra pôr no topo o que é mais importante.' : 'Tirei das prioridades 👍'; });
+    return null;
+  };
+  if (achados.length === 1) return fazer(achados[0]);
+  addChoices('Qual deles?', achados.slice(0, 6).map(x => ({ label: x.item.texto.slice(0, 60), action: () => fazer(x) })));
+  return null;
+}
+
+// Soma os preços escritos nos itens que faltam ("leite R$ 6", "2x R$ 4,50").
+// Sem lista citada: todas. Mostra o total por lista e o que ficou sem preço.
+async function listaSomar(text, dica) {
+  let arvore;
+  try { arvore = await arvoreListas(); }
+  catch (err) { console.warn('[pet-listas]', err); return dica ? 'Não consegui abrir teus objetivos agora. Tenta de novo daqui a pouco.' : undefined; }
+  const alvo = PL.acharAlvo(arvore, text);
+  const temAlvo = !!(alvo.grupo || alvo.candidatos.length);
+  if (!dica && !temAlvo && !/\b(compr\w*|gast\w*|mercado)\b/i.test(text)) return undefined;
+  const lugares = alvo.grupo ? [{ grupo: alvo.grupo, secao: alvo.secao }] : alvo.candidatos.length ? alvo.candidatos : null;
+  const itens = (lugares ? lugares.flatMap(l => PL.todosItens(arvore, l)) : PL.todosItens(arvore)).filter(x => !x.item.feito);
+  if (alvo.grupo) lembrarLista(alvo.grupo, alvo.secao);
+  if (!itens.length) return 'Não tem nada pendente aí pra somar 👍';
+  const comPreco = itens.map(x => ({ ...x, valor: valorDoItem(x.item.texto) })).filter(x => x.valor);
+  const semPreco = itens.filter(x => !valorDoItem(x.item.texto));
+  const dica2 = 'Pra eu somar, escreve o preço no item, tipo <em>leite R$ 6</em> ou <em>2x R$ 4,50 pão</em>. Dá pra editar na tela ou me falar: <em>troca leite por leite R$ 6</em>.';
+  if (!comPreco.length) return `Nenhum dos ${itens.length} itens pendentes tem preço ainda 🤔<br>${dica2}`;
+  const porLista = new Map();
+  for (const x of comPreco) {
+    const k = PL.ondeTexto(x.grupo, x.secao);
+    porLista.set(k, (porLista.get(k) || 0) + x.valor);
+  }
+  const total = comPreco.reduce((n, x) => n + x.valor, 0);
+  const linhas = [...porLista].map(([k, v]) => `• ${_esc(k)}: <strong>${reais(v)}</strong>`);
+  const nomesSem = semPreco.slice(0, 8).map(x => _esc(x.item.texto)).join(', ') + (semPreco.length > 8 ? '…' : '');
+  return `💰 Total do que falta: <strong>${reais(total)}</strong> (${comPreco.length} ${comPreco.length === 1 ? 'item' : 'itens'} com preço)` +
+    (linhas.length > 1 ? `<br>${linhas.join('<br>')}` : '') +
+    (semPreco.length ? `<br><br>⚠️ ${semPreco.length === 1 ? '1 item ficou' : `${semPreco.length} itens ficaram`} de fora por não ter preço: ${nomesSem}.<br>${dica2}` : '');
+}
 
 function listaVer(arvore, alvo) {
   if (alvo.grupo) lembrarLista(alvo.grupo, alvo.secao);
@@ -3551,7 +3623,7 @@ async function prepararCheckin() {
   if (_checkinRodou || !String(getLang()).startsWith('pt')) return;
   _checkinRodou = true;
   try {
-    _CK = await import('./pet-checkin.js?v=20261012d');
+    _CK = await import('./pet-checkin.js?v=20261021a');
     const agora = Date.now();
     const ontem = new Date(agora - 86400000);
     const [prof, dias] = await Promise.all([
@@ -3603,7 +3675,8 @@ async function _notaAindaFalta(p) {
     const temSono = !!dia?.sleepTime;
     if (temNota) p.dados = { ...p.dados, semNota: false };
     if (temSono) p.dados = { ...p.dados, semSono: false };
-    return !!(p.dados.semNota || p.dados.semSono);
+    if (dia?.wakeTime) p.dados = { ...p.dados, semAcordar: false };
+    return !!(p.dados.semNota || p.dados.semSono || p.dados.semAcordar);
   } catch { return true; }
 }
 
@@ -3661,6 +3734,28 @@ function checklistOntem(p) {
       atualizarFim();
     });
     lista.appendChild(btn);
+  }
+  // Fiz todas: marca o que falta de uma vez e fecha
+  if (itens.length > 1) {
+    const todas = document.createElement('button');
+    todas.className = 'pet-choice-btn';
+    todas.textContent = '✅ Fiz todas';
+    todas.addEventListener('click', async () => {
+      if (todas.disabled) return;
+      div.querySelectorAll('.pet-choice-btn').forEach(x => { x.disabled = true; });
+      let erro = false;
+      for (const b of itens) {
+        if (feitos.has(b.valor)) continue;
+        try { await updateDayTask(p.ontemId, b.valor, { done: true }); feitos.add(b.valor); }
+        catch (_) { erro = true; }
+      }
+      div.querySelectorAll('.pet-choice-btn').forEach(x => x.classList.add('pet-choice-used'));
+      todas.classList.add('pet-choice-selected');
+      addMessage(erro ? 'Marquei o que deu, mas algumas não salvaram. Tenta de novo daqui a pouco.'
+        : `✅ Marquei as ${feitos.size} coisas de ontem como feito. Mandou bem 💪`, 'bot');
+      proximoAssunto();
+    });
+    lista.appendChild(todas);
   }
   fim = document.createElement('button');
   fim.className = 'pet-choice-btn';
@@ -4251,7 +4346,17 @@ function perguntarMelhorar(d) {
   return perguntar('nota_melhorar', `E quais medidas tu vai tomar pra fazer melhor ${quando}?`, [PULAR], d,
     `O que tu vai fazer diferente ${quando}?`);
 }
+// Hora de acordar daquele dia (Élton, 21/10: o check-in não perguntava)
+async function perguntarAcordar(d) {
+  d.acordouFeito = true;
+  const prof = await getProfile().catch(() => null);
+  d.padraoAcordar = String(prof?.defaultWakeTime || '').slice(0, 5);
+  return perguntar('nota_acordar', `Que horas tu acordou ${qualDia(d)}?`,
+    [...(d.padraoAcordar ? [BT('padrao', `☀️ No horário de sempre (${d.padraoAcordar})`)] : []), PULAR], d,
+    `Que horas tu acordou ${qualDia(d)}?`);
+}
 async function perguntarSono(d) {
+  if (d.semAcordar && !d.acordouFeito && !d.acordou) return perguntarAcordar(d);
   if (!d.semSono || d.dormiu) return perguntarExtra(d);
   const prof = await getProfile().catch(() => null);
   d.padrao = prof?.defaultSleepTime || '';
@@ -4279,6 +4384,7 @@ function mostrarCardNota(d) {
   const linhas = [];
   if (d.prideFail) linhas.push(`🏆 <strong>Orgulho e falha:</strong> ${_esc(d.prideFail)}`);
   if (d.improve) linhas.push(`🎯 <strong>Melhorar:</strong> ${_esc(d.improve)}`);
+  if (d.acordou) linhas.push(`☀️ <strong>Acordou:</strong> ${d.acordou}`);
   if (d.dormiu) linhas.push(`🌙 <strong>Dormiu:</strong> ${d.dormiu}`);
   if (d.cochiloMin != null) linhas.push(`☀️ <strong>Cochilo de dia:</strong> ${PNT.fmtMin(d.cochiloMin)}`);
   if (d.madrugadaMin != null) linhas.push(`🌌 <strong>Acordado de madrugada:</strong> ${PNT.fmtMin(d.madrugadaMin)}`);
@@ -4301,6 +4407,7 @@ async function salvarNotaOntem(d) {
     patch.dayNote = nota;
   }
   if (d.dormiu) patch.sleepTime = d.dormiu;
+  if (d.acordou) patch.wakeTime = d.acordou;
   await setDayMeta(d.diaId, patch);
 }
 
@@ -4337,6 +4444,23 @@ Object.assign(PASSOS, {
     return perguntarSono(d);
   },
 
+  async nota_acordar({ id, texto }, d) {
+    if (id === 'pular') return perguntarSono(d);
+    if (id === 'padrao') { d.acordou = d.padraoAcordar; return perguntarSono(d); }
+    if (!texto.trim() || ehPedido(texto)) return undefined;
+    if (!id && /\b(de sempre|horario de sempre|mesmo horario|normal)\b/.test(PC.norm(texto)) && d.padraoAcordar) { d.acordou = d.padraoAcordar; return perguntarSono(d); }
+    // "7 e meia" → 7:30 (o extractTime leria só o 7)
+    const fala = texto.replace(/(\d{1,2})\s*(?:h|horas?)?\s*e\s*meia\b/i, '$1:30');
+    let h = extractTime(fala);
+    if (!h) {
+      const m = PC.norm(fala).match(/^\D*(\d{1,2})(?:\s*[:h]\s*(\d{2}))?\b/);
+      if (m && Number(m[1]) < 24 && Number(m[2] || 0) < 60) h = `${m[1].padStart(2, '0')}:${String(m[2] || '00').padStart(2, '0')}`;
+    }
+    if (!h) return undefined;
+    d.acordou = h;
+    return perguntarSono(d);
+  },
+
   async nota_sono({ id, texto }, d) {
     if (id === 'pular') return perguntarExtra(d);
     if (id === 'padrao') { d.dormiu = d.padrao; return perguntarExtra(d); }
@@ -4368,7 +4492,7 @@ Object.assign(PASSOS, {
   async nota_confirmar({ id, texto }, d) {
     const sn = id ? (id === 'salvar') : PC.simNao(texto);
     if (id === 'refazer' || (!id && /\b(refaz\w*|corrig\w*|muda\w*|errado)\b/.test(PC.norm(texto)))) {
-      for (const k of ['prideFail', 'improve', 'dormiu', 'cochiloMin', 'madrugadaMin', 'textoFeito']) delete d[k];
+      for (const k of ['prideFail', 'improve', 'dormiu', 'cochiloMin', 'madrugadaMin', 'textoFeito', 'acordou', 'acordouFeito']) delete d[k];
       return d.semNota ? perguntarOrgulho(d) : perguntarSono(d);
     }
     if (id === 'cancelar' || sn === false) return encerrarConversa('Beleza, não salvei nada 👍');
@@ -6245,9 +6369,9 @@ async function desempenhoObjetivo(o) {
   const alvoTxt = (x) => `${x.vezes}× ${perNome(x.periodo)}${Number(x.vezesDia) > 1 ? ` (${x.vezesDia}× no dia)` : ''}`;
   const achar = (nome) => { const n = _limpoTxt(nome); return lista.find(x => _limpoTxt(x.atividadeNome || x.nome) === n) || lista.find(x => _limpoTxt(x.atividadeNome || x.nome).includes(n) || n.includes(_limpoTxt(x.atividadeNome || x.nome))); };
   if (o.tipo === 'ver') {
-    if (!lista.length) return 'Tu ainda não tem objetivos. Cria um assim: <em>"cria um objetivo de academia 4 vezes por semana"</em>.';
+    if (!lista.length) return 'Tu ainda não tem metas. Cria uma assim: <em>"cria uma meta de academia 4 vezes por semana"</em>.';
     const [prog, cons] = await Promise.all([OBJ.progressoDosObjetivos(lista), OBJ.constanciaDosObjetivos(lista).catch(() => new Map())]);
-    return `🎯 <b>Teus objetivos</b><br>` + lista.map(x => {
+    return `🏁 <b>Tuas metas</b><br>` + lista.map(x => {
       const p = prog.get(x.id) || { feitos: 0, alvo: x.vezes, pct: 0 };
       const k = cons.get(x.id)?.texto;
       return `• <b>${_esc(x.atividadeNome || x.nome)}</b>: ${p.feitos} de ${p.alvo} ${x.periodo === 'mes' ? 'no mês' : 'na semana'} ${p.cumprido ? '✅' : _pctBarra(p.pct)}${k ? ` · ${k}` : ''}`;
@@ -6255,19 +6379,19 @@ async function desempenhoObjetivo(o) {
   }
   if (o.tipo === 'apagar') {
     const x = achar(o.nome);
-    if (!x) return `🤔 Não achei objetivo de <b>${_esc(o.nome)}</b>.${lista.length ? ` Teus objetivos: ${lista.map(y => _esc(y.atividadeNome || y.nome)).join(', ')}.` : ''}`;
-    cardConfirmarLista(`🗑️ Apagar o objetivo <b>${_esc(x.atividadeNome || x.nome)}</b> (${alvoTxt(x)})?`, async () => {
-      await OBJ.removerObjetivo(x.id); _redesenharTela(); return '✅ Objetivo apagado.';
+    if (!x) return `🤔 Não achei meta de <b>${_esc(o.nome)}</b>.${lista.length ? ` Tuas metas: ${lista.map(y => _esc(y.atividadeNome || y.nome)).join(', ')}.` : ''}`;
+    cardConfirmarLista(`🗑️ Apagar a meta <b>${_esc(x.atividadeNome || x.nome)}</b> (${alvoTxt(x)})?`, async () => {
+      await OBJ.removerObjetivo(x.id); _redesenharTela(); return '✅ Meta apagada.';
     }, null);
     return null;
   }
-  if (!o.nome) return 'De qual atividade é o objetivo? Ex.: <em>"cria um objetivo de academia 4 vezes por semana"</em>.';
+  if (!o.nome) return 'De qual atividade é a meta? Ex.: <em>"cria uma meta de academia 4 vezes por semana"</em>.';
   if (o.tipo === 'mudar' || (o.tipo === 'criar' && achar(o.nome))) {
     const x = achar(o.nome);
-    if (!x) return `🤔 Não achei objetivo de <b>${_esc(o.nome)}</b>. Pra criar: <em>"cria um objetivo de ${_esc(o.nome)} ${o.vezes} vezes ${perNome(o.periodo)}"</em>.`;
+    if (!x) return `🤔 Não achei meta de <b>${_esc(o.nome)}</b>. Pra criar: <em>"cria uma meta de ${_esc(o.nome)} ${o.vezes} vezes ${perNome(o.periodo)}"</em>.`;
     const novo = { ...x, vezes: o.vezes, periodo: o.periodo, vezesDia: o.vezesDia };
-    cardConfirmarLista(`✏️ Objetivo <b>${_esc(x.atividadeNome || x.nome)}</b>: ${alvoTxt(x)} → <b>${alvoTxt(novo)}</b>?`, async () => {
-      await OBJ.salvarObjetivo(novo); _redesenharTela(); return '✅ Objetivo atualizado.';
+    cardConfirmarLista(`✏️ Meta <b>${_esc(x.atividadeNome || x.nome)}</b>: ${alvoTxt(x)} → <b>${alvoTxt(novo)}</b>?`, async () => {
+      await OBJ.salvarObjetivo(novo); _redesenharTela(); return '✅ Meta atualizada.';
     }, null);
     return null;
   }
@@ -6276,7 +6400,7 @@ async function desempenhoObjetivo(o) {
   const cat = PCF.acharAtividade(cats, o.nome);
   const nome = cat ? cat.name : o.nome.charAt(0).toUpperCase() + o.nome.slice(1);
   const novo = { nome, atividadeNome: nome, vezes: o.vezes, vezesDia: o.vezesDia, periodo: o.periodo, origem: 'ritual' };
-  cardConfirmarLista(`🎯 Novo objetivo: <b>${_esc(nome)}</b> ${alvoTxt(novo)}${cat ? '' : `<br><small>A atividade "${_esc(nome)}" ainda não existe, eu crio ela junto.</small>`}`, async () => {
+  cardConfirmarLista(`🏁 Nova meta: <b>${_esc(nome)}</b> ${alvoTxt(novo)}${cat ? '' : `<br><small>A atividade "${_esc(nome)}" ainda não existe, eu crio ela junto.</small>`}`, async () => {
     let atividadeId = cat?.id;
     if (!atividadeId) {
       const order = cats.length ? Math.max(...cats.map(x => x.order || 0)) + 1 : 1;
@@ -6284,7 +6408,7 @@ async function desempenhoObjetivo(o) {
     }
     await OBJ.salvarObjetivo({ ...novo, atividadeId });
     _redesenharTela();
-    return '✅ Objetivo criado. A contagem vem sozinha das tarefas feitas no Ritual.';
+    return '✅ Meta criada. A contagem vem sozinha das tarefas feitas no Ritual.';
   }, null);
   return null;
 }

@@ -387,11 +387,12 @@ export default {
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>fiz a Academia</em> · <em>marca Hidratação como feita</em> · <em>desmarca a FIAP</em> (atividades de hoje)</li>
 </ul>
-<strong>Listas (Caixa de Ferramentas)</strong>
+<strong>Objetivos (Caixa de Ferramentas)</strong>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">
   <li><em>adiciona leite na lista do Mercado</em> · <em>marca arroz como feito</em></li>
   <li><em>troca arroz por arroz integral</em> · <em>apaga o detergente da lista</em></li>
   <li><em>cria uma lista de Viagem no Pessoal</em> · <em>o que tem na lista do Mercado</em></li>
+  <li><em>soma o valor do que preciso comprar</em> (escreve o preço no item: <em>leite R$ 6</em>)</li>
 </ul>
 <strong>Preparo Físico</strong>
 <ul style="margin:2px 0 6px 0;padding-left:18px;line-height:1.9">

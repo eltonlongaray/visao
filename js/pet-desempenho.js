@@ -92,10 +92,14 @@ export function lerReflexao(texto) {
 export function lerObjetivo(texto) {
   const bruto = semPedido(texto).replace(/[?!.]+$/, '').trim();
   const t = semAcento(bruto);
-  if (!/\bobjetivos?\b/.test(t)) return null;
+  // "Metas" é o nome da tela agora (Élton, 21/10); "objetivo" ainda vale.
+  // "Objetivos" sozinho é a tela das listas (pet-listas.js).
+  if (!/\b(objetivos?|metas?)\b/.test(t)) return null;
   if (/\b(treino|hipertrofia|volume|emagrec\w*|forca|definicao)\b/.test(t)) return null;   // objetivo do treino (Preparo)
+  if (/\bmeta d[ae] (agua|hidrat\w*)\b/.test(t)) return null;                              // meta de água
   if (/^(apaga|apague|apagar|exclui|exclua|excluir|deleta|remove|remova|remover|tira)\b/.test(t)) {
-    const m = bruto.match(/objetivos?\s+(?:d[aoe]s?\s+|de\s+)?(.+)$/i);
+    if (/\blistas?\b/.test(t)) return null;
+    const m = bruto.match(/(?:objetivos?|metas?)\s+(?:d[aoe]s?\s+|de\s+)?(.+)$/i);
     return m ? { tipo: 'apagar', nome: m[1].trim() } : null;
   }
   // Alvo: "4 vezes por semana", "20x por mês", "3 vezes ao dia, 5 dias por semana"
@@ -104,13 +108,15 @@ export function lerObjetivo(texto) {
   const vezes = alvo ? numero(alvo[1]) : null;
   if (vezes) {
     const mudar = /\b(muda|mudar|troca|trocar|altera|alterar|ajusta|ajustar|aumenta|diminui|passa)\w*\b/.test(t);
-    // Nome: entre "objetivo de/da/pra" e o número
-    const m = bruto.match(/objetivos?\s*:?\s+(?:novo\s+)?(?:d[aoe]s?\s+|de\s+|pra\s+|para\s+|com\s+)?(?:a\s+atividade\s+)?(.+?)\s*(?:,|:|\bpra\b|\bpara\b|\bde\b)?\s*(?:\d{1,2}|\w+)\s*(?:x|vezes?|dias?)\s*(?:por|na|no|ao|a cada)\s+(?:semana|m[eê]s)/i);
+    // Nome: entre "objetivo/meta de/da/pra" e o número
+    const m = bruto.match(/(?:objetivos?|metas?)\s*:?\s+(?:novo\s+|nova\s+)?(?:d[aoe]s?\s+|de\s+|pra\s+|para\s+|com\s+)?(?:a\s+atividade\s+)?(.+?)\s*(?:,|:|\bpra\b|\bpara\b|\bde\b)?\s*(?:\d{1,2}|\w+)\s*(?:x|vezes?|dias?)\s*(?:por|na|no|ao|a cada)\s+(?:semana|m[eê]s)/i);
     let nome = m ? m[1].replace(/\s+(?:pra|para|de|com)$/i, '').replace(/\s+\d+\s*(?:x|vezes?)\s*(?:por|ao|no)\s+dia$/i, '').trim() : '';
-    if (!nome) { const m2 = bruto.match(/(?:atividade|objetivo)\s+(?:d[aoe]\s+)?([\p{L} ]+?)\s*$/iu); nome = m2 ? m2[1].trim() : ''; }
+    if (!nome) { const m2 = bruto.match(/(?:atividade|objetivo|meta)\s+(?:d[aoe]\s+)?([\p{L} ]+?)\s*$/iu); nome = m2 ? m2[1].trim() : ''; }
     return { tipo: mudar ? 'mudar' : 'criar', nome, vezes, periodo: alvo[2] === 'mes' ? 'mes' : 'semana', vezesDia: porDia ? (numero(porDia[1]) || 1) : 1 };
   }
-  if (/\b(meus objetivos|os objetivos|objetivos|como (ta|esta|anda)\w* (o|meu) objetivo|progresso)\b/.test(t)
+  // Ver: "minhas metas", "como tá a meta da academia", "progresso". "Meus
+  // objetivos" (plural) agora é a tela das listas e não entra aqui.
+  if (/\b(metas|meta de constancia|como (ta|esta|anda)\w* (a|minha) meta|como (ta|esta|anda)\w* (o|meu) objetivo|progresso)\b/.test(t)
       && !/\b(cria|criar|novo|nova|muda|troca)\b/.test(t)) return { tipo: 'ver' };
   return null;
 }

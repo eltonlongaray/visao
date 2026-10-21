@@ -49,7 +49,7 @@ const CAMPOS = {
   desempenho: ['geral', 'atividade', 'recorde', 'sono', 'reflexao_ver', 'reflexao_anotar', 'objetivos_ver', 'objetivo_criar', 'objetivo_mudar', 'objetivo_apagar'],
   desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'doente', 'convidar', 'grupo', 'relatorio', 'nova_rodada'],
   ideal: ['ver', 'marcar', 'desmarcar', 'atividade', 'constancia'],
-  lista_organizar: ['limpar_feitos', 'renomear', 'apagar', 'criar_grupo'],
+  lista_organizar: ['limpar_feitos', 'renomear', 'apagar', 'criar_grupo', 'somar', 'prioridade_marcar', 'prioridade_tirar', 'prioridades_ver'],
   nota: ['orgulho', 'melhorar', 'apagar', 'preencher'],
   notas_periodo: ['falhas', 'melhorias', 'tudo'],
   sono: ['acordei', 'dormi', 'cochilo', 'madrugada'],
@@ -74,7 +74,7 @@ const HORA_FALADA = new RegExp(`\\d{1,2}\\s*(h\\b|h\\d|:\\d|horas?\\b)|\\bas\\s+
 const USA = {
   hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar', 'atendimento'],
   numero: ['agua', 'sono', 'desempenho', 'ideal', 'desafio', 'treino_frequencia', 'notas_periodo'],
-  itens: ['lista_adicionar', 'lista_marcar', 'ideal', 'desafio', 'contas_pagar', 'rifa'],
+  itens: ['lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'desafio', 'contas_pagar', 'rifa'],
   lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar'],
   para: ['remarcar', 'cancelar', 'reativar'],
 };
@@ -86,6 +86,23 @@ function corrigirRota(out, texto) {
   const lista = /\blistas?\b/.test(t) && !/\blista de atividades\b/.test(t);
   if (/\b(idioma|lingua|notifica\w*|excluir minha conta|apagar minha conta)\b/.test(t)) {
     Object.assign(out, { acao: 'nao_sei_fazer', campo: '', titulo: '', texto: '' });
+    return;
+  }
+  // Objetivos (as listas): ⭐ prioridade e soma de preços — a palavra decide
+  // (o modelo respondia "não posso ajudar" pra "soma o valor das minhas listas")
+  if (/\bprioridades?\b/.test(t) && !/\b(atividade|tarefa|compromisso)\b/.test(t)) {
+    const campo = /\b(tira|tirar|remov\w*|desmarc\w*|nao e mais)\b/.test(t) ? 'prioridade_tirar'
+      : /^(quais|qual|mostra|me mostra|ver|lista|o que)\b/.test(t) || !/\b(marca\w*|coloca\w*|bota\w*|poe|deixa|torna|vira\w*|adiciona\w*)\b/.test(t) ? 'prioridades_ver' : 'prioridade_marcar';
+    Object.assign(out, { acao: 'lista_organizar', campo });
+    if (campo === 'prioridades_ver') out.itens = [];
+    else if (!(out.itens || []).length) {
+      const m = texto.match(/\b(?:marca|marque|coloca|bota|p[õo]e|deixa|torna|tira|remove|desmarca)\w*\s+(?:o |a |os |as )?(.+?)\s+(?:como|nas?|das?|de|em)\s+(?:minhas\s+)?prioridades?\b/i);
+      out.itens = m ? [m[1].trim()] : [];
+    }
+    return;
+  }
+  if (/\b(soma\w*|some|total|valor\w*|quanto (vou gastar|gasto|da|custa|fica|sai))\b/.test(t) && (lista || /\b(objetivos|compra\w*|mercado)\b/.test(t))) {
+    Object.assign(out, { acao: 'lista_organizar', campo: 'somar', itens: [] });
     return;
   }
   // "apaga a reunião de quinta" é excluir, não cancelar
@@ -366,7 +383,8 @@ configurar = mudar o app. campo = "acordar_padrao" | "dormir_padrao" (hora = hor
 desempenho = desempenho e objetivos. campo = "geral" (% feito) | "atividade" (quantas vezes fez; titulo) | "recorde" (maior sequência, melhor mês) | "sono" (média de sono) | "reflexao_ver" | "reflexao_anotar" (texto) | "objetivos_ver" | "objetivo_criar" | "objetivo_mudar" | "objetivo_apagar" (titulo = atividade, numero = vezes, quando = "semana" ou "mês"). Nas consultas, quando = período.
 lista_adicionar = pôr itens numa lista. itens (um produto por posição; separa ditado sem vírgula, junta repetido, "ele" no lugar de "e" é "e"); lista (padrão "mercado"). "acabou o X" = adicionar X.
 lista_marcar = comprou/riscou itens. itens.
-lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo); lista = a lista citada.
+lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo) | "somar" (somar o preço dos itens que faltam / quanto vai gastar) | "prioridade_marcar" / "prioridade_tirar" (itens = o item) | "prioridades_ver"; lista = a lista citada.
+Nomes das telas: "Objetivos" = as listas (mercado etc.); "Metas" = metas de constância do desempenho (objetivo_*).
 ideal = "Organizando meu ideal" (6 áreas da vida). campo = "ver" | "marcar" | "desmarcar" | "atividade" (levar pro Home) | "constancia" (numero = vezes, quando = "semana" ou "mês"); itens = os itens citados (SEMPRE em itens, não em texto); texto = a área se disser.
 desafio = Desafios do app (só quando fala em desafio, código de convite, prenda, ou fumou/não fumou). campo = "ver" | "ranking" | "entrar" | "codigo" (texto = o código) | "sair" (só quando pede pra SAIR; texto = o motivo, como a pessoa falou: "tive um imprevisto", "vou viajar") | "doente" (ficou doente ou se machucou e não consegue cumprir hoje: grava um vídeo e o dia fica justificado, sem sair) | "checkin" (numero = quantidade, texto = unidade, itens = exercício feito, todas = true se bateu a meta) | "criar" (titulo = do quê, numero = dias, texto = "amigos" ou "sozinho", itens = exercícios) | "regras" | "corrida_ajuda" | "print" | "prenda" (pagar prenda ou saber se deve) | "mural" (ver o Mural das Prendas) | "sugerir_prenda" (texto = a prenda, como ela falou) | "proposta" (texto = "sim" ou "não") | "nao_consegui" (largar vício: fumou, recaída) | "convidar" (itens = nomes; todas = true se for por WhatsApp) | "grupo" (texto = mensagem pro grupo; sem texto = ler) | "relatorio" (como foi o desafio, resultado de cada um) | "nova_rodada" (outro desafio com o mesmo grupo; quando = "hoje", "amanhã" ou "segunda"). titulo = o desafio citado ("água", "leitura", "corrida").
 ajuda_lembrar = esquece de marcar, de abrir o app ou de manter a constância e pede ajuda.
@@ -471,6 +489,10 @@ Pessoa: bota na lista do mercado banana prata ele maçã verde e maçã verde e 
 {"acao":"lista_adicionar","lista":"mercado","itens":["banana prata","maçã verde","queijo ralado"],"resposta":"Anotado: banana prata, maçã verde e queijo ralado 🛒"}
 Pessoa: acabou o sabão em pó
 {"acao":"lista_adicionar","lista":"mercado","itens":["sabão em pó"],"resposta":"Anotado: sabão em pó 🛒"}
+Pessoa: soma o valor de tudo que eu preciso comprar nas minhas listas
+{"acao":"lista_organizar","campo":"somar","resposta":"Somando os preços das tuas listas 💰"}
+Pessoa: coloca o cimento cola como prioridade
+{"acao":"lista_organizar","campo":"prioridade_marcar","itens":["cimento cola"],"resposta":"Marco o cimento cola como prioridade ⭐"}
 Pessoa: comprei o pão já
 {"acao":"lista_marcar","itens":["pão"],"resposta":"Boa, marco o pão como comprado."}
 Pessoa: limpa os itens comprados da lista da farmácia
