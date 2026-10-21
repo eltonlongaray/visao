@@ -17,7 +17,7 @@ import { showToast } from './aviso-tela.js';
 // BLOCO 1: GATE — abre o modal só se ainda não aceitou
 // ═══════════════════════════════════════════════════════════════
 export async function ensurePessoalConsent() {
-  const ok = await hasPessoalConsent();
+  const ok = await hasPessoalConsent().catch(() => false);
   if (ok) return true;
   return new Promise((resolve) => open(resolve));
 }
