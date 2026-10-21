@@ -148,7 +148,7 @@ function telaHub() {
       <div class="fr-metodo">
         <div class="fr-metodo-tit">🦅 Método Falcon</div>
         <div class="fr-metodo-passos">
-          <button type="button" data-hub-listas><b>1</b><span>Organizar</span></button>
+          <button type="button" data-hub-listas><b>1</b><span>Organização</span></button>
           <i aria-hidden="true">›</i>
           <button type="button" data-hub-clareza><b>2</b><span>Clareza</span></button>
           <i aria-hidden="true">›</i>
@@ -160,7 +160,7 @@ function telaHub() {
       </div>
       <button class="fr-hubcard" data-hub-listas type="button">
         <span class="fr-hub-ic">🎯</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">1 · Organizar</small><b>Objetivos</b><small>O que você precisa fazer ou comprar, sem data nem hora</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">1 · Organização</small><b>Objetivos</b><small>O que você precisa fazer ou comprar, sem data nem hora</small></span>
         ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
       </button>
       <button class="fr-hubcard" data-hub-clareza type="button">
