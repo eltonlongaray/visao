@@ -87,19 +87,25 @@ function regraPeso({ prof }) {
   };
 }
 
-// Ontem: coisas que ficaram sem marcar (constância da organização)
+// Ontem: coisas que ficaram sem marcar (constância da organização).
+// Mostra TODAS (Élton, 21/10: cortava em 4 e ele não tinha marcado nada).
 function regraOntem({ dias, ontemId }) {
   const ontem = (dias || []).find(d => d.id === ontemId);
-  const soltas = (ontem?.tasks || []).filter(t => !t.done && !t.cancelled).slice(0, 4);
+  const soltas = (ontem?.tasks || []).filter(t => !t.done && !t.cancelled);
   if (!soltas.length) return null;
   const limpa = (x) => String(x || '').replace(/[&<>"']/g, '').trim();
   // Descrição junto do nome: duas "Contas a pagar" ficam diferentes ("Contas a pagar · luz")
   const desc = (t) => { const d = limpa(t.desc).replace(/\s+/g, ' '); return d ? (d.length > 40 ? d.slice(0, 39) + '…' : d) : ''; };
   const nome = (t) => limpa(t.title) + (desc(t) ? ` · ${desc(t)}` : '');
   const nomes = soltas.map(t => `<strong>${limpa(t.title)}</strong>${desc(t) ? ` (${desc(t)})` : ''}`).join(', ');
+  const todas = ontem.tasks.filter(t => !t.cancelled).length;
+  const nada = soltas.length === todas && todas > 1;
   return {
     tipo: 'ontem',
-    texto: `Ontem ${soltas.length === 1 ? 'ficou 1 coisa' : `ficaram ${soltas.length} coisas`} sem marcar: ${nomes}. ${soltas.length === 1 ? 'Tu fez?' : 'Tu fez alguma?'}`,
+    texto: soltas.length === 1 ? `Ontem ficou 1 coisa sem marcar: ${nomes}. Tu fez?`
+      : nada ? `Ontem nada foi marcado (${soltas.length} coisas). Tu fez alguma?`
+      : soltas.length > 4 ? `Ontem ficaram ${soltas.length} coisas sem marcar. Tu fez alguma?`
+      : `Ontem ficaram ${soltas.length} coisas sem marcar: ${nomes}. Tu fez alguma?`,
     botoes: [
       ...soltas.map(t => ({ label: `✅ ${nome(t)}`, resp: 'marcar_ontem', valor: t.id })),
       { label: '🙅 Não fiz', resp: 'nao_fiz' },
@@ -118,15 +124,16 @@ const usaNota = (dias, dia, id) => (dia?.tasks || []).length || (dias || []).som
 function regraNota({ dias, ontemId }) {
   const ontem = (dias || []).find(d => d.id === ontemId);
   if (!usaNota(dias, ontem, ontemId)) return null;
-  const semNota = notaVazia(ontem), semSono = !ontem?.sleepTime;
-  if (!semNota && !semSono) return null;
+  const semNota = notaVazia(ontem), semSono = !ontem?.sleepTime, semAcordar = !ontem?.wakeTime;
+  if (!semNota && !semSono && !semAcordar) return null;
+  const falta = [semAcordar && 'a hora que tu acordou', semSono && 'a hora que tu foi dormir'].filter(Boolean).join(' e ');
   return {
     tipo: 'nota',
     conversa: true,
-    dados: { semNota, semSono, diaId: ontemId, hoje: false },
+    dados: { semNota, semSono, semAcordar, diaId: ontemId, hoje: false },
     texto: semNota
-      ? `Tua nota de ontem ficou em branco${semSono ? ' (e a hora que tu foi dormir também)' : ''}. Bora preencher comigo? É rapidinho, uma pergunta por vez.`
-      : 'Ontem ficou faltando a hora que tu foi dormir. Bora anotar?',
+      ? `Tua nota de ontem ficou em branco${falta ? ` (e ${falta} também)` : ''}. Bora preencher comigo? É rapidinho, uma pergunta por vez.`
+      : `Ontem ficou faltando ${falta}. Bora anotar?`,
     botoes: [],
   };
 }
@@ -141,7 +148,7 @@ function regraNotaHoje({ dias, hojeId, agora }) {
   return {
     tipo: 'nota_hoje',
     conversa: true,
-    dados: { semNota: true, semSono: false, diaId: hojeId, hoje: true },
+    dados: { semNota: true, semSono: false, semAcordar: !hoje?.wakeTime, diaId: hojeId, hoje: true },
     texto: 'Bora fechar o dia? 🌙 Tua nota de hoje ainda tá em branco. Te faço umas perguntas rápidas, uma por vez.',
     botoes: [],
   };

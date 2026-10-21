@@ -154,10 +154,10 @@ export function fraseDoApp(j) {
         case 'sono': return `média de sono${periodo || ' da semana'}`;
         case 'reflexao_ver': return `qual minha reflexão da semana${/passada/i.test(quando) ? ' passada' : ''}?`;
         case 'reflexao_anotar': return texto ? `reflexão da semana: ${texto}` : 'preenche a reflexão da semana';
-        case 'objetivos_ver': return 'como tão meus objetivos?';
-        case 'objetivo_criar': return nome && j.numero > 0 ? `cria um objetivo de ${nome} ${j.numero} vezes por ${per}` : null;
-        case 'objetivo_mudar': return nome && j.numero > 0 ? `muda o objetivo de ${nome} pra ${j.numero} vezes por ${per}` : null;
-        case 'objetivo_apagar': return nome ? `apaga o objetivo de ${nome}` : null;
+        case 'objetivos_ver': return 'como tão minhas metas?';
+        case 'objetivo_criar': return nome && j.numero > 0 ? `cria uma meta de ${nome} ${j.numero} vezes por ${per}` : null;
+        case 'objetivo_mudar': return nome && j.numero > 0 ? `muda a meta de ${nome} pra ${j.numero} vezes por ${per}` : null;
+        case 'objetivo_apagar': return nome ? `apaga a meta de ${nome}` : null;
         default: return null;
       }
     }
@@ -177,6 +177,10 @@ export function fraseDoApp(j) {
         case 'renomear': return lista && texto ? `renomeia a lista ${lista} pra ${texto}` : null;
         case 'apagar': return lista ? `apaga a lista ${lista}` : null;
         case 'criar_grupo': return (texto || lista) ? `cria o grupo ${texto || lista}` : null;
+        case 'somar': return lista ? `soma o valor da lista ${lista}` : 'soma o valor do que falta nas minhas listas';
+        case 'prioridade_marcar': { const it = juntar(j.itens); return it ? `marca ${it} como prioridade` : null; }
+        case 'prioridade_tirar': { const it = juntar(j.itens); return it ? `tira ${it} das prioridades` : null; }
+        case 'prioridades_ver': return 'quais minhas prioridades';
         default: return null;
       }
     }

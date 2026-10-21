@@ -10,11 +10,13 @@ import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem,
   limparFeitos, renomearGrupo, contarPendentes,
   adicionarSecao, renomearSecao, apagarSecao, criarGrupo, apagarGrupo,
+  reordenarItens, valorDoItem, reais, marcarPrioridade, reordenarPrioridades,
 } from './ferramentas.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
 import { abrirObjetivos } from './objetivos-ui.js';
+import { abrirIdeal } from './ideal-ui.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -23,9 +25,20 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>`;
 
 let grupos = [];
-let vista = 'hub';        // 'hub' (cards) | 'listas' (grupos)
+let vista = 'hub';        // 'hub' (cards) | 'listas' (grupos) | 'prioridades'
 let grupoAberto = null;   // nome do grupo aberto; null = lista de grupos
 let _hist = 0;            // camadas empurradas no histórico (pro voltar do aparelho)
+// Cada camada nossa vai no histórico como { fr: nível }. No voltar, o nível que
+// sobrou diz até onde subir; janelinha por cima (confirmar, nova categoria) não
+// tem nível próprio, então fechar ela não tira a pessoa do grupo.
+const _empurrar = () => { _hist++; history.pushState({ fr: _hist }, ''); };
+
+// O que a pessoa deixou aberto e onde parou (vale entre aberturas do app)
+const _lerLS = (k, p) => { try { return JSON.parse(localStorage.getItem(k)) ?? p; } catch { return p; } };
+const _gravarLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem storage */ } };
+const CH_ABERTAS = 'falcon_obj_abertas', CH_POS = 'falcon_obj_pos', CH_RASC = 'falcon_obj_rascunhos';
+const abertas = new Set(_lerLS(CH_ABERTAS, []));
+const _salvarAbertas = () => _gravarLS(CH_ABERTAS, [...abertas]);
 
 // Sugestões de categoria por grupo (a pessoa escreve OU toca numa sugestão).
 const SUGESTOES = {
@@ -51,7 +64,7 @@ export async function abrirFerramentas() {
   ov.id = 'ferramentas-ov';
   ov.innerHTML = `<div class="modal fr-modal"><div class="fr-corpo"><div class="fr-carregando">Carregando…</div></div></div>`;
   document.body.appendChild(ov);
-  history.pushState({ fr: 1 }, ''); _hist = 1;   // voltar do aparelho fecha a camada
+  _hist = 0; _empurrar();   // voltar do aparelho fecha a camada
   vista = 'hub'; grupoAberto = null;
   desenhar();   // mostra o hub na hora (não espera as listas)
 
@@ -61,31 +74,107 @@ export async function abrirFerramentas() {
 }
 
 function fechar() {
+  if (grupoAberto) _guardarRascunhos();
   const ov = document.getElementById('ferramentas-ov');
   if (ov) ov.remove();
   const n = _hist; _hist = 0; vista = 'hub'; grupoAberto = null;
   if (n > 0) history.go(-n);   // consome as camadas que empurramos
 }
 
+// Repinta sem a tela pular: guarda a rolagem, o que estava escrito em cada
+// campo e qual campo tinha o cursor, e devolve tudo depois.
 function desenhar() {
   const corpo = document.querySelector('#ferramentas-ov .fr-corpo');
   if (!corpo) return;
-  corpo.innerHTML = vista === 'hub' ? telaHub() : (grupoAberto ? telaItens() : telaGrupos());
+  const sc = corpo.querySelector('.fr-scroll');
+  const tela = _telaAtual();
+  const mesmo = sc && sc.dataset.frGrupo === tela;
+  const topo = mesmo ? sc.scrollTop : null;
+  const foco = document.activeElement?.closest?.('#ferramentas-ov [data-nova]')?.dataset.secao;
+  if (mesmo) _guardarRascunhos();
+  corpo.innerHTML = vista === 'hub' ? telaHub() : vista === 'prioridades' ? telaPrioridades() : (grupoAberto ? telaItens() : telaGrupos());
+  const novo = corpo.querySelector('.fr-scroll');
+  if (!novo) return;
+  novo.scrollTop = topo ?? (_lerLS(CH_POS, {})[tela] || 0);
+  const rasc = _lerLS(CH_RASC, {});
+  novo.querySelectorAll('[data-nova]').forEach(f => {
+    const campo = f.querySelector('.fr-nova-input');
+    const txt = rasc[_chaveRasc(f.dataset.secao)];
+    if (txt) { campo.value = txt; _crescer(campo); }
+  });
+  if (foco != null) {
+    const campo = novo.querySelector(`[data-nova][data-secao="${foco}"] .fr-nova-input`);
+    if (campo) { campo.focus({ preventScroll: true }); campo.setSelectionRange(campo.value.length, campo.value.length); }
+  }
+  novo.addEventListener('scroll', () => {
+    clearTimeout(novo._t);
+    novo._t = setTimeout(() => { const pos = _lerLS(CH_POS, {}); pos[tela] = novo.scrollTop; _gravarLS(CH_POS, pos); }, 200);
+  }, { passive: true });
 }
 
-// ── Hub: cards Listas / Agenda Online / Rifa Solidária ──
+// Tela com rolagem própria: o grupo aberto ou o card Prioridades
+const _telaAtual = () => grupoAberto || (vista === 'prioridades' ? '__prio' : null);
+
+// Rascunho de cada campo de adicionar (sair e voltar não perde o que foi escrito)
+const _chaveRasc = (secao) => `${grupoAberto}|${secao || ''}`;
+function _guardarRascunhos() {
+  const rasc = _lerLS(CH_RASC, {});
+  document.querySelectorAll('#ferramentas-ov [data-nova]').forEach(f => {
+    const v = f.querySelector('.fr-nova-input')?.value || '';
+    const k = _chaveRasc(f.dataset.secao);
+    if (v.trim()) rasc[k] = v; else delete rasc[k];
+  });
+  _gravarLS(CH_RASC, rasc);
+}
+// Campo cresce com o texto: dá pra ver tudo que foi escrito e onde está o cursor
+function _crescer(campo) {
+  campo.style.height = 'auto';
+  campo.style.height = Math.min(campo.scrollHeight + 2, 160) + 'px';
+}
+
+// ── Hub: cards Metas / Agenda Online / Rifa Solidária / Objetivos ──
+// (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
   const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
+  const prio = _prioridades().filter(x => !x.item.feito).length;
+  // Método: organizar → clareza → decisão → ação (Élton, 21/10). Cada passo
+  // abre a tela dele; os cards seguem a mesma ordem.
   return `
     <div class="fr-cab">
       <span class="fr-titulo">🛠️ Caixa de Ferramentas</span>
       <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
     </div>
-    <div class="fr-sub">Tudo num lugar só. Toque num card.</div>
     <div class="fr-hub">
-      <button class="fr-hubcard" data-hub-objetivos type="button">
+      <div class="fr-metodo">
+        <div class="fr-metodo-tit">🦅 Método Falcon</div>
+        <div class="fr-metodo-passos">
+          <button type="button" data-hub-listas><b>1</b><span>Organizar</span></button>
+          <i aria-hidden="true">›</i>
+          <button type="button" data-hub-clareza><b>2</b><span>Clareza</span></button>
+          <i aria-hidden="true">›</i>
+          <button type="button" data-hub-prioridades><b>3</b><span>Decisão</span></button>
+          <i aria-hidden="true">›</i>
+          <button type="button" data-hub-objetivos><b>4</b><span>Ação</span></button>
+        </div>
+        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro e parta pra ação.</div>
+      </div>
+      <button class="fr-hubcard" data-hub-listas type="button">
         <span class="fr-hub-ic">🎯</span>
-        <span class="fr-hub-tx"><b>Meus Objetivos</b><small>Defina suas áreas e escolha o que manter com constância</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">1 · Organizar</small><b>Objetivos</b><small>O que você precisa fazer ou comprar, sem data nem hora</small></span>
+        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
+      </button>
+      <button class="fr-hubcard" data-hub-clareza type="button">
+        <span class="fr-hub-ic">🧭</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">2 · Clareza</small><b>Organizando meu ideal</b><small>Marque o que é importante em cada área da vida</small></span>
+      </button>
+      <button class="fr-hubcard" data-hub-prioridades type="button">
+        <span class="fr-hub-ic">⭐</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">3 · Decisão</small><b>Prioridades</b><small>O que você marcou com ⭐ nos Objetivos, na ordem do mais importante</small></span>
+        ${prio ? `<span class="fr-hub-badge fr-hub-badge-ouro">${prio}</span>` : ''}
+      </button>
+      <button class="fr-hubcard" data-hub-objetivos type="button">
+        <span class="fr-hub-ic">🏁</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Ação</small><b>Minhas Metas</b><small>Escolha o que manter com constância; eu conto sozinho pelo Ritual</small></span>
       </button>
       <button class="fr-hubcard" data-hub-agenda type="button">
         <span class="fr-hub-ic">📅</span>
@@ -97,11 +186,34 @@ function telaHub() {
         <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
         <span class="fr-hub-tag">PRO</span>
       </button>
-      <button class="fr-hubcard" data-hub-listas type="button">
-        <span class="fr-hub-ic">📋</span>
-        <span class="fr-hub-tx"><b>Listas</b><small>Coisas que você precisa fazer ou comprar, sem data nem hora</small></span>
-        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
-      </button>
+    </div>`;
+}
+
+// Itens com ⭐ (de todos os grupos), do mais importante pro menos
+function _prioridades() {
+  const out = [];
+  for (const g of grupos) {
+    for (const it of g.soltos) if (it.prioridade != null) out.push({ item: it, grupo: g, secao: null });
+    for (const sec of g.secoes) for (const it of sec.itens) if (it.prioridade != null) out.push({ item: it, grupo: g, secao: sec });
+  }
+  return out.sort((a, b) => a.item.prioridade - b.item.prioridade);
+}
+
+// ── Card Prioridades: tudo que tem ⭐, arrasta pra mudar a ordem ──
+function telaPrioridades() {
+  const todas = _prioridades();
+  const pend = todas.filter(x => !x.item.feito), feitos = todas.filter(x => x.item.feito);
+  const linha = (x) => linhaItem(x.item, x.secao ? `${x.grupo.nome} › ${x.secao.nome}` : x.grupo.nome);
+  return `
+    <div class="fr-cab">
+      <button class="fr-voltar" data-voltar aria-label="Voltar">${SVG_VOLTAR}</button>
+      <span class="fr-titulo">⭐ Prioridades</span>
+      <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
+    </div>
+    <div class="fr-scroll" data-fr-grupo="__prio">
+      <div class="fr-sub">Segure o ⠿ e arraste pra deixar no topo o que é mais importante. Toque na ⭐ pra tirar daqui.</div>
+      ${todas.length ? `<div class="fr-lista" data-lista="__prio">${pend.map(linha).join('')}${feitos.map(linha).join('')}</div>`
+        : '<div class="fr-vazio-grupo">Nada marcado ainda. Nos <b>Objetivos</b>, toque na ☆ do lado de um item pra ele vir pra cá.</div>'}
     </div>`;
 }
 
@@ -119,7 +231,7 @@ function telaGrupos() {
   return `
     <div class="fr-cab">
       <button class="fr-voltar" data-voltar aria-label="Voltar">${SVG_VOLTAR}</button>
-      <span class="fr-titulo">📋 Listas</span>
+      <span class="fr-titulo">🎯 Objetivos</span>
       <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
     </div>
     <div class="fr-sub">Coisas que você precisa fazer, sem data nem hora. Toque num grupo.</div>
@@ -141,11 +253,14 @@ function telaGrupos() {
 }
 
 // ── linha de item (checkbox + texto + apagar) ──
-function linhaItem(i) {
+function linhaItem(i, onde = '') {
+  const prio = i.prioridade != null;
   return `
-    <div class="fr-item ${i.feito ? 'feito' : ''}" data-id="${i.id}">
+    <div class="fr-item ${i.feito ? 'feito' : ''}${prio ? ' prio' : ''}" data-id="${i.id}">
+      <span class="fr-arrastar" data-arrastar aria-label="Segure e arraste pra mudar a ordem">⠿</span>
       <button class="fr-check" data-marcar="${i.id}" aria-label="Marcar">${i.feito ? '✓' : ''}</button>
-      <span class="fr-texto" data-editar="${i.id}">${esc(i.texto)}</span>
+      <span class="fr-texto" data-editar="${i.id}">${esc(i.texto)}${onde ? `<small class="fr-onde">${esc(onde)}</small>` : ''}</span>
+      <button class="fr-estrela${prio ? ' on' : ''}" data-estrela="${i.id}" aria-label="${prio ? 'Tirar das prioridades' : 'Marcar como prioridade'}">${prio ? '★' : '☆'}</button>
       <button class="fr-item-x" data-apagar="${i.id}" aria-label="Apagar">✕</button>
     </div>`;
 }
@@ -154,33 +269,49 @@ function linhaItem(i) {
 function bloco(itens, vazioTxt) {
   const pend = itens.filter(i => !i.feito), feitos = itens.filter(i => i.feito);
   return `
-    ${pend.length ? pend.map(linhaItem).join('') : (vazioTxt ? `<div class="fr-vazio-grupo">${vazioTxt}</div>` : '')}
-    ${feitos.length ? feitos.map(linhaItem).join('') : ''}`;
+    ${pend.length ? pend.map(i => linhaItem(i)).join('') : (vazioTxt ? `<div class="fr-vazio-grupo">${vazioTxt}</div>` : '')}
+    ${feitos.length ? feitos.map(i => linhaItem(i)).join('') : ''}`;
 }
 
 // ── form de adicionar (solto = data-secao vazio; ou de uma seção) ──
 function formNova(secaoId, ph) {
   return `
     <form class="fr-nova" data-nova data-secao="${secaoId || ''}">
-      <input class="fr-nova-input" placeholder="${esc(ph)}" maxlength="500" autocomplete="off" />
+      <textarea class="fr-nova-input" rows="1" placeholder="${esc(ph)}" maxlength="500" autocomplete="off" enterkeyhint="send"></textarea>
       <button type="submit" class="fr-nova-btn" aria-label="Adicionar">＋</button>
     </form>`;
 }
+
+// Soma dos preços escritos nos itens (0 = nenhum tem preço)
+const somaValores = (itens) => itens.reduce((n, i) => n + (valorDoItem(i.texto) || 0), 0);
 
 // ── Itens de um grupo (soltos + seções) ──
 function telaItens() {
   const g = grupos.find(x => x.nome === grupoAberto);
   if (!g) { grupoAberto = null; return telaGrupos(); }
 
-  const secoesHtml = g.secoes.map(sec => `
-    <div class="fr-secao" data-secao-id="${sec.id}">
+  // Categoria = título que abre e fecha. Aberta: o campo de adicionar vem
+  // logo embaixo do título e os itens depois (o novo entra em primeiro).
+  const secoesHtml = g.secoes.map(sec => {
+    const aberta = abertas.has(sec.id);
+    const pend = sec.itens.filter(i => !i.feito);
+    const total = somaValores(pend);
+    return `
+    <div class="fr-secao${aberta ? ' aberta' : ''}" data-secao-id="${sec.id}">
       <div class="fr-secao-cab">
-        <span class="fr-secao-nome" data-editar-secao="${sec.id}">${esc(sec.nome)}</span>
-        <button class="fr-secao-x" data-apagar-secao="${sec.id}" aria-label="Apagar seção">🗑</button>
+        <button type="button" class="fr-secao-toggle" data-toggle-secao="${sec.id}" aria-expanded="${aberta}">
+          <span class="fr-secao-seta" aria-hidden="true">›</span>
+          <span class="fr-secao-nome">${esc(sec.nome)}</span>
+          ${total ? `<span class="fr-secao-total">${reais(total)}</span>` : ''}
+          ${pend.length ? `<span class="fr-secao-cont">${pend.length}</span>` : ''}
+        </button>
+        ${aberta ? `<button class="fr-secao-x" data-editar-secao="${sec.id}" aria-label="Renomear categoria">✏️</button>
+        <button class="fr-secao-x" data-apagar-secao="${sec.id}" aria-label="Apagar categoria">🗑</button>` : ''}
       </div>
-      ${formNova(sec.id, 'Adicionar em ' + sec.nome + '…')}
-      <div class="fr-lista">${bloco(sec.itens, 'Vazio por enquanto.')}</div>
-    </div>`).join('');
+      ${aberta ? `${formNova(sec.id, 'Adicionar em ' + sec.nome + '…')}
+      <div class="fr-lista" data-lista="${sec.id}">${bloco(sec.itens, 'Vazio por enquanto.')}</div>` : ''}
+    </div>`;
+  }).join('');
 
   const totalFeitos = g.soltos.filter(i => i.feito).length + g.secoes.reduce((n, s) => n + s.itens.filter(i => i.feito).length, 0);
 
@@ -191,8 +322,8 @@ function telaItens() {
       <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
     </div>
 
-    <div class="fr-scroll">
-      ${g.soltos.length ? `<div class="fr-lista">${bloco(g.soltos, '')}</div>` : ''}
+    <div class="fr-scroll" data-fr-grupo="${esc(g.nome)}">
+      ${g.soltos.length ? `<div class="fr-lista" data-lista="">${bloco(g.soltos, '')}</div>` : ''}
 
       <button class="fr-add-secao" data-nova-secao>＋ Adicionar categoria</button>
 
@@ -222,12 +353,31 @@ export function ligarFerramentas() {
     if (!ov || _hist === 0) return;
     // Agenda/Rifa aberta POR CIMA do hub → deixa o modal dela tratar o back (ela fecha,
     // o hub reaparece). Sem isso, o back fechava o hub junto.
-    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov')) return;
-    _hist--;
-    if (grupoAberto) { grupoAberto = null; desenhar(); }        // grupo → Listas
-    else if (vista === 'listas') { vista = 'hub'; desenhar(); } // Listas → hub
-    else { ov.remove(); _hist = 0; vista = 'hub'; }             // hub → fecha
+    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov') || document.getElementById('ideal-ov')) return;
+    // Nível que ficou no histórico. Igual ao nosso = só fechou uma janelinha
+    // por cima (confirmar, nova categoria): a pessoa continua onde estava.
+    const nivel = Number(history.state?.fr) || 0;
+    if (nivel >= _hist) return;
+    if (grupoAberto) _guardarRascunhos();
+    while (_hist > nivel) {
+      _hist--;
+      if (grupoAberto) grupoAberto = null;                  // grupo → Objetivos
+      else if (vista !== 'hub') vista = 'hub';              // Objetivos/Prioridades → hub
+      else { ov.remove(); _hist = 0; vista = 'hub'; return; } // hub → fecha
+    }
+    desenhar();
   });
+
+  // Campo de adicionar: cresce com o texto; Enter adiciona (Shift+Enter quebra linha)
+  document.addEventListener('input', (e) => {
+    const campo = e.target.closest?.('#ferramentas-ov .fr-nova-input');
+    if (campo) _crescer(campo);
+  });
+  document.addEventListener('keydown', (e) => {
+    const campo = e.target.closest?.('#ferramentas-ov .fr-nova-input');
+    if (campo && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); campo.form?.requestSubmit(); }
+  });
+  ligarArrastar();
 
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#ferramentas-ov')) return;
@@ -236,13 +386,24 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-voltar]')) { history.back(); return; }  // popstate volta um nível
 
     // Hub → cards
-    if (e.target.closest('[data-hub-listas]')) { history.pushState({ fr: 1 }, ''); _hist++; vista = 'listas'; grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-hub-listas]')) { _empurrar(); vista = 'listas'; grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-hub-prioridades]')) { _empurrar(); vista = 'prioridades'; grupoAberto = null; desenhar(); return; }
+    if (e.target.closest('[data-hub-clareza]')) { abrirIdeal(); return; }       // abre por cima do hub
     if (e.target.closest('[data-hub-objetivos]')) { abrirObjetivos(); return; } // abre por cima do hub
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
 
     const abrir = e.target.closest('[data-grupo]');
-    if (abrir) { history.pushState({ fr: 1 }, ''); _hist++; grupoAberto = abrir.dataset.grupo; desenhar(); return; }
+    if (abrir) { _empurrar(); grupoAberto = abrir.dataset.grupo; desenhar(); return; }
+
+    const tg = e.target.closest('[data-toggle-secao]');
+    if (tg) {
+      const id = tg.dataset.toggleSecao;
+      _guardarRascunhos();
+      if (abertas.has(id)) abertas.delete(id); else abertas.add(id);
+      _salvarAbertas(); desenhar();
+      return;
+    }
 
     if (e.target.closest('[data-novo-grupo]')) { await novoGrupo(); return; }
     if (e.target.closest('[data-nova-secao]')) { await novaSecao(); return; }
@@ -251,6 +412,20 @@ export function ligarFerramentas() {
     if (mk) {
       const it = _item(mk.dataset.marcar);
       if (it) { it.feito = !it.feito; desenhar(); await _salvarMarca(it); }
+      return;
+    }
+
+    const st = e.target.closest('[data-estrela]');
+    if (st) {
+      const it = _item(st.dataset.estrela);
+      if (!it) return;
+      const antes = it.prioridade;
+      const ligar = antes == null;
+      it.prioridade = ligar ? Date.now() : null; desenhar();
+      try {
+        await marcarPrioridade(it.id, ligar);
+        if (ligar) showToast('⭐ Foi pras Prioridades', 'success');
+      } catch (err) { it.prioridade = antes; desenhar(); showToast(err.message, 'error'); }
       return;
     }
 
@@ -284,17 +459,78 @@ export function ligarFerramentas() {
     const texto = campo.value.trim();
     if (!texto || !grupoAberto) return;
     const secaoId = form.dataset.secao || null;
-    campo.value = '';
+    campo.value = ''; _crescer(campo);
+    const rasc = _lerLS(CH_RASC, {}); delete rasc[_chaveRasc(form.dataset.secao)]; _gravarLS(CH_RASC, rasc);
     try {
       const novo = await adicionarItem(grupoAberto, texto, secaoId);
       const g = grupos.find(x => x.nome === grupoAberto);
       if (g && novo) {
-        if (secaoId) { const s = g.secoes.find(x => x.id === secaoId); s?.itens.push(novo); }
-        else g.soltos.push(novo);
+        // entra em primeiro, logo embaixo do campo (a tela não se mexe)
+        if (secaoId) { const s = g.secoes.find(x => x.id === secaoId); s?.itens.unshift(novo); }
+        else g.soltos.unshift(novo);
       }
       desenhar();
     } catch (err) { campo.value = texto; showToast(err.message, 'error'); }
   });
+}
+
+// ── Arrastar pra mudar a ordem ──
+// Segura o ⠿ e arrasta: o item anda entre os da mesma lista (pendentes com
+// pendentes, feitos com feitos). Perto da borda, a tela rola sozinha.
+function ligarArrastar() {
+  document.addEventListener('pointerdown', (e) => {
+    const alca = e.target.closest?.('#ferramentas-ov [data-arrastar]');
+    if (!alca) return;
+    e.preventDefault();
+    const item = alca.closest('.fr-item'), lista = item?.parentElement;
+    const sc = document.querySelector('#ferramentas-ov .fr-scroll');
+    if (!item || !lista || !sc) return;
+    const antes = [...lista.querySelectorAll('.fr-item')].map(x => x.dataset.id).join();
+    const feito = item.classList.contains('feito');
+    let y = e.clientY;
+    item.classList.add('arrastando');
+    const posicionar = () => {
+      const irmaos = [...lista.querySelectorAll('.fr-item')].filter(x => x !== item && x.classList.contains('feito') === feito);
+      if (!irmaos.length) return;
+      const depois = irmaos.find(x => { const r = x.getBoundingClientRect(); return y < r.top + r.height / 2; });
+      if (depois) { if (item.nextElementSibling !== depois) lista.insertBefore(item, depois); }
+      else { const ult = irmaos[irmaos.length - 1]; if (ult.nextElementSibling !== item) ult.after(item); }
+    };
+    const rolar = setInterval(() => {
+      const r = sc.getBoundingClientRect();
+      const passo = y < r.top + 60 ? -10 : y > r.bottom - 60 ? 10 : 0;
+      if (passo) { sc.scrollTop += passo; posicionar(); }
+    }, 16);
+    const mover = (ev) => { y = ev.clientY; posicionar(); };
+    const soltar = async () => {
+      clearInterval(rolar);
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      window.removeEventListener('pointercancel', soltar);
+      item.classList.remove('arrastando');
+      const ids = [...lista.querySelectorAll('.fr-item')].map(x => x.dataset.id);
+      if (ids.join() === antes) return;
+      _reordenarLocal(lista.dataset.lista, ids);
+      try { await (lista.dataset.lista === '__prio' ? reordenarPrioridades(ids) : reordenarItens(ids)); }
+      catch (err) { showToast(err.message, 'error'); }
+    };
+    // Na janela (não na alça): mover o item no DOM solta a captura do dedo
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', soltar);
+  });
+}
+
+// Mesma ordem na memória (o próximo repintar não desfaz o arrasto)
+function _reordenarLocal(secaoId, ids) {
+  if (secaoId === '__prio') { ids.forEach((id, i) => { const it = _item(id); if (it) it.prioridade = i; }); return; }
+  const g = grupos.find(x => x.nome === grupoAberto);
+  if (!g) return;
+  const sec = secaoId ? g.secoes.find(s => s.id === secaoId) : null;
+  const arr = sec ? sec.itens : g.soltos;
+  const pos = new Map(ids.map((id, i) => [id, i]));
+  arr.sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0));
+  arr.forEach((it, i) => { it.ord = i; });
 }
 
 // ── auxiliares ──
@@ -346,7 +582,18 @@ function pedirTexto({ titulo, valor = '', placeholder = '', sugestoes = [], ok =
     document.getElementById('ferramentas-ov')?.appendChild(ov);
     const input = ov.querySelector('#fr-mini-in');
     setTimeout(() => { input?.focus(); if (valor) input?.select(); }, 30);
-    const fim = (v) => { ov.remove(); resolve(v); };
+    // Voltar do aparelho fecha só a janelinha (a pessoa fica no grupo)
+    let porVoltar = false;
+    const aoVoltar = () => { porVoltar = true; fim(null); };
+    window.addEventListener('popstate', aoVoltar);
+    history.pushState({ ...(history.state || {}), frMini: 1 }, '');
+    const fim = (v) => {
+      if (!ov.isConnected) return;
+      window.removeEventListener('popstate', aoVoltar);
+      ov.remove();
+      if (!porVoltar) history.back();
+      resolve(v);
+    };
     ov.addEventListener('click', (e) => {
       if (e.target === ov || e.target.closest('[data-c]')) return fim(null);
       const sug = e.target.closest('[data-sug]');
@@ -363,7 +610,7 @@ async function novaSecao() {
   const g = grupos.find(x => x.nome === grupoAberto);
   try {
     const s = await adicionarSecao(grupoAberto, n);
-    if (g && s) g.secoes.push({ id: s.id, nome: s.nome, itens: [] });
+    if (g && s) { g.secoes.push({ id: s.id, nome: s.nome, itens: [] }); abertas.add(s.id); _salvarAbertas(); }
     desenhar();
   } catch (e) { showToast(e.message, 'error'); }
 }

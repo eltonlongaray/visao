@@ -16,12 +16,13 @@
 <!-- Force-update: unregister → re-register → SW ready → reload -->
 <script>
   (function() {
-    var V = '809';
+    var V = '812';
     window.__BUILD = V;   // exibido em Ajustes: encerra a dúvida de 'a atualização chegou?'
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
       if ('caches' in window) {
-        caches.keys().then(function(ks) { ks.forEach(function(k) { caches.delete(k); }); });
+        // Os vídeos de prova guardados no celular ficam (falcon-provas): baixar de novo gasta o tráfego
+        caches.keys().then(function(ks) { ks.forEach(function(k) { if (k.indexOf('falcon-provas') !== 0) caches.delete(k); }); });
       }
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs) {
@@ -50,7 +51,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20261019g">
+<link rel="stylesheet" href="css/styles.css?v=20261021a">
 <style>.onboarding-logo,.ajustes-avatar{background:#4f46e5!important}</style>
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado
@@ -72,7 +73,7 @@
       <div>Carregando Falcon...</div>
     </div>
   </div>
-  <script type="module" src="js/inicializador.js?v=20261019g"></script>
+  <script type="module" src="js/inicializador.js?v=20261021a"></script>
 
   <!-- Registro do Service Worker (PWA) -->
   <script>

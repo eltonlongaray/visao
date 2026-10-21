@@ -54,7 +54,7 @@ function _falha(e) { if (e) throw new Error(e.message || 'Erro na caixa de ferra
 // Cada grupo devolve { nome, icone, cor, custom, soltos:[...], secoes:[{id,nome,itens}] }.
 export async function carregarFerramentas() {
   const [ri, rs, rg] = await Promise.all([
-    supabase.from('ferramentas_itens').select('id, grupo, texto, feito, ord, secao_id').order('ord', { ascending: true }),
+    _lerItens(),
     supabase.from('ferramentas_secoes').select('id, grupo, nome, ord').order('ord', { ascending: true }),
     supabase.from('ferramentas_grupos').select('id, nome, icone, ord').order('ord', { ascending: true }),
   ]);
@@ -95,6 +95,19 @@ export async function carregarFerramentas() {
   return [...porGrupo.values()];
 }
 
+// Itens com a coluna da ⭐ (prioridade). Antes do SQL dela rodar, lê sem.
+let _semPrioridade = false;
+async function _lerItens() {
+  const base = 'id, grupo, texto, feito, ord, secao_id';
+  if (!_semPrioridade) {
+    const r = await supabase.from('ferramentas_itens').select(base + ', prioridade').order('ord', { ascending: true });
+    if (!r.error || !/prioridade/i.test(r.error.message || '')) return r;
+    _semPrioridade = true;
+  }
+  return supabase.from('ferramentas_itens').select(base).order('ord', { ascending: true });
+}
+export const prioridadePronta = () => !_semPrioridade;
+
 // Insere as categorias padrão que ainda não existem pra este usuário.
 async function _semearCategorias(secoesExistentes) {
   const existe = new Set((secoesExistentes || []).map(s => s.grupo + '|' + (s.nome || '').toLowerCase()));
@@ -126,7 +139,8 @@ export async function adicionarItem(grupo, texto, secaoId = null) {
   if (!t) return null;
   const { data, error } = await supabase
     .from('ferramentas_itens')
-    .insert({ user_id: _uid(), grupo, texto: t.slice(0, 500), secao_id: secaoId, ord: Date.now() })
+    // ord negativo e cada vez menor: o item novo entra em PRIMEIRO na lista
+    .insert({ user_id: _uid(), grupo, texto: t.slice(0, 500), secao_id: secaoId, ord: -Date.now() })
     .select('id, grupo, texto, feito, ord, secao_id')
     .single();
   _falha(error);
@@ -149,6 +163,41 @@ export async function apagarItem(id) {
   const { error } = await supabase.from('ferramentas_itens').delete().eq('id', id);
   _falha(error);
 }
+
+// Nova ordem (arrastar na tela): grava a posição de cada item da lista
+export async function reordenarItens(ids) {
+  const r = await Promise.all((ids || []).map((id, i) =>
+    supabase.from('ferramentas_itens').update({ ord: i }).eq('id', id)));
+  _falha(r.find(x => x.error)?.error);
+}
+
+// ⭐ Prioridade: liga entra no fim da lista de prioridades; desliga = null
+export async function marcarPrioridade(id, ligar) {
+  if (_semPrioridade) throw new Error('As prioridades ainda não foram ligadas no banco (falta rodar o SQL).');
+  const { error } = await supabase.from('ferramentas_itens').update({ prioridade: ligar ? Date.now() : null }).eq('id', id);
+  _falha(error);
+}
+// Nova ordem do card Prioridades (arrastar)
+export async function reordenarPrioridades(ids) {
+  const r = await Promise.all((ids || []).map((id, i) =>
+    supabase.from('ferramentas_itens').update({ prioridade: i }).eq('id', id)));
+  _falha(r.find(x => x.error)?.error);
+}
+
+// Preço escrito no item: "Leite R$ 6", "arroz 25,90 reais", "2x R$ 4,50" (= 9).
+// Devolve o valor em reais ou null (sem preço).
+export function valorDoItem(texto) {
+  const t = String(texto || '');
+  const num = (s) => Number(s.replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.'));
+  let m = t.match(/R\$\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  if (!m) m = t.match(/(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais|real|conto|pila)\b/i);
+  if (!m) return null;
+  const v = num(m[1]);
+  if (!isFinite(v) || v <= 0) return null;
+  const q = t.slice(0, m.index).match(/(\d{1,3})\s*x\s*$/i);
+  return Math.round(v * (q ? Number(q[1]) : 1) * 100) / 100;
+}
+export const reais = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 // Limpa os CONCLUÍDOS de um grupo inteiro (soltos + de todas as seções).
 export async function limparFeitos(grupo) {
