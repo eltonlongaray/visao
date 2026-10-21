@@ -22,12 +22,27 @@ export const PESSOAL_VERSION  = 1;  // Consentimento de dados de saúde (Pessoal
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: API GENÉRICA
 // ═══════════════════════════════════════════════════════════════
+// Lembra no aparelho quem já aceitou: uma falha de rede (ou o token sendo
+// renovado ao abrir o app depois de horas) não pode reabrir o aceite.
+const _memo = (uid, key) => `falcon_aceite_${uid}_${key}`;
+function _lembrar(uid, key) { try { localStorage.setItem(_memo(uid, key), '1'); } catch {} }
+function _lembrado(uid, key) { try { return localStorage.getItem(_memo(uid, key)) === '1'; } catch { return false; } }
+
 export async function hasConsent(key) {
   const user = auth.currentUser;
   if (!user) return false;
-  const { data, error } = await supabase.from('consents').select('key').eq('key', key).maybeSingle();
-  if (error) return false;
-  return !!data;
+  if (_lembrado(user.uid, key)) return true;
+  // Só "não achou a linha" conta como não aceito; erro de leitura tenta de novo.
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    if (tentativa) await new Promise(r => setTimeout(r, 800 * tentativa));
+    const { data, error } = await supabase.from('consents').select('key').eq('key', key).maybeSingle();
+    if (!error) {
+      if (data) _lembrar(user.uid, key);
+      return !!data;
+    }
+    console.warn('[consent] erro ao ler aceite:', error.message);
+  }
+  throw new Error('Não deu pra conferir o aceite agora');
 }
 
 export async function recordConsent(key, version) {
@@ -41,6 +56,7 @@ export async function recordConsent(key, version) {
     user_agent:  (navigator.userAgent || '').substring(0, 200),
   }, { onConflict: 'user_id,key' });
   if (error) throw new Error(error.message);
+  _lembrar(user.uid, key);
 }
 
 export async function listAllConsents() {
