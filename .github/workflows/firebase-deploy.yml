@@ -17,3 +17,5 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: visao-719c3
           channelId: live
+          # 15.34.1 (21/10/2026) passou a exigir permissão de serviceusage e o deploy deu 403
+          firebaseToolsVersion: 15.34.0
