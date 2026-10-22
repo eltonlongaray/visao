@@ -87,6 +87,9 @@ const TELAS = [
   [/^(preparo|preparo fisico|treino|meu treino)$/, '/preparo', 'o Preparo Físico'],
   [/^(chat|mural|comunidade|falcon hunters|mensagens)$/, '/chat', 'a Comunidade'],
   [/^(ajustes|configurac\w*|configs?|perfil)$/, '/ajustes', 'os Ajustes'],
+  // Cards da Home que abrem por cima (sem rota própria)
+  [/^(metodo|metodo falcon)$/, 'metodo', 'o Método Falcon'],
+  [/^(ferramentas|caixa de ferramentas|rifas?|rifa solidaria|agenda online)$/, 'ferramentas', 'as Ferramentas'],
 ];
 // { rota, nome } ou null. "abre o desempenho", "vai pro ritual", "me leva pros ajustes"
 export function lerAbrirTela(texto) {

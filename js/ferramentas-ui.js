@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════════
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem,
-  limparFeitos, renomearGrupo, contarPendentes,
+  renomearGrupo, contarPendentes,
   adicionarSecao, renomearSecao, apagarSecao, criarGrupo, apagarGrupo,
   reordenarItens, valorDoItem, reais, marcarPrioridade, reordenarPrioridades,
 } from './ferramentas.js';
@@ -17,6 +17,7 @@ import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
 import { abrirObjetivos } from './objetivos-ui.js';
 import { abrirIdeal } from './ideal-ui.js';
+import { abrirGuiaMetodo, guiaDeveAbrir } from './metodo-guia.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -57,8 +58,15 @@ const _pendGrupo = (g) =>
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: POPUP
 // ═══════════════════════════════════════════════════════════════
-export async function abrirFerramentas() {
+// Dois cards na Home usam a mesma tela (Élton, 22/10): Método Falcon
+// (Objetivos, Ideal, Prioridades, Metas) e Ferramentas (Agenda e Rifa).
+let modo = 'metodo';
+export function abrirMetodo() { return _abrir('metodo'); }
+export function abrirFerramentas() { return _abrir('ferramentas'); }
+
+async function _abrir(m) {
   if (document.getElementById('ferramentas-ov')) return;   // já aberto
+  modo = m;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay fr-overlay';   // fr-overlay = tela inteira
   ov.id = 'ferramentas-ov';
@@ -71,9 +79,24 @@ export async function abrirFerramentas() {
   try { grupos = await carregarFerramentas(); }
   catch (e) { grupos = []; }
   if (vista === 'hub') desenhar();   // repinta o badge de Listas quando carregar
+  // Guia do Método: abre sozinho até a pessoa terminar ou pedir pra parar
+  if (modo === 'metodo' && vista === 'hub' && document.getElementById('ferramentas-ov') && guiaDeveAbrir()) abrirGuia(true);
+}
+
+function abrirGuia(automatico = false) {
+  abrirGuiaMetodo({
+    grupos, automatico,
+    aoMudar: async () => { try { grupos = await carregarFerramentas(); desenhar(); pintarBadgeFerramentas(); } catch { /* repinta depois */ } },
+    irPara: (alvo) => {
+      if (!document.getElementById('ferramentas-ov')) return;
+      if (alvo === 'metas') { abrirObjetivos(); return; }
+      _empurrar(); vista = 'prioridades'; grupoAberto = null; desenhar();
+    },
+  });
 }
 
 function fechar() {
+  _confirmarApagar();
   if (grupoAberto) _guardarRascunhos();
   const ov = document.getElementById('ferramentas-ov');
   if (ov) ov.remove();
@@ -135,18 +158,35 @@ function _crescer(campo) {
 // ── Hub: cards Metas / Agenda Online / Rifa Solidária / Objetivos ──
 // (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
+  if (modo === 'ferramentas') return `
+    <div class="fr-cab">
+      <span class="fr-titulo">🛠️ Ferramentas</span>
+      <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
+    </div>
+    <div class="fr-hub">
+      <button class="fr-hubcard" data-hub-agenda type="button">
+        <span class="fr-hub-ic">📅</span>
+        <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
+        <span class="fr-hub-tag">PRO</span>
+      </button>
+      <button class="fr-hubcard" data-hub-rifa type="button">
+        <span class="fr-hub-ic">🎟️</span>
+        <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
+        <span class="fr-hub-tag">PRO</span>
+      </button>
+    </div>`;
   const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
   const prio = _prioridades().filter(x => !x.item.feito).length;
   // Método: organizar → clareza → decisão → ação (Élton, 21/10). Cada passo
   // abre a tela dele; os cards seguem a mesma ordem.
   return `
     <div class="fr-cab">
-      <span class="fr-titulo">🛠️ Caixa de Ferramentas</span>
+      <span class="fr-titulo">🦅 Método Falcon</span>
       <button class="fr-x" data-fechar aria-label="Fechar">✕</button>
     </div>
     <div class="fr-hub">
       <div class="fr-metodo">
-        <div class="fr-metodo-tit">🦅 Método Falcon</div>
+        <div class="fr-metodo-tit">Os 4 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
         <div class="fr-metodo-passos">
           <button type="button" data-hub-listas><b>1</b><span>Organização</span></button>
           <i aria-hidden="true">›</i>
@@ -175,16 +215,6 @@ function telaHub() {
       <button class="fr-hubcard" data-hub-objetivos type="button">
         <span class="fr-hub-ic">🏁</span>
         <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Ação</small><b>Minhas Metas</b><small>Escolha o que manter com constância; eu conto sozinho pelo Ritual</small></span>
-      </button>
-      <button class="fr-hubcard" data-hub-agenda type="button">
-        <span class="fr-hub-ic">📅</span>
-        <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
-        <span class="fr-hub-tag">PRO</span>
-      </button>
-      <button class="fr-hubcard" data-hub-rifa type="button">
-        <span class="fr-hub-ic">🎟️</span>
-        <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
-        <span class="fr-hub-tag">PRO</span>
       </button>
     </div>`;
 }
@@ -255,11 +285,13 @@ function telaGrupos() {
 // ── linha de item (checkbox + texto + apagar) ──
 function linhaItem(i, onde = '') {
   const prio = i.prioridade != null;
+  const { base, valor } = separarValor(i.texto);
   return `
     <div class="fr-item ${i.feito ? 'feito' : ''}${prio ? ' prio' : ''}" data-id="${i.id}">
       <span class="fr-arrastar" data-arrastar aria-label="Segure e arraste pra mudar a ordem">⠿</span>
       <button class="fr-check" data-marcar="${i.id}" aria-label="Marcar">${i.feito ? '✓' : ''}</button>
-      <span class="fr-texto" data-editar="${i.id}">${esc(i.texto)}${onde ? `<small class="fr-onde">${esc(onde)}</small>` : ''}</span>
+      <span class="fr-texto" data-editar="${i.id}">${esc(base)}${onde ? `<small class="fr-onde">${esc(onde)}</small>` : ''}</span>
+      ${valor || !i.feito ? `<button class="fr-valor${valor ? ' tem' : ''}" data-valor="${i.id}" aria-label="${valor ? 'Mudar o valor' : 'Adicionar valor'}">${valor ? reais(valor) : '+ R$'}</button>` : ''}
       <button class="fr-estrela${prio ? ' on' : ''}" data-estrela="${i.id}" aria-label="${prio ? 'Tirar das prioridades' : 'Marcar como prioridade'}">${prio ? '★' : '☆'}</button>
       <button class="fr-item-x" data-apagar="${i.id}" aria-label="Apagar">✕</button>
     </div>`;
@@ -284,6 +316,16 @@ function formNova(secaoId, ph) {
 
 // Soma dos preços escritos nos itens (0 = nenhum tem preço)
 const somaValores = (itens) => itens.reduce((n, i) => n + (valorDoItem(i.texto) || 0), 0);
+
+// Tira o preço do texto pra mostrar na caixinha do lado ("Janela R$ 658" →
+// "Janela" + R$ 658,00). O preço continua guardado no texto (a soma e o Pet leem dali).
+const RE_PRECO = /\s*[-–:,]?\s*(?:R\$\s*(?:\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)|(?:\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais|real|conto|pila)\b)/i;
+function separarValor(texto) {
+  const valor = valorDoItem(texto);
+  if (!valor) return { base: texto, valor: null };
+  const base = String(texto).replace(RE_PRECO, '').trim();
+  return { base: base || texto, valor };
+}
 
 // ── Itens de um grupo (soltos + seções) ──
 function telaItens() {
@@ -313,8 +355,6 @@ function telaItens() {
     </div>`;
   }).join('');
 
-  const totalFeitos = g.soltos.filter(i => i.feito).length + g.secoes.reduce((n, s) => n + s.itens.filter(i => i.feito).length, 0);
-
   return `
     <div class="fr-cab">
       <button class="fr-voltar" data-voltar aria-label="Voltar">${SVG_VOLTAR}</button>
@@ -331,7 +371,6 @@ function telaItens() {
         : '<div class="fr-vazio-grupo">Crie uma categoria pra começar (ex.: Cozinha, Mercado).</div>'}
 
       <div class="fr-rodape">
-        ${totalFeitos ? `<button class="fr-limpar" data-limpar>Limpar concluídos (${totalFeitos})</button>` : ''}
         ${g.custom ? `<button class="fr-renomear" data-renomear>✏️ Renomear grupo</button>` : ''}
         ${g.custom ? `<button class="fr-apagar-grupo" data-apagar-grupo>🗑 Apagar grupo</button>` : ''}
       </div>
@@ -392,6 +431,7 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-objetivos]')) { abrirObjetivos(); return; } // abre por cima do hub
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
+    if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
 
     const abrir = e.target.closest('[data-grupo]');
     if (abrir) { _empurrar(); grupoAberto = abrir.dataset.grupo; desenhar(); return; }
@@ -430,11 +470,10 @@ export function ligarFerramentas() {
     }
 
     const ap = e.target.closest('[data-apagar]');
-    if (ap) {
-      _removerItemLocal(ap.dataset.apagar); desenhar();
-      try { await apagarItem(ap.dataset.apagar); } catch (err) { showToast(err.message, 'error'); }
-      return;
-    }
+    if (ap) { apagarComDesfazer(ap.dataset.apagar); return; }
+
+    const vl = e.target.closest('[data-valor]');
+    if (vl) { await editarValor(vl.dataset.valor); return; }
 
     const ed = e.target.closest('[data-editar]');
     if (ed) { await editarInline(ed.dataset.editar); return; }
@@ -445,7 +484,6 @@ export function ligarFerramentas() {
     const apS = e.target.closest('[data-apagar-secao]');
     if (apS) { await apagarSecaoUI(apS.dataset.apagarSecao); return; }
 
-    if (e.target.closest('[data-limpar]')) { await limpar(); return; }
     if (e.target.closest('[data-renomear]')) { await renomear(); return; }
     if (e.target.closest('[data-apagar-grupo]')) { await apagarGrupoUI(); return; }
   });
@@ -552,6 +590,61 @@ async function _salvarMarca(it) {
   catch (e) { it.feito = !it.feito; desenhar(); showToast(e.message, 'error'); }
 }
 
+// ── Apagar com "Desfazer" (Élton, 22/10): some na hora e só apaga de vez
+// depois de 5 s. Tocar em Desfazer devolve o item no mesmo lugar.
+let _apagando = null;   // { it, lista, pos, timer, barra }
+function _confirmarApagar() {
+  const a = _apagando;
+  if (!a) return;
+  _apagando = null;
+  clearTimeout(a.timer); a.barra.remove();
+  apagarItem(a.it.id).catch((err) => showToast(err.message, 'error'));
+}
+function _listaDoItem(id) {
+  for (const g of grupos) {
+    if (g.soltos.some(i => i.id === id)) return g.soltos;
+    for (const sec of g.secoes) if (sec.itens.some(i => i.id === id)) return sec.itens;
+  }
+  return null;
+}
+function apagarComDesfazer(id) {
+  _confirmarApagar();   // um por vez: o anterior apaga de vez
+  const lista = _listaDoItem(id);
+  const it = _item(id);
+  if (!lista || !it) return;
+  const pos = lista.indexOf(it);
+  lista.splice(pos, 1); desenhar();
+  const barra = document.createElement('div');
+  barra.className = 'fr-desfazer';
+  barra.innerHTML = `<span>Item apagado</span><button type="button">↩ Desfazer</button>`;
+  document.getElementById('ferramentas-ov')?.appendChild(barra);
+  const a = { it, lista, pos, barra, timer: setTimeout(_confirmarApagar, 5000) };
+  _apagando = a;
+  barra.querySelector('button').onclick = () => {
+    if (_apagando !== a) return;
+    _apagando = null; clearTimeout(a.timer); barra.remove();
+    a.lista.splice(Math.min(a.pos, a.lista.length), 0, a.it); desenhar();
+  };
+}
+
+// ── Caixinha de valor (opcional): grava o preço no fim do texto ──
+async function editarValor(id) {
+  const it = _item(id);
+  if (!it) return;
+  const { base, valor } = separarValor(it.texto);
+  const atual = valor ? String(valor.toFixed(2)).replace('.', ',') : '';
+  const novo = await pedirTexto({ titulo: valor ? 'Quanto custa?' : 'Adicionar valor', valor: atual, placeholder: 'Ex.: 25,90 (vazio = sem valor)', ok: 'Salvar', max: 15, numero: true });
+  if (novo == null) return;
+  const limpo = novo.replace(/[^\d.,]/g, '');
+  const n = limpo ? Number(limpo.replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')) : 0;
+  if (limpo && !(n > 0)) { showToast('Não entendi o valor. Ex.: 25,90', 'error'); return; }
+  const texto = n > 0 ? `${base} ${reais(n).replace(/\u00a0/g, ' ')}` : base;
+  if (texto === it.texto) return;
+  const antes = it.texto;
+  it.texto = texto; desenhar();
+  try { await editarItem(id, texto); } catch (e) { it.texto = antes; desenhar(); showToast(e.message, 'error'); }
+}
+
 async function editarInline(id) {
   const it = _item(id);
   if (!it) return;
@@ -565,14 +658,15 @@ async function editarInline(id) {
 
 // Mini-modal bonito (substitui o prompt() nativo): título, campo, sugestões
 // opcionais, Cancelar/OK. Resolve com o texto (ou null se cancelar).
-function pedirTexto({ titulo, valor = '', placeholder = '', sugestoes = [], ok = 'Salvar', max = 60 }) {
+// numero = teclado de número e aceita vazio (caixinha de valor: vazio tira o valor)
+function pedirTexto({ titulo, valor = '', placeholder = '', sugestoes = [], ok = 'Salvar', max = 60, numero = false }) {
   return new Promise((resolve) => {
     const ov = document.createElement('div');
     ov.className = 'fr-mini-ov';
     ov.innerHTML = `
       <div class="fr-mini">
         <div class="fr-mini-tit">${esc(titulo)}</div>
-        <input class="fr-mini-input" id="fr-mini-in" value="${esc(valor)}" placeholder="${esc(placeholder)}" maxlength="${max}" autocomplete="off" />
+        <input class="fr-mini-input" id="fr-mini-in" value="${esc(valor)}" placeholder="${esc(placeholder)}" maxlength="${max}" autocomplete="off"${numero ? ' inputmode="decimal"' : ''} />
         ${sugestoes.length ? `<div class="fr-mini-sugs">${sugestoes.map(s => `<button type="button" class="fr-sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>` : ''}
         <div class="fr-mini-acoes">
           <button type="button" class="fr-mini-cancel" data-c>Cancelar</button>
@@ -598,9 +692,9 @@ function pedirTexto({ titulo, valor = '', placeholder = '', sugestoes = [], ok =
       if (e.target === ov || e.target.closest('[data-c]')) return fim(null);
       const sug = e.target.closest('[data-sug]');
       if (sug) { input.value = sug.dataset.sug; input.focus(); return; }
-      if (e.target.closest('[data-k]')) { const t = input.value.trim(); return t ? fim(t) : input.focus(); }
+      if (e.target.closest('[data-k]')) { const t = input.value.trim(); return t || numero ? fim(t) : input.focus(); }
     });
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const t = input.value.trim(); if (t) fim(t); } });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const t = input.value.trim(); if (t || numero) fim(t); } });
   });
 }
 
@@ -639,19 +733,6 @@ async function apagarSecaoUI(id) {
   if (!ok) return;
   g.secoes = g.secoes.filter(s => s.id !== id); desenhar();
   try { await apagarSecao(id); } catch (e) { showToast(e.message, 'error'); }
-}
-
-async function limpar() {
-  const g = grupos.find(x => x.nome === grupoAberto);
-  const ok = await confirmModal({
-    title: 'Limpar concluídos?',
-    message: 'Os itens já riscados deste grupo serão apagados.',
-    confirmText: 'Limpar', cancelText: 'Manter', danger: true,
-  });
-  if (!ok) return;
-  if (g) { g.soltos = g.soltos.filter(i => !i.feito); g.secoes.forEach(s => s.itens = s.itens.filter(i => !i.feito)); }
-  desenhar();
-  try { await limparFeitos(grupoAberto); } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function renomear() {
@@ -696,7 +777,7 @@ async function apagarGrupoUI() {
 export async function pintarBadgeFerramentas() {
   try {
     const n = await contarPendentes();
-    const dot = document.getElementById('ferramentas-dot');
+    const dot = document.getElementById('metodo-dot');
     if (dot) { dot.textContent = n > 0 ? n : ''; dot.style.display = n > 0 ? '' : 'none'; }
   } catch { /* badge é acessório */ }
 }

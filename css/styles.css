@@ -2313,11 +2313,13 @@ body.time-picker-open { overflow: hidden; }
 #morning-msgs-card { --card-cor: #f472b6; }
 #ferramentas-card  { --card-cor: #60a5fa; }
 #cartao-dia-card   { --card-cor: #34d399; }
-#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card {
+#metodo-card       { --card-cor: #f5c518; }
+#lingua-card       { --card-cor: #22d3ee; }
+#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card, #metodo-card, #lingua-card {
   border: 1px solid color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left: 4px solid var(--card-cor);
 }
-#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover {
+#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover, #metodo-card:hover, #lingua-card:hover {
   border-color: color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left-color: var(--card-cor);
 }
@@ -2649,7 +2651,8 @@ body.time-picker-open { overflow: hidden; }
 /* Desafios dentro da Comunidade: espaço pro fim não ficar atrás da barra de baixo */
 .ds-embed { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .ds-rec-tempo {
-  position: absolute; top: calc(90px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 3;
+  /* Embaixo, logo acima do botão de gravar: em cima a faixa do título tapava */
+  position: absolute; bottom: calc(118px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 5;
   background: rgba(220,38,38,0.9); color: #fff; font-weight: 800; font-size: 14px; border-radius: 999px; padding: 4px 12px;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
@@ -8308,7 +8311,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cartao-dia-btns button { flex: 1 1 0; height: 46px; margin: 0; padding: 0 8px; white-space: nowrap; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(245,197,24,.10); box-shadow: none; border: 1px solid rgba(245,197,24,.45); border-radius: 999px; color: #f5c518; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; transform: none; }
 .cartao-dia-btns button:hover { background: rgba(245,197,24,.16); }
 /* ⋯ Mais opções no meio: redondo, mesma altura (abre escolher fundo/importar/transparente) */
-.cartao-dia-btns .cartao-dia-mais { flex: 0 0 44px; width: 44px; padding: 0; font-size: 1.25rem; line-height: 1; letter-spacing: 1px; }
+/* ⋯ desenhado (SVG): o caractere ⋯ ficava fora do centro em alguns Android */
+.cartao-dia-btns .cartao-dia-mais { flex: 0 0 44px; width: 44px; padding: 0; line-height: 0; }
 /* Compartilhar e Fechar do mesmo tamanho: o ⋯ fica no centro do cartão */
 .cartao-dia-btns [data-share] { flex: 1 1 0; }
 .cartao-dia-seta { position: absolute; bottom: 5%; z-index: 1; height: 48px; padding: 0; border: none; border-radius: 12px; background: rgba(0,0,0,.25); color: #f5c518; font-size: 1.6rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -8549,7 +8553,6 @@ body.rota-publica .bottom-nav { display: none !important; }
   border-radius: 999px; width: 38px; height: 34px; font-size: 16px;
 }
 .ds-tp-vel { color: #fff; font-weight: 800; font-size: 14px; min-width: 18px; text-align: center; }
-.ds-rec-ov.com-texto .ds-rec-tempo { top: calc(30vh + 70px + env(safe-area-inset-top)); }
 .ds-tp-abrir {
   position: absolute; left: 50%; transform: translateX(-50%); z-index: 3;
   bottom: calc(112px + env(safe-area-inset-bottom));
@@ -8762,3 +8765,67 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-campo-par .cp-campo-in { gap: 4px; }
 /* Medição do mês salva sem tudo: aviso pra completar */
 .cp-completar { background: var(--card-2); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 13px; color: var(--text); }
+
+/* ── Objetivos (Élton, 22/10): categoria com cara de botão que abre e fecha,
+   caixinha de valor opcional e "Desfazer" ao apagar ── */
+.fr-secao { margin: 8px 12px 4px; padding: 0; border-top: none; }
+.fr-secao-cab { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 2px 6px 2px 4px; }
+.fr-secao.aberta .fr-secao-cab { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
+.fr-secao-toggle { padding: 11px 4px; }
+.fr-secao-seta { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-size: 18px; font-weight: 800; }
+.fr-secao.aberta .fr-secao-seta { background: var(--accent); color: #fff; }
+.fr-secao.aberta .fr-nova { padding: 8px 2px 4px; }
+.fr-valor { flex: none; height: 28px; padding: 0 8px; border-radius: 999px; border: 1px dashed var(--border); background: none; color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.fr-valor.tem { border-style: solid; border-color: rgba(95,211,165,.45); color: #5fd3a5; background: rgba(95,211,165,.08); }
+.fr-item.feito .fr-valor { opacity: .55; }
+.fr-desfazer { position: absolute; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 10px 10px 16px; border-radius: 14px; background: #1f1b2e; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.35); font-size: 14px; animation: fr-sobe .18s ease-out; }
+.fr-desfazer button { background: none; border: none; color: #f5c518; font: inherit; font-weight: 800; padding: 6px 8px; cursor: pointer; }
+@keyframes fr-sobe { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── Método Falcon: botão "Como funciona" e o guia de perguntas ── */
+.fr-metodo-tit { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fr-metodo-ajuda { background: none; border: 1px solid rgba(245,197,24,.45); color: #f5c518; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.mg-ov { position: fixed; inset: 0; z-index: 10050; background: rgba(8,6,16,.72); display: flex; align-items: flex-end; justify-content: center; }
+.mg-caixa { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; background: var(--bg, #0f0d18); border: 1px solid var(--border); border-bottom: none; border-radius: 22px 22px 0 0; padding: 14px 18px calc(20px + env(safe-area-inset-bottom)); animation: fr-sobe .2s ease-out; }
+.mg-topo { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; }
+.mg-x { flex: none; width: 34px; height: 34px; border-radius: 50%; border: none; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--muted); font-size: 15px; cursor: pointer; }
+.mg-trilha { flex: 1; display: flex; align-items: flex-start; }
+.mg-trilha i { flex: 1; height: 2px; margin-top: 13px; background: var(--border); }
+.mg-passo { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 62px; color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: center; }
+.mg-passo b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--border); font-size: 12px; }
+.mg-passo.atual { color: #f5c518; }
+.mg-passo.atual b { border-color: #f5c518; color: #f5c518; box-shadow: 0 0 0 4px rgba(245,197,24,.15); }
+.mg-passo.feito { color: var(--text); }
+.mg-passo.feito b { background: #f5c518; border-color: #f5c518; color: #1d1a2b; }
+.mg-corpo { color: var(--text); }
+.mg-corpo h2 { font-size: 20px; margin: 4px 0 8px; }
+.mg-corpo p { color: var(--muted); font-size: 14.5px; line-height: 1.5; margin: 0 0 12px; }
+.mg-corpo p b { color: var(--text); }
+.mg-ic { font-size: 44px; text-align: center; }
+.mg-corpo > h2:first-of-type:nth-child(2) { text-align: center; }
+.mg-lista-passos { margin: 0 0 12px; padding-left: 22px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.mg-lista-passos b { color: var(--text); }
+.mg-leve { text-align: center; }
+.mg-txt { width: 100%; box-sizing: border-box; min-height: 130px; resize: vertical; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; font-size: 15px; line-height: 1.5; padding: 12px; margin-bottom: 10px; }
+.mg-rot { font-size: 12px; font-weight: 700; color: var(--muted); margin: 2px 0 6px; }
+.mg-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.mg-chips-col { flex-direction: column; flex-wrap: nowrap; }
+.mg-chip { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mg-chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
+.mg-item { display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 14.5px; cursor: pointer; }
+.mg-item.fora { text-decoration: line-through; color: var(--muted); opacity: .6; border-style: dashed; }
+.mg-item.prio { border-color: #f5c518; background: rgba(245,197,24,.08); }
+.mg-num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #f5c518; color: #1d1a2b; font-size: 12px; }
+.mg-destaque { border: 1px solid #f5c518; background: rgba(245,197,24,.08); border-radius: 14px; padding: 14px; font-weight: 700; margin-bottom: 12px; }
+.mg-bt { width: 100%; margin: 4px 0 6px; }
+.mg-bt2 { padding: 13px; border-radius: 12px; border: 1px solid var(--accent); background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+.mg-dupla { display: flex; gap: 8px; }
+.mg-dupla .mg-link { flex: 1; }
+.mg-link { display: block; width: 100%; background: none; border: none; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 600; padding: 10px; cursor: pointer; }
+
+/* ── Home: Método Falcon e Atividades que abre e fecha ── */
+#metodo-card .reminders-icon { background: rgba(245,197,24,0.14); }
+.ativ-toggle { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.ativ-seta { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 18px !important; transform: rotate(90deg); transition: transform .15s; }
+.home-bloco.fechado .ativ-seta { transform: none; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.home-bloco.fechado .ativ-corpo { display: none; }
