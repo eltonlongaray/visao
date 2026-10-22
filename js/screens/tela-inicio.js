@@ -162,6 +162,15 @@ export async function renderHome(app) {
       </button>
 
 
+      <!-- APRENDA OUTRA LÍNGUA: por enquanto só avisa que está em desenvolvimento (Élton, 22/10) -->
+      <button class="reminders-card" id="lingua-card" type="button">
+        <div class="reminders-icon">🌎</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Aprenda outra língua</div>
+          <div class="reminders-sub">15 minutos por dia</div>
+        </div>
+      </button>
+
       <!-- MÉTODO FALCON: Objetivos, Ideal, Prioridades e Metas (Élton, 22/10) -->
       <button class="reminders-card metodo-card" id="metodo-card" type="button">
         <div class="reminders-icon">🦅</div>
@@ -204,6 +213,7 @@ export async function renderHome(app) {
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
   document.getElementById('metodo-card')?.addEventListener('click', abrirMetodo);
+  document.getElementById('lingua-card')?.addEventListener('click', () => showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'));
   document.getElementById('ativ-toggle')?.addEventListener('click', () => {
     const bl = document.getElementById('ativ-bloco');
     const fechado = !bl.classList.contains('fechado');

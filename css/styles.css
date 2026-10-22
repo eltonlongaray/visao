@@ -2314,11 +2314,12 @@ body.time-picker-open { overflow: hidden; }
 #ferramentas-card  { --card-cor: #60a5fa; }
 #cartao-dia-card   { --card-cor: #34d399; }
 #metodo-card       { --card-cor: #f5c518; }
-#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card, #metodo-card {
+#lingua-card       { --card-cor: #22d3ee; }
+#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card, #metodo-card, #lingua-card {
   border: 1px solid color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left: 4px solid var(--card-cor);
 }
-#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover, #metodo-card:hover {
+#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover, #metodo-card:hover, #lingua-card:hover {
   border-color: color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left-color: var(--card-cor);
 }
