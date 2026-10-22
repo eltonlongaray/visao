@@ -138,7 +138,7 @@ export async function renderHome(app) {
         <div class="reminders-icon">🛠️</div>
         <div class="reminders-text">
           <div class="reminders-title">Ferramentas</div>
-          <div class="reminders-sub">Agenda Online e Rifa Solidária</div>
+          <div class="reminders-sub">Agenda Online, Rifa e Aprenda outra língua</div>
         </div>
       </button>
 
@@ -162,15 +162,6 @@ export async function renderHome(app) {
       </button>
 
 
-      <!-- APRENDA OUTRA LÍNGUA: por enquanto só avisa que está em desenvolvimento (Élton, 22/10) -->
-      <button class="reminders-card" id="lingua-card" type="button">
-        <div class="reminders-icon">🌎</div>
-        <div class="reminders-text">
-          <div class="reminders-title">Aprenda outra língua</div>
-          <div class="reminders-sub">15 minutos por dia</div>
-        </div>
-      </button>
-
       <!-- MÉTODO FALCON: Objetivos, Ideal, Prioridades e Metas (Élton, 22/10) -->
       <button class="reminders-card metodo-card" id="metodo-card" type="button">
         <div class="reminders-icon">🦅</div>
@@ -182,13 +173,18 @@ export async function renderHome(app) {
       </button>
 
       <!-- ATIVIDADES: último card, abre e fecha no título (começa aberto) -->
-      <div class="home-section home-bloco${_lerAtivFechado() ? ' fechado' : ''}" id="ativ-bloco">
-        <div class="home-section-title home-bloco-titulo">
-          <button type="button" class="ativ-toggle" id="ativ-toggle" aria-expanded="${!_lerAtivFechado()}"><span class="ativ-seta" aria-hidden="true">›</span><span>${t('home.activities')}</span></button>
-          <button class="home-add-btn" id="add-cat" title="${t('home.activity.new')}">+</button>
-        </div>
+      <div class="ativ-bloco${_lerAtivFechado() ? ' fechado' : ''}" id="ativ-bloco">
+        <button class="reminders-card" id="ativ-card" type="button" aria-expanded="${!_lerAtivFechado()}">
+          <div class="reminders-icon">📋</div>
+          <div class="reminders-text">
+            <div class="reminders-title">Atividades</div>
+            <div class="reminders-sub">Os tipos de coisa da sua rotina</div>
+          </div>
+          <span class="ativ-seta" aria-hidden="true">›</span>
+        </button>
         <div class="ativ-corpo">
           <div id="cats-list"></div>
+          <button class="ativ-nova" id="add-cat" type="button">＋ ${t('home.activity.new')}</button>
           <div class="bloco-sub bloco-sub-fim">${t('home.activities.hint')}</div>
         </div>
       </div>
@@ -213,12 +209,11 @@ export async function renderHome(app) {
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
   document.getElementById('metodo-card')?.addEventListener('click', abrirMetodo);
-  document.getElementById('lingua-card')?.addEventListener('click', () => showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'));
-  document.getElementById('ativ-toggle')?.addEventListener('click', () => {
+  document.getElementById('ativ-card')?.addEventListener('click', () => {
     const bl = document.getElementById('ativ-bloco');
     const fechado = !bl.classList.contains('fechado');
     bl.classList.toggle('fechado', fechado);
-    document.getElementById('ativ-toggle').setAttribute('aria-expanded', String(!fechado));
+    document.getElementById('ativ-card').setAttribute('aria-expanded', String(!fechado));
     try { localStorage.setItem('falcon_ativ_fechado', fechado ? '1' : ''); } catch { /* sem armazenamento */ }
   });
 

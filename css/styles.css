@@ -2314,12 +2314,12 @@ body.time-picker-open { overflow: hidden; }
 #ferramentas-card  { --card-cor: #60a5fa; }
 #cartao-dia-card   { --card-cor: #34d399; }
 #metodo-card       { --card-cor: #f5c518; }
-#lingua-card       { --card-cor: #22d3ee; }
-#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card, #metodo-card, #lingua-card {
+#ativ-card         { --card-cor: #a78bfa; }
+#avisos-card, #reminders-card, #morning-msgs-card, #ferramentas-card, #cartao-dia-card, #metodo-card, #ativ-card {
   border: 1px solid color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left: 4px solid var(--card-cor);
 }
-#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover, #metodo-card:hover, #lingua-card:hover {
+#avisos-card:hover, #reminders-card:hover, #morning-msgs-card:hover, #ferramentas-card:hover, #cartao-dia-card:hover, #metodo-card:hover, #ativ-card:hover {
   border-color: color-mix(in srgb, var(--card-cor) 40%, transparent);
   border-left-color: var(--card-cor);
 }
@@ -8825,7 +8825,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 
 /* ── Home: Método Falcon e Atividades que abre e fecha ── */
 #metodo-card .reminders-icon { background: rgba(245,197,24,0.14); }
-.ativ-toggle { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
-.ativ-seta { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 18px !important; transform: rotate(90deg); transition: transform .15s; }
-.home-bloco.fechado .ativ-seta { transform: none; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
-.home-bloco.fechado .ativ-corpo { display: none; }
+#ativ-card { position: relative; }
+.ativ-seta { flex: none; margin-left: auto; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--card-cor) 18%, transparent); color: var(--card-cor); font-size: 20px; font-weight: 800; transform: rotate(90deg); transition: transform .15s; }
+.ativ-bloco.fechado .ativ-seta { transform: none; }
+.ativ-bloco.fechado .ativ-corpo { display: none; }
+.ativ-corpo { margin-top: 10px; }
+.ativ-nova { width: 100%; margin: 6px 0 4px; padding: 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border)); background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }

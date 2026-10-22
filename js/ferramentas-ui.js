@@ -174,6 +174,11 @@ function telaHub() {
         <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
         <span class="fr-hub-tag">PRO</span>
       </button>
+      <button class="fr-hubcard" data-hub-lingua type="button">
+        <span class="fr-hub-ic">🌎</span>
+        <span class="fr-hub-tx"><b>Aprenda outra língua</b><small>15 minutos por dia</small></span>
+        <span class="fr-hub-tag">EM BREVE</span>
+      </button>
     </div>`;
   const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
   const prio = _prioridades().filter(x => !x.item.feito).length;
@@ -432,6 +437,7 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
     if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
+    if (e.target.closest('[data-hub-lingua]')) { showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'); return; }
 
     const abrir = e.target.closest('[data-grupo]');
     if (abrir) { _empurrar(); grupoAberto = abrir.dataset.grupo; desenhar(); return; }
