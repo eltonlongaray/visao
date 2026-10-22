@@ -39,7 +39,7 @@ function palavras(s) {
 // entra se nomear uma lista da pessoa E não tiver data/hora (ver acharAlvo):
 // "marca academia amanhã às 7" é agenda, não a lista Academia.
 // "Objetivos" é o nome novo da tela das listas (Élton, 21/10); "metas" é o Desempenho.
-export const DICA_LISTA = /\blistas?\b|\bobjetivos\b|\bprioridades?\b|\bcheck\b|caixa de ferramentas|\bcomo (feit[oa]|conclu[ií]d[oa])\b|\bdesmarc/i;
+export const DICA_LISTA = /\blistas?\b|\bobjetivos\b|\bprioridades?\b|\bcheck\b|caixa de ferramentas|m[eé]todo falcon|\bcomo (feit[oa]|conclu[ií]d[oa])\b|\bdesmarc/i;
 
 export function detectarAcao(text) {
   const t = norm(text);

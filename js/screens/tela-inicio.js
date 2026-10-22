@@ -39,7 +39,9 @@ import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
 import { montarPendencias } from '../pendencias-ui.js';
-import { abrirFerramentas, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
+import { abrirFerramentas, abrirMetodo, ligarFerramentas, pintarBadgeFerramentas } from '../ferramentas-ui.js';
+// Atividades abre e fecha (lembra no aparelho)
+const _lerAtivFechado = () => { try { return localStorage.getItem('falcon_ativ_fechado') === '1'; } catch { return false; } };
 import { abrirAgenda } from '../agenda-ui.js';
 import { abrirRifas } from '../rifas-ui.js';
 import { temConvitePendente, entrarPeloConvite } from '../desafios-sala.js';
@@ -131,14 +133,13 @@ export async function renderHome(app) {
         <div class="reminders-badge" id="reminders-badge" style="display:none">0</div>
       </button>
 
-      <!-- CAIXA DE FERRAMENTAS (3º, logo abaixo de Lembretes): hub (Objetivos, Agenda, Rifa, Listas) -->
+      <!-- FERRAMENTAS: só Agenda Online e Rifa (o resto foi pro Método Falcon, Élton 22/10) -->
       <button class="reminders-card" id="ferramentas-card" type="button">
         <div class="reminders-icon">🛠️</div>
         <div class="reminders-text">
-          <div class="reminders-title">Caixa de Ferramentas</div>
-          <div class="reminders-sub">Minhas Metas, Agenda Online, Rifa e Objetivos</div>
+          <div class="reminders-title">Ferramentas</div>
+          <div class="reminders-sub">Agenda Online e Rifa Solidária</div>
         </div>
-        <div class="msgs-dot fr-dot" id="ferramentas-dot" style="display:none"></div>
       </button>
 
       <!-- MENSAGENS DA MANHÃ -->
@@ -161,15 +162,26 @@ export async function renderHome(app) {
       </button>
 
 
-      <!-- ATIVIDADES (antes "Categorias" — agora é o único layer) -->
-      <!-- ATIVIDADES: daqui pra baixo é atividade -->
-      <div class="home-section home-bloco">
+      <!-- MÉTODO FALCON: Objetivos, Ideal, Prioridades e Metas (Élton, 22/10) -->
+      <button class="reminders-card metodo-card" id="metodo-card" type="button">
+        <div class="reminders-icon">🦅</div>
+        <div class="reminders-text">
+          <div class="reminders-title">Método Falcon</div>
+          <div class="reminders-sub">Organização › Clareza › Decisão › Ação</div>
+        </div>
+        <div class="msgs-dot fr-dot" id="metodo-dot" style="display:none"></div>
+      </button>
+
+      <!-- ATIVIDADES: último card, abre e fecha no título (começa aberto) -->
+      <div class="home-section home-bloco${_lerAtivFechado() ? ' fechado' : ''}" id="ativ-bloco">
         <div class="home-section-title home-bloco-titulo">
-          <span>${t('home.activities')}</span>
+          <button type="button" class="ativ-toggle" id="ativ-toggle" aria-expanded="${!_lerAtivFechado()}"><span class="ativ-seta" aria-hidden="true">›</span><span>${t('home.activities')}</span></button>
           <button class="home-add-btn" id="add-cat" title="${t('home.activity.new')}">+</button>
         </div>
-        <div id="cats-list"></div>
-        <div class="bloco-sub bloco-sub-fim">${t('home.activities.hint')}</div>
+        <div class="ativ-corpo">
+          <div id="cats-list"></div>
+          <div class="bloco-sub bloco-sub-fim">${t('home.activities.hint')}</div>
+        </div>
       </div>
 
       <!-- "Meus Objetivos" (com o Foco e Disciplina dentro) mudou-se pra Caixa
@@ -191,6 +203,14 @@ export async function renderHome(app) {
   ligarFerramentas();
   pintarBadgeFerramentas();
   document.getElementById('ferramentas-card')?.addEventListener('click', abrirFerramentas);
+  document.getElementById('metodo-card')?.addEventListener('click', abrirMetodo);
+  document.getElementById('ativ-toggle')?.addEventListener('click', () => {
+    const bl = document.getElementById('ativ-bloco');
+    const fechado = !bl.classList.contains('fechado');
+    bl.classList.toggle('fechado', fechado);
+    document.getElementById('ativ-toggle').setAttribute('aria-expanded', String(!fechado));
+    try { localStorage.setItem('falcon_ativ_fechado', fechado ? '1' : ''); } catch { /* sem armazenamento */ }
+  });
 
   // Quando uma atividade nova é criada em outro lugar (ex.: dentro do Foco e
   // Disciplina), repinta as Atividades sem precisar recarregar a Home.

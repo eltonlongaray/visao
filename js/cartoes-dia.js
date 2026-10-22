@@ -589,7 +589,7 @@ export async function abrirCartaoDoDia(aoFechar = null) {
       <div class="cartao-dia-nome-fundo" data-nome-fundo></div>
       <div class="cartao-dia-btns">
         <button class="btn-primary" data-share>📤 Compartilhar</button>
-        <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente, espelhar foto">⋯</button>
+        <button class="cartao-dia-mais" data-fundo aria-label="Mais opções: escolher fundo, importar imagem, transparente, espelhar foto"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true" style="display:block"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/></svg></button>
         <button class="btn-secondary" data-fechar>Fechar</button>
       </div>
     </div>`;

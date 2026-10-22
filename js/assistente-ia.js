@@ -3157,7 +3157,7 @@ async function listaEstrutura(est, text) {
   if (est.tipo === 'criarGrupo') {
     if (!est.nome) return 'Qual o nome do grupo? Ex.: <em>"cria o grupo Faculdade"</em>.';
     if (arvore.some(g => _limpoTxt(g.nome) === _limpoTxt(est.nome))) return `Já existe o grupo <strong>${_esc(est.nome)}</strong>.`;
-    cardConfirmarLista(`🗂️ Criar o grupo <strong>${_esc(est.nome)}</strong> na Caixa de Ferramentas?`,
+    cardConfirmarLista(`🗂️ Criar o grupo <strong>${_esc(est.nome)}</strong> nos Objetivos?`,
       async () => { await criarGrupo(est.nome); return `Pronto! Pra criar uma lista nele: <em>"cria a lista X no ${_esc(est.nome)}"</em>.`; });
     return null;
   }
@@ -3256,7 +3256,7 @@ async function listaPrioridade(text, acao) {
     const pend = todas.filter(x => !x.item.feito);
     if (!pend.length) return 'Tu ainda não tem prioridades ⭐ Me fala <em>"marca o cimento como prioridade"</em> ou toca na ☆ do item nos Objetivos.';
     return '⭐ <strong>Tuas prioridades</strong><br>' + pend.map((x, i) => `${i + 1}. ${_esc(x.item.texto)} <small>(${_esc(PL.ondeTexto(x.grupo, x.secao))})</small>`).join('<br>') +
-      '<br><small>Pra mudar a ordem: Caixa de Ferramentas › ⭐ Prioridades, segura o ⠿ e arrasta.</small>';
+      '<br><small>Pra mudar a ordem: Método Falcon › ⭐ Prioridades, segura o ⠿ e arrasta.</small>';
   }
   const ligar = acao === 'prioridade';
   const alvo = PL.acharAlvo(arvore, text);
@@ -5006,6 +5006,10 @@ async function tentarConfig(text) {
   const t = PR.semPedido(text);
   const tela = PCF.lerAbrirTela(t);
   if (tela) {
+    if (tela.rota === 'metodo' || tela.rota === 'ferramentas') {
+      setTimeout(() => import('./ferramentas-ui.js').then(m => { m.ligarFerramentas(); (tela.rota === 'metodo' ? m.abrirMetodo : m.abrirFerramentas)(); }).catch(() => {}), 400);
+      return `Abrindo ${tela.nome} 👉`;
+    }
     setTimeout(() => navigate(tela.rota), 400);
     return `Abrindo ${tela.nome} 👉`;
   }
@@ -6172,7 +6176,7 @@ async function negocioRifa(p) {
   let rifas;
   try { rifas = await RF.getMinhasRifas(); }
   catch (e) { console.warn('[pet-negocio]', e); return 'Não consegui abrir tuas rifas agora 😕 Tenta de novo daqui a pouco.'; }
-  if (!rifas.length) return '🎟️ Tu ainda não tem rifa. Dá pra criar na Caixa de Ferramentas, em <b>Rifas</b>.';
+  if (!rifas.length) return '🎟️ Tu ainda não tem rifa. Dá pra criar no card <b>Ferramentas</b>, em <b>Rifa Solidária</b>.';
   const opcoes = PNG.acharRifa(rifas, p.palavras);
   const seguir = async (rifa) => {
     let parts;

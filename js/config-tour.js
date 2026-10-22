@@ -84,15 +84,15 @@ export const ONBOARDING_STEPS = [
     primaryBtn: 'Próximo →'
   },
 
-  // ── 5. HOME: Caixa de Ferramentas (hub: Listas, Agenda Online, Rifa) ──
+  // ── 5. HOME: Método Falcon (Objetivos, Ideal, Prioridades, Metas) ──
   {
     id: 'home-ferramentas',
     route: '/home',
-    target: '#ferramentas-card',
+    target: '#metodo-card',
     holePad: 8,
     noCollapse: true,
-    title: '🛠️ Caixa de Ferramentas',
-    message: 'Aqui dentro mora o que organiza a sua vida: <strong>Minhas Metas</strong> — você marca o que é importante em cada área (físico, mental, emocional…) e escolhe o que vai virar <strong>meta de constância</strong>, que eu acompanho sozinho pelo Ritual. Tem também a <strong>Agenda Online</strong> (se você atende clientes, ganha um link pra bio e o agendamento cai direto no seu Ritual), a <strong>Rifa Solidária</strong> e os <strong>Objetivos</strong>: coisas pra fazer ou comprar, em listas. É só tocar pra abrir. 😉',
+    title: '🦅 Método Falcon',
+    message: 'Aqui mora o que organiza a sua vida, em 4 passos: <strong>Organização</strong> (os Objetivos: tudo que precisa fazer ou comprar), <strong>Clareza</strong> (o que é importante em cada área), <strong>Decisão</strong> (as ⭐ Prioridades, na ordem) e <strong>Ação</strong> (as Metas, que eu acompanho pelo Ritual). Na primeira vez eu te guio com umas perguntas rápidas. A <strong>Agenda Online</strong> e a <strong>Rifa</strong> ficam no card Ferramentas. 😉',
     primaryBtn: 'Próximo →'
   },
 

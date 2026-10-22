@@ -1238,7 +1238,7 @@ function mostrarPrevia() {
     <div class="fe-baixo">
       <div class="fe-campo">
         <button type="button" class="fe-emoji" id="fe-emoji" aria-label="Emojis">🙂</button>
-        <textarea id="fe-legenda" rows="1" maxlength="2000"
+        <textarea id="fe-legenda" rows="1" maxlength="2000" autocorrect="on" spellcheck="true" autocapitalize="sentences"
           placeholder="Adicione uma legenda…">${esc(anexo.legenda || '')}</textarea>
       </div>
       <button type="button" class="fe-enviar" id="fe-enviar" aria-label="Enviar">${IC_ENVIAR}</button>
@@ -1338,7 +1338,7 @@ async function abrirEncaminhar(msgs) {
       <form class="enc-envio" id="enc-envio">
         <div class="enc-campo">
           ${miniaturaEncaminhada()}
-          <textarea id="enc-texto" rows="1" maxlength="2000"
+          <textarea id="enc-texto" rows="1" maxlength="2000" autocorrect="on" spellcheck="true" autocapitalize="sentences"
             placeholder="Adicione uma mensagem"></textarea>
         </div>
         <button type="submit" class="enc-mandar" id="enc-mandar" aria-label="Enviar">
@@ -1505,7 +1505,7 @@ function verFoto(url, msgId) {
     <div class="fv-palco" id="fv-palco"><img src="${esc(url)}" alt="Foto em tela cheia" /></div>
     <form class="fv-baixo" id="fv-envio">
       <button type="button" class="fv-btn" id="fv-responder" aria-label="Responder">${IC_RESP}</button>
-      <textarea id="fv-texto" rows="1" maxlength="2000"
+      <textarea id="fv-texto" rows="1" maxlength="2000" autocorrect="on" spellcheck="true" autocapitalize="sentences"
         placeholder="Responder mensagem"></textarea>
       <button type="submit" class="fv-btn fv-mandar" aria-label="Enviar">➤</button>
     </form>`;
@@ -1977,7 +1977,7 @@ function pintar(corpo, lista, placeholder, cabecalho = '', comFundo = false, fai
         <button type="button" class="chat-emoji-btn" id="chat-emoji-btn"
           aria-label="Emojis">🙂</button>
         <textarea id="chat-texto" placeholder="${esc(placeholder)}" maxlength="2000"
-          rows="1" autocomplete="off" enterkeyhint="enter"></textarea>
+          rows="1" enterkeyhint="enter" autocorrect="on" spellcheck="true" autocapitalize="sentences"></textarea>
         <!-- clipe à esquerda da câmera, como no WhatsApp -->
         <button type="button" class="chat-ic-btn" id="chat-clipe-btn" aria-label="Anexar arquivo" title="Arquivo">
           <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor"
