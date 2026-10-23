@@ -2276,7 +2276,7 @@ body.time-picker-open { overflow: hidden; }
 .cat-config-name-display { flex: 1; font-size: 13px; font-weight: 600; }
 /* Atividade FIXA "Agenda Online" na lista de atividades (igual às outras, clicável) */
 /* Agenda Online na lista de Atividades = item informativo, não botão. */
-.ag-cat-card { cursor: default; }
+
 /* === Card de Lembretes da Semana === */
 .reminders-card {
   width: 100%;

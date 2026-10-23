@@ -215,6 +215,8 @@ export async function renderHome(app) {
     bl.classList.toggle('fechado', fechado);
     document.getElementById('ativ-card').setAttribute('aria-expanded', String(!fechado));
     try { localStorage.setItem('falcon_ativ_fechado', fechado ? '1' : ''); } catch { /* sem armazenamento */ }
+    // abriu → a tela desce pra mostrar o que tem dentro
+    if (!fechado) requestAnimationFrame(() => bl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   });
 
   // Quando uma atividade nova é criada em outro lugar (ex.: dentro do Foco e
@@ -458,17 +460,9 @@ function attachPrefHandlers() {
 // ═══════════════════════════════════════════════════════════════
 function renderCats() {
   const box = document.getElementById('cats-list');
-  // Atividade FIXA "Agenda Online" (pra todos) — igual às outras, abre o hub da Agenda.
-  // Agenda Online = só um item informativo na lista (NÃO é botão, sem bolinha de
-  // cor). O gerenciamento vive na Caixa de Ferramentas.
-  const agendaCard = `
-    <div class="cat-config-card ag-cat-card" id="agenda-cat">
-      <div class="cat-config-icon" style="background:rgba(124,58,237,.20)">📅</div>
-      <div class="cat-config-name-display">Agenda Online</div>
-      <div class="activity-actions" aria-hidden="true" style="visibility:hidden"><button type="button">✏️</button><button type="button">🗑️</button></div>
-    </div>`;
-  // Rifa Solidária saiu daqui — vive só na Caixa de Ferramentas (pedido do Elton).
-  box.innerHTML = agendaCard + categories.map(c => `
+  // "Agenda Online" saiu daqui (Élton 23/10): era só um nome, não fazia nada.
+  // O atendimento de cliente continua no formulário do compromisso do Ritual.
+  box.innerHTML = categories.map(c => `
     <div class="cat-config-card" data-id="${c.id}">
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
@@ -481,7 +475,6 @@ function renderCats() {
       </div>
     </div>
   `).join('');
-  // Agenda Online não é clicável (item informativo). Gestão fica na Caixa de Ferramentas.
 }
 
 // NOTA: renderActs/activityCard removidos — o layer "Atividade interna" foi mergeado com Categorias (renomeadas pra Atividades).
