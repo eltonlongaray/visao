@@ -92,7 +92,7 @@ export const ONBOARDING_STEPS = [
     holePad: 8,
     noCollapse: true,
     title: '🦅 Método Falcon',
-    message: 'Aqui mora o que organiza a sua vida, em 4 passos: <strong>Organização</strong> (os Objetivos: tudo que precisa fazer ou comprar), <strong>Clareza</strong> (o que é importante em cada área), <strong>Decisão</strong> (as ⭐ Prioridades, na ordem) e <strong>Ação</strong> (as Metas, que eu acompanho pelo Ritual). Na primeira vez eu te guio com umas perguntas rápidas. A <strong>Agenda Online</strong> e a <strong>Rifa</strong> ficam no card Ferramentas. 😉',
+    message: 'Aqui mora o que organiza a sua vida, em 4 passos: <strong>Organização</strong> (o seu Ideal: o que é importante em cada área), <strong>Clareza</strong> (os Objetivos: tudo que precisa fazer ou comprar), <strong>Decisão</strong> (as ⭐ Prioridades, na ordem) e <strong>Ação</strong> (as Metas, que eu acompanho pelo Ritual). Na primeira vez eu te guio com umas perguntas rápidas. A <strong>Agenda Online</strong> e a <strong>Rifa</strong> ficam no card Ferramentas. 😉',
     primaryBtn: 'Próximo →'
   },
 
