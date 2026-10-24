@@ -2961,6 +2961,27 @@ function showEditCard(matches, action, payload) {
     const reschedCount = (task.rescheduleCount || 0) + 1;
 
     let p;
+    // Como estava antes, pro botão Desfazer
+    const antes = { title: task.title, desc: task.desc || '', reminderEnabled: !!task.reminderEnabled, startTime: task.startTime || '',
+      horaFim: task.horaFim || null, kind: task.kind || 'task', shiftId: task.shiftId || null,
+      rescheduled: !!task.rescheduled, rescheduleCount: task.rescheduleCount || 0 };
+    let desfazer = null;
+    if (action === 'rename') {
+      desfazer = async () => {
+        await updateDayTask(dayDocId, task.id, { title: antes.title });
+        await renomearRepeticoes(task, date, antes.title).catch(() => {});
+        task.title = antes.title;
+      };
+    } else if (action === 'desc') desfazer = () => updateDayTask(dayDocId, task.id, { desc: antes.desc });
+    else if (action === 'reminder') desfazer = () => updateDayTask(dayDocId, task.id, { reminderEnabled: antes.reminderEnabled });
+    else if (action === 'time' || (action !== 'recur' && action !== 'kind' && dayId(payload.newDate || date) === dayDocId)) {
+      desfazer = () => updateDayTask(dayDocId, task.id, { startTime: antes.startTime, rescheduled: antes.rescheduled, rescheduleCount: antes.rescheduleCount });
+    } else if (action === 'kind') {
+      desfazer = async () => {
+        const v = { kind: antes.kind, startTime: antes.startTime, horaFim: antes.horaFim, shiftId: antes.shiftId };
+        await updateDayTask(dayDocId, task.id, v); Object.assign(task, v);
+      };
+    }
     if (action === 'rename') {
       p = updateDayTask(dayDocId, task.id, { title: payload.newName })
         .then(() => renomearRepeticoes(task, date, payload.newName).catch(e => console.warn('[pet] renomear repetições:', e)))
@@ -3015,6 +3036,7 @@ function showEditCard(matches, action, payload) {
     p.then(() => {
       btn.textContent = t('pet.edit.done');
       btn.classList.add('pet-reg-done');
+      if (desfazer) ofereceDesfazer(desfazer);
       showCenterToast(t('pet.edit.done'));
       setPetState('excited');
       setTimeout(() => setPetState('idle'), 1800);
@@ -3448,10 +3470,13 @@ function cardConfirmarLista(resumo, acao, depois = aposMudarLista, mostrar = nul
   ok.addEventListener('click', async () => {
     ok.disabled = nao.disabled = true; ok.textContent = 'Salvando…';
     try {
-      const msg = await acao();
+      const res = await acao();
+      // A ação pode devolver { msg, desfazer } pra oferecer o botão Desfazer
+      const msg = res && typeof res === 'object' ? res.msg : res;
       ok.textContent = '✅ Feito'; ok.classList.add('pet-reg-done'); nao.remove();
       depois?.();
       if (msg) addMessage(msg, 'bot');
+      if (res && typeof res === 'object' && res.desfazer) ofereceDesfazer(res.desfazer);
       // resultado na conversa (lista/dia/perfil como ficou) — falha aqui não
       // desfaz nada: o dado já foi gravado
       if (mostrar) { try { await mostrar(); } catch (e) { console.warn('[pet-mostrar]', e); } }
@@ -3462,6 +3487,32 @@ function cardConfirmarLista(resumo, acao, depois = aposMudarLista, mostrar = nul
     }
   });
   nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// Botão "↩️ Desfazer" logo depois de uma mudança feita pelo Pet: volta como
+// estava se ele entendeu errado (pedido do Élton: "pra quando ele faz caca")
+function ofereceDesfazer(desfazer) {
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'pet-msg pet-msg-bot';
+  div.innerHTML = `<span class="pet-preview-card"><button class="pet-choice-btn" data-desfazer>↩️ Desfazer</button></span>`;
+  const bt = div.querySelector('[data-desfazer]');
+  bt.addEventListener('click', async () => {
+    bt.disabled = true; bt.textContent = 'Desfazendo…';
+    try {
+      await desfazer();
+      bt.textContent = '↩️ Desfeito';
+      _redesenharTela();
+      addMessage('Pronto, voltei como estava ↩️', 'bot');
+    } catch (err) {
+      console.error('[pet-desfazer]', err);
+      bt.disabled = false; bt.textContent = '↩️ Desfazer';
+      addMessage('Não consegui desfazer 😕 ' + _esc(err.message || ''), 'bot');
+    }
+  });
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
@@ -5121,7 +5172,7 @@ async function configAtividade(p) {
   const salvar = (patch, msg) => async () => {
     await saveCategory(c.id, { ...c, ...patch });   // ...c: guarda o lembrete e o resto do extra
     _redesenharTela();
-    return msg;
+    return { msg, desfazer: () => saveCategory(c.id, { ...c }) };
   };
   if (p.tipo === 'renomear') {
     if (!p.novo) return 'Pra qual nome? Ex.: "renomeia a atividade Academia pra Musculação".';

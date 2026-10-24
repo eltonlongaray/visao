@@ -122,6 +122,8 @@ export function lerAtividadeConfig(texto) {
   const bruto = semPedido(texto).replace(/[.!?]+$/, '').trim();
   const t = semAcento(bruto);
   if (!/\b(atividades?|categorias?)\b/.test(t)) return null;
+  // "compromisso", "tarefa" ou "no Ritual": é a agenda, não a biblioteca
+  if (/\b(compromissos?|tarefas?|ritual)\b/.test(t) && !/\b(atividade|categoria) d[aoe]s? (compromisso|tarefa)/.test(t)) return null;
   // Dia ou horário = tarefa da agenda, não a atividade da biblioteca
   const temDia = DIA_RE.test(t) || /\b\d{1,2}\s*(?:h|:\d{2})\b|\bas \d{1,2}\b/.test(t);
 
@@ -174,14 +176,23 @@ export function lerAtividadeConfig(texto) {
 export function lerRenomearTarefa(texto) {
   const bruto = semPedido(texto).replace(/[.!?]+$/, '').trim();
   const t = semAcento(bruto);
-  if (!/\b(renome\w*|(muda|mudar|troca|trocar|altera|alterar|edita|editar)\w* o nome)\b/.test(t)) return null;
-  const m = bruto.match(/\b(compromisso|tarefa)\s+(.+?)\s+(?:pra|para|por)\s+(.+)$/i);
+  // "renomeia", "muda o nome", e também "muda/troca/altera o compromisso X pra Y"
+  if (!/\b(renome\w*|mud[ae]r?|mudas?|troc[ae]r?|trocas?|alter[ae]r?|alteras?|edit[ae]r?|editas?)\b/.test(t)) return null;
+  // Outro campo (horário, descrição, lembrete…) tem roteador próprio
+  if (/\b(horario|hora|descricao|discricao|lembrete|cor|icone|emoji|repeti\w*|tipo)\b/.test(t) && !/\bo nome\b/.test(t)) return null;
+  const m = bruto.match(/\b(compromisso|tarefa)\s+(.+)\s+(?:pra|para|por)\s+(.+)$/i);
   if (!m) return null;
-  // O dia sai do nome ("Espiritualidade de sexta feira" → "Espiritualidade")
-  const DIA_FIM = /\s+(?:(?:d[eoa]s?|n[oa]s?|desta|dessa|da próxima|na próxima)\s+)?(?:anteontem|ontem|hoje|amanh[ãa]|domingo|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado)(?:[- ]feira)?\b.*$|\s+(?:d[eoa]\s+|n[oa]\s+)?(?:dia\s+\d{1,2}|\d{1,2}\/\d{1,2})\b.*$/i;
-  const nome = limpaNome(m[2].replace(/^(?:d[oa]s?|que (?:tenho|é|e))\s+/i, '').replace(DIA_FIM, ''));
-  const novo = limpaNome(m[3]);
-  if (!nome || !novo) return null;
+  let novo = limpaNome(m[3]);
+  novo = novo.charAt(0).toUpperCase() + novo.slice(1);   // falado vem minúsculo: título começa com maiúscula
+  // "pra sexta", "pra 15h": é remarcar, não nome novo
+  const novoSA = semAcento(novo);
+  if (!novo || DIA_RE.test(novoSA) || /^(as |a )?\d{1,2}\s*(h|:\d{2}|horas?)?\b/.test(novoSA) || /\b(amanha|hoje|semana que vem|outro dia)\b/.test(novoSA)) return null;
+  // O dia sai do nome: "de sexta-feira de Espiritualidade" e "Espiritualidade de sexta feira"
+  const DIA = '(?:anteontem|ontem|hoje|amanh[ãa]|domingo|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado)(?:[- ]feira)?|dia\\s+\\d{1,2}|\\d{1,2}\\/\\d{1,2}';
+  const DIA_INI = new RegExp(`^(?:(?:d[eoa]s?|n[oa]s?|desta|dessa|da próxima|na próxima)\\s+)?(?:${DIA})\\s+(?:(?:d[eoa]s?|chamad[oa])\\s+)?`, 'i');
+  const DIA_FIM = new RegExp(`\\s+(?:(?:d[eoa]s?|n[oa]s?|desta|dessa|da próxima|na próxima)\\s+)?(?:${DIA})\\b.*$`, 'i');
+  const nome = limpaNome(m[2].replace(/^(?:d[oa]s?|que (?:tenho|é|e))\s+/i, '').replace(DIA_INI, '').replace(DIA_FIM, ''));
+  if (!nome) return null;
   return { nome, novo, tipo: semAcento(m[1]), temDia: DIA_RE.test(semAcento(m[2])) };
 }
 
