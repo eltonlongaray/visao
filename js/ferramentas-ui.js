@@ -193,9 +193,9 @@ function telaHub() {
       <div class="fr-metodo">
         <div class="fr-metodo-tit">Os 4 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
         <div class="fr-metodo-passos">
-          <button type="button" data-hub-listas><b>1</b><span>Organização</span></button>
+          <button type="button" data-hub-clareza><b>1</b><span>Organização</span></button>
           <i aria-hidden="true">›</i>
-          <button type="button" data-hub-clareza><b>2</b><span>Clareza</span></button>
+          <button type="button" data-hub-listas><b>2</b><span>Clareza</span></button>
           <i aria-hidden="true">›</i>
           <button type="button" data-hub-prioridades><b>3</b><span>Decisão</span></button>
           <i aria-hidden="true">›</i>
@@ -203,14 +203,14 @@ function telaHub() {
         </div>
         <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro e parta pra ação.</div>
       </div>
-      <button class="fr-hubcard" data-hub-listas type="button">
-        <span class="fr-hub-ic">🎯</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">1 · Organização</small><b>Objetivos</b><small>O que você precisa fazer ou comprar, sem data nem hora</small></span>
-        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
-      </button>
       <button class="fr-hubcard" data-hub-clareza type="button">
         <span class="fr-hub-ic">🧭</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">2 · Clareza</small><b>Organizando meu ideal</b><small>Marque o que é importante em cada área da vida</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">1 · Organização</small><b>Organizando meu ideal</b><small>Marque o que é importante em cada área da vida</small></span>
+      </button>
+      <button class="fr-hubcard" data-hub-listas type="button">
+        <span class="fr-hub-ic">🎯</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">2 · Clareza</small><b>Objetivos</b><small>O que você precisa fazer ou comprar, sem data nem hora</small></span>
+        ${pend ? `<span class="fr-hub-badge">${pend}</span>` : ''}
       </button>
       <button class="fr-hubcard" data-hub-prioridades type="button">
         <span class="fr-hub-ic">⭐</span>
