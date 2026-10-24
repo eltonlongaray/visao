@@ -167,6 +167,24 @@ export function lerAtividadeConfig(texto) {
   return null;
 }
 
+// Renomear uma tarefa ou compromisso da agenda (não a atividade da biblioteca):
+// "renomeia o compromisso Espiritualidade de sexta para Atividade física".
+// O nome novo pode ter "atividade" dentro, por isso vem antes do lerAtividadeConfig.
+// { nome, novo, tipo: 'compromisso'|'tarefa', temDia } | null
+export function lerRenomearTarefa(texto) {
+  const bruto = semPedido(texto).replace(/[.!?]+$/, '').trim();
+  const t = semAcento(bruto);
+  if (!/\b(renome\w*|(muda|mudar|troca|trocar|altera|alterar|edita|editar)\w* o nome)\b/.test(t)) return null;
+  const m = bruto.match(/\b(compromisso|tarefa)\s+(.+?)\s+(?:pra|para|por)\s+(.+)$/i);
+  if (!m) return null;
+  // O dia sai do nome ("Espiritualidade de sexta feira" → "Espiritualidade")
+  const DIA_FIM = /\s+(?:(?:d[eoa]s?|n[oa]s?|desta|dessa|da próxima|na próxima)\s+)?(?:anteontem|ontem|hoje|amanh[ãa]|domingo|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado)(?:[- ]feira)?\b.*$|\s+(?:d[eoa]\s+|n[oa]\s+)?(?:dia\s+\d{1,2}|\d{1,2}\/\d{1,2})\b.*$/i;
+  const nome = limpaNome(m[2].replace(/^(?:d[oa]s?|que (?:tenho|é|e))\s+/i, '').replace(DIA_FIM, ''));
+  const novo = limpaNome(m[3]);
+  if (!nome || !novo) return null;
+  return { nome, novo, tipo: semAcento(m[1]), temDia: DIA_RE.test(semAcento(m[2])) };
+}
+
 // A atividade (categoria) que a pessoa citou: igual > começa com > contém > palavras
 export function acharAtividade(cats, nome) {
   const alvo = semAcento(nome).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();

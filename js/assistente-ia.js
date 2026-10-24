@@ -50,7 +50,7 @@ import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261014k';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
-import * as PCF from './pet-config.js?v=20261009g';
+import * as PCF from './pet-config.js?v=20261024b';
 import * as PDS from './pet-desempenho.js?v=20261021a';
 import * as PI from './pet-ideal.js?v=20261009f';
 import * as PDF from './pet-desafios.js?v=20261012e';
@@ -852,6 +852,12 @@ async function dispatchCommand(text) {
     // nuvem pegaria só num pedaço (a água). Antes dela, vê se cita várias atividades.
     // "Qual a diferença entre título e descrição?": explica com o exemplo do app
     if (reply === undefined && typeof text !== 'function' && PCF.lerDuvidaTituloDescricao(semChamado(text))) reply = EXPLICA_TITULO_DESCRICAO;
+    // "Renomeia o compromisso X de sexta para Y": antes da nuvem, que mandava
+    // pra renomear a ATIVIDADE da biblioteca (o Ritual ficava com o nome antigo)
+    if (reply === undefined && typeof text !== 'function') {
+      const r = PCF.lerRenomearTarefa(semChamado(text));
+      if (r) { await cmdEditarNome(r.nome, r.novo, r.tipo, r.temDia ? semChamado(text) : ''); reply = null; }
+    }
     // "Transforma a tarefa X em compromisso das 14h às 16h": antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const c = PCF.lerConverterTipo(semChamado(text));
@@ -2816,10 +2822,54 @@ async function searchTasksByName(hint, tipo) {
   return results;
 }
 
-async function cmdEditarNome(nameHint, newName, tipo) {
-  const matches = await searchTasksByName(nameHint, tipo);
+async function cmdEditarNome(nameHint, newName, tipo, textoDia = '') {
+  let matches = await searchTasksByName(nameHint, tipo);
   if (!matches.length) { addMessage(t('pet.edit.notfound', { name: nameHint }), 'bot'); return; }
+  // Disse o dia ("o de sexta"): fica só com o desse dia, se tiver
+  if (textoDia) {
+    const alvo = dayId(extractDate(textoDia));
+    const doDia = matches.filter(x => x.dayDocId === alvo);
+    if (doDia.length) matches = doDia;
+  }
+  // Repetição: um card só (a próxima), o nome novo vale pras seguintes também
+  const vistos = new Set();
+  matches = matches.sort((a, b) => a.date - b.date).filter(x => {
+    const g = x.task.recurrenceGroupId;
+    if (!g) return true;
+    if (vistos.has(g)) return false;
+    vistos.add(g); return true;
+  });
   showEditCard(matches, 'rename', { newName });
+}
+
+// Renomeia as próximas repetições (do dia em diante) e o molde da semana, os
+// mensais e as regras de repetição. Sem isso o Ritual recriava a tarefa com o
+// nome antigo a partir do molde.
+async function renomearRepeticoes(tk, data, novo) {
+  const titulo = (tk.title || '').trim().toLowerCase(), cat = tk.categoryId || '', grupo = tk.recurrenceGroupId || '';
+  const bate = (x) => grupo ? (x.recurrenceGroupId === grupo || x.groupId === grupo)
+    : ((x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat);
+  const prof = await getProfile().catch(() => null);
+  const tpls = { ...(prof?.weekdayTemplates || {}) };
+  const mensais = Array.isArray(prof?.monthlyCommitments) ? prof.monthlyCommitments : [];
+  const regras = Array.isArray(prof?.recurrenceRules) ? prof.recurrenceRules : [];
+  const noMolde = Object.values(tpls).some(a => Array.isArray(a) && a.some(bate)) || mensais.some(bate) || regras.some(bate);
+  if (!grupo && !noMolde) return;   // tarefa avulsa: só ela muda
+  const fim = new Date(data); fim.setDate(fim.getDate() + 365);
+  const dias = await fetchDaysRange(data, fim);
+  for (const d of dias) for (const x of d.tasks || []) {
+    if (x.id !== tk.id && !x.done && bate(x)) { try { await updateDayTask(d.id, x.id, { title: novo }); } catch { /* segue */ } }
+  }
+  const patch = {};
+  let mudouTpl = false;
+  for (const dow of Object.keys(tpls)) {
+    const arr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
+    if (arr.some(bate)) { tpls[dow] = arr.map(x => bate(x) ? { ...x, title: novo } : x); mudouTpl = true; }
+  }
+  if (mudouTpl) patch.weekdayTemplates = tpls;
+  if (mensais.some(bate)) patch.monthlyCommitments = mensais.map(x => bate(x) ? { ...x, title: novo } : x);
+  if (regras.some(bate)) patch.recurrenceRules = regras.map(x => bate(x) ? { ...x, title: novo } : x);
+  if (Object.keys(patch).length) await setProfile(patch);
 }
 
 async function cmdEditarHorario(nameHint, afterPara, tipo) {
@@ -2912,7 +2962,9 @@ function showEditCard(matches, action, payload) {
 
     let p;
     if (action === 'rename') {
-      p = updateDayTask(dayDocId, task.id, { title: payload.newName });
+      p = updateDayTask(dayDocId, task.id, { title: payload.newName })
+        .then(() => renomearRepeticoes(task, date, payload.newName).catch(e => console.warn('[pet] renomear repetições:', e)))
+        .then(() => { task.title = payload.newName; _redesenharTela(); });
     } else if (action === 'desc') {
       p = updateDayTask(dayDocId, task.id, { desc: payload.newDesc });
     } else if (action === 'reminder') {
@@ -2986,7 +3038,7 @@ function showEditCard(matches, action, payload) {
 
     if (action === 'rename') {
       title.textContent = `✏️ ${task.title}`;
-      sub.textContent   = `→ "${payload.newName}" · ${fmtDate(date)}`;
+      sub.textContent   = `→ "${payload.newName}" · ${fmtDate(date)}${task.recurrenceGroupId ? ' e as próximas' : ''}`;
     } else if (action === 'desc') {
       title.textContent = `📝 ${task.title}`;
       sub.textContent   = `descrição → "${payload.newDesc}" · ${fmtDate(date)}`;
