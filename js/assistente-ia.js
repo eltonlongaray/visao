@@ -45,6 +45,7 @@ import {
   valorDoItem, reais, marcarPrioridade, ehPrioAtividade, adicionarPrioridade, moverPrioridade,
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261026a';
+import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261026a';
@@ -6414,7 +6415,18 @@ async function idealParaAtividade(x) {
   return null;
 }
 
+// "Como tá meu treino?", "faz quanto tempo que não treino perna?": constância
+// de cada músculo, pelo que foi registrado ao marcar a atividade física (26/10)
+const RE_TREINO = /\b(como (?:t[aá]|est[aá]|anda|vai|t[aá] indo|est[aá] indo)\s+(?:o\s+)?(?:meu|minha|o)\s+(?:treino|muscula[çc][ãa]o|academia)|que m[uú]sculos? (?:falta|t[oô] devendo|n[aã]o treinei)|(?:faz )?quant[oa]s? (?:tempo|semanas?|dias) (?:que )?(?:eu )?n[aã]o treino)/i;
+async function tentarTreino(text) {
+  if (!RE_TREINO.test(text)) return undefined;
+  try { return TRN.textoTreino(await TRN.constanciaPorMusculo()); }
+  catch (e) { console.warn('[pet-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
+}
+
 async function tentarDesempenho(text) {
+  const rT = await tentarTreino(text);
+  if (rT !== undefined) return rT;
   const t = PR.semPedido(text);
   const obj = PDS.lerObjetivo(t);
   if (obj) return desempenhoObjetivo(obj);

@@ -7244,6 +7244,21 @@ body.sem-rolagem { overflow: hidden; }
 }
 .obj-item.cumprido .obj-selo { background: rgba(95,211,165,0.16); color: #5fd3a5; }
 .obj-sub { flex-wrap: wrap; row-gap: 5px; }
+/* Atividade física: constância por músculo (26/10) */
+.obj-mus-toggle { display: flex; align-items: center; gap: 6px; margin-top: 10px; background: none; border: none; padding: 0; color: var(--accent-2); font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.obj-mus-toggle i { font-style: normal; }
+.obj-mus { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; cursor: default; }
+.obj-mus-linha { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 6px 10px; border-radius: 10px; background: var(--card-2); font-size: 12.5px; }
+.obj-mus-nome { font-weight: 700; color: var(--text); }
+.obj-mus-conta { font-weight: 700; color: var(--muted); }
+.obj-mus-quando { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
+.obj-mus-linha.ok .obj-mus-conta { color: #5fd3a5; }
+.obj-mus-linha.atras .obj-mus-quando { color: #f97316; font-weight: 600; }
+.obj-mus-vazio, .obj-mus-rodape { font-size: 11.5px; color: var(--muted); line-height: 1.4; padding: 2px 2px; }
+.tr-modal .tr-mods { margin: 10px 0 4px; }
+.tr-q { margin: 14px 0 4px; font-size: 14px; font-weight: 700; color: var(--text); }
+.tr-dica { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 4px 0 6px; }
+.tr-modal .pt-chip.mini { padding: 6px 12px; min-width: 0; }
 
 /* Descrição na prévia do pet: linha própria abaixo do título, em tom
    secundário — ela acompanha o título, não compete com ele. */

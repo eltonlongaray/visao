@@ -35,7 +35,7 @@ const PADRAO = { objetivo: 'aurea', forca: false, freqSemana: 3, freqMusculo: 2,
 
 // Frequência semanal POR MÚSCULO (lista do Elton). freqMusculo (a resposta
 // antiga, "o mesmo músculo quantas vezes") vira o ponto de partida de todos.
-const GRUPOS_MUS = [
+export const GRUPOS_MUS = [
   { tit: 'Superiores', mus: [
     { k: 'peito', nome: 'Peito' }, { k: 'costas', nome: 'Costas' }, { k: 'ombros', nome: 'Ombros' },
     { k: 'trapezio', nome: 'Trapézio' }, { k: 'biceps', nome: 'Bíceps' }, { k: 'triceps', nome: 'Tríceps' },

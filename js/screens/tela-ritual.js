@@ -37,6 +37,7 @@ import { showToast, showLocalToast, confirmModal } from '../aviso-tela.js';
 import { playDone, playUndone, playDelete } from '../sons.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { trapModalBack } from '../modal-voltar.js';
+import { tipoRegistro, perguntarAoConcluir } from '../treino-registro.js';
 import { isActive as tourIsActive } from '../tour-guiado.js';
 import { montarAgendaInline } from '../agenda-ui.js';
 import { cancelarAgendamentoDaTask, getAgendamentoById, moverAgendamento } from '../agenda.js';
@@ -2204,8 +2205,11 @@ async function showOverdueReminderModal(app, day, t) {
 
   modal.querySelector('[data-overdue="done"]').onclick = async () => {
     try {
+      const cat = categories.find(c => c.id === t.categoryId);
+      const registro = tipoRegistro(cat) ? await perguntarAoConcluir(cat, t) : {};
       t.done = true;
-      await updateDayTask(day.id, t.id, { done: true });
+      if (registro.patch) Object.assign(t, registro.patch);
+      await updateDayTask(day.id, t.id, { done: true, ...(registro.patch || {}) });
       playDone();
       syncTaskInDom(t); // atualiza day card + aba Compromissos
       updateDayCardStats(day.id, false);
@@ -2728,15 +2732,23 @@ function attachHandlers(app) {
       // Cancelada: clicar no 🚫 é no-op (sem som). Pra restaurar, usa o menu ⋮ → Restaurar
       if (t.cancelled) return;
       const wasDone = t.done;
+      // Atividade física / leitura: pergunta o que fez antes de marcar (Élton,
+      // 26/10). Pular ou fechar marca igual: nunca impede a constância.
+      let registro = {};
+      if (!wasDone) {
+        const cat = categories.find(c => c.id === t.categoryId);
+        if (tipoRegistro(cat)) registro = await perguntarAoConcluir(cat, t);
+      }
       t.done = !t.done;
+      if (registro.patch) Object.assign(t, registro.patch);
       const isCommitment = t.kind === 'commitment';
       syncTaskInDom(t); // sincroniza day card + aba Compromissos (e qualquer outra instancia)
-      await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done });
+      await updateDayTask(taskEl.dataset.day, taskEl.dataset.taskId, { done: t.done, ...(registro.patch || {}) });
       updateDayCardStats(taskEl.dataset.day, false); // sem sync de template — done não vira modelo
       // Som + toast motivacional (só ao marcar feito); ao desmarcar, plop
       if (!wasDone && t.done) {
         playDone();
-        const msg = isCommitment ? randomCommitmentDoneMessage() : randomDoneMessage();
+        const msg = registro.msg || (isCommitment ? randomCommitmentDoneMessage() : randomDoneMessage());
         showLocalToast(taskEl,
           `<span class="done-check-big">✓</span><span class="done-check-text">${msg}</span>`,
           'success'

@@ -13,6 +13,7 @@ import { getCategories, saveCategory } from './banco-dados.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { t } from './idioma.js';
+import { tipoRegistro } from './treino-registro.js';
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -79,6 +80,15 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
         <label class="input-field"><div class="input-field-label">Nome</div>
           <input id="m-name" value="${esc(c.name)}" maxlength="60" placeholder="ex: Meditação, Trabalho, Lazer..." /></label>
 
+        <label class="input-field"><div class="input-field-label">Ao marcar como feita, perguntar</div>
+          <select id="m-reg">
+            <option value="nenhum">Nada</option>
+            <option value="fisica">💪 O que treinou (modalidade e músculos)</option>
+            <option value="leitura">📚 Quantas páginas leu</option>
+          </select></label>
+        <label class="input-field" id="m-min-wrap" hidden><div class="input-field-label">Mínimo de páginas por dia <span class="ag-lbl-opt">— leu menos, conta igual</span></div>
+          <input id="m-min" type="number" inputmode="numeric" min="1" max="500" value="${Number(c.minimoPaginas) || ''}" placeholder="Ex.: 5"></label>
+
         <div class="modal-section-label">${t('home.activity.icon')}</div>
         <div class="icon-picker">
           ${icones.map(i => `<button type="button" class="icon-opt ${i === c.icon ? 'sel' : ''}" data-icon="${i}">${i}</button>`).join('')}
@@ -110,6 +120,19 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
       }, 80);
     }
 
+    // Registro ao concluir: o salvo vale; sem ele, o nome sugere (e muda junto
+    // enquanto a pessoa digita, até ela escolher na mão)
+    const selReg = modal.querySelector('#m-reg'), minWrap = modal.querySelector('#m-min-wrap');
+    let regManual = !!c.registro;
+    const syncReg = () => {
+      if (!regManual) selReg.value = tipoRegistro({ name: modal.querySelector('#m-name').value }) || 'nenhum';
+      minWrap.hidden = selReg.value !== 'leitura';
+    };
+    selReg.value = c.registro || tipoRegistro(c) || 'nenhum';
+    syncReg();
+    selReg.addEventListener('change', () => { regManual = true; syncReg(); });
+    modal.querySelector('#m-name').addEventListener('input', syncReg);
+
     let pickedIcon = c.icon, pickedColor = c.color, salvo = null;
     modal.querySelectorAll('[data-icon]').forEach(b => b.onclick = () => {
       modal.querySelectorAll('[data-icon]').forEach(x => x.classList.remove('sel'));
@@ -125,6 +148,8 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
     modal.querySelector('#m-save').onclick = async () => {
       const name = modal.querySelector('#m-name').value.trim();
       if (!name) { showToast(t('home.activity.name.required'), 'info'); return; }
+      const registro = selReg.value;
+      const minimoPaginas = registro === 'leitura' ? Math.max(0, Math.round(Number(modal.querySelector('#m-min').value) || 0)) : 0;
       const btn = modal.querySelector('#m-save');
       btn.disabled = true;
       try {
@@ -133,10 +158,10 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
           // daysOfWeek preservado pra retrocompatibilidade com docs antigos
           // (recorrência real vive em weekdayTemplates via per-task chips no Ritual)
           salvo = await saveCategory(null, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: TODOS_DIAS,
-            ...extra });
+            ...extra, registro, ...(minimoPaginas ? { minimoPaginas } : {}) });
         } else {
           // ...c guarda o resto do extra (lembrete etc.): o extra é gravado inteiro
-          await saveCategory(id, { ...c, name, icon: pickedIcon, color: pickedColor });
+          await saveCategory(id, { ...c, name, icon: pickedIcon, color: pickedColor, registro, minimoPaginas });
           salvo = id;
         }
         document.dispatchEvent(new CustomEvent('falcon:cats-changed'));

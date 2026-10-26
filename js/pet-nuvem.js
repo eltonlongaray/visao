@@ -150,6 +150,7 @@ export function fraseDoApp(j) {
       switch (j.campo) {
         case 'geral': return `meu desempenho${periodo || ' do mês'}`;
         case 'atividade': return nome ? `quantas vezes fiz ${nome}${periodo || ' esse mês'}` : null;
+        case 'treino': return 'como tá meu treino?';
         case 'recorde': return 'meu recorde';
         case 'sono': return `média de sono${periodo || ' da semana'}`;
         case 'reflexao_ver': return `qual minha reflexão da semana${/passada/i.test(quando) ? ' passada' : ''}?`;

@@ -14,6 +14,7 @@ import { getCategories, saveCategory } from './banco-dados.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { abrirIdeal, totalMarcadosIdeal } from './ideal-ui.js';
+import { tipoRegistro, constanciaPorMusculo } from './treino-registro.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -98,8 +99,11 @@ export async function montarObjetivos() {
 
   // Progresso primeiro: é o que a pessoa espera ver. A constância olha meses
   // pra trás e chega depois, sem segurar o resto da tela.
-  const prog = await progressoDosObjetivos(objetivos);
-  box.innerHTML = objetivos.map(o => linhaObjetivo(o, prog.get(o.id))).join('');
+  const [prog, cats] = await Promise.all([progressoDosObjetivos(objetivos), getCategories().catch(() => [])]);
+  // Meta de atividade física: o card abre e mostra a constância de cada músculo
+  const fisica = new Set(objetivos.filter(o => tipoRegistro(cats.find(c => c.id === o.atividadeId))).map(o => o.id));
+  box.innerHTML = objetivos.map(o => linhaObjetivo(o, prog.get(o.id), fisica.has(o.id))).join('');
+  if (fisica.size) _pintarMusculos(box);
 
   try {
     const cons = await constanciaDosObjetivos(objetivos);
@@ -111,7 +115,31 @@ export async function montarObjetivos() {
   } catch (e) { console.warn('[objetivos] constância:', e.message); }
 }
 
-function linhaObjetivo(o, p) {
+// ── Atividade física: constância por músculo (Élton, 26/10) ──
+// A frequência de cada músculo vem do Preparo Físico; o Ritual registra o que
+// foi treinado. Aberto/fechado fica lembrado no aparelho.
+const CH_MUS = 'falcon_obj_musculos';
+const _musAberto = () => { try { return localStorage.getItem(CH_MUS) === '1'; } catch { return false; } };
+async function _pintarMusculos(box) {
+  const lugares = [...box.querySelectorAll('.obj-mus')];
+  if (!lugares.length || !_musAberto()) return;
+  let c;
+  try { c = await constanciaPorMusculo(); } catch (e) { lugares.forEach(l => { l.innerHTML = `<div class="obj-mus-vazio">Não deu pra carregar: ${esc(e.message)}</div>`; }); return; }
+  const html = !c.registros
+    ? '<div class="obj-mus-vazio">Ao marcar a atividade física no Ritual, escolha o que treinou. A constância de cada músculo aparece aqui.</div>'
+    : c.musculos.filter(m => m.meta > 0 || m.ultimo).map(m => {
+        const atras = m.meta > 0 && (m.semanasSem == null || m.semanasSem >= 2);
+        const quando = m.semanasSem == null ? `nada em ${c.semanas} semanas` : m.semanasSem === 0 ? 'treinado nesta semana' : m.semanasSem === 1 ? 'última vez semana passada' : `${m.semanasSem} semanas sem treinar`;
+        return `<div class="obj-mus-linha ${atras ? 'atras' : m.meta && m.semana >= m.meta ? 'ok' : ''}">
+          <span class="obj-mus-nome">${esc(m.nome)}</span>
+          <span class="obj-mus-conta">${m.semana}${m.meta ? ` de ${m.meta}` : ''}</span>
+          <span class="obj-mus-quando">${atras ? '⚠️ ' : ''}${quando}</span>
+        </div>`;
+      }).join('') + '<div class="obj-mus-rodape">A frequência de cada músculo você ajusta no Preparo Físico.</div>';
+  lugares.forEach(l => { l.innerHTML = html; });
+}
+
+function linhaObjetivo(o, p, fisica = false) {
   const { feitos = 0, alvo = 1, pct = 0, cumprido = false } = p || {};
   const periodo = o.periodo === 'mes' ? 'este mês' : 'esta semana';
   // Bolinhas até 7: acima disso viram um monte ilegível e o número já diz.
@@ -134,6 +162,8 @@ function linhaObjetivo(o, p) {
           <span>${periodo}</span>
           <span class="obj-selo-lugar"></span>
         </div>
+        ${fisica ? `<button type="button" class="obj-mus-toggle" data-mus-toggle aria-expanded="${_musAberto()}">💪 Constância por músculo <i>${_musAberto() ? '▾' : '›'}</i></button>
+        ${_musAberto() ? '<div class="obj-mus"><div class="obj-mus-vazio">Carregando…</div></div>' : ''}` : ''}
       </div>
 
     </div>`;
@@ -305,6 +335,14 @@ export function ligarObjetivos() {
       await abrirEditorObjetivo(null);
       return;
     }
+
+    // 💪 abre/fecha a constância por músculo (sem abrir a edição da meta)
+    if (ev.target.closest('#obj-lista [data-mus-toggle]')) {
+      try { localStorage.setItem(CH_MUS, _musAberto() ? '0' : '1'); } catch { /* sem storage */ }
+      await montarObjetivos();
+      return;
+    }
+    if (ev.target.closest('#obj-lista .obj-mus')) return;
 
     // Sem botão de três pontos: o card inteiro é o caminho de edição. Um
     // botão só pra abrir o que o toque no card já abriria era peso a mais.
