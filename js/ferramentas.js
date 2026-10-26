@@ -44,6 +44,9 @@ function _corCustom(nome) {
   return CORES_CUSTOM[h % CORES_CUSTOM.length];
 }
 
+// Grupos que nascem pelas ⭐ Prioridades (ver adicionarPrioridade)
+const _ICONE_PRIO = { 'Atividades': '🔥', 'Realizar e Comprar': '🛒' };
+
 function _uid() { return auth.currentUser?.uid || null; }
 function _falha(e) { if (e) throw new Error(e.message || 'Erro na caixa de ferramentas'); }
 
@@ -88,7 +91,7 @@ export async function carregarFerramentas() {
   }
 
   for (const it of itens) {
-    if (!porGrupo.has(it.grupo)) porGrupo.set(it.grupo, novoGrupo(it.grupo, '📌', _corCustom(it.grupo), true));
+    if (!porGrupo.has(it.grupo)) porGrupo.set(it.grupo, novoGrupo(it.grupo, _ICONE_PRIO[it.grupo] || '📌', _corCustom(it.grupo), true));
     if (it.secao_id && secaoPorId.has(it.secao_id)) secaoPorId.get(it.secao_id).itens.push(it);
     else porGrupo.get(it.grupo).soltos.push(it);
   }
@@ -182,6 +185,27 @@ export async function reordenarPrioridades(ids) {
   const r = await Promise.all((ids || []).map((id, i) =>
     supabase.from('ferramentas_itens').update({ prioridade: i }).eq('id', id)));
   _falha(r.find(x => x.error)?.error);
+}
+
+// ⭐ Prioridades em duas listas (Élton, 26/10): o que vai FAZER com o tempo
+// (vira atividade no Ritual) e o que vai fazer ou comprar (tem R$). O tipo é o
+// grupo do item: quem está em "Atividades" é atividade; o resto é fazer/comprar.
+export const GRUPO_PRIO_ATIV = 'Atividades';
+export const GRUPO_PRIO_COMPRA = 'Realizar e Comprar';
+export const ehPrioAtividade = (item) => item?.grupo === GRUPO_PRIO_ATIV;
+
+// Escreve direto numa das listas de Prioridades: o item nasce com a ⭐
+export async function adicionarPrioridade(texto, atividade) {
+  const novo = await adicionarItem(atividade ? GRUPO_PRIO_ATIV : GRUPO_PRIO_COMPRA, texto);
+  if (!novo) return null;
+  await marcarPrioridade(novo.id, true);
+  return novo;
+}
+// Passa o item de uma lista pra outra (sai da categoria em que estava)
+export async function moverPrioridade(id, atividade) {
+  const { error } = await supabase.from('ferramentas_itens')
+    .update({ grupo: atividade ? GRUPO_PRIO_ATIV : GRUPO_PRIO_COMPRA, secao_id: null }).eq('id', id);
+  _falha(error);
 }
 
 // Preço escrito no item: "Leite R$ 6", "arroz 25,90 reais", "2x R$ 4,50" (= 9).

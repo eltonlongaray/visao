@@ -11,11 +11,14 @@ import {
   renomearGrupo, contarPendentes,
   adicionarSecao, renomearSecao, apagarSecao, criarGrupo, apagarGrupo,
   reordenarItens, valorDoItem, reais, marcarPrioridade, reordenarPrioridades,
+  ehPrioAtividade, adicionarPrioridade, moverPrioridade,
 } from './ferramentas.js';
+import { getCategories } from './banco-dados.js';
+import { abrirEditorAtividade } from './atividade-editor.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
-import { abrirObjetivos } from './objetivos-ui.js';
+import { abrirObjetivos, abrirEditorObjetivo } from './objetivos-ui.js';
 import { abrirIdeal } from './ideal-ui.js';
 import { abrirGuiaMetodo, guiaDeveAbrir } from './metodo-guia.js';
 
@@ -26,6 +29,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>`;
 
 let grupos = [];
+let cats = [];            // Atividades da Home (pra saber qual prioridade já virou atividade)
 let vista = 'hub';        // 'hub' (cards) | 'listas' (grupos) | 'prioridades'
 let grupoAberto = null;   // nome do grupo aberto; null = lista de grupos
 let _hist = 0;            // camadas empurradas no histórico (pro voltar do aparelho)
@@ -76,7 +80,7 @@ async function _abrir(m) {
   vista = 'hub'; grupoAberto = null;
   desenhar();   // mostra o hub na hora (não espera as listas)
 
-  try { grupos = await carregarFerramentas(); }
+  try { [grupos, cats] = await Promise.all([carregarFerramentas(), getCategories().catch(() => [])]); }
   catch (e) { grupos = []; }
   if (vista === 'hub') desenhar();   // repinta o badge de Listas quando carregar
   // Guia do Método: abre sozinho até a pessoa terminar ou pedir pra parar
@@ -214,7 +218,7 @@ function telaHub() {
       </button>
       <button class="fr-hubcard" data-hub-prioridades type="button">
         <span class="fr-hub-ic">⭐</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">3 · Decisão</small><b>Prioridades</b><small>O que você marcou com ⭐ nos Objetivos, na ordem do mais importante</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">3 · Decisão</small><b>Prioridades</b><small>O que vem primeiro: as atividades e o que fazer ou comprar</small></span>
         ${prio ? `<span class="fr-hub-badge fr-hub-badge-ouro">${prio}</span>` : ''}
       </button>
       <button class="fr-hubcard" data-hub-objetivos type="button">
@@ -234,11 +238,26 @@ function _prioridades() {
   return out.sort((a, b) => a.item.prioridade - b.item.prioridade);
 }
 
-// ── Card Prioridades: tudo que tem ⭐, arrasta pra mudar a ordem ──
+// ── Card Prioridades em duas listas (Élton, 26/10) ──
+// 🔥 Atividades: o que fazer com o tempo; cada item vira atividade no Ritual.
+// 🛒 Realizar e Comprar: com a caixinha de R$ e o total. Arrasta pra ordenar.
+const _virouAtividade = (it) => cats.find(c => c.prioItemId === it.id);
 function telaPrioridades() {
   const todas = _prioridades();
-  const pend = todas.filter(x => !x.item.feito), feitos = todas.filter(x => x.item.feito);
-  const linha = (x) => linhaItem(x.item, x.secao ? `${x.grupo.nome} › ${x.secao.nome}` : x.grupo.nome);
+  const ativ = todas.filter(x => ehPrioAtividade(x.item)), compra = todas.filter(x => !ehPrioAtividade(x.item));
+  const ordem = (l) => [...l.filter(x => !x.item.feito), ...l.filter(x => x.item.feito)];
+  const onde = (x) => x.secao ? `${x.grupo.nome} › ${x.secao.nome}` : x.grupo.nome;
+  const linhaAtiv = (x) => {
+    const c = _virouAtividade(x.item);
+    const extra = c
+      ? `<span class="fr-prio-feita">✓ Virou atividade: ${esc(c.icon || '')} ${esc(c.name)}</span>`
+      : (x.item.feito ? '' : `<button type="button" class="fr-prio-criar" data-criar-ativ="${x.item.id}">➕ Criar atividade</button>`);
+    return linhaItem(x.item, '', { semValor: true, extra: `${extra}<button type="button" class="fr-prio-mover" data-mover-prio="${x.item.id}" data-pra="compra">mover pra 🛒 Realizar e Comprar</button>` });
+  };
+  // Escrito direto aqui não precisa dizer de onde veio
+  const linhaCompra = (x) => linhaItem(x.item, x.grupo.nome === 'Realizar e Comprar' && !x.secao ? '' : onde(x), {
+    extra: `<button type="button" class="fr-prio-mover" data-mover-prio="${x.item.id}" data-pra="ativ">mover pra 🔥 Atividades</button>` });
+  const total = somaValores(compra.filter(x => !x.item.feito).map(x => x.item));
   return `
     <div class="fr-cab">
       <button class="fr-voltar" data-voltar aria-label="Voltar">${SVG_VOLTAR}</button>
@@ -247,8 +266,16 @@ function telaPrioridades() {
     </div>
     <div class="fr-scroll" data-fr-grupo="__prio">
       <div class="fr-sub">Segure o ⠿ e arraste pra deixar no topo o que é mais importante. Toque na ⭐ pra tirar daqui.</div>
-      ${todas.length ? `<div class="fr-lista" data-lista="__prio">${pend.map(linha).join('')}${feitos.map(linha).join('')}</div>`
-        : '<div class="fr-vazio-grupo">Nada marcado ainda. Nos <b>Objetivos</b>, toque na ☆ do lado de um item pra ele vir pra cá.</div>'}
+
+      <div class="fr-prio-tit">🔥 Atividades <small>o que você vai fazer com o seu tempo</small></div>
+      ${formNova('__prio-ativ', 'Ex.: Ler, Musculação, Estudar inglês…')}
+      ${ativ.length ? `<div class="fr-lista" data-lista="__prio-ativ">${ordem(ativ).map(linhaAtiv).join('')}</div>`
+        : '<div class="fr-vazio-grupo">Escreva acima o que você quer começar a fazer. Depois toque em <b>➕ Criar atividade</b> pra ela entrar no seu Ritual.</div>'}
+
+      <div class="fr-prio-tit">🛒 Realizar e Comprar ${total ? `<span class="fr-secao-total">${reais(total)}</span>` : ''}<small>o que você quer realizar ou comprar</small></div>
+      ${formNova('__prio-compra', 'Ex.: Tênis de corrida, Consertar a janela…')}
+      ${compra.length ? `<div class="fr-lista" data-lista="__prio-compra">${ordem(compra).map(linhaCompra).join('')}</div>`
+        : '<div class="fr-vazio-grupo">Escreva acima, ou toque na ☆ de um item nos <b>Objetivos</b> pra ele vir pra cá. O valor você põe quando pesquisar o preço.</div>'}
     </div>`;
 }
 
@@ -288,15 +315,16 @@ function telaGrupos() {
 }
 
 // ── linha de item (checkbox + texto + apagar) ──
-function linhaItem(i, onde = '') {
+// opc.semValor tira a caixinha de R$; opc.extra vai embaixo do texto (botões)
+function linhaItem(i, onde = '', opc = {}) {
   const prio = i.prioridade != null;
   const { base, valor } = separarValor(i.texto);
   return `
     <div class="fr-item ${i.feito ? 'feito' : ''}${prio ? ' prio' : ''}" data-id="${i.id}">
       <span class="fr-arrastar" data-arrastar aria-label="Segure e arraste pra mudar a ordem">⠿</span>
       <button class="fr-check" data-marcar="${i.id}" aria-label="Marcar">${i.feito ? '✓' : ''}</button>
-      <span class="fr-texto" data-editar="${i.id}">${esc(base)}${onde ? `<small class="fr-onde">${esc(onde)}</small>` : ''}</span>
-      ${valor || !i.feito ? `<button class="fr-valor${valor ? ' tem' : ''}" data-valor="${i.id}" aria-label="${valor ? 'Mudar o valor' : 'Adicionar valor'}">${valor ? reais(valor) : '+ R$'}</button>` : ''}
+      <span class="fr-texto" data-editar="${i.id}">${esc(base)}${onde ? `<small class="fr-onde">${esc(onde)}</small>` : ''}${opc.extra ? `<span class="fr-prio-acoes">${opc.extra}</span>` : ''}</span>
+      ${!opc.semValor && (valor || !i.feito) ? `<button class="fr-valor${valor ? ' tem' : ''}" data-valor="${i.id}" aria-label="${valor ? 'Mudar o valor' : 'Adicionar valor'}">${valor ? reais(valor) : '+ R$'}</button>` : ''}
       <button class="fr-estrela${prio ? ' on' : ''}" data-estrela="${i.id}" aria-label="${prio ? 'Tirar das prioridades' : 'Marcar como prioridade'}">${prio ? '★' : '☆'}</button>
       <button class="fr-item-x" data-apagar="${i.id}" aria-label="Apagar">✕</button>
     </div>`;
@@ -423,6 +451,14 @@ export function ligarFerramentas() {
   });
   ligarArrastar();
 
+  // O Ideal mandou itens pras Prioridades: abre a tela delas (Élton, 26/10)
+  document.addEventListener('falcon:ir-prioridades', async () => {
+    if (!document.getElementById('ferramentas-ov')) await _abrir('metodo');
+    if (!document.getElementById('ferramentas-ov')) return;
+    if (vista !== 'prioridades') { _empurrar(); vista = 'prioridades'; grupoAberto = null; }
+    await _recarregar();
+  });
+
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#ferramentas-ov')) return;
 
@@ -475,6 +511,16 @@ export function ligarFerramentas() {
       return;
     }
 
+    const cr = e.target.closest('[data-criar-ativ]');
+    if (cr) { await criarAtividadeDaPrioridade(cr.dataset.criarAtiv); return; }
+
+    const mv = e.target.closest('[data-mover-prio]');
+    if (mv) {
+      try { await moverPrioridade(mv.dataset.moverPrio, mv.dataset.pra === 'ativ'); await _recarregar(); }
+      catch (err) { showToast(err.message, 'error'); }
+      return;
+    }
+
     const ap = e.target.closest('[data-apagar]');
     if (ap) { apagarComDesfazer(ap.dataset.apagar); return; }
 
@@ -501,6 +547,13 @@ export function ligarFerramentas() {
     e.preventDefault();
     const campo = form.querySelector('.fr-nova-input');
     const texto = campo.value.trim();
+    // Campo das listas de Prioridades: o item nasce com a ⭐
+    if (texto && vista === 'prioridades' && !grupoAberto) {
+      campo.value = ''; _crescer(campo);
+      try { await adicionarPrioridade(texto, form.dataset.secao === '__prio-ativ'); await _recarregar(); }
+      catch (err) { campo.value = texto; showToast(err.message, 'error'); }
+      return;
+    }
     if (!texto || !grupoAberto) return;
     const secaoId = form.dataset.secao || null;
     campo.value = ''; _crescer(campo);
@@ -555,7 +608,7 @@ function ligarArrastar() {
       const ids = [...lista.querySelectorAll('.fr-item')].map(x => x.dataset.id);
       if (ids.join() === antes) return;
       _reordenarLocal(lista.dataset.lista, ids);
-      try { await (lista.dataset.lista === '__prio' ? reordenarPrioridades(ids) : reordenarItens(ids)); }
+      try { await (lista.dataset.lista.startsWith('__prio') ? reordenarPrioridades(ids) : reordenarItens(ids)); }
       catch (err) { showToast(err.message, 'error'); }
     };
     // Na janela (não na alça): mover o item no DOM solta a captura do dedo
@@ -567,7 +620,7 @@ function ligarArrastar() {
 
 // Mesma ordem na memória (o próximo repintar não desfaz o arrasto)
 function _reordenarLocal(secaoId, ids) {
-  if (secaoId === '__prio') { ids.forEach((id, i) => { const it = _item(id); if (it) it.prioridade = i; }); return; }
+  if (secaoId.startsWith('__prio')) { ids.forEach((id, i) => { const it = _item(id); if (it) it.prioridade = i; }); return; }
   const g = grupos.find(x => x.nome === grupoAberto);
   if (!g) return;
   const sec = secaoId ? g.secoes.find(s => s.id === secaoId) : null;
@@ -578,6 +631,29 @@ function _reordenarLocal(secaoId, ids) {
 }
 
 // ── auxiliares ──
+async function _recarregar() {
+  try { [grupos, cats] = await Promise.all([carregarFerramentas(), getCategories().catch(() => cats)]); } catch { /* repinta com o que tem */ }
+  desenhar();
+}
+
+// ➕ Criar atividade: o mesmo pop-up da Home (nome, descrição, ícone, cor) e,
+// em seguida, a meta: quantas vezes por semana ou por mês (Élton, 26/10).
+async function criarAtividadeDaPrioridade(id) {
+  const it = _item(id);
+  if (!it) return;
+  const { base } = separarValor(it.texto);
+  const novoId = await abrirEditorAtividade({
+    cats, inicial: { nome: base.slice(0, 60) }, extra: { prioItemId: it.id },
+    dica: 'Dê um nome pro que você vai fazer de verdade. Ex.: em vez de "Ler", "Leitura 20 min".',
+  });
+  if (!novoId) return;
+  await _recarregar();
+  abrirEditorObjetivo(null, {
+    atividadeId: novoId, titulo: 'Quantas vezes você vai fazer?',
+    dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, nas Minhas Metas.',
+  });
+}
+
 function _item(id) {
   for (const g of grupos) {
     const s = g.soltos.find(i => i.id === id); if (s) return s;

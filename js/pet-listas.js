@@ -187,6 +187,20 @@ export function textoParaAdicionar(text, alvo = {}) {
   return limparPontas(t);
 }
 
+// ⭐ Prioridades em duas listas (26/10): "põe ler nas prioridades de atividade",
+// "coloca tênis nas prioridades de compra". null = a pessoa não disse qual.
+const RE_PRIO_TIPO = /\s*(?:n[ao]s?|pr[ao]s?|para\s+as?|como|em)?\s*(?:minhas?\s+)?(?:lista\s+de\s+)?prioridades?(?:\s+(?:de|da|das|do|dos)\s+(?:atividades?|compras?|comprar|(?:fazer|realizar)\s+e\s+comprar|coisas\s+(?:pra|para)\s+(?:fazer|comprar)))?/gi;
+export function tipoPrioridade(text) {
+  const t = norm(text);
+  if (/prioridades?\s+(?:de|da|das)\s+atividades?|atividades?\s+(?:das|nas)\s+prioridades?/.test(t)) return 'ativ';
+  if (/prioridades?\s+(?:de|da|das|do)\s+(?:compras?|comprar|(?:fazer|realizar) e comprar|coisas (?:pra|para) (?:fazer|comprar))/.test(t)) return 'compra';
+  return null;
+}
+// O nome do item, sem o pedido e sem "nas prioridades de …"
+export function textoPrioridade(text) {
+  return textoParaAdicionar(String(text || '').replace(RE_PRIO_TIPO, ' '));
+}
+
 // "leite, ovo e pão" → ["leite", "ovo", "pão"] (vírgula, "e", "mais", "também").
 // Tira repetidos (o ditado por voz às vezes repete um pedaço).
 export function separarItens(texto) {

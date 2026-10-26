@@ -42,17 +42,18 @@ import { juntarFala } from './ditado-merge.js';
 import {
   carregarFerramentas, adicionarItem, marcarItem, editarItem, apagarItem, adicionarSecao,
   limparFeitos, renomearSecao, apagarSecao, criarGrupo, apagarGrupo, renomearGrupo,
-  valorDoItem, reais, marcarPrioridade,
+  valorDoItem, reais, marcarPrioridade, ehPrioAtividade, adicionarPrioridade, moverPrioridade,
 } from './ferramentas.js';
-import * as PL from './pet-listas.js?v=20261021a';
+import * as PL from './pet-listas.js?v=20261026a';
+import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261014k';
+import * as PN from './pet-nuvem.js?v=20261026a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261024b';
 import * as PDS from './pet-desempenho.js?v=20261021a';
-import * as PI from './pet-ideal.js?v=20261009f';
+import * as PI from './pet-ideal.js?v=20261026a';
 import * as PDF from './pet-desafios.js?v=20261012e';
 import * as PNG from './pet-negocio.js?v=20261015a';
 import { navigate, forceRender } from './roteador.js';
@@ -3326,20 +3327,50 @@ async function listaPrioridade(text, acao) {
   try { arvore = await arvoreListas(); }
   catch (err) { console.warn('[pet-listas]', err); return 'Não consegui abrir teus objetivos agora. Tenta de novo daqui a pouco.'; }
   const todas = PL.todosItens(arvore).filter(x => x.item.prioridade != null).sort((a, b) => a.item.prioridade - b.item.prioridade);
+  const tipo = PL.tipoPrioridade(text);
   if (acao === 'ver_prioridades') {
     const pend = todas.filter(x => !x.item.feito);
-    if (!pend.length) return 'Tu ainda não tem prioridades ⭐ Me fala <em>"marca o cimento como prioridade"</em> ou toca na ☆ do item nos Objetivos.';
-    return '⭐ <strong>Tuas prioridades</strong><br>' + pend.map((x, i) => `${i + 1}. ${_esc(x.item.texto)} <small>(${_esc(PL.ondeTexto(x.grupo, x.secao))})</small>`).join('<br>') +
-      '<br><small>Pra mudar a ordem: Método Falcon › ⭐ Prioridades, segura o ⠿ e arrasta.</small>';
+    if (!pend.length) return 'Tu ainda não tem prioridades ⭐ Me fala <em>"põe ler nas prioridades de atividade"</em>, <em>"marca o cimento como prioridade"</em> ou toca na ☆ do item nos Objetivos.';
+    // Duas listas (Élton, 26/10): 🔥 Atividades e 🛒 Realizar e Comprar
+    const cats = await getCategories().catch(() => []);
+    const ativ = pend.filter(x => ehPrioAtividade(x.item)), compra = pend.filter(x => !ehPrioAtividade(x.item));
+    const virou = (x) => cats.find(c => c.prioItemId === x.item.id);
+    const total = compra.reduce((n, x) => n + (valorDoItem(x.item.texto) || 0), 0);
+    const partes = [];
+    if (tipo !== 'compra') partes.push('🔥 <strong>Atividades</strong><br>' + (ativ.length
+      ? ativ.map((x, i) => `${i + 1}. ${_esc(x.item.texto)}${virou(x) ? ' <small>✓ virou atividade</small>' : ''}`).join('<br>')
+      : '<small>Nenhuma ainda.</small>'));
+    if (tipo !== 'ativ') partes.push(`🛒 <strong>Realizar e Comprar</strong>${total ? ` <small>(${reais(total)})</small>` : ''}<br>` + (compra.length
+      ? compra.map((x, i) => `${i + 1}. ${_esc(x.item.texto)} <small>(${_esc(PL.ondeTexto(x.grupo, x.secao))})</small>`).join('<br>')
+      : '<small>Nada ainda.</small>'));
+    return '⭐ <strong>Tuas prioridades</strong><br>' + partes.join('<br><br>') +
+      '<br><small>Pra mudar a ordem: Método Falcon › ⭐ Prioridades, segura o ⠿ e arrasta. Lá, o ➕ Criar atividade põe a atividade no teu Ritual.</small>';
   }
   const ligar = acao === 'prioridade';
+  const ondeTipo = tipo === 'ativ' ? '🔥 Atividades' : '🛒 Realizar e Comprar';
   const alvo = PL.acharAlvo(arvore, text);
   const base = ligar ? arvore : arvore.map(g => ({ ...g, soltos: g.soltos.filter(i => i.prioridade != null), secoes: g.secoes.map(s => ({ ...s, itens: s.itens.filter(i => i.prioridade != null) })) }));
   const achados = PL.acharItens(base, text, alvo, ligar ? 'pendentes' : null);
-  if (!achados.length) return ligar ? 'Não achei esse item nos teus Objetivos 🤔 Me diz o nome como tá na lista.' : 'Esse item não tá nas tuas prioridades 🤔';
+  if (!achados.length) {
+    if (!ligar) return 'Esse item não tá nas tuas prioridades 🤔';
+    // Não está nos Objetivos: escreve direto na lista de Prioridades dita
+    const nome = PL.textoPrioridade(text);
+    if (!tipo || !nome) return 'Não achei esse item nos teus Objetivos 🤔 Me diz o nome como tá na lista, ou fala <em>"põe ler nas prioridades de atividade"</em>.';
+    cardConfirmarLista(`⭐ Pôr <strong>${_esc(nome)}</strong> nas Prioridades, em <strong>${ondeTipo}</strong>?`,
+      async () => { await adicionarPrioridade(nome, tipo === 'ativ'); return tipo === 'ativ'
+        ? '⭐ Foi pra 🔥 Atividades. Lá, toca em <b>➕ Criar atividade</b> pra ela entrar no teu Ritual com a meta de quantas vezes.'
+        : '⭐ Foi pra 🛒 Realizar e Comprar. O valor tu põe na caixinha + R$ quando pesquisar o preço.'; });
+    return null;
+  }
   const fazer = (x) => {
-    cardConfirmarLista(ligar ? `⭐ Marcar <strong>${_esc(x.item.texto)}</strong> como prioridade?` : `Tirar <strong>${_esc(x.item.texto)}</strong> das prioridades?`,
-      async () => { await marcarPrioridade(x.item.id, ligar); return ligar ? '⭐ Foi pras Prioridades. Lá tu arrasta pra pôr no topo o que é mais importante.' : 'Tirei das prioridades 👍'; });
+    // Disse a lista ("de atividade"/"de compra") e o item está na outra: muda junto
+    const mover = ligar && tipo && (tipo === 'ativ') !== ehPrioAtividade(x.item);
+    cardConfirmarLista(ligar ? `⭐ Marcar <strong>${_esc(x.item.texto)}</strong> como prioridade${tipo ? `, em <strong>${ondeTipo}</strong>` : ''}?` : `Tirar <strong>${_esc(x.item.texto)}</strong> das prioridades?`,
+      async () => {
+        if (!ligar || x.item.prioridade == null) await marcarPrioridade(x.item.id, ligar);
+        if (mover) await moverPrioridade(x.item.id, tipo === 'ativ');
+        return ligar ? '⭐ Foi pras Prioridades. Lá tu arrasta pra pôr no topo o que é mais importante.' : 'Tirei das prioridades 👍';
+      });
     return null;
   };
   if (achados.length === 1) return fazer(achados[0]);
@@ -6384,7 +6415,18 @@ async function idealParaAtividade(x) {
   return null;
 }
 
+// "Como tá meu treino?", "faz quanto tempo que não treino perna?": constância
+// de cada músculo, pelo que foi registrado ao marcar a atividade física (26/10)
+const RE_TREINO = /\b(como (?:t[aá]|est[aá]|anda|vai|t[aá] indo|est[aá] indo)\s+(?:o\s+)?(?:meu|minha|o)\s+(?:treino|muscula[çc][ãa]o|academia)|que m[uú]sculos? (?:falta|t[oô] devendo|n[aã]o treinei)|(?:faz )?quant[oa]s? (?:tempo|semanas?|dias) (?:que )?(?:eu )?n[aã]o treino)/i;
+async function tentarTreino(text) {
+  if (!RE_TREINO.test(text)) return undefined;
+  try { return TRN.textoTreino(await TRN.constanciaPorMusculo()); }
+  catch (e) { console.warn('[pet-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
+}
+
 async function tentarDesempenho(text) {
+  const rT = await tentarTreino(text);
+  if (rT !== undefined) return rT;
   const t = PR.semPedido(text);
   const obj = PDS.lerObjetivo(t);
   if (obj) return desempenhoObjetivo(obj);
