@@ -3,7 +3,8 @@
 // BLOCO 2 — POPUP "Nova atividade" / "Editar atividade"
 // ─────────────────────────────────────────────────────────────
 // Um pop-up só pra criar ou editar atividade (Élton, 26/10): o da Home, o das
-// ⭐ Prioridades e o do Ideal são o mesmo. Nome, descrição, ícone e cor.
+// ⭐ Prioridades e o do Ideal são o mesmo. Nome, ícone e cor. Sem descrição:
+// no Ritual a descrição é o detalhe daquela vez (Élton, 26/10).
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS E LISTAS
@@ -50,7 +51,7 @@ const TODOS_DIAS = [0, 1, 2, 3, 4, 5, 6];
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: POPUP
 // ═══════════════════════════════════════════════════════════════
-// id = null cria; com id edita. `inicial` preenche nome/descrição/ícone/cor.
+// id = null cria; com id edita. `inicial` preenche nome/ícone/cor.
 // `extra` vai junto na atividade nova (ex.: { prioItemId } pra saber de onde veio).
 // Resolve com o id salvo, ou null se a pessoa cancelar.
 export async function abrirEditorAtividade({ id = null, cats = null, inicial = {}, extra = {}, dica = null, mostrarFim = true } = {}) {
@@ -59,7 +60,7 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
   const atual = isNew ? null : cats.find(x => x.id === id);
   if (!isNew && !atual) return null;
   const c = isNew
-    ? { name: inicial.nome || '', descricao: inicial.descricao || '', icon: inicial.icone || '🏷️',
+    ? { name: inicial.nome || '', icon: inicial.icone || '🏷️',
         color: inicial.cor || CORES_ATIVIDADE[cats.length % CORES_ATIVIDADE.length], daysOfWeek: TODOS_DIAS }
     : { ...atual };
   if (!Array.isArray(c.daysOfWeek)) c.daysOfWeek = TODOS_DIAS;
@@ -77,9 +78,6 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
 
         <label class="input-field"><div class="input-field-label">Nome</div>
           <input id="m-name" value="${esc(c.name)}" maxlength="60" placeholder="ex: Meditação, Trabalho, Lazer..." /></label>
-
-        <label class="input-field"><div class="input-field-label">Descrição <span class="ag-lbl-opt">— opcional</span></div>
-          <textarea id="m-desc" rows="2" maxlength="200" placeholder="O que você vai fazer e pra quê. Ex: Treino A/B, foco em ganhar massa">${esc(c.descricao || '')}</textarea></label>
 
         <div class="modal-section-label">${t('home.activity.icon')}</div>
         <div class="icon-picker">
@@ -126,7 +124,6 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
     // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder o que digitou)
     modal.querySelector('#m-save').onclick = async () => {
       const name = modal.querySelector('#m-name').value.trim();
-      const descricao = modal.querySelector('#m-desc').value.trim();
       if (!name) { showToast(t('home.activity.name.required'), 'info'); return; }
       const btn = modal.querySelector('#m-save');
       btn.disabled = true;
@@ -136,11 +133,10 @@ export async function abrirEditorAtividade({ id = null, cats = null, inicial = {
           // daysOfWeek preservado pra retrocompatibilidade com docs antigos
           // (recorrência real vive em weekdayTemplates via per-task chips no Ritual)
           salvo = await saveCategory(null, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: TODOS_DIAS,
-            ...extra, ...(descricao ? { descricao } : {}) });
+            ...extra });
         } else {
           // ...c guarda o resto do extra (lembrete etc.): o extra é gravado inteiro
-          // (descrição vazia vai como '' pra apagar a antiga)
-          await saveCategory(id, { ...c, name, icon: pickedIcon, color: pickedColor, descricao });
+          await saveCategory(id, { ...c, name, icon: pickedIcon, color: pickedColor });
           salvo = id;
         }
         document.dispatchEvent(new CustomEvent('falcon:cats-changed'));

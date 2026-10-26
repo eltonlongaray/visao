@@ -4,18 +4,18 @@
 // BLOCO 3 — ESTADO (carregar / migrar / salvar)
 // BLOCO 4 — POPUP "ORGANIZANDO MEU IDEAL" (grade de pilares ↔ checklist)
 // ─────────────────────────────────────────────────────────────
-// Funil: IDEAL (marco o que importa) → 🎯 TRANSFORMAR EM AÇÃO (o que vou fazer
-// na semana: atividade com nome, descrição, ícone e cor + meta de quantas vezes)
-// → RITUAL (execução). Élton, 26/10: não basta copiar "Ler" pra Home; a pessoa
-// define o que vai fazer de verdade pra chegar lá. Um item pode ter várias ações.
-// Marcar NÃO cria nada na Home: é a visão. Só o botão de cada item cria.
+// Funil (Élton, 26/10): IDEAL (marco tudo o que me faz bem, em cada área) →
+// "o que é prioridade pra manter constância?" → ⭐ PRIORIDADES › 🔥 Atividades
+// (lá cria a atividade e a meta de quantas vezes) → RITUAL (execução).
+// Marcar NÃO cria nada na Home: é a visão. O item mostra se já é prioridade e
+// se já virou atividade com meta.
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS E UTILITÁRIOS
 // ═══════════════════════════════════════════════════════════════
 import { getProfile, setProfile, getCategories } from './banco-dados.js';
 import { listarObjetivos } from './objetivos.js';
-import { abrirEditorAtividade } from './atividade-editor.js';
+import { carregarFerramentas, adicionarPrioridade, ehPrioAtividade, valorDoItem } from './ferramentas.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
 
@@ -160,18 +160,25 @@ export async function idealStatus() {
 
 // Descobre, pelo nome, se o item já virou atividade (e se tem foco de constância).
 async function _status() {
-  const [cats, objs] = await Promise.all([getCategories().catch(() => []), listarObjetivos().catch(() => [])]);
+  const [cats, objs, grupos] = await Promise.all([getCategories().catch(() => []), listarObjetivos().catch(() => []), carregarFerramentas().catch(() => [])]);
+  // ⭐ Prioridades de atividade, pelo texto (sem o preço, se tiver)
+  const prio = new Map();
+  for (const g of grupos) for (const it of [...g.soltos, ...g.secoes.flatMap(x => x.itens)]) {
+    if (it.prioridade == null || !ehPrioAtividade(it)) continue;
+    prio.set(norm(valorDoItem(it.texto) ? it.texto.replace(/\s*R\$.*$/i, '') : it.texto), it);
+  }
   return {
-    cats,
+    cats, prio,
     porNome: new Map(cats.map(c => [norm(c.name), c])),
     focoIds: new Set(objs.map(o => o.atividadeId).filter(Boolean)),
     metaDe: new Map(objs.filter(o => o.atividadeId).map(o => [o.atividadeId, o])),
   };
 }
-// Ações do item: atividades criadas por ele (idealItem) ou com o mesmo nome
-// (as criadas antes do 🎯), cada uma com a meta, se tiver.
+// Ações do item: atividade criada pela prioridade dele (prioItemId), ou com o
+// mesmo nome (as criadas antes), cada uma com a meta, se tiver.
 function _acoes(st, id, txt) {
-  return st.cats.filter(c => c.idealItem === id || norm(c.name) === norm(txt))
+  const pr = st.prio.get(norm(txt));
+  return st.cats.filter(c => c.idealItem === id || norm(c.name) === norm(txt) || (pr && c.prioItemId === pr.id))
     .map(c => ({ cat: c, meta: st.metaDe.get(c.id) || null }));
 }
 const _metaTxt = (m) => m ? `${Math.max(1, Number(m.vezes) || 1)}x por ${m.periodo === 'mes' ? 'mês' : 'semana'}` : 'sem meta';
@@ -206,7 +213,11 @@ export async function abrirIdeal({ aoFechar } = {}) {
   // A grade mostra quantos itens já têm ação: carrega o status sem travar a tela
   _status().then(r => { st = r; if (vista === 'grade' && document.getElementById('ideal-ov')) desenharGrade(); }).catch(() => {});
 
-  trapModalBack(() => { if (_saveT) _salvarJa(); ov.remove(); aoFechar?.(); });
+  trapModalBack(() => {
+    if (_saveT) _salvarJa(); ov.remove(); aoFechar?.();
+    // Escolheu prioridades: abre a tela delas (ferramentas-ui escuta)
+    if (irPrioridades) setTimeout(() => document.dispatchEvent(new CustomEvent('falcon:ir-prioridades')), 80);
+  });
   ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
 
   // Popup (não é página inteira): X no canto superior direito FECHA a janela.
@@ -222,22 +233,76 @@ export async function abrirIdeal({ aoFechar } = {}) {
     corpo.innerHTML = `
       ${header('🧭 Organizando meu ideal')}
       <div class="ag-scroll">
-        <div class="bloco-sub" style="margin:0 0 14px">Toque numa área da vida e marque o que é importante pra você. Depois, em cada item, toque em <b>🎯 Transformar em ação</b>: o que você vai fazer na semana pra chegar lá.</div>
+        <div class="bloco-sub" style="margin:0 0 14px">Toque numa área da vida e marque tudo o que faz bem pra você. Depois a gente escolhe o que é prioridade pra manter a constância no dia a dia.</div>
         <div class="ideal-grid">
           ${PILARES.map(p => {
             const n = _p(p.k).sel.length;
-            const comPlano = st ? _p(p.k).sel.filter(id => _acoes(st, id, _txtDoId(p.k, id)).length).length : null;
+            const comPlano = st ? _p(p.k).sel.filter(id => _acoes(st, id, _txtDoId(p.k, id)).some(a => a.meta)).length : null;
             return `<button class="ideal-pilar" data-pilar="${p.k}" type="button">
               <span class="ideal-pilar-ic" style="background:${p.cor}22">${p.ic}</span>
               <span class="ideal-pilar-nome">${p.nome}</span>
               <span class="ideal-pilar-n ${n ? 'tem' : ''}">${n ? `${n} importante${n > 1 ? 's' : ''}` : 'Nada marcado'}</span>
-              ${n && comPlano != null ? `<span class="ideal-pilar-plano ${comPlano === n ? 'ok' : ''}">${comPlano} com ação</span>` : ''}
+              ${n && comPlano ? `<span class="ideal-pilar-plano ${comPlano === n ? 'ok' : ''}">${comPlano} com meta</span>` : ''}
             </button>`;
           }).join('')}
         </div>
+        ${totalSel() ? `<button class="btn-primary ideal-prio-btn" data-prio type="button">⭐ Agora: o que é prioridade pra manter constância?</button>` : ''}
       </div>`;
     corpo.querySelector('[data-fechar]').onclick = () => history.back();
     corpo.querySelectorAll('[data-pilar]').forEach(b => b.onclick = () => entrarPilar(b.dataset.pilar));
+    corpo.querySelector('[data-prio]')?.addEventListener('click', entrarPrioridade);
+  }
+  const totalSel = () => PILARES.reduce((n, p) => n + _p(p.k).sel.length, 0);
+
+  // ⭐ Escolher prioridades: tudo o que foi marcado, por área. O que já é
+  // prioridade vem marcado (e travado). Confirmar leva pras ⭐ Prioridades.
+  let irPrioridades = false;
+  async function entrarPrioridade() {
+    vista = 'prio';
+    fecharPilar = trapModalBack(() => { vista = 'grade'; fecharPilar = null; desenharGrade(); });
+    if (_saveT) await _salvarJa();
+    corpo.innerHTML = `${header('⭐ Prioridades', true)}<div class="ag-load">Carregando…</div>`;
+    st = await _status();
+    if (vista !== 'prio') return;
+    const blocos = PILARES.filter(p => _p(p.k).sel.length).map(p => `
+      <div class="ideal-sec">${p.ic} ${p.nome}</div>
+      ${_p(p.k).sel.map(id => {
+        const txt = _txtDoId(p.k, id); if (!txt) return '';
+        const ja = st.prio.has(norm(txt)) || _acoes(st, id, txt).length > 0;
+        return `<div class="ideal-item ${ja ? 'on' : ''}">
+          <label class="ideal-check">
+            <input type="checkbox" data-pri="${esc(txt)}" ${ja ? 'checked disabled' : ''}>
+            <span class="ideal-box"></span>
+            <span class="ideal-txt">${esc(txt)}${ja ? ' <small class="ideal-ja">já está nas prioridades</small>' : ''}</span>
+          </label>
+        </div>`;
+      }).join('')}`).join('');
+    corpo.innerHTML = `
+      ${header('⭐ O que é prioridade?', true)}
+      <div class="ag-scroll">
+        <div class="bloco-sub" style="margin:0 0 6px">Disso tudo, o que você quer manter com constância no dia a dia? Marque. Vai pras <b>⭐ Prioridades › 🔥 Atividades</b>, onde você põe na ordem e cria a atividade com a meta de quantas vezes.</div>
+        ${blocos}
+        <button class="btn-primary ideal-prio-btn" data-levar type="button" disabled>Levar pras Prioridades</button>
+      </div>`;
+    corpo.querySelector('[data-voltar]').onclick = () => history.back();
+    corpo.querySelector('[data-fechar]').onclick = () => history.go(-2);
+    const btn = corpo.querySelector('[data-levar]');
+    const novos = () => [...corpo.querySelectorAll('[data-pri]:checked:not(:disabled)')].map(x => x.dataset.pri);
+    corpo.querySelectorAll('[data-pri]').forEach(cb => cb.onchange = () => {
+      const n = novos().length;
+      btn.disabled = !n;
+      btn.textContent = n ? `Levar ${n} pras Prioridades` : 'Levar pras Prioridades';
+    });
+    btn.onclick = async () => {
+      const lista = novos(); if (!lista.length) return;
+      btn.disabled = true;
+      try {
+        for (const t of lista) await adicionarPrioridade(t, true);
+        showToast(`⭐ ${lista.length > 1 ? `${lista.length} itens foram` : 'Foi'} pras Prioridades`, 'success');
+        irPrioridades = true;
+        history.go(-2);   // fecha o Ideal; quem abriu leva pras Prioridades
+      } catch (e) { btn.disabled = false; showToast('Erro: ' + e.message, 'error'); }
+    };
   }
 
   async function entrarPilar(k) {
@@ -260,11 +325,8 @@ export async function abrirIdeal({ aoFechar } = {}) {
       if (on) {
         const lista = _acoes(st, id, txt);
         acoes = lista.length
-          ? lista.map(a => `<span class="ideal-tag ${a.meta ? 'ativ' : 'foco'}">✅ ${esc(a.cat.icon || '')} ${esc(a.cat.name)} · ${_metaTxt(a.meta)}</span>
-              ${a.meta ? '' : `<button class="ideal-btn foco" data-meta="${esc(a.cat.id)}" type="button">🔁 Quantas vezes?</button>`}`).join('') +
-            `<button class="ideal-btn ativ" data-acao="${id}" type="button">➕ Outra ação</button>`
-          : `<span class="ideal-tag vazio">⚪ Sem ação ainda</span>
-             <button class="ideal-btn foco" data-acao="${id}" type="button">🎯 Transformar em ação</button>`;
+          ? lista.map(a => `<span class="ideal-tag ${a.meta ? 'ativ' : 'foco'}">✅ ${esc(a.cat.icon || '')} ${esc(a.cat.name)} · ${_metaTxt(a.meta)}</span>`).join('')
+          : st.prio.has(norm(txt)) ? '<span class="ideal-tag foco">⭐ Nas prioridades</span>' : '';
       }
       return `
         <div class="ideal-item ${on ? 'on' : ''}">
@@ -274,7 +336,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
             <span class="ideal-txt">${esc(txt)}</span>
           </label>
           ${seu ? `<button class="ideal-rm" data-rm="${id}" type="button" aria-label="Remover">✕</button>` : ''}
-          ${on ? `<div class="ideal-acoes">${acoes}</div>` : ''}
+          ${on && acoes ? `<div class="ideal-acoes">${acoes}</div>` : ''}
         </div>`;
     };
 
@@ -285,7 +347,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
     corpo.innerHTML = `
       ${header(`${pilar.ic} ${pilar.nome}`, true)}
       <div class="ag-scroll">
-        <div class="bloco-sub" style="margin:0 0 6px">Marque o que é importante pra você. Em cada item marcado, toque em <b>🎯 Transformar em ação</b>: diga o que vai fazer de verdade (ex.: "Leitura 20 min") e quantas vezes por semana. Isso entra no seu Ritual e vira meta.</div>
+        <div class="bloco-sub" style="margin:0 0 6px">Marque tudo o que faz bem pra você nessa área. Depois, na tela das áreas, você escolhe o que é prioridade pra manter a constância.</div>
         ${pilar.secoes.map(sec => `
           ${sec.tit ? `<div class="ideal-sec">${sec.tit}</div>` : ''}
           ${sec.itens.map(t => linha(itemId(pilar.k, t), t, false)).join('')}`).join('')}
@@ -314,36 +376,6 @@ export async function abrirIdeal({ aoFechar } = {}) {
       est.extras = est.extras.filter(x => x.id !== id);
       est.sel = est.sel.filter(x => x !== id);
       _salvar(); desenharPilar();
-    });
-
-    // 🎯 Transformar em ação: o pop-up de atividade (o mesmo da Home) e, em
-    // seguida, a meta de quantas vezes por semana ou mês.
-    const _meta = async (atividadeId) => {
-      const { abrirEditorObjetivo } = await import('./objetivos-ui.js');
-      abrirEditorObjetivo(null, {
-        atividadeId, titulo: 'Quantas vezes você vai fazer?',
-        dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, nas Minhas Metas.',
-        aoSalvar: async () => { st = await _status(); if (vista === 'pilar') desenharPilar(); },
-      });
-    };
-    corpo.querySelectorAll('[data-acao]').forEach(b => b.onclick = async () => {
-      const id = b.dataset.acao, txt = txtDe.get(id); if (!txt) return;
-      // Grava a marcação pendente ANTES: a meta também grava no perfil, e dois
-      // salvamentos simultâneos se sobrescreveriam.
-      if (_saveT) await _salvarJa();
-      const ja = _acoes(st, id, txt).length;
-      const novoId = await abrirEditorAtividade({
-        cats: st.cats, extra: { idealItem: id },
-        inicial: { nome: ja ? '' : txt.slice(0, 60), icone: pilar.ic, cor: pilar.cor },
-        dica: `Pra chegar em "${txt}": o que você vai fazer na semana? Dê um nome concreto (ex.: "Leitura 20 min", "Treino de musculação") e, na descrição, como vai ser e qual o seu objetivo.`,
-      });
-      if (!novoId) return;
-      st = await _status(); if (vista === 'pilar') desenharPilar();
-      _meta(novoId);
-    });
-    corpo.querySelectorAll('[data-meta]').forEach(b => b.onclick = async () => {
-      if (_saveT) await _salvarJa();
-      _meta(b.dataset.meta);
     });
 
     corpo.querySelector('[data-add]').onsubmit = (e) => {

@@ -468,7 +468,7 @@ function renderCats() {
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
       </div>
-      <div class="cat-config-name-display">${escape(c.name)}${c.descricao ? `<small class="cat-config-desc">${escape(c.descricao)}</small>` : ''}</div>
+      <div class="cat-config-name-display">${escape(c.name)}</div>
       <div class="cat-config-swatch" style="background:${c.color || '#a78bfa'}"></div>
       <div class="activity-actions">
         <button data-action="edit-cat" title="Editar">✏️</button>

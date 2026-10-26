@@ -451,6 +451,14 @@ export function ligarFerramentas() {
   });
   ligarArrastar();
 
+  // O Ideal mandou itens pras Prioridades: abre a tela delas (Élton, 26/10)
+  document.addEventListener('falcon:ir-prioridades', async () => {
+    if (!document.getElementById('ferramentas-ov')) await _abrir('metodo');
+    if (!document.getElementById('ferramentas-ov')) return;
+    if (vista !== 'prioridades') { _empurrar(); vista = 'prioridades'; grupoAberto = null; }
+    await _recarregar();
+  });
+
   document.addEventListener('click', async (e) => {
     if (!e.target.closest('#ferramentas-ov')) return;
 
@@ -636,7 +644,7 @@ async function criarAtividadeDaPrioridade(id) {
   const { base } = separarValor(it.texto);
   const novoId = await abrirEditorAtividade({
     cats, inicial: { nome: base.slice(0, 60) }, extra: { prioItemId: it.id },
-    dica: 'Dê um nome pro que você vai fazer de verdade. Ex.: em vez de "Ler", "Leitura 20 min". Na descrição, como vai ser e pra quê.',
+    dica: 'Dê um nome pro que você vai fazer de verdade. Ex.: em vez de "Ler", "Leitura 20 min".',
   });
   if (!novoId) return;
   await _recarregar();
