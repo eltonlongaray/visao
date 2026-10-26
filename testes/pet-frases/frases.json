@@ -171,5 +171,7 @@
   {"f": "a Carol desistiu, libera o 5 da rifa", "e": {"acao": "rifa", "campo": "liberar", "texto": "5", "itens": ["carol"]}},
   {"f": "tira o pago do número 12 da rifa, foi engano", "e": {"acao": "rifa", "campo": "nao_pago", "texto": "12"}},
   {"f": "fiquei doente e não vou conseguir continuar no desafio de leitura", "e": {"acao": "desafio", "campo": "sair"}},
-  {"f": "quero sair do desafio da água porque vou viajar", "e": {"acao": "desafio", "campo": "sair"}}
+  {"f": "quero sair do desafio da água porque vou viajar", "e": {"acao": "desafio", "campo": "sair"}},
+  {"f": "põe estudar inglês nas prioridades de atividade", "e": {"acao": "lista_organizar", "campo": "prioridade_marcar", "lista": "atividade"}},
+  {"f": "coloca tênis de corrida nas prioridades de realizar e comprar", "e": {"acao": "lista_organizar", "campo": "prioridade_marcar", "lista": "comprar"}}
 ]

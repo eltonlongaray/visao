@@ -4,15 +4,18 @@
 // BLOCO 3 — ESTADO (carregar / migrar / salvar)
 // BLOCO 4 — POPUP "ORGANIZANDO MEU IDEAL" (grade de pilares ↔ checklist)
 // ─────────────────────────────────────────────────────────────
-// Funil: IDEAL (marco o que importa) → FOCO (🔥 constância, com meta) ou só
-// ATIVIDADE (📋 aparece na Home, sem meta) → RITUAL (execução).
-// Marcar NÃO cria nada na Home: é a visão. Só os botões de cada item criam.
+// Funil: IDEAL (marco o que importa) → 🎯 TRANSFORMAR EM AÇÃO (o que vou fazer
+// na semana: atividade com nome, descrição, ícone e cor + meta de quantas vezes)
+// → RITUAL (execução). Élton, 26/10: não basta copiar "Ler" pra Home; a pessoa
+// define o que vai fazer de verdade pra chegar lá. Um item pode ter várias ações.
+// Marcar NÃO cria nada na Home: é a visão. Só o botão de cada item cria.
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS E UTILITÁRIOS
 // ═══════════════════════════════════════════════════════════════
-import { getProfile, setProfile, getCategories, saveCategory } from './banco-dados.js';
+import { getProfile, setProfile, getCategories } from './banco-dados.js';
 import { listarObjetivos } from './objetivos.js';
+import { abrirEditorAtividade } from './atividade-editor.js';
 import { trapModalBack } from './modal-voltar.js';
 import { showToast } from './aviso-tela.js';
 
@@ -162,8 +165,16 @@ async function _status() {
     cats,
     porNome: new Map(cats.map(c => [norm(c.name), c])),
     focoIds: new Set(objs.map(o => o.atividadeId).filter(Boolean)),
+    metaDe: new Map(objs.filter(o => o.atividadeId).map(o => [o.atividadeId, o])),
   };
 }
+// Ações do item: atividades criadas por ele (idealItem) ou com o mesmo nome
+// (as criadas antes do 🎯), cada uma com a meta, se tiver.
+function _acoes(st, id, txt) {
+  return st.cats.filter(c => c.idealItem === id || norm(c.name) === norm(txt))
+    .map(c => ({ cat: c, meta: st.metaDe.get(c.id) || null }));
+}
+const _metaTxt = (m) => m ? `${Math.max(1, Number(m.vezes) || 1)}x por ${m.periodo === 'mes' ? 'mês' : 'semana'}` : 'sem meta';
 function _statusItem(st, txt) {
   const c = st.porNome.get(norm(txt));
   if (!c) return null;
@@ -186,6 +197,14 @@ export async function abrirIdeal({ aoFechar } = {}) {
 
   let vista = 'grade', pilarK = null, st = null, fecharPilar = null;
   const corpo = ov.querySelector('#ideal-corpo');
+  // Texto de um item pelo id (lista pronta ou item da pessoa)
+  const _txtDoId = (k, id) => {
+    const pilar = PILARES.find(p => p.k === k);
+    for (const sec of pilar?.secoes || []) for (const t of sec.itens) if (itemId(k, t) === id) return t;
+    return _p(k).extras.find(x => x.id === id)?.txt || '';
+  };
+  // A grade mostra quantos itens já têm ação: carrega o status sem travar a tela
+  _status().then(r => { st = r; if (vista === 'grade' && document.getElementById('ideal-ov')) desenharGrade(); }).catch(() => {});
 
   trapModalBack(() => { if (_saveT) _salvarJa(); ov.remove(); aoFechar?.(); });
   ov.addEventListener('click', (e) => { if (e.target === ov) history.back(); });
@@ -203,14 +222,16 @@ export async function abrirIdeal({ aoFechar } = {}) {
     corpo.innerHTML = `
       ${header('🧭 Organizando meu ideal')}
       <div class="ag-scroll">
-        <div class="bloco-sub" style="margin:0 0 14px">Toque numa área da vida e marque o que é importante pra você. Depois você escolhe o que vai acompanhar com constância.</div>
+        <div class="bloco-sub" style="margin:0 0 14px">Toque numa área da vida e marque o que é importante pra você. Depois, em cada item, toque em <b>🎯 Transformar em ação</b>: o que você vai fazer na semana pra chegar lá.</div>
         <div class="ideal-grid">
           ${PILARES.map(p => {
             const n = _p(p.k).sel.length;
+            const comPlano = st ? _p(p.k).sel.filter(id => _acoes(st, id, _txtDoId(p.k, id)).length).length : null;
             return `<button class="ideal-pilar" data-pilar="${p.k}" type="button">
               <span class="ideal-pilar-ic" style="background:${p.cor}22">${p.ic}</span>
               <span class="ideal-pilar-nome">${p.nome}</span>
-              <span class="ideal-pilar-n ${n ? 'tem' : ''}">${n ? `${n} ✓` : 'Nada marcado'}</span>
+              <span class="ideal-pilar-n ${n ? 'tem' : ''}">${n ? `${n} importante${n > 1 ? 's' : ''}` : 'Nada marcado'}</span>
+              ${n && comPlano != null ? `<span class="ideal-pilar-plano ${comPlano === n ? 'ok' : ''}">${comPlano} com ação</span>` : ''}
             </button>`;
           }).join('')}
         </div>
@@ -235,14 +256,15 @@ export async function abrirIdeal({ aoFechar } = {}) {
 
     const linha = (id, txt, seu) => {
       const on = est.sel.includes(id);
-      const s = on ? _statusItem(st, txt) : null;
       let acoes = '';
       if (on) {
-        if (s === 'foco') acoes = '<span class="ideal-tag foco">🔥 Em constância</span>';
-        else if (s === 'ativ') acoes = `<span class="ideal-tag ativ">✓ Nas Atividades</span>
-            <button class="ideal-btn foco" data-foco="${id}" type="button">🔥 Acompanhar constância</button>`;
-        else acoes = `<button class="ideal-btn foco" data-foco="${id}" type="button">🔥 Acompanhar constância</button>
-            <button class="ideal-btn ativ" data-ativ="${id}" type="button">📋 Só nas Atividades</button>`;
+        const lista = _acoes(st, id, txt);
+        acoes = lista.length
+          ? lista.map(a => `<span class="ideal-tag ${a.meta ? 'ativ' : 'foco'}">✅ ${esc(a.cat.icon || '')} ${esc(a.cat.name)} · ${_metaTxt(a.meta)}</span>
+              ${a.meta ? '' : `<button class="ideal-btn foco" data-meta="${esc(a.cat.id)}" type="button">🔁 Quantas vezes?</button>`}`).join('') +
+            `<button class="ideal-btn ativ" data-acao="${id}" type="button">➕ Outra ação</button>`
+          : `<span class="ideal-tag vazio">⚪ Sem ação ainda</span>
+             <button class="ideal-btn foco" data-acao="${id}" type="button">🎯 Transformar em ação</button>`;
       }
       return `
         <div class="ideal-item ${on ? 'on' : ''}">
@@ -263,7 +285,7 @@ export async function abrirIdeal({ aoFechar } = {}) {
     corpo.innerHTML = `
       ${header(`${pilar.ic} ${pilar.nome}`, true)}
       <div class="ag-scroll">
-        <div class="bloco-sub" style="margin:0 0 6px">Marque o que é importante pra você. Em cada item marcado, escolha: <b>acompanhar a constância</b> (vira foco com meta e entra na Home) ou <b>só colocar nas Atividades</b>.</div>
+        <div class="bloco-sub" style="margin:0 0 6px">Marque o que é importante pra você. Em cada item marcado, toque em <b>🎯 Transformar em ação</b>: diga o que vai fazer de verdade (ex.: "Leitura 20 min") e quantas vezes por semana. Isso entra no seu Ritual e vira meta.</div>
         ${pilar.secoes.map(sec => `
           ${sec.tit ? `<div class="ideal-sec">${sec.tit}</div>` : ''}
           ${sec.itens.map(t => linha(itemId(pilar.k, t), t, false)).join('')}`).join('')}
@@ -294,31 +316,34 @@ export async function abrirIdeal({ aoFechar } = {}) {
       _salvar(); desenharPilar();
     });
 
-    // 📋 Só nas Atividades — cria a atividade na Home (sem meta de constância).
-    corpo.querySelectorAll('[data-ativ]').forEach(b => b.onclick = async () => {
-      const txt = txtDe.get(b.dataset.ativ); if (!txt) return;
-      if (st.porNome.has(norm(txt))) { showToast('Já está nas suas Atividades', 'info'); return; }
-      b.disabled = true;
-      try {
-        const order = (st.cats.length ? Math.max(...st.cats.map(c => c.order || 0)) : 0) + 1;
-        await saveCategory(null, { name: txt, icon: pilar.ic, color: pilar.cor, order, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] });
-        document.dispatchEvent(new CustomEvent('falcon:cats-changed'));
-        showToast('📋 Adicionado às Atividades da Home', 'success');
-        st = await _status(); desenharPilar();
-      } catch (e) { b.disabled = false; showToast('Erro: ' + e.message, 'error'); }
-    });
-
-    // 🔥 Acompanhar constância — abre o editor de foco já com o item preenchido.
-    corpo.querySelectorAll('[data-foco]').forEach(b => b.onclick = async () => {
-      const txt = txtDe.get(b.dataset.foco); if (!txt) return;
-      // Grava a marcação pendente ANTES: o foco também grava no perfil, e dois
-      // salvamentos simultâneos se sobrescreveriam.
-      if (_saveT) await _salvarJa();
+    // 🎯 Transformar em ação: o pop-up de atividade (o mesmo da Home) e, em
+    // seguida, a meta de quantas vezes por semana ou mês.
+    const _meta = async (atividadeId) => {
       const { abrirEditorObjetivo } = await import('./objetivos-ui.js');
       abrirEditorObjetivo(null, {
-        novoNome: txt, icone: pilar.ic, cor: pilar.cor,
+        atividadeId, titulo: 'Quantas vezes você vai fazer?',
+        dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, nas Minhas Metas.',
         aoSalvar: async () => { st = await _status(); if (vista === 'pilar') desenharPilar(); },
       });
+    };
+    corpo.querySelectorAll('[data-acao]').forEach(b => b.onclick = async () => {
+      const id = b.dataset.acao, txt = txtDe.get(id); if (!txt) return;
+      // Grava a marcação pendente ANTES: a meta também grava no perfil, e dois
+      // salvamentos simultâneos se sobrescreveriam.
+      if (_saveT) await _salvarJa();
+      const ja = _acoes(st, id, txt).length;
+      const novoId = await abrirEditorAtividade({
+        cats: st.cats, extra: { idealItem: id },
+        inicial: { nome: ja ? '' : txt.slice(0, 60), icone: pilar.ic, cor: pilar.cor },
+        dica: `Pra chegar em "${txt}": o que você vai fazer na semana? Dê um nome concreto (ex.: "Leitura 20 min", "Treino de musculação") e, na descrição, como vai ser e qual o seu objetivo.`,
+      });
+      if (!novoId) return;
+      st = await _status(); if (vista === 'pilar') desenharPilar();
+      _meta(novoId);
+    });
+    corpo.querySelectorAll('[data-meta]').forEach(b => b.onclick = async () => {
+      if (_saveT) await _salvarJa();
+      _meta(b.dataset.meta);
     });
 
     corpo.querySelector('[data-add]').onsubmit = (e) => {

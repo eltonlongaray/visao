@@ -178,9 +178,16 @@ export function fraseDoApp(j) {
         case 'apagar': return lista ? `apaga a lista ${lista}` : null;
         case 'criar_grupo': return (texto || lista) ? `cria o grupo ${texto || lista}` : null;
         case 'somar': return lista ? `soma o valor da lista ${lista}` : 'soma o valor do que falta nas minhas listas';
-        case 'prioridade_marcar': { const it = juntar(j.itens); return it ? `marca ${it} como prioridade` : null; }
+        case 'prioridade_marcar': {
+          const it = juntar(j.itens); if (!it) return null;
+          // Duas listas (26/10): a lista dita vai na frase
+          if (/^ativ/i.test(j.lista || '')) return `põe ${it} nas prioridades de atividade`;
+          if (/compr/i.test(j.lista || '')) return `põe ${it} nas prioridades de realizar e comprar`;
+          return `marca ${it} como prioridade`;
+        }
         case 'prioridade_tirar': { const it = juntar(j.itens); return it ? `tira ${it} das prioridades` : null; }
-        case 'prioridades_ver': return 'quais minhas prioridades';
+        case 'prioridades_ver': return /^ativ/i.test(j.lista || '') ? 'quais minhas prioridades de atividade'
+          : /compr/i.test(j.lista || '') ? 'quais minhas prioridades de realizar e comprar' : 'quais minhas prioridades';
         default: return null;
       }
     }

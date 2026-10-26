@@ -90,10 +90,14 @@ function corrigirRota(out, texto) {
   }
   // Objetivos (as listas): ⭐ prioridade e soma de preços — a palavra decide
   // (o modelo respondia "não posso ajudar" pra "soma o valor das minhas listas")
-  if (/\bprioridades?\b/.test(t) && !/\b(atividade|tarefa|compromisso)\b/.test(t)) {
+  // Duas listas (26/10): "prioridades de atividade" e "prioridades de realizar e comprar"
+  const prioTipo = /\bprioridades?\s+(?:de|da|das)\s+atividades?\b/.test(t) ? 'atividade'
+    : /\bprioridades?\s+(?:de|da|das|do)\s+(?:compras?|comprar|(?:fazer|realizar) e comprar)\b/.test(t) ? 'comprar' : '';
+  if (/\bprioridades?\b/.test(t) && (prioTipo || !/\b(atividade|tarefa|compromisso)\b/.test(t))) {
     const campo = /\b(tira|tirar|remov\w*|desmarc\w*|nao e mais)\b/.test(t) ? 'prioridade_tirar'
       : /^(quais|qual|mostra|me mostra|ver|lista|o que)\b/.test(t) || !/\b(marca\w*|coloca\w*|bota\w*|poe|deixa|torna|vira\w*|adiciona\w*)\b/.test(t) ? 'prioridades_ver' : 'prioridade_marcar';
     Object.assign(out, { acao: 'lista_organizar', campo });
+    if (prioTipo) out.lista = prioTipo;
     if (campo === 'prioridades_ver') out.itens = [];
     else if (!(out.itens || []).length) {
       const m = texto.match(/\b(?:marca|marque|coloca|bota|p[õo]e|deixa|torna|tira|remove|desmarca)\w*\s+(?:o |a |os |as )?(.+?)\s+(?:como|nas?|das?|de|em)\s+(?:minhas\s+)?prioridades?\b/i);
@@ -383,7 +387,7 @@ configurar = mudar o app. campo = "acordar_padrao" | "dormir_padrao" (hora = hor
 desempenho = desempenho e objetivos. campo = "geral" (% feito) | "atividade" (quantas vezes fez; titulo) | "recorde" (maior sequência, melhor mês) | "sono" (média de sono) | "reflexao_ver" | "reflexao_anotar" (texto) | "objetivos_ver" | "objetivo_criar" | "objetivo_mudar" | "objetivo_apagar" (titulo = atividade, numero = vezes, quando = "semana" ou "mês"). Nas consultas, quando = período.
 lista_adicionar = pôr itens numa lista. itens (um produto por posição; separa ditado sem vírgula, junta repetido, "ele" no lugar de "e" é "e"); lista (padrão "mercado"). "acabou o X" = adicionar X.
 lista_marcar = comprou/riscou itens. itens.
-lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo) | "somar" (somar o preço dos itens que faltam / quanto vai gastar) | "prioridade_marcar" / "prioridade_tirar" (itens = o item) | "prioridades_ver"; lista = a lista citada.
+lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo) | "somar" (somar o preço dos itens que faltam / quanto vai gastar) | "prioridade_marcar" / "prioridade_tirar" (itens = o item) | "prioridades_ver"; lista = a lista citada. As Prioridades têm duas listas: nas prioridades, lista = "atividade" (o que a pessoa vai fazer com o tempo) ou "comprar" (Realizar e Comprar); vazio se ela não disse.
 Nomes das telas: "Objetivos" = as listas (mercado etc.); "Metas" = metas de constância do desempenho (objetivo_*).
 ideal = "Organizando meu ideal" (6 áreas da vida). campo = "ver" | "marcar" | "desmarcar" | "atividade" (levar pro Home) | "constancia" (numero = vezes, quando = "semana" ou "mês"); itens = os itens citados (SEMPRE em itens, não em texto); texto = a área se disser.
 desafio = Desafios do app (só quando fala em desafio, código de convite, prenda, ou fumou/não fumou). campo = "ver" | "ranking" | "entrar" | "codigo" (texto = o código) | "sair" (só quando pede pra SAIR; texto = o motivo, como a pessoa falou: "tive um imprevisto", "vou viajar") | "doente" (ficou doente ou se machucou e não consegue cumprir hoje: grava um vídeo e o dia fica justificado, sem sair) | "checkin" (numero = quantidade, texto = unidade, itens = exercício feito, todas = true se bateu a meta) | "criar" (titulo = do quê, numero = dias, texto = "amigos" ou "sozinho", itens = exercícios) | "regras" | "corrida_ajuda" | "print" | "prenda" (pagar prenda ou saber se deve) | "mural" (ver o Mural das Prendas) | "sugerir_prenda" (texto = a prenda, como ela falou) | "proposta" (texto = "sim" ou "não") | "nao_consegui" (largar vício: fumou, recaída) | "convidar" (itens = nomes; todas = true se for por WhatsApp) | "grupo" (texto = mensagem pro grupo; sem texto = ler) | "relatorio" (como foi o desafio, resultado de cada um) | "nova_rodada" (outro desafio com o mesmo grupo; quando = "hoje", "amanhã" ou "segunda"). titulo = o desafio citado ("água", "leitura", "corrida").

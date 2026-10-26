@@ -45,7 +45,8 @@ export function lerIdeal(texto) {
   let acao;
   const verboLevar = /\b(vir\w*|transform\w*|coloc\w*|bot\w*|poe|pass\w*|mand\w*|adicion\w*|cri\w*|lev\w*|faz\w*)\b/.test(t);
   if (/\b(atividades?|home)\b/.test(t) && verboLevar) acao = 'atividade';
-  else if (/\b(constancia|foco|acompanh\w*)\b/.test(t)) acao = 'constancia';
+  // "transforma ler do ideal em ação 3x por semana" (🎯 Transformar em ação, 26/10)
+  else if (/\b(constancia|foco|acompanh\w*)\b/.test(t) || /\bem acao\b/.test(t)) acao = 'constancia';
   else if (/\b(desmarc\w*|tir\w*|remov\w*|apag\w*|exclu\w*)\b/.test(t)) acao = 'desmarcar';
   else if (/\b(marc\w*|adicion\w*|coloc\w*|bot\w*|poe|inclu\w*|acrescent\w*|anot\w*|add|quero)\b/.test(t)) acao = 'marcar';
   else acao = 'ver';
@@ -79,6 +80,7 @@ export function itensDaFrase(texto) {
     .replace(/\s(?:n[ao]|pra|para\s+a)\s+home(?=[\s,.!?])/gi, ' ')
     .replace(/\s(?:vir\w*|vai\s+virar)\s*(?=[\s,.!?])/gi, ' ')
     .replace(/\s(?:com|em|pra|para|e)\s+(?:a\s+)?(?:constância|constancia|foco)(?=[\s,.!?])/gi, ' ')
+    .replace(/\s(?:em|numa?)\s+a[çc][ãa]o(?=[\s,.!?])/gi, ' ')
     .replace(/\s(?:\d{1,2}|uma?|duas|dois|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s*(?:x|vezes?|dias?)\s*(?:por|na|no|ao|a cada)\s+(?:semana|m[eê]s)(?=[\s,.!?])/gi, ' ')
     .replace(/\s(?:como|de)\s+(?:marcad[oa]|importante)(?=[\s,.!?])/gi, ' ');
   const vistos = new Set(), out = [];

@@ -34,6 +34,7 @@ import { ONBOARDING_STEPS } from '../config-tour.js';
 import { openTimePicker } from '../seletor-horario.js';
 import { openMorningMessages, hasUnreadToday } from '../mensagens-manha.js';
 import { trapModalBack } from '../modal-voltar.js';
+import { abrirEditorAtividade } from '../atividade-editor.js';
 import { t, getLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
@@ -467,7 +468,7 @@ function renderCats() {
       <div class="cat-config-icon" style="background:${hexA(c.color, 0.20)}">
         ${c.icon || '🏷️'}
       </div>
-      <div class="cat-config-name-display">${escape(c.name)}</div>
+      <div class="cat-config-name-display">${escape(c.name)}${c.descricao ? `<small class="cat-config-desc">${escape(c.descricao)}</small>` : ''}</div>
       <div class="cat-config-swatch" style="background:${c.color || '#a78bfa'}"></div>
       <div class="activity-actions">
         <button data-action="edit-cat" title="Editar">✏️</button>
@@ -541,115 +542,12 @@ function attachHandlers() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 8: MODAL — Editor de Categoria
 // ═══════════════════════════════════════════════════════════════
-function openCategoryEditor(id) {
-  const isNew = id === null;
-  // Paleta ampla: a lista de atividades é grande e as cores estavam repetindo.
-  const COLORS = [
-    '#a78bfa','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#fb923c','#c084fc','#22d3ee','#facc15',
-    '#818cf8','#2dd4bf','#e879f9','#38bdf8','#fcd34d','#fca5a5','#f59e0b','#4ade80','#f43f5e','#0ea5e9',
-    '#a3e635','#c026d3','#14b8a6','#eab308','#ef4444','#3b82f6','#ec4899','#10b981','#8b5cf6','#f97316',
-  ];
-  const ICONS = [
-    // Vida diária / hábitos
-    '🏷️','💧','🥗','💪','📚','🌙','💼','🧘','🥋','💰','🎨','🧹','📞','🛒','✈️','💝',
-    // Esporte / fitness
-    '🏃','🚶','🏋🏻‍♀️','🚴','🏊','⚽','🏀','🏐','🎾','🏓','🏸','🥊','🤸','🧗','⛳','🛹','🛼',
-    // Saúde / bem-estar
-    '🩺','🦷','💊','🧠','😴','🚿','🛁','🧴','🩹','☀️',
-    // Estudo / trabalho
-    '✏️','📝','📖','💻','🖥️','📊','🎓','🔬','🧪','📅',
-    // Hobbies / arte / música
-    '🎸','🎹','🥁','🎤','🎧','🎬','📷','🎮','♟️','🧩','🎯','🖌️','🧵','🪘','🃏','🔮',
-    // Comida / cozinha
-    '🍽️','🍳','☕','🍎','🥦','🍜','🥤',
-    // Casa / tarefas
-    '🛠️','🔧','🧺','📦','🏦','💳','🧾',
-    // Lazer / natureza / viagem
-    '🏖️','🏝️','🏔️','⛺','🥾','🗺️','🚗','🏍️','🌳','🌊','🌻',
-    // Social / família / fé
-    '👨‍👩‍👧','🧑‍🤝‍🧑','👶','🎉','🥳','❤️','🙏','⛪',
-    // Autocuidado / beleza
-    '💇🏻‍♀️','🧖🏻‍♀️','💄','🪒','👚','🛍️',
-    // Pets
-    '🐕','🐈‍⬛','🐾','🎁','🚨'
-  ];
-  const ALL_DAYS = [0,1,2,3,4,5,6];
-  const WEEKDAY_LABELS = ['D','S','T','Q','Q','S','S'];
-  const c = isNew
-    ? { name: '', icon: '🏷️', color: COLORS[categories.length % COLORS.length], daysOfWeek: ALL_DAYS }
-    : { ...categories.find(x => x.id === id) };
-  if (!c) return;
-  if (!Array.isArray(c.daysOfWeek)) c.daysOfWeek = ALL_DAYS;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal">
-      <div class="modal-title">${isNew ? t('home.activity.new') : t('home.activity.edit')}</div>
-      <div class="modal-hint">${t('home.activity.hint')}</div>
-
-      <label class="input-field"><div class="input-field-label">Nome</div>
-        <input id="m-name" value="${escape(c.name)}" placeholder="ex: Meditação, Trabalho, Lazer..." /></label>
-
-      <div class="modal-section-label">${t('home.activity.icon')}</div>
-      <div class="icon-picker">
-        ${ICONS.map(i => `<button type="button" class="icon-opt ${i === c.icon ? 'sel' : ''}" data-icon="${i}">${i}</button>`).join('')}
-      </div>
-
-      <div class="modal-section-label">${t('home.activity.color')}</div>
-      <div class="color-picker">
-        ${COLORS.map(col => `<button type="button" class="color-opt ${col === c.color ? 'sel' : ''}" data-color="${col}" style="background:${col}"></button>`).join('')}
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-secondary" id="m-cancel">${t('ritual.cancel')}</button>
-        <button class="btn-primary" id="m-save">${isNew ? t('home.activity.create') : t('home.activity.save')}</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  // Auto-scroll suave: pisca uma rolada pro fim pra mostrar onde tá o botão Criar,
-  // depois volta pro topo. Desativado durante o tour (não brigar com a navegação guiada).
-  if (!tour.isActive()) {
-    setTimeout(() => {
-      const inner = modal.querySelector('.modal');
-      if (!inner) return;
-      inner.scrollTop = inner.scrollHeight;
-      setTimeout(() => {
-        inner.scrollTo({ top: 0, behavior: 'smooth' });
-        modal.querySelector('#m-name')?.focus();
-      }, 900);
-    }, 80);
-  }
-
-  let pickedIcon = c.icon, pickedColor = c.color;
-  modal.querySelectorAll('[data-icon]').forEach(b => b.onclick = () => {
-    modal.querySelectorAll('[data-icon]').forEach(x => x.classList.remove('sel'));
-    b.classList.add('sel'); pickedIcon = b.dataset.icon;
-  });
-  modal.querySelectorAll('[data-color]').forEach(b => b.onclick = () => {
-    modal.querySelectorAll('[data-color]').forEach(x => x.classList.remove('sel'));
-    b.classList.add('sel'); pickedColor = b.dataset.color;
-  });
-  const close = trapModalBack(() => modal.remove());
-  modal.querySelector('#m-cancel').onclick = close;
-  // Clique fora NÃO fecha — só Cancelar ou back do celular (evita perder o que digitou)
-  modal.querySelector('#m-save').onclick = async () => {
-    const name = modal.querySelector('#m-name').value.trim();
-    if (!name) { showToast(t('home.activity.name.required'), 'info'); return; }
-    const order = isNew
-      ? (categories.length ? Math.max(...categories.map(x => x.order || 0)) : 0) + 1
-      : c.order;
-    try {
-      // daysOfWeek preservado pra retrocompatibilidade com docs antigos no Firestore
-      // (recorrência real agora vive em weekdayTemplates via per-task chips no Ritual)
-      await saveCategory(id, { name, icon: pickedIcon, color: pickedColor, order, daysOfWeek: c.daysOfWeek || ALL_DAYS });
-      categories = await getCategories();
-      renderCats();
-      close();
-      showToast(isNew ? t('home.activity.created') : t('home.activity.updated'), 'success');
-    } catch (err) { showToast('Erro: ' + err.message, 'error'); }
-  };
+// O pop-up é o mesmo das ⭐ Prioridades e do Ideal (js/atividade-editor.js).
+async function openCategoryEditor(id) {
+  const salvo = await abrirEditorAtividade({ id, cats: categories, mostrarFim: !tour.isActive() });
+  if (!salvo) return;
+  categories = await getCategories();
+  renderCats();
 }
 
 // ═══════════════════════════════════════════════════════════════

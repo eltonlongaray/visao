@@ -161,7 +161,8 @@ export async function abrirEditorObjetivo(id, opts = {}) {
   ov.className = 'modal-overlay';
   ov.innerHTML = `
     <div class="modal obj-modal">
-      <h3>${obj ? 'Editar objetivo' : 'Novo objetivo'}</h3>
+      <h3>${obj ? 'Editar objetivo' : esc(opts.titulo || 'Novo objetivo')}</h3>
+      ${!obj && opts.dica ? `<div class="modal-hint">${esc(opts.dica)}</div>` : ''}
 
       <label class="input-field obj-campo-ativ">
         <div class="input-field-label">Qual atividade do Ritual</div>
@@ -210,7 +211,9 @@ export async function abrirEditorObjetivo(id, opts = {}) {
   selAtiv.addEventListener('change', syncNova);
   // Veio do "Organizando meu ideal": se a atividade já existe, seleciona ela;
   // senão já deixa "Criar nova" com o nome preenchido.
-  if (!obj && opts.novoNome) {
+  // Veio de "Criar atividade" (Prioridades/Ideal): a atividade acabou de nascer.
+  if (!obj && opts.atividadeId && atividades.some(a => a.id === opts.atividadeId)) selAtiv.value = opts.atividadeId;
+  else if (!obj && opts.novoNome) {
     const alvo = String(opts.novoNome).trim().toLowerCase();
     const existente = atividades.find(a => String(a.name || '').trim().toLowerCase() === alvo);
     if (existente) selAtiv.value = existente.id;
