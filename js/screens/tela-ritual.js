@@ -1407,9 +1407,34 @@ function initTaskSortables() {
         }
 
         await Promise.all(updates);
+        // Mudou a ordem hoje → as próximas semanas (já geradas) seguem igual (Élton, 31/10)
+        _propagarOrdem(day).catch(e => console.warn('[Falcon] propagar ordem:', e));
       }
     });
   });
+}
+
+// Leva a ordem do dia pros mesmos dias-da-semana das próximas 3 semanas que já
+// foram gerados (a próxima semana é gerada antes, então a ordem nova não chegava
+// nela). Dia com tarefa feita fica como está.
+async function _propagarOrdem(day) {
+  const ordem = new Map(day.tasks.map(t => [keyOf(t), Number(t.order) || 0]));
+  const turno = new Map(day.tasks.map(t => [keyOf(t), t.shiftId || null]));
+  const [y, m, d] = day.id.split('-').map(Number);
+  for (let w = 1; w <= 3; w++) {
+    const alvo = dayId(new Date(y, m - 1, d + 7 * w));
+    const tks = await getDayTasks(alvo);
+    if (!tks.length || tks.some(t => t.done)) continue;
+    let fim = Math.max(...ordem.values()) + 1;
+    for (const t of tks) {
+      const k = keyOf(t);
+      const nova = ordem.has(k) ? ordem.get(k) : fim++;
+      const patch = {};
+      if ((Number(t.order) || 0) !== nova) patch.order = nova;
+      if (turno.get(k) && turno.get(k) !== t.shiftId) patch.shiftId = turno.get(k);   // trocou de turno também vale
+      if (Object.keys(patch).length) await updateDayTask(alvo, t.id, patch);
+    }
+  }
 }
 
 function dayCard(d) {
