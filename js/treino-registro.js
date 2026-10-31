@@ -90,7 +90,8 @@ function _popupFisica(cat, task) {
   return new Promise((resolve) => {
     // O que estava planejado: o que já foi registrado ou o que a descrição diz
     const plano = task?.treino?.musculos?.length ? task.treino.musculos : musculosDoTexto(`${task?.desc || ''} ${task?.title || ''}`);
-    let mod = task?.treino?.modalidade || (plano.length ? 'musculacao' : null);
+    // Várias modalidades no mesmo dia (Élton, 31/10: "musculação e luta")
+    const mods = new Set(task?.treino?.modalidades || (task?.treino?.modalidade ? [task.treino.modalidade] : plano.length ? ['musculacao'] : []));
     const sel = new Set(plano);
     const ov = _modal('');
     let resultado = {};
@@ -99,10 +100,11 @@ function _popupFisica(cat, task) {
     const desenhar = () => {
       ov.querySelector('.tr-modal').innerHTML = `
         <div class="modal-title">${esc(cat?.icon || '💪')} O que você fez hoje?</div>
+        <div class="tr-dica">Pode marcar mais de um.</div>
         <div class="pt-chips tr-mods">
-          ${MODALIDADES.map(m => `<button type="button" class="pt-chip ${mod === m.k ? 'sel' : ''}" data-mod="${m.k}">${m.ic} ${m.nome}</button>`).join('')}
+          ${MODALIDADES.map(m => `<button type="button" class="pt-chip ${mods.has(m.k) ? 'sel' : ''}" data-mod="${m.k}">${m.ic} ${m.nome}</button>`).join('')}
         </div>
-        ${mod === 'musculacao' ? `
+        ${mods.has('musculacao') ? `
           <div class="tr-q">Quais músculos você treinou?</div>
           ${plano.length ? '<div class="tr-dica">Fez menos do que o planejado? Desmarque o que ficou faltando: conta igual pra constância e fica anotado.</div>' : ''}
           ${[...GRUPOS_MUS, { tit: 'Extra', mus: [CARDIO] }].map(g => `
@@ -110,9 +112,13 @@ function _popupFisica(cat, task) {
             <div class="pt-chips">${g.mus.map(m => `<button type="button" class="pt-chip mini tr-mus ${sel.has(m.k) ? 'sel' : ''}" data-m="${m.k}">${m.nome}</button>`).join('')}</div>`).join('')}` : ''}
         <div class="modal-actions">
           <button class="btn-secondary" data-pular type="button">Pular</button>
-          <button class="btn-primary" data-ok type="button" ${mod ? '' : 'disabled'}>Pronto</button>
+          <button class="btn-primary" data-ok type="button" ${mods.size ? '' : 'disabled'}>Pronto</button>
         </div>`;
-      ov.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => { mod = b.dataset.mod; desenhar(); });
+      ov.querySelectorAll('[data-mod]').forEach(b => b.onclick = () => {
+        const k = b.dataset.mod;
+        if (mods.has(k)) mods.delete(k); else mods.add(k);
+        desenhar();
+      });
       ov.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
         const k = b.dataset.m;
         if (sel.has(k)) sel.delete(k); else sel.add(k);
@@ -120,13 +126,17 @@ function _popupFisica(cat, task) {
       });
       ov.querySelector('[data-pular]').onclick = () => close();
       ov.querySelector('[data-ok]').onclick = () => {
-        const m = MODALIDADES.find(x => x.k === mod);
-        const musculos = mod === 'musculacao' ? [...sel] : [];
-        const faltou = mod === 'musculacao' ? plano.filter(k => !sel.has(k)) : [];
-        // A modalidade (e os músculos) vira a descrição da tarefa (Élton)
-        const desc = musculos.length ? `${m.nome}: ${musculos.map(nomeMusculo).join(', ')}` : m.nome;
+        // Na ordem da lista (Musculação antes de Luta…)
+        const lista = MODALIDADES.filter(x => mods.has(x.k));
+        const musc = mods.has('musculacao');
+        const musculos = musc ? [...sel] : [];
+        const faltou = musc ? plano.filter(k => !sel.has(k)) : [];
+        // As modalidades (e os músculos) viram a descrição da tarefa (Élton)
+        const desc = lista.map(x => x.k === 'musculacao' && musculos.length
+          ? `${x.nome}: ${musculos.map(nomeMusculo).join(', ')}` : x.nome).join(' + ');
         resultado = {
-          patch: { desc, treino: { modalidade: mod, musculos, ...(faltou.length ? { faltou } : {}) } },
+          // modalidade (a primeira) fica pra quem lia o campo antigo
+          patch: { desc, treino: { modalidade: lista[0].k, modalidades: lista.map(x => x.k), musculos, ...(faltou.length ? { faltou } : {}) } },
           msg: faltou.length ? `Boa constância! Ficou faltando ${faltou.map(nomeMusculo).join(', ')}, anotei aqui.` : null,
         };
         close();
@@ -187,7 +197,7 @@ export async function constanciaPorMusculo(hoje = new Date()) {
     for (const t of d.tasks || []) {
       if (!t.done || !t.treino) continue;
       registros++;
-      if (t.treino.modalidade) modalidades.set(t.treino.modalidade, (modalidades.get(t.treino.modalidade) || 0) + 1);
+      for (const md of t.treino.modalidades || (t.treino.modalidade ? [t.treino.modalidade] : [])) modalidades.set(md, (modalidades.get(md) || 0) + 1);
       for (const k of t.treino.musculos || []) {
         const m = porMus.get(k); if (!m) continue;
         if (!m.ultimo || d.id > m.ultimo) m.ultimo = d.id;
