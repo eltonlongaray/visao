@@ -24,15 +24,18 @@
 // Academia amanhã as 9h" engolia "amanhã as" na descrição E removia "amanhã" do
 // comando, então a data caía em HOJE. Cortar em palavra de data resolve os dois:
 // descrição fica "Academia" e "amanhã" volta pro comando pra virar a data certa.
-const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
-const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
-const RE_DESC   = /d[ei]scri[çcs][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
+// A preposição antes da data também fica fora ("descrição just flex na sexta"
+// virava "Just flex na", Élton 24/10): ela volta pro comando junto com a data.
+const RE_TITULO = /t[ií]tulo\s*:?\s+(.+?)(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
+const RE_NOME   = /\bnome\s*:?\s+(.+?)(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
+const RE_DESC   = /d[ei]scri[çcs][ãa]o\s*:?\s+(.+?)(?=\s+t[ií]tulo\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)/i;
 
-// Versões pra REMOVER do comando, engolindo o separador junto
+// Versões pra REMOVER do comando, engolindo o separador junto (e o "com" de
+// "com descrição X", que sobrava solto no comando)
 const CORTA = [
-  /t[ií]tulo\s*:?\s+.+?(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
-  /d[ei]scri[çcs][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
-  /\bnome\s*:?\s+.+?(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
+  /(?:\bcom\s+(?:o\s+|a\s+)?)?t[ií]tulo\s*:?\s+.+?(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
+  /(?:\bcom\s+(?:o\s+|a\s+)?)?d[ei]scri[çcs][ãa]o\s*:?\s+.+?(?=\s+t[ií]tulo\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
+  /(?:\bcom\s+(?:o\s+|a\s+)?)?\bnome\s*:?\s+.+?(?=\s+d[ei]scri[çcs][ãa]o\b|\s+(?:(?:n[ao]|nesta|neste|nessa|nesse|pra|pro|para|em|de|at[ée]|a)\s+)?(?:dia\s+\d|às\s+\d|\d{1,2}\s*[:h]\d?|\d{1,2}\s*horas?|\d{1,2}\/\d{1,2}|(?:depois\s+de\s+amanh[ãa]|amanh[ãa]|hoje|(?:segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(?:[-\s]?feira)?)(?=\s|[.,;]|$))|\s*[.;]|$)[.;]?/i,
 ];
 
 function _limpaPontas(s) {
