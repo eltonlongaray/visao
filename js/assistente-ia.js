@@ -4919,8 +4919,11 @@ async function apagarTodasRepeticoes(tk, data) {
   const titulo = (tk.title || '').trim().toLowerCase(), cat = tk.categoryId || '', grupo = tk.recurrenceGroupId || '';
   // Conta a pagar: todas têm o mesmo título, só a descrição muda ("Luz", "Academia")
   const conta = PCT.ehContaAPagar(tk), desc = PCT.normNome(tk.desc);
+  // Com grupo, outra repetição com grupo próprio não vai junto (apagar uma água
+  // levava todas as Hidratações, Élton 31/10); título+categoria só pro legado sem grupo
   const bate = (x) => (grupo && (x.recurrenceGroupId === grupo || x.groupId === grupo)) ||
-    ((x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat &&
+    (!(grupo && (x.recurrenceGroupId || x.groupId)) &&
+      (x.title || '').trim().toLowerCase() === titulo && (x.categoryId || '') === cat &&
       (!conta || PCT.normNome(x.desc) === desc));
   const fim = new Date(data); fim.setDate(fim.getDate() + 365);
   const dias = await fetchDaysRange(data, fim);
