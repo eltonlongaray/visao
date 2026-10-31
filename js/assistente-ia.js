@@ -29,9 +29,10 @@
 // BLOCO 1: IMPORTS
 // ═══════════════════════════════════════════════════════════════
 import {
-  getDay, setDayMeta, getDayTasks, addDayTask, updateDayTask, deleteDayTask, fetchDaysRange, getShifts,
-  getCategories, saveCategory, deleteCategory, getProfile, setProfile, getWeekNote, setWeekNote,
-  dayId, sleepDuration, formatTime, getWeekdayTemplate, setWeekdayTemplate
+  getDay, setDayMeta as _setDayMeta, getDayTasks, addDayTask as _addDayTask, updateDayTask as _updateDayTask,
+  deleteDayTask as _deleteDayTask, fetchDaysRange, getShifts,
+  getCategories, saveCategory as _saveCategory, deleteCategory as _deleteCategory, getProfile, setProfile, getWeekNote, setWeekNote,
+  dayId, sleepDuration, formatTime, getWeekdayTemplate, setWeekdayTemplate as _setWeekdayTemplate
 } from './banco-dados.js';
 import { calcularConstancia } from './metricas-constancia.js';
 import { scheduleNotif, notifTag, requestPermission, canInstallApp, promptInstallApp } from './notificacoes.js';
@@ -60,6 +61,19 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
+
+// O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
+// Sem isso, a nota/hora anotada pelo Pet não aparecia ao abrir a nota na tela
+// (Élton, 31/10): o Ritual mostrava o que tinha carregado antes.
+const _avisaTela = (fn) => async (...a) => {
+  const r = await fn(...a);
+  document.dispatchEvent(new CustomEvent('falcon:pet-gravou'));
+  return r;
+};
+const setDayMeta = _avisaTela(_setDayMeta), addDayTask = _avisaTela(_addDayTask),
+  updateDayTask = _avisaTela(_updateDayTask), deleteDayTask = _avisaTela(_deleteDayTask),
+  saveCategory = _avisaTela(_saveCategory), deleteCategory = _avisaTela(_deleteCategory),
+  setWeekdayTemplate = _avisaTela(_setWeekdayTemplate);
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: INIT — injeta o pet no DOM (uma vez por sessão)
