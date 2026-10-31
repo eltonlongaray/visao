@@ -1091,6 +1091,33 @@ export async function renderRitual(app) {
   mostrarCartaoEDepoisSoberania();
 
   ligarViradaDeDia();
+  ligarGravacaoDoPet(app);
+}
+
+// O Pet grava por fora (nota, hora de dormir/acordar, tarefas…). Sem recarregar,
+// o Ritual seguia com o que tinha lido antes: a nota feita pelo Pet não
+// aparecia ao abrir a nota na tela (Élton, 31/10). Recarrega a semana e
+// redesenha mantendo a rolagem; com um pop-up da tela aberto, espera ele fechar.
+let _petApp = null, _petTimer = null, _petLigado = false;
+function ligarGravacaoDoPet(app) {
+  _petApp = app;
+  if (_petLigado) return;
+  _petLigado = true;
+  const recarregar = async () => {
+    _petTimer = null;
+    if (!_petApp?.isConnected || !_petApp.querySelector('.ritual-screen')) return;
+    if (tourIsActive() || document.querySelector('.modal-overlay')) { _petTimer = setTimeout(recarregar, 1500); return; }
+    const sc = document.scrollingElement || document.documentElement;
+    const topo = sc.scrollTop;
+    try { await loadWeek(); } catch (err) { console.warn('[ritual-pet]', err); return; }
+    if (!_petApp.querySelector('.ritual-screen')) return;
+    renderUI(_petApp);
+    sc.scrollTop = topo;
+  };
+  document.addEventListener('falcon:pet-gravou', () => {
+    clearTimeout(_petTimer);
+    _petTimer = setTimeout(recarregar, 400);
+  });
 }
 
 // O app fica aberto em segundo plano a noite toda. Ao voltar no dia seguinte,
