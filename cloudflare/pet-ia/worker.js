@@ -191,6 +191,13 @@ function corrigirRota(out, texto) {
       out.texto = m ? m[1].trim() : '';
     }
   }
+  // "Lista as atividades do ritual de hoje/ontem": é a agenda do dia, não a
+  // biblioteca de atividades (Élton, 27/10)
+  if (out.acao === 'configurar' && out.campo === 'atividades_listar' && /\b(ritual|hoje|ontem|anteontem|amanha|dia)\b/.test(t)) {
+    out.acao = 'consultar_dia';
+    out.campo = /\b(ontem|anteontem|fiz)\b/.test(t) ? 'passado' : '';
+    out.quando = (t.match(/\b(anteontem|ontem|amanha|hoje)\b/) || [])[1]?.replace('amanha', 'amanhã') || 'hoje';
+  }
   // Ver o que anotou (falhas/melhorias) é notas do período, não desempenho
   if (/\b(anotei|disse que ia melhorar|falei que ia melhorar|minhas falhas|onde eu falhei|o que eu errei)\b/.test(t)) {
     out.acao = 'notas_periodo';

@@ -1202,7 +1202,7 @@ async function routeCommand(text) {
   if (/sequência|sequencia|streak|seguidos|consecutiv|in.*row/i.test(tl))              return cmdSequencia();
   if (/hidrat|água|agua|beber|bebi|\bml\b|water|hydrat|drink/i.test(tl))               return cmdHidratacao();
   if (/tarefas?|to.?do|lista de hoje|o que tenho|tasks?|my tasks/i.test(tl) && !REGISTER_TRIGGERS.test(tl) &&
-      !/^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(tl)) return cmdTarefas();   // "editar nome da tarefa X" é edição
+      !/^(editar?|reagend[ae]r?|reschedule|mover?)\b/i.test(tl)) return cmdTarefas(tl);   // "editar nome da tarefa X" é edição
   if (/^\s*(notifica\S*|notifica[çc][õo]es|notification|notif|push|pop.?up|vibra\S*)[\s!?.…]*$/i.test(tl) ||
       /\binstalar\b|\binstalo\b|instala[çc][aã]o|adicionar (à |a |ao )?(tela|in[ií]cio)|tela inicial|como (instalar|instalo)|(notifica\S*|aviso)\s+(n[ãa]o|nao)\s+(chega|aparece|funciona|vem|toca|soa|vibra)|(n[ãa]o|nao)\s+(recebo|chega|aparece|vem|toca|soa|vibra)\s+(notifica|aviso|lembrete)|ativar\s+(notifica\S*|pop.?up|vibra)|habilitar\s+notifica|pop.?up/i.test(tl))
     return cmdNotificacoesAjuda();
@@ -1396,6 +1396,7 @@ const pareceFalaLivre = (text) => PN.nuvemLigada() && String(text).trim().split(
   !CMD_RE.test(String(text).trim()) && !REGISTER_TRIGGERS.test(String(text).trim()) &&
   !PCT.lerLoteDeContas(text) &&   // lista de contas: o roteador já entende inteira
   !PL.detectarEstrutura(text) &&   // limpar/renomear/apagar lista, criar grupo
+  !PR.lerConsultaAgenda(text) &&   // "lista as atividades do ritual de hoje": agenda do dia, não a biblioteca
   !/\b(t[ií]tulo|d[ei]scri[çcs][ãa]o)\b/i.test(text);   // título/descrição ditados: o roteador separa os campos
 // Esclarecer: a IA pode responder com uma PERGUNTA ("em que dia vence a conta
 // de luz?"). As falas ficam guardadas por uns minutos e vão junto na próxima
@@ -1708,7 +1709,7 @@ async function executarIntencao(intencao, text) {
     case 'consultar_sequencia': return cmdSequencia();
     case 'consultar_agua':      return cmdHidratacao();
     case 'consultar_tarefas':
-      return /pr[oó]xim|a seguir|depois(?! de amanh)|agora/i.test(text) ? cmdProximo(text) : cmdTarefas();
+      return /pr[oó]xim|a seguir|depois(?! de amanh)|agora/i.test(text) ? cmdProximo(text) : cmdTarefas(text);
     case 'ajuda':               return cmdAjuda();
     case 'ajuda_notificacoes':  return cmdNotificacoesAjuda();
     case 'saudacao':
@@ -1997,17 +1998,11 @@ async function cmdHidratacao() {
   return `${t('pet.hydration.result', { ml, goal, pct })}${barHtml}${status}`;
 }
 
-async function cmdTarefas() {
-  const tasks = await getDayTasks(dayId(new Date()));
-  if (!tasks.length) return t('pet.tasks.none');
-
-  const feitas    = tasks.filter(tk => tk.done);
-  const pendentes = tasks.filter(tk => !tk.done);
-
-  let msg = `${t('pet.tasks.result', { done: feitas.length, total: tasks.length })}`;
-  if (feitas.length)    msg += '<br>' + feitas.map(tk => `✅ ${tk.title}`).join('<br>');
-  if (pendentes.length) msg += '<br>' + pendentes.map(tk => `⬜ ${tk.title}`).join('<br>');
-  return msg;
+// Botão "Tarefas" e "minhas tarefas": a lista do dia na ordem do Ritual
+// (turno, horário, ordem), com a descrição. "De ontem" mostra ontem (27/10).
+async function cmdTarefas(frase = '') {
+  const { data } = PR.diaDaFrase(frase, new Date(), 'passado');
+  return listaDoDia(data);
 }
 
 // Próximo item com horário, de agora até 7 dias. Se a pessoa disse
@@ -4986,11 +4981,41 @@ async function ritualConsulta(t, { semana, proxima }) {
   const passado = /\b(fiz|fez|foi|fizeram)\b/.test(ts);
   const { data } = PR.diaDaFrase(t, new Date(), passado ? 'passado' : 'futuro');
   const id = PR.isoDia(data);
-  const tks = (await getDayTasks(id).catch(() => [])).filter(tk => !soCompromisso || tk.kind === 'commitment').sort(_ordemHora);
+  return listaDoDia(data, { soCompromisso, id });
+}
+
+// A lista de um dia igual ao Ritual: por turno (na ordem dos turnos), dentro
+// dele por horário e depois pela ordem da pessoa; descrição embaixo do nome.
+// O título diz de que dia é (Élton, 27/10: "tem que dizer que é de hoje").
+const _DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+async function listaDoDia(data, { soCompromisso = false, id = PR.isoDia(data) } = {}) {
+  const [todas, shifts] = await Promise.all([getDayTasks(id).catch(() => []), getShifts().catch(() => [])]);
+  const tks = todas.filter(tk => !soCompromisso || tk.kind === 'commitment');
   const nome = PR.nomeDia(data);
-  if (!tks.length) return `Nada ${soCompromisso ? 'de compromisso ' : ''}marcado ${/^(hoje|ontem|amanhã)$/.test(nome) ? nome : 'em ' + nome}.`;
+  const quando = `de ${nome} (${_DIAS_SEM[data.getDay()]}, ${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')})`;
+  const titulo = soCompromisso ? 'Compromissos' : 'Atividades';
+  if (!tks.length) return `📋 Nada ${soCompromisso ? 'de compromisso ' : ''}marcado no Ritual ${quando}.`;
+  const hm = (s) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+  const ordem = (a, b) => {
+    const ta = hm(a.startTime), tb = hm(b.startTime);
+    if (ta !== null && tb !== null) return ta - tb;
+    if (ta !== null) return -1;
+    if (tb !== null) return 1;
+    return (a.order || 0) - (b.order || 0);
+  };
+  const linha = (tk) => `${tk.cancelled ? '🚫' : tk.done ? '✅' : '⬜'} ${tk.startTime ? `<b>${tk.startTime.slice(0, 5)}</b> ` : ''}${tk.cancelled ? `<s>${_esc(tk.title)}</s>` : _esc(tk.title)}` +
+    (tk.desc ? `<br><small style="opacity:.75;margin-left:22px">${_esc(tk.desc)}</small>` : '');
+  // Sem turno (ou turno que não existe mais) vai pro primeiro, como no Ritual
+  const porTurno = new Map(shifts.map(s => [s.id, []]));
+  for (const tk of tks) (porTurno.get(tk.shiftId) || porTurno.get(shifts[0]?.id) || (porTurno.set('_', []).get('_'))).push(tk);
+  const blocos = [];
+  for (const s of [...shifts, { id: '_' }]) {
+    const l = (porTurno.get(s.id) || []).sort(ordem);
+    if (!l.length) continue;
+    blocos.push((s.name && shifts.length > 1 ? `<b>${_esc(s.icon || '')} ${_esc(s.name)}</b><br>` : '') + l.map(linha).join('<br>'));
+  }
   const feitas = tks.filter(tk => tk.done).length;
-  return `📅 <strong>${soCompromisso ? 'Compromissos' : 'Agenda'} ${_de(data)}</strong> · ${feitas}/${tks.length} feitas<br>${tks.map(_linhaTarefa).join('<br>')}`;
+  return `📋 <strong>${titulo} ${quando}</strong> · ${feitas}/${tks.length} feitas<br><br>${blocos.join('<br><br>')}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
