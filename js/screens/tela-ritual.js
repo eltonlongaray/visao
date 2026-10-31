@@ -990,6 +990,43 @@ async function _restaurarMoldesDoHistorico() {
   } catch (e) { console.warn('[Falcon] re-restauração de moldes:', e); }
 }
 
+// ─── Hidratações de volta (v827, ADMIN por ora) ──
+// Apagar UMA água com "todas" levava todas as Hidratações dos moldes (o match
+// por título+categoria pegava as irmãs). Pra cada dia-da-semana sem nenhuma
+// tarefa de Hidratação no molde, copia as do dia mais recente (até 45 dias)
+// que tinha, com a mesma quantidade (as 5 águas voltam 5).
+async function _restaurarHidratacao() {
+  if (!profile?.isAdmin || profile.tmplHidratacaoV827) return;
+  try {
+    const ehAgua = (t) => {
+      const cat = categories.find(c => c.id === t.categoryId);
+      return /hidrata|agua/.test(String(cat?.name || t.title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+    };
+    const hoje = new Date();
+    const ini = new Date(hoje); ini.setDate(hoje.getDate() - 45);
+    const dias = (await fetchDaysRange(ini, hoje)).sort((a, b) => (a.id < b.id ? 1 : -1));   // mais recente primeiro
+    const porDow = {};
+    for (const d of dias) {
+      const [y, m, dd] = d.id.split('-').map(Number);
+      const dow = new Date(y, m - 1, dd).getDay();
+      if (porDow[dow]) continue;
+      const aguas = (d.tasks || []).filter(t => _isRecorrente(t) && ehAgua(t));
+      if (aguas.length) porDow[dow] = aguas;
+    }
+    const tpls = profile.weekdayTemplates || {};
+    for (const [dow, aguas] of Object.entries(porDow)) {
+      const arr = Array.isArray(tpls[dow]) ? tpls[dow] : [];
+      if (arr.some(ehAgua)) continue;   // o molde ainda tem água: não mexe
+      const novo = [...arr, ...aguas.map(_tmplEntry)];
+      await setWeekdayTemplate(parseInt(dow, 10), novo);
+      if (!profile.weekdayTemplates) profile.weekdayTemplates = {};
+      profile.weekdayTemplates[dow] = novo;
+    }
+    profile.tmplHidratacaoV827 = true;
+    await setProfile({ tmplHidratacaoV827: true });
+  } catch (e) { console.warn('[Falcon] restaurar hidratação:', e); }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 7: ENTRY POINT — render principal da tela Ritual
 // ═══════════════════════════════════════════════════════════════
@@ -1053,6 +1090,7 @@ export async function renderRitual(app) {
   await _dedupRecurrenceRules();        // 1x/usuário: remove regras de recorrência duplicadas (v530)
   await _cleanMonthlyLeaks();           // 1x/usuário: tira mensal que vazou pros moldes semanais (v532)
   await _restaurarMoldesDoHistorico();  // 1x/admin: devolve cards que sumiram do molde (v546)
+  await _restaurarHidratacao();         // 1x/admin: devolve as águas que o "apagar todas" levou (v827)
   await loadWeek(pSemana);
   renderUI(app);
   // Sem alvo de notificação, a tela começa NO TOPO. Sem isto, o navegador
@@ -3135,6 +3173,9 @@ function attachHandlers(app) {
           const matchesT = (x) => {
             // groupId match (estrito quando ambos têm)
             if (tGroupId && (x.recurrenceGroupId === tGroupId || x.groupId === tGroupId)) return true;
+            // Outra repetição com grupo próprio NÃO vai junto: apagar uma das águas
+            // levava TODAS as Hidratações de todos os dias (Élton, 31/10)
+            if (tGroupId && (x.recurrenceGroupId || x.groupId)) return false;
             if (regraMensal && (x.desc || '').trim().toLowerCase() !== tDescKey) return false;
             // Fallback título+categoria (legado)
             const xTitle = (x.title || '').trim().toLowerCase();
