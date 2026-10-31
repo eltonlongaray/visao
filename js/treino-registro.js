@@ -80,6 +80,7 @@ export function perguntarAoConcluir(cat, task) {
 function _modal(html) {
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
+  ov.style.zIndex = '9500';   // acima do Pet (9000): a lista do dia do Pet também abre este pop-up
   ov.innerHTML = `<div class="modal tr-modal">${html}</div>`;
   document.body.appendChild(ov);
   return ov;
