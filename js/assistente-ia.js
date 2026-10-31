@@ -5017,7 +5017,14 @@ async function listaDoDia(data, { soCompromisso = false, id = PR.isoDia(data) } 
     if (tb !== null) return 1;
     return (a.order || 0) - (b.order || 0);
   };
-  const linha = (tk) => `${tk.cancelled ? '🚫' : tk.done ? '✅' : '⬜'} ${tk.startTime ? `<b>${tk.startTime.slice(0, 5)}</b> ` : ''}${tk.cancelled ? `<s>${_esc(tk.title)}</s>` : _esc(tk.title)}` +
+  // Caixinha de verdade: tocar marca/desmarca no Ritual (Élton, 31/10: "eu toco e não marca")
+  ligarCaixinhasDoDia();
+  const caixa = (tk) => {
+    if (tk.cancelled) return '🚫';
+    _tarefasDaLista.set(`${id}|${tk.id}`, tk);
+    return `<button type="button" class="pet-dia-check" data-dia="${id}" data-tk="${_esc(tk.id)}" aria-label="Marcar ${_esc(tk.title)}">${tk.done ? '✅' : '⬜'}</button>`;
+  };
+  const linha = (tk) => `${caixa(tk)} ${tk.startTime ? `<b>${tk.startTime.slice(0, 5)}</b> ` : ''}${tk.cancelled ? `<s>${_esc(tk.title)}</s>` : _esc(tk.title)}` +
     (tk.desc ? `<br><small style="opacity:.75;margin-left:22px">${_esc(tk.desc)}</small>` : '');
   // Sem turno (ou turno que não existe mais) vai pro primeiro, como no Ritual
   const porTurno = new Map(shifts.map(s => [s.id, []]));
@@ -5029,7 +5036,44 @@ async function listaDoDia(data, { soCompromisso = false, id = PR.isoDia(data) } 
     blocos.push((s.name && shifts.length > 1 ? `<b>${_esc(s.icon || '')} ${_esc(s.name)}</b><br>` : '') + l.map(linha).join('<br>'));
   }
   const feitas = tks.filter(tk => tk.done).length;
-  return `📋 <strong>${titulo} ${quando}</strong> · ${feitas}/${tks.length} feitas<br><br>${blocos.join('<br><br>')}`;
+  return `<span class="pet-dia-lista" data-dia="${id}">📋 <strong>${titulo} ${quando}</strong> · <span class="pet-dia-feitas">${feitas}</span>/${tks.length} feitas<br><br>${blocos.join('<br><br>')}</span>`;
+}
+
+// Toque na caixinha da lista do dia: grava done (com a pergunta do treino/leitura,
+// como no Ritual) e atualiza o ✅ e a contagem na própria mensagem.
+const _tarefasDaLista = new Map();   // "dia|id" → tarefa
+let _caixinhasLigadas = false;
+function ligarCaixinhasDoDia() {
+  if (_caixinhasLigadas) return;
+  const box = document.getElementById('pet-messages');
+  if (!box) return;
+  _caixinhasLigadas = true;
+  box.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.pet-dia-check');
+    if (!btn || btn.disabled) return;
+    const tk = _tarefasDaLista.get(`${btn.dataset.dia}|${btn.dataset.tk}`);
+    if (!tk) return;
+    btn.disabled = true;
+    const marcar = !tk.done;
+    try {
+      let registro = {};
+      if (marcar) {
+        const cat = (await getCategories().catch(() => [])).find(c => c.id === tk.categoryId);
+        if (TRN.tipoRegistro(cat)) registro = await TRN.perguntarAoConcluir(cat, tk);
+      }
+      await updateDayTask(btn.dataset.dia, tk.id, { done: marcar, ...(registro.patch || {}) });
+      tk.done = marcar;
+      if (registro.patch) Object.assign(tk, registro.patch);
+      btn.textContent = marcar ? '✅' : '⬜';
+      const lista = btn.closest('.pet-dia-lista'), cont = lista?.querySelector('.pet-dia-feitas');
+      if (cont) cont.textContent = Math.max(0, Number(cont.textContent) + (marcar ? 1 : -1));
+      if (registro.msg) addMessage(registro.msg, 'bot');
+    } catch (err) {
+      console.warn('[pet-lista-dia]', err);
+      addMessage('Não consegui marcar agora 😕 Tenta de novo daqui a pouco.', 'bot');
+    }
+    btn.disabled = false;
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════

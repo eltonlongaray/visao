@@ -8862,3 +8862,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ativ-bloco.fechado .ativ-corpo { display: none; }
 .ativ-corpo { padding: 14px; background: var(--content-bg); }
 .ativ-nova { width: 100%; margin: 6px 0 4px; padding: 12px; border-radius: 14px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--border)); background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Caixinha da lista do dia no Pet: toca e marca no Ritual */
+.pet-dia-check {
+  background: none; border: 0; padding: 0 2px; margin: 0;
+  font-size: 1.1em; line-height: 1; cursor: pointer; vertical-align: -2px;
+}
+.pet-dia-check:disabled { opacity: .5; }
