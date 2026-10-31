@@ -365,6 +365,7 @@ async function loadWeek(promessaSemana) {
       nextStart.setDate(weekStart.getDate() + 7);
       await autoGenerateMissingTasks(await _fetchWeekDays(nextStart));
       await ensurePinnedRecurrences();   // fixa a próxima ocorrência de eventos mensais+
+      await _reordenarDiasJaGerados();   // 1x: dias futuros gerados antes da v828
     } catch (e) {
       console.warn('[Falcon] pré-geração da próxima semana falhou:', e);
     }
@@ -413,7 +414,7 @@ async function autoGenerateMissingTasks(days = weekData) {
           if (isExcluded(x)) return false;
           const k = visKey(x); if (vistos.has(k)) return false; vistos.add(k); return true;
         });
-        if (tplFiltered.length > 0) await addTemplateTasksToDay(day, tplFiltered, 0);
+        if (tplFiltered.length > 0) await addTemplateTasksToDay(day, await _naOrdemDaSemanaPassada(day, tplFiltered), 0);
       }
       await setDayMeta(day.id, { generated: true });
       day.meta.generated = true;
@@ -427,7 +428,7 @@ async function autoGenerateMissingTasks(days = weekData) {
       const existing = new Set(day.tasks.map(t => keyOf(t)));
       const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)) && !isExcluded(tmpl));
       if (missing.length > 0) {
-        await addTemplateTasksToDay(day, missing, day.tasks.length);
+        await addTemplateTasksToDay(day, await _naOrdemDaSemanaPassada(day, missing), day.tasks.length);
       }
     }
 
@@ -506,6 +507,42 @@ async function ensurePinnedRecurrences() {
 // Helper: insere tarefas do template a partir de uma posição (order)
 // Se o template tem `order` definido, respeita ele (preserva posição em todas as semanas).
 // Se tem recurrenceGroupId, propaga (pra reconhecer recorrencia em delete/edit).
+// O dia novo sai na mesma ordem do mesmo dia da semana passada (Élton, 31/10:
+// o turno vinha certo, mas a ordem dentro dele embaralhava). Quem não estava
+// lá vai pro fim. Mudou a ordem num dia? Na semana seguinte vale a nova.
+async function _naOrdemDaSemanaPassada(day, tarefas) {
+  try {
+    const [y, m, d] = day.id.split('-').map(Number);
+    const antes = await getDayTasks(dayId(new Date(y, m - 1, d - 7)));
+    if (!antes.length) return tarefas;
+    const ordem = new Map(antes.map(t => [keyOf(t), Number(t.order) || 0]));
+    let fim = Math.max(...ordem.values(), ...day.tasks.map(t => Number(t.order) || 0)) + 1;
+    return tarefas.map(t => ({ ...t, order: ordem.has(keyOf(t)) ? ordem.get(keyOf(t)) : fim++ }));
+  } catch { return tarefas; }
+}
+
+// 1x por pessoa (v828): os próximos 8 dias já tinham sido gerados embaralhados.
+// Reaplica a ordem do mesmo dia da semana passada (que já aconteceu), sem
+// mexer em dia que já tem tarefa feita.
+async function _reordenarDiasJaGerados() {
+  if (!profile || profile.ordemSemanaV828) return;
+  try {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fim = new Date(hoje); fim.setDate(fim.getDate() + 8);
+    const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
+    for (const d of await fetchDaysRange(amanha, fim)) {
+      const tks = d.tasks || [];
+      if (!tks.length || tks.some(t => t.done)) continue;
+      const nova = await _naOrdemDaSemanaPassada({ id: d.id, tasks: [] }, tks);
+      for (let i = 0; i < tks.length; i++) {
+        if ((Number(tks[i].order) || 0) !== nova[i].order) await updateDayTask(d.id, tks[i].id, { order: nova[i].order });
+      }
+    }
+    profile.ordemSemanaV828 = true;
+    await setProfile({ ordemSemanaV828: true });
+  } catch (e) { console.warn('[Falcon] reordenar dias gerados:', e); }
+}
+
 async function addTemplateTasksToDay(day, templateTasks, startOrder) {
   let fallbackOrder = startOrder;
   for (const tmpl of templateTasks) {
