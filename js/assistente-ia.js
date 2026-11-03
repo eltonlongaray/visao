@@ -467,10 +467,13 @@ function buildPetHTML() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 5: HANDLERS — click, fechar, atalhos, Enter
 // ═══════════════════════════════════════════════════════════════
+// Cresce até 160px; passou disso, a caixa rola com o dedo (Élton, 03/11: com
+// overflow escondido só dava pra andar com o cursor)
 function resizePetInput(el) {
   el.style.height = '0px';
   requestAnimationFrame(() => {
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden';
   });
 }
 
