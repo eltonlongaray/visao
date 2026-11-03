@@ -6536,7 +6536,7 @@ async function tentarTreino(text) {
 // Só entra quando a frase traz músculo ou série; "fiz a academia" segue o
 // caminho de marcar a atividade e abre o pop-up do treino.
 // Exercício que ficou sem o número de séries (vale 10 min): { m, nome, em }
-let _faltaSeries = null;
+let _faltaSeries = null, _filaSeries = [];
 async function tentarSeriesQueFaltaram(text) {
   const f = _faltaSeries;
   if (!f || Date.now() - f.em > 10 * 60e3) { _faltaSeries = null; return undefined; }
@@ -6573,7 +6573,10 @@ async function tentarTreinoFalado(text, pronto = null) {
       async () => {
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
         // O microfone às vezes come o número de séries ("fiz séries de sete"): pergunta
-        const sem = r.exercicios.find(x => !x.s && (x.r || x.kg || x.corpo));
+        // Fila: os que vieram sem séries agora, ou o resto da fila (respondendo uma pergunta)
+        const fila = pronto ? (_filaSeries || []) : r.exercicios.filter(x => !x.s && (x.r || x.kg || x.corpo));
+        const sem = fila[0];
+        _filaSeries = fila.slice(1);
         _faltaSeries = sem ? { m: sem.m, nome: sem.nome, em: Date.now() } : null;
         const fim = sem ? `<br>Quantas séries de <b>${_esc(TRN.fmtExercicio({ nome: sem.nome }))}</b>? Me fala só o número.` : '<br>Terminou o próximo? É só me falar.';
         return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small>${fim}`;

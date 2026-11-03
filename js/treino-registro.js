@@ -191,21 +191,22 @@ function _exerciciosDoTexto(t) {
     else if (!alvo.d.kg) alvo.d.corpo = true;
   }
   // O mesmo exercício falado duas vezes vira um só
-  // "rosca ... com halter" (o microfone às vezes troca "direta" por outra palavra)
-  itens.forEach((e, i) => {
-    const ate = itens[i + 1]?.ini ?? t.length;
-    if (e.nome === 'Rosca' && /\bhalter(es)?\b/.test(t.slice(e.fim, ate))) e.nome = 'Rosca direta com halteres';
-  });
   let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
   for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
   // "remada" + "remada inclinada": se só tem um específico e um completa o outro, junta
+  // (o microfone come palavras: "rosca nada... 10 kg" era a rosca inclinada sem carga ainda)
   for (const g of lista.filter(x => GENERICOS.has(x.nome))) {
-    const esp = lista.filter(x => x !== g && x.m === g.m && x.nome.startsWith(g.nome + ' '));
+    const choca = (e) => ['s', 'r', 'kg'].some(c => g[c] != null && e[c] != null && g[c] !== e[c]);
+    const esp = lista.filter(x => x !== g && x.m === g.m && x.nome.startsWith(g.nome + ' ') && !choca(x));
     if (esp.length !== 1) continue;
-    const choca = ['s', 'r', 'kg'].some(c => g[c] != null && esp[0][c] != null && g[c] !== esp[0][c]);
-    if (choca) continue;
     for (const c of ['s', 'r', 'kg', 'corpo']) if (g[c] != null && esp[0][c] == null) esp[0][c] = g[c];
     lista = lista.filter(x => x !== g);
+  }
+  // Sobrou "rosca ... com halter" sem par: é a rosca direta com halteres
+  for (const x of lista) {
+    const e = itens.find(i => i.nome === x.nome);
+    const prox = e && itens.find(i => i.ini > e.ini);
+    if (x.nome === 'Rosca' && e && /\bhalter(es)?\b/.test(t.slice(e.fim, prox?.ini ?? t.length))) x.nome = 'Rosca direta com halteres';
   }
   return lista;
 }
