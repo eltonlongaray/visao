@@ -68,7 +68,14 @@ export function musculosDoTexto(txt) {
 
 // Séries × repetições de um músculo ({ s, r }) → "4x12" (só séries: "4 séries")
 const fmtSerie = (v) => v?.s && v?.r ? `${v.s}x${v.r}` : v?.s ? `${v.s} série${v.s > 1 ? 's' : ''}` : v?.r ? `${v.r} rep.` : '';
-const fmtKg = (x) => x?.kg ? `${String(x.kg).replace('.', ',')} kg` : x?.corpo ? 'peso do corpo' : '';
+// Peso do corpo (Élton, 03/11): mostra o peso da pessoa (Preparo Físico) quando o app sabe
+const _kg = (n) => `${String(n).replace('.', ',')} kg`;
+const fmtKg = (x) => x?.kg ? _kg(x.kg) : x?.corpo ? (x.kgCorpo ? `peso do corpo ${_kg(x.kgCorpo)}` : 'peso do corpo') : '';
+// Põe o peso da pessoa nos exercícios com o peso do corpo (sem mudar os que já têm)
+export function comPesoCorpo(lista = [], pesoKg) {
+  const kg = Number(pesoKg) || 0;
+  return lista.map(x => x?.corpo && !x.kg && kg && !x.kgCorpo ? { ...x, kgCorpo: kg } : x);
+}
 // "Serrote 3x10 22 kg" (o nome sem o parêntese, pra caber)
 export const fmtExercicio = (x) => [String(x.nome).replace(/\s*\(.*\)$/, ''), fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
 
@@ -90,16 +97,17 @@ export function juntarExercicios(antes = [], novos = []) {
   for (const n of novos) {
     const i = out.findIndex(x => x.nome === n.nome);
     if (i < 0) { out.push({ ...n }); continue; }
-    for (const c of ['m', 's', 'r', 'kg', 'corpo']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
+    for (const c of ['m', 's', 'r', 'kg', 'corpo', 'kgCorpo']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
+    if (n.kg) { delete out[i].corpo; delete out[i].kgCorpo; }
   }
   return out;
 }
 
 // Patch da tarefa (o mesmo do pop-up): desc + treino { modalidade(s), musculos, series, exercicios, faltou }
-export function patchTreino({ modalidades, musculos = [], series = {}, exercicios = [], plano = [] }) {
+export function patchTreino({ modalidades, musculos = [], series = {}, exercicios = [], plano = [], pesoKg = null }) {
   const lista = MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k);
   const musc = lista.includes('musculacao');
-  const ex = musc ? exercicios.filter(x => x?.nome && x?.m) : [];
+  const ex = musc ? comPesoCorpo(exercicios.filter(x => x?.nome && x?.m), pesoKg) : [];
   const mus = musc ? [...musculos] : [];
   for (const x of ex) if (!mus.includes(x.m)) mus.push(x.m);
   const ser = Object.fromEntries(Object.entries(series).filter(([k, v]) => mus.includes(k) && (v?.s || v?.r)));
@@ -304,7 +312,9 @@ function _lembrarRecente(k, nome) {
   } catch { /* sem armazenamento: só não lembra */ }
 }
 
+let _pesoCorpo = null;
 function _popupFisica(cat, task, inicial = null) {
+  getProfile().then(p => { _pesoCorpo = p?.pesoKg || null; }).catch(() => {});
   return new Promise((resolve) => {
     // O que estava planejado: o que já foi registrado ou o que a descrição diz
     const plano = task?.treino?.musculos?.length ? task.treino.musculos : musculosDoTexto(`${task?.desc || ''} ${task?.title || ''}`);
@@ -399,7 +409,7 @@ function _popupFisica(cat, task, inicial = null) {
           const x = exercicios[Number(i.dataset.i)], c = i.dataset.c;
           const v = c === 'kg' ? Math.round((Number(String(i.value).replace(',', '.')) || 0) * 10) / 10 : Math.round(Number(i.value) || 0);
           if (v) x[c] = v; else delete x[c];
-          if (c === 'kg' && v) delete x.corpo;
+          if (c === 'kg' && v) { delete x.corpo; delete x.kgCorpo; }
         });
         box.querySelectorAll('[data-s],[data-r]').forEach(i => i.oninput = () => {
           const k = i.dataset.s || i.dataset.r, v = Math.round(Number(i.value) || 0);
@@ -416,7 +426,7 @@ function _popupFisica(cat, task, inicial = null) {
       ov.querySelector('[data-pular]').onclick = () => close();
       ov.querySelector('[data-ok]').onclick = () => {
         // As modalidades, os músculos e as séries viram a descrição da tarefa (Élton)
-        resultado = patchTreino({ modalidades: [...mods], musculos: [...sel], series, exercicios, plano });
+        resultado = patchTreino({ modalidades: [...mods], musculos: [...sel], series, exercicios, plano, pesoKg: _pesoCorpo });
         close();
       };
     };

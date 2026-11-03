@@ -6173,6 +6173,9 @@ body.tour-active { overflow: hidden; }
   min-height: 36px;
   resize: none;
   overflow-y: hidden;
+  overscroll-behavior: contain;   /* rolar a caixa não arrasta o chat junto */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   line-height: 1.4;
   font-family: inherit;
   display: block;
