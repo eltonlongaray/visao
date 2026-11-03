@@ -65,14 +65,76 @@ export function musculosDoTexto(txt) {
   return [...out];
 }
 
+// Séries × repetições de um músculo ({ s, r }) → "4x12" (só séries: "4 séries")
+const fmtSerie = (v) => v?.s && v?.r ? `${v.s}x${v.r}` : v?.s ? `${v.s} série${v.s > 1 ? 's' : ''}` : v?.r ? `${v.r} rep.` : '';
+
+// Descrição da tarefa: "Musculação: Peito 4x12, Tríceps 3x10 + Luta"
+export function descTreino(modalidades, musculos = [], series = {}) {
+  return MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k === 'musculacao' && musculos.length
+    ? `${x.nome}: ${musculos.map(k => [nomeMusculo(k), fmtSerie(series[k])].filter(Boolean).join(' ')).join(', ')}` : x.nome).join(' + ');
+}
+
+// Patch da tarefa (o mesmo do pop-up): desc + treino { modalidade(s), musculos, series, faltou }
+export function patchTreino({ modalidades, musculos = [], series = {}, plano = [] }) {
+  const lista = MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k);
+  const musc = lista.includes('musculacao');
+  const mus = musc ? musculos : [];
+  const ser = Object.fromEntries(Object.entries(series).filter(([k, v]) => mus.includes(k) && (v?.s || v?.r)));
+  const faltou = musc ? plano.filter(k => !mus.includes(k)) : [];
+  return {
+    patch: { desc: descTreino(lista, mus, ser), treino: { modalidade: lista[0], modalidades: lista, musculos: mus,
+      ...(Object.keys(ser).length ? { series: ser } : {}), ...(faltou.length ? { faltou } : {}) } },
+    msg: faltou.length ? `Boa constância! Ficou faltando ${faltou.map(nomeMusculo).join(', ')}, anotei aqui.` : null,
+  };
+}
+
+// Treino falado (Pet): "fiz peito e tríceps, 4 séries de 12", "costas 3x10 e
+// bíceps 4x8", "treinei perna", "fiz musculação e luta". Séries ditas depois
+// de vários músculos valem pra todos os que não têm as suas.
+const NUM = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10,
+  onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezoito: 18, vinte: 20, trinta: 30 };
+const num = (w) => /^\d+$/.test(w) ? Number(w) : NUM[w] || null;
+const W = '(\\d+|' + Object.keys(NUM).join('|') + ')';
+const RE_SERIE = new RegExp(`${W}\\s*(?:x|por)\\s*${W}\\b|${W}\\s*series?(?:\\s*(?:de|com|x)\\s*${W}(?:\\s*(?:repeticoes|repeticao|reps?))?)?`, 'g');
+export function lerTreinoFalado(texto) {
+  const t = ' ' + norm(texto).replace(/[,;.!?]/g, ' , ') + ' ';
+  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t)) return null;
+  const modalidades = new Set();
+  if (/\b(muscula\w*|academia|malhei|treino de|series?|\d+\s*x\s*\d+)\b/.test(t)) modalidades.add('musculacao');
+  if (/\b(crossfit|cross)\b/.test(t)) modalidades.add('crossfit');
+  if (/\b(luta|karate|jiu|jiu-jitsu|muay|boxe|judo|mma|taekwondo)\b/.test(t)) modalidades.add('luta');
+  if (/\b(corri|corrida|correr)\b/.test(t)) modalidades.add('corrida');
+  // Músculos na ordem em que aparecem, cada um com as séries que vêm logo depois
+  const pedacos = t.split(/\s(?:e|,)\s/);
+  const musculos = [], series = {};
+  let pendentes = [];
+  for (const p of pedacos) {
+    const ms = musculosDoTexto(p).filter(k => k !== 'cardio');
+    if (/\b(cardio|esteira|bike)\b/.test(p)) modalidades.add('cardio');
+    for (const k of ms) if (!musculos.includes(k)) musculos.push(k);
+    RE_SERIE.lastIndex = 0;
+    const m = RE_SERIE.exec(p);
+    if (ms.length) pendentes.push(...ms);
+    if (m) {
+      const v = m[1] ? { s: num(m[1]), r: num(m[2]) } : { s: num(m[3]), ...(m[4] ? { r: num(m[4]) } : {}) };
+      for (const k of pendentes) if (!series[k]) series[k] = v;
+      pendentes = [];
+    }
+  }
+  if (musculos.length) modalidades.add('musculacao');
+  if (!musculos.length && !modalidades.size) return null;
+  return { modalidades: [...modalidades], musculos, series };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: POPUP AO CONCLUIR
 // ═══════════════════════════════════════════════════════════════
 // Resolve com o patch da tarefa ({ desc, treino } ou { paginas, desc }) e a
 // mensagem de incentivo, ou {} se a pessoa pular. Nunca impede de marcar.
-export function perguntarAoConcluir(cat, task) {
+// `inicial` (Pet): o que a pessoa já falou ({ modalidades, musculos, series })
+export function perguntarAoConcluir(cat, task, inicial = null) {
   const tipo = tipoRegistro(cat);
-  if (tipo === 'fisica') return _popupFisica(cat, task);
+  if (tipo === 'fisica') return _popupFisica(cat, task, inicial);
   if (tipo === 'leitura') return _popupLeitura(cat, task);
   return Promise.resolve({});
 }
@@ -86,13 +148,15 @@ function _modal(html) {
   return ov;
 }
 
-function _popupFisica(cat, task) {
+function _popupFisica(cat, task, inicial = null) {
   return new Promise((resolve) => {
     // O que estava planejado: o que já foi registrado ou o que a descrição diz
     const plano = task?.treino?.musculos?.length ? task.treino.musculos : musculosDoTexto(`${task?.desc || ''} ${task?.title || ''}`);
     // Várias modalidades no mesmo dia (Élton, 31/10: "musculação e luta")
-    const mods = new Set(task?.treino?.modalidades || (task?.treino?.modalidade ? [task.treino.modalidade] : plano.length ? ['musculacao'] : []));
-    const sel = new Set(plano);
+    const mods = new Set(inicial?.modalidades || task?.treino?.modalidades || (task?.treino?.modalidade ? [task.treino.modalidade] : plano.length ? ['musculacao'] : []));
+    const sel = new Set(inicial?.musculos?.length ? inicial.musculos : plano);
+    // Séries × repetições por músculo (opcional): { peito: { s: 4, r: 12 } }
+    const series = { ...(task?.treino?.series || {}), ...(inicial?.series || {}) };
     const ov = _modal('');
     let resultado = {};
     const close = trapModalBack(() => { ov.remove(); resolve(resultado); });
@@ -109,7 +173,8 @@ function _popupFisica(cat, task) {
           ${plano.length ? '<div class="tr-dica">Fez menos do que o planejado? Desmarque o que ficou faltando: conta igual pra constância e fica anotado.</div>' : ''}
           ${[...GRUPOS_MUS, { tit: 'Extra', mus: [CARDIO] }].map(g => `
             <div class="pt-mus-grupo">${g.tit}</div>
-            <div class="pt-chips">${g.mus.map(m => `<button type="button" class="pt-chip mini tr-mus ${sel.has(m.k) ? 'sel' : ''}" data-m="${m.k}">${m.nome}</button>`).join('')}</div>`).join('')}` : ''}
+            <div class="pt-chips">${g.mus.map(m => `<button type="button" class="pt-chip mini tr-mus ${sel.has(m.k) ? 'sel' : ''}" data-m="${m.k}">${m.nome}</button>`).join('')}</div>`).join('')}
+          <div class="tr-series"></div>` : ''}
         <div class="modal-actions">
           <button class="btn-secondary" data-pular type="button">Pular</button>
           <button class="btn-primary" data-ok type="button" ${mods.size ? '' : 'disabled'}>Pronto</button>
@@ -119,26 +184,33 @@ function _popupFisica(cat, task) {
         if (mods.has(k)) mods.delete(k); else mods.add(k);
         desenhar();
       });
+      // Séries e repetições de cada músculo marcado (opcional)
+      const pintarSeries = () => {
+        const box = ov.querySelector('.tr-series');
+        if (!box) return;
+        const ks = [...sel].filter(k => k !== 'cardio');
+        box.innerHTML = ks.length ? `
+          <div class="tr-q">Séries e repetições <span class="ag-lbl-opt">(opcional)</span></div>
+          ${ks.map(k => `<div class="tr-serie-linha"><span>${esc(nomeMusculo(k))}</span>
+            <input type="number" inputmode="numeric" min="1" max="20" data-s="${k}" value="${series[k]?.s || ''}" placeholder="séries">
+            <b>x</b>
+            <input type="number" inputmode="numeric" min="1" max="100" data-r="${k}" value="${series[k]?.r || ''}" placeholder="reps"></div>`).join('')}` : '';
+        box.querySelectorAll('input').forEach(i => i.oninput = () => {
+          const k = i.dataset.s || i.dataset.r, v = Math.round(Number(i.value) || 0);
+          series[k] = { ...(series[k] || {}), [i.dataset.s ? 's' : 'r']: v || undefined };
+        });
+      };
+      pintarSeries();
       ov.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
         const k = b.dataset.m;
         if (sel.has(k)) sel.delete(k); else sel.add(k);
         b.classList.toggle('sel', sel.has(k));
+        pintarSeries();
       });
       ov.querySelector('[data-pular]').onclick = () => close();
       ov.querySelector('[data-ok]').onclick = () => {
-        // Na ordem da lista (Musculação antes de Luta…)
-        const lista = MODALIDADES.filter(x => mods.has(x.k));
-        const musc = mods.has('musculacao');
-        const musculos = musc ? [...sel] : [];
-        const faltou = musc ? plano.filter(k => !sel.has(k)) : [];
-        // As modalidades (e os músculos) viram a descrição da tarefa (Élton)
-        const desc = lista.map(x => x.k === 'musculacao' && musculos.length
-          ? `${x.nome}: ${musculos.map(nomeMusculo).join(', ')}` : x.nome).join(' + ');
-        resultado = {
-          // modalidade (a primeira) fica pra quem lia o campo antigo
-          patch: { desc, treino: { modalidade: lista[0].k, modalidades: lista.map(x => x.k), musculos, ...(faltou.length ? { faltou } : {}) } },
-          msg: faltou.length ? `Boa constância! Ficou faltando ${faltou.map(nomeMusculo).join(', ')}, anotei aqui.` : null,
-        };
+        // As modalidades, os músculos e as séries viram a descrição da tarefa (Élton)
+        resultado = patchTreino({ modalidades: [...mods], musculos: [...sel], series, plano });
         close();
       };
     };

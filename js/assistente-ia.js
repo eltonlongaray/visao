@@ -3633,7 +3633,15 @@ function listaItemAcao(arvore, text, alvo, acao, hoje = []) {
     `${verbo} <strong>${_esc(x.item.texto)}</strong> · ${_esc(onde(x))}?`,
     async () => {
       if (x.hoje) {
-        await updateDayTask(dayId(new Date()), x.item.id, { done: acao === 'marcar' });
+        // Atividade física/leitura: a mesma pergunta do Ritual (o que treinou, páginas),
+        // já com o que a pessoa falou ("fiz a academia, musculação e luta")
+        let registro = {};
+        if (acao === 'marcar') {
+          const cat = (await getCategories().catch(() => [])).find(c => c.id === x.item.task.categoryId);
+          if (TRN.tipoRegistro(cat)) registro = await TRN.perguntarAoConcluir(cat, x.item.task, TRN.lerTreinoFalado(text));
+        }
+        await updateDayTask(dayId(new Date()), x.item.id, { done: acao === 'marcar', ...(registro.patch || {}) });
+        if (registro.msg) return registro.msg;
         if (acao === 'marcar') return x.item.task.kind === 'commitment' ? 'Compromisso cumprido 💪' : 'Boa! Mais uma feita 💪';
         return null;
       }
@@ -6510,7 +6518,33 @@ async function tentarTreino(text) {
   catch (e) { console.warn('[pet-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
 }
 
+// "Fiz peito e tríceps, 4 séries de 12": registra na atividade física de hoje
+// (modalidade, músculos, séries) e marca feita, com card (Élton, 26/10 e 03/11).
+// Só entra quando a frase traz músculo ou série; "fiz a academia" segue o
+// caminho de marcar a atividade e abre o pop-up do treino.
+async function tentarTreinoFalado(text) {
+  const r = TRN.lerTreinoFalado(text);
+  if (!r || (!r.musculos.length && !Object.keys(r.series).length)) return undefined;
+  const hojeId = dayId(new Date());
+  const [tks, cats] = await Promise.all([getDayTasks(hojeId).catch(() => []), getCategories().catch(() => [])]);
+  const catDe = (tk) => cats.find(c => c.id === tk.categoryId);
+  const fis = tks.filter(tk => !tk.cancelled && TRN.tipoRegistro(catDe(tk)) === 'fisica')
+    .sort((a, b) => (a.done - b.done) || String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
+  if (!fis.length) return 'Não achei atividade física no teu Ritual de hoje 🤔 Cria uma (ex.: <em>"Academia"</em>) e me fala de novo que eu registro o treino nela.';
+  const tk = fis[0];
+  const plano = tk.treino?.musculos?.length ? tk.treino.musculos : TRN.musculosDoTexto(`${tk.desc || ''} ${tk.title || ''}`);
+  const reg = TRN.patchTreino({ ...r, plano });
+  cardConfirmarLista(`💪 Registrar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${_esc(reg.patch.desc)}${tk.done ? '<br><small>Ela já estava marcada: só atualizo o que tu treinou.</small>' : ''}`,
+    async () => {
+      await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
+      return reg.msg || 'Treino registrado 💪';
+    }, null);
+  return null;
+}
+
 async function tentarDesempenho(text) {
+  const rF = await tentarTreinoFalado(text);
+  if (rF !== undefined) return rF;
   const rT = await tentarTreino(text);
   if (rT !== undefined) return rT;
   const t = PR.semPedido(text);
