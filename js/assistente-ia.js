@@ -802,15 +802,20 @@ function fecharPainelDireto() {
   ajustarChatAoTeclado();   // devolve o pet pro canto e limpa a altura inline
 }
 
+let _ignorarPop = false;
 function closeChatPanel() {
-  // Fechar pelo botão consome a entrada do histórico; sem isso sobraria lixo
-  // e um voltar futuro não faria nada visível.
-  if (petNoHistorico) { petNoHistorico = false; history.back(); return; }
+  // Fecha NA HORA (olho, botão Fechar). Antes ele só fazia history.back() e
+  // esperava o popstate fechar, mas já tinha zerado petNoHistorico, então o
+  // popstate saía cedo e o painel ficava aberto (Élton, 03/11: "fechar no olho").
   fecharPainelDireto();
+  // Consome a entrada do histórico; sem isso sobraria lixo e um voltar futuro
+  // não faria nada visível.
+  if (petNoHistorico) { petNoHistorico = false; _ignorarPop = true; history.back(); }
 }
 
 if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
+    if (_ignorarPop) { _ignorarPop = false; return; }
     if (!petNoHistorico) return;
     petNoHistorico = false;
     fecharPainelDireto();
