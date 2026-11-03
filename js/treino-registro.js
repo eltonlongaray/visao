@@ -138,9 +138,29 @@ function numeraliza(t) {
 const num = (w) => /^\d+$/.test(w) ? Number(w) : NUM[w] || null;
 const W = '(\\d+|um|uma)';
 const REP = '(?:repeticoes|repeticao|reps?)';
-const RE_SERIE = new RegExp(`${W}\\s*(?:x|por)\\s*${W}\\b|${W}\\s*series?(?:\\s*(?:de|com|x)\\s*${W}(?!\\s*(?:min|seg))(?:\\s*${REP})?)?|series?\\s*(?:de|com)\\s*${W}\\s*${REP}`, 'g');
-const RE_KG = /(\d+(?:[.,]\d+)?)\s*(?:kg|kgs|quilos?|kilos?)\b|\b(meu (?:proprio )?peso|peso do (?:meu )?corpo|peso corporal)\b/g;
-const valorSerie = (m) => m[1] ? { s: num(m[1]), r: num(m[2]) } : m[3] ? { s: num(m[3]), ...(m[4] ? { r: num(m[4]) } : {}) } : { r: num(m[5]) };
+// Jeitos de falar séries × repetições (Élton, 03/11: "tem que funcionar pras
+// diferentes formas faladas"): 4x8 · 4 por 8 · 4 séries de 8 (repetições) ·
+// 4 séries 8 reps · séries de 8 repetições · 4 de 8 · 4 vezes 8 · 8 repetições 4 vezes
+const NAO_CARGA = '(?!\\s*(?:kg|kgs|quilos?|kilos?|min\\w*|seg\\w*)|[.,]\\d)';
+const RE_SERIE = new RegExp([
+  `${W}\\s*(?:x|por|vezes(?:\\s+de)?)\\s*${W}\\b${NAO_CARGA}`,                                   // 1,2
+  `${W}\\s*series?(?:\\s*(?:de|com|x)\\s*${W}${NAO_CARGA}(?:\\s*${REP})?|\\s*,?\\s*${W}\\s*${REP})?`, // 3,4 | 5
+  `series?\\s*(?:de|com)\\s*${W}\\s*${REP}`,                                                     // 6
+  `${W}\\s*${REP}\\s*,?\\s*${W}\\s*vezes`,                                                       // 7 (rep), 8 (séries)
+  `\\b${W}\\s+de\\s+${W}\\b${NAO_CARGA}(?!\\s*(?:de\\s+)?(?:series?|${REP.slice(3, -1)}))`,     // 9,10 "4 de 8"
+].join('|'), 'g');
+// Carga: "50 kg/quilos", "meu peso", "sem peso", "com 60" (sem unidade), "botei 50"
+const RE_KG = new RegExp([
+  '(\\d+(?:[.,]\\d+)?)\\s*(?:kg|kgs|quilos?|kilos?)\\b',
+  '\\b(meu (?:proprio )?peso|peso do (?:meu )?corpo|peso corporal|sem peso|sem carga|so o corpo)\\b',
+  `\\b(?:com|botei|coloquei|pus|usei|peguei|levantei|carga de|carga)\\s+(\\d+(?:[.,]\\d+)?)\\b(?!\\s*(?:x\\b|por\\b|vezes|series?|de\\s+\\d|${REP.slice(3, -1)}|min\\w*|seg\\w*|kg|kgs|quilos?|kilos?|[.,]?\\d))`,
+].join('|'), 'g');
+const valorSerie = (m) => m[1] ? { s: num(m[1]), r: num(m[2]) }
+  : m[3] ? { s: num(m[3]), ...(m[4] ? { r: num(m[4]) } : m[5] ? { r: num(m[5]) } : {}) }
+  : m[6] ? { r: num(m[6]) }
+  : m[7] ? { r: num(m[7]), s: num(m[8]) }
+  : { s: num(m[9]), r: num(m[10]) };
+const kgDo = (m) => m[1] || m[3] ? { kg: Number(String(m[1] || m[3]).replace(',', '.')) } : { corpo: true };
 
 function _exerciciosDoTexto(t) {
   const es = acharExercicios(t);
@@ -156,26 +176,37 @@ function _exerciciosDoTexto(t) {
     const ligado = prox && (!ant || /^\s*(?:,\s*)?(?:no|na|nos|nas|em|de|do|da)\s+(?:(?:o|a)\s+)?$/.test(t.slice(fim, prox.ini)));
     const alvo = ligado ? prox : ant || prox;
     if (alvo) Object.assign(alvo.d, Object.fromEntries(Object.entries(valorSerie(m)).filter(([, v]) => v)));
+    // "puxada 3x12 45": número solto logo depois das séries é a carga
+    const solto = alvo && /^\s*,?\s*(\d+(?:[.,]\d+)?)\b(?!\s*(?:x\b|por\b|vezes|series?|repeticoes|repeticao|reps?|min\w*|seg\w*))/.exec(t.slice(fim));
+    if (solto) { const kg = Number(solto[1].replace(',', '.')); if (kg > 0 && kg < 1000) alvo.d.kg = kg; }
   }
   // Carga: vale pro exercício falado antes ("no serrote fiz com 22 kg")
   RE_KG.lastIndex = 0;
   while ((m = RE_KG.exec(t))) {
+    // Vale pro exercício falado antes; sem nenhum antes ("botei 50 na remada"), o de depois
     const alvo = antes(m.index) || depois(m.index + m[0].length);
     if (!alvo) continue;
-    if (m[1]) { const kg = Number(m[1].replace(',', '.')); if (kg > 0 && kg < 1000) { alvo.d.kg = kg; delete alvo.d.corpo; } }
+    const v = kgDo(m);
+    if (v.kg) { if (v.kg > 0 && v.kg < 1000) { alvo.d.kg = v.kg; delete alvo.d.corpo; } }
     else if (!alvo.d.kg) alvo.d.corpo = true;
   }
   // O mesmo exercício falado duas vezes vira um só
   let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
   for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
   // "remada" + "remada inclinada": se só tem um específico e um completa o outro, junta
+  // (o microfone come palavras: "rosca nada... 10 kg" era a rosca inclinada sem carga ainda)
   for (const g of lista.filter(x => GENERICOS.has(x.nome))) {
-    const esp = lista.filter(x => x !== g && x.m === g.m && x.nome.startsWith(g.nome + ' '));
+    const choca = (e) => ['s', 'r', 'kg'].some(c => g[c] != null && e[c] != null && g[c] !== e[c]);
+    const esp = lista.filter(x => x !== g && x.m === g.m && x.nome.startsWith(g.nome + ' ') && !choca(x));
     if (esp.length !== 1) continue;
-    const choca = ['s', 'r', 'kg'].some(c => g[c] != null && esp[0][c] != null && g[c] !== esp[0][c]);
-    if (choca) continue;
     for (const c of ['s', 'r', 'kg', 'corpo']) if (g[c] != null && esp[0][c] == null) esp[0][c] = g[c];
     lista = lista.filter(x => x !== g);
+  }
+  // Sobrou "rosca ... com halter" sem par: é a rosca direta com halteres
+  for (const x of lista) {
+    const e = itens.find(i => i.nome === x.nome);
+    const prox = e && itens.find(i => i.ini > e.ini);
+    if (x.nome === 'Rosca' && e && /\bhalter(es)?\b/.test(t.slice(e.fim, prox?.ini ?? t.length))) x.nome = 'Rosca direta com halteres';
   }
   return lista;
 }
@@ -196,7 +227,11 @@ export function lerTreinoFalado(texto) {
   const musculos = [], series = {};
   if (exercicios.length) {
     modalidades.add('musculacao');
-    for (const k of musculosDoTexto(t.replace(/\bposterior de ombro\b/g, ''))) if (k !== 'cardio' && !musculos.includes(k)) musculos.push(k);
+    // Músculo dito com todas as letras ("treino de costas"); "cada braço" e o
+    // nome do exercício ("panturrilha em pé") não contam de novo
+    let resto = t.replace(/\bcada\s+(?:braco|lado|perna|mao|halter)\b/g, ' ');
+    for (const e of acharExercicios(resto).reverse()) resto = resto.slice(0, e.ini) + ' ' + resto.slice(e.fim);
+    for (const k of musculosDoTexto(resto)) if (k !== 'cardio' && !musculos.includes(k)) musculos.push(k);
     for (const x of exercicios) if (!musculos.includes(x.m)) musculos.push(x.m);
     if (/\b(cardio|esteira|bike)\b/.test(t)) modalidades.add('cardio');
     return { modalidades: [...modalidades], musculos, series, exercicios };

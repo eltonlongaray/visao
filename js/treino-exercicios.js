@@ -60,7 +60,8 @@ export const EXERCICIOS = {
   ],
   biceps: [
     E('Rosca direta', ['rosca direta', 'rosca direto', 'rosca com barra', 'rosca na barra', 'rosca barra'], true),
-    E('Rosca alternada', ['rosca alternada', 'alternada', 'rosca com halter'], true),
+    E('Rosca direta com halteres', ['rosca direta com halteres', 'rosca direta com halter', 'rosca direto com halteres', 'rosca direto com halter', 'rosca com halteres', 'rosca com halter'], true),
+    E('Rosca alternada', ['rosca alternada', 'alternada'], true),
     E('Rosca martelo', ['rosca martelo', 'martelo'], true),
     E('Rosca inclinada', ['rosca inclinada'], true),
     E('Rosca Scott', ['rosca scott', 'scott'], true),

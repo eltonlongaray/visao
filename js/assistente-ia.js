@@ -850,6 +850,8 @@ async function dispatchCommand(text) {
     if (typeof text !== 'function') reply = tentarDescricaoDoCard(semChamado(text));
     if (reply === undefined && gate && convState.ultimo()) reply = await tentarGateAtividade(semChamado(text));
     if (reply === undefined && typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
+    // "Quantas séries de barra fixa?" → "3": completa o exercício (treino falado)
+    if (reply === undefined && typeof text !== 'function' && _faltaSeries) { const r = await tentarSeriesQueFaltaram(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
     // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
@@ -6533,8 +6535,22 @@ async function tentarTreino(text) {
 // (modalidade, músculos, séries) e marca feita, com card (Élton, 26/10 e 03/11).
 // Só entra quando a frase traz músculo ou série; "fiz a academia" segue o
 // caminho de marcar a atividade e abre o pop-up do treino.
-async function tentarTreinoFalado(text) {
-  const r = TRN.lerTreinoFalado(text);
+// Exercício que ficou sem o número de séries (vale 10 min): { m, nome, em }
+let _faltaSeries = null, _filaSeries = [];
+async function tentarSeriesQueFaltaram(text) {
+  const f = _faltaSeries;
+  if (!f || Date.now() - f.em > 10 * 60e3) { _faltaSeries = null; return undefined; }
+  const N = { uma: 1, um: 1, duas: 2, dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
+  const m = semAcento(String(text)).trim().replace(/[.!]+$/, '').match(/^(?:(?:foram|fiz|eram|sao|foi)\s+)?(\d{1,2}|uma|um|duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez)(?:\s+series?)?$/);
+  if (!m) { if (!/^\d/.test(String(text).trim())) _faltaSeries = null; return undefined; }
+  _faltaSeries = null;
+  const s = /^\d+$/.test(m[1]) ? Number(m[1]) : N[m[1]];
+  if (!s || s > 20) return undefined;
+  return tentarTreinoFalado(null, { modalidades: ['musculacao'], musculos: [f.m], series: {}, exercicios: [{ m: f.m, nome: f.nome, s }] });
+}
+
+async function tentarTreinoFalado(text, pronto = null) {
+  const r = pronto || TRN.lerTreinoFalado(text);
   if (!r || (!r.musculos.length && !Object.keys(r.series).length && !r.exercicios?.length)) return undefined;
   const hojeId = dayId(new Date());
   const [tks, cats] = await Promise.all([getDayTasks(hojeId).catch(() => []), getCategories().catch(() => [])]);
@@ -6556,7 +6572,14 @@ async function tentarTreinoFalado(text) {
     cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}`,
       async () => {
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
-        return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small><br>Terminou o próximo? É só me falar.`;
+        // O microfone às vezes come o número de séries ("fiz séries de sete"): pergunta
+        // Fila: os que vieram sem séries agora, ou o resto da fila (respondendo uma pergunta)
+        const fila = pronto ? (_filaSeries || []) : r.exercicios.filter(x => !x.s && (x.r || x.kg || x.corpo));
+        const sem = fila[0];
+        _filaSeries = fila.slice(1);
+        _faltaSeries = sem ? { m: sem.m, nome: sem.nome, em: Date.now() } : null;
+        const fim = sem ? `<br>Quantas séries de <b>${_esc(TRN.fmtExercicio({ nome: sem.nome }))}</b>? Me fala só o número.` : '<br>Terminou o próximo? É só me falar.';
+        return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small>${fim}`;
       }, null);
     return null;
   }
