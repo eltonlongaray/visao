@@ -145,6 +145,10 @@ export function lerDesafio(texto) {
   const recaida = /\b(recai\w*|tive (?:uma )?recaida|escorreguei)\b/.test(t);
   // "tô doente, não consigo gravar a prova hoje" (sem falar "desafio")
   const doenteProva = /\b(doente|gripad\w*|gripe|resfriad\w*|febre|covid|dengue|virose|machuc\w*|lesion\w*)\b/.test(t) && /\b(grav\w*|prova|depoimento|video)\b/.test(t);
+  // Mentor (Élton, 03/11): "como estão meus alunos?", "meu aluno está cumprindo o desafio?"
+  if (/\b(meus? alunos?|minhas? alunas?|mentorad\w*|desafiad\w*|sou (?:o )?mentor)\b/.test(t)
+    && /\b(como|estao|esta|ta|tao|cumpr\w*|andamento|acompanh\w*|ver|mostra\w*|fez|fizeram|falt\w*|quem)\b/.test(t)
+    && !/\b(cri\w*|mont\w*)\b/.test(t)) return { acao: 'alunos', nome: nomeCitado(texto) };
   if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t)) && !fumei && !naoFumei && !recaida && !doenteProva) return null;
   // "abre os desafios" / "vai pros desafios": só abrir a tela (Config cuida)
   if (/^(abr\w*|vai|ir|leva|mostra a tela)\s+(?:a\s+tela\s+)?(?:d?[aoe]s?\s+|pr[ao]s?\s+)?desafios?$/.test(t)) return null;
@@ -180,7 +184,9 @@ export function lerDesafio(texto) {
     const vm = molde === 'largar' ? t.match(/\b(parar de [a-z]+(?: (?!com\b|de\b|por\b|em\b|durante\b|sozinh)[a-z]+){0,2}|larg\w* (?:o |a |de )?[a-z]+|sem [a-z]+)/) : null;
     const hm = molde === 'acordar' ? t.match(/\b(?:as|a)\s*(\d{1,2})(?:[h:](\d{2}))?\s*(?:h|horas?)?\b/) : null;
     const hora = hm && +hm[1] <= 12 ? `${String(+hm[1]).padStart(2, '0')}:${hm[2] || '00'}` : null;
-    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade, qtd: pd || molde === 'acordar' || molde === 'largar' ? null : metaDita,
+    // "só vou acompanhar", "como mentor", "sem participar": o criador é o mentor (só com amigos)
+    const mentor = /\b(mentor\w*|so (?:vou |pra |para )?acompanh\w*|sem (?:eu )?participar|(?:eu )?nao vou (?:participar|fazer))\b/.test(t);
+    return { ...base, acao: 'criar', dias: d ? numDe(d[1]) : null, modalidade: mentor ? 'amigos' : modalidade, mentor, qtd: pd || molde === 'acordar' || molde === 'largar' ? null : metaDita,
       exercicios, maxPorDia: pd ? numDe(pd[1]) : null, series: sr ? Math.min(5, numDe(sr[1]) || 1) : null, molde: exercicios.length ? 'exercicio' : molde,
       vicio: vm ? vm[1] : null, hora };
   }
