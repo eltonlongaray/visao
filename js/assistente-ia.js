@@ -6571,14 +6571,19 @@ async function tentarTreinoFalado(text, pronto = null) {
   if (r.exercicios?.length) {
     const tk = fis.find(x => x.treino?.exercicios?.length) || fis.find(x => x.done) || fis[0];
     const ant = tk.treino || {};
-    const reg = TRN.patchTreino({
+    // Peso do corpo (Élton, 03/11): barra fixa etc. usam o peso do Preparo Físico
+    const pesoKg = (await getProfile().catch(() => null))?.pesoKg || null;
+    r.exercicios = TRN.comPesoCorpo(r.exercicios, pesoKg);
+    const semPeso = !pesoKg && r.exercicios.some(x => x.corpo && !x.kg)
+      ? '<br><small>Ainda não sei o teu peso: me fala (ex.: <em>"meu peso é 80 kg"</em>) que eu uso nos exercícios com o peso do corpo.</small>' : '';
+    const reg = TRN.patchTreino({ pesoKg,
       modalidades: [...new Set([...(ant.modalidades || (ant.modalidade ? [ant.modalidade] : [])), ...r.modalidades])],
       musculos: [...new Set([...(ant.musculos || []), ...r.musculos])],
       series: ant.series || {},
       exercicios: TRN.juntarExercicios(ant.exercicios || [], r.exercicios),
     });
     const sup = r.supostos?.length ? `<br><small>Usei ${r.exercicios.find(x => x.nome === r.supostos[0]).s} séries em ${r.supostos.map(n => _esc(TRN.fmtExercicio({ nome: n }))).join(', ')}, como nos outros. Se foi diferente, me fala (ex.: <em>"${_esc(TRN.fmtExercicio({ nome: r.supostos[0] }).toLowerCase())} 4 séries"</em>).</small>` : '';
-    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}${sup}`,
+    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}${sup}${semPeso}`,
       async () => {
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
         // O microfone às vezes come o número de séries ("fiz séries de sete"): pergunta
