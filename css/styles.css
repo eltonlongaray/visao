@@ -8869,3 +8869,9 @@ body.rota-publica .bottom-nav { display: none !important; }
   font-size: 1.1em; line-height: 1; cursor: pointer; vertical-align: -2px;
 }
 .pet-dia-check:disabled { opacity: .5; }
+
+/* Séries × repetições por músculo no pop-up do treino */
+.tr-serie-linha { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 14px; color: var(--text); }
+.tr-serie-linha span { flex: 1; min-width: 0; }
+.tr-serie-linha input { width: 64px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); color: var(--text); font-size: 14px; text-align: center; }
+.tr-serie-linha b { color: var(--muted); font-weight: 700; }
