@@ -6569,7 +6569,8 @@ async function tentarTreinoFalado(text, pronto = null) {
       series: ant.series || {},
       exercicios: TRN.juntarExercicios(ant.exercicios || [], r.exercicios),
     });
-    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}`,
+    const sup = r.supostos?.length ? `<br><small>Usei ${r.exercicios.find(x => x.nome === r.supostos[0]).s} séries em ${r.supostos.map(n => _esc(TRN.fmtExercicio({ nome: n }))).join(', ')}, como nos outros. Se foi diferente, me fala (ex.: <em>"${_esc(TRN.fmtExercicio({ nome: r.supostos[0] }).toLowerCase())} 4 séries"</em>).</small>` : '';
+    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}${sup}`,
       async () => {
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
         // O microfone às vezes come o número de séries ("fiz séries de sete"): pergunta
