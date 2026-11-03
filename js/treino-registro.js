@@ -32,7 +32,7 @@ export const MODALIDADES = [
 ];
 // Na musculação dá pra marcar cardio junto (Élton): entra como "músculo" extra
 const CARDIO = { k: 'cardio', nome: 'Cardio' };
-const nomeMusculo = (k) => (k === 'cardio' ? CARDIO : MUSCULOS.find(m => m.k === k))?.nome || k;
+export const nomeMusculo = (k) => (k === 'cardio' ? CARDIO : MUSCULOS.find(m => m.k === k))?.nome || k;
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 2: QUE TIPO DE REGISTRO A ATIVIDADE PEDE
@@ -101,6 +101,13 @@ export function juntarExercicios(antes = [], novos = []) {
     if (n.kg) { delete out[i].corpo; delete out[i].kgCorpo; }
   }
   return out;
+}
+
+// Exercícios juntos por músculo, na ordem em que o músculo apareceu (card do Pet)
+export function porMusculo(lista = []) {
+  const g = new Map();
+  for (const x of lista) { if (!g.has(x.m)) g.set(x.m, []); g.get(x.m).push(x); }
+  return [...g.entries()];
 }
 
 // Patch da tarefa (o mesmo do pop-up): desc + treino { modalidade(s), musculos, series, exercicios, faltou }

@@ -6603,7 +6603,7 @@ async function tentarTreinoFalado(text, pronto = null) {
     const sup = r.supostos?.length ? `<br><small>Usei ${r.exercicios.find(x => x.nome === r.supostos[0]).s} séries em ${r.supostos.map(n => _esc(TRN.fmtExercicio({ nome: n }))).join(', ')}, como nos outros. Se foi diferente, me fala (ex.: <em>"${_esc(TRN.fmtExercicio({ nome: r.supostos[0] }).toLowerCase())} 4 séries"</em>).</small>` : '';
     const linha = (x) => corrigiu.includes(x.nome) ? `• <b>${_esc(TRN.fmtExercicio(x))}</b> ✏️` : '• ' + _esc(TRN.fmtExercicio(x));
     const dica = corrigiu.length ? '' : '<br><small>Algo errado? Me fala só o que corrigir (ex.: <em>"a rosca foi 3x10"</em>).</small>';
-    const div = cardConfirmarLista(`💪 ${corrigiu.length ? 'Corrigi. ' : ''}Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(linha).join('<br>')}${sup}${semPeso}${dica}`,
+    const div = cardConfirmarLista(`💪 ${corrigiu.length ? 'Corrigi. ' : ''}Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${TRN.porMusculo(r.exercicios).map(([m, xs]) => `<b>${_esc(TRN.nomeMusculo(m))}</b><br>${xs.map(linha).join('<br>')}`).join('<br>')}${sup}${semPeso}${dica}`,
       async () => {
         _treinoPendente = null;
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
