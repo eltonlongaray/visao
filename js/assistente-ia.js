@@ -3550,6 +3550,7 @@ function cardConfirmarLista(resumo, acao, depois = aposMudarLista, mostrar = nul
   nao.addEventListener('click', () => { ok.disabled = nao.disabled = true; nao.textContent = 'Cancelado'; ok.remove(); });
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
+  return div;
 }
 
 // Botão "↩️ Desfazer" logo depois de uma mudança feita pelo Pet: volta como
@@ -6545,6 +6546,7 @@ async function tentarTreino(text) {
 // caminho de marcar a atividade e abre o pop-up do treino.
 // Exercício que ficou sem o número de séries (vale 10 min): { m, nome, em }
 let _faltaSeries = null, _filaSeries = [];
+let _treinoPendente = null;   // card de treino ainda sem Confirmar (pra corrigir)
 async function tentarSeriesQueFaltaram(text) {
   const f = _faltaSeries;
   if (!f || Date.now() - f.em > 10 * 60e3) { _faltaSeries = null; return undefined; }
@@ -6569,7 +6571,23 @@ async function tentarTreinoFalado(text, pronto = null) {
   // Com exercício (Élton, 03/11): soma no treino do dia, um exercício por vez.
   // Prefere a atividade física que já tem treino começado.
   if (r.exercicios?.length) {
-    const tk = fis.find(x => x.treino?.exercicios?.length) || fis.find(x => x.done) || fis[0];
+    // Correção (Élton, 03/11): com um card ainda aberto, o que a pessoa fala
+    // corrige só o que mudou nele ("na rosca inclinada foi 3x10") e o card
+    // antigo some; o resto (carga, outros exercícios) continua igual.
+    const pend = _treinoPendente;
+    const aberto = pend && Date.now() - pend.em < 20 * 60 * 1000 && pend.div?.isConnected && pend.div.querySelector('[data-ok]:not(:disabled)');
+    let corrigiu = [];
+    if (aberto && !pronto) {
+      corrigiu = r.exercicios.map(x => x.nome);
+      r.supostos = [...(pend.supostos || []).filter(n => !r.exercicios.some(x => x.nome === n && x.s)), ...(r.supostos || [])];
+      r.exercicios = TRN.juntarExercicios(pend.exercicios, r.exercicios);
+      r.modalidades = [...new Set([...(pend.modalidades || []), ...r.modalidades])];
+      r.musculos = [...new Set([...(pend.musculos || []), ...r.musculos])];
+      const ok = pend.div.querySelector('[data-ok]'), nao = pend.div.querySelector('[data-nao]');
+      ok?.remove(); if (nao) { nao.disabled = true; nao.textContent = 'Corrigido abaixo ↓'; }
+    }
+    _treinoPendente = null;
+    const tk = (aberto && fis.find(x => x.id === pend.tkId)) || fis.find(x => x.treino?.exercicios?.length) || fis.find(x => x.done) || fis[0];
     const ant = tk.treino || {};
     // Peso do corpo (Élton, 03/11): barra fixa etc. usam o peso do Preparo Físico
     const pesoKg = (await getProfile().catch(() => null))?.pesoKg || null;
@@ -6583,8 +6601,11 @@ async function tentarTreinoFalado(text, pronto = null) {
       exercicios: TRN.juntarExercicios(ant.exercicios || [], r.exercicios),
     });
     const sup = r.supostos?.length ? `<br><small>Usei ${r.exercicios.find(x => x.nome === r.supostos[0]).s} séries em ${r.supostos.map(n => _esc(TRN.fmtExercicio({ nome: n }))).join(', ')}, como nos outros. Se foi diferente, me fala (ex.: <em>"${_esc(TRN.fmtExercicio({ nome: r.supostos[0] }).toLowerCase())} 4 séries"</em>).</small>` : '';
-    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}${sup}${semPeso}`,
+    const linha = (x) => corrigiu.includes(x.nome) ? `• <b>${_esc(TRN.fmtExercicio(x))}</b> ✏️` : '• ' + _esc(TRN.fmtExercicio(x));
+    const dica = corrigiu.length ? '' : '<br><small>Algo errado? Me fala só o que corrigir (ex.: <em>"a rosca foi 3x10"</em>).</small>';
+    const div = cardConfirmarLista(`💪 ${corrigiu.length ? 'Corrigi. ' : ''}Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(linha).join('<br>')}${sup}${semPeso}${dica}`,
       async () => {
+        _treinoPendente = null;
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
         // O microfone às vezes come o número de séries ("fiz séries de sete"): pergunta
         // Fila: os que vieram sem séries agora, ou o resto da fila (respondendo uma pergunta)
@@ -6595,6 +6616,7 @@ async function tentarTreinoFalado(text, pronto = null) {
         const fim = sem ? `<br>Quantas séries de <b>${_esc(TRN.fmtExercicio({ nome: sem.nome }))}</b>? Me fala só o número.` : '<br>Terminou o próximo? É só me falar.';
         return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small>${fim}`;
       }, null);
+    if (!pronto) _treinoPendente = { div, tkId: tk.id, em: Date.now(), exercicios: r.exercicios, supostos: r.supostos || [], modalidades: r.modalidades, musculos: r.musculos };
     return null;
   }
   const tk = fis[0];
