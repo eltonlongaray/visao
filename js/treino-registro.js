@@ -16,6 +16,7 @@
 import { fetchDaysRange, getProfile } from './banco-dados.js';
 import { trapModalBack } from './modal-voltar.js';
 import { GRUPOS_MUS, MUSCULOS, getPerfilTreino } from './perfil-treino-ui.js';
+import { EXERCICIOS, GENERICOS, acharExercicios } from './treino-exercicios.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -67,23 +68,46 @@ export function musculosDoTexto(txt) {
 
 // Séries × repetições de um músculo ({ s, r }) → "4x12" (só séries: "4 séries")
 const fmtSerie = (v) => v?.s && v?.r ? `${v.s}x${v.r}` : v?.s ? `${v.s} série${v.s > 1 ? 's' : ''}` : v?.r ? `${v.r} rep.` : '';
+const fmtKg = (x) => x?.kg ? `${String(x.kg).replace('.', ',')} kg` : x?.corpo ? 'peso do corpo' : '';
+// "Serrote 3x10 22 kg" (o nome sem o parêntese, pra caber)
+export const fmtExercicio = (x) => [String(x.nome).replace(/\s*\(.*\)$/, ''), fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
 
-// Descrição da tarefa: "Musculação: Peito 4x12, Tríceps 3x10 + Luta"
-export function descTreino(modalidades, musculos = [], series = {}) {
-  return MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k === 'musculacao' && musculos.length
-    ? `${x.nome}: ${musculos.map(k => [nomeMusculo(k), fmtSerie(series[k])].filter(Boolean).join(' ')).join(', ')}` : x.nome).join(' + ');
+// Descrição da tarefa: "Musculação: Costas (Barra fixa 3x7, Serrote 3x10 22 kg), Bíceps 4x12 + Luta"
+export function descTreino(modalidades, musculos = [], series = {}, exercicios = []) {
+  const mus = [...musculos];
+  for (const x of exercicios) if (x.m && !mus.includes(x.m)) mus.push(x.m);
+  const parteMus = (k) => {
+    const ex = exercicios.filter(x => x.m === k);
+    return ex.length ? `${nomeMusculo(k)} (${ex.map(fmtExercicio).join(', ')})` : [nomeMusculo(k), fmtSerie(series[k])].filter(Boolean).join(' ');
+  };
+  return MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k === 'musculacao' && mus.length
+    ? `${x.nome}: ${mus.map(parteMus).join(', ')}` : x.nome).join(' + ');
 }
 
-// Patch da tarefa (o mesmo do pop-up): desc + treino { modalidade(s), musculos, series, faltou }
-export function patchTreino({ modalidades, musculos = [], series = {}, plano = [] }) {
+// Junta exercícios: o mesmo exercício (nome) soma os campos; o novo vale por cima
+export function juntarExercicios(antes = [], novos = []) {
+  const out = antes.map(x => ({ ...x }));
+  for (const n of novos) {
+    const i = out.findIndex(x => x.nome === n.nome);
+    if (i < 0) { out.push({ ...n }); continue; }
+    for (const c of ['m', 's', 'r', 'kg', 'corpo']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
+  }
+  return out;
+}
+
+// Patch da tarefa (o mesmo do pop-up): desc + treino { modalidade(s), musculos, series, exercicios, faltou }
+export function patchTreino({ modalidades, musculos = [], series = {}, exercicios = [], plano = [] }) {
   const lista = MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k);
   const musc = lista.includes('musculacao');
-  const mus = musc ? musculos : [];
+  const ex = musc ? exercicios.filter(x => x?.nome && x?.m) : [];
+  const mus = musc ? [...musculos] : [];
+  for (const x of ex) if (!mus.includes(x.m)) mus.push(x.m);
   const ser = Object.fromEntries(Object.entries(series).filter(([k, v]) => mus.includes(k) && (v?.s || v?.r)));
   const faltou = musc ? plano.filter(k => !mus.includes(k)) : [];
+  const limpo = ex.map(x => Object.fromEntries(Object.entries(x).filter(([, v]) => v != null && v !== false && v !== '')));
   return {
-    patch: { desc: descTreino(lista, mus, ser), treino: { modalidade: lista[0], modalidades: lista, musculos: mus,
-      ...(Object.keys(ser).length ? { series: ser } : {}), ...(faltou.length ? { faltou } : {}) } },
+    patch: { desc: descTreino(lista, mus, ser, limpo), treino: { modalidade: lista[0], modalidades: lista, musculos: mus,
+      ...(Object.keys(ser).length ? { series: ser } : {}), ...(limpo.length ? { exercicios: limpo } : {}), ...(faltou.length ? { faltou } : {}) } },
     msg: faltou.length ? `Boa constância! Ficou faltando ${faltou.map(nomeMusculo).join(', ')}, anotei aqui.` : null,
   };
 }
@@ -91,22 +115,94 @@ export function patchTreino({ modalidades, musculos = [], series = {}, plano = [
 // Treino falado (Pet): "fiz peito e tríceps, 4 séries de 12", "costas 3x10 e
 // bíceps 4x8", "treinei perna", "fiz musculação e luta". Séries ditas depois
 // de vários músculos valem pra todos os que não têm as suas.
+// Com exercício (Élton, 03/11): "remada 4 séries de 8 com 50 kg", "fiz 3 séries
+// de 10 no serrote; no serrote fiz com 22 kg", "na barra levantei meu peso".
 const NUM = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10,
-  onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezoito: 18, vinte: 20, trinta: 30 };
+  onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16, dezessete: 17, dezoito: 18, dezenove: 19,
+  vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60, setenta: 70, oitenta: 80, noventa: 90, cem: 100 };
+const CENTENAS = { cem: 100, cento: 100, duzentos: 200, duzentas: 200, trezentos: 300, trezentas: 300, quatrocentos: 400, quinhentos: 500 };
+const _VAL = { ...NUM, ...CENTENAS };
+const _PAL = Object.keys(_VAL).sort((a, b) => b.length - a.length).join('|');
+// Número por extenso vira dígito ("vinte e dois" → 22, "cento e vinte" → 120).
+// "um/uma" sozinho fica (é artigo: "uma remada").
+function numeraliza(t) {
+  return t.replace(new RegExp(`\\b(?:${_PAL})(?:\\s+e\\s+(?:${_PAL}))*\\b`, 'g'), (seq) => {
+    const ps = seq.split(/\s+e\s+/);
+    if (ps.length === 1) return ps[0] === 'um' || ps[0] === 'uma' ? seq : String(_VAL[ps[0]]);
+    // Só soma do maior pro menor ("vinte e dois"); "três e dez" fica separado
+    let tot = 0, ant = Infinity;
+    for (const p of ps) { const v = _VAL[p]; if (v >= ant) return ps.map(x => (x === 'um' || x === 'uma') ? x : String(_VAL[x])).join(' e '); tot += v; ant = v; }
+    return String(tot);
+  });
+}
 const num = (w) => /^\d+$/.test(w) ? Number(w) : NUM[w] || null;
-const W = '(\\d+|' + Object.keys(NUM).join('|') + ')';
-const RE_SERIE = new RegExp(`${W}\\s*(?:x|por)\\s*${W}\\b|${W}\\s*series?(?:\\s*(?:de|com|x)\\s*${W}(?:\\s*(?:repeticoes|repeticao|reps?))?)?`, 'g');
+const W = '(\\d+|um|uma)';
+const REP = '(?:repeticoes|repeticao|reps?)';
+const RE_SERIE = new RegExp(`${W}\\s*(?:x|por)\\s*${W}\\b|${W}\\s*series?(?:\\s*(?:de|com|x)\\s*${W}(?!\\s*(?:min|seg))(?:\\s*${REP})?)?|series?\\s*(?:de|com)\\s*${W}\\s*${REP}`, 'g');
+const RE_KG = /(\d+(?:[.,]\d+)?)\s*(?:kg|kgs|quilos?|kilos?)\b|\b(meu (?:proprio )?peso|peso do (?:meu )?corpo|peso corporal)\b/g;
+const valorSerie = (m) => m[1] ? { s: num(m[1]), r: num(m[2]) } : m[3] ? { s: num(m[3]), ...(m[4] ? { r: num(m[4]) } : {}) } : { r: num(m[5]) };
+
+function _exerciciosDoTexto(t) {
+  const es = acharExercicios(t);
+  if (!es.length) return [];
+  const itens = es.map(e => ({ ...e, d: {} }));
+  const antes = (pos) => [...itens].reverse().find(e => e.fim <= pos);
+  const depois = (pos) => itens.find(e => e.ini >= pos);
+  // Séries: "3 séries de 10 no serrote" (vem antes, ligado por no/na) ou "remada 4x8" (depois)
+  RE_SERIE.lastIndex = 0;
+  let m;
+  while ((m = RE_SERIE.exec(t))) {
+    const fim = m.index + m[0].length, prox = depois(fim), ant = antes(m.index);
+    const ligado = prox && (!ant || /^\s*(?:,\s*)?(?:no|na|nos|nas|em|de|do|da)\s+(?:(?:o|a)\s+)?$/.test(t.slice(fim, prox.ini)));
+    const alvo = ligado ? prox : ant || prox;
+    if (alvo) Object.assign(alvo.d, Object.fromEntries(Object.entries(valorSerie(m)).filter(([, v]) => v)));
+  }
+  // Carga: vale pro exercício falado antes ("no serrote fiz com 22 kg")
+  RE_KG.lastIndex = 0;
+  while ((m = RE_KG.exec(t))) {
+    const alvo = antes(m.index) || depois(m.index + m[0].length);
+    if (!alvo) continue;
+    if (m[1]) { const kg = Number(m[1].replace(',', '.')); if (kg > 0 && kg < 1000) { alvo.d.kg = kg; delete alvo.d.corpo; } }
+    else if (!alvo.d.kg) alvo.d.corpo = true;
+  }
+  // O mesmo exercício falado duas vezes vira um só
+  let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
+  for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
+  // "remada" + "remada inclinada": se só tem um específico e um completa o outro, junta
+  for (const g of lista.filter(x => GENERICOS.has(x.nome))) {
+    const esp = lista.filter(x => x !== g && x.m === g.m && x.nome.startsWith(g.nome + ' '));
+    if (esp.length !== 1) continue;
+    const choca = ['s', 'r', 'kg'].some(c => g[c] != null && esp[0][c] != null && g[c] !== esp[0][c]);
+    if (choca) continue;
+    for (const c of ['s', 'r', 'kg', 'corpo']) if (g[c] != null && esp[0][c] == null) esp[0][c] = g[c];
+    lista = lista.filter(x => x !== g);
+  }
+  return lista;
+}
+
 export function lerTreinoFalado(texto) {
-  const t = ' ' + norm(texto).replace(/[,;.!?]/g, ' , ') + ' ';
-  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t)) return null;
+  const t = ' ' + numeraliza(norm(texto).replace(/[,;.!?]/g, ' , ')) + ' ';
+  const exercicios = _exerciciosDoTexto(t);
+  RE_SERIE.lastIndex = 0; RE_KG.lastIndex = 0;
+  const temNumero = RE_SERIE.test(t) || RE_KG.test(t);
+  RE_SERIE.lastIndex = 0; RE_KG.lastIndex = 0;
+  // Sem "fiz/treinei", vale se citou exercício com séries ou carga ("remada 4x8 50 kg")
+  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && temNumero)) return null;
   const modalidades = new Set();
   if (/\b(muscula\w*|academia|malhei|treino de|series?|\d+\s*x\s*\d+)\b/.test(t)) modalidades.add('musculacao');
   if (/\b(crossfit|cross)\b/.test(t)) modalidades.add('crossfit');
   if (/\b(luta|karate|jiu|jiu-jitsu|muay|boxe|judo|mma|taekwondo)\b/.test(t)) modalidades.add('luta');
   if (/\b(corri|corrida|correr)\b/.test(t)) modalidades.add('corrida');
+  const musculos = [], series = {};
+  if (exercicios.length) {
+    modalidades.add('musculacao');
+    for (const k of musculosDoTexto(t.replace(/\bposterior de ombro\b/g, ''))) if (k !== 'cardio' && !musculos.includes(k)) musculos.push(k);
+    for (const x of exercicios) if (!musculos.includes(x.m)) musculos.push(x.m);
+    if (/\b(cardio|esteira|bike)\b/.test(t)) modalidades.add('cardio');
+    return { modalidades: [...modalidades], musculos, series, exercicios };
+  }
   // Músculos na ordem em que aparecem, cada um com as séries que vêm logo depois
   const pedacos = t.split(/\s(?:e|,)\s/);
-  const musculos = [], series = {};
   let pendentes = [];
   for (const p of pedacos) {
     const ms = musculosDoTexto(p).filter(k => k !== 'cardio');
@@ -116,14 +212,14 @@ export function lerTreinoFalado(texto) {
     const m = RE_SERIE.exec(p);
     if (ms.length) pendentes.push(...ms);
     if (m) {
-      const v = m[1] ? { s: num(m[1]), r: num(m[2]) } : { s: num(m[3]), ...(m[4] ? { r: num(m[4]) } : {}) };
+      const v = valorSerie(m);
       for (const k of pendentes) if (!series[k]) series[k] = v;
       pendentes = [];
     }
   }
   if (musculos.length) modalidades.add('musculacao');
   if (!musculos.length && !modalidades.size) return null;
-  return { modalidades: [...modalidades], musculos, series };
+  return { modalidades: [...modalidades], musculos, series, exercicios: [] };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -148,6 +244,19 @@ function _modal(html) {
   return ov;
 }
 
+// Exercícios com o peso do corpo (sem carga, a não ser que a pessoa ponha)
+const CORPO = new Set(['Barra fixa', 'Flexão de braço', 'Paralelas', 'Mergulho no banco', 'Prancha', 'Abdominal', 'Elevação de pernas', 'Abdominal infra', 'Abdominal oblíquo', 'Ponte', 'Glúteo 4 apoios', 'Hiperextensão lombar']);
+// Os que a pessoa mais usa aparecem primeiro (só neste aparelho; é conveniência)
+const _RK = 'falcon_ex_recentes';
+function _recentes(k) { try { return (JSON.parse(localStorage.getItem(_RK) || '{}')[k] || []); } catch { return []; } }
+function _lembrarRecente(k, nome) {
+  try {
+    const o = JSON.parse(localStorage.getItem(_RK) || '{}');
+    o[k] = [nome, ...(o[k] || []).filter(n => n !== nome)].slice(0, 6);
+    localStorage.setItem(_RK, JSON.stringify(o));
+  } catch { /* sem armazenamento: só não lembra */ }
+}
+
 function _popupFisica(cat, task, inicial = null) {
   return new Promise((resolve) => {
     // O que estava planejado: o que já foi registrado ou o que a descrição diz
@@ -155,8 +264,12 @@ function _popupFisica(cat, task, inicial = null) {
     // Várias modalidades no mesmo dia (Élton, 31/10: "musculação e luta")
     const mods = new Set(inicial?.modalidades || task?.treino?.modalidades || (task?.treino?.modalidade ? [task.treino.modalidade] : plano.length ? ['musculacao'] : []));
     const sel = new Set(inicial?.musculos?.length ? inicial.musculos : plano);
-    // Séries × repetições por músculo (opcional): { peito: { s: 4, r: 12 } }
+    // Séries × repetições por músculo (registro antigo, sem exercício): { peito: { s: 4, r: 12 } }
     const series = { ...(task?.treino?.series || {}), ...(inicial?.series || {}) };
+    // Exercícios (Élton, 03/11): [{ m, nome, s, r, kg, corpo }]. O que o Pet ouviu soma ao que já tinha.
+    let exercicios = juntarExercicios(task?.treino?.exercicios || [], inicial?.exercicios || []);
+    for (const x of exercicios) sel.add(x.m);
+    let abertoEm = null, todosEm = null;   // músculo com a lista de exercícios aberta / com "ver todos"
     const ov = _modal('');
     let resultado = {};
     const close = trapModalBack(() => { ov.remove(); resolve(resultado); });
@@ -184,18 +297,64 @@ function _popupFisica(cat, task, inicial = null) {
         if (mods.has(k)) mods.delete(k); else mods.add(k);
         desenhar();
       });
-      // Séries e repetições de cada músculo marcado (opcional)
+      // Exercícios de cada músculo marcado (opcional): + Exercício abre os mais
+      // usados; "Ver todos" mostra a lista inteira; dá pra escrever outro.
       const pintarSeries = () => {
         const box = ov.querySelector('.tr-series');
         if (!box) return;
         const ks = [...sel].filter(k => k !== 'cardio');
+        const inp = (i, campo, ph, max, x) => `<input type="number" inputmode="${campo === 'kg' ? 'decimal' : 'numeric'}" min="0" max="${max}" step="${campo === 'kg' ? '0.5' : '1'}" data-i="${i}" data-c="${campo}" value="${x[campo] ?? ''}" placeholder="${ph}">`;
         box.innerHTML = ks.length ? `
-          <div class="tr-q">Séries e repetições <span class="ag-lbl-opt">(opcional)</span></div>
-          ${ks.map(k => `<div class="tr-serie-linha"><span>${esc(nomeMusculo(k))}</span>
-            <input type="number" inputmode="numeric" min="1" max="20" data-s="${k}" value="${series[k]?.s || ''}" placeholder="séries">
-            <b>x</b>
-            <input type="number" inputmode="numeric" min="1" max="100" data-r="${k}" value="${series[k]?.r || ''}" placeholder="reps"></div>`).join('')}` : '';
-        box.querySelectorAll('input').forEach(i => i.oninput = () => {
+          <div class="tr-q">Exercícios <span class="ag-lbl-opt">(opcional)</span></div>
+          <div class="tr-dica">Séries × repetições e a carga em kg.</div>
+          ${ks.map(k => {
+            const meus = exercicios.map((x, i) => ({ x, i })).filter(o => o.x.m === k);
+            const usados = new Set(meus.map(o => o.x.nome));
+            const lista = (EXERCICIOS[k] || []).filter(e => !GENERICOS.has(e.nome) && !usados.has(e.nome));
+            const rec = _recentes(k);
+            const curtos = [...lista.filter(e => rec.includes(e.nome)).sort((a, b) => rec.indexOf(a.nome) - rec.indexOf(b.nome)), ...lista.filter(e => e.top && !rec.includes(e.nome))].slice(0, 6);
+            const mostra = todosEm === k ? lista : curtos;
+            return `<div class="tr-mus-bloco">
+              <div class="tr-mus-cab"><b>${esc(nomeMusculo(k))}</b>
+                <button type="button" class="tr-add" data-add="${k}">${abertoEm === k ? 'Fechar' : '+ Exercício'}</button></div>
+              ${abertoEm === k ? `<div class="tr-pick">
+                <div class="pt-chips">${mostra.map(e => `<button type="button" class="pt-chip mini" data-ex="${k}" data-nome="${esc(e.nome)}">${esc(e.nome)}</button>`).join('')}
+                  ${lista.length > curtos.length ? `<button type="button" class="pt-chip mini tr-todos" data-todos="${k}">${todosEm === k ? 'Menos ▴' : 'Ver todos ▾'}</button>` : ''}</div>
+                <div class="tr-outro"><input type="text" maxlength="40" data-outro="${k}" placeholder="Outro: escreve o nome"><button type="button" class="pt-chip mini" data-outro-ok="${k}">Adicionar</button></div>
+              </div>` : ''}
+              ${meus.map(({ x, i }) => `<div class="tr-ex-linha">
+                <span>${esc(String(x.nome).replace(/\s*\(.*\)$/, ''))}</span>
+                ${inp(i, 's', 'sér', 20, x)}<b>x</b>${inp(i, 'r', 'rep', 100, x)}${inp(i, 'kg', x.corpo ? 'corpo' : 'kg', 999, x)}
+                <button type="button" class="tr-del" data-del="${i}" aria-label="Tirar">✕</button></div>`).join('')}
+              ${!meus.length && series[k] ? `<div class="tr-serie-linha"><span>Séries do músculo</span>
+                <input type="number" inputmode="numeric" min="1" max="20" data-s="${k}" value="${series[k]?.s || ''}" placeholder="séries"><b>x</b>
+                <input type="number" inputmode="numeric" min="1" max="100" data-r="${k}" value="${series[k]?.r || ''}" placeholder="reps"></div>` : ''}
+            </div>`;
+          }).join('')}` : '';
+        const add = (k, nome) => {
+          exercicios.push({ m: k, nome, ...(CORPO.has(nome) ? { corpo: true } : {}) });
+          _lembrarRecente(k, nome);
+          abertoEm = null; todosEm = null;
+          pintarSeries();
+          // já pronto pra digitar as séries do que acabou de entrar
+          box.querySelector(`[data-i="${exercicios.length - 1}"][data-c="s"]`)?.focus();
+        };
+        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { abertoEm = abertoEm === b.dataset.add ? null : b.dataset.add; todosEm = null; pintarSeries(); });
+        box.querySelectorAll('[data-todos]').forEach(b => b.onclick = () => { todosEm = todosEm === b.dataset.todos ? null : b.dataset.todos; pintarSeries(); });
+        box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => add(b.dataset.ex, b.dataset.nome));
+        box.querySelectorAll('[data-outro-ok]').forEach(b => b.onclick = () => {
+          const v = box.querySelector(`[data-outro="${b.dataset.outroOk}"]`)?.value.trim();
+          if (v) add(b.dataset.outroOk, v.charAt(0).toUpperCase() + v.slice(1));
+        });
+        box.querySelectorAll('[data-outro]').forEach(i => i.onkeydown = (e) => { if (e.key === 'Enter') box.querySelector(`[data-outro-ok="${i.dataset.outro}"]`)?.click(); });
+        box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { exercicios.splice(Number(b.dataset.del), 1); pintarSeries(); });
+        box.querySelectorAll('[data-i]').forEach(i => i.oninput = () => {
+          const x = exercicios[Number(i.dataset.i)], c = i.dataset.c;
+          const v = c === 'kg' ? Math.round((Number(String(i.value).replace(',', '.')) || 0) * 10) / 10 : Math.round(Number(i.value) || 0);
+          if (v) x[c] = v; else delete x[c];
+          if (c === 'kg' && v) delete x.corpo;
+        });
+        box.querySelectorAll('[data-s],[data-r]').forEach(i => i.oninput = () => {
           const k = i.dataset.s || i.dataset.r, v = Math.round(Number(i.value) || 0);
           series[k] = { ...(series[k] || {}), [i.dataset.s ? 's' : 'r']: v || undefined };
         });
@@ -203,14 +362,14 @@ function _popupFisica(cat, task, inicial = null) {
       pintarSeries();
       ov.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
         const k = b.dataset.m;
-        if (sel.has(k)) sel.delete(k); else sel.add(k);
+        if (sel.has(k)) { sel.delete(k); exercicios = exercicios.filter(x => x.m !== k); } else sel.add(k);
         b.classList.toggle('sel', sel.has(k));
         pintarSeries();
       });
       ov.querySelector('[data-pular]').onclick = () => close();
       ov.querySelector('[data-ok]').onclick = () => {
         // As modalidades, os músculos e as séries viram a descrição da tarefa (Élton)
-        resultado = patchTreino({ modalidades: [...mods], musculos: [...sel], series, plano });
+        resultado = patchTreino({ modalidades: [...mods], musculos: [...sel], series, exercicios, plano });
         close();
       };
     };

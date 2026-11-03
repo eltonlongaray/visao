@@ -6535,13 +6535,31 @@ async function tentarTreino(text) {
 // caminho de marcar a atividade e abre o pop-up do treino.
 async function tentarTreinoFalado(text) {
   const r = TRN.lerTreinoFalado(text);
-  if (!r || (!r.musculos.length && !Object.keys(r.series).length)) return undefined;
+  if (!r || (!r.musculos.length && !Object.keys(r.series).length && !r.exercicios?.length)) return undefined;
   const hojeId = dayId(new Date());
   const [tks, cats] = await Promise.all([getDayTasks(hojeId).catch(() => []), getCategories().catch(() => [])]);
   const catDe = (tk) => cats.find(c => c.id === tk.categoryId);
   const fis = tks.filter(tk => !tk.cancelled && TRN.tipoRegistro(catDe(tk)) === 'fisica')
     .sort((a, b) => (a.done - b.done) || String(a.startTime || '99').localeCompare(String(b.startTime || '99')));
   if (!fis.length) return 'Não achei atividade física no teu Ritual de hoje 🤔 Cria uma (ex.: <em>"Academia"</em>) e me fala de novo que eu registro o treino nela.';
+  // Com exercício (Élton, 03/11): soma no treino do dia, um exercício por vez.
+  // Prefere a atividade física que já tem treino começado.
+  if (r.exercicios?.length) {
+    const tk = fis.find(x => x.treino?.exercicios?.length) || fis.find(x => x.done) || fis[0];
+    const ant = tk.treino || {};
+    const reg = TRN.patchTreino({
+      modalidades: [...new Set([...(ant.modalidades || (ant.modalidade ? [ant.modalidade] : [])), ...r.modalidades])],
+      musculos: [...new Set([...(ant.musculos || []), ...r.musculos])],
+      series: ant.series || {},
+      exercicios: TRN.juntarExercicios(ant.exercicios || [], r.exercicios),
+    });
+    cardConfirmarLista(`💪 Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${r.exercicios.map(x => '• ' + _esc(TRN.fmtExercicio(x))).join('<br>')}`,
+      async () => {
+        await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
+        return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small><br>Terminou o próximo? É só me falar.`;
+      }, null);
+    return null;
+  }
   const tk = fis[0];
   const plano = tk.treino?.musculos?.length ? tk.treino.musculos : TRN.musculosDoTexto(`${tk.desc || ''} ${tk.title || ''}`);
   const reg = TRN.patchTreino({ ...r, plano });

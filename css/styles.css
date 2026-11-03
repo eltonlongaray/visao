@@ -8875,3 +8875,21 @@ body.rota-publica .bottom-nav { display: none !important; }
 .tr-serie-linha span { flex: 1; min-width: 0; }
 .tr-serie-linha input { width: 64px; padding: 7px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2); color: var(--text); font-size: 14px; text-align: center; }
 .tr-serie-linha b { color: var(--muted); font-weight: 700; }
+/* Treino por exercício (v831): bloco por músculo, + Exercício, linha sér x rep kg */
+.tr-mus-bloco { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); }
+.tr-mus-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--text); }
+.tr-add { border: 0; background: none; color: var(--accent-2); font-weight: 700; font-size: 13px; padding: 4px 0; cursor: pointer; }
+.tr-pick { margin: 6px 0 4px; }
+.tr-pick .pt-chips { gap: 6px; }
+.tr-todos { opacity: .8; }
+.tr-outro { display: flex; gap: 6px; margin-top: 6px; }
+.tr-outro input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font-size: 14px; }
+.tr-ex-linha { display: flex; align-items: center; gap: 5px; margin: 6px 0 0; font-size: 13.5px; color: var(--text); }
+.tr-ex-linha span { flex: 1; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
+.tr-ex-linha input { width: 44px; padding: 6px 2px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--text); font-size: 14px; text-align: center; }
+.tr-ex-linha input[data-c="kg"] { width: 52px; }
+.tr-ex-linha b { color: var(--muted); font-weight: 700; }
+.tr-del { border: 0; background: none; color: var(--muted); font-size: 14px; padding: 4px; cursor: pointer; }
+.tr-ex-linha input { -moz-appearance: textfield; appearance: textfield; }
+.tr-ex-linha input::-webkit-inner-spin-button, .tr-ex-linha input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.tr-ex-linha input::placeholder { font-size: 12px; }
