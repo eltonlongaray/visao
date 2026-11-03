@@ -21,6 +21,7 @@
 // BLOCO 8.18 — AGENDA ONLINE E RIFAS (LADO DO DONO) PELO PET
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
+// BLOCO 8.19 — AJUSTES PELO PET (perfil, idioma, som das notificações, exportar, sugestão)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -49,7 +50,7 @@ import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261005c';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261026a';
+import * as PN from './pet-nuvem.js?v=20261103a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261024b';
@@ -60,6 +61,7 @@ import * as PNG from './pet-negocio.js?v=20261015a';
 import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
+import * as PAJ from './pet-ajustes.js?v=20261103a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -882,6 +884,11 @@ async function dispatchCommand(text) {
     if (reply === undefined && typeof text !== 'function' && PCF.lerPedidoLembrar(semChamado(text))) reply = ajudaLembrar();
     // "Como coloco um texto pra ler enquanto gravo?": o teleprompter do gravador
     if (reply === undefined && typeof text !== 'function' && LER_GRAVANDO_RE.test(semAcento(semChamado(text)))) reply = EXPLICA_LER_GRAVANDO;
+    // Ajustes ("me chama de Tom", "silencia as notificações", "sugestão: ..."): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarAjustes(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Agenda Online e Rifas do dono ("a Maria faltou", "o João pagou o 15"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarNegocio(semChamado(text));
@@ -1193,6 +1200,10 @@ async function routeCommand(text) {
 
   const rDes = await tentarDesempenho(text);
   if (rDes !== undefined) return rDes;
+
+  // ── Ajustes: perfil, idioma, som, exportar, sugestão (BLOCO 8.19) ──
+  const rAjuste = await tentarAjustes(text);
+  if (rAjuste !== undefined) return rAjuste;
 
   // ── Configurar o app: horário padrão, tema, abrir tela, atividades (BLOCO 8.13) ──
   const rConfig = await tentarConfig(text);
@@ -6730,6 +6741,87 @@ Object.assign(PASSOS, {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.19: AJUSTES PELO PET
+// Perfil (nome, apelido, nascimento, WhatsApp), idioma, som das notificações,
+// exportar dados e enviar sugestão. Leitores em pet-ajustes.js.
+// Excluir conta, sair e biometria ficam SÓ na tela (segurança): o Pet abre os
+// Ajustes e diz onde tocar.
+// ═══════════════════════════════════════════════════════════════
+const SO_NA_TELA = {
+  excluir: 'Excluir a conta eu não faço por aqui, por segurança: só tu na tela. Abrindo os Ajustes 👉 lá embaixo, em <b>🚪 Conta › Excluir minha conta</b>.',
+  sair: 'Sair da conta é só pela tela, por segurança. Abrindo os Ajustes 👉 lá embaixo, em <b>🚪 Conta › Sair</b>.',
+  biometria: 'A biometria precisa do teu toque no celular, então é pela tela. Abrindo os Ajustes 👉 em <b>Bloqueio biométrico</b>, é só ligar ou desligar a chave.',
+};
+
+async function tentarAjustes(text) {
+  const a = PAJ.lerAjuste(semChamado(text));
+  if (!a) return undefined;
+  switch (a.tipo) {
+    case 'so_tela':
+      setTimeout(() => navigate('/ajustes'), 600);
+      return SO_NA_TELA[a.valor];
+    case 'sugestao': {
+      if (!a.valor) return 'Manda! Escreve assim que eu envio: <em>"sugestão: o que tu quer melhorar no app"</em> 💡';
+      cardConfirmarLista(`💬 Enviar sugestão:<br><em>${_esc(a.valor)}</em>`, async () => {
+        const { submitFeedback } = await import('./feedback.js');
+        await submitFeedback(a.valor);
+        return '🦅 Enviado! Obrigado pela sugestão.';
+      }, null);
+      return null;
+    }
+    case 'exportar': {
+      const pdf = a.valor === 'pdf';
+      cardConfirmarLista(pdf ? '📄 Gerar o relatório em PDF com teus dados?' : '💾 Baixar uma cópia de todos os teus dados (arquivo .json)?', async () => {
+        const m = await import('./exportar-dados.js');
+        if (pdf) { await m.openPdfReport(); return 'Pronto, o relatório abriu numa nova aba. Se não abriu, libera os pop-ups pro app.'; }
+        await m.downloadJson();
+        return 'Pronto, o download começou. O arquivo fica na pasta de Downloads.';
+      }, null);
+      return null;
+    }
+    case 'silenciar': {
+      const { getNotifMuted, setNotifMuted } = await import('./notificacoes.js');
+      if (getNotifMuted() === a.valor) return a.valor ? 'As notificações já estão no silencioso 🔕' : 'O som das notificações já está ligado 🔔';
+      setNotifMuted(a.valor);
+      return a.valor ? '🔕 Pronto, notificações no silencioso. Elas continuam chegando, só sem som. Pra voltar, me pede "volta o som das notificações".'
+        : '🔔 Pronto, som das notificações ligado de novo.';
+    }
+    case 'idioma': {
+      const { setLang, getLang } = await import('./idioma.js');
+      const nome = PAJ.NOME_IDIOMA[a.valor];
+      if (getLang() === a.valor) return `O app já está em ${nome}.`;
+      cardConfirmarLista(`🌐 Mudar o idioma do app pra <b>${nome}</b>?<br><small>Eu (o Pet) continuo conversando em português.</small>`, async () => {
+        await setLang(a.valor);
+        try { forceRender(); } catch { /* sem tela */ }
+        return `✅ Idioma: ${nome}. Pra voltar, me pede "muda o idioma pra português".`;
+      }, null);
+      return null;
+    }
+    case 'nascimento':
+      if (a.valor.semAno) return 'Me fala com o ano também, assim: <em>"nasci em 12/03/1990"</em>.';
+      return _salvarPerfil({ birthDate: a.valor.data }, `🎂 Data de nascimento: <b>${a.valor.data.split('-').reverse().join('/')}</b>`);
+    case 'whatsapp':
+      return _salvarPerfil({ phone: a.valor }, `📱 WhatsApp: <b>${_esc(a.valor)}</b>`);
+    case 'apelido':
+      return _salvarPerfil({ preferredName: a.valor }, `🙋 Te chamar de <b>${_esc(a.valor)}</b>`, `Combinado, ${_esc(a.valor)}! 🦅`);
+    case 'nome':
+      return _salvarPerfil({ fullName: a.valor }, `👤 Nome completo: <b>${_esc(a.valor)}</b>`);
+  }
+  return undefined;
+}
+
+// Mesmo caminho do botão Salvar do Meu perfil (Ajustes): grava e registra o aceite LGPD
+function _salvarPerfil(patch, resumo, okMsg = '✅ Perfil atualizado.') {
+  cardConfirmarLista(resumo, async () => {
+    await setProfile(patch);
+    try { const { recordConsent } = await import('./lgpd-consentimentos.js'); await recordConsent('perfil_contato_v1', 1); } catch { /* aceite é extra */ }
+    _redesenharTela();
+    return okMsg;
+  }, null);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════

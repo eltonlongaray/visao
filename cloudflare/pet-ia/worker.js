@@ -45,7 +45,7 @@ const SCHEMA = {
 };
 // Campos que cada ação aceita em "campo" (o resto é invenção do modelo)
 const CAMPOS = {
-  configurar: ['acordar_padrao', 'dormir_padrao', 'tema', 'abrir_tela', 'atividades_listar', 'atividade_criar', 'atividade_renomear', 'atividade_icone', 'atividade_cor', 'atividade_excluir'],
+  configurar: ['acordar_padrao', 'dormir_padrao', 'tema', 'abrir_tela', 'atividades_listar', 'atividade_criar', 'atividade_renomear', 'atividade_icone', 'atividade_cor', 'atividade_excluir', 'perfil_nome', 'perfil_apelido', 'perfil_nascimento', 'perfil_whatsapp', 'idioma', 'notificacoes_som', 'exportar', 'sugestao', 'conta_tela'],
   desempenho: ['geral', 'atividade', 'treino', 'recorde', 'sono', 'reflexao_ver', 'reflexao_anotar', 'objetivos_ver', 'objetivo_criar', 'objetivo_mudar', 'objetivo_apagar'],
   desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'doente', 'convidar', 'grupo', 'relatorio', 'nova_rodada'],
   ideal: ['ver', 'marcar', 'desmarcar', 'atividade', 'constancia'],
@@ -314,7 +314,9 @@ export function limparResposta(out, conteudo, texto = conteudo) {
   }
   for (const k of ['lista', 'para']) if (out[k] && !_citado(out[k], falado)) out[k] = '';
   // Texto que a pessoa não falou ("ml" na nota, "azul" no nome novo)
-  if (out.texto && ['nota', 'configurar', 'lista_organizar'].includes(out.acao) && !_citado(out.texto, falado)) out.texto = '';
+  // (idioma/som/exportar/conta_tela: o texto é um valor fixo da lista, não palavra da pessoa)
+  const ENUM_CFG = ['idioma', 'notificacoes_som', 'exportar', 'conta_tela'];
+  if (out.texto && ['nota', 'configurar', 'lista_organizar'].includes(out.acao) && !(out.acao === 'configurar' && ENUM_CFG.includes(out.campo)) && !_citado(out.texto, falado)) out.texto = '';
   if (out.acao === 'configurar' && out.campo === 'abrir_tela' && !out.texto && out.titulo) out.texto = out.titulo;
   if (out.acao === 'desafio' && out.campo === 'criar' && /\bamig/.test(falado)) out.texto = 'amigos';
   if (out.acao === 'desafio' && out.titulo && !_citado(out.titulo, falado)) out.titulo = '';
@@ -390,7 +392,7 @@ nota = nota do dia (diário do Ritual). campo = "orgulho" | "melhorar" | "apagar
 notas_periodo = VER o que anotou nas notas de vários dias. campo = "falhas" | "melhorias" | "tudo"; quando = o período.
 consultar_dia = ver a agenda de um dia ou semana ("o que eu tenho sexta?"). quando; campo = "passado" se pergunta o que JÁ fez.
 consultar = perguntas rápidas. consulta = "proximo_compromisso" (qual o próximo) | "tarefas_hoje" (o que falta hoje) | "agua" (quanto bebeu) | "sono" (como dormiu) | "sequencia" (dias seguidos) | "perfil_treino" | "cartao_dia" (o cartão/frase do dia).
-configurar = mudar o app. campo = "acordar_padrao" | "dormir_padrao" (hora = horário de TODO dia) | "tema" (texto = "claro" ou "escuro") | "abrir_tela" (texto = home | ritual | desempenho | desafios | preparo | chat | ajustes) | "atividades_listar" | "atividade_criar" | "atividade_renomear" | "atividade_icone" | "atividade_cor" | "atividade_excluir" (atividade = item da biblioteca de atividades da Home; titulo = a atividade; texto = nome novo, emoji ou cor).
+configurar = mudar o app. campo = "acordar_padrao" | "dormir_padrao" (hora = horário de TODO dia) | "tema" (texto = "claro" ou "escuro") | "abrir_tela" (texto = home | ritual | desempenho | desafios | preparo | chat | ajustes) | "atividades_listar" | "atividade_criar" | "atividade_renomear" | "atividade_icone" | "atividade_cor" | "atividade_excluir" (atividade = item da biblioteca de atividades da Home; titulo = a atividade; texto = nome novo, emoji ou cor). Ajustes: "perfil_nome" | "perfil_apelido" (como quer ser chamado) | "perfil_nascimento" (texto = DD/MM/AAAA) | "perfil_whatsapp" (texto = número) | "idioma" (texto = portugues | ingles | espanhol) | "notificacoes_som" (texto = "silenciar" ou "ligar") | "exportar" (texto = "pdf" ou "dados") | "sugestao" (texto = a sugestão pro app, com as palavras da pessoa) | "conta_tela" (texto = "excluir", "sair" ou "biometria": só pela tela).
 desempenho = desempenho e objetivos. campo = "geral" (% feito) | "atividade" (quantas vezes fez; titulo) | "treino" (como tá o treino: constância de cada músculo, há quantas semanas não treina perna etc.) | "recorde" (maior sequência, melhor mês) | "sono" (média de sono) | "reflexao_ver" | "reflexao_anotar" (texto) | "objetivos_ver" | "objetivo_criar" | "objetivo_mudar" | "objetivo_apagar" (titulo = atividade, numero = vezes, quando = "semana" ou "mês"). Nas consultas, quando = período.
 lista_adicionar = pôr itens numa lista. itens (um produto por posição; separa ditado sem vírgula, junta repetido, "ele" no lugar de "e" é "e"); lista (padrão "mercado"). "acabou o X" = adicionar X.
 lista_marcar = comprou/riscou itens. itens.
@@ -484,6 +486,12 @@ Pessoa: deixa a academia azul
 {"acao":"configurar","campo":"atividade_cor","titulo":"Academia","texto":"azul","resposta":"Academia fica azul."}
 Pessoa: tira a atividade Futebol da minha lista de atividades
 {"acao":"configurar","campo":"atividade_excluir","titulo":"Futebol","resposta":"Vou tirar a atividade Futebol."}
+Pessoa: quero que tu me chame de Tom daqui pra frente
+{"acao":"configurar","campo":"perfil_apelido","titulo":"Tom","resposta":"Combinado, Tom."}
+Pessoa: dá pra tirar o barulho das notificações do app?
+{"acao":"configurar","campo":"notificacoes_som","texto":"silenciar","resposta":"Notificações no silencioso."}
+Pessoa: queria deixar uma ideia pros criadores do app, colocar um cronômetro no treino
+{"acao":"configurar","campo":"sugestao","texto":"colocar um cronômetro no treino","resposta":"Vou enviar tua sugestão."}
 Pessoa: como foi minha semana passada?
 {"acao":"desempenho","campo":"geral","quando":"semana passada","resposta":"Vou ver teu desempenho da semana passada."}
 Pessoa: quantas vezes eu meditei esse mês?

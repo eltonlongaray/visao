@@ -140,6 +140,15 @@ export function fraseDoApp(j) {
         case 'atividade_icone': return nome ? `troca o ícone da atividade ${nome} pra ${valor}`.trim() : null;
         case 'atividade_cor': return nome ? `muda a cor da atividade ${nome} pra ${valor}`.trim() : null;
         case 'atividade_excluir': return nome ? `apaga a atividade ${nome}` : null;
+        case 'perfil_nome': return nome || valor ? `meu nome é ${nome || valor}` : null;
+        case 'perfil_apelido': return nome || valor ? `me chama de ${nome || valor}` : null;
+        case 'perfil_nascimento': return valor ? `nasci em ${valor}` : null;
+        case 'perfil_whatsapp': return valor ? `meu whatsapp é ${valor}` : null;
+        case 'idioma': return /ingl|engl/i.test(valor) ? 'muda o idioma pra inglês' : /espa/i.test(valor) ? 'muda o idioma pra espanhol' : /portug/i.test(valor) ? 'muda o idioma pra português' : null;
+        case 'notificacoes_som': return /lig|ativ|volt/i.test(valor) ? 'volta o som das notificações' : 'silencia as notificações';
+        case 'exportar': return /pdf|relat/i.test(valor) ? 'gera o relatório em pdf' : 'exporta meus dados';
+        case 'sugestao': return valor ? `sugestão: ${valor}` : 'tenho uma sugestão pro app';
+        case 'conta_tela': return /sair|desloga/i.test(valor) ? 'sair da conta' : /bio/i.test(valor) ? 'ativa a biometria' : /exclu|apag/i.test(valor) ? 'exclui minha conta' : null;
         default: return null;
       }
     }
