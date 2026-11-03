@@ -178,7 +178,12 @@ function _exerciciosDoTexto(t) {
     if (alvo) Object.assign(alvo.d, Object.fromEntries(Object.entries(valorSerie(m)).filter(([, v]) => v)));
     // "puxada 3x12 45": número solto logo depois das séries é a carga
     const solto = alvo && /^\s*,?\s*(\d+(?:[.,]\d+)?)\b(?!\s*(?:x\b|por\b|vezes|series?|repeticoes|repeticao|reps?|min\w*|seg\w*))/.exec(t.slice(fim));
-    if (solto) { const kg = Number(solto[1].replace(',', '.')); if (kg > 0 && kg < 1000) alvo.d.kg = kg; }
+    if (solto) {
+      const v = Number(solto[1].replace(',', '.'));
+      // "4 séries 8": o número solto é a repetição; "3x12 45": é a carga
+      if (alvo.d.s && !alvo.d.r && Number.isInteger(v) && v <= 100) alvo.d.r = v;
+      else if (v > 0 && v < 1000) alvo.d.kg = v;
+    }
   }
   // Carga: vale pro exercício falado antes ("no serrote fiz com 22 kg")
   RE_KG.lastIndex = 0;
@@ -234,7 +239,14 @@ export function lerTreinoFalado(texto) {
     for (const k of musculosDoTexto(resto)) if (k !== 'cardio' && !musculos.includes(k)) musculos.push(k);
     for (const x of exercicios) if (!musculos.includes(x.m)) musculos.push(x.m);
     if (/\b(cardio|esteira|bike)\b/.test(t)) modalidades.add('cardio');
-    return { modalidades: [...modalidades], musculos, series, exercicios };
+    // Sem o número de séries, mas os outros da mesma fala têm todos o mesmo
+    // (Élton: "...na barra, fiz três séries de 10 no serrote" — o "três" serve pros dois)
+    const ss = [...new Set(exercicios.filter(x => x.s).map(x => x.s))];
+    const supostos = [];
+    if (ss.length === 1 && exercicios.filter(x => x.s).length >= 2) {
+      for (const x of exercicios) if (!x.s && (x.r || x.kg || x.corpo)) { x.s = ss[0]; supostos.push(x.nome); }
+    }
+    return { modalidades: [...modalidades], musculos, series, exercicios, supostos };
   }
   // Músculos na ordem em que aparecem, cada um com as séries que vêm logo depois
   const pedacos = t.split(/\s(?:e|,)\s/);
