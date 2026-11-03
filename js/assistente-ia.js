@@ -5481,7 +5481,7 @@ function _rodadaMaisNova(lista) {
   return lista.filter(d => melhor.get(chave(d)) === d);
 }
 
-const _soMentor = '🧭 Tu é o mentor desse desafio: só acompanha, não manda prova. Fala <em>"como estão meus alunos?"</em> que eu te mostro como cada um está.';
+const _soMentor = '🧭 Tu é o mentor desse desafio: só acompanha, não manda prova. Fala <em>"como estão os participantes?"</em> que eu te mostro como cada um está.';
 
 // Mentor (Élton, 03/11): como cada aluno está no desafio (hoje + até ontem)
 async function desafioAlunos(d, c) {
@@ -5489,8 +5489,8 @@ async function desafioAlunos(d, c) {
   const alunos = c.parts.filter(x => x.desafio_id === d.id);
   const checks = c.checks.filter(x => x.desafio_id === d.id);
   const tit = `🧭 <b>${_esc(d.titulo)}</b>`;
-  if (!alunos.length) return `${tit}<br>Nenhum aluno entrou ainda.${d.codigo ? ` Código do convite: <b>${_esc(d.codigo)}</b>.` : ''}`;
-  if (c.M.aindaNaoComecou(d)) return `${tit}<br>${alunos.length === 1 ? '1 aluno' : `${alunos.length} alunos`} no desafio. 📅 ${c.M.textoComeca(d)}.`;
+  if (!alunos.length) return `${tit}<br>Ninguém entrou ainda.${d.codigo ? ` Código do convite: <b>${_esc(d.codigo)}</b>.` : ''}`;
+  if (c.M.aindaNaoComecou(d)) return `${tit}<br>${alunos.length === 1 ? '1 participante' : `${alunos.length} participantes`} no desafio. 📅 ${c.M.textoComeca(d)}.`;
   const rel = c.M.relatorioDoDesafio(d, alunos, checks, [], hoje);
   const meta = d.max_por_dia || d.meta_diaria;
   const linha = (g) => {
@@ -5595,8 +5595,10 @@ async function tentarDesafios(text) {
     }
     case 'alunos': {
       const meusM = c.desafios.filter(c.mentor);
+      // Quem não é mentor: "como estão os participantes?" = ranking do desafio
+      if (!meusM.length && meus.length) return escolher(meus, (d) => desafioRanking(d, c), '', 'Não achei esse desafio entre os teus 🤔');
       return escolher(meusM, (d) => desafioAlunos(d, c),
-        'Tu não é mentor de nenhum desafio agora. Pra ser, cria um desafio com amigos e escolhe <b>🧭 Só acompanhar (mentor)</b>, ou me fala <em>"cria um desafio de leitura pros meus alunos, eu só acompanho"</em>.',
+        'Tu não é mentor de nenhum desafio agora. Pra ser, cria um desafio com amigos e escolhe <b>🧭 Só acompanhar (mentor)</b>, ou me fala <em>"cria um desafio de leitura com amigos, eu só acompanho"</em>.',
         'Não achei esse desafio entre os que tu é mentor 🤔');
     }
     case 'doente':
@@ -6220,7 +6222,7 @@ function desafioCriar(p, c) {
     if (amigos && p.mentor) { try { await c.D.joinDesafio(id, nomeEu, true); mentorOk = true; } catch { /* banco sem o mentor: entra como aluno */ } }
     if (!mentorOk) { try { await c.D.joinDesafio(id, nomeEu); } catch { /* segue */ } }
     _redesenharDesafios();
-    if (mentorOk) return `Desafio criado 🏆 Tu é o <b>mentor</b>: só acompanha. Código do convite pros alunos: <b>${_esc(codigo)}</b><br>Pra ver como eles estão, me fala <em>"como estão meus alunos?"</em>.`;
+    if (mentorOk) return `Desafio criado 🏆 Tu é o <b>mentor</b>: só acompanha. Código do convite: <b>${_esc(codigo)}</b><br>Pra ver como cada um está, me fala <em>"como estão os participantes?"</em>.`;
     return amigos
       ? `Desafio criado 🏆 Código do convite: <b>${_esc(codigo)}</b><br>Manda pros amigos. Eles entram pela aba Desafios em <b>🔑 Entrar com código</b> ou me falando <em>"entra com o código ${_esc(codigo)}"</em>.<br><small>Pra combinar a prenda e escrever tuas regras, edita o desafio na tela ✏️</small>`
       : 'Desafio criado 🏆 Já te coloquei nele. Quando fizer, é só me falar.';

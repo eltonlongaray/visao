@@ -146,7 +146,8 @@ export function lerDesafio(texto) {
   // "tô doente, não consigo gravar a prova hoje" (sem falar "desafio")
   const doenteProva = /\b(doente|gripad\w*|gripe|resfriad\w*|febre|covid|dengue|virose|machuc\w*|lesion\w*)\b/.test(t) && /\b(grav\w*|prova|depoimento|video)\b/.test(t);
   // Mentor (Élton, 03/11): "como estão meus alunos?", "meu aluno está cumprindo o desafio?"
-  if (/\b(meus? alunos?|minhas? alunas?|mentorad\w*|desafiad\w*|sou (?:o )?mentor)\b/.test(t)
+  // Pode ser aluno, cliente, mentorado... (Élton: não é só aluno)
+  if (/\b((?:meus?|minhas?|os|as) (?:alunos?|alunas?|clientes?|mentorad\w*|desafiad\w*|participantes|pessoal|galera)|mentorad\w*|desafiad\w*|sou (?:o )?mentor)\b/.test(t)
     && /\b(como|estao|esta|ta|tao|cumpr\w*|andamento|acompanh\w*|ver|mostra\w*|fez|fizeram|falt\w*|quem)\b/.test(t)
     && !/\b(cri\w*|mont\w*)\b/.test(t)) return { acao: 'alunos', nome: nomeCitado(texto) };
   if (!temDesafio && !(codigo && /\b(entr\w*|participa\w*|convite)\b/.test(t)) && !fumei && !naoFumei && !recaida && !doenteProva) return null;

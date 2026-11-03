@@ -224,7 +224,7 @@ export function fraseDoApp(j) {
       switch (j.campo) {
         case 'ver': return nome ? `como tô no ${desafio}` : 'meus desafios';
         case 'ranking': return `ranking do ${desafio}`;
-        case 'alunos': return nome ? `como estão meus alunos no ${desafio}` : 'como estão meus alunos no desafio';
+        case 'alunos': return nome ? `como estão os participantes no ${desafio}` : 'como estão os participantes no desafio';
         case 'relatorio': return `relatório do ${desafio}`;
         case 'nova_rodada': {
           const q = /amanh/i.test(j.quando || '') ? ' amanhã' : /segunda/i.test(j.quando || '') ? ' segunda' : /hoje/i.test(j.quando || '') ? ' hoje' : '';
@@ -259,7 +259,7 @@ export function fraseDoApp(j) {
           if (juntar(j.itens)) return `fiz ${juntar(j.itens)} ${no}`;
           return n ? `fiz ${n}${texto ? ' ' + texto : ''} ${no}` : `marca ${no.replace(/^no /, 'o ')} como feito`;
         case 'criar': {
-          const mod = /mentor/i.test(texto) ? ' pros meus alunos, eu só acompanho' : /amig|grupo|galera/i.test(texto) ? ' com amigos' : /sozinh|s[oó] meu|individual/i.test(texto) ? ' sozinho' : '';
+          const mod = /mentor/i.test(texto) ? ' com amigos, eu só acompanho' : /amig|grupo|galera/i.test(texto) ? ' com amigos' : /sozinh|s[oó] meu|individual/i.test(texto) ? ' sozinho' : '';
           const ex = juntar(j.itens);
           if (ex) return `cria um desafio de exercício com ${ex}${n ? ` de ${n} dias` : ''}${mod}`;
           return nome ? `cria um desafio de ${nome}${n ? ` de ${n} dias` : ''}${mod}` : `cria um desafio${mod}`;

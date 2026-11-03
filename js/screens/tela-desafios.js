@@ -52,13 +52,13 @@ function _hojeDoAluno(d, cs) {
   return '✅ fez hoje';
 }
 function _painelMentor(d, alunos, checks, today) {
-  const cab = `<div class="ds-mentor-tit">🧭 <b>Tu é o mentor</b>: não faz os exercícios nem entra no ranking. Acompanha cada aluno aqui e na sala.</div>`;
-  if (!alunos.length) return `${cab}<div class="ds-prova-dica">Nenhum aluno entrou ainda. Usa o 📨 Convidar pra chamar.</div>`;
-  if (aindaNaoComecou(d)) return `${cab}<div class="ds-prova-dica">${alunos.length === 1 ? '1 aluno' : `${alunos.length} alunos`} no desafio · 📅 ${textoComeca(d)}.</div>`;
+  const cab = `<div class="ds-mentor-tit">🧭 <b>Tu é o mentor</b>: não faz os exercícios nem entra no ranking. Acompanha cada participante aqui e na sala.</div>`;
+  if (!alunos.length) return `${cab}<div class="ds-prova-dica">Ninguém entrou ainda. Usa o 📨 Convidar pra chamar.</div>`;
+  if (aindaNaoComecou(d)) return `${cab}<div class="ds-prova-dica">${alunos.length === 1 ? '1 participante' : `${alunos.length} participantes`} no desafio · 📅 ${textoComeca(d)}.</div>`;
   const rel = relatorioDoDesafio(d, alunos, checks, [], today);
   return `${cab}
     <div class="ds-rank ds-mentor">
-      <div class="ds-rank-title">👀 ${alunos.length === 1 ? 'Teu aluno' : 'Teus alunos'}</div>
+      <div class="ds-rank-title">👀 Quem tu acompanha</div>
       ${rel.gente.map(g => `
         <div class="ds-mentor-aluno">
           <div class="ds-rank-row"><span>${_esc(g.nome)}</span><span class="ds-rank-days">${_hojeDoAluno(d, checks.filter(c => c.user_id === g.user_id && c.dia === today))}</span></div>
@@ -784,7 +784,7 @@ export async function renderDesafios(app, embedded = false) {
             <button type="button" class="ds-ini-chip${mentorAtual ? '' : ' on'}" data-papel="">🙋 Participar</button>
             <button type="button" class="ds-ini-chip${mentorAtual ? ' on' : ''}" data-papel="mentor">🧭 Só acompanhar (mentor)</button>
           </div>
-          <div class="ds-papel-dica">Mentor não faz os exercícios nem entra no ranking: acompanha cada aluno (um só ou vários) e vê se ele está cumprindo o desafio.</div>
+          <div class="ds-papel-dica">Mentor não faz os exercícios nem entra no ranking: acompanha cada participante (aluno, cliente, quem for; um só ou vários) e vê se ele está cumprindo o desafio.</div>
         </div>` : ''}
 
         ${mod === 'individual' ? '' : `
