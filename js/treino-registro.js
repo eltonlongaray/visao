@@ -191,6 +191,11 @@ function _exerciciosDoTexto(t) {
     else if (!alvo.d.kg) alvo.d.corpo = true;
   }
   // O mesmo exercício falado duas vezes vira um só
+  // "rosca ... com halter" (o microfone às vezes troca "direta" por outra palavra)
+  itens.forEach((e, i) => {
+    const ate = itens[i + 1]?.ini ?? t.length;
+    if (e.nome === 'Rosca' && /\bhalter(es)?\b/.test(t.slice(e.fim, ate))) e.nome = 'Rosca direta com halteres';
+  });
   let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
   for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
   // "remada" + "remada inclinada": se só tem um específico e um completa o outro, junta
