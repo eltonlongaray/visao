@@ -342,7 +342,7 @@ function _modal(html) {
 }
 
 // Exercícios com o peso do corpo (sem carga, a não ser que a pessoa ponha)
-const CORPO = new Set(['Barra fixa', 'Flexão de braço', 'Paralelas', 'Mergulho no banco', 'Prancha', 'Abdominal', 'Elevação de pernas', 'Abdominal infra', 'Abdominal oblíquo', 'Ponte', 'Glúteo 4 apoios', 'Hiperextensão lombar']);
+const CORPO = new Set(['Barra fixa', 'Flexão de braço', 'Paralelas', 'Mergulho no banco', 'Prancha', 'Abdominal', 'Elevação de pernas', 'Abdominal infra', 'Abdominal oblíquo', 'Ponte', 'Glúteo 4 apoios', 'Hiperextensão lombar', 'Flexão diamante', 'Prancha lateral', 'Abdominal bicicleta', 'Abdominal remador', 'Escalador', 'Roda abdominal', 'Agachamento sissy']);
 // Os que a pessoa mais usa aparecem primeiro (só neste aparelho; é conveniência)
 const _RK = 'falcon_ex_recentes';
 function _recentes(k) { try { return (JSON.parse(localStorage.getItem(_RK) || '{}')[k] || []); } catch { return []; } }
