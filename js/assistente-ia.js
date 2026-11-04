@@ -861,6 +861,8 @@ async function dispatchCommand(text) {
     // "Quantas séries de barra fixa?" → "3": completa o exercício (treino falado)
     if (reply === undefined && typeof text !== 'function' && _faltaSeries) { const r = await tentarSeriesQueFaltaram(semChamado(text)); if (r !== undefined) reply = r; }
     // Card de treino aberto + "corrija…/tira o…" (Élton, 04/11): é correção do card
+    // O Pet mostrou a lista e pediu a ordem nova ("3, 1, 2"): resposta vem antes do resto
+    if (reply === undefined && typeof text !== 'function' && Date.now() - _esperaOrdem < 10 * 60e3) { const r = await tentarOrdemTreino(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && typeof text !== 'function' && _treinoPendente) { const r = await tentarCorrigirTreino(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
@@ -6826,9 +6828,11 @@ async function tentarConsultaTreino(text) {
 
 // Ordem dos exercícios (Élton, 04/11): "a ordem foi supino reto, inclinado,
 // crucifixo…" ou "primeiro fiz X, depois Y": reordena o treino de hoje
+let _esperaOrdem = 0;   // o Pet mostrou a lista e pediu a ordem nova (vale 10 min)
 function _pedacosOrdem(text) {
   const t = semAcento(String(text || '')).toLowerCase();
-  if (!/\bordem\b/.test(t) && !(/\bprimeir[oa]\b/.test(t) && /\b(depois|em seguida|por ultimo|por fim)\b/.test(t))) return null;
+  const esperando = Date.now() - _esperaOrdem < 10 * 60e3;
+  if (!esperando && !/\bordem\b/.test(t) && !(/\bprimeir[oa]\b/.test(t) && /\b(depois|em seguida|por ultimo|por fim)\b/.test(t))) return null;
   if (/\d+\s*x\s*\d+|\bseries?\b|\bkg\b|\bquilos?\b/.test(t)) return null;
   const sem = t.replace(/\b(a|o)?\s*ordem\s*(certa|correta)?\s*(foi|e|eh|era)?\b/g, ' ')
     .replace(/\b(eu|fiz|passei|passe|fui|no|na|o|a|os|as|de|do|da|exercicio|exercicios)\b/g, ' ');
@@ -6856,16 +6860,42 @@ function _ordenarPorFala(ex, pedacos) {
   return nova;
 }
 async function tentarOrdemTreino(text) {
-  const pedacos = _pedacosOrdem(text);
-  if (!pedacos) return undefined;
+  const t0 = semAcento(String(text || '')).toLowerCase();
+  // "quero mudar a ordem dos exercícios": mostra a lista numerada e espera a ordem nova
+  const pedido = /\bordem\b/.test(t0) && /\b(exercicios?|treino)\b/.test(t0) && /\b(mud\w*|troc\w*|arrum\w*|corrig\w*|alter\w*|muda|ajust\w*|organiz\w*)\b/.test(t0);
+  const esperando = Date.now() - _esperaOrdem < 10 * 60e3;
+  // "3, 1, 2, 4, 5" depois da lista
+  const nums = esperando && /^[\d\s,.;e]+$/.test(t0.trim()) ? (t0.match(/\d+/g) || []).map(Number) : null;
+  const pedacos = nums ? null : _pedacosOrdem(text);
+  if (!pedacos && !nums && !pedido) return undefined;
   const hojeId = dayId(new Date());
   const tks = await getDayTasks(hojeId).catch(() => []);
   const tk = tks.find(x => x.treino?.exercicios?.length >= 2);
+  const mostrarLista = () => {
+    _esperaOrdem = Date.now();
+    return `🔢 Hoje está assim:<br>${tk.treino.exercicios.map((x, k) => `${k + 1}. ${_esc(TRN.fmtExercicio(x))}`).join('<br>')}<br><br>Me fala a ordem certa pelos números (ex.: <em>"3, 1, 2, 4, 5"</em>) ou pelos nomes (ex.: <em>"primeiro supino reto, depois o inclinado…"</em>).`;
+  };
+  if (pedido && !tk) return 'Ainda não tem exercícios anotados hoje pra pôr em ordem.';
+  if (pedido && !pedacos) return mostrarLista();
+  if (nums && tk) {
+    const ex = tk.treino.exercicios;
+    const ok = nums.length >= 2 && nums.every(n => n >= 1 && n <= ex.length) && new Set(nums).size === nums.length;
+    if (!ok) return `Me fala os números de 1 a ${ex.length}, sem repetir (ex.: <em>"${ex.map((_, k) => k + 1).reverse().join(', ')}"</em>).`;
+    const nova = [...nums.map(n => ex[n - 1]), ...ex.filter((_, k) => !nums.includes(k + 1))];
+    _esperaOrdem = 0;
+    const reg = TRN.patchTreino({ ...tk.treino, exercicios: nova });
+    if (tk.treino.faltou) reg.patch.treino.faltou = tk.treino.faltou;
+    await updateDayTask(hojeId, tk.id, reg.patch);
+    return `🔢 Pronto, pus na ordem:<br>${nova.map((x, k) => `${k + 1}. ${_esc(TRN.fmtExercicio(x))}`).join('<br>')}`;
+  }
+  if (!pedacos) return undefined;
   // "primeiro vou na academia, depois no mercado" não é sobre o treino: segue o roteador
   const sobreTreino = /\bordem\b/.test(semAcento(text).toLowerCase()) && /\b(exercicios?|treino)\b/.test(semAcento(text).toLowerCase());
   if (!tk) return sobreTreino ? 'Ainda não tem exercícios anotados hoje pra pôr em ordem.' : undefined;
   const nova = _ordenarPorFala(tk.treino.exercicios, pedacos);
+  if (!nova && pedido) return mostrarLista();
   if (!nova) return sobreTreino ? 'Não achei esses exercícios no treino de hoje 🤔 Fala os nomes como estão no card.' : undefined;
+  _esperaOrdem = 0;
   const reg = TRN.patchTreino({ ...tk.treino, exercicios: nova });
   if (tk.treino.faltou) reg.patch.treino.faltou = tk.treino.faltou;
   await updateDayTask(hojeId, tk.id, reg.patch);
