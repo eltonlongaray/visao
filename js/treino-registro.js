@@ -78,8 +78,51 @@ export function comPesoCorpo(lista = [], pesoKg) {
 }
 // "Serrote 3x10 22 kg" (o nome sem o parêntese, pra caber)
 // Parte do peito (Élton, 04/11): "crossover parte inferior"
+// Peito em que dá pra mirar uma parte (inclinado/declinado já dizem a parte)
+export const TEM_PARTE = new Set(['Supino reto', 'Supino com halteres', 'Supino na máquina', 'Crucifixo', 'Crossover', 'Peck deck (voador)']);
 export const ROTULO_PARTE = { superior: 'parte superior', meio: 'parte do meio', inferior: 'parte inferior' };
-export const fmtExercicio = (x) => [nomeExibido(x.nome), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
+// Variação (Élton, 04/11): posição, aparelho, pegada e um lado só, pro relatório
+// ficar detalhado ("tríceps testa em pé, na polia com barra")
+const ROT_POS = { empe: 'em pé', sentado: 'sentado', deitado: 'deitado', inclinado: 'no banco inclinado', declinado: 'no banco declinado' };
+const ROT_EQUIP = { polia_barra: 'na polia com barra', polia_corda: 'na polia com corda', polia_w: 'na polia com barra W', polia: 'na polia',
+  barra_w: 'com barra W', barra: 'com barra', corda: 'com corda', halter: 'com halteres', maquina: 'na máquina', smith: 'no Smith',
+  kettlebell: 'com kettlebell', anilha: 'com anilha', elastico: 'com elástico' };
+const ROT_PEGADA = { pronada: 'pegada pronada', supinada: 'pegada supinada', neutra: 'pegada neutra', aberta: 'pegada aberta', fechada: 'pegada fechada' };
+const _POS_RE = { empe: /\b(em pe|de pe)\b/, sentado: /\bsentad[oa]s?\b/, deitado: /\bdeitad[oa]s?\b/, inclinado: /\binclinad[oa]\b/, declinado: /\bdeclinad[oa]\b/ };
+const _POS_NOME = /\s+\b(deitado|sentado|em pé|de pé)\b/;
+export function lerVariacao(txt) {
+  // "é de pé e não deitado": o que vem depois do "não" não vale
+  const t = ' ' + norm(txt).replace(/\bnao\s+(?:e\s+|eh\s+|foi\s+|era\s+)?(?:(?:com|na|no|de|em|o|a)\s+)?\w+(?:\s+(?:w|pe))?/g, ' ') + ' ';
+  const v = {};
+  for (const [k, re] of Object.entries(_POS_RE)) if (re.test(t)) { v.pos = k; break; }
+  const polia = /\b(polia|pulley|cabo|crossover)\b/.test(t), w = /\bbarra\s+w\b/.test(t);
+  const barra = /\bbarra\b/.test(t) && !/\bbarra fixa\b/.test(t), corda = /\bcorda\b/.test(t);
+  if (polia) v.equip = w ? 'polia_w' : barra ? 'polia_barra' : corda ? 'polia_corda' : 'polia';
+  else if (w) v.equip = 'barra_w';
+  else if (/\bsmith\b|\bbarra guiada\b/.test(t)) v.equip = 'smith';
+  else if (/\bhalter\w*\b|\bdumbbell\b/.test(t)) v.equip = 'halter';
+  else if (/\bmaquina\b|\baparelho\b|\barticulad[oa]\b/.test(t)) v.equip = 'maquina';
+  else if (/\bkettlebell\b/.test(t)) v.equip = 'kettlebell';
+  else if (/\banilha\b/.test(t)) v.equip = 'anilha';
+  else if (/\belastico\b|\bfaixa elastica\b/.test(t)) v.equip = 'elastico';
+  else if (corda) v.equip = 'corda';
+  else if (barra) v.equip = 'barra';
+  const pg = t.match(/\bpegada\s+(pronada|supinada|neutra|aberta|fechada)\b/);
+  if (pg) v.pegada = pg[1];
+  if (/\b(unilateral|um braco so|um braco de cada vez|uma perna so|uma perna de cada vez|um lado so)\b/.test(t)) v.uni = true;
+  return v;
+}
+export function fmtExercicio(x) {
+  let nome = nomeExibido(x.nome);
+  // Posição dita diferente da que o nome técnico traz ("deitado" → em pé): tira do nome
+  if (x.pos && ROT_POS[x.pos] && _POS_NOME.test(nome) && !norm(nome).includes(norm(ROT_POS[x.pos]))) nome = nome.replace(_POS_NOME, '');
+  const ja = norm(nome);
+  // Já está no nome ("Remada unilateral com halter" não repete "com halteres")
+  const tem = (rot) => norm(rot).split(/\s+/).filter(w => w.length > 2 && !['com', 'banco', 'pegada'].includes(w))
+    .every(w => ja.includes(w.slice(0, 5)));
+  const vari = [ROT_POS[x.pos], ROT_EQUIP[x.equip], ROT_PEGADA[x.pegada], x.uni ? 'unilateral' : ''].filter(r => r && !tem(r));
+  return [nome + (vari.length ? ', ' + vari.join(', ') : ''), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
+}
 
 // Descrição da tarefa: "Musculação: Costas (Barra fixa 3x7, Serrote 3x10 22 kg), Bíceps 4x12 + Luta"
 export function descTreino(modalidades, musculos = [], series = {}, exercicios = []) {
@@ -100,7 +143,7 @@ export function juntarExercicios(antes = [], novos = []) {
     // Mesma parte do peito (ou sem parte: corrige o que já tinha); parte diferente é outro
     const i = out.findIndex(x => x.nome === n.nome && (!n.parte || !x.parte || x.parte === n.parte));
     if (i < 0) { out.push({ ...n }); continue; }
-    for (const c of ['m', 's', 'r', 'kg', 'corpo', 'kgCorpo', 'parte']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
+    for (const c of ['m', 's', 'r', 'kg', 'corpo', 'kgCorpo', 'parte', 'pos', 'equip', 'pegada', 'uni']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
     if (n.kg) { delete out[i].corpo; delete out[i].kgCorpo; }
   }
   return out;
@@ -251,6 +294,8 @@ function _exerciciosDoTexto(t) {
     const p = _parteDo(depoisTxt) || _parteDo(antesTxt);
     if (p) e.d.parte = p;
   }
+  // Variação: o que vem no nome falado e depois dele, até o próximo exercício
+  for (const [i, e] of itens.entries()) Object.assign(e.d, lerVariacao(t.slice(e.ini, itens[i + 1]?.ini ?? t.length)));
   // O mesmo exercício falado duas vezes vira um só
   let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
   for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
