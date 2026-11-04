@@ -141,6 +141,62 @@ export const EXERCICIOS = {
   ],
 };
 
+// Nome técnico (Élton, 04/11): o Pet grava o técnico com o popular junto,
+// "Extensão de tríceps deitado (tríceps testa)". O `nome` continua sendo a
+// chave (treinos antigos e a conta por exercício não mudam).
+export const TECNICO = {
+  'Crossover': 'Crucifixo na polia',
+  'Peck deck (voador)': 'Crucifixo na máquina',
+  'Paralelas': 'Mergulho nas paralelas',
+  'Remada baixa': 'Remada sentada na polia',
+  'Serrote (remada unilateral)': 'Remada unilateral com halter',
+  'Remada cavalinho': 'Remada em T',
+  'Puxada triângulo': 'Puxada com pegada neutra',
+  'Pulldown braço reto': 'Pulldown com braços estendidos',
+  'Hiperextensão lombar': 'Extensão de tronco no banco romano',
+  'Desenvolvimento militar': 'Desenvolvimento com barra em pé',
+  'Arnold press': 'Desenvolvimento Arnold',
+  'Face pull': 'Puxada na polia para o rosto',
+  'Rosca martelo': 'Rosca com pegada neutra',
+  'Tríceps na polia com barra': ['Extensão de tríceps na polia com barra', 'tríceps pulley'],
+  'Tríceps na polia com corda': ['Extensão de tríceps na polia com corda', 'tríceps corda'],
+  'Tríceps testa': 'Extensão de tríceps deitado',
+  'Tríceps francês': 'Extensão de tríceps acima da cabeça',
+  'Tríceps coice': 'Extensão de tríceps unilateral curvado',
+  'Supino fechado': 'Supino com pegada fechada',
+  'Tríceps unilateral na polia': ['Extensão de tríceps unilateral na polia', 'tríceps unilateral'],
+  'Tríceps na máquina': ['Extensão de tríceps na máquina', 'tríceps máquina'],
+  'Flexão diamante': 'Flexão de braço com mãos juntas',
+  'Abdominal': 'Abdominal supra',
+  'Abdominal infra': 'Abdominal invertido',
+  'Roda abdominal': 'Rolamento abdominal com roda',
+  'Abdominal remador': 'Abdominal em V',
+  'Glúteo na polia': 'Extensão de quadril na polia',
+  'Abdutora': 'Abdução de quadril na máquina',
+  'Glúteo 4 apoios': 'Extensão de quadril em quatro apoios',
+  'Ponte': 'Elevação pélvica no solo',
+  'Glúteo na máquina': 'Extensão de quadril na máquina',
+  'Cadeira extensora': 'Extensão de joelhos na cadeira',
+  'Hack': 'Agachamento no hack',
+  'Adutora': 'Adução de quadril na máquina',
+  'Mesa flexora': 'Flexão de joelhos deitado',
+  'Cadeira flexora': 'Flexão de joelhos sentado',
+  'Flexora em pé': 'Flexão de joelho em pé',
+  'Stiff': 'Levantamento terra stiff',
+  'Good morning': 'Flexão de quadril com barra',
+  'Panturrilha em pé': 'Flexão plantar em pé',
+  'Panturrilha sentado': 'Flexão plantar sentado',
+  'Panturrilha no leg press': 'Flexão plantar no leg press',
+  'Panturrilha unilateral': 'Flexão plantar unilateral',
+};
+const _min = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+export function nomeExibido(nome) {
+  const pop = String(nome || '').replace(/\s*\(.*\)$/, '');
+  // [técnico, popular curto] quando o técnico já contém o nome popular
+  const [t, p = pop] = [].concat(TECNICO[nome] || []);
+  return t ? `${t} (${_min(p)})` : pop;
+}
+
 // Nome genérico ("Rosca", "Remada"): só serve pro Pet quando a pessoa não diz qual
 export const GENERICOS = new Set(['Rosca', 'Remada']);
 
