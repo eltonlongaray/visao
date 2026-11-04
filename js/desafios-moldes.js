@@ -411,18 +411,17 @@ export function regrasDoDono(d) {
 export function exerciciosDeHoje(d, meus, hoje, ontem) {
   const lista = Array.isArray(d?.exercicios) ? d.exercicios : [];
   const deHoje = meus.filter(c => c.dia === hoje && !c.doente);
-  const vezes = {};   // vídeos de hoje por exercício (séries)
+  const vezes = {};   // vídeos de hoje por exercício
   deHoje.forEach(c => { vezes[c.exercicio] = (vezes[c.exercicio] || 0) + 1; });
   const deOntem = new Set(meus.filter(c => c.dia === ontem).map(c => c.exercicio));
-  // Limite do dia conta exercícios DIFERENTES: a próxima série do mesmo passa
+  // Limite do dia conta exercícios DIFERENTES
   const cheio = d.max_por_dia && Object.keys(vezes).length >= d.max_por_dia;
   const correuHoje = !!vezes.Corrida;
   const ns = seriesDe(d);
   return lista.map(nome => {
     const v = vezes[nome] || 0;
-    if (nome === 'Corrida' ? v > 0 : v >= ns) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
-    // Exercício começado (série 1 de 3 feita): a próxima série sempre pode
-    if (v > 0) return { nome, ok: true, serie: v + 1, series: ns };
+    // Um vídeo só por exercício, com todas as séries (Élton, 04/11)
+    if (v > 0) return { nome, ok: false, feito: true, motivo: 'feito hoje' };
     // Corrida fecha o dia sozinha: fora do limite e do "não repetir"
     if (nome === 'Corrida') {
       const sem = corridaTroca(d) ? corridasDaSemana(d, meus, hoje) : null;
@@ -432,18 +431,18 @@ export function exerciciosDeHoje(d, meus, hoje, ontem) {
     if (correuHoje) return { nome, ok: false, motivo: 'o dia fechou com a corrida' };
     if (d.nao_repetir !== false && deOntem.has(nome)) return { nome, ok: false, motivo: 'feito ontem' };
     if (cheio) return { nome, ok: false, motivo: 'limite do dia' };
-    return ns > 1 ? { nome, ok: true, serie: 1, series: ns } : { nome, ok: true };
+    return ns > 1 ? { nome, ok: true, series: ns } : { nome, ok: true };
   });
 }
 
-// Séries por exercício (migration/desafios-series.sql): cada série é um vídeo,
-// o exercício só conta no dia depois da última. 1 = sem séries.
+// Séries por exercício (migration/desafios-serie-video-unico.sql): todas as
+// séries vão num vídeo só, com pausa ⏸ entre elas (Élton, 04/11). 1 = sem séries.
 export const seriesDe = (d) => Math.min(5, Math.max(1, parseInt(d?.series, 10) || 1));
 export const textoSeries = (d) => seriesDe(d) > 1
-  ? `${seriesDe(d)} séries de cada exercício, um vídeo por série`
+  ? `${seriesDe(d)} séries de cada exercício, todas num vídeo só (⏸ pausa entre uma série e outra)`
   : '';
-// Rótulo do exercício na hora de gravar: "Flexão · série 2 de 3"
-export const rotuloSerie = (x) => x?.series > 1 && x.serie ? `${x.nome} · série ${x.serie} de ${x.series}` : (x?.nome || '');
+// Rótulo do exercício na hora de gravar: "Flexão · 3 séries"
+export const rotuloSerie = (x) => x?.series > 1 && x.nome !== 'Corrida' ? `${x.nome} · ${x.series} séries` : (x?.nome || '');
 
 // Quantos exercícios contam hoje: a corrida vale o dia todo (= o limite)
 export function feitosHoje(lista, lim) {
