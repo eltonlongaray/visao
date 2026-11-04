@@ -6623,7 +6623,12 @@ async function tentarTreinoFalado(text, pronto = null, dado = null) {
     if (aberto && !pronto) {
       corrigiu = r.exercicios.map(x => x.nome);
       r.supostos = [...(pend.supostos || []).filter(n => !r.exercicios.some(x => x.nome === n && x.s)), ...(r.supostos || [])];
-      r.exercicios = TRN.juntarExercicios(pend.exercicios, r.exercicios);
+      // "o crossover foi parte superior": só troca a parte do que já estava no card
+      for (const n of r.exercicios) {
+        const mesmos = pend.exercicios.filter(x => x.nome === n.nome);
+        if (n.parte && mesmos.length === 1 && n.s == null && n.r == null && n.kg == null) mesmos[0].parte = n.parte;
+      }
+      r.exercicios = TRN.juntarExercicios(pend.exercicios, r.exercicios.filter(n => !(n.parte && n.s == null && n.r == null && n.kg == null && pend.exercicios.filter(x => x.nome === n.nome).length === 1)));
       r.modalidades = [...new Set([...(pend.modalidades || []), ...r.modalidades])];
       r.musculos = [...new Set([...(pend.musculos || []), ...r.musculos])];
       const ok = pend.div.querySelector('[data-ok]'), nao = pend.div.querySelector('[data-nao]');
