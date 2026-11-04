@@ -2919,6 +2919,8 @@ body.time-picker-open { overflow: hidden; }
 }
 .reminder-body { flex: 1; min-width: 0; }
 .reminder-task-title { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+/* Descrição (Élton, 04/11): "Contas a pagar" sem dizer qual conta */
+.reminder-task-desc { font-size: 12px; color: var(--muted); line-height: 1.3; margin: -2px 0 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .reminder-section-label {
   font-size: 11px;
   color: var(--accent-2);
