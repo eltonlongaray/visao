@@ -17,6 +17,7 @@ import { fetchDaysRange, getProfile } from './banco-dados.js';
 import { trapModalBack } from './modal-voltar.js';
 import { GRUPOS_MUS, MUSCULOS, getPerfilTreino } from './perfil-treino-ui.js';
 import { EXERCICIOS, GENERICOS, acharExercicios, nomeExibido } from './treino-exercicios.js';
+import { svgExercicio } from './treino-desenhos.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -547,8 +548,8 @@ function _popupFisica(cat, task, inicial = null) {
               <div class="tr-mus-cab"><b>${esc(nomeMusculo(k))}</b>
                 <button type="button" class="tr-add" data-add="${k}">${abertoEm === k ? 'Fechar' : '+ Exercício'}</button></div>
               ${abertoEm === k ? `<div class="tr-pick">
-                <div class="pt-chips">${mostra.map(e => `<button type="button" class="pt-chip mini" data-ex="${k}" data-nome="${esc(e.nome)}">${esc(e.nome)}</button>`).join('')}
-                  ${lista.length > curtos.length ? `<button type="button" class="pt-chip mini tr-todos" data-todos="${k}">${todosEm === k ? 'Menos ▴' : 'Ver todos ▾'}</button>` : ''}</div>
+                <div class="tr-ex-grade">${mostra.map(e => `<button type="button" class="tr-ex-card" data-ex="${k}" data-nome="${esc(e.nome)}">${svgExercicio(e.nome)}<span>${esc(e.nome)}</span></button>`).join('')}</div>
+                ${lista.length > curtos.length ? `<div class="pt-chips"><button type="button" class="pt-chip mini tr-todos" data-todos="${k}">${todosEm === k ? 'Menos ▴' : 'Ver todos ▾'}</button></div>` : ''}
                 <div class="tr-outro"><input type="text" maxlength="40" data-outro="${k}" placeholder="Outro: escreve o nome"><button type="button" class="pt-chip mini" data-outro-ok="${k}">Adicionar</button></div>
               </div>` : ''}
               ${meus.map(({ x, i }) => `<div class="tr-ex-linha">
