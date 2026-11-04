@@ -77,7 +77,9 @@ export function comPesoCorpo(lista = [], pesoKg) {
   return lista.map(x => x?.corpo && !x.kg && kg && !x.kgCorpo ? { ...x, kgCorpo: kg } : x);
 }
 // "Serrote 3x10 22 kg" (o nome sem o parêntese, pra caber)
-export const fmtExercicio = (x) => [String(x.nome).replace(/\s*\(.*\)$/, ''), fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
+// Parte do peito (Élton, 04/11): "crossover parte inferior"
+export const ROTULO_PARTE = { superior: 'parte superior', meio: 'parte do meio', inferior: 'parte inferior' };
+export const fmtExercicio = (x) => [String(x.nome).replace(/\s*\(.*\)$/, ''), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
 
 // Descrição da tarefa: "Musculação: Costas (Barra fixa 3x7, Serrote 3x10 22 kg), Bíceps 4x12 + Luta"
 export function descTreino(modalidades, musculos = [], series = {}, exercicios = []) {
@@ -95,9 +97,10 @@ export function descTreino(modalidades, musculos = [], series = {}, exercicios =
 export function juntarExercicios(antes = [], novos = []) {
   const out = antes.map(x => ({ ...x }));
   for (const n of novos) {
-    const i = out.findIndex(x => x.nome === n.nome);
+    // Mesma parte do peito (ou sem parte: corrige o que já tinha); parte diferente é outro
+    const i = out.findIndex(x => x.nome === n.nome && (!n.parte || !x.parte || x.parte === n.parte));
     if (i < 0) { out.push({ ...n }); continue; }
-    for (const c of ['m', 's', 'r', 'kg', 'corpo', 'kgCorpo']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
+    for (const c of ['m', 's', 'r', 'kg', 'corpo', 'kgCorpo', 'parte']) if (n[c] != null && n[c] !== false) out[i][c] = n[c];
     if (n.kg) { delete out[i].corpo; delete out[i].kgCorpo; }
   }
   return out;
@@ -177,6 +180,13 @@ const valorSerie = (m) => m[1] ? { s: num(m[1]), r: num(m[2]) }
   : { s: num(m[9]), r: num(m[10]) };
 const kgDo = (m) => m[1] || m[3] ? { kg: Number(String(m[1] || m[3]).replace(',', '.')) } : { corpo: true };
 
+const RE_PARTE = /\b(?:(?:parte|porcao|regiao|feixe)\s+(?:d[aeo]\s+)?(?:peito\s+|peitoral\s+)?(superior|de cima|alta|media|do meio|meio|central|inferior|de baixo|baixa)|(?:peito|peitoral)\s+(superior|alto|de cima|medio|do meio|inferior|baixo|de baixo)|(superior|inferior))\b/;
+function _parteDo(txt) {
+  const m = RE_PARTE.exec(txt);
+  const v = m && (m[1] || m[2] || m[3]);
+  if (!v) return null;
+  return /^(superior|de cima|alta|alto)$/.test(v) ? 'superior' : /^(inferior|de baixo|baixa|baixo)$/.test(v) ? 'inferior' : 'meio';
+}
 function _exerciciosDoTexto(t) {
   const es = acharExercicios(t);
   if (!es.length) return [];
@@ -210,6 +220,16 @@ function _exerciciosDoTexto(t) {
     if (v.kg) { if (v.kg > 0 && v.kg < 1000) { alvo.d.kg = v.kg; delete alvo.d.corpo; } }
     else if (!alvo.d.kg) alvo.d.corpo = true;
   }
+  // Parte do peito: superior / meio / inferior, dita perto do exercício
+  // (primeiro o que vem depois dele, até o próximo exercício; senão o de antes)
+  for (const e of itens) {
+    if (e.m !== 'peito') continue;
+    const i = itens.indexOf(e);
+    const depoisTxt = t.slice(e.fim, itens[i + 1]?.ini ?? t.length);
+    const antesTxt = t.slice(itens[i - 1]?.fim ?? 0, e.ini);
+    const p = _parteDo(depoisTxt) || _parteDo(antesTxt);
+    if (p) e.d.parte = p;
+  }
   // O mesmo exercício falado duas vezes vira um só
   let lista = juntarExercicios([], itens.map(e => ({ m: e.m, nome: e.nome, ...e.d })));
   for (const x of lista) if (!x.kg && CORPO.has(x.nome)) x.corpo = true;
@@ -240,7 +260,7 @@ export function lerTreinoFalado(texto) {
   // Sem "fiz/treinei", vale se citou exercício com séries ou carga ("remada 4x8 50 kg")
   // "a carga do peito foi 25 kg" também é treino (Élton, 04/11: virava o peso do corpo)
   const carga = /\bcarga\b/.test(t) && RE_KG.test(t); RE_KG.lastIndex = 0;
-  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && temNumero) && !(carga && musculosDoTexto(t).length)) return null;
+  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && (temNumero || exercicios.some(x => x.parte))) && !(carga && musculosDoTexto(t).length)) return null;
   const modalidades = new Set();
   if (/\b(muscula\w*|academia|malhei|treino de|series?|\d+\s*x\s*\d+)\b/.test(t)) modalidades.add('musculacao');
   if (/\b(crossfit|cross)\b/.test(t)) modalidades.add('crossfit');
@@ -402,7 +422,7 @@ function _popupFisica(cat, task, inicial = null) {
                 <div class="tr-outro"><input type="text" maxlength="40" data-outro="${k}" placeholder="Outro: escreve o nome"><button type="button" class="pt-chip mini" data-outro-ok="${k}">Adicionar</button></div>
               </div>` : ''}
               ${meus.map(({ x, i }) => `<div class="tr-ex-linha">
-                <span>${esc(String(x.nome).replace(/\s*\(.*\)$/, ''))}</span>
+                <span>${esc(String(x.nome).replace(/\s*\(.*\)$/, ''))}${x.parte ? ` <small>${esc(ROTULO_PARTE[x.parte])}</small>` : ''}</span>
                 ${inp(i, 's', 'sér', 20, x)}<b>x</b>${inp(i, 'r', 'rep', 100, x)}${inp(i, 'kg', x.corpo ? 'corpo' : 'kg', 999, x)}
                 <button type="button" class="tr-del" data-del="${i}" aria-label="Tirar">✕</button></div>`).join('')}
               ${!meus.length && series[k] ? `<div class="tr-serie-linha"><span>Séries do músculo</span>
