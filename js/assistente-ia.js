@@ -6616,6 +6616,7 @@ function _treinoAberto() {
 async function tentarCorrigirTreino(text) {
   if (!_treinoAberto()) return undefined;
   const t = semAcento(String(text || '')).toLowerCase();
+  if (_pedacosOrdem(text)) return undefined;   // "a ordem foi…" não é correção do card
   const tira = RE_TREINO_TIRA.test(t);
   const r = TRN.lerTreinoFalado(text, { livre: true });
   if (!r?.exercicios?.length) {
@@ -6823,7 +6824,57 @@ async function tentarConsultaTreino(text) {
   } catch (e) { console.warn('[pet-consulta-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
 }
 
+// Ordem dos exercícios (Élton, 04/11): "a ordem foi supino reto, inclinado,
+// crucifixo…" ou "primeiro fiz X, depois Y": reordena o treino de hoje
+function _pedacosOrdem(text) {
+  const t = semAcento(String(text || '')).toLowerCase();
+  if (!/\bordem\b/.test(t) && !(/\bprimeir[oa]\b/.test(t) && /\b(depois|em seguida|por ultimo|por fim)\b/.test(t))) return null;
+  if (/\d+\s*x\s*\d+|\bseries?\b|\bkg\b|\bquilos?\b/.test(t)) return null;
+  const sem = t.replace(/\b(a|o)?\s*ordem\s*(certa|correta)?\s*(foi|e|eh|era)?\b/g, ' ')
+    .replace(/\b(eu|fiz|passei|passe|fui|no|na|o|a|os|as|de|do|da|exercicio|exercicios)\b/g, ' ');
+  const ps = sem.split(/,|;|\.|\b(?:e|depois|em seguida|entao|primeiro|primeira|segundo|terceiro|por ultimo|por fim|e por fim)\b/)
+    .map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length > 2);
+  return ps.length >= 2 ? ps : null;
+}
+// Casa cada pedaço falado com um exercício do treino pelas palavras em comum
+// ("inclinado" → Supino inclinado; "crucifixo" → Crucifixo na polia (crossover))
+function _ordenarPorFala(ex, pedacos) {
+  const rot = ex.map(x => semAcento(`${x.nome} ${TRN.fmtExercicio({ ...x, s: null, r: null, kg: null, corpo: null, kgCorpo: null })}`).toLowerCase());
+  const usados = new Set(), nova = [];
+  for (const p of pedacos) {
+    const ws = p.split(' ').filter(w => w.length > 3);
+    let melhor = -1, nota = 0;
+    ex.forEach((x, k) => {
+      if (usados.has(k)) return;
+      const n = ws.filter(w => new RegExp(`\\b${w.slice(0, 6)}`).test(rot[k])).length;
+      if (n > nota) { nota = n; melhor = k; }
+    });
+    if (melhor >= 0) { usados.add(melhor); nova.push(ex[melhor]); }
+  }
+  if (nova.length < 2) return null;
+  ex.forEach((x, k) => { if (!usados.has(k)) nova.push(x); });
+  return nova;
+}
+async function tentarOrdemTreino(text) {
+  const pedacos = _pedacosOrdem(text);
+  if (!pedacos) return undefined;
+  const hojeId = dayId(new Date());
+  const tks = await getDayTasks(hojeId).catch(() => []);
+  const tk = tks.find(x => x.treino?.exercicios?.length >= 2);
+  // "primeiro vou na academia, depois no mercado" não é sobre o treino: segue o roteador
+  const sobreTreino = /\bordem\b/.test(semAcento(text).toLowerCase()) && /\b(exercicios?|treino)\b/.test(semAcento(text).toLowerCase());
+  if (!tk) return sobreTreino ? 'Ainda não tem exercícios anotados hoje pra pôr em ordem.' : undefined;
+  const nova = _ordenarPorFala(tk.treino.exercicios, pedacos);
+  if (!nova) return sobreTreino ? 'Não achei esses exercícios no treino de hoje 🤔 Fala os nomes como estão no card.' : undefined;
+  const reg = TRN.patchTreino({ ...tk.treino, exercicios: nova });
+  if (tk.treino.faltou) reg.patch.treino.faltou = tk.treino.faltou;
+  await updateDayTask(hojeId, tk.id, reg.patch);
+  return `🔢 Pronto, pus na ordem:<br>${nova.map((x, k) => `${k + 1}. ${_esc(TRN.fmtExercicio(x))}`).join('<br>')}`;
+}
+
 async function tentarDesempenho(text) {
+  const rO = await tentarOrdemTreino(text);
+  if (rO !== undefined) return rO;
   const rC = await tentarConsultaTreino(text);
   if (rC !== undefined) return rC;
   const rF = await tentarTreinoFalado(text);
