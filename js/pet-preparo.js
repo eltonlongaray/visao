@@ -141,6 +141,9 @@ function pausa(t) {
 // BLOCO 3: CORPO
 // ═══════════════════════════════════════════════════════════════
 function peso(t) {
+  // Carga do treino não é o peso do corpo (Élton, 04/11: "a carga do peito foi 25 kg")
+  if (/\b(carga|series?|repeticoes|supino|remada|rosca|agachamento|halter\w*|barra|anilha\w*)\b/.test(t)
+    || (/\b(peito|costas|ombros?|biceps|triceps|gluteos?|quadriceps|posterior|panturrilhas?|trapezio|abdomen)\b/.test(t) && !/\b(meu peso|peso corporal|pesando|pesei|eu peso)\b/.test(t))) return null;
   const m = t.match(new RegExp(`\\b(?:peso|pesando|pesei|estou com|to com|tô com)\\s+(?:e |eh |ta |esta |de |atual |hoje |agora |pra |para |em )*(\\d{2,3}(?:\\.\\d)?)\\s*(?:kg|quilos?|kilos?)?\\b`)) ||
             t.match(/\b(\d{2,3}(?:\.\d)?)\s*(?:kg|quilos?|kilos?)\b(?!\s*d[eao]s?\b)/);
   if (!m) return null;

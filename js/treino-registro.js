@@ -85,7 +85,7 @@ export function descTreino(modalidades, musculos = [], series = {}, exercicios =
   for (const x of exercicios) if (x.m && !mus.includes(x.m)) mus.push(x.m);
   const parteMus = (k) => {
     const ex = exercicios.filter(x => x.m === k);
-    return ex.length ? `${nomeMusculo(k)} (${ex.map(fmtExercicio).join(', ')})` : [nomeMusculo(k), fmtSerie(series[k])].filter(Boolean).join(' ');
+    return ex.length ? `${nomeMusculo(k)} (${ex.map(fmtExercicio).join(', ')})` : [nomeMusculo(k), fmtSerie(series[k]), fmtKg(series[k])].filter(Boolean).join(' ');
   };
   return MODALIDADES.filter(x => modalidades.includes(x.k)).map(x => x.k === 'musculacao' && mus.length
     ? `${x.nome}: ${mus.map(parteMus).join(', ')}` : x.nome).join(' + ');
@@ -117,7 +117,7 @@ export function patchTreino({ modalidades, musculos = [], series = {}, exercicio
   const ex = musc ? comPesoCorpo(exercicios.filter(x => x?.nome && x?.m), pesoKg) : [];
   const mus = musc ? [...musculos] : [];
   for (const x of ex) if (!mus.includes(x.m)) mus.push(x.m);
-  const ser = Object.fromEntries(Object.entries(series).filter(([k, v]) => mus.includes(k) && (v?.s || v?.r)));
+  const ser = Object.fromEntries(Object.entries(series).filter(([k, v]) => mus.includes(k) && (v?.s || v?.r || v?.kg)));
   const faltou = musc ? plano.filter(k => !mus.includes(k)) : [];
   const limpo = ex.map(x => Object.fromEntries(Object.entries(x).filter(([, v]) => v != null && v !== false && v !== '')));
   return {
@@ -238,7 +238,9 @@ export function lerTreinoFalado(texto) {
   const temNumero = RE_SERIE.test(t) || RE_KG.test(t);
   RE_SERIE.lastIndex = 0; RE_KG.lastIndex = 0;
   // Sem "fiz/treinei", vale se citou exercício com séries ou carga ("remada 4x8 50 kg")
-  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && temNumero)) return null;
+  // "a carga do peito foi 25 kg" também é treino (Élton, 04/11: virava o peso do corpo)
+  const carga = /\bcarga\b/.test(t) && RE_KG.test(t); RE_KG.lastIndex = 0;
+  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && temNumero) && !(carga && musculosDoTexto(t).length)) return null;
   const modalidades = new Set();
   if (/\b(muscula\w*|academia|malhei|treino de|series?|\d+\s*x\s*\d+)\b/.test(t)) modalidades.add('musculacao');
   if (/\b(crossfit|cross)\b/.test(t)) modalidades.add('crossfit');
@@ -281,7 +283,20 @@ export function lerTreinoFalado(texto) {
   }
   if (musculos.length) modalidades.add('musculacao');
   if (!musculos.length && !modalidades.size) return null;
+  // Carga sem o exercício ("3x10 com 25 kg de peito"): fica no músculo (Élton, 04/11)
+  const fortes = musculos.filter(k => k !== 'cardio');
+  if (fortes.length === 1) {
+    RE_KG.lastIndex = 0;
+    const mk = RE_KG.exec(t); RE_KG.lastIndex = 0;
+    const v = mk ? kgDo(mk) : null;
+    if (v?.kg > 0 && v.kg < 1000) series[fortes[0]] = { ...(series[fortes[0]] || {}), kg: v.kg };
+  }
   return { modalidades: [...modalidades], musculos, series, exercicios: [] };
+}
+
+// Os exercícios mais comuns do músculo (pro Pet perguntar qual foi)
+export function exerciciosTop(m, n = 5) {
+  return (EXERCICIOS[m] || []).filter(e => e.top && !GENERICOS.has(e.nome)).slice(0, n).map(e => e.nome);
 }
 
 // ═══════════════════════════════════════════════════════════════

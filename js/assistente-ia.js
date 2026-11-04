@@ -48,7 +48,7 @@ import {
 } from './ferramentas.js';
 import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
-import * as PP from './pet-preparo.js?v=20261005c';
+import * as PP from './pet-preparo.js?v=20261104a';
 import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261103b';
 import * as PNT from './pet-nota.js?v=20261006a';
@@ -6602,8 +6602,8 @@ async function tentarSeriesQueFaltaram(text) {
   return tentarTreinoFalado(null, { modalidades: ['musculacao'], musculos: [f.m], series: {}, exercicios: [{ m: f.m, nome: f.nome, s }] });
 }
 
-async function tentarTreinoFalado(text, pronto = null) {
-  const r = pronto || TRN.lerTreinoFalado(text);
+async function tentarTreinoFalado(text, pronto = null, dado = null) {
+  const r = pronto || dado || TRN.lerTreinoFalado(text);
   if (!r || (!r.musculos.length && !Object.keys(r.series).length && !r.exercicios?.length)) return undefined;
   const hojeId = dayId(new Date());
   const [tks, cats] = await Promise.all([getDayTasks(hojeId).catch(() => []), getCategories().catch(() => [])]);
@@ -6662,14 +6662,38 @@ async function tentarTreinoFalado(text, pronto = null) {
     if (!pronto) _treinoPendente = { div, tkId: tk.id, em: Date.now(), exercicios: r.exercicios, supostos: r.supostos || [], modalidades: r.modalidades, musculos: r.musculos };
     return null;
   }
-  const tk = fis[0];
-  const plano = tk.treino?.musculos?.length ? tk.treino.musculos : TRN.musculosDoTexto(`${tk.desc || ''} ${tk.title || ''}`);
-  const reg = TRN.patchTreino({ ...r, plano });
-  cardConfirmarLista(`💪 Registrar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${_esc(reg.patch.desc)}${tk.done ? '<br><small>Ela já estava marcada: só atualizo o que tu treinou.</small>' : ''}`,
+  const tk = fis.find(x => x.treino?.musculos?.length) || fis[0];
+  const ant = tk.treino || {};
+  const plano = ant.musculos?.length ? ant.musculos : TRN.musculosDoTexto(`${tk.desc || ''} ${tk.title || ''}`);
+  // Soma com o que já foi registrado hoje (Élton, 04/11: "a carga do peito foi
+  // 25 kg" depois de "peito 3x10" completa o peito, não apaga o 3x10)
+  const series = { ...(ant.series || {}) };
+  for (const [k, v] of Object.entries(r.series)) series[k] = { ...(series[k] || {}), ...v };
+  const reg = TRN.patchTreino({
+    modalidades: [...new Set([...(ant.modalidades || (ant.modalidade ? [ant.modalidade] : [])), ...r.modalidades])],
+    musculos: [...new Set([...(ant.musculos || []), ...r.musculos])],
+    series, exercicios: ant.exercicios || [], plano,
+  });
+  const div = cardConfirmarLista(`💪 Registrar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${_esc(reg.patch.desc)}${tk.done ? '<br><small>Ela já estava marcada: só somo o que tu falou.</small>' : ''}`,
     async () => {
       await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
       return reg.msg || 'Treino registrado 💪';
     }, null);
+  // Um músculo com séries ou carga, sem o exercício: pergunta qual foi (opcional)
+  const fortes = r.musculos.filter(k => k !== 'cardio');
+  const v = fortes.length === 1 ? r.series[fortes[0]] : null;
+  if (v && (v.s || v.r || v.kg)) {
+    const m = fortes[0];
+    const top = TRN.exerciciosTop(m);
+    if (top.length) addChoices(`Qual exercício de ${_esc(TRN.nomeMusculo(m).toLowerCase())} foi? <small>(se quiser, pra ficar mais certinho)</small>`, top.map(nome => ({
+      label: nome.replace(/\s*\(.*\)$/, ''),
+      action: async () => {
+        const ok = div?.querySelector('[data-ok]:not(:disabled)');
+        if (ok) { ok.remove(); const nao = div.querySelector('[data-nao]'); if (nao) { nao.disabled = true; nao.textContent = 'Trocado abaixo ↓'; } }
+        return tentarTreinoFalado('', null, { modalidades: ['musculacao'], musculos: [m], series: {}, exercicios: [{ m, nome, ...v }] });
+      },
+    })));
+  }
   return null;
 }
 
