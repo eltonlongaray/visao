@@ -353,6 +353,7 @@ function reminderItemsHtml(list, emptyMsg) {
       </div>
       <div class="reminder-body">
         <div class="reminder-task-title">${escape(r.title)}</div>
+        ${r.desc ? `<div class="reminder-task-desc">${escape(r.desc)}</div>` : ''}
         ${cat ? `<span class="task-tag" style="color:${cat.color};background:${hexA(cat.color,0.15)}">${escape(cat.name)}</span>` : ''}
       </div>
     </div>`;
