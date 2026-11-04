@@ -71,8 +71,8 @@ export const EXERCICIOS = {
     E('Rosca', ['rosca']),     // genérico
   ],
   triceps: [
-    E('Tríceps na polia', ['triceps na polia', 'triceps pulley', 'triceps polia', 'triceps barra', 'pulley de triceps'], true),
-    E('Tríceps corda', ['triceps corda', 'triceps na corda', 'corda'], true),
+    E('Tríceps na polia com barra', ['triceps na polia', 'triceps pulley', 'triceps polia', 'triceps barra', 'pulley de triceps', 'triceps na polia com barra', 'triceps na polia com a barra', 'triceps polia com barra', 'triceps pulley com barra', 'triceps com barra', 'triceps com a barra', 'triceps na barra', 'triceps de barra', 'polia com barra', 'pulley com barra'], true),
+    E('Tríceps na polia com corda', ['triceps corda', 'triceps na corda', 'corda', 'triceps na polia com corda', 'triceps na polia com a corda', 'triceps polia com corda', 'triceps pulley com corda', 'triceps com corda', 'triceps com a corda', 'triceps de corda', 'polia com corda', 'pulley com corda'], true),
     E('Tríceps testa', ['triceps testa', 'testa'], true),
     E('Tríceps francês', ['triceps frances', 'frances'], true),
     E('Mergulho no banco', ['mergulho no banco', 'triceps banco', 'triceps no banco']),
