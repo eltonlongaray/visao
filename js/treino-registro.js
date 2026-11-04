@@ -16,7 +16,7 @@
 import { fetchDaysRange, getProfile } from './banco-dados.js';
 import { trapModalBack } from './modal-voltar.js';
 import { GRUPOS_MUS, MUSCULOS, getPerfilTreino } from './perfil-treino-ui.js';
-import { EXERCICIOS, GENERICOS, acharExercicios } from './treino-exercicios.js';
+import { EXERCICIOS, GENERICOS, acharExercicios, nomeExibido } from './treino-exercicios.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -79,7 +79,7 @@ export function comPesoCorpo(lista = [], pesoKg) {
 // "Serrote 3x10 22 kg" (o nome sem o parêntese, pra caber)
 // Parte do peito (Élton, 04/11): "crossover parte inferior"
 export const ROTULO_PARTE = { superior: 'parte superior', meio: 'parte do meio', inferior: 'parte inferior' };
-export const fmtExercicio = (x) => [String(x.nome).replace(/\s*\(.*\)$/, ''), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
+export const fmtExercicio = (x) => [nomeExibido(x.nome), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
 
 // Descrição da tarefa: "Musculação: Costas (Barra fixa 3x7, Serrote 3x10 22 kg), Bíceps 4x12 + Luta"
 export function descTreino(modalidades, musculos = [], series = {}, exercicios = []) {
@@ -439,7 +439,7 @@ function _popupFisica(cat, task, inicial = null) {
                 <div class="tr-outro"><input type="text" maxlength="40" data-outro="${k}" placeholder="Outro: escreve o nome"><button type="button" class="pt-chip mini" data-outro-ok="${k}">Adicionar</button></div>
               </div>` : ''}
               ${meus.map(({ x, i }) => `<div class="tr-ex-linha">
-                <span>${esc(String(x.nome).replace(/\s*\(.*\)$/, ''))}${x.parte ? ` <small>${esc(ROTULO_PARTE[x.parte])}</small>` : ''}</span>
+                <span>${esc(nomeExibido(x.nome))}${x.parte ? ` <small>${esc(ROTULO_PARTE[x.parte])}</small>` : ''}</span>
                 ${inp(i, 's', 'sér', 20, x)}<b>x</b>${inp(i, 'r', 'rep', 100, x)}${inp(i, 'kg', x.corpo ? 'corpo' : 'kg', 999, x)}
                 <button type="button" class="tr-del" data-del="${i}" aria-label="Tirar">✕</button></div>`).join('')}
               ${!meus.length && series[k] ? `<div class="tr-serie-linha"><span>Séries do músculo</span>
