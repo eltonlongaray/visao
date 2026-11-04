@@ -187,8 +187,24 @@ function _parteDo(txt) {
   if (!v) return null;
   return /^(superior|de cima|alta|alto)$/.test(v) ? 'superior' : /^(inferior|de baixo|baixa|baixo)$/.test(v) ? 'inferior' : 'meio';
 }
+// "tríceps com barra testa", "tríceps testa na polia com barra" (Élton, 04/11):
+// o pedaço que só fala do aparelho, colado em outro exercício do mesmo músculo,
+// descreve esse outro, não é um exercício a mais
+const _EQUIP = /\b(barra|corda|polia|pulley|cabo|halter\w*|maquina|smith|anilha)\b/;
+function _juntarColados(t, es) {
+  for (let i = es.length - 1; i > 0; i--) {
+    const a = es[i - 1], b = es[i];
+    if (a.m !== b.m || !/^\s*(?:(?:de|da|do|com|na|no|a|o)\s+)*$/.test(t.slice(a.fim, b.ini))) continue;
+    const ea = _EQUIP.test(t.slice(a.ini, a.fim)), eb = _EQUIP.test(t.slice(b.ini, b.fim));
+    if (ea === eb) continue;
+    const fica = ea ? b : a;
+    es.splice(i - 1, 2, { ...fica, ini: a.ini, fim: b.fim });
+  }
+  return es;
+}
+
 function _exerciciosDoTexto(t) {
-  const es = acharExercicios(t);
+  const es = _juntarColados(t, acharExercicios(t));
   if (!es.length) return [];
   const itens = es.map(e => ({ ...e, d: {} }));
   const antes = (pos) => [...itens].reverse().find(e => e.fim <= pos);
@@ -251,7 +267,8 @@ function _exerciciosDoTexto(t) {
   return lista;
 }
 
-export function lerTreinoFalado(texto) {
+// `livre`: com um card aberto pra corrigir, o nome do exercício sozinho já vale
+export function lerTreinoFalado(texto, { livre = false } = {}) {
   const t = ' ' + numeraliza(norm(texto).replace(/[,;.!?]/g, ' , ')) + ' ';
   const exercicios = _exerciciosDoTexto(t);
   RE_SERIE.lastIndex = 0; RE_KG.lastIndex = 0;
@@ -260,7 +277,7 @@ export function lerTreinoFalado(texto) {
   // Sem "fiz/treinei", vale se citou exercício com séries ou carga ("remada 4x8 50 kg")
   // "a carga do peito foi 25 kg" também é treino (Élton, 04/11: virava o peso do corpo)
   const carga = /\bcarga\b/.test(t) && RE_KG.test(t); RE_KG.lastIndex = 0;
-  if (!/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && (temNumero || exercicios.some(x => x.parte))) && !(carga && musculosDoTexto(t).length)) return null;
+  if (!(livre && exercicios.length) && !/\b(fiz|treinei|treino de|malhei|terminei|acabei|registra|anota)\b/.test(t) && !(exercicios.length && (temNumero || exercicios.some(x => x.parte))) && !(carga && musculosDoTexto(t).length)) return null;
   const modalidades = new Set();
   if (/\b(muscula\w*|academia|malhei|treino de|series?|\d+\s*x\s*\d+)\b/.test(t)) modalidades.add('musculacao');
   if (/\b(crossfit|cross)\b/.test(t)) modalidades.add('crossfit');
