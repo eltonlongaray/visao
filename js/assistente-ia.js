@@ -865,6 +865,9 @@ async function dispatchCommand(text) {
     if (reply === undefined && typeof text !== 'function' && Date.now() - _esperaOrdem < 10 * 60e3) { const r = await tentarOrdemTreino(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && typeof text !== 'function' && _treinoPendente) { const r = await tentarCorrigirTreino(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
+    // "Isso aí!", "perfeito", "ficou bom" depois de um card: é só confirmação.
+    // Antes caía no menu de ajuda (Élton, 04/11). Responde curto e segue.
+    if (reply === undefined && typeof text !== 'function') { const r = respostaConfirmacao(semChamado(text)); if (r) reply = r; }
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
     // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
     // O Pet fez uma pergunta pra esclarecer o pedido: a resposta vai pra IA
@@ -950,6 +953,16 @@ async function dispatchCommand(text) {
     parar();
     setPetState('idle');
   }
+}
+
+// Confirmação solta ("isso aí", "show", "agora sim", "valeu"): resposta curta
+const ACK_RE = /^(?:(?:isso(?: ai| mesmo| ae)?|perfeito|show(?: de bola)?|beleza|blz|top|massa|otimo|boa|fechou|fechado|certo|certinho|exato|exatamente|ok|okay|okey|tranquilo|valeu|vlw|obrigad[oa]|brigad[oa]|obg|muito bom|ficou (?:bom|otimo|show|perfeito|top|certo|massa)|agora (?:sim|foi|ficou(?: bom)?|deu)|deu certo|funcionou|ta (?:bom|certo|otimo|perfeito|show)|(?:pet|falcon|entao|demais|mesmo|cara|mano|ein|hein))[\s,!.]*)+$/;
+function respostaConfirmacao(text) {
+  const t = semAcento(String(text || '').toLowerCase()).replace(/[!?.,;:…]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t || !ACK_RE.test(t) || /^(pet|falcon)$/.test(t)) return undefined;
+  if (/obrigad|brigad|valeu|vlw|obg/.test(t)) return 'De nada! 💛 Qualquer coisa é só chamar.';
+  const op = ['Fechou! 💪', 'Show! Qualquer coisa é só chamar 💛', 'Boa! 👊 Tô aqui se precisar.'];
+  return op[Math.floor(Math.random() * op.length)];
 }
 
 // Bolha com 3 pontinhos no fim da conversa; sai sozinha quando outra mensagem
