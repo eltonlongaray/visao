@@ -118,8 +118,9 @@ export function fmtExercicio(x) {
   if (x.pos && ROT_POS[x.pos] && _POS_NOME.test(nome) && !norm(nome).includes(norm(ROT_POS[x.pos]))) nome = nome.replace(_POS_NOME, '');
   const ja = norm(nome);
   // Já está no nome ("Remada unilateral com halter" não repete "com halteres")
-  const tem = (rot) => norm(rot).split(/\s+/).filter(w => w.length > 2 && !['com', 'banco', 'pegada'].includes(w))
-    .every(w => ja.includes(w.slice(0, 5)));
+  // ("em pé" tem palavras curtas: compara pelo começo da palavra, não por pedaço)
+  const tem = (rot) => norm(rot).split(/\s+/).filter(w => w.length > 1 && !['com', 'banco', 'pegada', 'em', 'na', 'no', 'de'].includes(w))
+    .every(w => new RegExp(`\\b${w.slice(0, 5)}`).test(ja));
   const vari = [ROT_POS[x.pos], ROT_EQUIP[x.equip], ROT_PEGADA[x.pegada], x.uni ? 'unilateral' : ''].filter(r => r && !tem(r));
   return [nome + (vari.length ? ', ' + vari.join(', ') : ''), ROTULO_PARTE[x.parte] || '', fmtSerie(x), fmtKg(x)].filter(Boolean).join(' ');
 }
