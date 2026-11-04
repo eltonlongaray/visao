@@ -331,6 +331,68 @@ export function lerTreinoFalado(texto, { livre = false } = {}) {
   return { modalidades: [...modalidades], musculos, series, exercicios: [] };
 }
 
+// ─── CONSULTA DO TREINO (Élton, 04/11) ───────────────────────────
+// "como tá o treino de hoje?", "o que eu treinei ontem?", "quanto peguei no
+// supino?", "quando fiz rosca pela última vez?". Devolve o período e/ou o
+// exercício, ou null se não for pergunta sobre o treino.
+const _DIAS_SEM = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+export function lerConsultaTreino(texto, hoje = new Date()) {
+  const bruto = norm(texto);
+  const t = ' ' + bruto.replace(/[,;.!?]/g, ' ') + ' ';
+  RE_SERIE.lastIndex = 0;
+  const temSerie = RE_SERIE.test(' ' + numeraliza(t) + ' '); RE_SERIE.lastIndex = 0;
+  if (temSerie) return null;   // tem séries: é registro, não pergunta
+  const pergunta = /\?\s*$/.test(String(texto).trim()) || /\b(como|o que|oque|qual|quais|quanto|quanta|quantas|quantos|quando|mostra|mostre|me (?:fala|diz|manda|mostra|passa)|ver|veja|lista|consulta\w*|resumo|anotac\w*|anotad\w*|registros?|registrad\w*|historico|ultim\w*)\b/.test(t);
+  if (!pergunta) return null;
+  // "fiz peito hoje" é registro; "o que eu treinei ontem?" é pergunta
+  if (/\b(fiz|treinei|malhei|terminei|acabei|registra|anota|marca|soma)\b/.test(t) && !/\?\s*$/.test(String(texto).trim())
+    && !/\b(como|o que|oque|qual|quais|quanto|quanta|quantas|quantos|quando|mostra|me (?:fala|diz|manda|mostra|passa))\b/.test(t)) return null;
+  const ex = acharExercicios(t).filter(e => !GENERICOS.has(e.nome));
+  const doTreino = /\b(treino|treinos|treinei|academia|muscula\w*|exercicios?)\b/.test(t);
+  if (!doTreino && !ex.length) return null;
+  // Período
+  const d0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const menos = (n) => new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - n);
+  let ini = null, fim = null;
+  if (/\banteontem\b/.test(t)) ini = fim = menos(2);
+  else if (/\bontem\b/.test(t)) ini = fim = menos(1);
+  else if (/\bhoje\b/.test(t)) ini = fim = d0;
+  else if (/\b(semana passada)\b/.test(t)) { const dow = (d0.getDay() + 6) % 7; ini = menos(dow + 7); fim = menos(dow + 1); }
+  else if (/\b(essa|esta|nessa|nesta|da|na) semana\b|\bsemana\b/.test(t)) { ini = menos((d0.getDay() + 6) % 7); fim = d0; }
+  else if (/\b(ultimos|ultimas) (\d+) dias\b/.test(t)) { const n = Number(t.match(/\b(?:ultimos|ultimas) (\d+) dias\b/)[1]); ini = menos(Math.min(n, 90) - 1); fim = d0; }
+  else {
+    const md = t.match(/\bdia (\d{1,2})(?:\s*(?:\/|de)\s*(\d{1,2}))?\b/);
+    if (md) {
+      const dia = Number(md[1]), mes = md[2] ? Number(md[2]) - 1 : d0.getMonth();
+      let d = new Date(d0.getFullYear(), mes, dia);
+      if (d > d0) d = new Date(d0.getFullYear() - (md[2] ? 1 : 0), md[2] ? mes : mes - 1, dia);
+      ini = fim = d;
+    } else {
+      const i = _DIAS_SEM.findIndex(w => new RegExp(`\\b${w}(?:-feira)?\\b`).test(t));
+      if (i >= 0) { const volta = ((d0.getDay() - i) + 7) % 7; ini = fim = menos(volta); }
+    }
+  }
+  const exercicio = ex[0] ? { m: ex[0].m, nome: ex[0].nome } : null;
+  // "como tá o meu treino?" sem dia segue pra constância por músculo;
+  // "as anotações do treino" sem dia = hoje
+  if (!ini && !exercicio) { if (!/\b(anotac\w*|anotad\w*|registros?|registrad\w*)\b/.test(t)) return null; ini = fim = d0; }
+  return { ini, fim, exercicio };
+}
+
+// Linhas do treino de um dia, por músculo (pro Pet mostrar)
+export function linhasTreino(tr = {}) {
+  const ex = tr.exercicios || [];
+  const mus = [...(tr.musculos || [])];
+  for (const x of ex) if (x.m && !mus.includes(x.m)) mus.push(x.m);
+  const out = [];
+  for (const k of mus) {
+    const xs = ex.filter(x => x.m === k);
+    if (xs.length) out.push({ m: nomeMusculo(k), itens: xs.map(fmtExercicio) });
+    else out.push({ m: [nomeMusculo(k), fmtSerie(tr.series?.[k]), fmtKg(tr.series?.[k])].filter(Boolean).join(' '), itens: [] });
+  }
+  return out;
+}
+
 // Os exercícios mais comuns do músculo (pro Pet perguntar qual foi)
 export function exerciciosTop(m, n = 5) {
   return (EXERCICIOS[m] || []).filter(e => e.top && !GENERICOS.has(e.nome)).slice(0, n).map(e => e.nome);

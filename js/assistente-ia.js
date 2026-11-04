@@ -6748,7 +6748,53 @@ async function tentarTreinoFalado(text, pronto = null, dado = null, corr = null)
   return null;
 }
 
+// Consulta do treino (Élton, 04/11): "como tá o treino de hoje?", "o que eu
+// treinei ontem?", "quanto peguei no supino?". Só lê, não muda nada.
+async function tentarConsultaTreino(text) {
+  const q = TRN.lerConsultaTreino(text);
+  if (!q) return undefined;
+  const DS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const rot = (id) => { const [a, m, d] = String(id).split('-').map(Number); const dt = new Date(a, m - 1, d); return `${DS[dt.getDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`; };
+  const hojeId = dayId(new Date());
+  const nomeDia = (id) => id === hojeId ? 'hoje' : id === dayId(new Date(Date.now() - 864e5)) ? 'ontem' : rot(id);
+  try {
+    if (q.exercicio && !q.ini) {
+      // Histórico do exercício (90 dias), do mais novo pro mais velho
+      const ini = new Date(); ini.setDate(ini.getDate() - 89);
+      const dias = (await fetchDaysRange(ini, new Date())).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+      const vezes = [];
+      for (const d of dias) for (const tk of d.tasks || []) for (const x of tk.treino?.exercicios || [])
+        if (x.nome === q.exercicio.nome) vezes.push({ id: d.id, x });
+      const nome = TRN.fmtExercicio({ nome: q.exercicio.nome });
+      if (!vezes.length) return `Não achei <b>${_esc(nome)}</b> nos teus treinos dos últimos 90 dias.`;
+      const linhas = vezes.slice(0, 8).map(v => `• ${nomeDia(v.id)}: ${_esc(TRN.fmtExercicio({ ...v.x, nome: '' }).trim() || 'sem séries anotadas')}`);
+      return `💪 <b>${_esc(nome)}</b>, últimas vezes:<br>${linhas.join('<br>')}${vezes.length > 8 ? `<br><small>…e mais ${vezes.length - 8} antes.</small>` : ''}`;
+    }
+    const dias = (await fetchDaysRange(q.ini, q.fim)).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+    const blocos = [];
+    for (const d of dias) for (const tk of d.tasks || []) {
+      const tr = tk.treino;
+      if (!tr || (!tr.exercicios?.length && !tr.musculos?.length && !tr.modalidades?.length)) continue;
+      const ls = q.exercicio
+        ? [{ m: '', itens: (tr.exercicios || []).filter(x => x.nome === q.exercicio.nome).map(TRN.fmtExercicio) }]
+        : TRN.linhasTreino(tr);
+      if (q.exercicio && !ls[0].itens.length) continue;
+      const mods = (tr.modalidades || []).filter(k => k !== 'musculacao').map(k => TRN.MODALIDADES.find(x => x.k === k)?.nome).filter(Boolean);
+      const corpo = ls.map(l => `${l.m ? `<b>${_esc(l.m)}</b>` : ''}${l.itens.length ? (l.m ? '<br>' : '') + l.itens.map(i => '• ' + _esc(i)).join('<br>') : ''}`).join('<br>');
+      blocos.push(`🏋️ <b>${_esc(tk.title)}</b> (${nomeDia(d.id)})${tk.done ? ' ✅' : ''}${mods.length ? ` + ${_esc(mods.join(', '))}` : ''}<br>${corpo}`);
+    }
+    const quando = q.ini && q.fim && dayId(q.ini) === dayId(q.fim) ? nomeDia(dayId(q.ini)) : 'nesse período';
+    if (!blocos.length) return q.exercicio
+      ? `Não achei <b>${_esc(TRN.fmtExercicio({ nome: q.exercicio.nome }))}</b> no treino de ${_esc(quando)}.`
+      : quando === 'hoje' ? 'Ainda não tem treino anotado hoje. Quando terminar, me fala o que fez (ex.: <em>"fiz supino 4x10 com 40 kg"</em>) que eu anoto.'
+      : `Não tem treino anotado ${quando === 'ontem' ? 'ontem' : `em ${_esc(quando)}`}.`;
+    return blocos.join('<br><br>');
+  } catch (e) { console.warn('[pet-consulta-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
+}
+
 async function tentarDesempenho(text) {
+  const rC = await tentarConsultaTreino(text);
+  if (rC !== undefined) return rC;
   const rF = await tentarTreinoFalado(text);
   if (rF !== undefined) return rF;
   const rT = await tentarTreino(text);
