@@ -10,7 +10,7 @@
 // BLOCO 4 — CONVIDAR (WhatsApp e gente do Falcon)
 // BLOCO 5 — ENTRAR PELO LINK DO CONVITE
 // ─────────────────────────────────────────────────────────────
-import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, entrarPorCodigo, conviteAberto, MSG_CONVITE_FECHADO } from './desafios.js';
+import { fetchDesafios, fetchParticipantes, fetchCheckins, fetchPrendas, fetchSaidas, souMentor, mentoresDo, entrarPorCodigo, conviteAberto, MSG_CONVITE_FECHADO } from './desafios.js';
 import { aceitarPrendaDoCodigo } from './desafios-prendas.js';
 import { exerciciosDeHoje, diaAnterior, ehLargar, horaLimite, passouDoLimite,
          regrasFixasDo, resumoDoDesafio, aindaNaoComecou, textoComeca, feitosHoje, rotuloSerie, corridasDaSemana, semanaSemCorrida, textoSemanaPerdida,
@@ -32,7 +32,8 @@ export async function carregarSala(id) {
   const [ds, ps, cs] = await Promise.all([fetchDesafios(), fetchParticipantes(id), fetchCheckins(id)]);
   const d = ds.find(x => x.id === id);
   if (!d) return null;
-  return { d, parts: ps.filter(p => p.desafio_id === id), checks: cs.filter(c => c.desafio_id === id) };
+  // parts = só os alunos; mentores = quem só acompanha (Élton, 03/11)
+  return { d, parts: ps.filter(p => p.desafio_id === id), mentores: mentoresDo(id), checks: cs.filter(c => c.desafio_id === id) };
 }
 
 // Pontos por pessoa: dias cumpridos (largar = todo dia com depoimento)
@@ -64,6 +65,7 @@ export function resumoHoje(sala, uid) {
   const gente = `${n} ${n === 1 ? 'participante' : 'participantes'}`;
   if (aindaNaoComecou(d)) return `${gente} · 📅 ${textoComeca(d)}`;
   if (encerrado(d)) return `${gente} · 🏁 encerrado ${dataCurta(fimDoDesafio(d)).slice(4)}`;
+  if ((sala.mentores || []).some(m => m.user_id === uid)) return `${gente} · 🧭 tu é o mentor`;
   if (!parts.some(p => p.user_id === uid)) return gente;
   if (encerrado(d)) {
     showToast(`🏁 Esse desafio acabou em ${dataCurta(fimDoDesafio(d))}. O relatório está no 📊.`, 'info');
@@ -261,6 +263,10 @@ function _depoisDoVoltar(fn) {
 // grava ao vivo. true = mudou algo (registrou, ou guardou o vídeo da corrida).
 export function provaPelaSala(sala, uid) {
   const { d, parts, checks } = sala;
+  if ((sala.mentores || []).some(m => m.user_id === uid) || souMentor(d.id, uid)) {
+    showToast('🧭 Tu é o mentor desse desafio: só acompanha, não manda prova.', 'info');
+    return Promise.resolve(false);
+  }
   if (!parts.some(p => p.user_id === uid)) {
     showToast('Entre no desafio pra mandar prova 🦅', 'info');
     return Promise.resolve(false);

@@ -168,7 +168,26 @@ export async function fetchPlacar() {
 
 // desafioId: só os desse desafio (a sala do grupo não precisa dos outros)
 const _doDesafio = (q, desafioId) => (desafioId ? q.eq('desafio_id', desafioId) : q);
+// Mentor (Élton, 03/11): o criador pode só acompanhar. Ele fica na tabela (vê o
+// grupo, a sala e as provas), mas NÃO é aluno: fora do ranking, do relatório e
+// da prenda. Por isso fetchParticipantes devolve só os alunos, e os mentores
+// ficam guardados aqui (souMentor / mentoresDo). migration/desafios-mentor.sql
+const _mentores = new Map();   // desafio_id -> [{ user_id, nome }]
+export const mentoresDo = (desafioId) => _mentores.get(desafioId) || [];
+export const souMentor = (desafioId, uid = auth.currentUser?.uid) => mentoresDo(desafioId).some(m => m.user_id === uid);
+function _separarMentores(linhas, desafioId) {
+  if (desafioId) _mentores.delete(desafioId); else _mentores.clear();
+  const alunos = [];
+  for (const p of linhas) {
+    if (p.papel === 'mentor') { if (!_mentores.has(p.desafio_id)) _mentores.set(p.desafio_id, []); _mentores.get(p.desafio_id).push(p); }
+    else alunos.push(p);
+  }
+  return alunos;
+}
 export async function fetchParticipantes(desafioId) {
+  const r0 = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at, papel'), desafioId);
+  if (!r0.error) return _separarMentores(r0.data || [], desafioId);
+  // Banco ainda sem o papel (mentor): todo mundo é aluno
   const { data, error } = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome, joined_at'), desafioId);
   if (!error) return data || [];
   const r = await _doDesafio(supabase.from('desafio_participantes').select('desafio_id, user_id, nome'), desafioId);
@@ -186,8 +205,12 @@ export async function fetchCheckins(desafioId) {
   const r = await _doDesafio(supabase.from('desafio_checkins').select('desafio_id, user_id, dia, quantidade'), desafioId);
   return r.data || [];
 }
-export async function joinDesafio(desafioId, nome) {
-  const { error } = await supabase.from('desafio_participantes').insert({ desafio_id: desafioId, nome: nome || null });
+// mentor = true: o criador entra só pra acompanhar (o banco só deixa o dono)
+export async function joinDesafio(desafioId, nome, mentor = false) {
+  const row = { desafio_id: desafioId, nome: nome || null };
+  if (mentor) row.papel = 'mentor';
+  const { error } = await supabase.from('desafio_participantes').insert(row);
+  if (error && mentor && /papel/i.test(error.message || '')) throw new Error('O modo mentor ainda não foi ligado no banco.');
   if (error) throw new Error(error.message || 'Erro ao entrar');
 }
 // Sair só com motivo (Élton, 15/10): o motivo vai pra sala e pro relatório,

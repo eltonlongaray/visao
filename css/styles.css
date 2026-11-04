@@ -2582,6 +2582,13 @@ body.time-picker-open { overflow: hidden; }
 .ds-rank-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
 .ds-rank-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 8px; border-radius: 8px; color: var(--text); }
 .ds-rank-row.me { background: rgba(167,139,250,0.12); }
+/* Mentor do desafio (Élton, 03/11) */
+.ds-mentor-tit { font-size: 13px; color: var(--text); background: rgba(45,212,191,0.10); border: 1px solid rgba(45,212,191,0.35); border-radius: 10px; padding: 8px 10px; line-height: 1.4; }
+.ds-mentor.ds-rank { margin-top: 10px; }
+.ds-mentor-aluno { padding: 4px 0 6px; border-bottom: 1px solid var(--border); }
+.ds-mentor-aluno:last-child { border-bottom: 0; }
+.ds-mentor-aluno small { display: block; padding: 0 8px; color: var(--muted); font-size: 12px; }
+.ds-papel-dica { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .ds-rank-days { color: var(--muted); }
 .ds-wpp {
   width: 100%; margin-top: 12px; border: 1px solid var(--border); background: transparent;

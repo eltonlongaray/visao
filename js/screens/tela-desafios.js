@@ -8,7 +8,7 @@ import {
   fetchDesafios, fetchParticipantes, fetchCheckins, fetchPlacar,
   joinDesafio, leaveDesafio, entrarPorCodigo, conviteAberto,
   createDesafio, updateDesafio, deleteDesafio, patchDesafio, proporMudanca,
-  markDesafiosSeen, assinarProvas, urlDaProva, faxinaProvas, fetchPrendas, fetchSaidas,
+  markDesafiosSeen, assinarProvas, urlDaProva, faxinaProvas, fetchPrendas, fetchSaidas, souMentor, mentoresDo,
 } from '../desafios.js';
 import { MOLDES, MOLDE_BY_ID, MODALIDADES, PRENDAS, gerarCodigo, emojiDoTipo,
          regrasFixasDo, textoProva, regrasDoDono, aindaNaoComecou, textoComeca, feitosHoje, corridasDaSemana, textoCorridasSemana, semanaSemCorrida, textoSemanaPerdida, regrasCorrida, modoEdicao, diffDesafio, KM_CORRIDA, MAX_KM_CORRIDA, diaDoDesafio, dataCurta, somarDias, exerciciosDeHoje, avisoExercicios, diaAnterior, seriesDe, textoSeries, rotuloSerie,
@@ -39,6 +39,33 @@ function _nomeFromProfile(p, email) {
   return (p?.preferredName || p?.fullName || (email || '').split('@')[0] || 'Falcão').trim();
 }
 const _ranking = rankingDoDesafio;   // mesma conta da sala do grupo
+
+// Mentor (Élton, 03/11): o criador só acompanha. Painel com cada aluno:
+// como está hoje e quantos dias cumpriu/faltou até ontem.
+function _hojeDoAluno(d, cs) {
+  if (cs.some(c => c.doente)) return '🤒 doente (justificado)';
+  if (!cs.length) return '⏳ ainda não mandou';
+  const soma = cs.reduce((n, c) => n + (c.quantidade || 0), 0);
+  if (ehLargar(d)) return soma > 0 ? '✅ dia limpo' : '😔 não conseguiu (gravou)';
+  const meta = d.max_por_dia || d.meta_diaria;
+  if (meta && soma < meta) return `🔸 ${soma} de ${meta}${d.unidade ? ' ' + _esc(d.unidade) : ''}`;
+  return '✅ fez hoje';
+}
+function _painelMentor(d, alunos, checks, today) {
+  const cab = `<div class="ds-mentor-tit">🧭 <b>Tu é o mentor</b>: não faz os exercícios nem entra no ranking. Acompanha cada participante aqui e na sala.</div>`;
+  if (!alunos.length) return `${cab}<div class="ds-prova-dica">Ninguém entrou ainda. Usa o 📨 Convidar pra chamar.</div>`;
+  if (aindaNaoComecou(d)) return `${cab}<div class="ds-prova-dica">${alunos.length === 1 ? '1 participante' : `${alunos.length} participantes`} no desafio · 📅 ${textoComeca(d)}.</div>`;
+  const rel = relatorioDoDesafio(d, alunos, checks, [], today);
+  return `${cab}
+    <div class="ds-rank ds-mentor">
+      <div class="ds-rank-title">👀 Quem tu acompanha</div>
+      ${rel.gente.map(g => `
+        <div class="ds-mentor-aluno">
+          <div class="ds-rank-row"><span>${_esc(g.nome)}</span><span class="ds-rank-days">${_hojeDoAluno(d, checks.filter(c => c.user_id === g.user_id && c.dia === today))}</span></div>
+          <small>${g.total ? `${g.cumpridos} de ${g.total} ${g.total === 1 ? 'dia' : 'dias'} cumpridos até ontem` : 'Primeiro dia hoje'}${g.faltas.length ? ` · faltou ${g.faltas.length}` : g.total ? ' · sem falta 🔥' : ''}${g.justificados?.length ? ` · 🤒 ${g.justificados.length}` : ''}${g.perdeuCorrida ? ' · 🏃 ficou sem a corrida da semana' : ''}${g.sumiu ? ' · 👻 sumiu 3 dias' : ''}</small>
+        </div>`).join('')}
+    </div>`;
+}
 
 // ── Entry point ──────────────────────────────────────────────
 // embedded=true → renderiza SÓ o conteúdo (sem screen-pad/título/cinturão),
@@ -104,9 +131,11 @@ export async function renderDesafios(app, embedded = false) {
     };
 
     const cardHtml = (d) => {
-          const dParts = parts.filter(p => p.desafio_id === d.id);
+          const dParts = parts.filter(p => p.desafio_id === d.id);   // só os alunos (o mentor fica de fora)
           const dChecks = checks.filter(c => c.desafio_id === d.id);
-          const joined = dParts.some(p => p.user_id === myUid);
+          const mentor = souMentor(d.id, myUid);
+          const aluno = dParts.some(p => p.user_id === myUid);
+          const joined = aluno || mentor;
           const meta = d.meta_diaria;
           const unidade = d.unidade || '';
           const todaySum = dChecks
@@ -137,6 +166,7 @@ export async function renderDesafios(app, embedded = false) {
             ${d.dias_total ? `<span class="ds-badge amber">${!aindaNaoComecou(d) && diaDoDesafio(d) && diaDoDesafio(d) <= d.dias_total ? `dia ${diaDoDesafio(d)} de ${d.dias_total}` : `${d.dias_total} dias`}</span>` : ''}
             ${meta ? `<span class="ds-badge teal">${depoimentoConta(d) ? 'mínimo' : 'meta'} ${meta}${unidade ? ' ' + _esc(unidade) : ''}/dia</span>` : ''}
             ${d.modalidade !== 'individual' ? `<span class="ds-badge gray">🙋 ${totalParts}</span>` : ''}
+            ${mentoresDo(d.id).length ? `<span class="ds-badge teal">🧭 mentor: ${_esc(mentor ? 'você' : mentoresDo(d.id)[0].nome || 'Falcão')}</span>` : ''}
             ${horaLimite(d) ? `<span class="ds-badge amber">⏰ até ${horaLimite(d)}</span>` : ''}
             ${textoProva(d) ? `<span class="ds-badge gray">${textoProva(d)}</span>` : ''}`;
 
@@ -150,8 +180,8 @@ export async function renderDesafios(app, embedded = false) {
 
           const exercicios = Array.isArray(d.exercicios) && d.exercicios.length ? d.exercicios : null;
           const corrida = d.prova === 'strava' || (exercicios && exercicios.includes('Corrida'));
-          const pend = joined && corrida ? proximoPassoCorrida(d.id) : null;
-          const corridaBtns = (joined && corrida) ? `
+          const pend = aluno && corrida ? proximoPassoCorrida(d.id) : null;
+          const corridaBtns = (aluno && corrida) ? `
               <div class="ds-corrida">
                 <button class="ds-correr" data-correr="1">🏃 Correr com o Falcon</button>
                 <button class="ds-passos-btn" data-passos="1">📋 Passo a passo</button>
@@ -161,7 +191,7 @@ export async function renderDesafios(app, embedded = false) {
 
           // Aviso já no 1º dia de falha: quem falha continua fazendo, e no fim paga
           // a prenda quem mais falhou (empate = todos) (Élton, 15/10)
-          const relHoje = joined && !acabou ? relatorioDoDesafio(d, dParts, dChecks, [], today) : null;
+          const relHoje = aluno && !acabou ? relatorioDoDesafio(d, dParts, dChecks, [], today) : null;
           const euHoje = relHoje?.gente.find(g => g.user_id === myUid);
           const sumindo = euHoje?.falhas ? `<div class="ds-perdeu">⚠️ ${textoFalhas(euHoje)}. Continua fazendo${d.prenda
             ? `: no fim, quem mais falhou paga a prenda.${euHoje.maisFalhou && relHoje.gente.length > 1 ? ' Hoje tu está entre os que mais falharam.' : ''}` : '.'}</div>` : '';
@@ -171,7 +201,9 @@ export async function renderDesafios(app, embedded = false) {
             const rel = relatorioDoDesafio(d, dParts, dChecks, prendas, undefined, saidas);
             const eu = rel.gente.find(g => g.user_id === myUid);
             const ate = salaAte(d);
-            const resumo = solo || rel.gente.length < 2
+            const so1 = rel.gente.length === 1 ? rel.gente[0] : null;
+            const resumo = mentor && so1 ? `${_esc(so1.nome)} cumpriu <b>${so1.cumpridos} de ${so1.total}</b> dias${so1.faltas.length ? '' : ' 🎉'}`
+              : solo || rel.gente.length < 2
               ? (eu ? `Tu cumpriu <b>${eu.cumpridos} de ${eu.total}</b> dias${eu.faltas.length ? '' : ' 🎉'}` : '')
               : rel.todosConcluiram ? `🎉 Todo mundo entregou todos os dias${d.prenda ? ', sem prenda pra ninguém' : ''}!`
               : `${rel.concluiram} de ${rel.gente.length} concluíram todos os dias`;
@@ -180,6 +212,8 @@ export async function renderDesafios(app, embedded = false) {
                 ${!solo && ate && today <= ate ? `<div class="ds-prova-dica">A conversa e os vídeos ficam até ${dataCurta(ate)}. Salva os teus no ⬇️ Salvar vídeo.</div>` : ''}</div>
               <button class="ds-inc" data-relatorio="${d.id}" style="width:100%">📊 Ver o relatório</button>
               ${souDono && d.modalidade === 'amigos' ? `<button class="ds-inc ds-rodada" data-rodada="${d.id}" style="width:100%;margin-top:8px">🔁 Nova rodada com esse grupo</button>` : ''}`;
+          } else if (mentor) {
+            acao = _painelMentor(d, dParts, dChecks, today);
           } else if (!joined) {
             acao = `<button class="ds-join" data-join="${d.id}">🙋 Participar</button>`;
           } else if (exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at)) {
@@ -269,7 +303,7 @@ export async function renderDesafios(app, embedded = false) {
           }
 
           // Horário limite (ex.: acordar às 5h): passou e não marcou, fecha por hoje
-          if (!acabou && joined && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
+          if (!acabou && aluno && !todaySum && !ehLargar(d) && passouDoLimite(d)) {
             acao = `<div class="ds-prova-dica">⏰ Passou das ${horaLimite(d)}. Amanhã tem de novo 🦅</div>`;
           }
 
@@ -277,7 +311,7 @@ export async function renderDesafios(app, embedded = false) {
           // pessoa tem e o dia fica justificado (nem falha, nem feito).
           const meusHoje = dChecks.filter(c => c.user_id === myUid && c.dia === today);
           const perdeuSemana = exercicios && semanaSemCorrida(d, dChecks.filter(c => c.user_id === myUid), dParts.find(p => p.user_id === myUid)?.joined_at);
-          if (!acabou && joined && !aindaNaoComecou(d) && !perdeuSemana) {
+          if (!acabou && aluno && !aindaNaoComecou(d) && !perdeuSemana) {
             if (meusHoje.some(c => c.doente)) {
               acao = `<div class="ds-doente-ok">🤒 <b>Dia justificado.</b> Melhoras! Amanhã, se estiver melhor, volta a gravar 🦅</div>`;
             } else if (!meusHoje.length) {
@@ -350,7 +384,7 @@ export async function renderDesafios(app, embedded = false) {
               ${codigoHtml}
               ${sumindo}
               <div class="ds-card-acao">${acao}</div>
-              ${prendaDoCard(d, joined, dChecks, dParts)}
+              ${prendaDoCard(d, aluno, dChecks, dParts)}
               ${regrasHtml}
               ${provasHtml}
               ${solo ? '' : rankHtml}
@@ -656,6 +690,7 @@ export async function renderDesafios(app, embedded = false) {
     const ROTULO_UN = { ml: 'Água por dia (ml)', km: 'Km por dia', min: 'Minutos por dia', 'reflexão': 'Reflexões por dia', 'páginas': 'Mínimo de páginas por dia' };
     if (tipo === 'meditacao') ROTULO_UN.min = 'Mínimo de minutos por dia';
     const rotuloMeta = ROTULO_UN[unidadeAtual] || (unidadeAtual ? unidadeAtual.charAt(0).toUpperCase() + unidadeAtual.slice(1) + ' por dia' : 'Meta por dia');
+    const mentorAtual = rodada && src ? souMentor(src.id, myUid) : false;   // nova rodada: continua mentor
     const metaLivreAtual = src && src.meta_diaria ? `${src.meta_diaria} ${src.unidade || ''}`.trim() : '';
 
     const overlay = document.createElement('div');
@@ -743,6 +778,15 @@ export async function renderDesafios(app, embedded = false) {
           <div class="ds-ini-txt" id="f-ini-txt"></div>
         </div>`}
 
+        ${mod === 'amigos' && !edit ? `
+        <div class="input-field"><div class="input-field-label">🧭 Tu vai</div>
+          <div class="ds-ini-chips" id="f-papel">
+            <button type="button" class="ds-ini-chip${mentorAtual ? '' : ' on'}" data-papel="">🙋 Participar</button>
+            <button type="button" class="ds-ini-chip${mentorAtual ? ' on' : ''}" data-papel="mentor">🧭 Só acompanhar (mentor)</button>
+          </div>
+          <div class="ds-papel-dica">Mentor não faz os exercícios nem entra no ranking: acompanha cada participante (aluno, cliente, quem for; um só ou vários) e vê se ele está cumprindo o desafio.</div>
+        </div>` : ''}
+
         ${mod === 'individual' ? '' : `
         <label class="input-field"><div class="input-field-label">🎭 Prenda de quem mais falhar</div>
           <select id="f-prenda-sel">
@@ -814,6 +858,10 @@ export async function renderDesafios(app, embedded = false) {
 
     // A descrição do molde fala da prova ("Prova por honra"): trocou a prova,
     // tira esse trecho pra não contradizer o que foi escolhido
+    overlay.querySelector('#f-papel')?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-papel]'); if (!b) return;
+      overlay.querySelectorAll('#f-papel [data-papel]').forEach(x => x.classList.toggle('on', x === b));
+    });
     overlay.querySelector('#f-prova')?.addEventListener('change', (e) => {
       const desc = overlay.querySelector('#f-desc');
       if (!desc || e.target.value === 'honra') return;
@@ -947,8 +995,12 @@ export async function renderDesafios(app, embedded = false) {
           const codigo = mod === 'amigos' ? gerarCodigo() : null;
           const novoId = await createDesafio({ titulo, descricao, dias, meta, unidade, opcoes, tipo,
                                                modalidade: mod, codigo, prenda, dataInicio, dataFim, ...extras });
-          // O criador entra automaticamente no próprio desafio
-          try { await joinDesafio(novoId, meuNome); } catch { /* segue */ }
+          // O criador entra automaticamente no próprio desafio (como aluno ou só como mentor)
+          const comoMentor = overlay.querySelector('#f-papel [data-papel="mentor"]')?.classList.contains('on');
+          try { await joinDesafio(novoId, meuNome, comoMentor); }
+          catch (e) {
+            if (comoMentor) { showToast(e.message || 'Não deu pra entrar como mentor', 'error'); try { await joinDesafio(novoId, meuNome); } catch { /* segue */ } }
+          }
           close();
           // Desafio completo: o convite do WhatsApp leva as regras junto
           const novo = { id: novoId, titulo, codigo, descricao, dias_total: dias, meta_diaria: meta, unidade, tipo, prenda,
