@@ -194,7 +194,12 @@ const _EQUIP = /\b(barra|corda|polia|pulley|cabo|halter\w*|maquina|smith|anilha)
 function _juntarColados(t, es) {
   for (let i = es.length - 1; i > 0; i--) {
     const a = es[i - 1], b = es[i];
-    if (a.m !== b.m || !/^\s*(?:(?:de|da|do|com|na|no|a|o)\s+)*$/.test(t.slice(a.fim, b.ini))) continue;
+    if (!/^\s*(?:(?:de|da|do|com|na|no|a|o)\s+)*$/.test(t.slice(a.fim, b.ini))) continue;
+    // Só o aparelho ("testa com barra"): o "barra" não é a barra fixa, é do exercício do lado
+    const so = (e) => !t.slice(e.ini, e.fim).replace(_EQUIP, ' ').replace(/\b(?:de|da|do|com|na|no|a|o|w|v)\b/g, ' ').trim();
+    if (so(b) && !so(a)) { es.splice(i - 1, 2, { ...a, fim: b.fim }); continue; }
+    if (so(a) && !so(b)) { es.splice(i - 1, 2, { ...b, ini: a.ini }); continue; }
+    if (a.m !== b.m) continue;
     const ea = _EQUIP.test(t.slice(a.ini, a.fim)), eb = _EQUIP.test(t.slice(b.ini, b.fim));
     if (ea === eb) continue;
     const fica = ea ? b : a;

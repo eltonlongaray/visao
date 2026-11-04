@@ -6606,7 +6606,7 @@ async function tentarSeriesQueFaltaram(text) {
 
 // "Corrija tríceps testa", "na verdade foi rosca martelo", "tira o crossover":
 // com o card de treino ainda aberto, a frase mexe nele (Élton, 04/11)
-const RE_TREINO_CORRIGE = /\b(corrig\w*|correcao|na verdade|era|nao (?:era|foi|e)|foi so|errado|errei|troca\w*)\b/;
+const RE_TREINO_CORRIGE = /\b(corrig\w*|correcao|na verdade|eu disse|falei|era|nao (?:era|foi|e)|foi so|errado|errei|troca\w*)\b/;
 const RE_TREINO_TIRA = /\b(tira|tirar|tire|remove|remova|remover|apaga|apague|apagar|exclui|exclua|excluir)\b/;
 function _treinoAberto() {
   const p = _treinoPendente;
@@ -6615,10 +6615,14 @@ function _treinoAberto() {
 async function tentarCorrigirTreino(text) {
   if (!_treinoAberto()) return undefined;
   const t = semAcento(String(text || '')).toLowerCase();
-  const tira = RE_TREINO_TIRA.test(t), corrige = RE_TREINO_CORRIGE.test(t);
-  if (!tira && !corrige) return undefined;
+  const tira = RE_TREINO_TIRA.test(t);
   const r = TRN.lerTreinoFalado(text, { livre: true });
   if (!r?.exercicios?.length) return undefined;
+  // Só o nome do exercício, sem número ("tríceps testa com barra na polia"):
+  // com o card aberto, é a pessoa corrigindo qual exercício foi (Élton, 04/11)
+  const soNome = r.exercicios.every(x => x.s == null && x.r == null && x.kg == null) && t.split(/\s+/).length <= 12;
+  const corrige = RE_TREINO_CORRIGE.test(t) || soNome;
+  if (!tira && !corrige) return undefined;
   return tentarTreinoFalado(text, null, null, { r, tira, corrige });
 }
 
