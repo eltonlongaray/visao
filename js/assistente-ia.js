@@ -6592,6 +6592,7 @@ async function tentarTreino(text) {
 // Exercício que ficou sem o número de séries (vale 10 min): { m, nome, em }
 let _faltaSeries = null, _filaSeries = [];
 let _treinoPendente = null;   // card de treino ainda sem Confirmar (pra corrigir)
+const _parteNaoSei = new Set();  // exercícios do peito em que a pessoa disse "não sei" a parte
 async function tentarSeriesQueFaltaram(text) {
   const f = _faltaSeries;
   if (!f || Date.now() - f.em > 10 * 60e3) { _faltaSeries = null; return undefined; }
@@ -6617,10 +6618,21 @@ async function tentarCorrigirTreino(text) {
   const t = semAcento(String(text || '')).toLowerCase();
   const tira = RE_TREINO_TIRA.test(t);
   const r = TRN.lerTreinoFalado(text, { livre: true });
-  if (!r?.exercicios?.length) return undefined;
+  if (!r?.exercicios?.length) {
+    // Só a variação ("esse exercício é de pé, e não deitado"): vale pro exercício do card
+    // (o único, ou o último falado)
+    const v = TRN.lerVariacao(text), pend = _treinoPendente;
+    if (tira || !Object.keys(v).length || t.split(/\s+/).length > 14) return undefined;
+    if (!RE_TREINO_CORRIGE.test(t) && !/\b(exercicio|foi|e|eh|fiz|faco|era)\b/.test(t)) return undefined;
+    const alvo = pend.exercicios[pend.exercicios.length - 1];
+    if (!alvo) return undefined;
+    return tentarTreinoFalado(text, null, null, { r: { modalidades: pend.modalidades || [], musculos: pend.musculos || [], series: {},
+      exercicios: [{ m: alvo.m, nome: alvo.nome, ...(alvo.parte ? { parte: alvo.parte } : {}), ...v, s: alvo.s, r: alvo.r, kg: alvo.kg }].map(x => Object.fromEntries(Object.entries(x).filter(([, y]) => y != null))) }, corrige: true });
+  }
   // Só o nome do exercício, sem número ("tríceps testa com barra na polia"):
   // com o card aberto, é a pessoa corrigindo qual exercício foi (Élton, 04/11)
-  const soNome = r.exercicios.every(x => x.s == null && x.r == null && x.kg == null) && t.split(/\s+/).length <= 12;
+  const outroPedido = /\b(lembra\w*|lembrete|adiciona\w*|cria|criar|agenda\w*|marca|compra\w*|lista|bebi|dormi|acordei|desafio|prova)\b/.test(t);
+  const soNome = !outroPedido && r.exercicios.every(x => x.s == null && x.r == null && x.kg == null) && t.split(/\s+/).length <= 12;
   const corrige = RE_TREINO_CORRIGE.test(t) || soNome;
   if (!tira && !corrige) return undefined;
   return tentarTreinoFalado(text, null, null, { r, tira, corrige });
@@ -6715,6 +6727,21 @@ async function tentarTreinoFalado(text, pronto = null, dado = null, corr = null)
         return `✅ Anotado. Treino de hoje até agora:<br><small>${_esc(reg.patch.desc)}</small>${fim}`;
       }, null);
     if (!pronto) _treinoPendente = { div, tkId: tk.id, em: Date.now(), exercicios: r.exercicios, supostos: r.supostos || [], modalidades: r.modalidades, musculos: r.musculos };
+    // Parte do peito que faltou (Élton, 04/11): pergunta, um exercício por vez
+    const semParte = !pronto && r.exercicios.find(x => x.m === 'peito' && !x.parte && TRN.TEM_PARTE.has(x.nome) && !_parteNaoSei.has(x.nome));
+    if (semParte) {
+      const nomeEx = TRN.fmtExercicio({ nome: semParte.nome });
+      const escolher = (parte) => async () => {
+        if (!parte) { _parteNaoSei.add(semParte.nome); return 'Beleza, fica sem a parte.'; }
+        if (!_treinoAberto()) return 'Esse card já foi fechado. Me fala de novo o exercício com a parte (ex.: <em>"crossover parte inferior"</em>).';
+        return tentarTreinoFalado('', null, null, { r: { modalidades: _treinoPendente.modalidades || [], musculos: [], series: {},
+          exercicios: [{ m: 'peito', nome: semParte.nome, parte }] }, corrige: false });
+      };
+      addChoices(`Qual parte do peito no <b>${_esc(nomeEx)}</b>?`, [
+        { label: 'Superior', action: escolher('superior') }, { label: 'Meio', action: escolher('meio') },
+        { label: 'Inferior', action: escolher('inferior') }, { label: 'Não sei', action: escolher(null) },
+      ]);
+    }
     return null;
   }
   const tk = fis.find(x => x.treino?.musculos?.length) || fis[0];
