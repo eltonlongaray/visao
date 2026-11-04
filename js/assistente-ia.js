@@ -6070,8 +6070,7 @@ function desafioCheckinExercicio(d, p, c) {
   if (!livres.length) return `Tu já fez os ${lim} de hoje no <b>${nome}</b> ✅ Amanhã são outros 🦅`;
   const dito = PDF.exercicioCitado(d.exercicios, p.texto || '');
   const fazer = (ex) => {
-    const st0 = lista.find(x => x.nome === ex);
-    const extra = { quantidade: 1, exercicio: ex, serie: st0?.serie || null, series: st0?.series || null };
+    const extra = { quantidade: 1, exercicio: ex };
     if (ex === 'Corrida' || d.prova === 'video' || d.prova === 'strava') {
       return _botaoProva(d, extra, ex === 'Corrida'
         ? '🏃 A corrida vai com o <b>print do Strava</b> e um <b>vídeo ao vivo</b> correndo nos últimos minutos.'
