@@ -860,6 +860,8 @@ async function dispatchCommand(text) {
     if (reply === undefined && typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
     // "Quantas séries de barra fixa?" → "3": completa o exercício (treino falado)
     if (reply === undefined && typeof text !== 'function' && _faltaSeries) { const r = await tentarSeriesQueFaltaram(semChamado(text)); if (r !== undefined) reply = r; }
+    // Card de treino aberto + "corrija…/tira o…" (Élton, 04/11): é correção do card
+    if (reply === undefined && typeof text !== 'function' && _treinoPendente) { const r = await tentarCorrigirTreino(semChamado(text)); if (r !== undefined) reply = r; }
     if (reply === undefined && gate && convState?.type === 'gate_atividade') reply = await tentarGateAtividade(semChamado(text));
     // Frase longa e "falada" (não começa com comando): a IA na nuvem entende
     // primeiro, porque os regex costumam pegar só um pedaço e entender errado.
@@ -6602,8 +6604,26 @@ async function tentarSeriesQueFaltaram(text) {
   return tentarTreinoFalado(null, { modalidades: ['musculacao'], musculos: [f.m], series: {}, exercicios: [{ m: f.m, nome: f.nome, s }] });
 }
 
-async function tentarTreinoFalado(text, pronto = null, dado = null) {
-  const r = pronto || dado || TRN.lerTreinoFalado(text);
+// "Corrija tríceps testa", "na verdade foi rosca martelo", "tira o crossover":
+// com o card de treino ainda aberto, a frase mexe nele (Élton, 04/11)
+const RE_TREINO_CORRIGE = /\b(corrig\w*|correcao|na verdade|era|nao (?:era|foi|e)|foi so|errado|errei|troca\w*)\b/;
+const RE_TREINO_TIRA = /\b(tira|tirar|tire|remove|remova|remover|apaga|apague|apagar|exclui|exclua|excluir)\b/;
+function _treinoAberto() {
+  const p = _treinoPendente;
+  return !!(p && Date.now() - p.em < 20 * 60 * 1000 && p.div?.isConnected && p.div.querySelector('[data-ok]:not(:disabled)'));
+}
+async function tentarCorrigirTreino(text) {
+  if (!_treinoAberto()) return undefined;
+  const t = semAcento(String(text || '')).toLowerCase();
+  const tira = RE_TREINO_TIRA.test(t), corrige = RE_TREINO_CORRIGE.test(t);
+  if (!tira && !corrige) return undefined;
+  const r = TRN.lerTreinoFalado(text, { livre: true });
+  if (!r?.exercicios?.length) return undefined;
+  return tentarTreinoFalado(text, null, null, { r, tira, corrige });
+}
+
+async function tentarTreinoFalado(text, pronto = null, dado = null, corr = null) {
+  const r = corr?.r || pronto || dado || TRN.lerTreinoFalado(text);
   if (!r || (!r.musculos.length && !Object.keys(r.series).length && !r.exercicios?.length)) return undefined;
   const hojeId = dayId(new Date());
   const [tks, cats] = await Promise.all([getDayTasks(hojeId).catch(() => []), getCategories().catch(() => [])]);
@@ -6618,10 +6638,37 @@ async function tentarTreinoFalado(text, pronto = null, dado = null) {
     // corrige só o que mudou nele ("na rosca inclinada foi 3x10") e o card
     // antigo some; o resto (carga, outros exercícios) continua igual.
     const pend = _treinoPendente;
-    const aberto = pend && Date.now() - pend.em < 20 * 60 * 1000 && pend.div?.isConnected && pend.div.querySelector('[data-ok]:not(:disabled)');
-    let corrigiu = [];
-    if (aberto && !pronto) {
+    const aberto = _treinoAberto();
+    let corrigiu = [], tirados = [];
+    const fecharAntigo = () => {
+      const ok = pend.div.querySelector('[data-ok]'), nao = pend.div.querySelector('[data-nao]');
+      ok?.remove(); if (nao) { nao.disabled = true; nao.textContent = 'Corrigido abaixo ↓'; }
+    };
+    if (aberto && !pronto && corr?.tira) {
+      // "tira o crossover": sai do card, o resto fica
+      const ditos = r.exercicios.map(x => x.nome);
+      tirados = pend.exercicios.filter(x => ditos.includes(x.nome)).map(x => x.nome);
+      if (!tirados.length) return `Não achei ${ditos.map(n => _esc(n)).join(', ')} nesse card 🤔`;
+      r.exercicios = pend.exercicios.filter(x => !ditos.includes(x.nome));
+      r.supostos = (pend.supostos || []).filter(n => !ditos.includes(n));
+      r.modalidades = pend.modalidades || r.modalidades;
+      r.musculos = [...new Set(r.exercicios.map(x => x.m))];
+      fecharAntigo();
+      if (!r.exercicios.length) { _treinoPendente = null; return `Tirei ${tirados.map(n => _esc(n)).join(', ')}. Não sobrou nada pra somar.`; }
+    } else if (aberto && !pronto) {
       corrigiu = r.exercicios.map(x => x.nome);
+      let base = pend.exercicios;
+      if (corr?.corrige) {
+        // "corrige, foi rosca martelo": com um só exercício daquele músculo no card, troca o nome
+        for (const n of r.exercicios) {
+          if (base.some(x => x.nome === n.nome)) continue;
+          const doMus = base.filter(x => x.m === n.m && !corrigiu.includes(x.nome));
+          if (doMus.length === 1) base = base.map(x => x === doMus[0] ? { ...x, nome: n.nome } : x);
+        }
+        // O que ficou sem número nenhum e não foi dito de novo entrou por engano
+        base = base.filter(x => corrigiu.includes(x.nome) || x.s != null || x.r != null || x.kg != null || x.corpo);
+      }
+      pend.exercicios = base;
       r.supostos = [...(pend.supostos || []).filter(n => !r.exercicios.some(x => x.nome === n && x.s)), ...(r.supostos || [])];
       // "o crossover foi parte superior": só troca a parte do que já estava no card
       for (const n of r.exercicios) {
@@ -6631,8 +6678,7 @@ async function tentarTreinoFalado(text, pronto = null, dado = null) {
       r.exercicios = TRN.juntarExercicios(pend.exercicios, r.exercicios.filter(n => !(n.parte && n.s == null && n.r == null && n.kg == null && pend.exercicios.filter(x => x.nome === n.nome).length === 1)));
       r.modalidades = [...new Set([...(pend.modalidades || []), ...r.modalidades])];
       r.musculos = [...new Set([...(pend.musculos || []), ...r.musculos])];
-      const ok = pend.div.querySelector('[data-ok]'), nao = pend.div.querySelector('[data-nao]');
-      ok?.remove(); if (nao) { nao.disabled = true; nao.textContent = 'Corrigido abaixo ↓'; }
+      fecharAntigo();
     }
     _treinoPendente = null;
     const tk = (aberto && fis.find(x => x.id === pend.tkId)) || fis.find(x => x.treino?.exercicios?.length) || fis.find(x => x.done) || fis[0];
@@ -6650,8 +6696,8 @@ async function tentarTreinoFalado(text, pronto = null, dado = null) {
     });
     const sup = r.supostos?.length ? `<br><small>Usei ${r.exercicios.find(x => x.nome === r.supostos[0]).s} séries em ${r.supostos.map(n => _esc(TRN.fmtExercicio({ nome: n }))).join(', ')}, como nos outros. Se foi diferente, me fala (ex.: <em>"${_esc(TRN.fmtExercicio({ nome: r.supostos[0] }).toLowerCase())} 4 séries"</em>).</small>` : '';
     const linha = (x) => corrigiu.includes(x.nome) ? `• <b>${_esc(TRN.fmtExercicio(x))}</b> ✏️` : '• ' + _esc(TRN.fmtExercicio(x));
-    const dica = corrigiu.length ? '' : '<br><small>Algo errado? Me fala só o que corrigir (ex.: <em>"a rosca foi 3x10"</em>).</small>';
-    const div = cardConfirmarLista(`💪 ${corrigiu.length ? 'Corrigi. ' : ''}Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${TRN.porMusculo(r.exercicios).map(([m, xs]) => `<b>${_esc(TRN.nomeMusculo(m))}</b><br>${xs.map(linha).join('<br>')}`).join('<br>')}${sup}${semPeso}${dica}`,
+    const dica = corrigiu.length || tirados.length ? '' : '<br><small>Algo errado? Me fala só o que corrigir (ex.: <em>"a rosca foi 3x10"</em>).</small>';
+    const div = cardConfirmarLista(`💪 ${tirados.length ? `Tirei ${tirados.map(n => _esc(n)).join(', ')}. ` : corrigiu.length ? 'Corrigi. ' : ''}Somar no treino de hoje (<strong>${_esc(tk.title)}</strong>)?<br>${TRN.porMusculo(r.exercicios).map(([m, xs]) => `<b>${_esc(TRN.nomeMusculo(m))}</b><br>${xs.map(linha).join('<br>')}`).join('<br>')}${sup}${semPeso}${dica}`,
       async () => {
         _treinoPendente = null;
         await updateDayTask(hojeId, tk.id, { done: true, ...reg.patch });
