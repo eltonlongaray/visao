@@ -143,8 +143,15 @@ function statusHtml() {
 
 function desenhar() {
   const c = box(); if (!c) return;
-  const pode = podeNovaMedicao();
-  if (pode) {
+  // Medição do mês salva sem tudo abre pra completar (com os valores salvos),
+  // inclusive pro admin, que não tem trava: antes ele via um formulário novo
+  // em branco e parecia que não tinha salvado (Élton, 05/11).
+  const dentroDoMes = registros.length && diasParaLiberar() > 0;
+  const completar = dentroDoMes && incompleto(registros[0]);
+  const pode = !completar && podeNovaMedicao();
+  if (completar) {
+    if (!novo || novo.id !== registros[0].id) novo = abrirParaCompletar(registros[0]);
+  } else if (pode) {
     if (!novo) novo = { medidas: {}, fotos: {} };
     // Puxa o peso do perfil como sugestão (a pessoa não atualiza em 2 lugares —
     // salvar a medição também grava o peso no perfil).
@@ -155,8 +162,6 @@ function desenhar() {
       const ult = registros.find(r => r.pescoco != null);
       if (ult) novo.medidas.pescoco = ult.pescoco;
     }
-  } else if (incompleto(registros[0])) {
-    if (!novo || novo.id !== registros[0].id) novo = abrirParaCompletar(registros[0]);
   } else { novo = null; }   // completa e no mês: trava até a próxima
   c.innerHTML = telaPrincipal(pode || !!novo);
   if (novo) atualizarGordura();
