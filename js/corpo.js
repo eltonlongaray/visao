@@ -77,10 +77,10 @@ export async function salvarDadosCorpo({ sexo, alturaCm, pesoKg }) {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 4: REGISTROS (medições datadas — histórico de evolução)
 // ═══════════════════════════════════════════════════════════════
-const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'quadril', 'braco', 'coxa', 'panturrilha',
-  'braco_esq', 'braco_dir', 'coxa_esq', 'coxa_dir', 'panturrilha_esq', 'panturrilha_dir'];   // lados: migration/corpo-lados.sql
+const CAMPOS = ['peso', 'pescoco', 'ombro', 'peitoral', 'cintura', 'cintura_fina', 'quadril', 'braco', 'coxa', 'panturrilha',
+  'braco_esq', 'braco_dir', 'coxa_esq', 'coxa_dir', 'panturrilha_esq', 'panturrilha_dir'];   // lados: migration/corpo-lados.sql · cintura_fina: migration/corpo-cintura-fina.sql
 
-const _SEL = 'id, data, peso, pescoco, ombro, peitoral, cintura, quadril, braco, coxa, panturrilha, braco_esq, braco_dir, coxa_esq, coxa_dir, panturrilha_esq, panturrilha_dir, gordura_pct, fotos';
+const _SEL = 'id, data, peso, pescoco, ombro, peitoral, cintura, cintura_fina, quadril, braco, coxa, panturrilha, braco_esq, braco_dir, coxa_esq, coxa_dir, panturrilha_esq, panturrilha_dir, gordura_pct, fotos';
 
 export async function carregarRegistros() {
   const { data, error } = await supabase

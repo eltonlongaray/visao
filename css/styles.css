@@ -693,6 +693,8 @@ html, body { background-color: #1a1209; }
   border: 1px solid var(--accent-2, #a78bfa);
   white-space: nowrap;
 }
+.cp-fig-fina { border-top-color: #fbbf24; }
+.cp-fig-fina span { border-color: #fbbf24; }
 .cp-campo-in:focus-within { border-color: var(--accent); }
 .cp-campo-in input { flex: 1; min-width: 0; background: none; border: none; outline: none;
   color: var(--text); font-size: 15px; font-weight: 700; font-family: inherit; }

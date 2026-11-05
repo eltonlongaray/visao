@@ -20,6 +20,9 @@ const MEDIDAS = [
   { k: 'ombro',       lbl: 'Ombro',       un: 'cm' },
   { k: 'peitoral',    lbl: 'Peitoral',    un: 'cm' },
   { k: 'cintura',     lbl: 'Cintura',     un: 'cm' },
+  // Homem mede duas: abdômen no umbigo (entra no % de gordura) e a cintura na
+  // parte mais fina (entra no ombro ÷ cintura, a proporção áurea). Élton, 05/11.
+  { k: 'cintura_fina', lbl: 'Cintura',    un: 'cm', soHomem: true },
   { k: 'quadril',     lbl: 'Quadril',     un: 'cm' },
   { k: 'braco',       lbl: 'Braço (flexionado)', un: 'cm', par: true, hint: '(E esquerdo · D direito)' },
   { k: 'coxa',        lbl: 'Coxa',        un: 'cm', par: true },
@@ -28,6 +31,14 @@ const MEDIDAS = [
 // Braço, coxa e panturrilha: esquerdo e direito (Élton, 19/10). A coluna sem
 // lado (braco, coxa…) guarda o MAIOR dos dois e segue alimentando a análise.
 const LADO_ESQ = (k) => `${k}_esq`, LADO_DIR = (k) => `${k}_dir`;
+// Medidas que valem pro sexo do perfil (mulher não tem a cintura_fina: a
+// cintura dela já é medida na parte mais fina).
+const medidasDoSexo = () => MEDIDAS.filter(m => !m.soHomem || dados.sexo !== 'F');
+// Nome da medida na tela: no homem, a 'cintura' (umbigo) se chama Abdômen.
+const nomeMedida = (m) => (m.k === 'cintura' && dados.sexo !== 'F') ? 'Abdômen'
+  : (m.k === 'quadril' && dados.sexo === 'F') ? 'Glúteo' : m.lbl;
+// Cintura do V (ombro ÷ cintura): a parte mais fina; medição antiga sem ela usa a do umbigo.
+const cinturaV = (r) => (dados.sexo !== 'F' && r.cintura_fina != null) ? r.cintura_fina : r.cintura;
 const temMedida = (m, med) => m.par
   ? (med[LADO_ESQ(m.k)] != null || med[LADO_DIR(m.k)] != null || med[m.k] != null)
   : med[m.k] != null;
@@ -104,7 +115,7 @@ function diasParaLiberar() {
 // Enquanto a trava do mês vale, ela fica aberta pra completar.
 function incompleto(r) {
   if (!r) return false;
-  return LADOS.some(l => !r.fotos?.[l.k]) || MEDIDAS.some(m => !temMedida(m, r));
+  return LADOS.some(l => !r.fotos?.[l.k]) || medidasDoSexo().some(m => !temMedida(m, r));
 }
 function abrirParaCompletar(r) {
   const medidas = {};
@@ -241,7 +252,7 @@ function _blocoSaude(r) {
     const alvo = Math.round(dados.alturaCm * 0.5);
     const ok = razao < 0.5;
     const falta = ok ? '' : ` — reduza <b>${_1(r.cintura - alvo)} cm</b>`;
-    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} Cintura <b>${r.cintura} cm</b> — ${ok ? 'saudável' : `ideal < ${alvo} cm${falta}`}. <small>cintura/altura ${razao.toFixed(2)} · ideal < 0,50</small></div>`;
+    out += `<div class="cp-an cp-an-${ok ? 'bom' : 'alerta'}">${ok ? '✅' : '⚠️'} ${dados.sexo !== 'F' ? 'Abdômen' : 'Cintura'} <b>${r.cintura} cm</b> — ${ok ? 'saudável' : `ideal < ${alvo} cm${falta}`}. <small>cintura/altura ${razao.toFixed(2)} · ideal < 0,50</small></div>`;
   }
   return out;
 }
@@ -256,12 +267,15 @@ function _blocoPump(r, ant) {
     if (!r.quadril || !r.cintura) return '';
     membro = r.quadril; membroNome = 'glúteo'; ratio = r.quadril / r.cintura; niveis = [1.4, 1.5, 1.6];
   } else {
-    if (!r.ombro || !r.cintura) return '';
-    membro = r.ombro; membroNome = 'ombro'; ratio = r.ombro / r.cintura; niveis = [1.33, 1.45, 1.618];
+    if (!r.ombro || !cinturaV(r)) return '';
+    membro = r.ombro; membroNome = 'ombro'; ratio = r.ombro / cinturaV(r); niveis = [1.33, 1.45, 1.618];
   }
   const topoNome = isF ? 'palco' : 'áurea';                 // rótulo do 3º nível por sexo
   const topoLabel = isF ? 'palco (categoria feminina)' : 'fisiculturismo';
   const rotulo = `${membroNome.charAt(0).toUpperCase() + membroNome.slice(1)} ÷ cintura`;
+  const cw = cinturaV(r);   // cintura do V/curva (homem: parte mais fina)
+  const avisoFina = (!isF && r.cintura_fina == null)
+    ? `<br><small>📏 Essa conta está usando o abdômen (umbigo). Mede a <b>cintura na parte mais fina</b> pra ela ficar certa.</small>` : '';
   let nivel = 0; niveis.forEach((n, i) => { if (ratio >= n) nivel = i + 1; });
   const acima = ratio >= niveis[2];
   let txt;
@@ -328,12 +342,12 @@ function _blocoPump(r, ant) {
   let falta = '';
   if (!acima && nivel < 3) {
     const prox = niveis[nivel];
-    const dMembro = Math.max(0, r.cintura * prox - membro);      // só engrossar o membro
-    const dCint = Math.max(0, r.cintura - membro / prox);         // só afinar a cintura
+    const dMembro = Math.max(0, cw * prox - membro);      // só engrossar o membro
+    const dCint = Math.max(0, cw - membro / prox);         // só afinar a cintura
     // mix: metade do ganho no membro, o resto sai da cintura
     const membroMix = membro + dMembro / 2;
     const dMembroMix = membroMix - membro;
-    const dCintMix = r.cintura - membroMix / prox;
+    const dCintMix = cw - membroMix / prox;
     falta = `<br><small>Pro <b>Pump Nível ${nivel + 1}</b>: +${_1(dMembro)} cm de ${membroNome}, <b>OU</b> −${_1(dCint)} cm de cintura, <b>OU</b> um mix (+${_1(dMembroMix)} cm de ${membroNome} e −${_1(dCintMix)} cm de cintura).</small>`;
   }
   // Proporções em relação ao membro-âncora (glúteo/ombro).
@@ -388,7 +402,8 @@ function _blocoPump(r, ant) {
   let meta = '';
   if (!acima && nivel < 3) {
     const metaRatio = niveis[nivel];
-    const cintAlvo = dados.alturaCm ? Math.min(r.cintura, Math.round(dados.alturaCm * 0.5)) : r.cintura;
+    // Homem: a cintura fina fica abaixo da do umbigo; o teto saudável (altura × 0,5) vale pras duas.
+    const cintAlvo = dados.alturaCm ? Math.min(cw, Math.round(dados.alturaCm * 0.5)) : cw;
     const membroAlvo = Math.round(cintAlvo * metaRatio);
     const coxaAlvo = Math.round(membroAlvo * RC);
     const pantAlvo = Math.round(membroAlvo * RP);
@@ -403,7 +418,7 @@ function _blocoPump(r, ant) {
       const acao = d > 1 ? `<b>${cresce ? '+' : '−'}${_1(d)} cm</b>` : '✓';
       rows.push(`<tr><td>${nome}</td><td>${atual} cm</td><td>${alvo} cm</td><td>${acao}</td></tr>`);
     };
-    linha('Cintura', r.cintura, cintAlvo, false);
+    linha('Cintura', cw, cintAlvo, false);
     linha(membroNome.charAt(0).toUpperCase() + membroNome.slice(1), membro, membroAlvo, true);
     if (!isF) linha('Peitoral', r.peitoral, peitoAlvo, true);   // tronco de apoio — só homem
     if (!isF) linha('Braço', r.braco, bracoAlvo, true);         // (mulher foca curva + pernas)
@@ -414,7 +429,7 @@ function _blocoPump(r, ant) {
       + `<div class="cp-pump-sub">${isF ? '<b>Glúteo e cintura</b> fecham o nível (a curva). Coxa e panturrilha são <b>harmonia</b>' : '<b>Ombro e cintura</b> fecham o nível (o V). Peito, braço, glúteo e pernas são <b>harmonia</b>'} — meta de longo prazo, não exigência pra subir.</div>`
       + `<table class="cp-tab"><thead><tr><th>Medida</th><th>Atual</th><th>Ideal</th><th>Ajuste</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
-  return `<div class="cp-an cp-an-pump">${txt}${excelencia}${progHtml}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
+  return `<div class="cp-an cp-an-pump">${txt}${avisoFina}${excelencia}${progHtml}${escadaHtml}${ganho}${falta}${agora}${meta}</div>`;
 }
 
 function analiseHtml() {
@@ -450,10 +465,10 @@ function formHtml(trava = null) {
   // Cintura muda de ponto por sexo (fórmula da Marinha): homem no umbigo,
   // mulher acima do umbigo na parte mais fina. Hint no campo + linha no avatar.
   const cinturaHint = dados.sexo === 'F' ? '(acima do umbigo, parte mais fina)'
-    : dados.sexo === 'M' ? '(na altura do umbigo)'
-    : '(H: no umbigo · M: acima, parte fina)';
-  const hintDe = (m) => (m.k === 'cintura' ? cinturaHint : (m.hint || ''));
-  const medidasVis = MEDIDAS;
+    : '(na altura do umbigo)';
+  const hintDe = (m) => (m.k === 'cintura' ? cinturaHint
+    : m.k === 'cintura_fina' ? '(parte mais fina, acima do umbigo)' : (m.hint || ''));
+  const medidasVis = medidasDoSexo();
   const completar = !trava && novo?.id ? (() => {
     const faltam = LADOS.filter(l => !novo.fotos[l.k]).length;
     const dt = new Date(novo.data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' });
@@ -465,16 +480,16 @@ function formHtml(trava = null) {
       <div class="cp-medidas">
         ${medidasVis.map(m => m.par ? `
           <div class="cp-campo">
-            <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
+            <span class="cp-campo-lbl">${nomeMedida(m)} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
             <span class="cp-campo-par">${[['E', LADO_ESQ(m.k)], ['D', LADO_DIR(m.k)]].map(([t, k]) => `
               <label class="cp-campo-in"><small>${t}</small>
                 <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${k}"
-                  value="${alvo.medidas[k] ?? ''}" placeholder="0"${off} aria-label="${m.lbl} ${t === 'E' ? 'esquerdo' : 'direito'}" />
+                  value="${alvo.medidas[k] ?? ''}" placeholder="0"${off} aria-label="${nomeMedida(m)} ${t === 'E' ? 'esquerdo' : 'direito'}" />
                 <em>${m.un}</em></label>`).join('')}
             </span>
           </div>` : `
           <label class="cp-campo">
-            <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
+            <span class="cp-campo-lbl">${nomeMedida(m)} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
             <span class="cp-campo-in">
               <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
                 value="${alvo.medidas[m.k] ?? ''}" placeholder="0"${off} />
@@ -526,6 +541,7 @@ function avatarHtml() {
     <div class="cp-fig">
       <img src="img/corpo/${dir}-frente.png" alt="Frente" loading="lazy" />
       <div class="cp-fig-cintura" style="top:${cintTop}"><span>${cintTxt}</span></div>
+      ${isF ? '' : '<div class="cp-fig-cintura cp-fig-fina" style="top:39%"><span>Parte mais fina</span></div>'}
     </div>
     <div class="cp-fig"><img src="img/corpo/${dir}-lado.png" alt="Lado" loading="lazy" /></div>`;
 }
@@ -560,8 +576,8 @@ function historicoHtml() {
         </div>
         ${r.gordura_pct != null ? `<div class="cp-reg-comp">🔬 ${textoComposicao(r.peso, r.gordura_pct)}</div>` : ''}
         <div class="cp-reg-medidas">
-          ${MEDIDAS.filter(m => r[m.k] != null).map(m => {
-            const lbl = (m.k === 'quadril' && dados.sexo === 'F') ? 'Glúteo' : m.lbl;
+          ${medidasDoSexo().filter(m => r[m.k] != null).map(m => {
+            const lbl = nomeMedida(m);
             const e = m.par ? r[LADO_ESQ(m.k)] : null, d = m.par ? r[LADO_DIR(m.k)] : null;
             if (e != null && d != null) return `<span>${lbl}: <b>E ${br(e)} · D ${br(d)}${m.un}</b></span>`;
             return `<span>${lbl}: <b>${br(r[m.k])}${m.un}</b></span>`;
