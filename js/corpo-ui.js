@@ -43,6 +43,7 @@ const LADOS = [
 ];
 
 let dados = { sexo: null, alturaCm: null, pesoKg: null };
+let adminNova = false;  // admin tocou em "Nova medição (teste)" mesmo dentro do mês
 let ehAdmin = false;   // admin ignora a trava de 30 dias (pra testar à vontade)
 let registros = [];
 let urls = new Map();       // path -> signed url
@@ -93,12 +94,6 @@ export async function montarComposicao() {
 // travado (libera 1 mês depois). O histórico fica sempre abaixo. Mensal (não
 // trimestral) pra pegar mudança cedo e dar dica antes de sair do controle.
 const DIAS_TRAVA = 30;
-function podeNovaMedicao() {
-  if (ehAdmin) return true;   // admin sem trava (testes)
-  if (!registros.length) return true;
-  const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
-  return Math.floor((Date.now() - ultima) / 86400000) >= DIAS_TRAVA;
-}
 function diasParaLiberar() {
   if (!registros.length) return 0;
   const ultima = new Date(registros[0].data + 'T00:00:00').getTime();
@@ -148,7 +143,10 @@ function desenhar() {
   // em branco e parecia que não tinha salvado (Élton, 05/11).
   const dentroDoMes = registros.length && diasParaLiberar() > 0;
   const completar = dentroDoMes && incompleto(registros[0]);
-  const pode = !completar && podeNovaMedicao();
+  // Fora isso, dentro do mês a medição salva aparece travada (valores + fotos)
+  // com a contagem até a próxima, pra todo mundo (Élton, 05/11). Admin pode
+  // abrir uma nova pra teste.
+  const pode = !completar && (!dentroDoMes || (ehAdmin && adminNova));
   if (completar) {
     if (!novo || novo.id !== registros[0].id) novo = abrirParaCompletar(registros[0]);
   } else if (pode) {
@@ -185,7 +183,7 @@ function telaPrincipal(pode) {
     ${statusHtml()}
     ${faltaBase() ? `<div class="cp-alerta">Preencha <b>sexo</b> e <b>altura</b> ali em cima (Meu perfil) pra calcular o % de gordura.</div>` : ''}
     ${analiseHtml()}
-    ${pode ? formHtml() : bloqueadoHtml()}
+    ${pode ? formHtml() : (registros.length ? formHtml(abrirParaCompletar(registros[0])) : bloqueadoHtml())}
     ${historicoHtml()}`;
 }
 
@@ -437,7 +435,10 @@ function analiseHtml() {
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 3: NOVA MEDIÇÃO (formulário) + travado + histórico
 // ═══════════════════════════════════════════════════════════════
-function formHtml() {
+// trava = medição salva e completa do mês: mesmos campos, só pra ver.
+function formHtml(trava = null) {
+  const alvo = trava || novo;
+  const off = trava ? ' disabled' : '';
   // Roupa das fotos (Elton, 28/09): homem de sunga (senão short curto), mulher de
   // biquíni — quanto MAIS o corpo aparece, melhor dá pra comparar contorno e dobras.
   const roupa = dados.sexo === 'F' ? 'Fique de <b>biquíni</b> — quanto mais o corpo aparece, melhor dá pra comparar o contorno e as dobrinhas'
@@ -453,7 +454,7 @@ function formHtml() {
     : '(H: no umbigo · M: acima, parte fina)';
   const hintDe = (m) => (m.k === 'cintura' ? cinturaHint : (m.hint || ''));
   const medidasVis = MEDIDAS;
-  const completar = novo?.id ? (() => {
+  const completar = !trava && novo?.id ? (() => {
     const faltam = LADOS.filter(l => !novo.fotos[l.k]).length;
     const dt = new Date(novo.data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' });
     return `<div class="cp-completar">📝 Medição de <b>${dt}</b> salva${faltam ? `, faltam <b>${faltam} ${faltam === 1 ? 'foto' : 'fotos'}</b>` : ''}. Completa aqui quando puder.</div>`;
@@ -468,7 +469,7 @@ function formHtml() {
             <span class="cp-campo-par">${[['E', LADO_ESQ(m.k)], ['D', LADO_DIR(m.k)]].map(([t, k]) => `
               <label class="cp-campo-in"><small>${t}</small>
                 <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${k}"
-                  value="${novo.medidas[k] ?? ''}" placeholder="0" aria-label="${m.lbl} ${t === 'E' ? 'esquerdo' : 'direito'}" />
+                  value="${alvo.medidas[k] ?? ''}" placeholder="0"${off} aria-label="${m.lbl} ${t === 'E' ? 'esquerdo' : 'direito'}" />
                 <em>${m.un}</em></label>`).join('')}
             </span>
           </div>` : `
@@ -476,7 +477,7 @@ function formHtml() {
             <span class="cp-campo-lbl">${m.lbl} ${hintDe(m) ? `<small>${hintDe(m)}</small>` : ''}</span>
             <span class="cp-campo-in">
               <input type="number" inputmode="decimal" step="0.1" min="0" data-medida="${m.k}"
-                value="${novo.medidas[m.k] ?? ''}" placeholder="0" />
+                value="${alvo.medidas[m.k] ?? ''}" placeholder="0"${off} />
               <em>${m.un}</em>
             </span>
           </label>`).join('')}
@@ -484,25 +485,25 @@ function formHtml() {
       <div class="cp-avatar">${avatarHtml()}</div>
     </div>
 
-    <div class="cp-gordura" id="cp-gordura"></div>
+    ${trava ? '' : '<div class="cp-gordura" id="cp-gordura"></div>'}
 
     <div class="cp-secao-tit">Fotos de progresso — as 6</div>
-    <div class="cp-secao-sub">Frente / lado / costas, do <b>quadril ↑</b> e do <b>quadril ↓</b>. Dá pra salvar as medidas agora e completar as fotos depois.</div>
-    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>
-    ${fotosGridHtml()}
+    ${trava ? '' : `<div class="cp-secao-sub">Frente / lado / costas, do <b>quadril ↑</b> e do <b>quadril ↓</b>. Dá pra salvar as medidas agora e completar as fotos depois.</div>
+    <div class="cp-foto-dica">📸 Tire <b>de frente pro espelho</b> ou peça pra <b>alguém te fotografar</b>, num lugar <b>bem iluminado</b>. ${roupa} — assim dá pra comparar a evolução com clareza.</div>`}
+    ${fotosGridHtml(alvo, !!trava)}
 
-    <button class="cp-salvar" data-salvar>${novo?.id ? 'Salvar' : 'Salvar medição'}</button>`;
+    ${trava ? bloqueadoHtml() : `<button class="cp-salvar" data-salvar>${novo?.id ? 'Salvar' : 'Salvar medição'}</button>`}`;
 }
 
 // Grade dos 3 slots de foto (frente/lado/costas) + inputs de câmera/galeria.
 // Usada tanto na nova medição quanto no bloco de "fotos a qualquer momento".
-function fotosGridHtml() {
+function fotosGridHtml(alvo = novo, trava = false) {
   return `
     <div class="cp-fotos">
       ${LADOS.map(l => `
-        <button type="button" class="cp-foto-slot" data-foto="${l.k}">
-          ${novo?.fotos[l.k]?.previa
-            ? `<img src="${esc(novo.fotos[l.k].previa)}" alt="${l.lbl}" />`
+        <button type="button" class="cp-foto-slot"${trava ? ' disabled' : ` data-foto="${l.k}"`}>
+          ${alvo?.fotos[l.k]?.previa
+            ? `<img src="${esc(alvo.fotos[l.k].previa)}" alt="${l.lbl}" />`
             : `<span class="cp-foto-mais">＋</span>`}
           <span class="cp-foto-lbl">${l.lbl}</span>
         </button>`).join('')}
@@ -533,14 +534,17 @@ function bloqueadoHtml() {
   const dias = diasParaLiberar();
   const ultima = registros.length ? new Date(registros[0].data + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : '';
   const d = `${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  const prox = registros.length ? new Date(new Date(registros[0].data + 'T00:00:00').getTime() + DIAS_TRAVA * 86400000) : null;
+  const proxTxt = prox ? prox.toLocaleDateString([], { day: '2-digit', month: 'short' }) : '';
   // Amarração: medida + 6 fotos são salvas juntas e travam. Nada de editar depois
   // — no próximo ciclo a pessoa refaz tudo (fotos + medidas).
   return `
     <div class="cp-bloqueado">
       <span class="cp-bloq-ic">⏳</span>
-      <span>Você registrou em <b>${ultima}</b> (medidas + 6 fotos). A próxima libera em <b>${d}</b> — 1x por mês pra acompanhar de perto.</span>
+      <span>Você registrou em <b>${ultima}</b>. A próxima libera em <b>${d}</b> (${proxTxt}): 1x por mês pra acompanhar de perto.</span>
     </div>
-    <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>`;
+    <button class="cp-salvar" disabled>🔒 Nova medição em ${d}</button>
+    ${ehAdmin ? '<button type="button" class="cp-admin-nova" data-admin-nova>Nova medição (teste, só admin)</button>' : ''}`;
 }
 
 function historicoHtml() {
@@ -607,6 +611,7 @@ export function ligarComposicao() {
     }
 
     if (e.target.closest('[data-salvar]')) { await salvar(); return; }
+    if (e.target.closest('[data-admin-nova]')) { adminNova = true; novo = null; desenhar(); return; }
   });
 
   document.addEventListener('input', (e) => {
@@ -665,7 +670,7 @@ async function salvar() {
       registros.unshift(row);
     }
     await assinar();
-    novo = null;
+    novo = null; adminNova = false;
     desenhar();
     const faltam = LADOS.filter(l => !row.fotos?.[l.k]).length;
     showToast(faltam ? `✅ Salvo! Faltam ${faltam} ${faltam === 1 ? 'foto' : 'fotos'}: completa quando puder.` : '✅ Medição registrada!', 'success');

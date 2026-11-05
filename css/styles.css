@@ -719,6 +719,10 @@ html, body { background-color: #1a1209; }
   background: var(--accent); color: #fff; font-size: 15px; font-weight: 800; font-family: inherit;
 }
 .cp-salvar:disabled { background: var(--card-2); color: var(--muted); cursor: default; border: 1px solid var(--border); }
+/* Medição do mês travada: mesmos campos, só pra ver (corpo-ui.js formHtml(trava)) */
+.cp-campo-in input:disabled { opacity: 1; color: var(--text); -webkit-text-fill-color: var(--text); }
+.cp-foto-slot:disabled { cursor: default; }
+.cp-admin-nova { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--muted); font: 600 12px inherit; text-decoration: underline; cursor: pointer; }
 
 /* ── Câmera com molde (guia de enquadramento) ── */
 .cam-guia-ov { position: fixed; inset: 0; z-index: 100000; background: #000; overflow: hidden; }
