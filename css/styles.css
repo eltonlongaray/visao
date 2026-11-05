@@ -8893,12 +8893,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .tr-add { border: 0; background: none; color: var(--accent-2); font-weight: 700; font-size: 13px; padding: 4px 0; cursor: pointer; }
 .tr-pick { margin: 6px 0 4px; }
 .tr-pick .pt-chips { gap: 6px; }
-/* Bonequinhos dos exercícios (js/treino-desenhos.js) */
-.tr-ex-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
-.tr-ex-card { --bn-fundo: var(--card-2); --bn-eq: #8b8fa8; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 7px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); color: var(--text); font: 700 11.5px/1.2 inherit; text-align: center; cursor: pointer; }
-.tr-ex-card:active { transform: scale(.97); }
-.tr-ex-card .bn { width: 100%; height: auto; display: block; }
-.tr-ex-card span { color: var(--text); overflow-wrap: anywhere; }
 .tr-todos { opacity: .8; }
 .tr-outro { display: flex; gap: 6px; margin-top: 6px; }
 .tr-outro input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font-size: 14px; }
