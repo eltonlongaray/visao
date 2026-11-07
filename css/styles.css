@@ -4829,8 +4829,8 @@ body.bio-modal-open { overflow: hidden; }
    ═══════════════════════════════════════════════════════════════ */
 .consent-checkbox {
   display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 10px;
+  grid-template-columns: 26px 1fr;
+  gap: 12px;
   align-items: flex-start;
   background: var(--card);
   border: 1px solid var(--border);
@@ -4846,13 +4846,14 @@ body.bio-modal-open { overflow: hidden; }
   width: 0; height: 0;
 }
 .consent-checkbox-mark {
-  width: 22px; height: 22px;
-  border-radius: 6px;
-  border: 1.5px solid var(--border);
-  background: var(--card-2);
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  border: 2.5px solid var(--accent-2);
+  background: rgba(167,139,250,0.14);
+  box-shadow: 0 0 0 3px rgba(167,139,250,0.18);
   display: grid; place-items: center;
   transition: all 0.15s;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .consent-checkbox input:checked ~ .consent-checkbox-mark {
   background: linear-gradient(135deg, var(--accent), var(--blue, #4f46e5));
@@ -4865,15 +4866,19 @@ body.bio-modal-open { overflow: hidden; }
   font-weight: 800;
 }
 .consent-checkbox-text {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text);
 }
 .consent-checkbox-text a {
-  color: var(--accent-2);
+  color: #c4b5fd;
+  font-weight: 700;
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.consent-checkbox-text strong { color: var(--accent-2); }
+.consent-checkbox-text strong { color: #c4b5fd; font-weight: 700; }
+[data-theme="light"] .consent-checkbox-text a,
+[data-theme="light"] .consent-checkbox-text strong { color: var(--accent); }
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5097,7 +5102,7 @@ body.bio-modal-open { overflow: hidden; }
   opacity: 0.55;
   cursor: not-allowed;
 }
-.legal-modal-check.disabled .consent-checkbox-mark { background: var(--card-3); }
+.legal-modal-check.disabled .consent-checkbox-mark { background: var(--card-3); border-color: var(--muted); box-shadow: none; }
 
 .legal-modal-accept {
   width: 100%;
