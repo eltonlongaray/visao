@@ -17,6 +17,7 @@ import { fetchDaysRange, getProfile } from './banco-dados.js';
 import { trapModalBack } from './modal-voltar.js';
 import { GRUPOS_MUS, MUSCULOS, getPerfilTreino } from './perfil-treino-ui.js';
 import { EXERCICIOS, GENERICOS, acharExercicios, nomeExibido } from './treino-exercicios.js';
+import { desenhoDe } from './treino-desenhos.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -484,9 +485,9 @@ function _lembrarRecente(k, nome) {
   } catch { /* sem armazenamento: só não lembra */ }
 }
 
-let _pesoCorpo = null;
+let _pesoCorpo = null, _sexo = null;
 function _popupFisica(cat, task, inicial = null) {
-  getProfile().then(p => { _pesoCorpo = p?.pesoKg || null; }).catch(() => {});
+  getProfile().then(p => { _pesoCorpo = p?.pesoKg || null; _sexo = p?.sexo || null; }).catch(() => {});
   return new Promise((resolve) => {
     // O que estava planejado: o que já foi registrado ou o que a descrição diz
     const plano = task?.treino?.musculos?.length ? task.treino.musculos : musculosDoTexto(`${task?.desc || ''} ${task?.title || ''}`);
@@ -547,7 +548,9 @@ function _popupFisica(cat, task, inicial = null) {
               <div class="tr-mus-cab"><b>${esc(nomeMusculo(k))}</b>
                 <button type="button" class="tr-add" data-add="${k}">${abertoEm === k ? 'Fechar' : '+ Exercício'}</button></div>
               ${abertoEm === k ? `<div class="tr-pick">
-                <div class="pt-chips">${mostra.map(e => `<button type="button" class="pt-chip mini" data-ex="${k}" data-nome="${esc(e.nome)}">${esc(e.nome)}</button>`).join('')}
+                ${mostra.some(e => desenhoDe(e.nome)) ? `<div class="tr-grade">${mostra.filter(e => desenhoDe(e.nome)).map(e => `<button type="button" class="tr-ex-card" data-ex="${k}" data-nome="${esc(e.nome)}">
+                  <img src="${desenhoDe(e.nome, _sexo)}" alt="" loading="lazy" decoding="async" width="480" height="387"><span>${esc(e.nome)}</span></button>`).join('')}</div>` : ''}
+                <div class="pt-chips">${mostra.filter(e => !desenhoDe(e.nome)).map(e => `<button type="button" class="pt-chip mini" data-ex="${k}" data-nome="${esc(e.nome)}">${esc(e.nome)}</button>`).join('')}
                   ${lista.length > curtos.length ? `<button type="button" class="pt-chip mini tr-todos" data-todos="${k}">${todosEm === k ? 'Menos ▴' : 'Ver todos ▾'}</button>` : ''}</div>
                 <div class="tr-outro"><input type="text" maxlength="40" data-outro="${k}" placeholder="Outro: escreve o nome"><button type="button" class="pt-chip mini" data-outro-ok="${k}">Adicionar</button></div>
               </div>` : ''}
@@ -568,7 +571,11 @@ function _popupFisica(cat, task, inicial = null) {
           // já pronto pra digitar as séries do que acabou de entrar
           box.querySelector(`[data-i="${exercicios.length - 1}"][data-c="s"]`)?.focus();
         };
-        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { abertoEm = abertoEm === b.dataset.add ? null : b.dataset.add; todosEm = null; pintarSeries(); });
+        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+          abertoEm = abertoEm === b.dataset.add ? null : b.dataset.add; todosEm = null; pintarSeries();
+          // os desenhos ficam embaixo: rola até eles
+          if (abertoEm) box.querySelector('.tr-pick')?.closest('.tr-mus-bloco')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        });
         box.querySelectorAll('[data-todos]').forEach(b => b.onclick = () => { todosEm = todosEm === b.dataset.todos ? null : b.dataset.todos; pintarSeries(); });
         box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => add(b.dataset.ex, b.dataset.nome));
         box.querySelectorAll('[data-outro-ok]').forEach(b => b.onclick = () => {
