@@ -7061,12 +7061,13 @@ body.sem-rolagem { overflow: hidden; }
   border-radius: 50%; cursor: pointer; display: grid; place-items: center;
   font-size: 20px; padding: 0; font-family: inherit;
 }
-.cam-x, .cam-virar {
+.cam-x {
   position: absolute; top: calc(12px + env(safe-area-inset-top, 0px));
   width: 46px; height: 46px; z-index: 2;
 }
 .cam-x { left: 14px; }
-.cam-virar { right: 14px; font-size: 23px; }
+/* frontal aparece espelhada, como num espelho (a foto sai igual) */
+.cam-tela video.espelho { transform: scaleX(-1); }
 .cam-baixo {
   position: absolute; left: 0; right: 0;
   bottom: calc(26px + env(safe-area-inset-bottom, 0px));
