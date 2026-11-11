@@ -11,6 +11,7 @@
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 import { getProfile, setProfile } from './banco-dados.js';
+import { ehR2, subirR2, assinarR2 } from './arquivos-r2.js';
 
 function _uid() { return auth.currentUser?.uid || null; }
 function _num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : null; }
@@ -136,6 +137,9 @@ export async function atualizarFotosRegistro(id, fotos) {
 export async function subirFotoCorpo(blob, lado) {
   const id = _uid();
   if (!id) throw new Error('Sessão expirada');
+  // R2 primeiro (11/11: sem cobrança de tráfego); se falhar, Supabase como antes
+  try { return await subirR2(id, 'corpo', blob, '.jpg', blob.type || 'image/jpeg'); }
+  catch (e) { console.warn('[Falcon] foto do corpo no R2 falhou, vai pro Supabase:', e.message); }
   const caminho = `${id}/${Date.now()}-${lado}.jpg`;
   const { error } = await supabase.storage.from('corpo-fotos')
     .upload(caminho, blob, { contentType: blob.type || 'image/jpeg' });
@@ -145,8 +149,9 @@ export async function subirFotoCorpo(blob, lado) {
 
 // Assina em lote (URLs de bucket privado expiram; 1h e reassina ao abrir).
 export async function assinarFotos(caminhos) {
-  const limpos = [...new Set((caminhos || []).filter(Boolean))];
-  const mapa = new Map();
+  const todos = [...new Set((caminhos || []).filter(Boolean))];
+  const mapa = await assinarR2(todos);
+  const limpos = todos.filter(c => !ehR2(c));
   if (!limpos.length) return mapa;
   const { data, error } = await supabase.storage.from('corpo-fotos').createSignedUrls(limpos, 3600);
   if (error) return mapa;

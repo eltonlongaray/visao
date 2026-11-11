@@ -58,6 +58,10 @@ jobs:
           npx --yes wrangler@3 r2 bucket list | grep -q 'falcon-provas' || npx --yes wrangler@3 r2 bucket create falcon-provas
           # Rede de segurança: nada fica mais de 120 dias (o app já apaga antes)
           npx --yes wrangler@3 r2 bucket lifecycle add falcon-provas apagar-velhos --expire-days 120 --force || echo "::warning::regra de limpeza não aplicada"
+          # Fotos/arquivos do chat, corpo e perfil: balde sem limpeza automática
+          npx --yes wrangler@3 r2 bucket list | grep -q 'falcon-arquivos' || npx --yes wrangler@3 r2 bucket create falcon-arquivos
+          # Chave dos links assinados: criada uma vez, nunca aparece no log
+          npx --yes wrangler@3 secret list | grep -q '"ASSINATURA"' || openssl rand -hex 32 | npx --yes wrangler@3 secret put ASSINATURA
       - name: Publicar
         if: steps.tem.outputs.ok == '1'
         uses: cloudflare/wrangler-action@v3
