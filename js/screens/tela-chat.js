@@ -316,7 +316,7 @@ function desenharCasca(app) {
       <div class="cam-baixo">
         <button type="button" class="cam-btn cam-lado" id="cam-galeria" aria-label="Galeria">🖼</button>
         <button type="button" class="cam-disparo" id="cam-disparo" aria-label="Tirar foto"></button>
-        <button type="button" class="cam-btn cam-lado" id="cam-virar" aria-label="Virar câmera"><svg viewBox="1 5 30 24" width="40" height="32" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10h4.5l2.2-3.5h11.6L24 10h4.5a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5h-25A1.5 1.5 0 0 1 2 25.5v-14A1.5 1.5 0 0 1 3.5 10z"/><path d="M10.4 18.5a5.6 5.6 0 0 1 9.9-3.6"/><path d="M21 11.4v3.8h-3.8"/><path d="M21.6 18.5a5.6 5.6 0 0 1-9.9 3.6"/><path d="M11 25.6v-3.8h3.8"/></svg></button>
+        <button type="button" class="cam-btn cam-lado" id="cam-virar" aria-label="Virar câmera"><svg viewBox="1 5 30 25" width="40" height="33" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10h4.5l2.2-3.5h11.6L24 10h4.5a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5h-25A1.5 1.5 0 0 1 2 26.5v-15A1.5 1.5 0 0 1 3.5 10z"/><path d="M11 18.6a5 5 0 0 1 8.8-3.2"/><path d="M20.5 12.6v3.2h-3.2"/><path d="M21 18.6a5 5 0 0 1-8.8 3.2"/><path d="M11.5 24.6v-3.2h3.2"/></svg></button>
       </div>
     </div>
     <div class="foto-envio" id="foto-envio" hidden></div>
