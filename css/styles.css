@@ -8907,6 +8907,12 @@ body.rota-publica .bottom-nav { display: none !important; }
 .tr-pick { margin: 6px 0 4px; }
 .tr-pick .pt-chips { gap: 6px; }
 .tr-todos { opacity: .8; }
+/* Desenhos dos exercícios (traço preto no fundo branco) */
+.tr-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+.tr-ex-card { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); overflow: hidden; cursor: pointer; font: inherit; text-align: center; }
+.tr-ex-card img { display: block; width: 100%; height: auto; aspect-ratio: 480 / 387; background: #fff; object-fit: contain; }
+.tr-ex-card span { padding: 5px 4px 6px; font-size: 11.5px; font-weight: 600; line-height: 1.2; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
+.tr-ex-card:active { border-color: var(--accent-2); }
 .tr-outro { display: flex; gap: 6px; margin-top: 6px; }
 .tr-outro input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--text); font-size: 14px; }
 .tr-ex-linha { display: flex; align-items: center; gap: 5px; margin: 6px 0 0; font-size: 13.5px; color: var(--text); }
