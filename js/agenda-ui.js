@@ -408,7 +408,7 @@ function desenhar() {
       <div class="ag-diassem" id="ag-diassem">
         ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
       </div>
-      <button class="ag-chipbtn" id="ag-segsex" type="button">📅 Atendo de Seg a Sex</button>
+      <button class="ag-chipbtn" id="ag-segsex" type="button" role="switch" aria-checked="false">📅 Atendo de Seg a Sex <span class="ag-switch" aria-hidden="true"></span></button>
 
       <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
       <div class="ag-sem-nav">
@@ -460,7 +460,14 @@ function pintarDiasSemana() {
     const k = b.dataset.diasem;
     b.classList.toggle('on', (base[String(k)] || []).length > 0);
   });
+  // Chave "Atendo de Seg a Sex": ligada quando Seg–Sex estão ligados e Sáb/Dom não.
+  const on = k => (base[k] || []).length > 0;
+  const segsex = ['1', '2', '3', '4', '5'].every(on) && !on('6') && !on('0');
+  const sw = document.querySelector('#agenda-ov #ag-segsex');
+  if (sw) { sw.classList.toggle('on', segsex); sw.setAttribute('aria-checked', segsex ? 'true' : 'false'); }
 }
+// Horários de Seg–Sex guardados ao desligar a chave, pra religar com os mesmos.
+let _segsexRef = null;
 // Horários "de referência" pra ligar um dia novo (primeiro dia do padrão que tem horário).
 function _refTimes() {
   const base = _cfg.disponibilidade || {};
@@ -492,10 +499,17 @@ function wireFixos(corpo) {
     }
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
   }));
-  corpo.querySelector('#ag-segsex')?.addEventListener('click', () => {
-    const ref = _refTimes();
-    if (!ref) { showToast('Adicione horários em um dia primeiro', 'info'); return; }
+  corpo.querySelector('#ag-segsex')?.addEventListener('click', (e) => {
     const base = (_cfg.disponibilidade ||= {});
+    if (e.currentTarget.classList.contains('on')) {             // desliga: tira Seg–Sex
+      _segsexRef = _refTimes();
+      ['1', '2', '3', '4', '5'].forEach(k => { delete base[k]; });
+      pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
+      showToast('Seg a Sex desligados', 'info');
+      return;
+    }
+    const ref = _refTimes() || _segsexRef;
+    if (!ref) { showToast('Adicione horários em um dia primeiro', 'info'); return; }
     ['1', '2', '3', '4', '5'].forEach(k => { if (!(base[k] || []).length) base[k] = ref.slice(); });
     delete base['6']; delete base['0'];
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
