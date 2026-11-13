@@ -408,7 +408,7 @@ function desenhar() {
       <div class="ag-diassem" id="ag-diassem">
         ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
       </div>
-      <button class="ag-linkbtn" id="ag-segsex" type="button" style="margin:2px 0 4px">Atendo de Seg a Sex</button>
+      <button class="ag-chipbtn" id="ag-segsex" type="button">📅 Atendo de Seg a Sex</button>
 
       <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
       <div class="ag-sem-nav">

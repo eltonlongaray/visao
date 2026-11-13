@@ -7852,6 +7852,8 @@ body.sem-rolagem { overflow: hidden; }
 .ag-repetir-chk input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .ag-linkbtn { background: none; border: none; color: var(--accent-2); font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; }
 .ag-linkbtn.danger { color: #ef4444; }
+.ag-chipbtn { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 4px; padding: 7px 14px; border: 1.5px solid var(--accent-2); border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, var(--card-2)); color: var(--accent-2); font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.ag-chipbtn:active { transform: scale(0.97); }
 
 /* ativar */
 .ag-ativar {
