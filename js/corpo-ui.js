@@ -725,15 +725,13 @@ function escolherFoto() {
 function abrirCameraGuia(lado) {
   return new Promise((resolve) => {
     const info = LADOS.find(l => l.k === lado) || { molde: 'frente', crop: 'cima', lbl: '' };
-    const sexoDir = dados.sexo === 'F' ? 'mulher' : 'homem';
-    const guiaImg = `${sexoDir}-${info.molde}.png`;
+    // Molde do boneco com fita (img/corpo/*-frente|lado.png) desligado por enquanto (Élton 13/11).
     const ov = document.createElement('div');
     ov.className = 'cam-guia-ov';
     ov.innerHTML = `
-      <div class="cam-guia-msg"><b>${info.lbl}</b> · 💡 pra <b>precisão maior</b>, em <b>jejum antes do café</b>. Encaixe no molde e mantenha a <b>mesma distância</b> todo mês (pode cortar as mãos).</div>
+      <div class="cam-guia-msg"><b>${info.lbl}</b> · 💡 pra <b>precisão maior</b>, em <b>jejum antes do café</b>. Mantenha a <b>mesma distância</b> todo mês (pode cortar as mãos).</div>
       <video class="cam-guia-video" autoplay playsinline muted></video>
-      <img class="cam-guia-molde cam-crop-${info.crop}" src="img/corpo/${guiaImg}" alt="molde" />
-      <div class="cam-guia-cintura cam-crop-${info.crop}"></div>
+      ${''/* molde do boneco com fita tirado por enquanto (Élton 13/11) — volta quando refizermos as fotos */}
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-cam="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot" data-cam="shot" aria-label="Tirar foto"></button>
