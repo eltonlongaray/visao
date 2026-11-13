@@ -313,11 +313,10 @@ function desenharCasca(app) {
     <div class="cam-tela" id="cam-tela" hidden>
       <video id="cam-video" autoplay playsinline muted></video>
       <button type="button" class="cam-btn cam-x" id="cam-fechar" aria-label="Fechar">✕</button>
-      <button type="button" class="cam-btn cam-virar" id="cam-virar" aria-label="Virar câmera">⟲</button>
       <div class="cam-baixo">
         <button type="button" class="cam-btn cam-lado" id="cam-galeria" aria-label="Galeria">🖼</button>
         <button type="button" class="cam-disparo" id="cam-disparo" aria-label="Tirar foto"></button>
-        <span class="cam-lado"></span>
+        <button type="button" class="cam-btn cam-lado" id="cam-virar" aria-label="Virar câmera"><svg viewBox="1 5 30 25" width="40" height="33" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10h4.5l2.2-3.5h11.6L24 10h4.5a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5h-25A1.5 1.5 0 0 1 2 26.5v-15A1.5 1.5 0 0 1 3.5 10z"/><path d="M11 18.6a5 5 0 0 1 8.8-3.2"/><path d="M20.5 12.6v3.2h-3.2"/><path d="M21 18.6a5 5 0 0 1-8.8 3.2"/><path d="M11.5 24.6v-3.2h3.2"/></svg></button>
       </div>
     </div>
     <div class="foto-envio" id="foto-envio" hidden></div>
@@ -1783,6 +1782,7 @@ async function abrirCamera() {
       audio: false,
     });
     video.srcObject = camStream;
+    video.classList.toggle('espelho', camLado === 'user');
     tela.hidden = false;
     document.body.classList.add('sem-rolagem');
     empilharCamada(fecharCameraDireto);
@@ -1807,10 +1807,29 @@ function fecharCamera() {
   fecharCameraDireto();
 }
 
+// Troca só o vídeo: fechar e reabrir a tela mexia no histórico do voltar
+// (sairDaCamada → back), e o popstate atrasado fechava a câmera recém-aberta.
+let camVirando = false;
 async function virarCamera() {
+  const video = document.getElementById('cam-video');
+  if (!video || camVirando) return;
+  camVirando = true;
+  const antes = camLado;
   camLado = camLado === 'environment' ? 'user' : 'environment';
-  fecharCamera();
-  await abrirCamera();
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  const pedir = (lado) => navigator.mediaDevices.getUserMedia({
+    video: { facingMode: lado, width: { ideal: 1920 }, height: { ideal: 1920 } }, audio: false,
+  });
+  try {
+    camStream = await pedir(camLado);
+  } catch {
+    camLado = antes;   // aparelho sem a outra câmera: volta pra que estava
+    showToast('Não deu pra virar a câmera.', 'info');
+    try { camStream = await pedir(camLado); } catch { camVirando = false; fecharCamera(); return; }
+  }
+  video.srcObject = camStream;
+  video.classList.toggle('espelho', camLado === 'user');
+  camVirando = false;
 }
 
 // Desenha o QUADRO ATUAL do vídeo num canvas. É o mesmo caminho de redução

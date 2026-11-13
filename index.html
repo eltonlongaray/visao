@@ -6,6 +6,18 @@
 <meta name="theme-color" content="#7c3aed">
 <meta name="description" content="Mentor Pessoal de Planejamento Estratégico — organize sua rotina e acompanhe seu desempenho.">
 <title>Falcon — Mentor Pessoal de Planejamento Estratégico</title>
+<!-- Prévia do link (WhatsApp, Instagram, Telegram…): o WhatsApp não roda JS, então é fixo por tipo de página -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Estilo Falcon">
+<meta property="og:title" content="Estilo Falcon — Mentor Pessoal de Planejamento Estratégico">
+<meta property="og:description" content="Organize sua rotina, mantenha a constância e acompanhe seu desempenho todos os dias.">
+<meta property="og:url" content="https://estilo-falcon.web.app/">
+<meta property="og:image" content="https://estilo-falcon.web.app/icons/og-falcon.jpg?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo Falcon Hunters — Clareza &amp; Decisão">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
 
 <!-- Link público /agenda-online/<codigoID>: fixa a base em "/" pros assets relativos
      carregarem da RAIZ (senão o navegador pede /agenda-online/js/... e recebe HTML). -->
@@ -16,7 +28,7 @@
 <!-- Force-update: unregister → re-register → SW ready → reload -->
 <script>
   (function() {
-    var V='854';
+    var V='858';
     window.__BUILD = V;   // exibido em Ajustes: encerra a dúvida de 'a atualização chegou?'
     if (localStorage.getItem('_visao_build') !== V) {
       localStorage.setItem('_visao_build', V);
@@ -51,7 +63,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Falcon">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/styles.css?v=20261106a">
+<link rel="stylesheet" href="css/styles.css?v=20261111c">
 <style>.onboarding-logo,.ajustes-avatar{background:#4f46e5!important}</style>
 <script>
   // Aplica tema ANTES de qualquer render — evita flash de tema errado

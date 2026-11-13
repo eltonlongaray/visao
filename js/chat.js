@@ -16,6 +16,7 @@
 import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 import { getProfile, setProfile } from './banco-dados.js';
+import { ehR2, subirR2, assinarR2, listarR2, apagarR2, urlPublicaR2 } from './arquivos-r2.js';
 
 const LIMITE = 200;
 
@@ -209,6 +210,9 @@ export async function encaminhar(msg, paraId, nome) {
 export async function subirFotoDoChat(blob) {
   const id = auth.currentUser?.uid;
   if (!id) throw new Error('Sessão expirada');
+  // R2 primeiro (sem cobrança de tráfego); se falhar, Supabase como antes
+  try { return await subirR2(id, 'chat', blob, '.jpg', 'image/jpeg'); }
+  catch (e) { console.warn('[Falcon] foto no R2 falhou, vai pro Supabase:', e.message); }
   const nome = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
   const caminho = `${id}/${nome}`;
   const { error } = await supabase.storage
@@ -224,16 +228,19 @@ export async function subirFotoDoChat(blob) {
 // sozinha e as URLs são refeitas junto.
 const ASSINATURA_SEG = 60 * 60;
 export async function assinarFotos(caminhos) {
-  const unicos = [...new Set((caminhos || []).filter(Boolean))];
-  if (!unicos.length) return new Map();
+  const todos = [...new Set((caminhos || []).filter(Boolean))];
+  const r2 = await assinarR2(todos);
+  const unicos = todos.filter(c => !ehR2(c));
+  if (!unicos.length) return r2;
   const { data, error } = await supabase.storage
     .from('chat-fotos')
     .createSignedUrls(unicos, ASSINATURA_SEG);
   if (error) {
     console.warn('[Falcon] assinarFotos:', error.message);
-    return new Map();
+    return r2;
   }
-  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+  (data || []).filter(d => d.signedUrl).forEach(d => r2.set(d.path, d.signedUrl));
+  return r2;
 }
 
 // ─── ARQUIVOS E ÁUDIO ──────────────────────────────────────────
@@ -246,6 +253,10 @@ export async function subirArquivoDoChat(file) {
   // extensão preservada só pra o navegador reconhecer no download; o nome
   // real fica em arquivo_nome
   const ext = (file.name.match(/\.[a-z0-9]{1,8}$/i) || [''])[0].toLowerCase();
+  try {
+    const c = await subirR2(id, 'arq', file, ext || '.bin', file.type || 'application/octet-stream');
+    return { path: c, nome: file.name || 'arquivo', mime: file.type || '' };
+  } catch (e) { console.warn('[Falcon] arquivo no R2 falhou, vai pro Supabase:', e.message); }
   const caminho = `${id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
   const { error } = await supabase.storage
     .from('chat-arquivos')
@@ -256,13 +267,16 @@ export async function subirArquivoDoChat(file) {
 
 // Assina em lote, igual às fotos — bucket privado.
 export async function assinarArquivos(caminhos) {
-  const unicos = [...new Set((caminhos || []).filter(Boolean))];
-  if (!unicos.length) return new Map();
+  const todos = [...new Set((caminhos || []).filter(Boolean))];
+  const r2 = await assinarR2(todos);
+  const unicos = todos.filter(c => !ehR2(c));
+  if (!unicos.length) return r2;
   const { data, error } = await supabase.storage
     .from('chat-arquivos')
     .createSignedUrls(unicos, ASSINATURA_SEG);
-  if (error) { console.warn('[Falcon] assinarArquivos:', error.message); return new Map(); }
-  return new Map((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
+  if (error) { console.warn('[Falcon] assinarArquivos:', error.message); return r2; }
+  (data || []).filter(d => d.signedUrl).forEach(d => r2.set(d.path, d.signedUrl));
+  return r2;
 }
 
 // Faxina dos arquivos vencidos, mesma lógica das fotos.
@@ -270,19 +284,35 @@ export async function faxinaArquivos() {
   const id = auth.currentUser?.uid;
   if (!id) return;
   try {
-    const { data: arqs, error } = await supabase.storage
-      .from('chat-arquivos').list(id, { limit: 200 });
-    if (error || !arqs?.length) return;
-    const { data: vivas } = await supabase
-      .from('chat_mensagens')
-      .select('arquivo_path')
-      .eq('autor_id', id)
-      .not('arquivo_path', 'is', null);
-    const usados = new Set((vivas || []).map(v => v.arquivo_path));
-    const lixo = arqs.map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
+    const [{ data: arqs, error }, noR2] = await Promise.all([
+      supabase.storage.from('chat-arquivos').list(id, { limit: 200 }),
+      listarR2('arq'),
+    ]);
+    if ((error || !arqs?.length) && !noR2.length) return;
+    const usados = await _caminhosVivos(id, 'arquivo_path');
+    if (!usados) return;
+    const lixo = (arqs || []).map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
     if (lixo.length) await supabase.storage.from('chat-arquivos').remove(lixo);
+    await apagarR2(_lixoR2(noR2, usados));
   } catch { /* acessória */ }
 }
+
+// Caminhos ainda presos a mensagens vivas. Conta também as mensagens de
+// OUTRAS pessoas que encaminharam a minha foto (o encaminhar reaproveita o
+// mesmo arquivo). null = não deu pra conferir, então não apaga nada.
+async function _caminhosVivos(id, coluna) {
+  const { data, error } = await supabase
+    .from('chat_mensagens')
+    .select(coluna)
+    .like(coluna, `${id}/%`);
+  if (error) return null;
+  return new Set((data || []).map(v => v[coluna]));
+}
+// No R2 só apaga o que tem mais de 1 hora: a foto sobe antes da mensagem
+// existir, e a faxina não pode pegar esse meio-tempo.
+const _lixoR2 = (lista, usados) => lista
+  .filter(a => !usados.has(a.caminho) && Date.now() - new Date(a.criado).getTime() > 3600e3)
+  .map(a => a.caminho);
 
 // Apaga do armazenamento toda foto MINHA que não está mais presa a uma
 // mensagem viva — expirada ou apagada. Sem isto o arquivo sobreviveria à
@@ -294,19 +324,17 @@ export async function faxinaFotos() {
   const id = auth.currentUser?.uid;
   if (!id) return;
   try {
-    const { data: arquivos, error } = await supabase.storage
-      .from('chat-fotos').list(id, { limit: 200 });
-    if (error || !arquivos?.length) return;
+    const [{ data: arquivos, error }, noR2] = await Promise.all([
+      supabase.storage.from('chat-fotos').list(id, { limit: 200 }),
+      listarR2('chat'),
+    ]);
+    if ((error || !arquivos?.length) && !noR2.length) return;
 
-    const { data: vivas } = await supabase
-      .from('chat_mensagens')
-      .select('imagem_path')
-      .eq('autor_id', id)
-      .not('imagem_path', 'is', null);
-
-    const usados = new Set((vivas || []).map(v => v.imagem_path));
-    const lixo = arquivos.map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
+    const usados = await _caminhosVivos(id, 'imagem_path');
+    if (!usados) return;
+    const lixo = (arquivos || []).map(a => `${id}/${a.name}`).filter(c => !usados.has(c));
     if (lixo.length) await supabase.storage.from('chat-fotos').remove(lixo);
+    await apagarR2(_lixoR2(noR2, usados));
   } catch { /* faxina é acessória: falhar aqui não pode atrapalhar o chat */ }
 }
 
@@ -359,19 +387,31 @@ export function limparCachePerfis() { _perfis = null; _perfisEm = 0; }
 export async function trocarMinhaFoto(blob) {
   const id = auth.currentUser?.uid;
   if (!id) throw new Error('Sessão expirada');
+  const url = await _salvarAvatar(id, blob);
+  await setProfile({ fotoUrl: url });
+  limparCachePerfis();
+  return url;
+}
+
+// R2 primeiro (nome novo a cada troca, então o cache nunca mostra a antiga);
+// depois apaga as anteriores. Se o R2 falhar, Supabase como antes.
+async function _salvarAvatar(id, blob) {
+  try {
+    const caminho = await subirR2(id, 'avatar', blob, '.jpg', blob.type || 'image/jpeg');
+    const antigas = (await listarR2('avatar')).map(a => a.caminho).filter(c => c !== caminho);
+    apagarR2(antigas);
+    supabase.storage.from('avatares').remove([`${id}/foto.jpg`]).catch(() => {});
+    return urlPublicaR2(caminho);
+  } catch (e) { console.warn('[Falcon] foto de perfil no R2 falhou, vai pro Supabase:', e.message); }
   const caminho = `${id}/foto.jpg`;
   const { error } = await supabase.storage
     .from('avatares')
     .upload(caminho, blob, { upsert: true, contentType: 'image/jpeg' });
   if (error) throw new Error(error.message || 'Não deu pra enviar a foto');
-
   const { data } = supabase.storage.from('avatares').getPublicUrl(caminho);
   // ?t= derruba o cache do CDN: o caminho é o mesmo a cada troca e sem isso
   // a foto antiga continuaria aparecendo.
-  const url = `${data.publicUrl}?t=${Date.now()}`;
-  await setProfile({ fotoUrl: url });
-  limparCachePerfis();
-  return url;
+  return `${data.publicUrl}?t=${Date.now()}`;
 }
 
 // Traz a foto do Google pra DENTRO do nosso bucket, uma vez só. Apontar pro
@@ -398,13 +438,7 @@ export async function espelharFotoDoGoogle() {
     const blob = await resp.blob();
     if (!blob.size || blob.size > 2_000_000) return;
 
-    const caminho = `${id}/foto.jpg`;
-    const { error } = await supabase.storage
-      .from('avatares').upload(caminho, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
-    if (error) return;
-
-    const { data } = supabase.storage.from('avatares').getPublicUrl(caminho);
-    await setProfile({ fotoUrl: `${data.publicUrl}?t=${Date.now()}` });
+    await setProfile({ fotoUrl: await _salvarAvatar(id, blob) });
     localStorage.setItem(MARCA_ESPELHO, '1');
     limparCachePerfis();
   } catch { /* silencioso de propósito: a foto do Google segue valendo */ }
@@ -413,7 +447,10 @@ export async function espelharFotoDoGoogle() {
 // Volta pra foto do Google (ou pras iniciais, se a pessoa não entrou por lá).
 export async function removerMinhaFoto() {
   const id = auth.currentUser?.uid;
-  if (id) await supabase.storage.from('avatares').remove([`${id}/foto.jpg`]);
+  if (id) {
+    await supabase.storage.from('avatares').remove([`${id}/foto.jpg`]).catch(() => {});
+    await apagarR2((await listarR2('avatar')).map(a => a.caminho));
+  }
   await setProfile({ fotoUrl: null });
   limparCachePerfis();
 }

@@ -9,6 +9,13 @@ compatibility_date = "2026-10-01"
 binding = "PROVAS"
 bucket_name = "falcon-provas"
 
+# Fotos e arquivos do chat, fotos do corpo e foto de perfil (sem limpeza
+# automática; o app apaga o que não usa mais). A chave ASSINATURA (secret do
+# Worker) é criada sozinha pela Action na primeira vez.
+[[r2_buckets]]
+binding = "ARQUIVOS"
+bucket_name = "falcon-arquivos"
+
 # Valores PÚBLICOS (os mesmos do app, js/config-supabase.js): servem só pra
 # conferir quem está logado e o que essa pessoa pode ver.
 [vars]
