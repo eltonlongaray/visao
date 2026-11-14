@@ -159,6 +159,7 @@ export async function renderAgendaPublica(app, slug) {
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
   let combo = [];                    // 2+ serviços num horário só (da triagem)
+  let servAberto = false;            // lista de serviços aberta (botão retrátil)
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
@@ -228,7 +229,6 @@ export async function renderAgendaPublica(app, slug) {
   // Seletor de serviço (só se o profissional cadastrou serviços)
   // Seletor de serviço: mostra só o(s) escolhido(s) + um botão retrátil bem visível
   // "Ver todos os serviços" (lista longa não empurra os horários pra baixo).
-  let servAberto = false;
   function _servCard(s, sel) {
     return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
