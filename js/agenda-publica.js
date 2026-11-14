@@ -226,18 +226,32 @@ export async function renderAgendaPublica(app, slug) {
   }
 
   // Seletor de serviço (só se o profissional cadastrou serviços)
-  function _servHtml() {
-    if (!servicos.length) return '';
-    return `<div class="ap-serv-wrap">
-      <div class="ap-serv-tit">Escolha o serviço</div>
-      ${combo.length > 1 ? `<button class="ap-serv-op sel" type="button" disabled style="opacity:1">
-        <span class="ap-serv-nm">${_esc(_comboNome())}</span>
-        <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
-      </button>` : ''}
-      ${servicos.map(s => `<button class="ap-serv-op ${combo.length <= 1 && selServ === s.id ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
+  // Seletor de serviço: mostra só o(s) escolhido(s) + um botão retrátil bem visível
+  // "Ver todos os serviços" (lista longa não empurra os horários pra baixo).
+  let servAberto = false;
+  function _servCard(s, sel) {
+    return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
-      </button>`).join('')}
+      </button>`;
+  }
+  function _servHtml() {
+    if (!servicos.length) return '';
+    const escolhido = combo.length > 1
+      ? `<button class="ap-serv-op sel" type="button" disabled style="opacity:1">
+        <span class="ap-serv-nm">${_esc(_comboNome())}</span>
+        <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
+      </button>`
+      : (_servSel() ? _servCard(_servSel(), true) : '');
+    if (servicos.length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+    return `<div class="ap-serv-wrap">
+      <div class="ap-serv-tit">Serviço escolhido</div>
+      <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">
+        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${servicos.length})`}</span>
+      </button>
+      ${servAberto
+        ? servicos.map(s => _servCard(s, combo.length <= 1 && selServ === s.id)).join('')
+        : escolhido}
     </div>`;
   }
 
@@ -344,8 +358,9 @@ export async function renderAgendaPublica(app, slug) {
       selDia = b.dataset.dia; selHora = null; desenhar();
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; combo = []; desenhar();
+      selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
     }));
+    app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
