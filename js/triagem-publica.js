@@ -143,6 +143,8 @@ function tela() {
 }
 
 function vitrine() {
+  // 1ª vez na vitrine: os indicados pro caso dela já vêm marcados (ela desmarca se não quiser)
+  if (!st.r.__vitrine) { st.r.__vitrine = itensVitrine().filter(i => i.indicado).map(i => i.nome); salvar(); }
   const V = M.vitrine, sel = st.r.__vitrine || [], itens = itensVitrine();
   app.innerHTML = `<section class="tela">
     <p class="eyebrow">${esc(V.eyebrow || '')}</p>

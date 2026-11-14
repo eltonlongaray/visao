@@ -68,8 +68,14 @@ h1 em{color:var(--cor)}
 .prod b{font-size:.95rem}
 .prod span{font-size:.8rem;color:var(--cinza);line-height:1.35}
 .prod .selo{font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--cor);border-radius:999px;padding:.15rem .55rem;align-self:flex-start}
-.prod[aria-checked="true"]{border-color:var(--cor);background:var(--cor-clara)}
-.prod[aria-checked="true"] b::after{content:" ✓";color:var(--cor)}
+.prod{position:relative;transition:background .15s,border-color .15s}
+.prod[aria-checked="true"]{border-color:#5E9C4B;background:#EAF5E4}
+.prod[aria-checked="true"]::after{content:"✓";position:absolute;top:-11px;right:-11px;width:32px;height:32px;border-radius:50%;
+  background:#2F6B2A;color:#fff;font-size:18px;font-weight:900;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.18);
+  animation:marca .25s cubic-bezier(.16,1,.3,1) both}
+@keyframes marca{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.prod[aria-checked="true"]::after{animation:none}}
+.vit{padding:12px 12px 0 0;margin-right:-12px}
 .erro{color:#B42318;font-size:.88rem;margin-top:.6rem;min-height:1.2rem}
 .aviso{background:var(--branco);border:1px solid var(--linha);border-left:4px solid var(--cor);border-radius:12px;padding:.8rem 1rem;font-size:.9rem;color:var(--cinza);margin-top:.8rem}
 
@@ -110,6 +116,6 @@ h1 em{color:var(--cor)}
 <body>
 <header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
 <main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
-<script type="module" src="js/triagem-publica.js?v=3"></script>
+<script type="module" src="js/triagem-publica.js?v=4"></script>
 </body>
 </html>
