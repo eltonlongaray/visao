@@ -268,7 +268,7 @@ export async function renderAgendaPublica(app, slug) {
     const dia = dias.find(x => x.iso === selDia) || null;   // dias[] tem os horários
     const g = { manha: [], tarde: [], noite: [] };
     // Horários que já passaram somem da lista (não têm por que aparecer).
-    if (dia) dia.horarios.forEach(s => { if (!s.passou) g[_turno(s.hora)].push(s); });
+    if (dia) dia.horarios.forEach(s => { if (!s.passou && !s.cedo) g[_turno(s.hora)].push(s); });   // sem 5h de antecedência: some (o cliente não entende "cedo")
     const bloco = (lbl, icon, arr) => arr.length ? `
       <div class="ap-turno"><div class="ap-turno-lbl">${icon} ${lbl}</div>
       <div class="ap-slots">${arr.map(s => (s.ocupado || s.cedo)
