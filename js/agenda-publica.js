@@ -150,9 +150,13 @@ export async function renderAgendaPublica(app, slug) {
   const _ultimoIso = dias.length ? dias[dias.length - 1].iso : iso(hoje);
   const _maxOffset = Math.max(0, Math.round((_fromIso(_ultimoIso) - _segPub(0)) / (7 * 86400000)));
   // começa na 1ª semana que tem algum horário
+  // Dia "com vaga": tem pelo menos um horário que ainda dá pra marcar (não passou, não está
+  // a menos de 5h, não ocupado). A agenda abre já no 1º dia assim — não num dia vazio.
+  const _temVaga = isoD => { const d = dias.find(x => x.iso === isoD); return !!d && d.horarios.some(h => !h.passou && !h.cedo && !h.ocupado); };
+  const _primeiroComVaga = off => _diasDaSemana(off).find(x => !x.past && _temVaga(x.iso))?.iso || null;
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_diasDaSemana(semOffset).some(x => !x.past)) semOffset++;
-  let selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
+  while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
+  let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
@@ -349,7 +353,7 @@ export async function renderAgendaPublica(app, slug) {
     });
     const _irSemana = (novo) => {
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
+      selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
       selHora = null; desenhar();
     };
     app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
