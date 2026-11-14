@@ -10,6 +10,7 @@ import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
+import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
 const DOWS = [
@@ -178,6 +179,7 @@ function _popupCliente(c) {
       ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
       <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
     </div>
+    ${perfilFinanceiroHtml(c, { servicos: _cfg?.servicos || [] })}
     ${perfilFichaHtml(_cfg, c)}
     ${_triagemPerfilHtml(c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
@@ -194,6 +196,10 @@ function _popupCliente(c) {
   ov.querySelector('#agp-ok').onclick = () => close();
   ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
   wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
+  // compras/pagamentos: depois de salvar, reabre o perfil atualizado
+  wirePerfilFinanceiro(ov, c, { servicos: _cfg?.servicos || [], aoMudar: () => {
+    close(); const novo = _clientes().find(x => x.key === c.key); if (novo) _popupCliente(novo);
+  } });
   ov.querySelector('#agp-tri-btn')?.addEventListener('click', () => {
     const h = ov.querySelector('#agp-tri'); const s = ov.querySelector('#agp-tri-seta');
     const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
@@ -388,6 +394,7 @@ export async function abrirAgenda() {
     await _carregarOcupados();   // slots já tomados (agendamentos + compromissos) pra marcar no editor
     await carregarFichas(_cfg);  // fichas de atendimento (se a profissão estiver escolhida)
     _triagens = await getTriagens().catch(() => []);   // quem fez a triagem (/triagem/<slug>)
+    await carregarFinanceiro().catch(() => {});        // vendas, custos e campanhas
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
@@ -485,6 +492,11 @@ function desenhar() {
 
       <div class="ag-ags-top">
         <div class="input-field-label" style="margin:0">👥 Clientes</div>
+      </div>
+      <div class="fin-topo">
+        <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
+        <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
+        <button class="fin-topo-btn" id="ag-prod" type="button">🧴 Produtos</button>
       </div>
       <div class="ag-lista">${clientesHtml}</div>
     </div>
@@ -591,6 +603,9 @@ function wireFixos(corpo) {
     pintarServicos();
   };
   corpo.querySelector('#ag-salvar').onclick = salvar;
+  corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
+  corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
+  corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
   // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
   // senão → o passo a passo pra configurar.
@@ -615,6 +630,9 @@ function _syncServicos() {
     s.duracaoMin = parseInt(row.querySelector('.ag-serv-dur').value, 10) || 60;
     const p = row.querySelector('.ag-serv-preco').value.replace(',', '.').trim();
     s.preco = p === '' ? null : Number(p);
+    const cu = (row.querySelector('.ag-serv-custo')?.value || '').replace(',', '.').trim();
+    s._custo = cu === '' ? 0 : (Number(cu) || 0);
+    s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
   });
 }
 
@@ -630,6 +648,12 @@ function pintarServicos() {
         <span class="ag-serv-lb">R$</span>
         <input class="ag-serv-preco" type="text" inputmode="decimal" value="${_preco(s.preco)}" placeholder="0,00">
         <button class="ag-serv-x" data-rm-serv="${s.id}" type="button" aria-label="Remover">✕</button>
+      </div>
+      <div class="ag-serv-linha ag-serv-extra">
+        <span class="ag-serv-lb" title="Quanto custa pra você fazer (material, óleos…) — só você vê">Custo R$</span>
+        <input class="ag-serv-custo" type="text" inputmode="decimal" value="${_preco(s._custo ?? custoServico(s.id)) || ''}" placeholder="0,00">
+        <span class="ag-serv-lb" title="Pacote: quantas sessões a venda cobre (1 = sessão avulsa)">Sessões</span>
+        <input class="ag-serv-sess" type="number" inputmode="numeric" min="1" value="${s.sessoes || 1}">
       </div>
     </div>`).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
   box.querySelectorAll('[data-rm-serv]').forEach(b => b.onclick = () => {
@@ -797,7 +821,12 @@ export async function abrirDetalheAtendimento(agOrId) {
     };
   }
   async function _setStatus(s) {
-    try { await atualizarStatusAgendamento(ag.id, s); ag.status = s; await recarregar(); draw(); showToast(s === 'finalizado' ? '✅ Finalizado!' : 'Marcado como falta', 'success'); }
+    try {
+      await atualizarStatusAgendamento(ag.id, s); ag.status = s; await recarregar(); draw();
+      showToast(s === 'finalizado' ? '✅ Finalizado!' : 'Marcado como falta', 'success');
+      // finalizou → lança o pagamento (já preenchido) ou conta a sessão do pacote
+      if (s === 'finalizado') aoFinalizarAtendimento(ag, { servicos: _cfg?.servicos || [], todos: _todos });
+    }
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   }
   draw();
@@ -937,7 +966,9 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}) }));
+  // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
+  const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO
   const disp = {};
   for (const k of Object.keys(_cfg.disponibilidade)) {
@@ -965,6 +996,7 @@ async function salvar() {
   try {
     await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
     _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
+    try { await salvarCustos(custos); } catch (e) { showToast('Custos: ' + e.message, 'info'); }
     // Apikey do CallMeBot: só grava se digitou algo (vazio = mantém a atual).
     const cbKey = corpo.querySelector('#ag-callmebot')?.value.trim();
     if (cbKey) {

@@ -51,6 +51,9 @@ function iniciar() {
   CHAVE = 'falcon_triagem_estado_' + SLUG;
   st = { i: -1, r: {} };
   try { const x = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (x && x.r) st = x; } catch (e) {}
+  // De onde veio (link do anúncio: ?utm_source=google&utm_campaign=blackfriday) — vai pro painel de Campanhas
+  const q = new URLSearchParams(location.search);
+  if (q.get('utm_source') || q.get('utm_campaign')) st.origem = { source: q.get('utm_source') || '', campaign: q.get('utm_campaign') || '', medium: q.get('utm_medium') || '' };
   st.i >= 0 && passos().length ? tela() : intro();
 }
 const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(st)); } catch (e) {} };
@@ -239,7 +242,7 @@ function pacote() {
   const ind = M.indicacao(st.r);
   const nomeDe = id => SERV.find(s => s.id === id)?.nome || id;
   return { respostas: Object.fromEntries(resumoLinhas()), bruto: st.r, blends_vitrine: st.r.__vitrine || [],
-    indicacao: ind.servico, plano: (st.plano || []).map(nomeDe), interesses: st.interesses || [] };
+    indicacao: ind.servico, plano: (st.plano || []).map(nomeDe), interesses: st.interesses || [], origem: st.origem || null };
 }
 function sugestoes(ind, planoIds) {
   const nomes = [];
@@ -286,7 +289,7 @@ function resultado() {
     st.interesses = st.interesses.includes(v) ? st.interesses.filter(x => x !== v) : [...st.interesses, v];
     b.setAttribute('aria-checked', st.interesses.includes(v)); salvar();
   });
-  $('refazer').onclick = () => { st = { i: -1, r: {}, contato: st.contato }; salvar(); intro(); };
+  $('refazer').onclick = () => { st = { i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
   $('agendar').onclick = () => irParaAgenda(ind, plano);
 }
 
