@@ -24,7 +24,7 @@ const SEM3 = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const _fmtDia = iso => { const [y, m, d] = iso.split('-').map(Number); const dt = new Date(y, m - 1, d); return `${SEM3[dt.getDay()]} ${_fmtData(iso)}`; };
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const _nomeMes = k => { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; };
-const FORMAS = [['pix', 'Pix'], ['cartao', 'Cartão'], ['dinheiro', 'Dinheiro']];
+const FORMAS = [['pix', 'Pix'], ['cartao', 'Cartão'], ['dinheiro', 'Dinheiro'], ['cortesia', 'Cortesia']];   // cortesia = não cobrou (modelo, brinde…)
 const _formaTxt = f => (FORMAS.find(x => x[0] === f) || [, ''])[1];
 const _vendasDe = c => { const d = digitos(c.contato || c.key); return d ? _vendas.filter(v => digitos(v.cliente_digitos || v.cliente_contato) === d) : []; };
 
@@ -65,7 +65,7 @@ export function perfilFinanceiroHtml(c, { servicos = [] } = {}) {
     <div class="fin-compras-h"><span>🛍️ Compras</span><button class="fin-add" id="fin-add" type="button">＋ Registrar venda</button></div>
     ${vs.length ? vs.map(v => `<button class="fin-compra" data-venda="${_esc(v.id)}" type="button">
       <span class="fin-c-info"><b>${_esc(v.item)}</b><small>${_fmtData(v.data)}${v.tipo === 'pacote' ? ` · pacote ${v.sessoes} sessões` : v.tipo === 'produto' ? ' · produto' : ''}${v.forma ? ` · ${_formaTxt(v.forma)}` : ''}</small></span>
-      <span class="fin-c-val">${reais(v.valor)} ✏️</span>
+      <span class="fin-c-val">${v.forma === 'cortesia' ? '🎁 Cortesia' : reais(v.valor)} ✏️</span>
     </button>`).join('') : '<div class="fin-vazio">Nenhuma compra registrada ainda.</div>'}
   </div>`;
 }
@@ -140,6 +140,8 @@ export function abrirFormVenda({ venda = null, cliente, servicos = [], agendamen
   ov.querySelectorAll('.fin-forma').forEach(b => b.onclick = () => {
     forma = forma === b.dataset.forma ? null : b.dataset.forma;
     ov.querySelectorAll('.fin-forma').forEach(x => x.classList.toggle('on', x.dataset.forma === forma));
+    // cortesia: não cobrou nada (o custo continua contando no lucro)
+    if (forma === 'cortesia') $('#fv-valor').value = '0,00';
   });
   $('#fv-pular')?.addEventListener('click', () => close());
   $('#fv-excluir')?.addEventListener('click', async () => {
@@ -193,7 +195,8 @@ export async function abrirFinanceiro({ clientes = [], servicos = [] } = {}) {
   const mesAtual = meses.find(m => m.mes === atual) || { mes: atual, bruto: 0, custo: 0, lucro: 0, qtd: 0, vendas: [] };
   const anteriores = meses.filter(m => m.mes !== atual);
   const maior = Math.max(1, ...meses.map(m => m.bruto));
-  const porForma = FORMAS.map(([k, l]) => [l, mesAtual.vendas.filter(v => v.forma === k).reduce((t, v) => t + Number(v.valor || 0), 0)]).filter(x => x[1] > 0);
+  const porForma = FORMAS.filter(([k]) => k !== 'cortesia').map(([k, l]) => [l, mesAtual.vendas.filter(v => v.forma === k).reduce((t, v) => t + Number(v.valor || 0), 0)]).filter(x => x[1] > 0);
+  const cortesias = mesAtual.vendas.filter(v => v.forma === 'cortesia');
   const inter = clientes.map(c => ({ c, i: interesseDe(c, servicos) })).filter(x => x.i.itens.length);
   const interValor = inter.reduce((t, x) => t + x.i.valor, 0);
   const ov = document.createElement('div');
@@ -206,7 +209,7 @@ export async function abrirFinanceiro({ clientes = [], servicos = [] } = {}) {
       <div><small>Recebido (bruto)</small><b>${reais(mesAtual.bruto)}</b></div>
       <div><small>Lucro</small><b>${reais(mesAtual.lucro)}</b></div>
     </div>
-    <div class="fin-sub">${mesAtual.qtd} venda${mesAtual.qtd === 1 ? '' : 's'} · custos ${reais(mesAtual.custo)}${porForma.length ? ' · ' + porForma.map(([l, v]) => `${l} ${reais(v)}`).join(' · ') : ''}</div>
+    <div class="fin-sub">${mesAtual.qtd} venda${mesAtual.qtd === 1 ? '' : 's'} · custos ${reais(mesAtual.custo)}${porForma.length ? ' · ' + porForma.map(([l, v]) => `${l} ${reais(v)}`).join(' · ') : ''}${cortesias.length ? ` · 🎁 ${cortesias.length} cortesia${cortesias.length > 1 ? 's' : ''} (custo ${reais(cortesias.reduce((t, v) => t + Number(v.custo || 0), 0))})` : ''}</div>
     ${inter.length ? `<div class="fin-inter">💡 ${interValor ? `<b>${reais(interValor)}</b> em interesse` : 'Interesse'} de <b>${inter.length}</b> cliente${inter.length > 1 ? 's' : ''} que ainda não fech${inter.length > 1 ? 'aram' : 'ou'}: ${inter.slice(0, 6).map(x => _esc(x.c.nome)).join(', ')}${inter.length > 6 ? '…' : ''}</div>` : ''}
     <div class="fin-mes-t" style="margin-top:16px">Meses anteriores</div>
     ${anteriores.length ? anteriores.map(m => `<div class="fin-hist">
