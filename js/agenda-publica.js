@@ -381,7 +381,7 @@ export async function renderAgendaPublica(app, slug) {
 
     // Cancelar um agendamento do próprio cliente (identificado pelo WhatsApp).
     app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
-      if (!confirm('Cancelar este agendamento e liberar o horário?')) return;
+      if (!(await _confirmarBonito('Cancelar este agendamento?', 'O horário fica livre pra outra pessoa marcar.', 'Sim, cancelar', 'Voltar'))) return;
       const id = b.dataset.cancelId, dataC = b.dataset.cancelData, horaC = b.dataset.cancelHora;
       b.disabled = true; b.textContent = 'Cancelando…';
       try {
@@ -515,6 +515,27 @@ async function _oferecerFicha(slug, nome, zap) {
     try { localStorage.setItem(chave, JSON.stringify(d)); } catch {}
     location.href = `/ficha/${encodeURIComponent(slug)}`;
   };
+}
+
+// Pergunta de confirmação no estilo do app (no lugar do confirm() feio do navegador).
+function _confirmarBonito(titulo, texto, sim, nao) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'ap-conf-ov';
+    ov.innerHTML = `<div class="ap-conf" role="dialog" aria-modal="true">
+      <div class="ap-conf-t">${_esc(titulo)}</div>
+      ${texto ? `<div class="ap-conf-d">${_esc(texto)}</div>` : ''}
+      <div class="ap-conf-btns">
+        <button type="button" class="ap-conf-nao">${_esc(nao || 'Voltar')}</button>
+        <button type="button" class="ap-conf-sim">${_esc(sim || 'Confirmar')}</button>
+      </div></div>`;
+    const fim = v => { ov.classList.add('sai'); setTimeout(() => ov.remove(), 160); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) fim(false); });
+    ov.querySelector('.ap-conf-nao').onclick = () => fim(false);
+    ov.querySelector('.ap-conf-sim').onclick = () => fim(true);
+    document.body.appendChild(ov);
+    ov.querySelector('.ap-conf-nao').focus();
+  });
 }
 
 // wrapper visual + limpeza (remove a classe da rota ao sair)
