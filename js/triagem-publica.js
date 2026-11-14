@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=8`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=9`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -144,26 +144,36 @@ function tela() {
 
 function vitrine() {
   // 1ª vez na vitrine: os indicados pro caso dela já vêm marcados (ela desmarca se não quiser)
-  if (!st.r.__vitrine) { st.r.__vitrine = itensVitrine().filter(i => i.indicado).map(i => i.nome); salvar(); }
+  if (!st.r.__vitrine && !st.r.__semBlend) { st.r.__vitrine = itensVitrine().filter(i => i.indicado).map(i => i.nome); salvar(); }
   const V = M.vitrine, sel = st.r.__vitrine || [], itens = itensVitrine();
   app.innerHTML = `<section class="tela">
     <p class="eyebrow">${esc(V.eyebrow || '')}</p>
     <h2 class="q">${esc(V.titulo)}</h2>
     <p class="ajuda">${esc(V.ajuda || '')}</p>
+    ${V.recusa ? `<button type="button" class="op multi recusa" role="checkbox" id="recusa" aria-checked="${!!st.r.__semBlend}"><span class="marca-op"></span><span>${esc(V.recusa)}</span></button>` : ''}
     <div class="vit">${itens.map(it => `<button type="button" class="prod" role="checkbox" aria-checked="${sel.includes(it.nome)}" data-v="${esc(it.nome)}">
       <div class="foto">${it.foto ? `<img src="${esc(it.foto)}" alt="">` : (it.icone || '🌿')}</div>
       ${it.indicado ? '<em class="selo">Indicado pra você</em>' : ''}<b>${esc(it.nome)}</b><span>${esc(it.serve)}</span></button>`).join('')}</div>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
-      <button class="btn" id="seg">${sel.length ? 'Continuar' : 'Pular'} →</button></div></section>`;
+      <button class="btn" id="seg">Continuar →</button></div></section>`;
   progresso();
+  const pintar = () => {
+    const a = st.r.__vitrine || [];
+    app.querySelectorAll('.prod').forEach(x => x.setAttribute('aria-checked', a.includes(x.dataset.v)));
+    $('recusa')?.setAttribute('aria-checked', !!st.r.__semBlend);
+  };
+  // "Prefiro não seguir…": desmarca todos os blends; marcar um blend tira essa opção
+  $('recusa')?.addEventListener('click', () => {
+    st.r.__semBlend = !st.r.__semBlend;
+    if (st.r.__semBlend) st.r.__vitrine = [];
+    salvar(); pintar();
+  });
   app.querySelectorAll('.prod').forEach(b => b.onclick = () => {
     let a = st.r.__vitrine || [];
     a = a.includes(b.dataset.v) ? a.filter(x => x !== b.dataset.v) : [...a, b.dataset.v];
-    st.r.__vitrine = a; salvar();
-    b.setAttribute('aria-checked', a.includes(b.dataset.v));
-    $('seg').textContent = (a.length ? 'Continuar' : 'Pular') + ' →';
+    st.r.__vitrine = a; if (a.length) st.r.__semBlend = false; salvar(); pintar();
   });
-  $('seg').onclick = () => { st.i++; salvar(); tela(); };
+  $('seg').onclick = () => { st.i++; salvar(); tela(); window.scrollTo({ top: 0 }); };
   $('volta').onclick = voltar;
 }
 

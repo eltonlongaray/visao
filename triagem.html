@@ -76,6 +76,8 @@ h1 em{color:var(--cor)}
 @keyframes marca{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.prod[aria-checked="true"]::after{animation:none}}
 .vit{padding:12px 12px 0 0;margin-right:-12px}
+.op.recusa{margin:.2rem 0 .4rem;font-weight:600;font-size:.95rem}
+.op.recusa .marca-op{margin-left:0;margin-right:.2rem;order:-1}
 .erro{color:#B42318;font-size:.88rem;margin-top:.6rem;min-height:1.2rem}
 .aviso{background:var(--branco);border:1px solid var(--linha);border-left:4px solid var(--cor);border-radius:12px;padding:.8rem 1rem;font-size:.9rem;color:var(--cinza);margin-top:.8rem}
 
@@ -116,6 +118,6 @@ h1 em{color:var(--cor)}
 <body>
 <header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
 <main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
-<script type="module" src="js/triagem-publica.js?v=4"></script>
+<script type="module" src="js/triagem-publica.js?v=5"></script>
 </body>
 </html>
