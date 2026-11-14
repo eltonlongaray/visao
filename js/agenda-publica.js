@@ -457,10 +457,14 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
-          ${waTri ? `<div class="ap-ok-wa" id="ap-ok-wa">
-            <div>Você será direcionado para o WhatsApp para confirmar o serviço que você escolheu e tirar suas dúvidas.</div>
-            <div class="ap-ok-cont" id="ap-ok-cont">5</div>
-            <a class="ap-ok-wa-link" id="ap-ok-wa-link" href="${waTri}" hidden>Não abriu? Toque aqui</a>
+          ${waTri ? `<div class="ap-cd">
+            <div class="ap-cd-t">Agora só falta confirmar o serviço que você agendou com ${(cfg.titulo || '').split(' · ')[0] ? `a <b>${_esc((cfg.titulo || '').split(' · ')[0])}</b>` : 'a profissional'} no WhatsApp.</div>
+            <div class="ap-cd-sub">Você será direcionado em:</div>
+            <div class="ap-cd-anel">
+              <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ap-cd-fundo" cx="60" cy="60" r="52"/><circle class="ap-cd-prog" cx="60" cy="60" r="52"/></svg>
+              <span class="ap-cd-n" id="ap-ok-cont">5</span>
+            </div>
+            <a class="ap-cd-link" id="ap-ok-wa-link" href="${waTri}" hidden>Não abriu? Toque aqui</a>
           </div>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
@@ -472,7 +476,7 @@ export async function renderAgendaPublica(app, slug) {
         // 5, 4, 3, 2, 1 → abre o WhatsApp da profissional com tudo que ela escolheu
         let n = 5;
         const tick = setInterval(() => {
-          n--; const el = document.getElementById('ap-ok-cont'); if (el) el.textContent = String(Math.max(n, 0));
+          n--; const el = document.getElementById('ap-ok-cont'); if (el) { el.textContent = String(Math.max(n, 0)); el.classList.remove('pula'); void el.offsetWidth; el.classList.add('pula'); }
           if (n <= 0) {
             clearInterval(tick);
             document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
