@@ -319,7 +319,7 @@ async function irParaAgenda(ind, plano) {
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   const linhas = resumoLinhas();
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
-    `📅 Agendei: ${plano.length ? plano.map(s => s.nome).join(' + ') : '—'} · {{QUANDO}}`,
+    '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
     `✨ Indicação: ${ind.servico}`,
     ...(st.interesses.length ? [`💡 Também me interessam: ${st.interesses.join(', ')}`] : []),
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');

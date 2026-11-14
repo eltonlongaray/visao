@@ -313,6 +313,7 @@ export async function renderAgendaPublica(app, slug) {
 
   // Botão "Falar no WhatsApp" (do profissional), se ele configurou o número.
   function _waProHtml() {
+    if (TRI) return '';   // veio da triagem: o WhatsApp é o último passo, com a mensagem pronta
     const wa = _waProLink(cfg);
     return wa ? `<a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_PUB} Falar no WhatsApp</a>` : '';
   }
@@ -445,7 +446,7 @@ export async function renderAgendaPublica(app, slug) {
       // Veio da triagem: último passo = a cliente manda o resumo pro WhatsApp da profissional
       let waTri = '';
       if (TRI && TRI.whatsapp && TRI.msg) {
-        const txt = TRI.msg.replace('{{QUANDO}}', `${dataTxt} às ${hora}`);
+        const txt = TRI.msg.replace('{{QUANDO}}', `${dataTxt} às ${hora}${fim ? `–${fim}` : ''}`).replace('{{SERVICO}}', nomeServ || '—');
         waTri = `https://wa.me/${String(TRI.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(txt)}`;
         try { localStorage.removeItem(_triKey(cfg.slug)); } catch {}
         combo = [];
@@ -456,14 +457,31 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
-          ${waTri ? `<a class="btn-primary ap-ok-btn" href="${waTri}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:14px">📲 Último passo: enviar meu resumo no WhatsApp</a>` : ''}
+          ${waTri ? `<div class="ap-ok-wa" id="ap-ok-wa">
+            <div>Você será direcionado para o WhatsApp para confirmar o serviço que você escolheu e tirar suas dúvidas.</div>
+            <div class="ap-ok-cont" id="ap-ok-cont">5</div>
+            <a class="ap-ok-wa-link" id="ap-ok-wa-link" href="${waTri}" hidden>Não abriu? Toque aqui</a>
+          </div>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <div id="ap-ficha"></div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
-      _oferecerFicha(cfg.slug, nome, zap);
+      if (waTri) {
+        // 5, 4, 3, 2, 1 → abre o WhatsApp da profissional com tudo que ela escolheu
+        let n = 5;
+        const tick = setInterval(() => {
+          n--; const el = document.getElementById('ap-ok-cont'); if (el) el.textContent = String(Math.max(n, 0));
+          if (n <= 0) {
+            clearInterval(tick);
+            document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
+            location.href = waTri;
+          }
+        }, 1000);
+      } else {
+        _oferecerFicha(cfg.slug, nome, zap);
+      }
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
