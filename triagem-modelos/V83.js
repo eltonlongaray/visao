@@ -117,7 +117,7 @@ window.TRIAGEM = {
   vitrine: {
     eyebrow: "Pra continuar em casa",
     titulo: "Quer continuar o cuidado em casa?",
-    ajuda: "Os que estão em destaque são os indicados pro teu caso. No final tu me diz o que te interessa.",
+    ajuda: "Toque nos blends que te interessaram. Eu te conto mais no WhatsApp.",
     itens: [
       { nome: "Xô Celulite", serve: "Blend anticelulítico com amêndoa doce, alecrim e lavanda. Massageie 1 a 2 vezes ao dia, de preferência após o banho.", icone: "🍑", foto: "/triagem-modelos/img/V83-frasco.jpg", para: ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
       { nome: "Blend Clareamento", serve: "Pra manchas, axila e virilha escurecidas.", icone: "🌗", para: ["Manchas"] },

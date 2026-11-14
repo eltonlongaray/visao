@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=7`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=8`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -142,21 +142,26 @@ function tela() {
   $('volta').onclick = voltar;
 }
 
-// Vitrine: só INFORMA (sem marcar). Os indicados pro caso dela vêm primeiro e em destaque;
-// a escolha de interesse acontece no resultado (já marcados, ela desmarca se quiser).
 function vitrine() {
-  const V = M.vitrine, itens = itensVitrine(), temInd = itens.some(i => i.indicado);
+  const V = M.vitrine, sel = st.r.__vitrine || [], itens = itensVitrine();
   app.innerHTML = `<section class="tela">
     <p class="eyebrow">${esc(V.eyebrow || '')}</p>
     <h2 class="q">${esc(V.titulo)}</h2>
     <p class="ajuda">${esc(V.ajuda || '')}</p>
-    <div class="vit">${itens.map(it => `<div class="prod ${it.indicado ? 'ind' : temInd ? 'outro' : ''}">
+    <div class="vit">${itens.map(it => `<button type="button" class="prod" role="checkbox" aria-checked="${sel.includes(it.nome)}" data-v="${esc(it.nome)}">
       <div class="foto">${it.foto ? `<img src="${esc(it.foto)}" alt="">` : (it.icone || '🌿')}</div>
-      ${it.indicado ? '<em class="selo">Indicado pra você</em>' : ''}<b>${esc(it.nome)}</b><span>${esc(it.serve)}</span></div>`).join('')}</div>
+      ${it.indicado ? '<em class="selo">Indicado pra você</em>' : ''}<b>${esc(it.nome)}</b><span>${esc(it.serve)}</span></button>`).join('')}</div>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
-      <button class="btn" id="seg">Continuar →</button></div></section>`;
+      <button class="btn" id="seg">${sel.length ? 'Continuar' : 'Pular'} →</button></div></section>`;
   progresso();
-  $('seg').onclick = () => { st.i++; salvar(); tela(); window.scrollTo({ top: 0 }); };
+  app.querySelectorAll('.prod').forEach(b => b.onclick = () => {
+    let a = st.r.__vitrine || [];
+    a = a.includes(b.dataset.v) ? a.filter(x => x !== b.dataset.v) : [...a, b.dataset.v];
+    st.r.__vitrine = a; salvar();
+    b.setAttribute('aria-checked', a.includes(b.dataset.v));
+    $('seg').textContent = (a.length ? 'Continuar' : 'Pular') + ' →';
+  });
+  $('seg').onclick = () => { st.i++; salvar(); tela(); };
   $('volta').onclick = voltar;
 }
 
@@ -254,27 +259,19 @@ function resultado() {
   const servInd = servPorNome(ind.servico);
   if (!st.plano) st.plano = servInd ? [servInd.id] : [];
   const plano = st.plano.map(id => SERV.find(s => s.id === id)).filter(Boolean);
+  const sug = sugestoes(ind, st.plano);
   const blend = M.blendPersonalizado ? M.blendPersonalizado(st.r) : null;
-  // INDICADOS pra ela (já vêm marcados): blends da vitrine ligados às respostas,
-  // o blend personalizado e os serviços que a indicação diz que combinam
-  const junto = norm(ind.junto || '');
-  const servJunto = SERV.filter(s => { const b = norm(s.nome).split(' (')[0].split(' –')[0]; return b && junto.includes(b) && !st.plano.includes(s.id); });
-  const indicados = [
-    ...servJunto.map(s => ({ v: s.nome, blend: false })),
+  const blendsVit = st.r.__vitrine || [];
+  if (!st.interesses) st.interesses = [];
+  // Blends da vitrine ficam sincronizados com a tela anterior: marcou lá → vem marcado aqui;
+  // desmarcou lá → some daqui (e vice-versa, marcar/desmarcar aqui atualiza a vitrine)
+  const nomesVit = (M.vitrine?.itens || []).map(i => i.nome);
+  st.interesses = [...st.interesses.filter(x => !nomesVit.includes(x)), ...blendsVit];
+  // serviços sugeridos + blends (sem preço: o valor depende da combinação, a profissional define)
+  const ops = [...sug.map(s => ({ v: s.nome, blend: false })),
     ...(!servInd && ind.servico ? [{ v: ind.servico, blend: true }] : []),
-    ...itensVitrine().filter(i => i.indicado).map(i => ({ v: i.nome, blend: true })),
-    ...(blend ? [{ v: blend.nome, blend: true }] : []),
-  ].filter((o, i, a) => a.findIndex(x => x.v === o.v) === i);
-  if (!st.interesses) st.interesses = indicados.map(o => o.v);
-  // MAIS (retrátil): todos os outros serviços e blends; os ligados ao caso dela primeiro
-  const jaTem = v => indicados.some(o => o.v === v);
-  const relacionados = sugestoes(ind, st.plano).map(s => s.nome);
-  const maisServ = SERV.filter(s => !st.plano.includes(s.id) && !jaTem(s.nome))
-    .sort((a, b) => (relacionados.includes(b.nome) - relacionados.includes(a.nome)));
-  const outrosBlends = (M.vitrine?.itens || []).filter(i => !jaTem(i.nome)).map(i => ({ v: i.nome, blend: true }));
-  const mais = maisServ.map(s => ({ v: s.nome, blend: false }));
-  const opHtml = o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`;
-  const abertoMais = st.interesses.some(v => mais.some(o => o.v === v));
+    ...blendsVit.map(b => ({ v: b, blend: true })),
+    ...(blend ? [{ v: blend.nome, blend: true }] : [])].filter((o, i, a) => a.findIndex(x => x.v === o.v) === i);
   salvar();
   app.innerHTML = `<section class="tela">
     <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra você')} 💜</h1>
@@ -283,12 +280,9 @@ function resultado() {
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
     </div>` : ''}
-    <div class="card int"><h3>Tenho interesse em conhecer</h3>
-      <p class="ajuda" style="margin:0 0 .5rem">${indicados.length ? 'Já marquei o que é indicado pro teu caso. ' : ''}Marca o que quiser conhecer, ou deixa tudo desmarcado.</p>
-      <div class="ops">${[...indicados, ...outrosBlends].map(opHtml).join('')}</div>
-      ${mais.length ? `<button type="button" class="mais-btn" id="mais-btn" aria-expanded="${abertoMais}">＋ Ver mais serviços <span>${abertoMais ? '▴' : '▾'}</span></button>
-      <div class="ops" id="mais" ${abertoMais ? '' : 'hidden'}>${mais.map(opHtml).join('')}</div>` : ''}
-    </div>
+    ${ops.length ? `<div class="card int"><h3>Serviços que também me interessam</h3>
+      <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
+    </div>` : ''}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
       <button class="btn full" id="agendar">📅 Escolher meu horário</button>
       <div class="nav" style="margin-top:.2rem"><button class="voltar" id="volta">← Voltar</button>
@@ -298,11 +292,8 @@ function resultado() {
   app.querySelectorAll('.int .op').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
     st.interesses = st.interesses.includes(v) ? st.interesses.filter(x => x !== v) : [...st.interesses, v];
+    if (nomesVit.includes(v)) st.r.__vitrine = st.interesses.filter(x => nomesVit.includes(x));
     b.setAttribute('aria-checked', st.interesses.includes(v)); salvar();
-  });
-  $('mais-btn')?.addEventListener('click', () => {
-    const box = $('mais'), abrir = box.hidden; box.hidden = !abrir;
-    $('mais-btn').setAttribute('aria-expanded', abrir); $('mais-btn').querySelector('span').textContent = abrir ? '▴' : '▾';
   });
   $('volta').onclick = () => { st.i = passos().length - 1; salvar(); tela(); window.scrollTo({ top: 0 }); };
   $('refazer').onclick = () => { st = { i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
