@@ -28,7 +28,7 @@ window.TRIAGEM = {
     "Gordura localizada / medidas": ["Esculpe Detox – Desincha / Elimina Toxinas / Modela", "Deusa Grega – Pele Porcelana / Reduz Medida / Modela / Desinflama", "Drenagem linfática"],
     "Inchaço e retenção": ["Drenagem linfática", "Esculpe Detox – Desincha / Elimina Toxinas / Modela"],
     "Manchas": ["Tratamento para manchas", "Limpeza de pele"],
-    "Acne, cravos e pele oleosa e/ou porosa": ["Limpeza de pele", "Tratamento para manchas"],
+    "Acne, cravos, pele oleosa e/ou porosa": ["Limpeza de pele", "Tratamento para manchas"],
     "Dores e tensão": ["Massagem terapêutica", "Liberação miofascial", "Sessão de LED (anti-inflamatória)", "Massagem desportiva localizada"],
     "Ansiedade e estresse": ["Massagem relaxante", "Reiki"],
     "Quero só relaxar": ["Massagem relaxante", "Reiki"]
@@ -55,7 +55,7 @@ window.TRIAGEM = {
       q: "O que mais te incomoda hoje?", ajuda: "Pode marcar mais de uma.",
       ops: [
         { v: "Celulite", icone: "🍑" }, { v: "Flacidez", icone: "🤍" }, { v: "Gordura localizada / medidas", icone: "📏" },
-        { v: "Inchaço e retenção", icone: "💧" }, { v: "Manchas", icone: "🌗" }, { v: "Acne, cravos e pele oleosa e/ou porosa", icone: "🌸" },
+        { v: "Inchaço e retenção", icone: "💧" }, { v: "Manchas", icone: "🌗" }, { v: "Acne, cravos, pele oleosa e/ou porosa", icone: "🌸" },
         { v: "Dores e tensão", icone: "💆" }, { v: "Ansiedade e estresse", icone: "🌙" }, { v: "Queda de cabelo", icone: "💇" },
         { v: "Quero só relaxar", icone: "🕯️" }
       ] },
@@ -121,7 +121,7 @@ window.TRIAGEM = {
     itens: [
       { nome: "Xô Celulite", serve: "Blend anticelulítico com amêndoa doce, alecrim e lavanda. Massageie 1 a 2 vezes ao dia, de preferência após o banho.", icone: "🍑", foto: "/triagem-modelos/img/V83-frasco.jpg", para: ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
       { nome: "Blend Clareamento", serve: "Pra manchas, axila e virilha escurecidas.", icone: "🌗", para: ["Manchas"] },
-      { nome: "Blend Pele", serve: "Pra acne e manchas no rosto.", icone: "🌸", para: ["Acne, cravos e pele oleosa e/ou porosa", "Manchas"] },
+      { nome: "Blend Pele", serve: "Pra acne e manchas no rosto.", icone: "🌸", para: ["Acne, cravos, pele oleosa e/ou porosa", "Manchas"] },
       { nome: "Blend Capilar", serve: "Pra queda e crescimento dos fios.", icone: "🌿", para: ["Queda de cabelo"] },
       { nome: "Blend Calma", serve: "Aroma pra ajudar a relaxar e dormir melhor.", icone: "🕯️", para: ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal", "Músculo travado, tensão"] },
       { nome: "Blend Labial", serve: "Hidratação pros lábios.", icone: "💋" }
@@ -152,7 +152,7 @@ window.TRIAGEM = {
     if (principal === "Ansiedade e estresse")
       return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", junto: "Reiki pra equilibrar a energia + teu blend personalizado pra levar o cuidado pra casa", aviso };
     if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-    if (principal === "Acne, cravos e pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", aviso };
+    if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", aviso };
     if (principal === "Queda de cabelo") return { servico: "Blend Capilar", porque: "Fórmula pra fortalecer os fios e estimular o crescimento — eu te explico como usar.", junto: "Uma conversa rápida pra eu entender a causa da queda", aviso };
     return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", junto: "Blend Calma pra levar o cuidado pra casa", aviso };
   },
@@ -167,7 +167,7 @@ window.TRIAGEM = {
       "Celulite": ["corpo", "ativar a circulação na celulite"], "Flacidez": ["corpo", "firmeza do corpo"],
       "Gordura localizada / medidas": ["corpo", "modelar as medidas"], "Inchaço e retenção": ["corpo", "desinchar"],
       "Ansiedade e estresse": ["calma", "calma e sono melhor"], "Manchas": ["rosto", "clareamento das manchas"],
-      "Acne, cravos e pele oleosa e/ou porosa": ["rosto", "controle da acne"]
+      "Acne, cravos, pele oleosa e/ou porosa": ["rosto", "controle da acne"]
     };
     const marcados = [...(r.incomodo || []), ...(r.pele || [])].filter(x => focos[x]);
     if (!marcados.length) return null;
