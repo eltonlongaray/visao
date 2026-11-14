@@ -271,8 +271,8 @@ function resultado() {
   const relacionados = sugestoes(ind, st.plano).map(s => s.nome);
   const maisServ = SERV.filter(s => !st.plano.includes(s.id) && !jaTem(s.nome))
     .sort((a, b) => (relacionados.includes(b.nome) - relacionados.includes(a.nome)));
-  const mais = [...maisServ.map(s => ({ v: s.nome, blend: false })),
-    ...(M.vitrine?.itens || []).filter(i => !jaTem(i.nome)).map(i => ({ v: i.nome, blend: true }))];
+  const outrosBlends = (M.vitrine?.itens || []).filter(i => !jaTem(i.nome)).map(i => ({ v: i.nome, blend: true }));
+  const mais = maisServ.map(s => ({ v: s.nome, blend: false }));
   const opHtml = o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`;
   const abertoMais = st.interesses.some(v => mais.some(o => o.v === v));
   salvar();
@@ -283,10 +283,10 @@ function resultado() {
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
     </div>` : ''}
-    <div class="card int"><h3>Também me interessam</h3>
-      ${indicados.length ? `<p class="ajuda" style="margin:0 0 .5rem">Já marquei o que é indicado pro teu caso. Pode desmarcar se não quiser.</p>
-      <div class="ops">${indicados.map(opHtml).join('')}</div>` : ''}
-      ${mais.length ? `<button type="button" class="mais-btn" id="mais-btn" aria-expanded="${abertoMais}">＋ Tenho interesse em mais produtos e serviços <span>${abertoMais ? '▴' : '▾'}</span></button>
+    <div class="card int"><h3>Tenho interesse em conhecer</h3>
+      <p class="ajuda" style="margin:0 0 .5rem">${indicados.length ? 'Já marquei o que é indicado pro teu caso. ' : ''}Marca o que quiser conhecer, ou deixa tudo desmarcado.</p>
+      <div class="ops">${[...indicados, ...outrosBlends].map(opHtml).join('')}</div>
+      ${mais.length ? `<button type="button" class="mais-btn" id="mais-btn" aria-expanded="${abertoMais}">＋ Ver mais serviços <span>${abertoMais ? '▴' : '▾'}</span></button>
       <div class="ops" id="mais" ${abertoMais ? '' : 'hidden'}>${mais.map(opHtml).join('')}</div>` : ''}
     </div>
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
