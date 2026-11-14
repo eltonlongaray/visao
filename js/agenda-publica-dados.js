@@ -63,6 +63,19 @@ export async function criarAgendamento(slug, dataISO, hora, nome, contato, servi
   return data;
 }
 
+// Vários serviços num horário só (vindo da triagem): durações e preços somados no servidor.
+export async function criarAgendamentoCombo(slug, dataISO, hora, nome, contato, servicoIds) {
+  const { data, error } = await supabase.rpc('criar_agendamento_combo', {
+    p_slug: slug, p_data: dataISO, p_hora: hora,
+    p_nome: (nome || '').trim().slice(0, 120),
+    p_contato: (contato || '').trim().slice(0, 60),
+    p_servico_ids: servicoIds,
+  });
+  if (error) throw new Error(/criar_agendamento_combo/i.test(error.message || '') ? 'Falta rodar o SQL da triagem (sql/triagem.sql)' : error.message);
+  try { _avisarDono(data?.owner_id, { nome, dataISO, hora }); } catch {}
+  return data;
+}
+
 // Lista os agendamentos do cliente (identificado pelo WhatsApp) — passados e futuros.
 export async function getMeusAgendamentos(slug, contato) {
   const { data, error } = await supabase.rpc('meus_agendamentos_publico', { p_slug: slug, p_contato: contato || '' });

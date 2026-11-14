@@ -13,6 +13,10 @@
     ],
     "rewrites": [
       {
+        "source": "/triagem/**",
+        "destination": "/triagem.html"
+      },
+      {
         "source": "/agenda-online/**",
         "destination": "/agenda.html"
       },

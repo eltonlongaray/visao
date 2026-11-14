@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, criarAgendamentoCombo, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -44,6 +44,16 @@ function _removerHist(slug, id) {
     const a = _lerHist(slug).filter(x => x.id !== id);
     localStorage.setItem(_histKey(slug), JSON.stringify(a));
   } catch {}
+}
+// Vindo da TRIAGEM (/triagem/<slug>): serviços escolhidos, nome, WhatsApp e a mensagem
+// que a cliente manda pra profissional depois de confirmar. Só vale com ?triagem=1 e por 1 dia.
+const _triKey = slug => `falcon_triagem_${slug}`;
+function _lerTriagem(slug) {
+  if (!new URLSearchParams(location.search).has('triagem')) return null;
+  try {
+    const t = JSON.parse(localStorage.getItem(_triKey(slug)) || 'null');
+    return t && Date.now() - (t.ts || 0) < 86400000 ? t : null;
+  } catch { return null; }
 }
 // Identidade do cliente NO APARELHO (nome + WhatsApp) — tipo um "login" leve.
 const _identKey = slug => `falcon_cliente_${slug}`;
@@ -146,9 +156,23 @@ export async function renderAgendaPublica(app, slug) {
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
+  // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
+  const TRI = _lerTriagem(cfg.slug);
+  let combo = [];                    // 2+ serviços num horário só (da triagem)
+  if (TRI) {
+    if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
+    const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
+    if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
+  }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
-  const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
+  const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
+  const _durSel = () => combo.length > 1
+    ? _comboServs().reduce((t, s) => t + (s.duracaoMin || cfg.duracao_min || 60), 0)
+    : ((_servSel()?.duracaoMin) || cfg.duracao_min || 60);
+  // nome e preço do que vai ser agendado (1 serviço ou a soma do combo)
+  const _comboNome = () => _comboServs().map(s => s.nome).join(' + ');
+  const _comboPreco = () => { const c = _comboServs(); return c.some(s => s.preco == null) ? null : c.reduce((t, s) => t + Number(s.preco), 0); };
 
   // Busca os agendamentos do cliente (pelo WhatsApp) e re-renderiza quando chegam.
   async function _carregarMeusAgs() {
@@ -206,7 +230,11 @@ export async function renderAgendaPublica(app, slug) {
     if (!servicos.length) return '';
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Escolha o serviço</div>
-      ${servicos.map(s => `<button class="ap-serv-op ${selServ === s.id ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
+      ${combo.length > 1 ? `<button class="ap-serv-op sel" type="button" disabled style="opacity:1">
+        <span class="ap-serv-nm">${_esc(_comboNome())}</span>
+        <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
+      </button>` : ''}
+      ${servicos.map(s => `<button class="ap-serv-op ${combo.length <= 1 && selServ === s.id ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
       </button>`).join('')}
@@ -316,7 +344,7 @@ export async function renderAgendaPublica(app, slug) {
       selDia = b.dataset.dia; selHora = null; desenhar();
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; desenhar();
+      selServ = b.dataset.serv; combo = []; desenhar();
     }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
@@ -354,7 +382,9 @@ export async function renderAgendaPublica(app, slug) {
   function _formHtml(dia, hora) {
     const serv = _servSel();
     const fim = _fim(hora, _durSel());
-    const servLinha = serv
+    const servLinha = combo.length > 1
+      ? `<div class="ap-form-serv">💆 ${_esc(_comboNome())}${_comboPreco() != null ? ` · <b>R$ ${_precoTxt(_comboPreco())}</b>` : ''}</div>`
+      : serv
       ? `<div class="ap-form-serv">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · <b>R$ ${_precoTxt(serv.preco)}</b>` : ''}</div>`
       : '';
     return `
@@ -375,9 +405,13 @@ export async function renderAgendaPublica(app, slug) {
       const hora = selHora;
       const serv = _servSel();
       const fim = _fim(hora, _durSel());
-      const res = await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
+      const ehCombo = combo.length > 1;
+      const nomeServ = ehCombo ? _comboNome() : (serv?.nome || null);
+      const res = ehCombo
+        ? await criarAgendamentoCombo(cfg.slug, dia.iso, hora, nome, zap, combo)
+        : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null, id: res?.id, token: res?.token });
+      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
       // marca o intervalo recém-agendado (início→fim do serviço/duração) como ocupado
       const iniB = _hm(hora); const durB = _durSel() || DUR;
       if (!ocupados.has(dia.iso)) ocupados.set(dia.iso, []);
@@ -387,13 +421,23 @@ export async function renderAgendaPublica(app, slug) {
       const dataTxt = `${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}`;
       // Avisa o profissional no WhatsApp dele (o Falcon manda sozinho, via
       // CallMeBot). Fire-and-forget: não trava a confirmação do cliente.
-      notificarProfissional(cfg.slug, { nome, contato: zap, servico: serv?.nome || null, dataTxt, hora, fim });
+      notificarProfissional(cfg.slug, { nome, contato: zap, servico: nomeServ, dataTxt, hora, fim });
+      const precoOk = ehCombo ? _comboPreco() : (serv?.preco ?? null);
+      // Veio da triagem: último passo = a cliente manda o resumo pro WhatsApp da profissional
+      let waTri = '';
+      if (TRI && TRI.whatsapp && TRI.msg) {
+        const txt = TRI.msg.replace('{{QUANDO}}', `${dataTxt} às ${hora}`);
+        waTri = `https://wa.me/${String(TRI.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(txt)}`;
+        try { localStorage.removeItem(_triKey(cfg.slug)); } catch {}
+        combo = [];
+      }
       app.innerHTML = _tela(`
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
-          ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
+          ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
+          ${waTri ? `<a class="btn-primary ap-ok-btn" href="${waTri}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:14px">📲 Último passo: enviar meu resumo no WhatsApp</a>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <div id="ap-ficha"></div>

@@ -9,6 +9,7 @@ import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
+import { getTriagens } from './ficha.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
 const DOWS = [
@@ -19,6 +20,7 @@ const DOWS = [
 ];
 let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1, _semanaOffset = 0;
 let _ocupados = new Map();   // intervalos ocupados por dia (agendamentos + compromissos)
+let _triagens = [];          // triagens (/triagem/<slug>) — quem só fez a triagem também é cliente
 
 // Carrega os slots ocupados do próximo horizonte (pra marcar no editor de semana).
 async function _carregarOcupados() {
@@ -51,7 +53,44 @@ function _clientes() {
     c.ags.push(a);
     if (!c.contato && a.cliente_contato) c.contato = a.cliente_contato;   // completa o zap se algum tiver
   }
+  // Triagens: liga ao cliente pelo WhatsApp (sem o 55); quem só fez a triagem vira cliente "Só triagem"
+  const _k = d => String(d || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  for (const t of _triagens) {
+    const dig = _k(t.cliente_digitos || t.cliente_contato);
+    if (!dig) continue;
+    let c = [...map.values()].find(x => _k(x.key) === dig || _k(x.contato) === dig);
+    if (!c) { c = { key: dig, nome: t.cliente_nome, contato: t.cliente_contato, ags: [] }; map.set(dig, c); }
+    (c.triagens = c.triagens || []).push(t);
+  }
   return [...map.values()].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+}
+
+// Etapa do cliente (automática): Só triagem → Agendou → Atendida · Faltou/Cancelou
+function _etapa(c) {
+  const ags = c.ags || [];
+  if (ags.some(a => a.status === 'finalizado')) return { ic: '✅', txt: 'Atendida' };
+  if (ags.some(a => a.status === 'confirmado')) return { ic: '📅', txt: 'Agendou' };
+  if (ags.length) return { ic: '⚠️', txt: ags.some(a => a.status === 'faltou') ? 'Faltou' : 'Cancelou' };
+  if ((c.triagens || []).length) return { ic: '📝', txt: 'Só triagem' };
+  return { ic: '', txt: '' };
+}
+
+// Triagem no perfil: indicação, o que vai agendar, 💡 interesse e as respostas
+function _triagemPerfilHtml(c) {
+  const t = (c.triagens || [])[0];
+  if (!t) return '';
+  const r = t.respostas || {};
+  const quando = (t.respondida_em || t.created_at || '').slice(0, 10);
+  const linhas = Object.entries(r.respostas || {});
+  return `<div class="ag-tri">
+    <button class="ag-cli-hist-btn" id="agp-tri-btn" type="button">📝 Triagem${quando ? ` · ${_fmtData(quando)}` : ''} <span class="ag-cli-hist-seta" id="agp-tri-seta">▾</span></button>
+    <div id="agp-tri" hidden style="padding:6px 2px 10px;font-size:13.5px;line-height:1.5">
+      ${r.indicacao ? `<div>✨ <b>Indicação:</b> ${_esc(r.indicacao)}</div>` : ''}
+      ${(r.plano || []).length ? `<div>📅 <b>Quer agendar:</b> ${_esc(r.plano.join(' + '))}</div>` : ''}
+      ${(r.interesses || []).length ? `<div>💡 <b>Interesse:</b> ${_esc(r.interesses.join(', '))}</div>` : ''}
+      ${linhas.length ? `<div style="margin-top:8px;color:var(--muted)">${linhas.map(([k, v]) => `<div>• <b>${_esc(k)}:</b> ${_esc(v)}</div>`).join('')}</div>` : ''}
+    </div>
+  </div>`;
 }
 
 // Lista corrida dos atendimentos marcados daqui pra frente (todas as semanas).
@@ -104,7 +143,7 @@ async function _editarZapCliente(c) {
 
 function _clientesHtml() {
   const cs = _clientes().slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt', { sensitivity: 'base' }));
-  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link).</div>';
+  if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link) ou quando alguém faz a triagem.</div>';
   return `
     <div class="ag-cli-busca">
       <span class="ag-cli-lupa">🔍</span>
@@ -113,7 +152,7 @@ function _clientesHtml() {
     <div class="ag-cli-lista" id="ag-cli-lista">
       ${cs.map(c => `<button class="ag-cli-row" data-cli-open="${_esc(c.key)}" data-nome="${_esc((c.nome || '').toLowerCase())}" type="button">
         <div class="ag-cli-row-info"><b>${_esc(c.nome)}</b>
-          <small>${c.ags.length} atend.${c.contato ? '' : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}${statusFichaClienteHtml(_cfg, c)}</small></div>
+          <small>${(() => { const e = _etapa(c); return e.txt ? `${e.ic} ${e.txt} · ` : ''; })()}${c.ags.length} atend.${c.contato ? '' : ' · <span class="ag-sem-zap">sem WhatsApp</span>'}${statusFichaClienteHtml(_cfg, c)}</small></div>
         <span class="ag-cli-row-ch">›</span>
       </button>`).join('')}
       <div class="ag-cli-vazio-busca" id="ag-cli-nada" hidden>Nenhum cliente com esse nome.</div>
@@ -134,12 +173,13 @@ function _popupCliente(c) {
   ov.className = 'modal-overlay'; ov.id = 'ag-cliperfil-ov';
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
     <div class="ag-fhead">${_esc(c.nome)}</div>
-    <div class="ag-cli-perfil-sub">${c.ags.length} atendimento${c.ags.length > 1 ? 's' : ''}${c.contato ? ` · ${_esc(c.contato)}` : ' · sem WhatsApp'}</div>
+    <div class="ag-cli-perfil-sub">${(() => { const e = _etapa(c); return e.txt ? `${e.ic} ${e.txt} · ` : ''; })()}${c.ags.length} atendimento${c.ags.length === 1 ? '' : 's'}${c.contato ? ` · ${_esc(c.contato)}` : ' · sem WhatsApp'}</div>
     <div class="ag-cli-acoes" style="margin:14px 0 8px">
       ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
       <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
     </div>
     ${perfilFichaHtml(_cfg, c)}
+    ${_triagemPerfilHtml(c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
     <div class="ag-hist-lista" id="agp-hist" hidden>
       ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
@@ -154,6 +194,10 @@ function _popupCliente(c) {
   ov.querySelector('#agp-ok').onclick = () => close();
   ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
   wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
+  ov.querySelector('#agp-tri-btn')?.addEventListener('click', () => {
+    const h = ov.querySelector('#agp-tri'); const s = ov.querySelector('#agp-tri-seta');
+    const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
+  });
   ov.querySelector('#agp-hist-btn').onclick = () => {
     const h = ov.querySelector('#agp-hist'); const s = ov.querySelector('#agp-hist-seta');
     const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
@@ -343,6 +387,7 @@ export async function abrirAgenda() {
     _marcarVistos((_todos || []).map(a => a.id));   // abriu a agenda = viu os agendamentos
     await _carregarOcupados();   // slots já tomados (agendamentos + compromissos) pra marcar no editor
     await carregarFichas(_cfg);  // fichas de atendimento (se a profissão estiver escolhida)
+    _triagens = await getTriagens().catch(() => []);   // quem fez a triagem (/triagem/<slug>)
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
