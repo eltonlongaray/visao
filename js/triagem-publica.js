@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=9`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=10`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -236,12 +236,16 @@ function proxDia() {
   const p = _prazo(); const x = new Date(p.getFullYear(), p.getMonth(), p.getDate() + 1);
   return String(x.getDate()).padStart(2, '0') + '/' + String(x.getMonth() + 1).padStart(2, '0');
 }
+// Preço por nome do serviço (o nome da agenda começa com o do modelo: "Deusa Grega – …")
+const _porNome = (mapa, nome) => { if (!mapa) return undefined; const n = norm(nome); const k = Object.keys(mapa).find(x => n === norm(x) || n.startsWith(norm(x))); return k ? mapa[k] : undefined; };
 function precoTxt(s) {
-  const depois = M.precos?.depois?.[s.nome];
-  if (s.preco == null && depois == null) return `valor com a ${esc(M.profissional.nome)}`;
-  if (s.preco != null && depois != null && blackAtiva())
-    return `Black até ${esc(M.precos.prazo)}: <b>${reais(s.preco)}</b> · a partir de ${proxDia()}: ${reais(depois)}`;
-  return `<b>${reais(s.preco ?? depois)}</b>`;
+  const depois = _porNome(M.precos?.depois, s.nome);
+  const black = _porNome(M.precos?.black, s.nome) ?? s.preco;   // preço de Black do modelo, senão o da agenda
+  const atual = blackAtiva() ? black : (depois ?? s.preco);
+  if (atual == null && depois == null) return `valor com a ${esc(M.profissional.nome)}`;
+  if (black != null && depois != null && blackAtiva())
+    return `Black até ${esc(M.precos.prazo)}: <b>${reais(black)}</b> · a partir de ${proxDia()}: ${reais(depois)}`;
+  return `<b>${reais(atual ?? depois)}</b>`;
 }
 
 // === BLOCO 6: RESULTADO (indicação · vou agendar · também me interessam) ===

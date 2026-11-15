@@ -18,7 +18,9 @@ window.TRIAGEM = {
   // Preço de Black: o da agenda vale até o prazo; depois sobe pro "depois"
   precos: {
     prazo: "30/11",
-    depois: { "Sessão para celulite": 147 }
+    // preço de Black (até o prazo) — se não tiver aqui, vale o preço da agenda
+    black: { "Esculpe Detox": 597, "Deusa Grega": 697 },
+    depois: { "Sessão para celulite": 147, "Esculpe Detox": 747, "Deusa Grega": 897 }
   },
 
   // "Serviços que também me interessam": o que oferecer pra cada incômodo (nomes da agenda)
