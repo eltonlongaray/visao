@@ -112,24 +112,34 @@ window.TRIAGEM = {
         { se: "Estou gestante", texto: "Tudo bem! Alguns tratamentos são adaptados na gestação — eu avalio com você antes de começar." },
         { se: "Tenho varizes ou já tive trombose", texto: "Obrigada por avisar. Eu avalio com cuidado na primeira conversa antes de qualquer técnica." },
         { se: "Uso marcapasso", texto: "Obrigada por avisar. Alguns aparelhos não são indicados — eu escolho as técnicas certas pra você." }
-      ] }
+      ] },
+
+    // === CUIDADO EM CASA (aprovado 15/11): necessidades, sem mostrar produto; o catálogo vem depois ===
+    { id: "casa", grupo: "Pra continuar em casa", tipo: "multi", curto: "Cuidar em casa",
+      q: "Quer continuar o cuidado em casa?",
+      ajuda: "Usamos combinações de óleos essenciais e cremes naturais no seu atendimento, e você pode levar pra casa pra continuar o tratamento. Selecione o que acha interessante pro seu caso:",
+      exclusivas: ["Não tenho interesse no momento"],
+      ops: [
+        { v: "Rosto: acne, cravos, manchas, olheiras, poros abertos", icone: "🌸" },
+        { v: "Cabelo e barba: foliculite, falhas, queda, caspa", icone: "💇" },
+        { v: "Corpo: celulite, edema, queloide, linfedema", icone: "🍑" },
+        { v: "Varizes e vasinhos", icone: "🦵" },
+        { v: "Gordura localizada e inchaço", icone: "📏" },
+        { v: "Ansiedade e depressão", icone: "🌙" },
+        { v: "Bruxismo", icone: "😬" },
+        { v: "Insônia", icone: "😴" },
+        { v: "Enxaqueca", icone: "🤕" },
+        { v: "Não tenho interesse no momento" }
+      ] },
+    { id: "catalogo", grupo: "Pra continuar em casa", tipo: "unica", curto: "Catálogo",
+      q: "Quer receber um catálogo com os produtos selecionados pra você?",
+      ajuda: "Assim você faz sua encomenda sempre que sentir necessidade. 📦 Pedidos em até 7 dias úteis, pra retirar no espaço.",
+      mostrarSe: { campo: "casa", algumDe: ["Rosto: acne, cravos, manchas, olheiras, poros abertos", "Cabelo e barba: foliculite, falhas, queda, caspa", "Corpo: celulite, edema, queloide, linfedema", "Varizes e vasinhos", "Gordura localizada e inchaço", "Ansiedade e depressão", "Bruxismo", "Insônia", "Enxaqueca"] },
+      ops: [{ v: "Sim, quero o catálogo" }, { v: "Agora não" }] }
   ],
 
-  // === BLOCO 3: VITRINE DOS BLENDS (sem preço: o preço vai pela conversa) ===
-  vitrine: {
-    eyebrow: "Pra continuar em casa",
-    titulo: "Quer continuar o cuidado em casa?",
-    ajuda: "Escolha aqui os blends que te interessam para continuar o tratamento em casa.",
-    recusa: "Prefiro não seguir com o tratamento em casa",
-    itens: [
-      { nome: "Xô Celulite", serve: "Blend anticelulítico com amêndoa doce, alecrim e lavanda. Massageie 1 a 2 vezes ao dia, de preferência após o banho.", icone: "🍑", foto: "/triagem-modelos/img/V83-frasco.jpg", para: ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
-      { nome: "Blend Clareamento", serve: "Pra manchas, axila e virilha escurecidas.", icone: "🌗", para: ["Manchas"] },
-      { nome: "Blend Pele", serve: "Pra acne e manchas no rosto.", icone: "🌸", para: ["Acne, cravos, pele oleosa e/ou porosa", "Manchas"] },
-      { nome: "Blend Capilar", serve: "Pra queda e crescimento dos fios.", icone: "🌿", para: ["Queda de cabelo"] },
-      { nome: "Blend Calma", serve: "Aroma pra ajudar a relaxar e dormir melhor.", icone: "🕯️", para: ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal", "Músculo travado, tensão"] },
-      { nome: "Blend Labial", serve: "Hidratação pros lábios.", icone: "💋" }
-    ]
-  },
+  // Vitrine de blends desligada (15/11): o cuidado em casa virou a pergunta "casa" + catálogo
+  vitrine: null,
 
   // === BLOCO 4: INDICAÇÃO (regra simples: a primeira que bater vale) ===
   // A indicação segue o PRIMEIRO incômodo que a pessoa marcou (é o que mais incomoda)
@@ -161,7 +171,7 @@ window.TRIAGEM = {
   },
 
   // === BLOCO 5: BLEND PERSONALIZADO (junta tudo que a pessoa marcou num blend só dela) ===
-  blendPersonalizado(r) {
+  blendPersonalizadoDesligado(r) {
     const focos = {
       "Manchas ou melasma": ["rosto", "clareamento das manchas"], "Acne e espinhas": ["rosto", "controle da acne"],
       "Cravos e poros abertos": ["rosto", "limpeza dos poros"], "Oleosidade": ["rosto", "controle da oleosidade"],
