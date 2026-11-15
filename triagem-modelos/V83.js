@@ -116,7 +116,7 @@ window.TRIAGEM = {
 
     // === CUIDADO EM CASA (aprovado 15/11): necessidades, sem mostrar produto; o catálogo vem depois ===
     { id: "casa", grupo: "Pra continuar em casa", tipo: "multi", curto: "Cuidar em casa",
-      q: "Quer continuar o cuidado em casa?",
+      q: "Se você fosse continuar o tratamento em casa, pra que seria?",
       ajuda: "Usamos combinações de óleos essenciais e cremes naturais no seu atendimento, e você pode levar pra casa pra continuar o tratamento. Selecione o que acha interessante pro seu caso:",
       exclusivas: ["Não tenho interesse no momento"],
       ops: [
@@ -129,17 +129,21 @@ window.TRIAGEM = {
         { v: "Bruxismo", icone: "😬" },
         { v: "Insônia", icone: "😴" },
         { v: "Enxaqueca", icone: "🤕" },
+        { v: "Dores musculares e nos nervos", icone: "💪" },
+        { v: "Dores nos ossos e articulações", icone: "🦴" },
+        { v: "Outro", icone: "✍️", outro: true },
         { v: "Não tenho interesse no momento" }
       ] },
     { id: "catalogo", grupo: "Pra continuar em casa", tipo: "unica", curto: "Catálogo",
       q: "Quer receber um catálogo com os produtos selecionados pra você?",
       ajuda: "Assim você faz sua encomenda sempre que sentir necessidade. 📦 Pedidos em até 7 dias úteis, pra retirar no espaço.",
-      mostrarSe: { campo: "casa", algumDe: ["Rosto: acne, cravos, manchas, olheiras, poros abertos", "Cabelo e barba: foliculite, falhas, queda, caspa", "Corpo: celulite, edema, queloide, linfedema", "Varizes e vasinhos", "Gordura localizada e inchaço", "Ansiedade e depressão", "Bruxismo", "Insônia", "Enxaqueca"] },
       ops: [{ v: "Sim, quero o catálogo" }, { v: "Agora não" }] }
   ],
 
   // Vitrine de blends desligada (15/11): o cuidado em casa virou a pergunta "casa" + catálogo
   vitrine: null,
+  // Sem o card "Serviços que também me interessam" no resultado (15/11)
+  mostrarInteresses: false,
 
   // === BLOCO 4: INDICAÇÃO (regra simples: a primeira que bater vale) ===
   // A indicação segue o PRIMEIRO incômodo que a pessoa marcou (é o que mais incomoda)

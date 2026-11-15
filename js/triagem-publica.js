@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=11`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=12`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -111,11 +111,16 @@ function tela() {
       ${p.ops.map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
         ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}</span><span class="marca-op"></span></button>`).join('')}
     </div>
+    ${p.ops.some(o => o.outro) ? `<label class="campo" id="outroBox" hidden>Qual?<input id="outroTxt" placeholder="Escreve aqui" value="${esc(st.r[p.id + '_outro'] || '')}"></label>` : ''}
     <p class="erro" id="erro"></p>
     <div id="avisoBox"></div>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="seg">Continuar →</button></div></section>`;
   progresso();
+  const opOutro = p.ops.find(o => o.outro)?.v;
+  const mostrarOutro = () => { const box = $('outroBox'); if (box) box.hidden = ![].concat(st.r[p.id] || []).includes(opOutro); };
+  mostrarOutro();
+  $('outroTxt')?.addEventListener('input', e => { st.r[p.id + '_outro'] = e.target.value; salvar(); });
   const avisar = () => {
     const at = (p.avisos || []).find(a => (Array.isArray(st.r[p.id]) ? st.r[p.id] : [st.r[p.id]]).includes(a.se));
     $('avisoBox').innerHTML = at ? `<div class="aviso">${esc(at.texto)}</div>` : '';
@@ -130,7 +135,8 @@ function tela() {
       else a = exclusivo ? [val] : [...a.filter(x => !(p.exclusivas || []).includes(x)), val];
       st.r[p.id] = a; salvar();
       app.querySelectorAll('.op').forEach(x => x.setAttribute('aria-checked', a.includes(x.dataset.v)));
-      avisar();
+      avisar(); mostrarOutro();
+      if (val === opOutro && a.includes(val)) setTimeout(() => $('outroTxt')?.focus(), 50);
     } else {
       st.r[p.id] = val; salvar();
       app.querySelectorAll('.op').forEach(x => x.setAttribute('aria-checked', x.dataset.v === val));
@@ -181,6 +187,8 @@ function avancar() {
   const p = passos()[st.i];
   const v = st.r[p.id];
   if (!p.opcional && (!v || (Array.isArray(v) && !v.length))) { $('erro').textContent = p.tipo === 'multi' ? 'Marca pelo menos uma opção.' : 'Escolhe uma opção pra continuar.'; return; }
+  const opOutro = (p.ops || []).find(o => o.outro)?.v;
+  if (opOutro && [].concat(v).includes(opOutro) && !(st.r[p.id + '_outro'] || '').trim()) { $('erro').textContent = 'Escreve o que seria no campo "Qual?".'; return; }
   st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
 }
 function voltar() { if (st.i <= 0) { st.i = -1; salvar(); intro(); } else { st.i--; salvar(); tela(); } }
@@ -251,7 +259,10 @@ function precoTxt(s) {
 // === BLOCO 6: RESULTADO (indicação · vou agendar · também me interessam) ===
 function resumoLinhas() {
   const L = M.perguntas.filter(p => !p.mostrarSe || condicao(p.mostrarSe));
-  return L.map(p => [p.curto || p.q, [].concat(st.r[p.id] || []).join(', ')]).filter(x => x[1]);
+  return L.map(p => {
+    const outro = (p.ops || []).find(o => o.outro)?.v, txt = (st.r[p.id + '_outro'] || '').trim();
+    return [p.curto || p.q, [].concat(st.r[p.id] || []).map(x => x === outro && txt ? `${x}: ${txt}` : x).join(', ')];
+  }).filter(x => x[1]);
 }
 // Tudo que vai pro banco (fica no cadastro da cliente no Falcon)
 function pacote() {
@@ -296,7 +307,7 @@ function resultado() {
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
     </div>` : ''}
-    ${ops.length ? `<div class="card int"><h3>Serviços que também me interessam</h3>
+    ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
     </div>` : ''}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
