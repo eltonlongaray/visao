@@ -105,6 +105,7 @@ h1 em{color:var(--cor)}
 .campo{display:flex;flex-direction:column;gap:.35rem;margin-top:.9rem;font-size:.9rem;font-weight:700;color:var(--tinta)}
 .campo input{font:inherit;font-size:1rem;font-weight:500;color:var(--tinta);background:var(--branco);border:1.5px solid var(--linha);border-radius:14px;padding:.85rem 1rem;outline:none}
 .campo input:focus{border-color:var(--cor)}
+.campo[hidden]{display:none}
 .plano .item{display:flex;flex-direction:column;gap:.15rem;padding:.55rem 0;border-bottom:1px dashed var(--linha)}
 .plano .item:last-child{border:none}
 .plano .nm{font-weight:700}
@@ -118,6 +119,6 @@ h1 em{color:var(--cor)}
 <body>
 <header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
 <main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
-<script type="module" src="js/triagem-publica.js?v=7"></script>
+<script type="module" src="js/triagem-publica.js?v=8"></script>
 </body>
 </html>
