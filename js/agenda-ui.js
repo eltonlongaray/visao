@@ -5,7 +5,7 @@
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
 import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado, salvarCallmebotApikey, getTenhoCallmebot } from './agenda.js';
-import { showToast } from './aviso-tela.js';
+import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
@@ -588,6 +588,8 @@ function wireFixos(corpo) {
   };
   corpo.querySelectorAll('[data-cancel]').forEach(b => {
     b.addEventListener('click', async () => {
+      const ok = await confirmModal({ title: 'Cancelar este agendamento?', message: 'O horário fica livre pra outra pessoa marcar.', confirmText: 'Sim, cancelar', cancelText: 'Voltar', danger: true });
+      if (!ok) return;
       try {
         await cancelarAgendamento(b.dataset.cancel);
         _ags = _ags.filter(a => a.id !== b.dataset.cancel);
@@ -841,6 +843,8 @@ export async function abrirDetalheAtendimento(agOrId) {
     ov.querySelector('#agd-finalizar')?.addEventListener('click', () => _setStatus('finalizado'));
     ov.querySelector('#agd-faltou')?.addEventListener('click', () => _setStatus('faltou'));
     ov.querySelector('#agd-excluir').onclick = async () => {
+      const ok = await confirmModal({ title: 'Excluir este atendimento?', message: `${ag.cliente_nome || 'Cliente'} · ${_fmtData(ag.data)} às ${ag.hora}. Ele some da agenda e do histórico, e não dá pra desfazer.`, confirmText: 'Sim, excluir', cancelText: 'Voltar', danger: true });
+      if (!ok) return;
       try { await excluirAtendimento(ag); await recarregar(); close(); showToast('Atendimento excluído', 'info'); }
       catch (e) { showToast('Erro: ' + e.message, 'error'); }
     };
@@ -931,6 +935,8 @@ async function _formAgendamento(ag, opts = {}) {
   });
   ov.querySelector('#agf-cancelar').onclick = () => close();
   ov.querySelector('#agf-cancelar-atend')?.addEventListener('click', async () => {
+    const ok = await confirmModal({ title: 'Cancelar este atendimento?', message: 'O horário fica livre pra outra pessoa marcar.', confirmText: 'Sim, cancelar', cancelText: 'Voltar', danger: true });
+    if (!ok) return;
     try {
       await cancelarAgendamento(st.id);
       [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
