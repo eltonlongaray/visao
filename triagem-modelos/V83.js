@@ -20,7 +20,7 @@ window.TRIAGEM = {
     prazo: "30/11",
     // preço de Black (até o prazo) — se não tiver aqui, vale o preço da agenda
     black: { "Esculpe Detox": 597, "Deusa Grega": 197 },
-    depois: { "Sessão para celulite": 147, "Esculpe Detox": 747, "Deusa Grega": 227 }
+    depois: { "Sessão para celulite": 145, "Esculpe Detox": 747, "Deusa Grega": 227, "Pacote Deusa Grega": 997, "Liberação miofascial": 185 }
   },
 
   // "Serviços que também me interessam": o que oferecer pra cada incômodo (nomes da agenda)
