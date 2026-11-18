@@ -9096,3 +9096,27 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ag-serv-tit { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 16px; }
 .ag-serv-tit + .ag-lista, .ag-serv-tit + .fin-topo { margin-top: 10px; }
 .fi-secao { margin-top: 22px; }
+/* Registrar venda: custo vem do cadastro e o lucro aparece na hora */
+.fin-res { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 12px; }
+.fin-res > div { background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 2px; }
+.fin-res span { font-size: 11.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.fin-res b { font-size: 16px; color: var(--text); }
+.fin-res b.pos { color: var(--green, #10b981); }
+.fin-res b.neg { color: #ef4444; }
+.fin-res small { grid-column: 1 / -1; font-size: 12px; color: var(--muted); line-height: 1.35; }
+.ag-tit-qtd { margin-left: 6px; font-size: 13px; font-weight: 700; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 16%, transparent); padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
+/* Registrar venda: escolher o item numa lista do Falcon (no lugar do <select> nativo) */
+.fin-pick-btn { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; cursor: pointer; }
+.fin-pick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fin-pick-txt b { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.fin-pick-txt small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-pick-seta { color: var(--accent-2); font-size: 14px; }
+.fin-pick-ov { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; }
+.fin-pick-folha { width: 100%; max-width: 480px; max-height: 78vh; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
+.fin-pick-tit { font-size: 16px; font-weight: 800; color: var(--text); margin: 2px 4px 10px; }
+.fin-pick-lista { overflow-y: auto; overscroll-behavior: contain; }
+.fin-pick-grupo { margin: 12px 4px 6px; font-size: 11.5px; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: .4px; }
+.fin-pick-op { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; font-family: inherit; cursor: pointer; }
+.fin-pick-op.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+.fin-pick-preco { font-size: 13.5px; font-weight: 800; color: var(--text); white-space: nowrap; }
+.fin-pick-outro { margin-top: 8px; }

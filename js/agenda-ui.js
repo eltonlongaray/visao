@@ -4,7 +4,7 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado, salvarCallmebotApikey, getTenhoCallmebot } from './agenda.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
@@ -424,30 +424,9 @@ function desenhar() {
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
       <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
         <input id="ag-endereco" value="${_esc(_cfg.endereco || '')}" placeholder="Ex: Rua das Flores, 123 — Centro, Porto Alegre"></label>
-      <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— botão "Falar no WhatsApp" no link do cliente</span></div>
+      <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— depois de agendar, a cliente te manda a confirmação aqui</span></div>
         <input id="ag-whatsapp" inputmode="tel" value="${_esc(_cfg.whatsapp || '')}" placeholder="(DDD) 9 9999-9999"></label>
 
-      <div class="ag-notif" id="ag-notif">
-        <div class="ag-notif-tit">🔔 Receber os agendamentos no seu WhatsApp</div>
-
-        <div class="ag-notif-done" id="ag-notif-done" hidden>
-          <div class="ag-notif-status ok">✅ Ativado! Você recebe cada agendamento novo no seu WhatsApp.</div>
-          <button type="button" class="ag-notif-reconfig" id="ag-notif-reconfig">Reconfigurar / trocar a chave</button>
-        </div>
-
-        <div class="ag-notif-setup" id="ag-notif-setup" hidden>
-          <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis — só 3 passos:</div>
-          <ol class="ag-notif-passos">
-            <li>Toque no botão abaixo: ele abre o WhatsApp já com a mensagem certa. É só <b>enviar</b>.</li>
-            <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
-            <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
-          </ol>
-          <a class="ag-notif-wa" href="https://wa.me/34623789595?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
-          <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
-            <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
-          <div class="ag-notif-status" id="ag-notif-status"></div>
-        </div>
-      </div>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
@@ -500,7 +479,7 @@ function desenhar() {
 
       ${secaoFichaHtml(_cfg, _clientes())}
 
-      <div class="ag-serv-tit">👥 Clientes</div>
+      <div class="ag-serv-tit">👥 Clientes <span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span></div>
       <div class="fin-topo">
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
@@ -633,16 +612,6 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
   corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons());
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
-  // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
-  // senão → o passo a passo pra configurar.
-  const _mostrarNotif = (tem) => {
-    const done = corpo.querySelector('#ag-notif-done');
-    const setup = corpo.querySelector('#ag-notif-setup');
-    if (done) done.hidden = !tem;
-    if (setup) setup.hidden = tem;
-  };
-  getTenhoCallmebot().then(_mostrarNotif).catch(() => _mostrarNotif(false));
-  corpo.querySelector('#ag-notif-reconfig')?.addEventListener('click', () => _mostrarNotif(false));
 }
 
 // Lê os inputs das linhas de serviço de volta pro _cfg.servicos (antes de re-render/salvar).
@@ -1028,16 +997,6 @@ async function salvar() {
     await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
     _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     try { await salvarCustos(custos); } catch (e) { showToast('Custos: ' + e.message, 'info'); }
-    // Apikey do CallMeBot: só grava se digitou algo (vazio = mantém a atual).
-    const cbKey = corpo.querySelector('#ag-callmebot')?.value.trim();
-    if (cbKey) {
-      try {
-        await salvarCallmebotApikey(cbKey);
-        // configurou → esconde o passo a passo e mostra o "✅ ativado"
-        corpo.querySelector('#ag-notif-done')?.removeAttribute('hidden');
-        corpo.querySelector('#ag-notif-setup')?.setAttribute('hidden', '');
-      } catch (e) { showToast('Apikey não salva: ' + e.message, 'info'); }
-    }
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
