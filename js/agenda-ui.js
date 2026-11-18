@@ -11,7 +11,7 @@ import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons, gerarCupomCliente } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente, abrirPresente } from './cupons-ui.js';
 import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
@@ -506,7 +506,8 @@ function desenhar() {
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
         <button class="fin-topo-btn" id="ag-prod" type="button">🧴 Produtos</button>
-        <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons e presentes</button>
+        <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons</button>
+        <button class="fin-topo-btn" id="ag-pres" type="button">🎁 Cartão presente</button>
       </div>
       <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
     </div>
@@ -633,7 +634,9 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
-  corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons({ servicos: _cfg.servicos || [], marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico() }));
+  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico() });
+  corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons(_optsCupom()));
+  corpo.querySelector('#ag-pres')?.addEventListener('click', () => abrirPresente(_optsCupom()));
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
 }
 
