@@ -28,6 +28,7 @@ Nada de banco (tabelas/SQL) antes de ver a planilha, pra não refazer depois.
 - 🚗 **Planejar a compra de um carro**
 - 🏠 **Planejar a compra de uma casa**
 - 📦 **Planejar uma mudança** (outra cidade, outro estado ou outro país)
+- 🎉 **Organizar um evento** (casamento, 15 anos, aniversário etc.)
 
 Onde cada um fica (Pessoal, Profissional ou abas/seções próprias) decidir
 junto com a planilha.

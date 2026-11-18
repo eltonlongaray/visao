@@ -27,6 +27,7 @@ const CARDS = {
     ['🚗', 'Comprar um carro', 'Planeje a entrada, as parcelas e o prazo'],
     ['🏠', 'Comprar uma casa', 'Planeje a entrada, o financiamento e o prazo'],
     ['📦', 'Mudança', 'Pra outra cidade, outro estado ou outro país'],
+    ['🎉', 'Organizar um evento', 'Casamento, 15 anos, aniversário e outras festas'],
     ['📈', 'Investimentos', 'Planeje seus investimentos no mercado financeiro'],
   ],
   profissional: [
