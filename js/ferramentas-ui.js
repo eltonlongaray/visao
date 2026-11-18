@@ -159,7 +159,7 @@ function _crescer(campo) {
   campo.style.height = Math.min(campo.scrollHeight + 2, 160) + 'px';
 }
 
-// ── Hub: cards Agenda Online / Rifa / Financeiro pessoal e profissional / Língua ──
+// ── Hub: cards Agenda Online / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
 // (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
   if (modo === 'ferramentas') return `
@@ -172,16 +172,6 @@ function telaHub() {
         <span class="fr-hub-ic">📅</span>
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
-      </button>
-      <button class="fr-hubcard" data-hub-fin-pessoal type="button">
-        <span class="fr-hub-ic">💰</span>
-        <span class="fr-hub-tx"><b>Financeiro pessoal</b><small>Suas contas, gastos e metas de dinheiro</small></span>
-        <span class="fr-hub-tag">EM BREVE</span>
-      </button>
-      <button class="fr-hubcard" data-hub-fin-prof type="button">
-        <span class="fr-hub-ic">💼</span>
-        <span class="fr-hub-tx"><b>Financeiro profissional</b><small>Entradas e saídas do seu trabalho</small></span>
-        <span class="fr-hub-tag">EM BREVE</span>
       </button>
       <button class="fr-hubcard" data-hub-rifa type="button">
         <span class="fr-hub-ic">🎟️</span>
@@ -483,8 +473,6 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
     if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
-    if (e.target.closest('[data-hub-fin-pessoal]')) { showToast('💰 Financeiro pessoal está em desenvolvimento. Em breve! 🦅', 'info'); return; }
-    if (e.target.closest('[data-hub-fin-prof]')) { showToast('💼 Financeiro profissional está em desenvolvimento. Em breve! 🦅', 'info'); return; }
     if (e.target.closest('[data-hub-lingua]')) { showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'); return; }
 
     const abrir = e.target.closest('[data-grupo]');

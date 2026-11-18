@@ -15,7 +15,7 @@ import { t } from '../idioma.js';
 import { playClick } from '../sons.js';
 
 const TABS = [
-  // A ORDEM IMPORTA. Com 6 abas e 5 visíveis, a que some é sempre a que está
+  // A ORDEM IMPORTA. Com 7 abas e 5 visíveis, as que somem são as que estão
   // 3 posições da central. O chat fica exatamente a 3 da Home, então na Home
   // ele é o invisível — só entra quando o usuário gira o cinturão.
   { id: 'home',       route: '#/home',       ic: '🏠', lbl: () => t('nav.home') },
@@ -29,6 +29,9 @@ const TABS = [
   { id: 'chat',       route: '#/chat',
     ic: '<img src="img/falcao.png?v=20260720y" alt="" class="belt-ic-img">', lbl: () => t('nav.chat') },
   { id: 'preparo',    route: '#/preparo',    ic: '💪', lbl: () => t('nav.preparo') },
+  // Financeiro (Élton, 18/11): aba própria, não card da Caixa de Ferramentas.
+  // Fica a 2 da Home (visível nela); o chat continua escondido na Home.
+  { id: 'financeiro', route: '#/financeiro', ic: '💰', lbl: () => t('nav.financeiro') },
   { id: 'ajustes',    route: '#/ajustes',    ic: '⚙️', lbl: () => t('nav.ajustes') },
 ];
 
