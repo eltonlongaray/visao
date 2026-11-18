@@ -9205,3 +9205,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ag-ficha.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .fi-perfil-mod + .fi-perfil-mod { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .fi-perfil-mod-tit { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+
+/* botões de Clientes (Financeiro, Campanhas, Produtos, Cupons, Cartão presente): uma fileira que rola pro lado, nome inteiro */
+.fin-topo { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
+.fin-topo::-webkit-scrollbar { display: none; }
+.fin-topo-btn { flex: none; min-width: auto; overflow: visible; text-overflow: clip; padding: 10px 14px; scroll-snap-align: start; }
