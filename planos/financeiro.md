@@ -10,6 +10,7 @@ A lógica vem da **planilha financeira pessoal do Élton** (ele vai mandar).
 Nada de banco (tabelas/SQL) antes de ver a planilha, pra não refazer depois.
 
 ## 💼 Profissional
+- **Fontes de renda extra** (alunas, cursos etc.) ficam num card da **Caixa de Ferramentas**, logo abaixo da Agenda Online (Élton, 18/11). A aba Profissional por enquanto fica vazia, "em desenvolvimento".
 - Botão **"➕ Adicionar fonte de renda"**. Cada pessoa pode ter 1, 2, 3, 4, 5+ fontes.
   - Ex.: terapeuta = fonte "Clientes" (atendimentos) + fonte "Cursos" (alunas
     que fazem a especialidade no método dela).

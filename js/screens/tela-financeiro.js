@@ -30,12 +30,12 @@ const CARDS = {
     ['🎉', 'Organizar um evento', 'Casamento, 15 anos, aniversário e outras festas'],
     ['📈', 'Investimentos', 'Planeje seus investimentos no mercado financeiro'],
   ],
-  profissional: [
-    ['💼', 'Fontes de renda', 'Adicione cada fonte de renda e veja receitas, despesas e pró-labore de cada uma'],
-  ],
+  // Fontes de renda extra viraram card da Caixa de Ferramentas (Élton, 18/11)
+  profissional: [],
 };
 
 function corpo() {
+  if (!CARDS[aba].length) return `<div class="fin-vazio">💼 O financeiro profissional está em desenvolvimento. Em breve! 🦅</div>`;
   return `<div class="fr-hub fin-hub">${CARDS[aba].map(([ic, nome, desc]) => `
     <button class="fr-hubcard" data-fin-card="${nome}" type="button">
       <span class="fr-hub-ic">${ic}</span>
