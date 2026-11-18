@@ -173,11 +173,6 @@ function telaHub() {
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
       </button>
-      <button class="fr-hubcard" data-hub-rifa type="button">
-        <span class="fr-hub-ic">🎟️</span>
-        <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
-        <span class="fr-hub-tag">PRO</span>
-      </button>
       <button class="fr-hubcard" data-hub-fin-pessoal type="button">
         <span class="fr-hub-ic">💰</span>
         <span class="fr-hub-tx"><b>Financeiro pessoal</b><small>Suas contas, gastos e metas de dinheiro</small></span>
@@ -187,6 +182,11 @@ function telaHub() {
         <span class="fr-hub-ic">💼</span>
         <span class="fr-hub-tx"><b>Financeiro profissional</b><small>Entradas e saídas do seu trabalho</small></span>
         <span class="fr-hub-tag">EM BREVE</span>
+      </button>
+      <button class="fr-hubcard" data-hub-rifa type="button">
+        <span class="fr-hub-ic">🎟️</span>
+        <span class="fr-hub-tx"><b>Rifa Solidária</b><small>Crie sua rifa e compartilhe o link</small></span>
+        <span class="fr-hub-tag">PRO</span>
       </button>
       <button class="fr-hubcard" data-hub-lingua type="button">
         <span class="fr-hub-ic">🌎</span>
