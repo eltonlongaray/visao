@@ -26,6 +26,7 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 const _nomeMes = k => { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; };
 const FORMAS = [['pix', 'Pix'], ['cartao', 'Cartão'], ['dinheiro', 'Dinheiro'], ['cortesia', 'Cortesia']];   // cortesia = não cobrou (modelo, brinde…)
 const _formaTxt = f => (FORMAS.find(x => x[0] === f) || [, ''])[1];
+export const vendasDoCliente = c => _vendasDe(c);
 const _vendasDe = c => { const d = digitos(c.contato || c.key); return d ? _vendas.filter(v => digitos(v.cliente_digitos || v.cliente_contato) === d) : []; };
 
 export async function carregarFinanceiro() {
@@ -99,15 +100,15 @@ export function abrirFormVenda({ venda = null, cliente, servicos = [], agendamen
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
     <div class="ag-fhead">${_esc(titulo || (venda ? '✏️ Editar venda' : '🛍️ Registrar venda'))}</div>
     <div class="ag-cli-perfil-sub">${_esc(cliente?.nome || v.cliente_nome || '')}</div>
-    ${opcoes.length ? `<label class="input-field"><div class="input-field-label">O que foi vendido</div>
-      <select id="fv-op"><option value="">— outro (escrever) —</option>
-        ${opcoes.map(o => `<option value="${_esc(o.k)}" ${o.k === selK ? 'selected' : ''}>${_esc(o.nome)}${o.tipo === 'pacote' ? ` · pacote ${o.sessoes} sessões` : o.tipo === 'produto' ? ' · produto' : ''}</option>`).join('')}
-      </select></label>` : ''}
+    ${opcoes.length ? `<div class="input-field"><div class="input-field-label">O que foi vendido</div>
+      <button type="button" class="fin-pick-btn" id="fv-pick"></button>
+      <select id="fv-op" hidden><option value=""></option>
+        ${opcoes.map(o => `<option value="${_esc(o.k)}" ${o.k === selK ? 'selected' : ''}>${_esc(o.nome)}</option>`).join('')}
+      </select></div>` : ''}
     <label class="input-field"><div class="input-field-label">Item</div><input id="fv-item" value="${_esc(v.item || '')}" placeholder="Ex: Blend Celulite"></label>
-    <div class="fin-2col">
-      <label class="input-field"><div class="input-field-label">Valor pago (R$)</div><input id="fv-valor" inputmode="decimal" value="${v.id ? _numTxt(v.valor) : ''}" placeholder="0,00"></label>
-      <label class="input-field"><div class="input-field-label">Custo (R$)</div><input id="fv-custo" inputmode="decimal" value="${v.id ? _numTxt(v.custo) : ''}" placeholder="0,00"></label>
-    </div>
+    <label class="input-field"><div class="input-field-label">Valor pago (R$)</div><input id="fv-valor" inputmode="decimal" value="${v.id ? _numTxt(v.valor) : ''}" placeholder="0,00"></label>
+    <input type="hidden" id="fv-custo" value="${v.id ? _numTxt(v.custo) : ''}">
+    <div class="fin-res" id="fv-res"></div>
     <div class="fin-2col">
       <label class="input-field"><div class="input-field-label">Tipo</div><select id="fv-tipo">
         ${[['servico', 'Atendimento'], ['pacote', 'Pacote'], ['produto', 'Produto']].map(([k, l]) => `<option value="${k}" ${(v.tipo || 'servico') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -132,16 +133,56 @@ export function abrirFormVenda({ venda = null, cliente, servicos = [], agendamen
     $('#fv-item').value = o.nome; sid = o.sid || null;
     $('#fv-valor').value = o.preco != null ? _numTxt(o.preco) : '';
     $('#fv-custo').value = o.custo ? _numTxt(o.custo) : '';
-    $('#fv-tipo').value = o.tipo; $('#fv-sess').value = o.sessoes || 1; sessVis();
+    custoCadastrado = !!o.custo;
+    $('#fv-tipo').value = o.tipo; $('#fv-sess').value = o.sessoes || 1; sessVis(); resumo();
   };
-  $('#fv-op')?.addEventListener('change', e => aplicar(opcoes.find(o => o.k === e.target.value)));
+  // Custo vem do cadastro (Serviços/Produtos) — a profissional não digita. Lucro calculado na hora.
+  let custoCadastrado = !!v.custo;
+  const resumo = () => {
+    const val = _num($('#fv-valor').value), cus = _num($('#fv-custo').value), luc = val - cus;
+    $('#fv-res').innerHTML = `<div><span>Custo</span><b>${cus ? reais(cus) : '—'}</b></div>
+      <div><span>Lucro</span><b class="${luc < 0 ? 'neg' : 'pos'}">${reais(luc)}</b></div>
+      ${!custoCadastrado && !cus ? '<small>Custo ainda não cadastrado pra esse item: o lucro está sem descontar material.</small>' : ''}`;
+  };
+  $('#fv-valor').addEventListener('input', resumo);
+  $('#fv-op')?.addEventListener('change', e => { if (!e.target.value) { $('#fv-custo').value = ''; custoCadastrado = false; resumo(); } });
+  $('#fv-op')?.addEventListener('change', e => { aplicar(opcoes.find(o => o.k === e.target.value)); pintarPick(); });
+  // Escolher o item: lista no visual do Falcon (o <select> nativo do Android fica feio e corta os nomes)
+  const _partes = nome => { const i = nome.indexOf(' – '); return i > 0 ? [nome.slice(0, i), nome.slice(i + 3)] : [nome, '']; };
+  const _tag = o => o.tipo === 'pacote' ? `Pacote ${o.sessoes} sessões` : o.tipo === 'produto' ? 'Produto' : 'Sessão';
+  function pintarPick() {
+    const b = $('#fv-pick'); if (!b) return;
+    const o = opcoes.find(x => x.k === $('#fv-op').value);
+    b.innerHTML = o ? `<span class="fin-pick-txt"><b>${_esc(_partes(o.nome)[0])}</b><small>${_esc(_tag(o))}${o.preco != null ? ' · ' + reais(o.preco) : ''}</small></span><span class="fin-pick-seta">▾</span>`
+      : `<span class="fin-pick-txt"><b>Escolher…</b><small>ou escreva no campo "Item" abaixo</small></span><span class="fin-pick-seta">▾</span>`;
+  }
+  $('#fv-pick')?.addEventListener('click', () => {
+    const fundo = document.createElement('div'); fundo.className = 'fin-pick-ov';
+    const grupos = [['Sessões', opcoes.filter(o => o.tipo === 'servico')], ['Pacotes', opcoes.filter(o => o.tipo === 'pacote')], ['Produtos', opcoes.filter(o => o.tipo === 'produto')]].filter(g => g[1].length);
+    fundo.innerHTML = `<div class="fin-pick-folha" role="dialog" aria-label="O que foi vendido">
+      <div class="fin-pick-tit">O que foi vendido?</div>
+      <div class="fin-pick-lista">${grupos.map(([g, os]) => `<div class="fin-pick-grupo">${g}</div>` + os.map(o => { const [n, d] = _partes(o.nome); return `<button type="button" class="fin-pick-op ${o.k === $('#fv-op').value ? 'on' : ''}" data-k="${_esc(o.k)}">
+        <span class="fin-pick-txt"><b>${_esc(n)}</b>${d ? `<small>${_esc(d)}</small>` : ''}</span><span class="fin-pick-preco">${o.preco != null ? reais(o.preco) : ''}</span></button>`; }).join('')).join('')}
+        <button type="button" class="fin-pick-op fin-pick-outro" data-k=""><span class="fin-pick-txt"><b>✏️ Outro</b><small>escrever o nome do item</small></span></button>
+      </div></div>`;
+    document.body.appendChild(fundo);
+    const fechar = () => fundo.remove();
+    fundo.addEventListener('click', e => { if (e.target === fundo) fechar(); });
+    fundo.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const sel = $('#fv-op'); sel.value = b.dataset.k; sel.dispatchEvent(new Event('change')); fechar();
+      if (!b.dataset.k) { $('#fv-item').value = ''; $('#fv-item').focus(); }
+    });
+  });
+  pintarPick();
   $('#fv-tipo').onchange = sessVis; sessVis();
   if (!venda && selK) aplicar(opcoes.find(o => o.k === selK));
+  resumo();
   ov.querySelectorAll('.fin-forma').forEach(b => b.onclick = () => {
     forma = forma === b.dataset.forma ? null : b.dataset.forma;
     ov.querySelectorAll('.fin-forma').forEach(x => x.classList.toggle('on', x.dataset.forma === forma));
     // cortesia: não cobrou nada (o custo continua contando no lucro)
     if (forma === 'cortesia') $('#fv-valor').value = '0,00';
+    resumo();
   });
   $('#fv-pular')?.addEventListener('click', () => close());
   $('#fv-excluir')?.addEventListener('click', async () => {
@@ -183,7 +224,7 @@ export async function aoFinalizarAtendimento(ag, { servicos = [], todos = [], ao
     const op = ov.querySelector('#fv-op'); if (op) { op.value = 's:' + s.id; op.dispatchEvent(new Event('change')); }
   } else if (ov && ag.servico) {
     ov.querySelector('#fv-item').value = ag.servico;
-    if (ag.preco != null) ov.querySelector('#fv-valor').value = _numTxt(ag.preco);
+    if (ag.preco != null) { ov.querySelector('#fv-valor').value = _numTxt(ag.preco); ov.querySelector('#fv-valor').dispatchEvent(new Event('input')); }
   }
   // Agendou com cupom de desconto: 100% → já marca Cortesia; senão aplica o desconto no valor.
   if (ov && ag.cupom) {

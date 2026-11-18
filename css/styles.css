@@ -9084,3 +9084,157 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ok-cupom { margin: 8px auto; max-width: 320px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); border-left: 4px solid var(--green, #10b981); font-size: 14px; color: var(--text); }
 .cp-cup .cp-cup-desc, #cc-cod { min-width: 0; background: var(--card-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
 .cp-cup-pct input { width: 44px; text-align: center; }
+
+/* Serviços da Agenda (18/11): título legível + Custo/Sessões no mesmo estilo escuro dos outros campos */
+.ag-serv-tit { margin-top: 16px; font-size: 15px; font-weight: 800; color: var(--text); }
+.ag-serv-sub { margin: 4px 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.ag-serv-sub b { color: var(--text); font-weight: 700; }
+.ag-serv-extra .ag-serv-custo, .ag-serv-extra .ag-serv-sess { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; outline: none; }
+.ag-serv-extra .ag-serv-custo:focus, .ag-serv-extra .ag-serv-sess:focus { border-color: var(--accent); }
+.ag-serv-extra .ag-serv-custo::placeholder { color: var(--muted); opacity: .7; }
+/* títulos de bloco da Agenda: maiores e com linha separando do bloco anterior */
+.ag-serv-tit { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 16px; }
+.ag-serv-tit + .ag-lista, .ag-serv-tit + .fin-topo { margin-top: 10px; }
+.fi-secao { margin-top: 22px; }
+/* Registrar venda: custo vem do cadastro e o lucro aparece na hora */
+.fin-res { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 12px; }
+.fin-res > div { background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 2px; }
+.fin-res span { font-size: 11.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.fin-res b { font-size: 16px; color: var(--text); }
+.fin-res b.pos { color: var(--green, #10b981); }
+.fin-res b.neg { color: #ef4444; }
+.fin-res small { grid-column: 1 / -1; font-size: 12px; color: var(--muted); line-height: 1.35; }
+.ag-tit-qtd { margin-left: 6px; font-size: 13px; font-weight: 700; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 16%, transparent); padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
+/* Registrar venda: escolher o item numa lista do Falcon (no lugar do <select> nativo) */
+.fin-pick-btn { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; cursor: pointer; }
+.fin-pick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fin-pick-txt b { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.fin-pick-txt small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-pick-seta { color: var(--accent-2); font-size: 14px; }
+.fin-pick-ov { position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; }
+.fin-pick-folha { width: 100%; max-width: 480px; max-height: 78vh; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
+.fin-pick-tit { font-size: 16px; font-weight: 800; color: var(--text); margin: 2px 4px 10px; }
+.fin-pick-lista { overflow-y: auto; overscroll-behavior: contain; }
+.fin-pick-grupo { margin: 12px 4px 6px; font-size: 11.5px; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: .4px; }
+.fin-pick-op { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; font-family: inherit; cursor: pointer; }
+.fin-pick-op.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+.fin-pick-preco { font-size: 13.5px; font-weight: 800; color: var(--text); white-space: nowrap; }
+.fin-pick-outro { margin-top: 8px; }
+
+/* === BLOCO F11: AGENDA EM BLOCOS RETRÁTEIS (estilo Ritual: borda colorida à esquerda) === */
+.ag-bloco { margin-top: 12px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 14px; overflow: hidden; }
+.ag-bloco-tit { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: none; color: var(--text); font-family: inherit; font-size: 17px; font-weight: 800; text-align: left; padding: 15px 14px; cursor: pointer; }
+.ag-bloco-tit > span:first-child { flex: 1; }
+.ag-bloco-seta { color: var(--accent-2); font-size: 15px; }
+.ag-bloco-corpo { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.ag-bloco-corpo > :first-child { margin-top: 12px; }
+.ag-bloco .ag-tit-qtd { margin-left: 0; }
+.ag-sub-tit { margin-top: 18px; font-size: 15px; font-weight: 800; color: var(--text); }
+.ag-bloco .fi-secao { margin: 0; padding: 0; border: none; background: none; }
+.ag-bloco .fi-secao-tit { display: none; }
+/* perfil do cliente: Triagem e Histórico com respiro */
+.ag-cli-hist-btn { margin-top: 10px; }
+
+/* === BLOCO F12: TRATAMENTOS + FOTOS GUIADAS (ficha-sessoes-ui.js / fotos-guiadas.js) === */
+.ag-serv-acomp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.ag-acomp { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ag-acomp.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.fs-trat { margin: 10px 0; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); }
+.fs-trat-tit { font-size: 15.5px; font-weight: 800; color: var(--text); }
+.fs-trat-sub { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; }
+.fs-abas.fs-abas-plano { width: 100%; max-width: 360px; margin: 6px 0 8px; }
+.fs-abas.fs-abas-plano button { font-size: 12px; }
+.fs-trat-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.fs-trat-btns .fi-btn { flex: 1; min-width: 140px; }
+.fs-trat-novo { margin-top: 6px; }
+.fs-instr { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin: 4px 0 8px; }
+.fs-instr b { color: var(--text); }
+.fs-fotos { grid-template-columns: repeat(3, 1fr); }
+.fs-avisos { display: grid; gap: 8px; margin: 8px 0 12px; font-size: 14px; line-height: 1.45; color: var(--text); }
+.fs-avisos > div { padding: 9px 10px; border-radius: 10px; background: var(--card-2); border-left: 4px solid #f59e0b; }
+.fs-cmp-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 8px; }
+.fs-cmp-acoes .fi-btn { flex: 1; min-width: 140px; }
+.fs-mont { margin-top: 10px; }
+.fs-mont-img { min-height: 120px; display: grid; place-items: center; color: var(--muted); font-size: 13px; background: var(--card-2); border-radius: 10px; overflow: hidden; }
+.fs-mont-img img { width: 100%; display: block; }
+.fs-mont-btns { display: flex; gap: 6px; margin-top: 6px; }
+.fs-mont-btns .fi-btn { flex: 1; }
+/* câmera guiada */
+.fg-ov { display: flex; flex-direction: column; }
+.fg-topo { padding: calc(10px + env(safe-area-inset-top)) 14px 8px; color: #fff; font-size: 15px; background: rgba(0,0,0,.6); }
+.fg-passo { font-size: 12px; opacity: .75; }
+.fg-instr { font-size: 12.5px; line-height: 1.4; opacity: .9; margin-top: 4px; }
+.fg-palco { position: relative; flex: 1; min-height: 0; background: #000; }
+.fg-video, .fg-fantasma { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.fg-fantasma { opacity: .35; pointer-events: none; }
+.fg-fantasma.fora { display: none; }
+.fg-molde { position: absolute; left: 12%; right: 12%; top: 6%; bottom: 6%; border: 3px dashed rgba(255,255,255,.75); border-radius: 18px; pointer-events: none; transition: border-color .2s; }
+.fg-molde.oval { left: 22%; right: 22%; top: 14%; bottom: 22%; border-radius: 50%; }
+.fg-molde.ok { border-color: #10b981; border-style: solid; }
+.fg-status { text-align: center; padding: 10px 14px; font-size: 16px; font-weight: 800; color: #fff; background: rgba(0,0,0,.7); }
+.fg-status.ok { color: #10b981; }
+.fg-rev { position: absolute; inset: 0; z-index: 2; background: #000; display: flex; flex-direction: column; }
+.fg-rev img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.fg-rev-avisos { color: #fff; font-size: 13px; line-height: 1.4; padding: 0 14px; display: grid; gap: 4px; }
+.fg-aprovar { width: auto; padding: 12px 22px; }
+/* cartão presente (cupons-ui.js) */
+.cp-pres { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.cp-pres > div { flex: 1; min-width: 0; }
+.cp-pres small { color: var(--muted); font-size: 12px; }
+.cp-pres .fi-btn { width: auto; flex: none; padding: 8px 12px; }
+.cp-pres-img { width: 100%; border-radius: 12px; display: block; margin: 8px 0 12px; }
+
+/* 📦 pacote dentro do serviço — cadastro (agenda-ui) e agenda pública */
+.ag-pac { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.ag-pac-on { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 12px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ag-pac-on.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.ag-pac-campos { display: inline-flex; align-items: center; gap: 6px; }
+.ag-pac-campos[hidden] { display: none; }
+.ag-pac-sess { width: 52px; } .ag-pac-preco { width: 90px; }
+.ag-pac-sess, .ag-pac-preco { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; }
+.ag-pac-cada { font-size: 12px; color: var(--accent-2); font-weight: 700; }
+.ap-pac { display: grid; gap: 6px; margin-top: 8px; }
+.ap-pac-op { display: flex; align-items: flex-start; gap: 10px; text-align: left; width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-family: inherit; font-size: 14px; cursor: pointer; }
+.ap-pac-op small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--green, #10b981); font-weight: 700; }
+.ap-pac-mk { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; }
+.ap-pac-op.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+.ap-pac-op.on .ap-pac-mk { border-color: var(--accent-2); background: var(--accent-2); box-shadow: inset 0 0 0 3px var(--card); }
+
+/* ficha por serviço (agenda-ui) e várias fichas no perfil (ficha-ui) */
+.ag-ficha { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ag-ficha.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.fi-perfil-mod + .fi-perfil-mod { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.fi-perfil-mod-tit { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+
+/* botões de Clientes (Financeiro, Campanhas, Produtos, Cupons, Cartão presente): uma fileira que rola pro lado, nome inteiro */
+.fin-topo { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
+.fin-topo::-webkit-scrollbar { display: none; }
+.fin-topo-btn { flex: none; min-width: auto; overflow: visible; text-overflow: clip; padding: 10px 14px; scroll-snap-align: start; }
+
+/* câmera guiada (18/11): contorno VERMELHO até acertar, letras maiores, ponto que mostra onde a cliente está */
+.fg-topo { font-size: 20px; }
+.fg-topo b { font-size: 21px; }
+.fg-instr { font-size: 15px; line-height: 1.45; }
+.fg-passo { font-size: 14px; }
+.fg-molde { border-color: #ef4444; border-style: solid; }
+.fg-molde.ok { border-color: #10b981; }
+.fg-status { font-size: 21px; color: #fecaca; }
+.fg-status.ok { color: #10b981; }
+.fg-dica { text-align: center; padding: 0 14px 8px; font-size: 15px; color: #fff; background: rgba(0,0,0,.7); }
+.fg-dica b { color: #10b981; }
+.fg-alvo { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2px dashed rgba(255,255,255,.8); border-radius: 50%; pointer-events: none; }
+.fg-ponto { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fbbf24; border: 2px solid #fff; pointer-events: none; transition: left .1s, top .1s; }
+.idv-previa { margin: 6px 0 4px; border-radius: 12px; overflow: hidden; background: var(--card-2); min-height: 120px; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.idv-previa img { width: 100%; display: block; }
+.idv-paletas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.idv-pal { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.idv-pal.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+.idv-bolas { display: inline-flex; }
+.idv-bolas i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); margin-right: -4px; }
+.idv-cores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.idv-cor { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
+.idv-cor input { width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: none; padding: 2px; }
+.idv-logo { display: grid; gap: 8px; margin-top: 6px; }
+.idv-logo img { max-width: 160px; max-height: 120px; object-fit: contain; background: #fff; border-radius: 10px; padding: 8px; }
+.idv-logo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.idv-logo-btns .fi-btn { width: auto; flex: 1; }

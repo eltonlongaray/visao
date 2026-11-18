@@ -3,6 +3,7 @@
 //   BLOCO 1 — dados (tabela `cupons` + uso contado pelos agendamentos)
 //   BLOCO 2 — popup "🎟️ Cupons de desconto" (criar, sessões −/+, renovar, pausar)
 //   BLOCO 3 — cupom gerado PRA UMA cliente (no perfil) + mandar pelo WhatsApp
+//   BLOCO 4 — 🎁 cartão presente (1 sessão de um serviço, com validade) + imagem pra compartilhar
 // Cada código vale N sessões por ciclo (padrão 5). Uso = agendamentos com o
 // cupom, não cancelados, desde o início do ciclo (cancelou → volta pro saldo).
 // "Renovar" começa um ciclo novo com o MESMO código. Ao finalizar, o pagamento
@@ -13,12 +14,16 @@ import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { desenharCartao } from './cartao-presente.js';
+import { logoUrlDe, nomeNegocioDe } from './identidade-ui.js';
 
 // === BLOCO 1: DADOS ===
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _dig = s => String(s || '').replace(/\D/g, '');
-const _erro = e => new Error(/cupons|limite|ciclo_inicio|cliente_digitos/i.test(e?.message || '')
-  ? 'Falta rodar o SQL dos cupons (sql/cupons.sql e sql/cupons-limite.sql)' : (e?.message || 'Erro'));
+const _erro = e => new Error(/servico_nome|validade|de_nome|tipo/i.test(e?.message || '') ? 'Falta rodar o SQL do cartão presente (sql/cupons-presente.sql)'
+  : /cupons|limite|ciclo_inicio|cliente_digitos/i.test(e?.message || '') ? 'Falta rodar o SQL dos cupons (sql/cupons.sql e sql/cupons-limite.sql)' : (e?.message || 'Erro'));
+const _dataBr = iso => { const [y, m, d] = String(iso || '').slice(0, 10).split('-'); return d ? `${d}/${m}/${y}` : ''; };
+const _hoje = () => new Date().toISOString().slice(0, 10);
 
 async function _listar() {
   const { data, error } = await supabase.from('cupons').select('*').order('created_at', { ascending: true });
@@ -50,9 +55,13 @@ function _codigoPara(nome, desconto, existentes) {
 const _txtDesc = d => d >= 100 ? 'desconto integral' : `${d}% de desconto`;
 
 // === BLOCO 2: POPUP ===
-export async function abrirCupons() {
-  let lista = [], usos = {}, erro = '';
-  try { lista = await _listar(); lista.forEach(c => { if (c.limite == null) c.limite = 5; }); usos = await _usos(lista); } catch (e) { erro = e.message; }
+export async function abrirCupons(opts = {}) {
+  let lista = [], presentes = [], usos = {}, erro = '';
+  try {
+    const todos = await _listar(); todos.forEach(c => { if (c.limite == null) c.limite = 5; });
+    usos = await _usos(todos);
+    presentes = todos.filter(c => c.tipo === 'presente'); lista = todos.filter(c => c.tipo !== 'presente');
+  } catch (e) { erro = e.message; }
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'cup-ov';
   document.body.appendChild(ov);
@@ -86,6 +95,13 @@ export async function abrirCupons() {
       ${lista.map(linha).join('') || (erro ? '' : '<div class="fi-vazio">Nenhum cupom ainda.</div>')}
       <div class="fi-secao-sub">Pra apagar um cupom, deixe o código em branco e salve. Cupom de uma cliente só: abra a cliente em 👥 Clientes → 🎟️ Gerar cupom.</div>
       ${erro ? '' : '<button class="fi-btn" id="cup-novo" type="button">➕ Novo cupom</button>'}
+      <div class="ag-sub-tit">🎁 Cartões presente</div>
+      ${presentes.length ? presentes.slice().reverse().map(c => {
+        const usado = (usos[c.id] || 0) >= c.limite, venceu = c.validade && c.validade < _hoje();
+        return `<div class="cp-pres"><div><b>${_esc(c.codigo)}</b> · ${_esc(String(c.servico_nome || '').split(' (')[0])}<br><small>Para ${_esc(c.cliente_nome || '—')}${c.de_nome ? ` · de ${_esc(c.de_nome)}` : ''} · ${usado ? '✅ usado' : venceu ? '⌛ venceu' : `vale até ${_dataBr(c.validade)}`}</small></div>
+          ${usado || venceu ? '' : `<button class="fi-btn" type="button" data-reenviar="${_esc(c.id)}" aria-label="Mandar de novo">📤</button>`}</div>`;
+      }).join('') : '<div class="fi-vazio">Nenhum cartão presente ainda.</div>'}
+      ${erro ? '' : '<button class="fi-btn" id="cup-presente" type="button">🎁 Novo cartão presente</button>'}
       <div class="ag-fbtns">
         <button class="btn-secondary" id="cup-fechar" type="button">Fechar</button>
         ${erro ? '' : '<button class="btn-primary" id="cup-salvar" type="button">Salvar</button>'}
@@ -102,6 +118,11 @@ export async function abrirCupons() {
     ov.querySelectorAll('[data-mais]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.min(999, c.limite + 1); desenhar(); });
     ov.querySelectorAll('[data-renovar]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c._renovar = true; c.limite = 5; c.ativo = true; desenhar(); });
     ov.querySelector('#cup-salvar')?.addEventListener('click', salvar);
+    ov.querySelector('#cup-presente')?.addEventListener('click', () => { close(); abrirPresente(opts); });
+    ov.querySelectorAll('[data-reenviar]').forEach(b => b.onclick = async () => {
+      const c = presentes.find(x => x.id === b.dataset.reenviar); if (!c) return;
+      _compartilhar(await _imagemPresente(c, opts), c, opts);
+    });
   };
   const lerTela = () => ov.querySelectorAll('[data-cup]').forEach(el => {
     const c = lista.find(x => x.id === el.dataset.cup); if (!c) return;
@@ -196,4 +217,86 @@ export async function gerarCupomCliente(c, { linkAgenda = '' } = {}) {
     if (janela) janela.location.href = url; else location.href = url;
   }
   desenhar();
+}
+
+// === BLOCO 4: 🎁 CARTÃO PRESENTE ===
+// 1 sessão de um serviço, sem custo, com validade. Vira um código PRESENTE-XXXX.
+// Quem ganhou agenda pelo link e digita o código; o app já escolhe o serviço.
+export async function abrirPresente({ servicos = [], marca = '', linkAgenda = '', cfg = null } = {}) {
+  let existentes = [];
+  try { existentes = await _listar(); } catch (e) { showToast(e.message, 'error'); return; }
+  const servs = servicos.filter(s => (s.nome || '').trim());
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'cup-pres-ov';
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">🎁 Novo cartão presente</div>
+    <div class="fi-secao-sub" style="margin-top:0">Vale <b>1 sessão sem custo</b> do serviço escolhido. O app gera a imagem do cartão pra mandar no WhatsApp.</div>
+    <label class="input-field"><div class="input-field-label">Serviço de presente</div>
+      <select id="pr-serv">${servs.map(s => `<option value="${_esc(s.nome)}">${_esc(String(s.nome).split(' (')[0])}</option>`).join('')}</select></label>
+    <label class="input-field"><div class="input-field-label">Pra quem é</div><input id="pr-para" maxlength="40" placeholder="Ex: Larissa"></label>
+    <label class="input-field"><div class="input-field-label">Quem está dando <span class="ag-lbl-opt">— opcional</span></div><input id="pr-de" maxlength="40" placeholder="Ex: Elton"></label>
+    <label class="input-field"><div class="input-field-label">Mensagem no cartão <span class="ag-lbl-opt">— opcional</span></div><input id="pr-msg" maxlength="90" placeholder="Ex: Feliz aniversário! Você merece esse cuidado 💜"></label>
+    <label class="input-field"><div class="input-field-label">Vale por</div><select id="pr-dias">${[30, 60, 90, 180].map(d => `<option value="${d}" ${d === 90 ? 'selected' : ''}>${d} dias</option>`).join('')}</select></label>
+    <div class="ag-fbtns">
+      <button class="btn-secondary" id="pr-fechar" type="button">Cancelar</button>
+      <button class="btn-primary" id="pr-criar" type="button">Gerar cartão</button>
+    </div>
+  </div></div>`;
+  ov.querySelector('#pr-fechar').onclick = () => close();
+  ov.querySelector('#pr-criar').onclick = async () => {
+    const servico = ov.querySelector('#pr-serv').value, para = ov.querySelector('#pr-para').value.trim();
+    const de = ov.querySelector('#pr-de').value.trim(), msg = ov.querySelector('#pr-msg').value.trim(), dias = +ov.querySelector('#pr-dias').value;
+    if (!servico) { showToast('Cadastre os serviços na Agenda primeiro', 'error'); return; }
+    if (!para) { showToast('Diga pra quem é o presente', 'info'); ov.querySelector('#pr-para').focus(); return; }
+    const uid = auth.currentUser?.uid; if (!uid) { showToast('Sessão expirada', 'error'); return; }
+    const usados = new Set(existentes.map(x => String(x.codigo).toUpperCase()));
+    let codigo;
+    do { codigo = 'PRESENTE-' + Array.from(crypto.getRandomValues(new Uint8Array(4)), b => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[b % 31]).join(''); } while (usados.has(codigo));
+    const validade = new Date(Date.now() + dias * 864e5).toISOString().slice(0, 10);
+    const b = ov.querySelector('#pr-criar'); b.disabled = true; b.textContent = 'Gerando…';
+    const row = { owner_id: uid, codigo, tipo: 'presente', desconto: 100, limite: 1, ativo: true, servico_nome: servico, validade,
+      cliente_nome: para, de_nome: de || null, descricao: msg || null };
+    const { error } = await supabase.from('cupons').insert(row);
+    if (error) { showToast(_erro(error).message, 'error'); b.disabled = false; b.textContent = 'Gerar cartão'; return; }
+    close();
+    _telaPresente(await _imagemPresente(row, { marca, linkAgenda, cfg }), row, { marca, linkAgenda, cfg });
+  };
+}
+
+// Imagem do cartão: arte premium horizontal "saindo do envelope", com a identidade
+// visual da profissional (cartao-presente.js + 🎨 Identidade visual).
+async function _imagemPresente(c, { marca = '', cfg = null } = {}) {
+  const logoUrl = cfg ? await logoUrlDe(cfg) : null;
+  return desenharCartao(c, { marca: cfg?.ficha_cfg?.marca || {}, nomeNegocio: cfg ? nomeNegocioDe(cfg) : marca, logoUrl });
+}
+function _textoPresente(c, { marca = '', linkAgenda = '' } = {}) {
+  return `🎁 Um presente pra você, ${c.cliente_nome || ''}!\n\n${c.de_nome ? `${c.de_nome} te deu` : 'Você ganhou'} *1 sessão de ${String(c.servico_nome || '').split(' (')[0]}*${marca ? ` no ${marca}` : ''}.\n\n`
+    + `Pra agendar${linkAgenda ? `: ${linkAgenda}` : ''}\nToque em "Tenho um cupom de desconto" e digite: *${c.codigo}*\n\nVálido até ${_dataBr(c.validade)}.`;
+}
+async function _compartilhar(blob, c, opts) {
+  const file = new File([blob], `cartao-presente-${c.codigo}.jpg`, { type: 'image/jpeg' });
+  const texto = _textoPresente(c, opts);
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text: texto }); } catch { /* cancelou */ } return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+  try { await navigator.clipboard.writeText(texto); showToast('Imagem baixada e mensagem copiada', 'success'); } catch { /* sem clipboard */ }
+}
+function _telaPresente(blob, c, opts) {
+  const url = URL.createObjectURL(blob);
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'cup-pres-ok';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">🎁 Cartão pronto!</div>
+    <img src="${url}" alt="Cartão presente" class="cp-pres-img">
+    <div class="ag-fbtns">
+      <button class="btn-secondary" id="pr-baixar" type="button">⬇️ Baixar</button>
+      <button class="btn-primary" id="pr-enviar" type="button">📤 Mandar no WhatsApp</button>
+    </div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => { URL.revokeObjectURL(url); ov.remove(); });
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#pr-baixar').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = `cartao-presente-${c.codigo}.jpg`; a.click(); };
+  ov.querySelector('#pr-enviar').onclick = () => _compartilhar(blob, c, opts);
 }

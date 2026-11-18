@@ -85,6 +85,8 @@ const MASSOTERAPIA = {
 // Mesma base da massoterapia + bloco "Seu objetivo" (celulite, medidas, hábitos)
 // + saúde ampliada + autorização de fotos. "ordem": a ordem dos toques vira prioridade.
 const _q = id => MASSOTERAPIA.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+// Peso só faz sentido pra quem quer mexer no corpo (medida, gordura, inchaço, flacidez).
+const _corpo = R => (R.tratar || []).some(x => ["Gordura localizada","Inchaço e retenção","Flacidez","Celulite"].includes(x));
 const _temDor = R => (R.dores || []).some(x => x !== "Não sinto dor");
 const AREAS_CORPO = ["Abdômen","Flancos (pneuzinhos)","Culote","Glúteo","Parte interna das coxas","Parte de trás das coxas",
   "Joelhos","Braços (parte de trás)","Costas","Panturrilhas","Papada ou rosto"];
@@ -102,9 +104,9 @@ const ESTETICA = {
         aj:"Toque na ordem: a primeira é a que mais incomoda.", op: AREAS_CORPO, outro:true },
       { id:"ja_estetica", tipo:"unica", q:"Já fez algum tratamento estético?", op:["Sim","Não"] },
       { id:"ja_estetica_qual", tipo:"texto", q:"Qual e quando?", ph:"Ex: drenagem em 2024, criolipólise…", se: R => R.ja_estetica === "Sim", sub:true },
-      { id:"peso_atual", tipo:"texto", q:"Seu peso hoje", ph:"Ex: 68 kg (se souber)" },
-      { id:"peso_ideal", tipo:"texto", q:"Quanto você gostaria de pesar?", ph:"Ex: 62 kg" },
-      { id:"peso_quando", tipo:"unica", q:"Há quanto tempo você não está no peso que gostaria?",
+      { id:"peso_atual", tipo:"texto", q:"Seu peso hoje", ph:"Ex: 68 kg (se souber)", se: R => _corpo(R) },
+      { id:"peso_ideal", tipo:"texto", q:"Quanto você gostaria de pesar?", ph:"Ex: 62 kg", opcional:true, se: R => _corpo(R) },
+      { id:"peso_quando", tipo:"unica", q:"Há quanto tempo você não está no peso que gostaria?", opcional:true, se: R => _corpo(R),
         op:["Estou no meu peso","Menos de 1 ano","1 a 3 anos","Mais de 3 anos"] },
     ]},
     { nome: "Seus hábitos", perguntas: [
@@ -144,7 +146,58 @@ const ESTETICA = {
   ],
 };
 
-export const MODELOS = { massoterapia: MASSOTERAPIA, estetica: ESTETICA };
+// === BLOCO 2C: MODELO — PELE E ACNE COM ACOMPANHAMENTO (18/11) ===
+// Acne tem muito de hormônio, alimentação e rotina: a ficha pergunta isso pra
+// a profissional montar o cuidado e, se for o caso, indicar médico.
+const PELE = {
+  profissao: "pele",
+  titulo: "Ficha de pele",
+  blocos: [
+    { nome: "Quem é você", perguntas: [_q("nome"), _q("whatsapp"), _q("nascimento"), _q("conheceu")] },
+    { nome: "Sua pele", perguntas: [
+      { id:"pele_queixa", tipo:"varias", q:"O que mais te incomoda na pele?", aj:"Pode marcar vários.",
+        op:["Espinhas","Cravos","Manchas ou marcas de acne","Oleosidade","Poros abertos","Pele sensível ou vermelha","Pele seca"], outro:true },
+      { id:"pele_onde", tipo:"varias", q:"Onde aparecem as espinhas?", op:["Testa","Nariz","Bochechas","Queixo e mandíbula","Costas","Peito","Não tenho espinhas"], so:["Não tenho espinhas"] },
+      { id:"pele_tempo", tipo:"unica", q:"Há quanto tempo isso acontece?", op:["Menos de 6 meses","6 meses a 2 anos","Mais de 2 anos","Desde a adolescência"] },
+      { id:"pele_tipo", tipo:"unica", q:"No fim do dia, sua pele fica…", op:["Brilhando no rosto todo","Brilhando só na testa, nariz e queixo","Normal","Repuxando, seca"] },
+      { id:"pele_rotina", tipo:"varias", q:"O que você usa na pele hoje?", aj:"Pode marcar vários.",
+        op:["Sabonete de rosto","Hidratante","Protetor solar todo dia","Ácido (ex: salicílico, glicólico)","Remédio de espinha passado por médico","Maquiagem quase todo dia","Nada"], outro:true, so:["Nada"] },
+      { id:"pele_ja_fez", tipo:"varias", q:"Já fez algum tratamento pra acne?", op:["Roacutan (isotretinoína)","Antibiótico","Limpeza de pele","Peeling","Laser ou luz","Nunca fiz"], outro:true, so:["Nunca fiz"] },
+      { id:"pele_mexe", tipo:"unica", q:"Você costuma espremer ou mexer nas espinhas?", op:["Sim, sempre","Às vezes","Não"] },
+    ]},
+    { nome: "Hormônios", perguntas: [
+      { id:"aviso_horm", tipo:"aviso", q:"Acne tem muito a ver com hormônio. Essas respostas ajudam a entender a sua pele (e a saber se vale passar com um médico)." },
+      { id:"ciclo", tipo:"unica", q:"Sua menstruação é…", op:["Regular","Irregular","Não menstruo (anticoncepcional contínuo, DIU…)","Menopausa","Não se aplica"] },
+      { id:"piora_ciclo", tipo:"unica", q:"As espinhas pioram antes da menstruação?", op:["Sim, bastante","Um pouco","Não","Não sei"], se: R => R.ciclo === "Regular" || R.ciclo === "Irregular", sub:true },
+      { id:"horm_sinais", tipo:"varias", q:"Você tem algum desses?", aj:"Pode marcar vários.",
+        op:["Ovário policístico (SOP)","Pelos a mais no rosto ou corpo","Queda de cabelo","Tireoide","Nenhum desses"], so:["Nenhum desses"] },
+      { id:"contraceptivo", tipo:"unica", q:"Usa algum método contraceptivo?", op:["Nenhum","Pílula","DIU de cobre","DIU hormonal (Mirena)","Implante","Adesivo ou anel","Prefiro não dizer"] },
+    ]},
+    { nome: "Alimentação e rotina", perguntas: [
+      { id:"alim_pele", tipo:"varias", q:"O que tem bastante na sua alimentação?", aj:"Marque o que você come quase todo dia.",
+        op:["Leite, queijo ou iogurte","Doces e açúcar","Pão, massa e farinha branca","Frituras","Comida pronta ou industrializada","Chocolate","Whey ou suplemento","Frutas e verduras"] },
+      { id:"agua", tipo:"unica", q:"Quanta água você bebe por dia?", op:["Quase nada","Até 1 litro","1 a 2 litros","Mais de 2 litros"] },
+      { id:"intestino", tipo:"unica", q:"Seu intestino funciona…", op:["Todos os dias","3 vezes ou mais na semana","1 vez na semana ou menos"] },
+      _q("sono"), _q("estresse"),
+      { id:"rotina_pele", tipo:"varias", q:"No dia a dia…", aj:"Pode marcar vários.",
+        op:["Durmo de maquiagem às vezes","Troco a fronha pelo menos 1 vez por semana","Uso capacete, máscara ou boné muito tempo","Encosto o celular no rosto","Faço academia e demoro pra lavar o rosto"] },
+    ]},
+    { nome: "Saúde e segurança", perguntas: [
+      { id:"aviso_saude", tipo:"aviso", q:"Essas respostas garantem um tratamento seguro pra você. Elas ficam só com a profissional." },
+      { id:"saude", tipo:"varias", q:"Marque o que se aplica a você",
+        op:["Estou gestante","Estou amamentando","Uso ácido na pele ou Roacutan","Pele sensível ou que mancha fácil","Herpes no rosto","Alergia a cosmético","Nenhuma dessas"], so:["Nenhuma dessas"] },
+      _q("gestante_semanas"), _q("alergia"), _q("alergia_qual"), _q("remedio"), _q("remedio_qual"),
+    ]},
+    { nome: "Fotos e preferências", perguntas: [
+      { id:"foto_acomp", tipo:"unica", q:"Posso tirar fotos do seu rosto pra acompanhar a evolução?",
+        aj:"São 3 fotos (frente e os dois lados), só pra comparar o antes e depois. Ficam só comigo.", op:["Sim, autorizo","Não"] },
+      { id:"foto_insta", tipo:"unica", q:"Posso usar essas fotos no Instagram?", op:["Sim, pode usar","Não, só pro meu acompanhamento"], se: R => R.foto_acomp === "Sim, autorizo", sub:true },
+      _q("conversa"), _q("algo_mais"),
+    ]},
+  ],
+};
+
+export const MODELOS = { massoterapia: MASSOTERAPIA, estetica: ESTETICA, pele: PELE };
 export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "💆" },
   { k: "estetica", nome: "Estética corporal", emoji: "✨" }];
 
@@ -154,6 +207,7 @@ export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "
 export const SESSAO_POR_PROFISSAO = {
   massoterapia: { palpacao: true, medidas: "antes_depois" },
   estetica: { palpacao: true, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
+  pele: { palpacao: false, medidas: null, fotos: true, areas: false, tecnica: true, plano: true },
 };
 // A ficha mostra que a pessoa tem dor? (aí a "dor ao pressionar" já abre na sessão)
 // true/false pela ficha; null = sem ficha respondida.
@@ -275,6 +329,9 @@ export const CURTAS = {
   ja_estetica_qual: 'qual tratamento estético', peso_atual: 'peso atual', peso_ideal: 'peso desejado', peso_quando: 'há quanto tempo fora do peso',
   agua: 'água por dia', intestino: 'intestino', urina: 'vezes que urina', contraceptivo: 'contraceptivo', acompanhamento: 'acompanhamento médico',
   foto_acomp: 'autorização de fotos', foto_insta: 'fotos no Instagram',
+  pele_queixa: 'o que incomoda na pele', pele_onde: 'onde aparecem as espinhas', pele_tempo: 'há quanto tempo', pele_tipo: 'tipo de pele',
+  pele_rotina: 'o que usa na pele', pele_ja_fez: 'tratamentos de acne', pele_mexe: 'se mexe nas espinhas', ciclo: 'menstruação',
+  piora_ciclo: 'piora no ciclo', horm_sinais: 'sinais hormonais', alim_pele: 'alimentação', rotina_pele: 'rotina',
 };
 // Conta só o que a pessoa VIU (respeita as condicionais). Texto livre ("longo") e "opcional" não contam.
 export function faltando(modelo, r, mapa) {

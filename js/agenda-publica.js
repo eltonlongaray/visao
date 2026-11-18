@@ -67,20 +67,9 @@ function _waProLink(cfg) {
   const msg = encodeURIComponent('Olá, vim através do Falcon Agenda e tenho dúvidas');
   return `https://wa.me/${d}?text=${msg}`;
 }
-// O Falcon avisa o PROFISSIONAL no WhatsApp dele automaticamente (via CallMeBot,
-// server-side). Fire-and-forget: um erro aqui não pode travar o agendamento do
-// cliente. A apikey fica só no servidor — a página pública só manda o slug.
-const _FN_URL = 'https://snbxaudykjpqqgocgaoz.supabase.co/functions/v1/rapid-handler';
-async function notificarProfissional(slug, dados) {
-  try {
-    await fetch(_FN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, ...dados }),
-      keepalive: true,
-    });
-  } catch { /* silencioso: o agendamento já está registrado */ }
-}
+// (18/11/2026) O aviso automático por CallMeBot SAIU: depois de agendar, toda
+// cliente vai pro WhatsApp da profissional com a mensagem pronta (serviço, dia,
+// hora). A profissional também recebe o push do Falcon (_avisarDono).
 const WA_SVG_PUB = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
 export async function renderAgendaPublica(app, slug) {
@@ -158,7 +147,7 @@ export async function renderAgendaPublica(app, slug) {
   while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
   let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
-  let selServ = servicos.length ? servicos[0].id : null;
+  let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
@@ -172,6 +161,10 @@ export async function renderAgendaPublica(app, slug) {
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
+  // Pacote dentro do serviço: o item do pacote (pacoteDe) não aparece na lista, vira opção do serviço.
+  const _lista = () => servicos.filter(s => !s.pacoteDe);
+  const _baseDe = s => (s && s.pacoteDe ? servicos.find(x => x.id === s.pacoteDe) || s : s);
+  const _pacoteDe = s => (s ? servicos.find(x => x.pacoteDe === s.id) || null : null);
   const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
   const _durSel = () => combo.length > 1
     ? _comboServs().reduce((t, s) => t + (s.duracaoMin || cfg.duracao_min || 60), 0)
@@ -234,6 +227,18 @@ export async function renderAgendaPublica(app, slug) {
   // Seletor de serviço (só se o profissional cadastrou serviços)
   // Seletor de serviço: mostra só o(s) escolhido(s) + um botão retrátil bem visível
   // "Ver todos os serviços" (lista longa não empurra os horários pra baixo).
+  function _pacoteHtml() {
+    const base = _baseDe(_servSel()), pac = _pacoteDe(base);
+    if (combo.length > 1 || !base || !pac) return '';
+    const ehPac = selServ === pac.id;
+    const cada = pac.preco != null && pac.sessoes ? pac.preco / pac.sessoes : null;
+    const eco = base.preco != null && pac.preco != null && pac.sessoes ? base.preco * pac.sessoes - pac.preco : 0;
+    return `<div class="ap-pac">
+      <button type="button" class="ap-pac-op ${ehPac ? '' : 'on'}" data-pac="${_esc(base.id)}"><span class="ap-pac-mk"></span><span><b>Sessão avulsa</b>${base.preco != null ? ` · R$ ${_precoTxt(base.preco)}` : ''}</span></button>
+      <button type="button" class="ap-pac-op ${ehPac ? 'on' : ''}" data-pac="${_esc(pac.id)}"><span class="ap-pac-mk"></span><span><b>Pacote ${pac.sessoes} sessões</b>${pac.preco != null ? ` · R$ ${_precoTxt(pac.preco)}` : ''}
+        ${cada ? `<small>R$ ${_precoTxt(cada)} cada${eco > 0 ? ` · economiza R$ ${_precoTxt(eco)}` : ''}</small>` : ''}</span></button>
+    </div>`;
+  }
   function _servCard(s, sel) {
     return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
@@ -247,15 +252,15 @@ export async function renderAgendaPublica(app, slug) {
         <span class="ap-serv-nm">${_esc(_comboNome())}</span>
         <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
       </button>`
-      : (_servSel() ? _servCard(_servSel(), true) : '');
-    if (servicos.length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+      : (_servSel() ? _servCard(_baseDe(_servSel()), true) + _pacoteHtml() : '');
+    if (_lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Serviço escolhido</div>
       <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">
-        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${servicos.length})`}</span>
+        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${_lista().length})`}</span>
       </button>
       ${servAberto
-        ? servicos.map(s => _servCard(s, combo.length <= 1 && selServ === s.id)).join('')
+        ? _lista().map(s => _servCard(s, combo.length <= 1 && _baseDe(_servSel())?.id === s.id)).join('')
         : escolhido}
     </div>`;
   }
@@ -367,6 +372,7 @@ export async function renderAgendaPublica(app, slug) {
       selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
+    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -381,11 +387,22 @@ export async function renderAgendaPublica(app, slug) {
       const cod = (inp?.value || '').trim(); if (!cod) { inp?.focus(); return; }
       b.disabled = true; b.textContent = '…';
       const r = await validarCupom(cfg.slug, cod, ident?.contato || '');
-      if (r.ok) { cupom = r; cupomAberto = false; desenhar(); }
+      if (r.ok) {
+        cupom = r; cupomAberto = false;
+        // cartão presente: já escolhe o serviço do presente
+        if (r.tipo === 'presente' && r.servico) {
+          const n = x => String(x || '').toLowerCase();
+          const sv = (cfg.servicos || []).find(s => n(s.nome) === n(r.servico)) || (cfg.servicos || []).find(s => n(s.nome).startsWith(n(r.servico).split(' (')[0]));
+          if (sv) { selServ = sv.id; combo = []; }
+        }
+        desenhar();
+      }
       else {
         b.disabled = false; b.textContent = 'Aplicar';
         if (msg) msg.textContent = r.motivo === 'esgotado' ? 'As sessões desse cupom já acabaram. Fala com a profissional pra renovar.'
           : r.motivo === 'outra_pessoa' ? 'Esse cupom é de outra pessoa (vale só pro WhatsApp de quem recebeu).'
+          : r.motivo === 'vencido' ? 'Esse código venceu. Fala com a profissional.'
+          : r.motivo === 'usado' ? 'Esse cartão presente já foi usado.'
           : 'Cupom não encontrado. Confere o código.';
       }
     });
@@ -429,7 +446,8 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
-        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
+        ${cupom && cupom.tipo === 'presente' ? `<div class="ap-cupom-ok">🎁 Cartão presente <b>${_esc(cupom.codigo)}</b> · ${_esc(String(cupom.servico || '').split(' (')[0])} sem custo <button type="button" id="ap-cupom-tirar" aria-label="Tirar cartão">✕</button></div>`
+          : cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
           : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
           : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
@@ -462,17 +480,28 @@ export async function renderAgendaPublica(app, slug) {
       for (const s of dia.horarios) s.ocupado = estaOcupado(ocupados, dia.iso, s.hora, DUR);
       selHora = null;
       const dataTxt = `${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}`;
-      // Avisa o profissional no WhatsApp dele (o Falcon manda sozinho, via
-      // CallMeBot). Fire-and-forget: não trava a confirmação do cliente.
-      notificarProfissional(cfg.slug, { nome, contato: zap, servico: nomeServ, dataTxt, hora, fim });
       const precoOk = ehCombo ? _comboPreco() : (serv?.preco ?? null);
       // Veio da triagem: último passo = a cliente manda o resumo pro WhatsApp da profissional
+      // Último passo: a cliente manda a confirmação pro WhatsApp da profissional.
+      // Veio da triagem → mensagem da triagem; senão → mensagem com o que ela escolheu.
       let waTri = '';
+      const quando = `${dataTxt} às ${hora}${fim ? `–${fim}` : ''}`;
       if (TRI && TRI.whatsapp && TRI.msg) {
-        const txt = TRI.msg.replace('{{QUANDO}}', `${dataTxt} às ${hora}${fim ? `–${fim}` : ''}`).replace('{{SERVICO}}', nomeServ || '—');
+        const txt = TRI.msg.replace('{{QUANDO}}', quando).replace('{{SERVICO}}', nomeServ || '—');
         waTri = `https://wa.me/${String(TRI.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(txt)}`;
         try { localStorage.removeItem(_triKey(cfg.slug)); } catch {}
         combo = [];
+      } else if (String(cfg.whatsapp || '').replace(/\D/g, '').length >= 10) {
+        let d = String(cfg.whatsapp).replace(/\D/g, ''); if (d.length <= 11) d = '55' + d;
+        const pro = (cfg.titulo || '').split(' · ')[0].trim().split(/\s+/)[0];
+        // ficha ainda não respondida? avisa a profissional na própria mensagem (ela manda o link na conversa)
+        let semFicha = false;
+        try { const st = await Promise.race([fichaStatusPublico(cfg.slug, zap), new Promise(r => setTimeout(() => r({}), 1500))]); semFicha = !!(st.ativa && !st.tem); } catch {}
+        const txt = `Olá${pro ? ', ' + pro : ''}! Acabei de agendar pelo seu link 😊\n\n`
+          + (nomeServ ? `💆 ${nomeServ}\n` : '') + `📅 ${quando}\n👤 ${nome}`
+          + (cupomOk ? `\n🎟️ Cupom ${cupomOk.codigo}` : '')
+          + (semFicha ? '\n\n📋 Ainda não preenchi a ficha de atendimento.' : '');
+        waTri = `https://wa.me/${d}?text=${encodeURIComponent(txt)}`;
       }
       app.innerHTML = _tela(`
         <div class="ap-ok">

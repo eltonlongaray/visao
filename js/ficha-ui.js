@@ -12,6 +12,7 @@ import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, fichaTemDor, FRENTE, COSTAS, TIPO
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
+import { fichaDoServico } from './fotos-guiadas.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _fichas = [], _erroSql = false, _demo = false;
@@ -178,8 +179,24 @@ export function abrirPaginaFicha(url, titulo, onFechar, prefill) {
 }
 
 // === BLOCO 4B: SITUAÇÃO DA FICHA (o que falta, sem precisar abrir) ===
-function _situacao(c) {
-  const fs = _fichasDoCliente(c);
+// Quais fichas essa cliente precisa: pelos serviços que ela agendou (ex: Deusa → estética,
+// terapêutica → massoterapia) + as que ela já respondeu. Sem nada: a da profissão.
+const _NOME_MOD = { estetica: '✨ Estética', massoterapia: '💆 Massoterapia', pele: '🌸 Pele e acne' };
+function _modeloDoServico(cfg, nome) {
+  const servs = cfg?.servicos || [], n = String(nome || '').trim(); if (!n) return null;
+  const s = servs.find(x => x.nome === n) || servs.find(x => n.startsWith(String(x.nome).split(' (')[0]));
+  return s ? fichaDoServico(s, _cfgFicha(cfg).profissao) : null;
+}
+function _modelosDoCliente(cfg, c) {
+  const prof = _cfgFicha(cfg).profissao, set = new Set();
+  const ags = (c.ags || []).slice().sort((a, b) => (a.data < b.data ? 1 : -1));   // mais recente primeiro
+  for (const a of ags) for (const nome of String(a.servico || '').split(' + ')) { const m = _modeloDoServico(cfg, nome); if (m) set.add(m); }
+  for (const f of _fichasDoCliente(c)) if (f.modelo) set.add(f.modelo);
+  const out = [...set].filter(m => MODELOS[m]);
+  return out.length ? out : [prof];
+}
+function _situacao(c, modelo = null) {
+  const fs = _fichasDoCliente(c).filter(f => !modelo || (f.modelo || 'massoterapia') === modelo);
   const resps = fs.filter(f => f.respondida_em).sort((a, b) => (a.respondida_em < b.respondida_em ? -1 : 1));
   const resp = resps[resps.length - 1] || null;
   const rasc = fs.filter(f => f.rascunho && f.rascunho_em && (!resp || f.rascunho_em > resp.respondida_em))
@@ -212,14 +229,15 @@ export function statusFichaClienteHtml(cfg, c) {
 }
 
 // "Preencher/Atualizar junto": abre a ficha do cliente dentro do app, já com o que ele respondeu.
-async function _abrirJunto(cfg, c, aoFechar) {
+async function _abrirJunto(cfg, c, aoFechar, modelo = null) {
   // busca o mais recente do banco (o cliente pode ter começado a preencher agora há pouco)
   if (!_demo) try { _fichas = await getFichas(); } catch {}
-  const st = _situacao(c);
+  modelo = modelo || _modelosDoCliente(cfg, c)[0];
+  const st = _situacao(c, modelo);
   // o que já foi respondido: rascunho em andamento (se mais novo) ou a última ficha enviada
   const prefill = st.rasc ? st.rasc.rascunho : st.resp ? { R: st.resp.respostas || {}, marcas: st.resp.mapa || {} } : null;
-  if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração', null, prefill); return; }
-  const f = await _fichaDoClienteOuNova(cfg, c);
+  if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${modelo}`, 'Demonstração', null, prefill); return; }
+  const f = await _fichaDoClienteOuNova(cfg, c, modelo);
   // ao fechar, recarrega pra ficha aparecer como respondida
   abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
     async () => { await carregarFichas(cfg); aoFechar?.(); }, prefill);
@@ -227,13 +245,14 @@ async function _abrirJunto(cfg, c, aoFechar) {
 
 // Depois que a PROFISSIONAL marca um atendimento: se o cliente ainda não respondeu a ficha,
 // pergunta se quer mandar o link pelo WhatsApp. Espera o popup do agendamento fechar antes.
-export async function oferecerFichaAposAgendar(cfg, { nome, contato } = {}) {
+export async function oferecerFichaAposAgendar(cfg, { nome, contato, servico } = {}) {
   try {
     if (!fichaAtiva(cfg) || String(contato || '').replace(/\D/g, '').length < 10) return;
     await new Promise(r => setTimeout(r, 450));
     if (!_demo) _fichas = await getFichas();
     const c = { nome, contato };
-    if (_situacao(c).resp) return;   // já respondeu: nada a perguntar
+    const modelo = _modeloDoServico(cfg, String(servico || '').split(' + ')[0]) || _cfgFicha(cfg).profissao;
+    if (_situacao(c, modelo).resp) return;   // já respondeu essa ficha: nada a perguntar
     const ov = document.createElement('div');
     ov.className = 'modal-overlay'; ov.id = 'fi-oferta-ov';
     ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
@@ -252,7 +271,7 @@ export async function oferecerFichaAposAgendar(cfg, { nome, contato } = {}) {
       // abre a janela JÁ no clique (senão o navegador bloqueia depois do await)
       const w = window.open('', '_blank');
       try {
-        const f = await _fichaDoClienteOuNova(cfg, c);
+        const f = await _fichaDoClienteOuNova(cfg, c, modelo);
         const msg = `Oi ${_primeiro(nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
         const url = _waLink(contato, msg);
         if (w) w.location.href = url; else location.href = url;
@@ -269,10 +288,19 @@ const _ctxSessao = (cfg, resp) => ({ cfg, profissao: _cfgFicha(cfg).profissao, f
   insta: resp?.respostas?.foto_insta || null, salvarCfg: async fc => { await salvarFichaCfg(fc); cfg.ficha_cfg = fc; } });
 export function perfilFichaHtml(cfg, c) {
   if (!fichaAtiva(cfg)) return '';
-  // Cada resposta é um registro (fase 1, 2, 3…): a mais recente em destaque, as anteriores embaixo.
-  const st = _situacao(c);
-  const { resps, resp } = st;
+  const mods = _modelosDoCliente(cfg, c);
+  const respEst = _situacao(c, 'estetica').resp || _situacao(c).resp;
   return `<div class="fi-perfil">
+    ${mods.map(m => _fichaModeloHtml(c, m, mods.length > 1)).join('')}
+    ${sessoesPerfilHtml(c, _ctxSessao(cfg, respEst))}
+  </div>`;
+}
+// Cada resposta é um registro (fase 1, 2, 3…): a mais recente em destaque, as anteriores embaixo.
+function _fichaModeloHtml(c, modelo, varias) {
+  const st = _situacao(c, modelo);
+  const { resps, resp } = st;
+  return `<div class="fi-perfil-mod">
+    ${varias ? `<div class="fi-perfil-mod-tit">📋 Ficha · ${_NOME_MOD[modelo] || modelo}</div>` : ''}
     ${st.rasc ? `<div class="fi-perfil-rasc">✏️ Começou a preencher em ${_dataBr(st.rasc.rascunho_em)} e ainda não enviou. Dá pra continuar junto.</div>` : ''}
     ${resp
       ? `<button class="fi-perfil-ver${st.falta.length ? ' falta' : ''}${st.saude ? ' saude' : ''}" data-fi-ver="${_esc(resp.id)}" type="button"><span>📋 Ver ficha${resps.length > 1 ? ` · fase ${resps.length}` : ''}</span><small>respondida em ${_dataBr(resp.respondida_em)} · ${st.falta.length ? '⚠️ ' + _txtFalta(st) : '✅ completa'}</small></button>
@@ -280,19 +308,19 @@ export function perfilFichaHtml(cfg, c) {
         ${resps.length > 1 ? `<div class="fi-fases">${resps.slice(0, -1).reverse().map(f => `<button class="fi-fase" data-fi-ver="${_esc(f.id)}" type="button">Fase ${resps.indexOf(f) + 1} · ${_dataBr(f.respondida_em)} ›</button>`).join('')}</div>` : ''}`
       : `<div class="fi-perfil-vazia">📋 Ficha ainda não respondida</div>`}
     <div class="fi-perfil-acoes">
-      ${!resp && c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
-      ${!resp ? `<button class="fi-btn" id="fi-junto" type="button">✍️ ${st.rasc ? 'Continuar junto agora' : 'Preencher junto agora'}</button>` : ''}
+      ${!resp && c.contato ? `<button class="fi-btn" data-fi-enviar="${modelo}" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
+      ${!resp ? `<button class="fi-btn" data-fi-junto="${modelo}" type="button">✍️ ${st.rasc ? 'Continuar junto agora' : 'Preencher junto agora'}</button>` : ''}
     </div>
-    ${sessoesPerfilHtml(c, _ctxSessao(cfg, resp))}
   </div>`;
 }
 
 // Link do cliente: reaproveita o código de uma ficha dele; senão cria o convite.
-async function _fichaDoClienteOuNova(cfg, c) {
-  const fs = _fichasDoCliente(c);
+async function _fichaDoClienteOuNova(cfg, c, modelo = null) {
+  modelo = modelo || _modelosDoCliente(cfg, c)[0];
+  const fs = _fichasDoCliente(c).filter(f => (f.modelo || 'massoterapia') === modelo);
   const comCodigo = fs.find(f => !f.respondida_em) || fs[0];
   if (comCodigo) return comCodigo;
-  const f = await criarConviteFicha({ nome: c.nome, contato: c.contato, modelo: _cfgFicha(cfg).profissao });
+  const f = await criarConviteFicha({ nome: c.nome, contato: c.contato, modelo });
   _fichas.unshift(f);
   return f;
 }
@@ -306,30 +334,30 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     wirePerfilFicha(ov, cfg, c, { clientes, redesenhar });
     redesenhar?.();
   };
-  wireSessoesPerfil(ov, c, atualizar, _ctxSessao(cfg, _situacao(c).resp));
+  wireSessoesPerfil(ov, c, atualizar, _ctxSessao(cfg, _situacao(c, 'estetica').resp || _situacao(c).resp));
   ov.querySelectorAll('.fi-perfil [data-fi-ver]').forEach(b => b.addEventListener('click', () => {
     const f = _fichas.find(x => x.id === b.dataset.fiVer);
     if (f) abrirFicha(f, { cfg, clientes, redesenhar: atualizar, cliente: c });
   }));
-  ov.querySelector('#fi-enviar')?.addEventListener('click', async e => {
+  ov.querySelectorAll('[data-fi-enviar]').forEach(bt => bt.addEventListener('click', async e => {
     if (_demo) { showToast('Na demonstração não envia nada 🙂', 'info'); return; }
     const btn = e.currentTarget; btn.disabled = true;
     // abre a janela JÁ no clique (senão o navegador bloqueia o pop-up depois do await)
     const w = window.open('', '_blank');
     try {
-      const f = await _fichaDoClienteOuNova(cfg, c);
+      const f = await _fichaDoClienteOuNova(cfg, c, btn.dataset.fiEnviar);
       const msg = `Oi ${_primeiro(c.nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
       const url = _waLink(c.contato, msg);
       if (w) w.location.href = url; else location.href = url;
     } catch (err) { try { w?.close(); } catch {} showToast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
-  });
-  ov.querySelector('#fi-junto')?.addEventListener('click', async e => {
+  }));
+  ov.querySelectorAll('[data-fi-junto]').forEach(bt => bt.addEventListener('click', async e => {
     const btn = e.currentTarget; btn.disabled = true;
-    try { await _abrirJunto(cfg, c, atualizar); }
+    try { await _abrirJunto(cfg, c, atualizar, btn.dataset.fiJunto); }
     catch (err) { showToast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
-  });
+  }));
 }
 
 // === BLOCO 6: VER A FICHA RESPONDIDA ===

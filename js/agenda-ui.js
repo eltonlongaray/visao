@@ -4,14 +4,16 @@
 // pode repetir o dia na semana toda, copia o link público e vê/cancela
 // os agendamentos. A página pública (cliente agenda) é a Fase B.
 // ─────────────────────────────────────────────────────────────
-import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado, salvarCallmebotApikey, getTenhoCallmebot } from './agenda.js';
-import { showToast } from './aviso-tela.js';
+import { getAgendaConfig, salvarAgendaConfig, getAgendamentos, cancelarAgendamento, sincronizarCompromissos, salvarAgendamentoManual, getAgendamentosTodos, atualizarStatusAgendamento, getAgendamentoById, excluirAtendimento, sincronizarTaskDoAgendamento, atualizarContatoCliente, atualizarCliente, getSlotsOcupados, estaOcupado } from './agenda.js';
+import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons, gerarCupomCliente } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente, abrirPresente } from './cupons-ui.js';
+import { abrirIdentidade } from './identidade-ui.js';
+import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
@@ -266,7 +268,7 @@ export async function montarAgendaInline(container, { dataISO } = {}) {
       const novoId = await salvarAgendamentoManual(patch);
       marcarAgendamentoVisto(novoId);   // o dono criou → não é "novo" pra ele
       await sincronizarCompromissos().catch(() => {});
-      oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
+      oferecerFichaAposAgendar(_cfg, { nome, contato: zap, servico: serv?.nome });   // cliente sem ficha? pergunta se manda
       return patch;
     },
   };
@@ -409,6 +411,28 @@ export async function abrirAgenda() {
   desenhar();
 }
 
+// Blocos retráteis da Agenda (estilo Ritual: borda colorida à esquerda). O aberto/fechado
+// fica guardado no aparelho. Conteúdo fechado continua no DOM (o Salvar lê os campos).
+const _BLOCOS_PADRAO = { proximos: true };
+let _blocosAbertos = (() => { try { return { ..._BLOCOS_PADRAO, ...JSON.parse(localStorage.getItem('falcon_agenda_blocos') || '{}') }; } catch { return { ..._BLOCOS_PADRAO }; } })();
+function _bloco(id, titulo, conteudo, extra = '') {
+  const ab = !!_blocosAbertos[id];
+  return `<section class="ag-bloco${ab ? ' aberto' : ''}" data-bloco="${id}">
+    <button class="ag-bloco-tit" type="button" aria-expanded="${ab}"><span>${titulo}</span>${extra}<span class="ag-bloco-seta">${ab ? '▴' : '▾'}</span></button>
+    <div class="ag-bloco-corpo"${ab ? '' : ' hidden'}>${conteudo}</div>
+  </section>`;
+}
+function _wireBlocos(corpo) {
+  corpo.querySelectorAll('.ag-bloco-tit').forEach(b => b.addEventListener('click', () => {
+    const sec = b.closest('.ag-bloco'), id = sec.dataset.bloco, ab = !_blocosAbertos[id];
+    _blocosAbertos[id] = ab;
+    try { localStorage.setItem('falcon_agenda_blocos', JSON.stringify(_blocosAbertos)); } catch { /* sem storage */ }
+    sec.classList.toggle('aberto', ab); b.setAttribute('aria-expanded', ab);
+    sec.querySelector('.ag-bloco-corpo').hidden = !ab; b.querySelector('.ag-bloco-seta').textContent = ab ? '▴' : '▾';
+    if (ab && id === 'dias') { pintarTabs(); pintarDiaEditor(); }
+  }));
+}
+
 function desenhar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
@@ -420,34 +444,14 @@ function desenhar() {
       <div class="ag-title">📅 Agenda Online</div>
     </div>
     <div class="ag-scroll">
+      ${_bloco('dados', '⚙️ Dados da agenda', `
       <label class="input-field"><div class="input-field-label">Título (o que o cliente vê)</div>
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
       <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
         <input id="ag-endereco" value="${_esc(_cfg.endereco || '')}" placeholder="Ex: Rua das Flores, 123 — Centro, Porto Alegre"></label>
-      <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— botão "Falar no WhatsApp" no link do cliente</span></div>
+      <label class="input-field"><div class="input-field-label">💬 Seu WhatsApp <span class="ag-lbl-opt">— depois de agendar, a cliente te manda a confirmação aqui</span></div>
         <input id="ag-whatsapp" inputmode="tel" value="${_esc(_cfg.whatsapp || '')}" placeholder="(DDD) 9 9999-9999"></label>
 
-      <div class="ag-notif" id="ag-notif">
-        <div class="ag-notif-tit">🔔 Receber os agendamentos no seu WhatsApp</div>
-
-        <div class="ag-notif-done" id="ag-notif-done" hidden>
-          <div class="ag-notif-status ok">✅ Ativado! Você recebe cada agendamento novo no seu WhatsApp.</div>
-          <button type="button" class="ag-notif-reconfig" id="ag-notif-reconfig">Reconfigurar / trocar a chave</button>
-        </div>
-
-        <div class="ag-notif-setup" id="ag-notif-setup" hidden>
-          <div class="ag-notif-sub">Quando alguém agendar, o Falcon te avisa na hora no seu WhatsApp (o do campo acima). Configuração única e grátis — só 3 passos:</div>
-          <ol class="ag-notif-passos">
-            <li>Toque no botão abaixo: ele abre o WhatsApp já com a mensagem certa. É só <b>enviar</b>.</li>
-            <li>Em segundos chega uma resposta com uma <b>apikey</b> (um número).</li>
-            <li>Cole a apikey no campo e toque em <b>Salvar</b>. Pronto! ✅</li>
-          </ol>
-          <a class="ag-notif-wa" href="https://wa.me/34623789595?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">📲 Abrir WhatsApp e enviar a mensagem</a>
-          <label class="input-field"><div class="input-field-label">Cole aqui a apikey que você recebeu</div>
-            <input id="ag-callmebot" inputmode="numeric" value="" placeholder="Ex: 1234567"></label>
-          <div class="ag-notif-status" id="ag-notif-status"></div>
-        </div>
-      </div>
       <label class="input-field"><div class="input-field-label">Duração padrão (quando o cliente não escolhe um serviço)</div>
         <select id="ag-dur">
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
@@ -457,18 +461,25 @@ function desenhar() {
         <select id="ag-horizonte">
           ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
         </select></label>
+      <button class="fi-btn" id="ag-idv" type="button">🎨 Identidade visual (cores e logo)</button>
+      <label class="ag-ativar">
+        <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
+        <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
+      </label>`)}
 
-      <div class="input-field-label" style="margin-top:12px">Serviços que você oferece <span class="ag-lbl-opt">— o cliente escolhe e a duração vem daqui</span></div>
+      ${_bloco('servicos', '💆 Serviços que você oferece', `
+      <div class="ag-serv-sub">O cliente escolhe o serviço e a duração vem daqui.<br><b>Custo:</b> quanto te custa fazer (material, óleos), só você vê. <b>Sessões:</b> 1 = sessão avulsa, 5 = pacote de 5. <b>📸 Fotos:</b> o tipo de foto (e medidas) que o app pede nas sessões.</div>
       <div class="ag-servs" id="ag-servs"></div>
-      <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
+      <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>`)}
 
-      <div class="input-field-label" style="margin-top:14px">Dias que você atende <span class="ag-lbl-opt">— dia desligado não aparece pro cliente</span></div>
+      ${_bloco('dias', '📆 Dias e horários', `
+      <div class="ag-serv-sub">Dia desligado não aparece pro cliente.</div>
       <div class="ag-diassem" id="ag-diassem">
         ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
       </div>
       <button class="ag-chipbtn" id="ag-segsex" type="button" role="switch" aria-checked="false">📅 Atendo de Seg a Sex <span class="ag-switch" aria-hidden="true"></span></button>
-
-      <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
+      <div class="ag-sub-tit">Horários livres pro cliente marcar</div>
+      <div class="ag-serv-sub">Use as setas pra abrir semanas futuras.</div>
       <div class="ag-sem-nav">
         <button class="ag-sem-arrow" id="ag-sem-prev" type="button" aria-label="Semana anterior">‹</button>
         <div class="ag-sem-label" id="ag-sem-label">Toda semana (padrão)</div>
@@ -478,39 +489,35 @@ function desenhar() {
       <div class="ag-tabs" id="ag-tabs">
         ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span class="ag-tab-dow">${d.lbl}</span><span class="ag-tab-data"></span><i class="ag-tab-dot"></i></button>`).join('')}
       </div>
-      <div class="ag-dia-editor" id="ag-dia-editor"></div>
+      <div class="ag-dia-editor" id="ag-dia-editor"></div>`)}
 
-      <label class="ag-ativar">
-        <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
-        <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
-      </label>
-
-      <div class="input-field-label" style="margin-top:12px">Seu link (põe na bio do Instagram)</div>
+      ${_bloco('link', '🔗 Seu link', `
+      <div class="ag-serv-sub">Põe na bio do Instagram.</div>
       <div class="ag-link-box">
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
-      </div>
+      </div>`)}
 
-      <div class="input-field-label" style="margin-top:14px">📅 Próximos atendimentos</div>
-      <div class="ag-lista">${_proximosHtml()}</div>
+      ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
-      ${secaoFichaHtml(_cfg, _clientes())}
+      ${_bloco('ficha', '📋 Ficha de atendimento', secaoFichaHtml(_cfg, _clientes()))}
 
-      <div class="ag-ags-top">
-        <div class="input-field-label" style="margin:0">👥 Clientes</div>
-      </div>
+      ${_bloco('clientes', '👥 Clientes', `
+
       <div class="fin-topo">
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
         <button class="fin-topo-btn" id="ag-prod" type="button">🧴 Produtos</button>
         <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons</button>
+        <button class="fin-topo-btn" id="ag-pres" type="button">🎁 Cartão presente</button>
       </div>
-      <div class="ag-lista">${clientesHtml}</div>
+      <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
     </div>
     <div class="ag-rodape">
       <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
     </div>`;
   wireFixos(corpo);
+  _wireBlocos(corpo);
   pintarTabs();
   pintarDiasSemana();
   pintarDiaEditor();
@@ -586,6 +593,8 @@ function wireFixos(corpo) {
   };
   corpo.querySelectorAll('[data-cancel]').forEach(b => {
     b.addEventListener('click', async () => {
+      const ok = await confirmModal({ title: 'Cancelar este agendamento?', message: 'O horário fica livre pra outra pessoa marcar.', confirmText: 'Sim, cancelar', cancelText: 'Voltar', danger: true });
+      if (!ok) return;
       try {
         await cancelarAgendamento(b.dataset.cancel);
         _ags = _ags.filter(a => a.id !== b.dataset.cancel);
@@ -627,18 +636,11 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
-  corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons());
+  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), cfg: _cfg });
+  corpo.querySelector('#ag-idv')?.addEventListener('click', () => abrirIdentidade(_cfg));
+  corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons(_optsCupom()));
+  corpo.querySelector('#ag-pres')?.addEventListener('click', () => abrirPresente(_optsCupom()));
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
-  // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
-  // senão → o passo a passo pra configurar.
-  const _mostrarNotif = (tem) => {
-    const done = corpo.querySelector('#ag-notif-done');
-    const setup = corpo.querySelector('#ag-notif-setup');
-    if (done) done.hidden = !tem;
-    if (setup) setup.hidden = tem;
-  };
-  getTenhoCallmebot().then(_mostrarNotif).catch(() => _mostrarNotif(false));
-  corpo.querySelector('#ag-notif-reconfig')?.addEventListener('click', () => _mostrarNotif(false));
 }
 
 // Lê os inputs das linhas de serviço de volta pro _cfg.servicos (antes de re-render/salvar).
@@ -655,13 +657,31 @@ function _syncServicos() {
     const cu = (row.querySelector('.ag-serv-custo')?.value || '').replace(',', '.').trim();
     s._custo = cu === '' ? 0 : (Number(cu) || 0);
     s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
+    const ac = row.querySelectorAll('.ag-acomp'); if (ac.length) s.acomp = [...ac].filter(b => b.classList.contains('on')).map(b => b.dataset.acomp);
+    const fi = row.querySelector('.ag-ficha.on'); if (fi) s.ficha = fi.dataset.ficha;
+    // 📦 Pacote dentro do serviço: vira um item escondido (pacoteDe = id do serviço) que a
+    // agenda pública mostra como opção do serviço. O id fica o mesmo (vendas e agendamentos apontam pra ele).
+    const pacOn = row.querySelector('.ag-pac-on')?.classList.contains('on');
+    const pacIdx = _cfg.servicos.findIndex(x => x.pacoteDe === s.id);
+    if (pacOn) {
+      const n = Math.max(2, parseInt(row.querySelector('.ag-pac-sess')?.value, 10) || 5);
+      const pp = (row.querySelector('.ag-pac-preco')?.value || '').replace(',', '.').trim();
+      const curto = String(s.nome || '').split(' – ')[0].split(' (')[0].trim();
+      const pac = { ...(pacIdx >= 0 ? _cfg.servicos[pacIdx] : { id: s.id + 'p' }), nome: `Pacote ${curto} – ${n} sessões`, duracaoMin: s.duracaoMin,
+        preco: pp === '' ? null : Number(pp), sessoes: n, pacoteDe: s.id, ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}) };
+      if (pacIdx >= 0) _cfg.servicos[pacIdx] = pac; else _cfg.servicos.push(pac);
+    } else if (pacIdx >= 0 && row.querySelector('.ag-pac-on')) {
+      _cfg.servicos.splice(pacIdx, 1);
+    }
   });
 }
 
 function pintarServicos() {
   const box = document.querySelector('#ag-servs');
   if (!box) return;
-  box.innerHTML = _cfg.servicos.length ? _cfg.servicos.map(s => `
+  const base = _cfg.servicos.filter(s => !s.pacoteDe);
+  const pacDe = s => _cfg.servicos.find(x => x.pacoteDe === s.id) || null;
+  box.innerHTML = base.length ? base.map(s => { const pc = pacDe(s); return `
     <div class="ag-serv" data-sid="${s.id}">
       <input class="ag-serv-nome" value="${_esc(s.nome || '')}" placeholder="Nome do serviço (ex: Massagem relaxante)">
       <div class="ag-serv-linha">
@@ -673,14 +693,42 @@ function pintarServicos() {
       </div>
       <div class="ag-serv-linha ag-serv-extra">
         <span class="ag-serv-lb" title="Quanto custa pra você fazer (material, óleos…) — só você vê">Custo R$</span>
-        <input class="ag-serv-custo" type="text" inputmode="decimal" value="${_preco(s._custo ?? custoServico(s.id)) || ''}" placeholder="0,00">
+        <input class="ag-serv-custo" type="text" inputmode="decimal" value="${Number(s._custo ?? custoServico(s.id)) ? _preco(s._custo ?? custoServico(s.id)) : ''}" placeholder="0,00">
         <span class="ag-serv-lb" title="Pacote: quantas sessões a venda cobre (1 = sessão avulsa)">Sessões</span>
         <input class="ag-serv-sess" type="number" inputmode="numeric" min="1" value="${s.sessoes || 1}">
       </div>
-    </div>`).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
+      <div class="ag-serv-acomp" title="Que fotos (e medidas) o app pede nas sessões desse serviço">
+        <span class="ag-serv-lb">📸 Fotos</span>
+        ${ACOMPS.map(a => `<button type="button" class="ag-acomp ${acompDoServico(s).includes(a) ? 'on' : ''}" data-acomp="${a}">${PROTOCOLOS[a].icone} ${PROTOCOLOS[a].nome}</button>`).join('')}
+      </div>
+      ${_cfg.ficha_cfg?.profissao === 'estetica' ? `<div class="ag-serv-acomp ag-serv-ficha" title="Qual ficha a cliente responde quando faz esse serviço">
+        <span class="ag-serv-lb">📋 Ficha</span>
+        ${Object.entries(FICHAS_NOMES).map(([k, l]) => `<button type="button" class="ag-ficha ${fichaDoServico(s, 'estetica') === k ? 'on' : ''}" data-ficha="${k}">${l}</button>`).join('')}
+      </div>` : ''}
+      <div class="ag-pac">
+        <button type="button" class="ag-pac-on ${pc ? 'on' : ''}" aria-pressed="${!!pc}">📦 Tem pacote</button>
+        <span class="ag-pac-campos"${pc ? '' : ' hidden'}>
+          <input class="ag-pac-sess" type="number" inputmode="numeric" min="2" value="${pc?.sessoes || 5}" aria-label="Sessões do pacote"><span class="ag-serv-un">sessões</span>
+          <span class="ag-serv-lb">R$</span><input class="ag-pac-preco" type="text" inputmode="decimal" value="${pc ? _preco(pc.preco) : ''}" placeholder="0,00" aria-label="Preço do pacote">
+        </span>
+        <span class="ag-pac-cada">${pc && pc.preco && pc.sessoes ? `R$ ${_preco(pc.preco / pc.sessoes)} cada` : ''}</span>
+      </div>
+    </div>`; }).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
+  box.querySelectorAll('.ag-acomp').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  box.querySelectorAll('.ag-ficha').forEach(b => b.onclick = () => { b.parentElement.querySelectorAll('.ag-ficha').forEach(x => x.classList.toggle('on', x === b)); });
+  box.querySelectorAll('.ag-pac-on').forEach(b => b.onclick = () => {
+    const on = !b.classList.contains('on'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+    b.parentElement.querySelector('.ag-pac-campos').hidden = !on;
+    if (on) b.parentElement.querySelector('.ag-pac-preco')?.focus();
+  });
+  box.querySelectorAll('.ag-pac-preco, .ag-pac-sess').forEach(i => i.oninput = () => {
+    const w = i.closest('.ag-pac'), n = parseInt(w.querySelector('.ag-pac-sess').value, 10) || 0;
+    const v = Number(String(w.querySelector('.ag-pac-preco').value).replace(',', '.')) || 0;
+    w.querySelector('.ag-pac-cada').textContent = n > 1 && v ? `R$ ${_preco(v / n)} cada` : '';
+  });
   box.querySelectorAll('[data-rm-serv]').forEach(b => b.onclick = () => {
     _syncServicos();
-    _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ);
+    _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ && s.pacoteDe !== b.dataset.rmServ);
     pintarServicos();
   });
 }
@@ -839,6 +887,8 @@ export async function abrirDetalheAtendimento(agOrId) {
     ov.querySelector('#agd-finalizar')?.addEventListener('click', () => _setStatus('finalizado'));
     ov.querySelector('#agd-faltou')?.addEventListener('click', () => _setStatus('faltou'));
     ov.querySelector('#agd-excluir').onclick = async () => {
+      const ok = await confirmModal({ title: 'Excluir este atendimento?', message: `${ag.cliente_nome || 'Cliente'} · ${_fmtData(ag.data)} às ${ag.hora}. Ele some da agenda e do histórico, e não dá pra desfazer.`, confirmText: 'Sim, excluir', cancelText: 'Voltar', danger: true });
+      if (!ok) return;
       try { await excluirAtendimento(ag); await recarregar(); close(); showToast('Atendimento excluído', 'info'); }
       catch (e) { showToast('Erro: ' + e.message, 'error'); }
     };
@@ -929,6 +979,8 @@ async function _formAgendamento(ag, opts = {}) {
   });
   ov.querySelector('#agf-cancelar').onclick = () => close();
   ov.querySelector('#agf-cancelar-atend')?.addEventListener('click', async () => {
+    const ok = await confirmModal({ title: 'Cancelar este atendimento?', message: 'O horário fica livre pra outra pessoa marcar.', confirmText: 'Sim, cancelar', cancelText: 'Voltar', danger: true });
+    if (!ok) return;
     try {
       await cancelarAgendamento(st.id);
       [_ags, _todos] = await Promise.all([getAgendamentos().catch(() => _ags), getAgendamentosTodos().catch(() => _todos)]);
@@ -968,7 +1020,7 @@ async function _formAgendamento(ag, opts = {}) {
       close();
       if (opts.onSaved) { try { await opts.onSaved(); } catch {} } else { desenhar(); }
       showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');
-      if (!st.id) oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
+      if (!st.id) oferecerFichaAposAgendar(_cfg, { nome, contato: zap, servico: serv?.nome });   // cliente sem ficha? pergunta se manda
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
       if (btn.isConnected) { btn.disabled = false; btn.textContent = st.id ? 'Salvar' : 'Adicionar'; }
@@ -989,7 +1041,7 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}), ...(s.ficha ? { ficha: s.ficha } : {}) }));
   // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
   const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO
@@ -1020,16 +1072,6 @@ async function salvar() {
     await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
     _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     try { await salvarCustos(custos); } catch (e) { showToast('Custos: ' + e.message, 'info'); }
-    // Apikey do CallMeBot: só grava se digitou algo (vazio = mantém a atual).
-    const cbKey = corpo.querySelector('#ag-callmebot')?.value.trim();
-    if (cbKey) {
-      try {
-        await salvarCallmebotApikey(cbKey);
-        // configurou → esconde o passo a passo e mostra o "✅ ativado"
-        corpo.querySelector('#ag-notif-done')?.removeAttribute('hidden');
-        corpo.querySelector('#ag-notif-setup')?.setAttribute('hidden', '');
-      } catch (e) { showToast('Apikey não salva: ' + e.message, 'info'); }
-    }
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message, 'error');
