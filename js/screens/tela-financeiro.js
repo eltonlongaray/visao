@@ -2,8 +2,8 @@
 // VISÃO · Tela /financeiro — aba do menu inferior (Élton, 18/11)
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// Arquivo único: casca da aba Financeiro, com os cards Pessoal e
-// Profissional ainda EM DESENVOLVIMENTO (só avisam ao tocar).
+// Arquivo único: casca da aba Financeiro, com as abas Pessoal e
+// Profissional no topo, ainda EM DESENVOLVIMENTO.
 // ─────────────────────────────────────────────────────────────
 // Plano combinado com o Élton:
 //  • Profissional: receitas e despesas separadas por FONTE DE RENDA
@@ -13,28 +13,48 @@
 //  • Pessoal: a SOMA dos pró-labores (cada fonte de renda tem o seu) +
 //    as despesas pessoais, sem misturar com o profissional.
 import { bottomNav } from '../components/menu-inferior.js';
-import { showToast } from '../aviso-tela.js';
+
+// Abas no topo, igual à Comunidade (Élton, 18/11: no lugar dos dois cards)
+let aba = 'pessoal';   // 'pessoal' | 'profissional'
+
+const CONTEUDO = {
+  pessoal: {
+    ic: '👤', titulo: 'Financeiro pessoal',
+    texto: 'Aqui vai ficar a soma dos pró-labores de cada fonte de renda e as suas despesas pessoais, separadas do trabalho.',
+  },
+  profissional: {
+    ic: '💼', titulo: 'Financeiro profissional',
+    texto: 'Aqui você vai adicionar suas fontes de renda e ver as receitas, despesas e o pró-labore de cada uma.',
+  },
+};
+
+function corpo() {
+  const c = CONTEUDO[aba];
+  return `<div class="fin-breve">
+    <div class="fin-breve-ic">${c.ic}</div>
+    <b>${c.titulo}</b>
+    <p>${c.texto}</p>
+    <span class="fr-hub-tag">EM DESENVOLVIMENTO</span>
+  </div>`;
+}
 
 export function renderFinanceiro(app) {
   app.innerHTML = `<div class="screen-pad fin-screen">
-    <div class="pf-header"><div class="pf-title">💰 Financeiro</div></div>
-    <div class="fr-hub fin-hub">
-      <button class="fr-hubcard" data-fin="pessoal" type="button">
-        <span class="fr-hub-ic">👤</span>
-        <span class="fr-hub-tx"><b>Financeiro pessoal</b><small>A soma dos pró-labores de cada fonte de renda e suas despesas pessoais</small></span>
-        <span class="fr-hub-tag">EM BREVE</span>
-      </button>
-      <button class="fr-hubcard" data-fin="profissional" type="button">
-        <span class="fr-hub-ic">💼</span>
-        <span class="fr-hub-tx"><b>Financeiro profissional</b><small>Receitas e despesas de cada fonte de renda do seu trabalho</small></span>
-        <span class="fr-hub-tag">EM BREVE</span>
-      </button>
+    <div class="screen-title">
+      <h1>💰 Financeiro</h1>
+      <div class="sub">Pessoal e profissional, cada um no seu lugar.</div>
     </div>
+    <div class="tab-switch" id="fin-abas">
+      <button class="tab-btn ${aba === 'pessoal' ? 'active' : ''}" data-aba="pessoal">👤 Pessoal</button>
+      <button class="tab-btn ${aba === 'profissional' ? 'active' : ''}" data-aba="profissional">💼 Profissional</button>
+    </div>
+    <div id="fin-corpo">${corpo()}</div>
   </div>${bottomNav('financeiro')}`;
-  app.querySelector('.fin-hub').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-fin]');
-    if (!b) return;
-    const nome = b.dataset.fin === 'pessoal' ? '👤 Financeiro pessoal' : '💼 Financeiro profissional';
-    showToast(`${nome} está em desenvolvimento. Em breve! 🦅`, 'info');
+  app.querySelector('#fin-abas').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-aba]');
+    if (!b || b.dataset.aba === aba) return;
+    aba = b.dataset.aba;
+    app.querySelectorAll('#fin-abas .tab-btn').forEach(x => x.classList.toggle('active', x.dataset.aba === aba));
+    app.querySelector('#fin-corpo').innerHTML = corpo();
   });
 }
