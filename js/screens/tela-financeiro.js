@@ -10,7 +10,7 @@
 //    (ex.: terapeuta = clientes + cursos pras alunas; empresas podem ter
 //    3, 4, 5 fontes). A fonte "Clientes" pode puxar o que já entra pela
 //    Agenda Online (financeiro.js), pra ninguém lançar duas vezes.
-//  • Pessoal: o pró-labore (o que a pessoa tira das fontes pra si) +
+//  • Pessoal: a SOMA dos pró-labores (cada fonte de renda tem o seu) +
 //    as despesas pessoais, sem misturar com o profissional.
 import { bottomNav } from '../components/menu-inferior.js';
 import { showToast } from '../aviso-tela.js';
@@ -21,7 +21,7 @@ export function renderFinanceiro(app) {
     <div class="fr-hub fin-hub">
       <button class="fr-hubcard" data-fin="pessoal" type="button">
         <span class="fr-hub-ic">👤</span>
-        <span class="fr-hub-tx"><b>Financeiro pessoal</b><small>Seu pró-labore e suas despesas pessoais, separados do trabalho</small></span>
+        <span class="fr-hub-tx"><b>Financeiro pessoal</b><small>A soma dos pró-labores de cada fonte de renda e suas despesas pessoais</small></span>
         <span class="fr-hub-tag">EM BREVE</span>
       </button>
       <button class="fr-hubcard" data-fin="profissional" type="button">
