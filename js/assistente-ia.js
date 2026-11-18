@@ -410,6 +410,7 @@ function buildPetHTML() {
         spellcheck="true"
         lang="pt-BR"
         autocapitalize="sentences"
+        enterkeyhint="enter"
         rows="1"
       ></textarea>
       <button class="pet-mic-btn" id="pet-mic-btn" title="${t('pet.mic.title')}" aria-label="${t('pet.mic.label')}">
@@ -491,7 +492,9 @@ function attachHandlers() {
   document.getElementById('pet-send-btn').addEventListener('click', handleSend);
   const petInput = document.getElementById('pet-input');
   petInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    // Enter quebra a linha (Élton 17/11); envia pela setinha. No computador,
+    // Ctrl/Cmd+Enter também envia.
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSend(); }
   });
   petInput.addEventListener('input', () => resizePetInput(petInput));
   document.getElementById('pet-mic-btn').addEventListener('click', startMic);
