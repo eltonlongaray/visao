@@ -76,6 +76,19 @@ export async function criarAgendamentoCombo(slug, dataISO, hora, nome, contato, 
   return data;
 }
 
+// Cupom de parceria (sql/cupons.sql): confere antes de confirmar e aplica logo depois de agendar.
+// Sem o SQL rodado, simplesmente "não vale" (o agendamento nunca trava por causa do cupom).
+export async function validarCupom(slug, codigo) {
+  const { data, error } = await supabase.rpc('validar_cupom', { p_slug: slug, p_cupom: (codigo || '').trim().slice(0, 30) });
+  if (error) return { ok: false };
+  return data || { ok: false };
+}
+export async function aplicarCupom(slug, dataISO, hora, contato, codigo) {
+  const { data, error } = await supabase.rpc('aplicar_cupom', { p_slug: slug, p_data: dataISO, p_hora: hora, p_contato: contato || '', p_cupom: codigo || '' });
+  if (error) return { ok: false };
+  return data || { ok: false };
+}
+
 // Lista os agendamentos do cliente (identificado pelo WhatsApp) — passados e futuros.
 export async function getMeusAgendamentos(slug, contato) {
   const { data, error } = await supabase.rpc('meus_agendamentos_publico', { p_slug: slug, p_contato: contato || '' });

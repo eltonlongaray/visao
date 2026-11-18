@@ -106,7 +106,7 @@ export async function getAgendamentos() {
   const uid = _uid(); if (!uid) return [];
   const hoje = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase.from('agendamentos')
-    .select('id, data, hora, cliente_nome, cliente_contato, servico, preco, duracao_min, status, created_at')
+    .select('*')   // '*': inclui cupom/cupom_desconto quando o sql/cupons.sql já rodou
     .eq('owner_id', uid).eq('status', 'confirmado').gte('data', hoje)
     .order('data', { ascending: true }).order('hora', { ascending: true });
   if (error) throw new Error(error.message);
@@ -123,7 +123,7 @@ export async function cancelarAgendamento(id) {
 export async function getAgendamentosTodos() {
   const uid = _uid(); if (!uid) return [];
   const { data, error } = await supabase.from('agendamentos')
-    .select('id, data, hora, cliente_nome, cliente_contato, servico, preco, duracao_min, status, created_at')
+    .select('*')   // '*': inclui cupom/cupom_desconto quando o sql/cupons.sql já rodou
     .eq('owner_id', uid).neq('status', 'cancelado')
     .order('data', { ascending: false }).order('hora', { ascending: false });
   if (error) throw new Error(error.message);

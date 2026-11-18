@@ -10,6 +10,8 @@ import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
+import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
+import { abrirCupons } from './cupons-ui.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
@@ -104,7 +106,7 @@ function _proximosHtml() {
     const fim = _fimHora(a.hora, a.duracao_min);
     return `<div class="ag-prox" data-detalhe="${_esc(a.id)}">
       <div class="ag-prox-info"><b>${_fmtData(a.data)} · ${_esc(a.hora)}${fim ? `–${fim}` : ''}</b>
-        <small>${_esc(a.cliente_nome)}${a.servico ? ` · ${_esc(a.servico)}` : ''}</small></div>
+        <small>${_esc(a.cliente_nome)}${a.servico ? ` · ${_esc(a.servico)}` : ''}${a.cupom ? ` · 🎟️ ${_esc(a.cupom)}` : ''}</small></div>
       <span class="ag-cli-h-seta">›</span>
     </div>`;
   }).join('');
@@ -181,6 +183,7 @@ function _popupCliente(c) {
     </div>
     ${perfilFinanceiroHtml(c, { servicos: _cfg?.servicos || [] })}
     ${perfilFichaHtml(_cfg, c)}
+    ${depoimentosPerfilHtml()}
     ${_triagemPerfilHtml(c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
     <div class="ag-hist-lista" id="agp-hist" hidden>
@@ -196,6 +199,7 @@ function _popupCliente(c) {
   ov.querySelector('#agp-ok').onclick = () => close();
   ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
   wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
+  wireDepoimentosPerfil(ov, c);
   // compras/pagamentos: depois de salvar, reabre o perfil atualizado
   wirePerfilFinanceiro(ov, c, { servicos: _cfg?.servicos || [], aoMudar: () => {
     close(); const novo = _clientes().find(x => x.key === c.key); if (novo) _popupCliente(novo);
@@ -497,6 +501,7 @@ function desenhar() {
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
         <button class="fin-topo-btn" id="ag-prod" type="button">🧴 Produtos</button>
+        <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons</button>
       </div>
       <div class="ag-lista">${clientesHtml}</div>
     </div>
@@ -606,6 +611,7 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
+  corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons());
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });
   // Notificação no WhatsApp: configurado → só o "✅ ativado" (campo escondido);
   // senão → o passo a passo pra configurar.
@@ -802,6 +808,7 @@ export async function abrirDetalheAtendimento(agOrId) {
         <div class="ag-det-cli-nome"><b>${_esc(ag.cliente_nome)}</b>${ag.cliente_contato ? `<small>${_esc(ag.cliente_contato)}</small>` : '<small class="ag-sem-zap">sem WhatsApp</small>'}</div>
       </div>
       ${ag.servico ? `<div class="ag-det-serv">💆 ${_esc(ag.servico)}${ag.preco != null ? ` · <b>R$ ${_preco(ag.preco)}</b>` : ''}</div>` : ''}
+      ${ag.cupom ? `<div class="ag-cupom-tag">🎟️ Cupom ${_esc(ag.cupom)} · ${ag.cupom_desconto >= 100 ? 'sem custo (cortesia)' : `${ag.cupom_desconto}% de desconto`}</div>` : ''}
       ${_cfg?.endereco ? `<div class="ag-det-serv">📍 ${_esc(_cfg.endereco)}</div>` : ''}
       <div class="ag-det-acoes">
         ${wa ? `<a class="ag-det-btn" href="${_waLembrete(ag)}" target="_blank" rel="noopener">🔔 Lembrete</a>` : ''}

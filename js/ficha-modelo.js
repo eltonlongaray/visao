@@ -85,6 +85,7 @@ const MASSOTERAPIA = {
 // Mesma base da massoterapia + bloco "Seu objetivo" (celulite, medidas, hábitos)
 // + saúde ampliada + autorização de fotos. "ordem": a ordem dos toques vira prioridade.
 const _q = id => MASSOTERAPIA.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+const _temDor = R => (R.dores || []).some(x => x !== "Não sinto dor");
 const AREAS_CORPO = ["Abdômen","Flancos (pneuzinhos)","Culote","Glúteo","Parte interna das coxas","Parte de trás das coxas",
   "Joelhos","Braços (parte de trás)","Costas","Panturrilhas","Papada ou rosto"];
 const ESTETICA = {
@@ -114,7 +115,12 @@ const ESTETICA = {
       _q("alimentacao"), _q("alimentacao_txt"), _q("sono"), _q("rotina"), _q("atividade"),
       _q("inchaco"), _q("inchaco_quando"), _q("refeicao"),
     ]},
-    { nome: "Como está seu corpo", perguntas: [_q("mapa"), _q("estresse")] },
+    { nome: "Como está seu corpo", perguntas: [
+      { id:"dores", tipo:"varias", q:"Você sente alguma dor?", aj:"Pode marcar vários.",
+        op:["Não sinto dor","Dor de cabeça ou enxaqueca","Dores musculares ou tensão","Dores nos ossos e articulações (joelho, cotovelo, ombro…)","Dores nos nervos (formigamento, queimação)"], outro:true, so:["Não sinto dor"] },
+      { ..._q("mapa"), q:"Onde dói?", aj:"Toque na parte do corpo e marque. Pode marcar quantas quiser.", se: R => _temDor(R), sub:true },
+      _q("estresse"),
+    ]},
     { nome: "Saúde e segurança", perguntas: [
       { id:"aviso_saude", tipo:"aviso", q:"Essas respostas garantem um tratamento seguro pra você. Elas ficam só com a profissional." },
       { id:"saude", tipo:"varias", q:"Marque o que se aplica a você",
@@ -147,8 +153,18 @@ export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "
 // estetica: plano de medidas (todas × 1ª e 5ª), medidas por altura, 4 fotos, áreas tratadas, técnica/blend.
 export const SESSAO_POR_PROFISSAO = {
   massoterapia: { palpacao: true, medidas: "antes_depois" },
-  estetica: { palpacao: false, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
+  estetica: { palpacao: true, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
 };
+// A ficha mostra que a pessoa tem dor? (aí a "dor ao pressionar" já abre na sessão)
+// true/false pela ficha; null = sem ficha respondida.
+export function fichaTemDor(resp) {
+  if (!resp) return null;
+  const r = resp.respostas || {};
+  if (Object.values(resp.mapa || {}).some(m => (m?.dor || 0) > 0)) return true;
+  if ((r.dores || []).some(x => x !== "Não sinto dor")) return true;
+  if ((r.motivo || []).some(x => x === "Aliviar dor ou tensão" || x === "Recuperação de treino")) return true;
+  return false;
+}
 export const sessaoDe = prof => SESSAO_POR_PROFISSAO[prof] || SESSAO_POR_PROFISSAO.massoterapia;
 
 // === BLOCO 3: MAPA DO CORPO — REGIÕES ===
@@ -254,7 +270,7 @@ export const CURTAS = {
   inchaco_quando: 'quando incha', refeicao: 'tipo de refeição', alimentacao: 'alimentação', saude: 'condições de saúde',
   gestante_semanas: 'semanas de gestação', cirurgia_qual: 'qual cirurgia', alergia: 'alergia a óleo/creme/aroma',
   alergia_qual: 'qual alergia', remedio: 'remédio contínuo', remedio_qual: 'qual remédio', pressao: 'pressão preferida',
-  conversa: 'conversa ou silêncio',
+  conversa: 'conversa ou silêncio', dores: 'se sente dor',
   profissao_cli: 'profissão', tratar: 'o que quer tratar', prioridade: 'áreas que incomodam', ja_estetica: 'tratamento estético anterior',
   ja_estetica_qual: 'qual tratamento estético', peso_atual: 'peso atual', peso_ideal: 'peso desejado', peso_quando: 'há quanto tempo fora do peso',
   agua: 'água por dia', intestino: 'intestino', urina: 'vezes que urina', contraceptivo: 'contraceptivo', acompanhamento: 'acompanhamento médico',

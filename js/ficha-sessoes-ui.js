@@ -46,7 +46,9 @@ export async function carregarSessoes() {
 }
 
 // === BLOCO 2: BLOCO "🩺 SESSÕES" NO PERFIL ===
-// Plano de medidas e fotos por cliente (estética): 'todas' (padrão) ou '1e5' (só 1ª e 5ª sessão).
+// Plano de medidas e fotos por cliente (estética): 'todas' (padrão) ou '1e5' = na 1ª e a cada 5 sessões
+// (5ª, 10ª, 15ª…: o pacote é avaliação + 4 e a cliente pode continuar em outro pacote).
+const _diaDeMedir = n => n === 1 || n % 5 === 0;
 // chave = DDD + 8 últimos (ignora 55 e o 9º dígito, igual mesmoNumero); sem WhatsApp, o nome
 const _chaveCli = c => {
   let d = String(c.contato || '').replace(/\D/g, '');
@@ -66,7 +68,7 @@ export function sessoesPerfilHtml(c, ctx = {}) {
     <div class="fi-sess-tit">🩺 Sessões${lista.length ? ` <small>${lista.length}</small>` : ''}</div>
     ${_erroSql ? '<div class="fi-aviso">Falta rodar o SQL das sessões (sql/ficha-sessoes.sql).</div>' : ''}
     ${cs.plano ? `<div class="fs-plano"><div class="fs-plano-tit">📏 Medidas e fotos</div>
-      <div class="fs-abas"><button type="button" data-fs-plano="todas" class="${plano === 'todas' ? 'on' : ''}">Todas as sessões</button><button type="button" data-fs-plano="1e5" class="${plano === '1e5' ? 'on' : ''}">Só na 1ª e na 5ª</button></div></div>` : ''}
+      <div class="fs-abas"><button type="button" data-fs-plano="todas" class="${plano === 'todas' ? 'on' : ''}">Todas as sessões</button><button type="button" data-fs-plano="1e5" class="${plano === '1e5' ? 'on' : ''}">Na 1ª e a cada 5</button></div></div>` : ''}
     ${cs.fotos && comp >= 2 ? '<button class="fi-btn" id="fi-sess-comp" type="button">🖼️ Antes × depois</button>' : ''}
     <button class="fi-btn" id="fi-sess-nova" type="button">➕ Registrar sessão de hoje</button>
     ${lista.slice().reverse().map(s => {
@@ -92,7 +94,7 @@ export function wireSessoesPerfil(ov, c, atualizar, ctx = {}) {
     try {
       if (!_demo) await ctx.salvarCfg?.(fc); else if (ctx.cfg) ctx.cfg.ficha_cfg = fc;
       atualizar?.();
-      showToast(b.dataset.fsPlano === '1e5' ? '📏 Medidas e fotos só na 1ª e na 5ª sessão' : '📏 Medidas e fotos em todas as sessões', 'success');
+      showToast(b.dataset.fsPlano === '1e5' ? '📏 Medidas e fotos na 1ª sessão e a cada 5 (5ª, 10ª, 15ª…)' : '📏 Medidas e fotos em todas as sessões', 'success');
     } catch (e) { showToast(e.message, 'error'); }
   }));
 }
@@ -112,9 +114,11 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   let vista = 'costas', aberta = null;
   if (!st.extra.fotos) st.extra.fotos = {};
   if (!Array.isArray(st.extra.areas)) st.extra.areas = [];
-  // Plano "só 1ª e 5ª": nas outras sessões, medidas e fotos ficam fechadas (dá pra abrir se quiser).
-  const foraDoPlano = cs.plano && _planoDe(ctx, c) === '1e5' && ![1, 5].includes(nSessao) && !_temMedida(st.medidas) && !_temFoto(st);
+  // Plano "1ª e a cada 5": nas outras sessões, medidas e fotos ficam fechadas (dá pra abrir se quiser).
+  const foraDoPlano = cs.plano && _planoDe(ctx, c) === '1e5' && !_diaDeMedir(nSessao) && !_temMedida(st.medidas) && !_temFoto(st);
   const fotoNegada = ctx.fotos === 'Não';
+  // Dor ao pressionar: abre sozinha só se a ficha mostra dor (ou a sessão já tem pontos marcados).
+  let palpAberta = cs.palpacao && (ctx.temDor !== false || Object.keys(st.palpacao).length > 0);
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'fi-sessao-ov';
@@ -127,7 +131,9 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
       <label class="input-field"><div class="input-field-label">Data da sessão</div>
         <input type="date" id="fs-data" value="${_esc(st.data)}"></label>
 
-      ${cs.palpacao ? `<div class="fi-bloco">
+      ${cs.palpacao && !palpAberta ? `<div class="fi-bloco" id="fs-palp-fechada"><div class="fi-secao-sub" style="margin-top:0">🖐️ Pela ficha, ${_esc((c.nome || 'a cliente').split(' ')[0])} não tem queixa de dor.</div>
+        <button class="fi-btn" id="fs-palp-abrir" type="button">Avaliar dor ao pressionar mesmo assim</button></div>` : ''}
+      ${cs.palpacao ? `<div class="fi-bloco" id="fs-bl-palp"${palpAberta ? '' : ' hidden'}>
         <div class="fi-bloco-tit">🖐️ Dor ao pressionar · 0 a 10</div>
         <div class="fi-secao-sub" style="margin-top:0">Aperte o ponto, pergunte de 0 a 10 e toque na região pra marcar.${ant ? ` Entre parênteses, o valor da sessão anterior (${_dataBr(ant.data)}).` : ''}</div>
         <div class="fs-abas"><button type="button" data-vista="frente">Frente</button><button type="button" data-vista="costas">Costas</button></div>
@@ -136,7 +142,7 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
         <div id="fs-pal-lista"></div>
       </div>` : ''}
 
-      ${foraDoPlano ? `<div class="fi-bloco" id="fs-fora"><div class="fi-secao-sub" style="margin-top:0">📏 O plano dessa cliente é medir e fotografar <b>só na 1ª e na 5ª sessão</b>. Essa é a sessão ${nSessao}.</div>
+      ${foraDoPlano ? `<div class="fi-bloco" id="fs-fora"><div class="fi-secao-sub" style="margin-top:0">📏 O plano dessa cliente é medir e fotografar <b>na 1ª sessão e a cada 5</b> (5ª, 10ª, 15ª…). Essa é a sessão ${nSessao}.</div>
         <button class="fi-btn" id="fs-fora-abrir" type="button">Registrar medidas e fotos mesmo assim</button></div>` : ''}
 
       <div class="fi-bloco" id="fs-bl-medidas"${foraDoPlano ? ' hidden' : ''}>
@@ -427,7 +433,10 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
     catch (e) { showToast('Erro: ' + e.message, 'error'); }
   });
 
-  if (cs.palpacao) { desenharMapa(); listarPal(); }
+  if (cs.palpacao && palpAberta) { desenharMapa(); listarPal(); }
+  $('#fs-palp-abrir')?.addEventListener('click', () => {
+    palpAberta = true; $('#fs-palp-fechada').hidden = true; $('#fs-bl-palp').hidden = false; desenharMapa(); listarPal();
+  });
 }
 
 // === BLOCO 4: ANTES × DEPOIS (1º registro × o mais recente) ===

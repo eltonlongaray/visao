@@ -3,7 +3,7 @@
 // só supabase + o render público. Mostra o splash (olho do Falcon + "Falcon
 // Agenda") por ~2,5s e então revela a agenda já carregada por trás.
 // ─────────────────────────────────────────────────────────────
-import { renderAgendaPublica } from './agenda-publica.js?v=20261114h';
+import { renderAgendaPublica } from './agenda-publica.js?v=20261118b';
 
 const MIN_SPLASH = 2500;
 const t0 = Date.now();

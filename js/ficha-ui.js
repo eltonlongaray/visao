@@ -8,7 +8,7 @@
 // Dados: ficha.js · Modelos: ficha-modelo.js · Página do cliente: ficha-publica.js
 // ─────────────────────────────────────────────────────────────
 import { getFichas, criarConviteFicha, ligarFichaCliente, excluirFicha, salvarFichaCfg } from './ficha.js';
-import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero, faltando } from './ficha-modelo.js';
+import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, fichaTemDor, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero, faltando } from './ficha-modelo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
@@ -265,6 +265,7 @@ export async function oferecerFichaAposAgendar(cfg, { nome, contato } = {}) {
 // === BLOCO 5: FICHA NO PERFIL DO CLIENTE ===
 // O que a tela de sessão precisa saber: profissão, cfg (plano de medidas por cliente) e se a cliente autorizou fotos.
 const _ctxSessao = (cfg, resp) => ({ cfg, profissao: _cfgFicha(cfg).profissao, fotos: resp?.respostas?.foto_acomp || null,
+  temDor: fichaTemDor(resp) ?? (_cfgFicha(cfg).profissao === 'estetica' ? false : null),
   insta: resp?.respostas?.foto_insta || null, salvarCfg: async fc => { await salvarFichaCfg(fc); cfg.ficha_cfg = fc; } });
 export function perfilFichaHtml(cfg, c) {
   if (!fichaAtiva(cfg)) return '';

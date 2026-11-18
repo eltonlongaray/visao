@@ -185,6 +185,17 @@ export async function aoFinalizarAtendimento(ag, { servicos = [], todos = [], ao
     ov.querySelector('#fv-item').value = ag.servico;
     if (ag.preco != null) ov.querySelector('#fv-valor').value = _numTxt(ag.preco);
   }
+  // Agendou com cupom de parceria: 100% → já marca Cortesia; senão aplica o desconto no valor.
+  if (ov && ag.cupom) {
+    const d = Number(ag.cupom_desconto || 0);
+    if (d >= 100) ov.querySelector('[data-forma="cortesia"]')?.click();
+    else if (d > 0) {
+      const inp = ov.querySelector('#fv-valor');
+      const v = parseFloat(String(inp?.value || '').replace(/\./g, '').replace(',', '.'));
+      if (inp && Number.isFinite(v)) { inp.value = _numTxt(Math.round(v * (100 - d)) / 100); inp.dispatchEvent(new Event('input')); }
+    }
+    showToast(`🎟️ Cupom ${ag.cupom}: ${d >= 100 ? 'cortesia' : d + '% de desconto'}`, 'info');
+  }
 }
 
 // === BLOCO 5: 💰 FINANCEIRO (mês atual + histórico) ===
