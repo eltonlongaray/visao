@@ -23,6 +23,7 @@ export default {
   'nav.desafios':   'Desafios',
   'nav.preparo':    'Preparo Físico',
   'nav.chat':      'Falcon Hunters',
+  'nav.financeiro': 'Financeiro',
   'nav.ajustes':    'Ajustes',
   'desafios.sub':   'Encara um desafio com a comunidade 🦅',
   'desafios.empty': 'Nenhum desafio ativo de momento. Em breve há novidades! 🦅',

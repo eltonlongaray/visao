@@ -159,7 +159,7 @@ function _crescer(campo) {
   campo.style.height = Math.min(campo.scrollHeight + 2, 160) + 'px';
 }
 
-// ── Hub: cards Metas / Agenda Online / Rifa Solidária / Objetivos ──
+// ── Hub: cards Agenda Online / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
 // (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
   if (modo === 'ferramentas') return `

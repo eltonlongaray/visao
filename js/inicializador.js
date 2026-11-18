@@ -23,6 +23,7 @@ import { renderDesempenho } from './screens/tela-desempenho.js';
 import { renderDesafios } from './screens/tela-desafios.js';
 import { renderChat, setAbaChat } from './screens/tela-chat.js';
 import { renderPreparo } from './preparo-fisico-ui.js';
+import { renderFinanceiro } from './screens/tela-financeiro.js';
 import { renderTermos } from './screens/tela-termos.js';
 import { renderPrivacidade } from './screens/tela-privacidade.js';
 import { renderLegalConsent } from './screens/tela-aceite-legal.js';
@@ -50,6 +51,7 @@ registerRoute('/desempenho', renderDesempenho);
 // Desafios agora vive DENTRO da Comunidade: /desafios abre o chat na aba Desafios.
 registerRoute('/desafios', (app) => { setAbaChat('desafios'); return renderChat(app); });
 registerRoute('/preparo', renderPreparo);
+registerRoute('/financeiro', renderFinanceiro);
 registerRoute('/chat', (app) => { setAbaChat('mural'); return renderChat(app); });
 registerRoute('/termos', renderTermos);
 registerRoute('/privacidade', renderPrivacidade);
