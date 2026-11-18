@@ -14,7 +14,7 @@
 import { getSessoes, salvarSessao, excluirSessao } from './ficha.js';
 import { FRENTE, COSTAS, MEDIDAS, MEDIDAS_ALTURA, AREAS_TRATADAS, POSES, sessaoDe, nomeDa, ladoDa, baseDa, mesmoNumero } from './ficha-modelo.js';
 import { subirFotoCorpo, assinarFotos } from './corpo.js';
-import { PROTOCOLOS, posesDe, nomePose, acompDoServico, conferirFoto, abrirCameraGuiada, montarAntesDepois, baixarArquivo, compartilharArquivos } from './fotos-guiadas.js';
+import { PROTOCOLOS, posesDe, nomePose, acompDoServico, fichaDoServico, conferirFoto, abrirCameraGuiada, montarAntesDepois, baixarArquivo, compartilharArquivos } from './fotos-guiadas.js';
 import { vendasDoCliente } from './financeiro-ui.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
@@ -146,9 +146,9 @@ function _escolherTratamento(c, ctx, escolheu) {
   let vendas = []; try { vendas = vendasDoCliente(c) || []; } catch { vendas = []; }
   const pacotes = vendas.filter(v => v.tipo === 'pacote' && !jaTem.has('v:' + v.id)).map(v => {
     const s = servs.find(x => x.id === v.servico_id) || servs.find(x => x.nome === v.item);
-    return { id: 'v:' + v.id, nome: String(v.item || '').split(' (')[0], sub: `Pacote comprado em ${_dataBr(v.data)} · ${v.sessoes || 1} sessões`, acomp: acompDoServico(s || { nome: v.item }) };
+    return { id: 'v:' + v.id, nome: String(v.item || '').split(' (')[0], sub: `Pacote comprado em ${_dataBr(v.data)} · ${v.sessoes || 1} sessões`, acomp: acompDoServico(s || { nome: v.item }), ficha: fichaDoServico(s || { nome: v.item }, ctx.profissao) };
   });
-  const avulsos = servs.filter(s => s.nome).map(s => ({ id: 's:' + s.id, nome: String(s.nome).split(' (')[0], sub: (s.sessoes || 1) > 1 ? `Pacote de ${s.sessoes} sessões` : 'Sessão', acomp: acompDoServico(s) }));
+  const avulsos = servs.filter(s => s.nome && !s.pacoteDe).map(s => ({ id: 's:' + s.id, nome: String(s.nome).split(' (')[0], sub: (s.sessoes || 1) > 1 ? `Pacote de ${s.sessoes} sessões` : 'Sessão', acomp: acompDoServico(s), ficha: fichaDoServico(s, ctx.profissao) }));
   const fundo = document.createElement('div'); fundo.className = 'fin-pick-ov';
   const op = o => `<button type="button" class="fin-pick-op" data-id="${_esc(o.id)}"><span class="fin-pick-txt"><b>${_icone(o.acomp)} ${_esc(o.nome)}</b><small>${_esc(o.sub)}${o.acomp.length ? ' · ' + o.acomp.map(a => PROTOCOLOS[a].nome).join(' + ') : ' · sem fotos'}</small></span></button>`;
   fundo.innerHTML = `<div class="fin-pick-folha" role="dialog" aria-label="Qual tratamento?">
@@ -161,16 +161,18 @@ function _escolherTratamento(c, ctx, escolheu) {
   fundo.addEventListener('click', e => { if (e.target === fundo) fundo.remove(); });
   fundo.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
     const o = pacotes.concat(avulsos).find(x => x.id === b.dataset.id); fundo.remove();
-    if (o) escolheu({ id: o.id, nome: o.nome, acomp: o.acomp });
+    if (o) escolheu({ id: o.id, nome: o.nome, acomp: o.acomp, ficha: o.ficha });
   });
 }
 
 // === BLOCO 3: TELA DA SESSÃO ===
 export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
-  const cs = sessaoDe(ctx.profissao);
   const trat = ctx.trat || sessao?.extra?.trat || null;
+  // formato da sessão = o da ficha do tratamento (terapêutica → massagem: dor ao pressionar; acne → pele: só fotos do rosto)
+  const cs = sessaoDe(trat?.ficha || ctx.profissao);
+  const csPerfil = sessaoDe(ctx.profissao);
   // sessões do MESMO tratamento (numeração, "última medida" e fantasma da foto)
-  const lista = _doCliente(c).filter(x => !cs.plano || _tratId(x) === (trat?.id || '_sem'));
+  const lista = _doCliente(c).filter(x => !csPerfil.plano || _tratId(x) === (trat?.id || '_sem'));
   const acomp = trat?.acomp || null;
   const poses = acomp ? posesDe(acomp) : (cs.fotos ? POSES : []);
   const medeCorpo = !acomp || acomp.includes('corpo');
@@ -185,7 +187,7 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   let vista = 'costas', aberta = null;
   if (!st.extra.fotos) st.extra.fotos = {};
   if (!Array.isArray(st.extra.areas)) st.extra.areas = [];
-  if (trat) st.extra.trat = { id: trat.id, nome: trat.nome, acomp: trat.acomp || [] };
+  if (trat) st.extra.trat = { id: trat.id, nome: trat.nome, acomp: trat.acomp || [], ...(trat.ficha ? { ficha: trat.ficha } : {}) };
   // Plano "1ª e a cada 5": nas outras sessões, medidas e fotos ficam fechadas (dá pra abrir se quiser).
   const foraDoPlano = cs.plano && _planoDe(ctx, c, trat?.id) === '1e5' && !_diaDeMedir(nSessao) && !_temMedida(st.medidas) && !_temFoto(st);
   const fotoNegada = ctx.fotos === 'Não';
@@ -217,7 +219,7 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
       ${foraDoPlano ? `<div class="fi-bloco" id="fs-fora"><div class="fi-secao-sub" style="margin-top:0">📏 O plano dessa cliente é medir e fotografar <b>na 1ª sessão e a cada 5</b> (5ª, 10ª, 15ª…). Essa é a sessão ${nSessao}.</div>
         <button class="fi-btn" id="fs-fora-abrir" type="button">Registrar medidas e fotos mesmo assim</button></div>` : ''}
 
-      <div class="fi-bloco" id="fs-bl-medidas"${foraDoPlano ? ' hidden' : ''}>
+      <div class="fi-bloco" id="fs-bl-medidas"${foraDoPlano || !cs.medidas ? ' hidden' : ''}>
         <button class="fs-med-tog" id="fs-med-tog" type="button">📏 ${cs.medidas === 'por_altura' ? 'Medidas' : 'Medidas antes e depois'} <span id="fs-med-seta">▾</span></button>
         <div id="fs-medidas" hidden></div>
       </div>

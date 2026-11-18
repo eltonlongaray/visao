@@ -15,7 +15,9 @@ import { MODELOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, MOMENTOS, ladoDa, baseDa,
 
 // === BLOCO 1: ESTADO ===
 const [SLUG, CODIGO] = location.pathname.replace(/^\/ficha\/?/, '').replace(/\/+$/, '').split('/').map(s => decodeURIComponent(s || '').trim());
-const CHAVE = `falcon_ficha_${SLUG}_${CODIGO || 'geral'}`;
+// ?m=estetica|massoterapia: qual ficha (a profissional pode ter mais de uma). Com código, vale a do convite.
+const M_LINK = (() => { const q = new URLSearchParams(location.search); return q.get('m') || q.get('p') || ''; })();
+const CHAVE = `falcon_ficha_${SLUG}_${CODIGO || 'geral'}${!CODIGO && M_LINK ? '_' + M_LINK : ''}`;
 const DEMO = new URLSearchParams(location.search).has('demo');
 let INFO = null, MODELO = null, PRO = '', CLIENTE = '';
 let R = {}, marcas = {}, tela = -1, consentiu = false, enviando = false;
@@ -61,7 +63,7 @@ async function iniciar() {
     const { data, error } = await supabase.rpc('ficha_info', { p_slug: SLUG, p_codigo: CODIGO || null });
     if (error) throw new Error(error.message);
     INFO = data || {};
-    MODELO = MODELOS[INFO.profissao];
+    MODELO = (!CODIGO && MODELOS[M_LINK]) || MODELOS[INFO.modelo] || MODELOS[INFO.profissao];
     if (!MODELO) throw new Error('modelo');
   } catch {
     if (DEMO) INFO = { nome: '', profissao: new URLSearchParams(location.search).get('p') || 'massoterapia' };
@@ -286,11 +288,14 @@ async function enviar() {
   const b = $('b-seguir'); b.disabled = true; b.textContent = 'Enviando…';
   $('erro-envio').textContent = '';
   try {
-    const { data, error } = await supabase.rpc('ficha_enviar', {
+    const args = {
       p_slug: SLUG, p_codigo: CODIGO || null,
       p_nome: (R.nome || CLIENTE || '').trim(), p_contato: (R.whatsapp || '').trim(),
       p_respostas: respostasLimpas(), p_mapa: mapaLimpo(),
-    });
+    };
+    // p_modelo só existe depois do sql/ficha-modelos.sql: sem ele, manda como antes
+    let { data, error } = await supabase.rpc('ficha_enviar', { ...args, p_modelo: MODELO.profissao });
+    if (error && /p_modelo|function|schema cache/i.test(error.message || '')) ({ data, error } = await supabase.rpc('ficha_enviar', args));
     if (error) throw new Error(error.message);
     avisarDonoPush(data?.owner_id, '📋 Ficha recebida!', `${(R.nome || CLIENTE || 'Um cliente').trim()} respondeu a ficha de atendimento`, `visao-${new Date().toISOString().slice(0, 10)}-ficha-${Date.now()}`);
     tela++; desenharTela();

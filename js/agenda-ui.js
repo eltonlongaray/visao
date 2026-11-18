@@ -12,7 +12,7 @@ import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
 import { abrirCupons, gerarCupomCliente } from './cupons-ui.js';
-import { PROTOCOLOS, ACOMPS, acompDoServico } from './fotos-guiadas.js';
+import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
@@ -267,7 +267,7 @@ export async function montarAgendaInline(container, { dataISO } = {}) {
       const novoId = await salvarAgendamentoManual(patch);
       marcarAgendamentoVisto(novoId);   // o dono criou → não é "novo" pra ele
       await sincronizarCompromissos().catch(() => {});
-      oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
+      oferecerFichaAposAgendar(_cfg, { nome, contato: zap, servico: serv?.nome });   // cliente sem ficha? pergunta se manda
       return patch;
     },
   };
@@ -652,6 +652,7 @@ function _syncServicos() {
     s._custo = cu === '' ? 0 : (Number(cu) || 0);
     s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
     const ac = row.querySelectorAll('.ag-acomp'); if (ac.length) s.acomp = [...ac].filter(b => b.classList.contains('on')).map(b => b.dataset.acomp);
+    const fi = row.querySelector('.ag-ficha.on'); if (fi) s.ficha = fi.dataset.ficha;
     // 📦 Pacote dentro do serviço: vira um item escondido (pacoteDe = id do serviço) que a
     // agenda pública mostra como opção do serviço. O id fica o mesmo (vendas e agendamentos apontam pra ele).
     const pacOn = row.querySelector('.ag-pac-on')?.classList.contains('on');
@@ -694,6 +695,10 @@ function pintarServicos() {
         <span class="ag-serv-lb">📸 Fotos</span>
         ${ACOMPS.map(a => `<button type="button" class="ag-acomp ${acompDoServico(s).includes(a) ? 'on' : ''}" data-acomp="${a}">${PROTOCOLOS[a].icone} ${PROTOCOLOS[a].nome}</button>`).join('')}
       </div>
+      ${_cfg.ficha_cfg?.profissao === 'estetica' ? `<div class="ag-serv-acomp ag-serv-ficha" title="Qual ficha a cliente responde quando faz esse serviço">
+        <span class="ag-serv-lb">📋 Ficha</span>
+        ${Object.entries(FICHAS_NOMES).map(([k, l]) => `<button type="button" class="ag-ficha ${fichaDoServico(s, 'estetica') === k ? 'on' : ''}" data-ficha="${k}">${l}</button>`).join('')}
+      </div>` : ''}
       <div class="ag-pac">
         <button type="button" class="ag-pac-on ${pc ? 'on' : ''}" aria-pressed="${!!pc}">📦 Tem pacote</button>
         <span class="ag-pac-campos"${pc ? '' : ' hidden'}>
@@ -704,6 +709,7 @@ function pintarServicos() {
       </div>
     </div>`; }).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
   box.querySelectorAll('.ag-acomp').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  box.querySelectorAll('.ag-ficha').forEach(b => b.onclick = () => { b.parentElement.querySelectorAll('.ag-ficha').forEach(x => x.classList.toggle('on', x === b)); });
   box.querySelectorAll('.ag-pac-on').forEach(b => b.onclick = () => {
     const on = !b.classList.contains('on'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
     b.parentElement.querySelector('.ag-pac-campos').hidden = !on;
@@ -1008,7 +1014,7 @@ async function _formAgendamento(ag, opts = {}) {
       close();
       if (opts.onSaved) { try { await opts.onSaved(); } catch {} } else { desenhar(); }
       showToast(st.id ? '✅ Agendamento atualizado' : '✅ Agendamento adicionado', 'success');
-      if (!st.id) oferecerFichaAposAgendar(_cfg, { nome, contato: zap });   // cliente sem ficha? pergunta se manda
+      if (!st.id) oferecerFichaAposAgendar(_cfg, { nome, contato: zap, servico: serv?.nome });   // cliente sem ficha? pergunta se manda
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
       if (btn.isConnected) { btn.disabled = false; btn.textContent = st.id ? 'Salvar' : 'Adicionar'; }
@@ -1029,7 +1035,7 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}), ...(s.ficha ? { ficha: s.ficha } : {}) }));
   // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
   const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO

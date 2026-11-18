@@ -9199,3 +9199,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-pac-mk { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; }
 .ap-pac-op.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
 .ap-pac-op.on .ap-pac-mk { border-color: var(--accent-2); background: var(--accent-2); box-shadow: inset 0 0 0 3px var(--card); }
+
+/* ficha por serviço (agenda-ui) e várias fichas no perfil (ficha-ui) */
+.ag-ficha { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ag-ficha.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.fi-perfil-mod + .fi-perfil-mod { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.fi-perfil-mod-tit { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 6px; }

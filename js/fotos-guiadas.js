@@ -63,6 +63,15 @@ export function sugerirAcomp(nome) {
 }
 // Acompanhamento do serviço: o que a profissional marcou; se nunca mexeu, a sugestão.
 export const acompDoServico = s => Array.isArray(s?.acomp) ? s.acomp : sugerirAcomp(s?.nome);
+// Qual FICHA o serviço usa. Quem atende só massagem (profissão massoterapia) usa sempre a de massoterapia.
+// Estética: serviço com fotos/medidas (tratamento com acompanhamento) → ficha de estética; massagem → massoterapia.
+export function fichaDoServico(s, padrao) {
+  if (s?.ficha) return s.ficha;
+  if (padrao !== 'estetica') return padrao || 'massoterapia';
+  if (/acne|espinha|oleosidade|acneica/.test(_n(s?.nome))) return 'pele';
+  return acompDoServico(s).length ? 'estetica' : 'massoterapia';
+}
+export const FICHAS_NOMES = { estetica: '✨ Estética', massoterapia: '💆 Massagem', pele: '🌸 Pele e acne' };
 
 // === BLOCO 3: CONFERIR FOTO (galeria ou câmera) ===
 // Heurísticas no próprio aparelho. Não bloqueia: devolve avisos com a orientação certa.
