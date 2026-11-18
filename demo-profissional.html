@@ -8,7 +8,7 @@
 <title>Demonstração · Ficha e Sessões</title>
 <base href="/">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="css/styles.css?v=20261118j">
+<link rel="stylesheet" href="css/styles.css?v=20261118k">
 <style>
   /* === BLOCO 1: PÁGINA DE DEMONSTRAÇÃO (lado da profissional, dados de exemplo) === */
   html, body { margin: 0; background-color: #0a0e1a; }
@@ -62,7 +62,10 @@ demoSessoes([
 
 // ?p=estetica → demonstração da ficha de Estética corporal (plano de medidas, alturas, fotos, antes × depois)
 if (new URLSearchParams(location.search).get('p') === 'estetica') {
-  cfg.ficha_cfg = { profissao: 'estetica', planos: { '5184551613': '1e5' } };
+  cfg.titulo = 'Alexandra · Espaço Viver';
+  cfg.servicos = [{ id: 'sd', nome: 'Deusa Grega – Modela / Reduz Medida', preco: 197 }, { id: 'sl', nome: 'Limpeza de pele', preco: 200 }, { id: 'sr', nome: 'Massagem relaxante', preco: 150 }];
+  cfg.ficha_cfg = { profissao: 'estetica', planos: { '5184551613|s:sd': '1e5' } };
+  const TRAT = { id: 's:sd', nome: 'Deusa Grega', acomp: ['celulite', 'corpo'] };
   demoFichas([{ id: 'f2', codigo: 'demo', modelo: 'estetica', ...contato, respondida_em: dias(30) + 'T12:00:00Z',
     respostas: { nascimento: '1988-03-02', conheceu: 'Instagram', tratar: ['Celulite', 'Gordura localizada'], prioridade: ['Culote', 'Flancos (pneuzinhos)', 'Abdômen'],
       ja_estetica: 'Não', peso_atual: '68 kg', peso_ideal: '62 kg', peso_quando: '1 a 3 anos', agua: 'Até 1 litro', intestino: '3 vezes ou mais na semana',
@@ -72,12 +75,12 @@ if (new URLSearchParams(location.search).get('p') === 'estetica') {
   const med = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { antes: v }]));
   demoSessoes([
     { id: 'e1', ...contato, data: dias(28), created_at: dias(28) + 'T12:00:00Z', observacoes: 'Avaliação. Culote e flancos com bastante retenção.',
-      medidas: med({ peso: 68, abdomen_1: 84, abdomen_2: 88, abdomen_3: 92, perna_d_1: 60, perna_e_1: 60.5 }), extra: { fotos: f, areas: ['Culotes', 'Flancos'], tecnica: 'Modeladora + drenagem', levou: 'Xô Celulite 30 ml' } },
-    { id: 'e2', ...contato, data: dias(21), created_at: dias(21) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Flancos'] } },
-    { id: 'e3', ...contato, data: dias(14), created_at: dias(14) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Abdômen inferior'] } },
-    { id: 'e4', ...contato, data: dias(7), created_at: dias(7) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Flancos'] } },
+      medidas: med({ peso: 68, abdomen_1: 84, abdomen_2: 88, abdomen_3: 92, perna_d_1: 60, perna_e_1: 60.5 }), extra: { trat: TRAT, fotos: { tronco_frente: f.frente, gluteo_lado: f.lado_d }, areas: ['Culotes', 'Flancos'], tecnica: 'Modeladora + drenagem', levou: 'Xô Celulite 30 ml' } },
+    { id: 'e2', ...contato, data: dias(21), created_at: dias(21) + 'T12:00:00Z', medidas: {}, extra: { trat: TRAT, areas: ['Culotes', 'Flancos'] } },
+    { id: 'e3', ...contato, data: dias(14), created_at: dias(14) + 'T12:00:00Z', medidas: {}, extra: { trat: TRAT, areas: ['Culotes', 'Abdômen inferior'] } },
+    { id: 'e4', ...contato, data: dias(7), created_at: dias(7) + 'T12:00:00Z', medidas: {}, extra: { trat: TRAT, areas: ['Culotes', 'Flancos'] } },
     { id: 'e5', ...contato, data: dias(0), created_at: dias(0) + 'T12:00:00Z', observacoes: 'Fechamento do pacote.',
-      medidas: med({ peso: 66.5, abdomen_1: 81, abdomen_2: 85.5, abdomen_3: 89, perna_d_1: 58, perna_e_1: 58.5 }), extra: { fotos: { frente: 'img/corpo/mulher-lado.png', lado_d: 'img/corpo/mulher-frente.png' }, areas: ['Culotes'] } },
+      medidas: med({ peso: 66.5, abdomen_1: 81, abdomen_2: 85.5, abdomen_3: 89, perna_d_1: 58, perna_e_1: 58.5 }), extra: { trat: TRAT, fotos: { tronco_frente: 'img/corpo/mulher-lado.png', gluteo_lado: 'img/corpo/mulher-frente.png' }, areas: ['Culotes'] } },
   ]);
 }
 

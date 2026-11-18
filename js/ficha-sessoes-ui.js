@@ -5,12 +5,17 @@
 //     aperta o ponto e marca o que o cliente diz), medidas antes/depois, observações
 //   Estética (18/11): plano de medidas por cliente (todas × 1ª e 5ª), medidas por
 //     altura, 4 fotos, áreas tratadas, técnica/blend e o "Antes × depois" (abrirComparativo)
+//   Tratamentos (18/11): cada venda/serviço vira um TRATAMENTO com as suas sessões,
+//     o seu plano de medidas, as suas fotos (protocolo do serviço: rosto, celulite,
+//     corpo) e o seu antes × depois montado sozinho (fotos-guiadas.js)
 // Cada região mostra o valor da sessão anterior pra comparar na hora.
 // Dados: ficha.js (ficha_sessoes) · Regiões/medidas: ficha-modelo.js
 // ─────────────────────────────────────────────────────────────
 import { getSessoes, salvarSessao, excluirSessao } from './ficha.js';
 import { FRENTE, COSTAS, MEDIDAS, MEDIDAS_ALTURA, AREAS_TRATADAS, POSES, sessaoDe, nomeDa, ladoDa, baseDa, mesmoNumero } from './ficha-modelo.js';
 import { subirFotoCorpo, assinarFotos } from './corpo.js';
+import { PROTOCOLOS, posesDe, nomePose, acompDoServico, conferirFoto, abrirCameraGuiada, montarAntesDepois, baixarArquivo, compartilharArquivos } from './fotos-guiadas.js';
+import { vendasDoCliente } from './financeiro-ui.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
@@ -55,42 +60,77 @@ const _chaveCli = c => {
   if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
   return d.length >= 10 ? d.slice(0, 2) + d.slice(-8) : 'n:' + (c.nome || '').trim().toLowerCase();
 };
-const _planoDe = (ctx, c) => ctx?.cfg?.ficha_cfg?.planos?.[_chaveCli(c)] || 'todas';
+const _planoKey = (c, tratId) => (tratId && tratId !== '_sem' ? `${_chaveCli(c)}|${tratId}` : _chaveCli(c));
+const _planoDe = (ctx, c, tratId) => { const pl = ctx?.cfg?.ficha_cfg?.planos || {}; return pl[_planoKey(c, tratId)] || pl[_chaveCli(c)] || 'todas'; };
+// Tratamento = uma venda de pacote ou um serviço avulso. Sessões antigas (sem tratamento) ficam em "_sem".
+const _tratId = s => s?.extra?.trat?.id || '_sem';
+function _grupos(lista) {
+  const m = new Map();
+  for (const s of lista) {
+    const id = _tratId(s);
+    if (!m.has(id)) m.set(id, { trat: s.extra?.trat || { id: '_sem', nome: 'Sessões', acomp: null }, sessoes: [] });
+    m.get(id).sessoes.push(s);
+  }
+  return [...m.values()].sort((a, b) => (a.sessoes.at(-1).data < b.sessoes.at(-1).data ? 1 : -1));
+}
+const _icone = acomp => (acomp || []).map(a => PROTOCOLOS[a]?.icone).filter(Boolean).join('') || '🩺';
+const _resumoSess = s => {
+  const pal = Object.values(s.palpacao || {}).filter(v => typeof v === 'number');
+  const med = Object.keys(s.medidas || {}).length;
+  const fts = Object.values(s.extra?.fotos || {}).filter(Boolean).length, ars = (s.extra?.areas || []).length;
+  return [pal.length ? `${pal.length} ponto${pal.length > 1 ? 's' : ''} · maior dor ${Math.max(...pal)}` : '', med ? `${med} medida${med > 1 ? 's' : ''}` : '',
+    fts ? `${fts} foto${fts > 1 ? 's' : ''}` : '', ars ? `${ars} área${ars > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+};
 const _temMedida = o => Object.values(o || {}).some(v => v && (v.antes != null || v.depois != null));
 const _temFoto = s => Object.values(s?.extra?.fotos || {}).some(Boolean);
 
 export function sessoesPerfilHtml(c, ctx = {}) {
   const lista = _doCliente(c);
   const cs = sessaoDe(ctx.profissao);
-  const plano = _planoDe(ctx, c);
-  const comp = lista.filter(s => _temMedida(s.medidas) || _temFoto(s)).length;
+  if (!cs.plano) {   // massoterapia: lista simples, como sempre
+    return `<div class="fi-sess">
+      <div class="fi-sess-tit">🩺 Sessões${lista.length ? ` <small>${lista.length}</small>` : ''}</div>
+      ${_erroSql ? '<div class="fi-aviso">Falta rodar o SQL das sessões (sql/ficha-sessoes.sql).</div>' : ''}
+      <button class="fi-btn" id="fi-sess-nova" type="button">➕ Registrar sessão de hoje</button>
+      ${lista.slice().reverse().map(s => { const r = _resumoSess(s); return `<button class="fi-fase" data-fi-sess="${_esc(s.id)}" type="button">Sessão ${lista.indexOf(s) + 1} · ${_dataBr(s.data)}${r ? `<br><small>${r}</small>` : ''}</button>`; }).join('')}
+    </div>`;
+  }
+  const grupos = _grupos(lista);
   return `<div class="fi-sess">
-    <div class="fi-sess-tit">🩺 Sessões${lista.length ? ` <small>${lista.length}</small>` : ''}</div>
+    <div class="fi-sess-tit">🩺 Tratamentos${grupos.length ? ` <small>${grupos.length}</small>` : ''}</div>
     ${_erroSql ? '<div class="fi-aviso">Falta rodar o SQL das sessões (sql/ficha-sessoes.sql).</div>' : ''}
-    ${cs.plano ? `<div class="fs-plano"><div class="fs-plano-tit">📏 Medidas e fotos</div>
-      <div class="fs-abas"><button type="button" data-fs-plano="todas" class="${plano === 'todas' ? 'on' : ''}">Todas as sessões</button><button type="button" data-fs-plano="1e5" class="${plano === '1e5' ? 'on' : ''}">Na 1ª e a cada 5</button></div></div>` : ''}
-    ${cs.fotos && comp >= 2 ? '<button class="fi-btn" id="fi-sess-comp" type="button">🖼️ Antes × depois</button>' : ''}
-    <button class="fi-btn" id="fi-sess-nova" type="button">➕ Registrar sessão de hoje</button>
-    ${lista.slice().reverse().map(s => {
-      const pal = Object.values(s.palpacao || {}).filter(v => typeof v === 'number');
-      const med = Object.keys(s.medidas || {}).length;
-      const fts = Object.values(s.extra?.fotos || {}).filter(Boolean).length, ars = (s.extra?.areas || []).length;
-      const resumo = [pal.length ? `${pal.length} ponto${pal.length > 1 ? 's' : ''} · maior dor ${Math.max(...pal)}` : '', med ? `${med} medida${med > 1 ? 's' : ''}` : '',
-        fts ? `${fts} foto${fts > 1 ? 's' : ''}` : '', ars ? `${ars} área${ars > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
-      return `<button class="fi-fase" data-fi-sess="${_esc(s.id)}" type="button">Sessão ${lista.indexOf(s) + 1} · ${_dataBr(s.data)}${resumo ? `<br><small>${resumo}</small>` : ''}</button>`;
+    ${grupos.map(g => {
+      const t = g.trat, plano = _planoDe(ctx, c, t.id), medeCorpo = (t.acomp || []).includes('corpo') || !t.acomp;
+      const comp = g.sessoes.filter(s => _temMedida(s.medidas) || _temFoto(s)).length;
+      return `<div class="fs-trat" data-trat="${_esc(t.id)}">
+        <div class="fs-trat-tit">${_icone(t.acomp)} ${_esc(t.nome)}</div>
+        <div class="fs-trat-sub">${g.sessoes.length} ${g.sessoes.length > 1 ? 'sessões' : 'sessão'} · última ${_dataBr(g.sessoes.at(-1).data)}</div>
+        ${medeCorpo || (t.acomp || []).length ? `<div class="fs-abas fs-abas-plano"><button type="button" data-fs-plano="todas" class="${plano === 'todas' ? 'on' : ''}">Medir e fotografar sempre</button><button type="button" data-fs-plano="1e5" class="${plano === '1e5' ? 'on' : ''}">1ª e a cada 5</button></div>` : ''}
+        <div class="fs-trat-btns">
+          <button class="fi-btn" data-trat-nova type="button">➕ Sessão de hoje</button>
+          ${comp >= 2 ? '<button class="fi-btn" data-trat-comp type="button">🖼️ Antes × depois</button>' : ''}
+        </div>
+        ${g.sessoes.slice().reverse().map(s => { const r = _resumoSess(s); return `<button class="fi-fase" data-fi-sess="${_esc(s.id)}" type="button">Sessão ${g.sessoes.indexOf(s) + 1} · ${_dataBr(s.data)}${r ? `<br><small>${r}</small>` : ''}</button>`; }).join('')}
+      </div>`;
     }).join('')}
+    <button class="fi-btn fs-trat-novo" id="fi-trat-novo" type="button">➕ Começar um tratamento</button>
   </div>`;
 }
 
 export function wireSessoesPerfil(ov, c, atualizar, ctx = {}) {
+  const grupos = _grupos(_doCliente(c));
+  const trat = el => grupos.find(g => g.trat.id === el.closest('[data-trat]')?.dataset.trat)?.trat || null;
   ov.querySelector('#fi-sess-nova')?.addEventListener('click', () => abrirSessao(c, null, atualizar, ctx));
+  ov.querySelector('#fi-trat-novo')?.addEventListener('click', () => _escolherTratamento(c, ctx, t => abrirSessao(c, null, atualizar, { ...ctx, trat: t })));
+  ov.querySelectorAll('[data-trat-nova]').forEach(b => b.addEventListener('click', () => abrirSessao(c, null, atualizar, { ...ctx, trat: trat(b) })));
+  ov.querySelectorAll('[data-trat-comp]').forEach(b => b.addEventListener('click', () => abrirComparativo(c, { ...ctx, trat: trat(b) })));
   ov.querySelectorAll('[data-fi-sess]').forEach(b => b.addEventListener('click', () => {
-    const s = _sessoes.find(x => x.id === b.dataset.fiSess); if (s) abrirSessao(c, s, atualizar, ctx);
+    const s = _sessoes.find(x => x.id === b.dataset.fiSess); if (s) abrirSessao(c, s, atualizar, { ...ctx, trat: s.extra?.trat || null });
   }));
-  ov.querySelector('#fi-sess-comp')?.addEventListener('click', () => abrirComparativo(c));
   ov.querySelectorAll('[data-fs-plano]').forEach(b => b.addEventListener('click', async () => {
+    const t = trat(b);
     const fc = { ...(ctx.cfg?.ficha_cfg || {}) };
-    fc.planos = { ...(fc.planos || {}), [_chaveCli(c)]: b.dataset.fsPlano };
+    fc.planos = { ...(fc.planos || {}), [_planoKey(c, t?.id)]: b.dataset.fsPlano };
     try {
       if (!_demo) await ctx.salvarCfg?.(fc); else if (ctx.cfg) ctx.cfg.ficha_cfg = fc;
       atualizar?.();
@@ -99,10 +139,41 @@ export function wireSessoesPerfil(ov, c, atualizar, ctx = {}) {
   }));
 }
 
+// Escolher o tratamento: pacotes que a cliente comprou + os serviços da agenda.
+function _escolherTratamento(c, ctx, escolheu) {
+  const servs = ctx.cfg?.servicos || [];
+  const jaTem = new Set(_grupos(_doCliente(c)).map(g => g.trat.id));
+  let vendas = []; try { vendas = vendasDoCliente(c) || []; } catch { vendas = []; }
+  const pacotes = vendas.filter(v => v.tipo === 'pacote' && !jaTem.has('v:' + v.id)).map(v => {
+    const s = servs.find(x => x.id === v.servico_id) || servs.find(x => x.nome === v.item);
+    return { id: 'v:' + v.id, nome: String(v.item || '').split(' (')[0], sub: `Pacote comprado em ${_dataBr(v.data)} · ${v.sessoes || 1} sessões`, acomp: acompDoServico(s || { nome: v.item }) };
+  });
+  const avulsos = servs.filter(s => s.nome).map(s => ({ id: 's:' + s.id, nome: String(s.nome).split(' (')[0], sub: (s.sessoes || 1) > 1 ? `Pacote de ${s.sessoes} sessões` : 'Sessão', acomp: acompDoServico(s) }));
+  const fundo = document.createElement('div'); fundo.className = 'fin-pick-ov';
+  const op = o => `<button type="button" class="fin-pick-op" data-id="${_esc(o.id)}"><span class="fin-pick-txt"><b>${_icone(o.acomp)} ${_esc(o.nome)}</b><small>${_esc(o.sub)}${o.acomp.length ? ' · ' + o.acomp.map(a => PROTOCOLOS[a].nome).join(' + ') : ' · sem fotos'}</small></span></button>`;
+  fundo.innerHTML = `<div class="fin-pick-folha" role="dialog" aria-label="Qual tratamento?">
+    <div class="fin-pick-tit">Qual tratamento?</div>
+    <div class="fin-pick-lista">
+      ${pacotes.length ? `<div class="fin-pick-grupo">Pacotes que ${_esc((c.nome || 'ela').split(' ')[0])} comprou</div>${pacotes.map(op).join('')}` : ''}
+      <div class="fin-pick-grupo">Serviços</div>${avulsos.map(op).join('') || '<div class="fi-vazio">Cadastre os serviços na Agenda.</div>'}
+    </div></div>`;
+  document.body.appendChild(fundo);
+  fundo.addEventListener('click', e => { if (e.target === fundo) fundo.remove(); });
+  fundo.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+    const o = pacotes.concat(avulsos).find(x => x.id === b.dataset.id); fundo.remove();
+    if (o) escolheu({ id: o.id, nome: o.nome, acomp: o.acomp });
+  });
+}
+
 // === BLOCO 3: TELA DA SESSÃO ===
 export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
-  const lista = _doCliente(c);
   const cs = sessaoDe(ctx.profissao);
+  const trat = ctx.trat || sessao?.extra?.trat || null;
+  // sessões do MESMO tratamento (numeração, "última medida" e fantasma da foto)
+  const lista = _doCliente(c).filter(x => !cs.plano || _tratId(x) === (trat?.id || '_sem'));
+  const acomp = trat?.acomp || null;
+  const poses = acomp ? posesDe(acomp) : (cs.fotos ? POSES : []);
+  const medeCorpo = !acomp || acomp.includes('corpo');
   const st = {
     extra: JSON.parse(JSON.stringify(sessao?.extra || {})),
     id: sessao?.id || null, data: sessao?.data || _hoje(),
@@ -114,8 +185,9 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   let vista = 'costas', aberta = null;
   if (!st.extra.fotos) st.extra.fotos = {};
   if (!Array.isArray(st.extra.areas)) st.extra.areas = [];
+  if (trat) st.extra.trat = { id: trat.id, nome: trat.nome, acomp: trat.acomp || [] };
   // Plano "1ª e a cada 5": nas outras sessões, medidas e fotos ficam fechadas (dá pra abrir se quiser).
-  const foraDoPlano = cs.plano && _planoDe(ctx, c) === '1e5' && !_diaDeMedir(nSessao) && !_temMedida(st.medidas) && !_temFoto(st);
+  const foraDoPlano = cs.plano && _planoDe(ctx, c, trat?.id) === '1e5' && !_diaDeMedir(nSessao) && !_temMedida(st.medidas) && !_temFoto(st);
   const fotoNegada = ctx.fotos === 'Não';
   // Dor ao pressionar: abre sozinha só se a ficha mostra dor (ou a sessão já tem pontos marcados).
   let palpAberta = cs.palpacao && (ctx.temDor !== false || Object.keys(st.palpacao).length > 0);
@@ -125,7 +197,7 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo">
     <div class="ag-header">
       <button class="fr-voltar" id="fs-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
-      <div class="ag-title">🩺 Sessão ${nSessao} · ${_esc((c.nome || '').split(' ')[0])}</div>
+      <div class="ag-title">🩺 Sessão ${nSessao}${trat ? ` · ${_esc(trat.nome)}` : ''} · ${_esc((c.nome || '').split(' ')[0])}</div>
     </div>
     <div class="ag-scroll">
       <label class="input-field"><div class="input-field-label">Data da sessão</div>
@@ -150,16 +222,18 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
         <div id="fs-medidas" hidden></div>
       </div>
 
-      ${cs.fotos ? `<div class="fi-bloco" id="fs-bl-fotos"${foraDoPlano ? ' hidden' : ''}>
-        <div class="fi-bloco-tit">📸 Fotos</div>
+      ${poses.length ? `<div class="fi-bloco" id="fs-bl-fotos"${foraDoPlano ? ' hidden' : ''}>
+        <div class="fi-bloco-tit">📸 Fotos <small>${poses.length}</small></div>
+        ${(acomp || []).map(a => `<div class="fs-instr">${PROTOCOLOS[a].icone} <b>${PROTOCOLOS[a].nome}:</b> ${PROTOCOLOS[a].instr}</div>`).join('')}
         ${fotoNegada ? '<div class="fi-aviso">⚠️ Na ficha, a cliente <b>não autorizou</b> fotos.</div>'
           : ctx.insta === 'Sim, pode usar sem o rosto' ? '<div class="fi-secao-sub" style="margin-top:0">✅ Autorizou fotos e uso no Instagram sem o rosto.</div>'
           : ctx.fotos ? '<div class="fi-secao-sub" style="margin-top:0">Autorizou fotos só pro acompanhamento (não pro Instagram).</div>' : ''}
         <div class="fs-fotos" id="fs-fotos"></div>
+        <button class="fi-btn" id="fs-foto-guiada" type="button">📷 Tirar as fotos com o guia</button>
         <input type="file" id="fs-foto-in" accept="image/*" hidden>
       </div>` : ''}
 
-      ${cs.areas ? `<div class="fi-bloco">
+      ${cs.areas && (!acomp || acomp.includes('corpo') || acomp.includes('celulite')) ? `<div class="fi-bloco">
         <div class="fi-bloco-tit">🎯 Áreas tratadas hoje</div>
         <div id="fs-areas"></div>
       </div>` : ''}
@@ -354,37 +428,79 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
     $('#fs-med-seta').textContent = box.hidden ? '▾' : '▴';
   };
   desenharMedidas();
-  if (temMedida(st.medidas) || temMedida(ant?.medidas) || cs.medidas === 'por_altura') { $('#fs-medidas').hidden = false; $('#fs-med-seta').textContent = '▴'; }
+  if (temMedida(st.medidas) || (medeCorpo && (temMedida(ant?.medidas) || cs.medidas === 'por_altura'))) { $('#fs-medidas').hidden = false; $('#fs-med-seta').textContent = '▴'; }
   $('#fs-fora-abrir')?.addEventListener('click', () => {
     $('#fs-fora').hidden = true; $('#fs-bl-medidas').hidden = false; if ($('#fs-bl-fotos')) $('#fs-bl-fotos').hidden = false;
   });
 
-  // --- fotos (4 poses; câmera ou galeria) ---
+  // --- fotos (protocolo do tratamento: câmera guiada em sequência ou galeria conferida) ---
   const previas = {};   // caminho → link assinado / blob local
-  let poseAlvo = null;
+  // Foto do ANTES de cada pose (1ª sessão do tratamento que tem essa pose) → fantasma na câmera
+  const antesDe = k => lista.find(x => x.id !== st.id && x.extra?.fotos?.[k])?.extra.fotos[k] || null;
   function desenharFotos() {
     const box = $('#fs-fotos'); if (!box) return;
-    box.innerHTML = POSES.map(p => {
+    box.innerHTML = poses.map(p => {
       const cam = st.extra.fotos[p.k], src = cam && previas[cam];
       return `<button type="button" class="fs-foto" data-pose="${p.k}">${src ? `<img src="${_esc(src)}" alt="${_esc(p.nome)}">` : `<span class="fs-foto-mais">${cam ? '⏳' : '＋'}</span>`}<span class="fs-foto-lbl">${_esc(p.nome)}</span></button>`;
     }).join('');
-    box.querySelectorAll('[data-pose]').forEach(b => b.onclick = () => { poseAlvo = b.dataset.pose; $('#fs-foto-in').value = ''; $('#fs-foto-in').click(); });
+    box.querySelectorAll('[data-pose]').forEach(b => b.onclick = () => _escolherOrigem(poses.find(p => p.k === b.dataset.pose)));
   }
-  if (cs.fotos) {
+  async function guardar(pose, blob) {
+    const alvo = ov.querySelector(`[data-pose="${pose.k}"]`);
+    if (alvo) alvo.innerHTML = `<span class="fs-foto-mais">⏳</span><span class="fs-foto-lbl">Enviando…</span>`;
+    try {
+      const cam = _demo ? URL.createObjectURL(blob) : await subirFotoCorpo(blob, 'ficha-' + pose.k);
+      previas[cam] = URL.createObjectURL(blob);
+      st.extra.fotos[pose.k] = cam;
+    } catch (err) { showToast('Não deu pra enviar a foto: ' + err.message, 'error'); }
+    desenharFotos();
+  }
+  const instrDe = pose => { const a = (acomp || []).find(x => PROTOCOLOS[x].poses.some(p => p.k === pose.k)); return a ? PROTOCOLOS[a].instr : ''; };
+  // Câmera guiada: a partir da pose escolhida, segue pras que faltam (só aprova e vai pra próxima).
+  async function sequencia(desde) {
+    const ordem = desde ? [desde, ...poses.filter(p => p.k !== desde.k && !st.extra.fotos[p.k])] : poses.filter(p => !st.extra.fotos[p.k]);
+    for (const [i, pose] of ordem.entries()) {
+      const ant = antesDe(pose.k);
+      const blob = await abrirCameraGuiada(pose, { instr: instrDe(pose), fantasma: ant ? previas[ant] : null, passo: `Foto ${i + 1} de ${ordem.length}` });
+      if (!blob) break;
+      await guardar(pose, blob);
+    }
+  }
+  function _escolherOrigem(pose) {
+    if (!acomp) { poseGaleria = pose; $('#fs-foto-in').value = ''; $('#fs-foto-in').click(); return; }
+    const fundo = document.createElement('div'); fundo.className = 'fin-pick-ov';
+    fundo.innerHTML = `<div class="fin-pick-folha"><div class="fin-pick-tit">${_esc(pose.nome)}</div>
+      <button type="button" class="fin-pick-op" data-o="cam"><span class="fin-pick-txt"><b>📷 Câmera com guia</b><small>O app diz como posicionar e tira sozinho</small></span></button>
+      <button type="button" class="fin-pick-op" data-o="gal"><span class="fin-pick-txt"><b>🖼️ Da galeria</b><small>O app confere se a foto ficou boa</small></span></button></div>`;
+    document.body.appendChild(fundo);
+    fundo.addEventListener('click', e => {
+      if (e.target === fundo) return fundo.remove();
+      const o = e.target.closest('[data-o]')?.dataset.o; if (!o) return; fundo.remove();
+      if (o === 'cam') sequencia(pose);
+      else { poseGaleria = pose; $('#fs-foto-in').value = ''; $('#fs-foto-in').click(); }
+    });
+  }
+  let poseGaleria = null;
+  if (poses.length) {
+    $('#fs-foto-guiada')?.addEventListener('click', () => sequencia(null));
+    if (!acomp) $('#fs-foto-guiada')?.remove();
     $('#fs-foto-in').onchange = async e => {
-      const f = e.target.files?.[0], pose = poseAlvo; if (!f || !pose) return;
-      const alvo = ov.querySelector(`[data-pose="${pose}"]`);
-      if (alvo) alvo.innerHTML = `<span class="fs-foto-mais">⏳</span><span class="fs-foto-lbl">Enviando…</span>`;
-      try {
-        const blob = await _reduzir(f);
-        const cam = _demo ? URL.createObjectURL(blob) : await subirFotoCorpo(blob, 'ficha-' + pose);
-        previas[cam] = URL.createObjectURL(blob);
-        st.extra.fotos[pose] = cam;
-      } catch (err) { showToast('Não deu pra enviar a foto: ' + err.message, 'error'); }
-      desenharFotos();
+      const f = e.target.files?.[0], pose = poseGaleria; if (!f || !pose) return;
+      let blob; try { blob = await _reduzir(f, 2000); } catch (err) { showToast(err.message, 'error'); return; }
+      const ant = antesDe(pose.k);
+      const avisos = acomp ? await conferirFoto(blob, pose.k, ant ? previas[ant] : null) : [];
+      if (avisos.length) {
+        const ok = await _avisosFoto(pose, avisos);
+        if (ok === 'outra') { $('#fs-foto-in').value = ''; $('#fs-foto-in').click(); return; }
+        if (ok === 'camera') { sequencia(pose); return; }
+        if (!ok) return;
+      }
+      await guardar(pose, blob);
     };
     desenharFotos();
-    const cams = Object.values(st.extra.fotos).filter(Boolean);
+    const minhas = Object.values(st.extra.fotos).filter(Boolean);
+    const antigas = poses.map(p => antesDe(p.k)).filter(Boolean);
+    const cams = [...new Set(minhas.concat(antigas))];
     if (cams.length && !_demo) assinarFotos(cams).then(m => { m.forEach((u, k) => { previas[k] = u; }); desenharFotos(); }).catch(() => {});
     else { cams.forEach(k => { previas[k] = k; }); desenharFotos(); }
   }
@@ -439,13 +555,13 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   });
 }
 
-// === BLOCO 4: ANTES × DEPOIS (1º registro × o mais recente) ===
-export async function abrirComparativo(c) {
-  const lista = _doCliente(c).filter(s => _temMedida(s.medidas) || _temFoto(s));
+// === BLOCO 4: ANTES × DEPOIS DO TRATAMENTO (montado sozinho: 1ª foto × a mais recente de cada pose) ===
+export async function abrirComparativo(c, ctx = {}) {
+  const trat = ctx.trat || null;
+  const lista = _doCliente(c).filter(s => (!trat || _tratId(s) === trat.id) && (_temMedida(s.medidas) || _temFoto(s)));
   if (lista.length < 2) { showToast('Precisa de pelo menos 2 sessões com medidas ou fotos', 'info'); return; }
   const ini = lista[0], fim = lista[lista.length - 1];
   const val = (s, k) => { const m = s.medidas?.[k]; return m ? (m.depois ?? m.antes ?? null) : null; };
-  // primeira e última vez que cada medida apareceu (nem toda sessão mede tudo)
   const chaves = [...new Set(lista.flatMap(s => Object.keys(s.medidas || {})))];
   const nomeMed = k => (MEDIDAS_ALTURA.concat(MEDIDAS).find(m => m.k === k)?.nome) || lista.find(s => s.medidas?.[k]?.nome)?.medidas[k].nome || k.replace(/^x_/, '');
   let totalCm = 0;
@@ -455,35 +571,98 @@ export async function abrirComparativo(c) {
     if (k !== 'peso' && d < 0) totalCm += -d;
     return `<div class="fs-cmp-lin"><span>${_esc(nomeMed(k))}</span><span>${_fmt(a)}</span><span>${_fmt(b)}</span><span class="fs-dif ${d < 0 ? 'menos' : d > 0 ? 'mais' : ''}">${d === 0 ? '=' : (d < 0 ? '↓ ' : '↑ ') + _fmt(Math.abs(d))}</span></div>`;
   }).join('');
-  const fotoIni = p => lista.find(s => s.extra?.fotos?.[p])?.extra.fotos[p];
-  const fotoFim = p => lista.slice().reverse().find(s => s.extra?.fotos?.[p])?.extra.fotos[p];
-  const pares = POSES.map(p => ({ p, a: fotoIni(p.k), b: fotoFim(p.k) })).filter(x => x.a && x.b && x.a !== x.b);
+  // todas as poses que têm foto em mais de uma sessão
+  const ks = [...new Set(lista.flatMap(s => Object.keys(s.extra?.fotos || {})))];
+  const pares = ks.map(k => ({ k, nome: nomePose(k), a: lista.find(s => s.extra?.fotos?.[k])?.extra.fotos[k], b: lista.slice().reverse().find(s => s.extra?.fotos?.[k])?.extra.fotos[k] }))
+    .filter(x => x.a && x.b && x.a !== x.b);
+  const marca = (() => { const t = String(ctx.cfg?.titulo || ''); return (t.split(' · ')[1] || t).trim(); })();
+  const primeiro = (c.nome || '').split(' ')[0];
+  const temRosto = (trat?.acomp || []).includes('rosto');
+  const chaveAut = _planoKey(c, trat?.id || '_sem');
+  let autorizou = !!ctx.cfg?.ficha_cfg?.divulgar?.[chaveAut];
 
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'fs-cmp-ov';
   ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo">
     <div class="ag-header">
       <button class="fr-voltar" id="fs-cmp-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
-      <div class="ag-title">🖼️ Antes × depois · ${_esc((c.nome || '').split(' ')[0])}</div>
+      <div class="ag-title">🖼️ Antes × depois · ${_esc(primeiro)}</div>
     </div>
     <div class="ag-scroll">
-      <div class="fi-secao-sub" style="margin-top:0">${_dataBr(ini.data)} → ${_dataBr(fim.data)} · ${lista.length} registros</div>
+      <div class="fi-secao-sub" style="margin-top:0">${trat ? `<b>${_esc(trat.nome)}</b> · ` : ''}${_dataBr(ini.data)} → ${_dataBr(fim.data)} · ${lista.length} registros</div>
       ${totalCm > 0 ? `<div class="fs-cmp-total">↓ ${_fmt(totalCm)} cm a menos no total</div>` : ''}
-      ${pares.length ? `<div class="fi-bloco"><div class="fi-bloco-tit">📸 Fotos</div>${pares.map(x => `<div class="fs-med-grupo">${_esc(x.p.nome)}</div>
-        <div class="fs-cmp-fotos"><figure><img data-cam="${_esc(x.a)}" alt=""><figcaption>Antes</figcaption></figure><figure><img data-cam="${_esc(x.b)}" alt=""><figcaption>Agora</figcaption></figure></div>`).join('')}</div>` : ''}
+      ${pares.length ? `<div class="fi-bloco"><div class="fi-bloco-tit">📸 Fotos <small>${pares.length}</small></div>
+        <div class="fs-cmp-acoes">
+          <button class="fi-btn" id="fs-cmp-enviar" type="button">💬 Enviar pra ${_esc(primeiro)}</button>
+          <button class="fi-btn" id="fs-cmp-baixar" type="button">⬇️ Baixar todas</button>
+        </div>
+        <button type="button" class="fi-tipo ${autorizou ? 'on' : ''}" id="fs-cmp-aut"><span class="fi-chk"></span>📣 ${_esc(primeiro)} autorizou divulgar nas redes</button>
+        <div id="fs-cmp-montagens">${pares.map((x, i) => `<div class="fs-mont" data-i="${i}"><div class="fs-med-grupo">${_esc(x.nome)}</div><div class="fs-mont-img">Montando…</div>
+          <div class="fs-mont-btns"><button class="fi-btn" data-baixar="${i}" type="button">⬇️ Baixar</button><button class="fi-btn" data-comp="${i}" type="button">📤 Compartilhar</button></div></div>`).join('')}</div>
+      </div>` : ''}
       ${linhas ? `<div class="fi-bloco"><div class="fi-bloco-tit">📏 Medidas</div>
         <div class="fs-cmp-lin fs-cmp-cab"><span></span><span>Antes</span><span>Agora</span><span></span></div>${linhas}</div>` : ''}
     </div>
   </div></div>`;
   document.body.appendChild(ov);
   trapModalBack(() => ov.remove());
-  ov.querySelector('#fs-cmp-back').onclick = () => history.back();
-  const cams = [...ov.querySelectorAll('img[data-cam]')].map(i => i.dataset.cam);
-  const mapa = _demo ? new Map(cams.map(k => [k, k])) : await assinarFotos(cams).catch(() => new Map());
-  ov.querySelectorAll('img[data-cam]').forEach(i => { const u = mapa.get(i.dataset.cam); if (u) i.src = u; });
+  const $ = q => ov.querySelector(q);
+  $('#fs-cmp-back').onclick = () => history.back();
+  if (!pares.length) return;
+
+  const mapa = _demo ? new Map(pares.flatMap(x => [[x.a, x.a], [x.b, x.b]])) : await assinarFotos(pares.flatMap(x => [x.a, x.b])).catch(() => new Map());
+  const blobs = [];
+  for (const [i, x] of pares.entries()) {
+    const box = ov.querySelector(`.fs-mont[data-i="${i}"] .fs-mont-img`);
+    try {
+      blobs[i] = await montarAntesDepois(mapa.get(x.a), mapa.get(x.b), { marca, titulo: trat?.nome || '' });
+      box.innerHTML = `<img src="${URL.createObjectURL(blobs[i])}" alt="Antes e depois: ${_esc(x.nome)}">`;
+    } catch { box.textContent = 'Não consegui montar essa foto agora.'; }
+  }
+  const nomeArq = i => `antes-depois-${(primeiro || 'cliente').toLowerCase()}-${pares[i].k}.jpg`;
+  const prontos = () => blobs.map((b, i) => [b, nomeArq(i)]).filter(([b]) => b);
+  ov.querySelectorAll('[data-baixar]').forEach(b => b.onclick = () => { const i = +b.dataset.baixar; if (blobs[i]) baixarArquivo(blobs[i], nomeArq(i)); });
+  ov.querySelectorAll('[data-comp]').forEach(b => b.onclick = async () => {
+    const i = +b.dataset.comp; if (!blobs[i]) return;
+    if (!autorizou && !(await confirmModal({ title: `${primeiro} ainda não autorizou divulgar`, message: 'Se for postar nas redes, peça a autorização antes (botão "Enviar pra cliente").', confirmText: 'Compartilhar mesmo assim', cancelText: 'Voltar' }))) return;
+    compartilharArquivos([blobs[i]], [nomeArq(i)]);
+  });
+  $('#fs-cmp-baixar').onclick = () => prontos().forEach(([b, n]) => baixarArquivo(b, n));
+  // Primeiro a cliente recebe o resultado; na mesma mensagem, o pedido pra divulgar.
+  $('#fs-cmp-enviar').onclick = () => {
+    const txt = `Oi ${primeiro}! 💜 Olha a tua evolução${trat ? ` no ${trat.nome}` : ''}! Fiquei muito feliz com o resultado.\n\n`
+      + `Posso compartilhar esse antes e depois nas minhas redes${temRosto ? '' : ', sem mostrar teu rosto'}? Se puder, me responde "SIM" 🙏`;
+    const p = prontos(); compartilharArquivos(p.map(x => x[0]), p.map(x => x[1]), txt);
+  };
+  $('#fs-cmp-aut').onclick = async () => {
+    autorizou = !autorizou; $('#fs-cmp-aut').classList.toggle('on', autorizou);
+    const fc = { ...(ctx.cfg?.ficha_cfg || {}) }; fc.divulgar = { ...(fc.divulgar || {}), [chaveAut]: autorizou };
+    try { if (!_demo) await ctx.salvarCfg?.(fc); else if (ctx.cfg) ctx.cfg.ficha_cfg = fc; } catch (e) { showToast(e.message, 'error'); }
+  };
 }
 
-// Reduz a foto antes de subir (máx. 1280 px, JPEG 82%).
+// Foto da galeria com problema: mostra o que está errado e como tirar certo.
+function _avisosFoto(pose, avisos) {
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'fs-avisos-ov';
+    ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+      <div class="ag-fhead">⚠️ ${_esc(pose.nome)}: a foto pode atrapalhar o antes × depois</div>
+      <div class="fs-avisos">${avisos.map(a => `<div>${a}</div>`).join('')}</div>
+      <button class="fi-btn" data-r="camera" type="button">📷 Tirar com a câmera guiada</button>
+      <button class="fi-btn" data-r="outra" type="button">🖼️ Escolher outra da galeria</button>
+      <div class="ag-fbtns"><button class="btn-secondary" data-r="nao" type="button">Cancelar</button>
+        <button class="btn-primary" data-r="usar" type="button">Usar mesmo assim</button></div>
+    </div></div>`;
+    document.body.appendChild(ov);
+    const fechar = trapModalBack(() => ov.remove());
+    ov.addEventListener('click', e => {
+      const r = e.target.closest('[data-r]')?.dataset.r; if (!r) return;
+      fechar(); res(r === 'usar' ? true : r === 'nao' ? false : r);
+    });
+  });
+}
+
+// Reduz a foto antes de subir (padrão 1280 px; fotos de antes × depois vão com 2000 px).
 async function _reduzir(file, max = 1280) {
   let bmp;
   try { bmp = await createImageBitmap(file); } catch { throw new Error('foto inválida'); }

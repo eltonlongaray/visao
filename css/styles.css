@@ -9134,3 +9134,46 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ag-bloco .fi-secao-tit { display: none; }
 /* perfil do cliente: Triagem e Histórico com respiro */
 .ag-cli-hist-btn { margin-top: 10px; }
+
+/* === BLOCO F12: TRATAMENTOS + FOTOS GUIADAS (ficha-sessoes-ui.js / fotos-guiadas.js) === */
+.ag-serv-acomp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.ag-acomp { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ag-acomp.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.fs-trat { margin: 10px 0; padding: 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); }
+.fs-trat-tit { font-size: 15.5px; font-weight: 800; color: var(--text); }
+.fs-trat-sub { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; }
+.fs-abas.fs-abas-plano { width: 100%; max-width: 360px; margin: 6px 0 8px; }
+.fs-abas.fs-abas-plano button { font-size: 12px; }
+.fs-trat-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.fs-trat-btns .fi-btn { flex: 1; min-width: 140px; }
+.fs-trat-novo { margin-top: 6px; }
+.fs-instr { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin: 4px 0 8px; }
+.fs-instr b { color: var(--text); }
+.fs-fotos { grid-template-columns: repeat(3, 1fr); }
+.fs-avisos { display: grid; gap: 8px; margin: 8px 0 12px; font-size: 14px; line-height: 1.45; color: var(--text); }
+.fs-avisos > div { padding: 9px 10px; border-radius: 10px; background: var(--card-2); border-left: 4px solid #f59e0b; }
+.fs-cmp-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 8px; }
+.fs-cmp-acoes .fi-btn { flex: 1; min-width: 140px; }
+.fs-mont { margin-top: 10px; }
+.fs-mont-img { min-height: 120px; display: grid; place-items: center; color: var(--muted); font-size: 13px; background: var(--card-2); border-radius: 10px; overflow: hidden; }
+.fs-mont-img img { width: 100%; display: block; }
+.fs-mont-btns { display: flex; gap: 6px; margin-top: 6px; }
+.fs-mont-btns .fi-btn { flex: 1; }
+/* câmera guiada */
+.fg-ov { display: flex; flex-direction: column; }
+.fg-topo { padding: calc(10px + env(safe-area-inset-top)) 14px 8px; color: #fff; font-size: 15px; background: rgba(0,0,0,.6); }
+.fg-passo { font-size: 12px; opacity: .75; }
+.fg-instr { font-size: 12.5px; line-height: 1.4; opacity: .9; margin-top: 4px; }
+.fg-palco { position: relative; flex: 1; min-height: 0; background: #000; }
+.fg-video, .fg-fantasma { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.fg-fantasma { opacity: .35; pointer-events: none; }
+.fg-fantasma.fora { display: none; }
+.fg-molde { position: absolute; left: 12%; right: 12%; top: 6%; bottom: 6%; border: 3px dashed rgba(255,255,255,.75); border-radius: 18px; pointer-events: none; transition: border-color .2s; }
+.fg-molde.oval { left: 22%; right: 22%; top: 14%; bottom: 22%; border-radius: 50%; }
+.fg-molde.ok { border-color: #10b981; border-style: solid; }
+.fg-status { text-align: center; padding: 10px 14px; font-size: 16px; font-weight: 800; color: #fff; background: rgba(0,0,0,.7); }
+.fg-status.ok { color: #10b981; }
+.fg-rev { position: absolute; inset: 0; z-index: 2; background: #000; display: flex; flex-direction: column; }
+.fg-rev img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.fg-rev-avisos { color: #fff; font-size: 13px; line-height: 1.4; padding: 0 14px; display: grid; gap: 4px; }
+.fg-aprovar { width: auto; padding: 12px 22px; }

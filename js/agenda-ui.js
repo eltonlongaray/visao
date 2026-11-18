@@ -12,6 +12,7 @@ import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
 import { abrirCupons, gerarCupomCliente } from './cupons-ui.js';
+import { PROTOCOLOS, ACOMPS, acompDoServico } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
@@ -465,7 +466,7 @@ function desenhar() {
       </label>`)}
 
       ${_bloco('servicos', '💆 Serviços que você oferece', `
-      <div class="ag-serv-sub">O cliente escolhe o serviço e a duração vem daqui.<br><b>Custo:</b> quanto te custa fazer (material, óleos), só você vê. <b>Sessões:</b> 1 = sessão avulsa, 5 = pacote de 5.</div>
+      <div class="ag-serv-sub">O cliente escolhe o serviço e a duração vem daqui.<br><b>Custo:</b> quanto te custa fazer (material, óleos), só você vê. <b>Sessões:</b> 1 = sessão avulsa, 5 = pacote de 5. <b>📸 Fotos:</b> o tipo de foto (e medidas) que o app pede nas sessões.</div>
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>`)}
 
@@ -650,6 +651,7 @@ function _syncServicos() {
     const cu = (row.querySelector('.ag-serv-custo')?.value || '').replace(',', '.').trim();
     s._custo = cu === '' ? 0 : (Number(cu) || 0);
     s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
+    const ac = row.querySelectorAll('.ag-acomp'); if (ac.length) s.acomp = [...ac].filter(b => b.classList.contains('on')).map(b => b.dataset.acomp);
   });
 }
 
@@ -672,7 +674,12 @@ function pintarServicos() {
         <span class="ag-serv-lb" title="Pacote: quantas sessões a venda cobre (1 = sessão avulsa)">Sessões</span>
         <input class="ag-serv-sess" type="number" inputmode="numeric" min="1" value="${s.sessoes || 1}">
       </div>
+      <div class="ag-serv-acomp" title="Que fotos (e medidas) o app pede nas sessões desse serviço">
+        <span class="ag-serv-lb">📸 Fotos</span>
+        ${ACOMPS.map(a => `<button type="button" class="ag-acomp ${acompDoServico(s).includes(a) ? 'on' : ''}" data-acomp="${a}">${PROTOCOLOS[a].icone} ${PROTOCOLOS[a].nome}</button>`).join('')}
+      </div>
     </div>`).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
+  box.querySelectorAll('.ag-acomp').forEach(b => b.onclick = () => b.classList.toggle('on'));
   box.querySelectorAll('[data-rm-serv]').forEach(b => b.onclick = () => {
     _syncServicos();
     _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ);
@@ -988,7 +995,7 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}) }));
   // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
   const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO

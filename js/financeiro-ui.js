@@ -26,6 +26,7 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 const _nomeMes = k => { const [y, m] = k.split('-').map(Number); return `${MESES[m - 1]} ${y}`; };
 const FORMAS = [['pix', 'Pix'], ['cartao', 'Cartão'], ['dinheiro', 'Dinheiro'], ['cortesia', 'Cortesia']];   // cortesia = não cobrou (modelo, brinde…)
 const _formaTxt = f => (FORMAS.find(x => x[0] === f) || [, ''])[1];
+export const vendasDoCliente = c => _vendasDe(c);
 const _vendasDe = c => { const d = digitos(c.contato || c.key); return d ? _vendas.filter(v => digitos(v.cliente_digitos || v.cliente_contato) === d) : []; };
 
 export async function carregarFinanceiro() {
