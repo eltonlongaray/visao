@@ -6168,7 +6168,7 @@ body.tour-active { overflow: hidden; }
 .pet-digitando i:nth-child(3) { animation-delay: .3s; }
 @keyframes pet-digitando { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
 .pet-msg-user { align-self: flex-end; }
-.pet-msg-user span { background: var(--accent); color: white; border-radius: 12px 4px 12px 12px; }
+.pet-msg-user span { background: var(--accent); color: white; border-radius: 12px 4px 12px 12px; white-space: pre-wrap; }
 
 /* Input row */
 .pet-chat-input-row {
