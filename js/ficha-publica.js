@@ -181,13 +181,14 @@ function montarPergunta(p) {
       ops.querySelectorAll('.op').forEach(b => {
         const v = b.dataset.v;
         b.classList.toggle('on', p.tipo === 'unica' ? R[p.id] === v : (R[p.id] || []).includes(v));
+        if (p.ordem) { const i = (R[p.id] || []).indexOf(v); b.querySelector('.ord').textContent = i >= 0 ? (i + 1) + 'º' : ''; }
       });
       outroIn.hidden = !(p.tipo === 'unica' ? R[p.id] === 'Outro' : (R[p.id] || []).includes('Outro'));
     };
     for (const v of lista) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'op ' + p.tipo; b.dataset.v = v;
-      b.innerHTML = `<span class="mk"></span><span>${esc(v)}</span>`;
+      b.innerHTML = `<span class="mk"></span><span>${esc(v)}</span>${p.ordem ? '<span class="ord"></span>' : ''}`;
       b.onclick = () => {
         if (p.tipo === 'unica') R[p.id] = R[p.id] === v ? undefined : v;
         else {

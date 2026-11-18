@@ -133,11 +133,12 @@ export default {
 // Caminho: <uid>/<tipo>-<nome>.r2.<ext>, tipo diz quem pode ver:
 //   chat / arq → dono, ou quem enxerga a mensagem no banco (RLS do Supabase)
 //   corpo      → só o dono
+//   depo       → só o dono (depoimentos: prints e vídeos de clientes da profissional, até 95 MB)
 //   avatar     → qualquer um (é a foto que aparece no chat)
 // O app pede links ASSINADOS (valem 1 a 2 dias) e usa direto no <img>/<audio>,
 // igual fazia com o Supabase; o link fica igual o dia todo, então o navegador
 // guarda a imagem em cache.
-const ARQ_OK = /^[0-9a-f-]{36}\/(chat|arq|corpo|avatar)-[A-Za-z0-9._-]+\.r2\.[a-z0-9]{1,8}$/;
+const ARQ_OK = /^[0-9a-f-]{36}\/(chat|arq|corpo|avatar|depo)-[A-Za-z0-9._-]+\.r2\.[a-z0-9]{1,8}$/;
 const ARQ_MAX = 25 * 1024 * 1024;
 const DIA = 86400;
 const tipoDo = (c) => c.split('/')[1].split('-')[0];
@@ -231,9 +232,10 @@ async function arquivos(req, env) {
   if (!caminho.startsWith(quem.id + '/')) return json(req, { erro: 'só na própria pasta' }, 403);
   if (req.method === 'PUT') {
     const tam = Number(req.headers.get('Content-Length') || 0);
-    if (!tam || tam > ARQ_MAX) return json(req, { erro: 'tamanho' }, 413);
+    const depo = tipoDo(caminho) === 'depo';
+    if (!tam || tam > (depo ? MAX_BYTES : ARQ_MAX)) return json(req, { erro: 'tamanho' }, 413);
     const tipo = (req.headers.get('Content-Type') || 'application/octet-stream').slice(0, 120);
-    if (tipoDo(caminho) !== 'arq' && !/^image\//.test(tipo)) return json(req, { erro: 'tipo' }, 415);
+    if (depo ? !/^(image|video)\//.test(tipo) : (tipoDo(caminho) !== 'arq' && !/^image\//.test(tipo))) return json(req, { erro: 'tipo' }, 415);
     await env.ARQUIVOS.put(caminho, req.body, { httpMetadata: { contentType: tipo } });
     return json(req, { ok: true, caminho });
   }

@@ -19,15 +19,16 @@ window.TRIAGEM = {
   precos: {
     prazo: "30/11",
     // preço de Black (até o prazo) — se não tiver aqui, vale o preço da agenda
-    black: { "Esculpe Detox": 597, "Deusa Grega": 697 },
-    depois: { "Sessão para celulite": 147, "Esculpe Detox": 747, "Deusa Grega": 897 }
+    black: { "Esculpe Detox": 597, "Deusa Grega": 197 },
+    depois: { "Sessão para celulite": 145, "Esculpe Detox": 747, "Deusa Grega": 227, "Pacote Deusa Grega": 997, "Liberação miofascial": 185,
+      "Pacote Massagem terapêutica": 699, "Pacote Liberação miofascial": 829 }
   },
 
   // "Serviços que também me interessam": o que oferecer pra cada incômodo (nomes da agenda)
   interessesPor: {
-    "Celulite": ["Sessão para celulite", "Drenagem linfática", "Deusa Grega – Pele Porcelana / Reduz Medida / Modela / Desinflama", "Esculpe Detox – Desincha / Elimina Toxinas / Modela"],
-    "Flacidez": ["Deusa Grega – Pele Porcelana / Reduz Medida / Modela / Desinflama", "Sessão para celulite", "Drenagem linfática"],
-    "Gordura localizada / medidas": ["Esculpe Detox – Desincha / Elimina Toxinas / Modela", "Deusa Grega – Pele Porcelana / Reduz Medida / Modela / Desinflama", "Drenagem linfática"],
+    "Celulite": ["Sessão para celulite", "Drenagem linfática", "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", "Esculpe Detox – Desincha / Elimina Toxinas / Modela"],
+    "Flacidez": ["Deusa Grega – Modela / Reduz Medida / Pele Porcelana", "Sessão para celulite", "Drenagem linfática"],
+    "Gordura localizada / medidas": ["Esculpe Detox – Desincha / Elimina Toxinas / Modela", "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", "Drenagem linfática"],
     "Inchaço e retenção": ["Drenagem linfática", "Esculpe Detox – Desincha / Elimina Toxinas / Modela"],
     "Manchas": ["Tratamento para manchas", "Limpeza de pele"],
     "Acne, cravos, pele oleosa e/ou porosa": ["Limpeza de pele", "Tratamento para manchas"],
@@ -156,7 +157,7 @@ window.TRIAGEM = {
     const corpo = ["Celulite", "Flacidez", "Gordura localizada / medidas"];
     if (corpo.includes(principal)) {
       if (experimentar) return { servico: principal === "Celulite" ? "Sessão para celulite" : "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Uma sessão pra você sentir o resultado e a gente montar teu plano.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-      return { servico: "Deusa Grega – Pele Porcelana / Reduz Medida / Modela / Desinflama", porque: "Meu método completo: avaliação + 4 sessões que unem modelagem, detox e os blends pra cuidar de dentro pra fora.", junto: "Teu blend personalizado pra continuar em casa", aviso };
+      return { servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", porque: "Sessão de 1h15 pra celulite e estrias: modela, reduz medida e deixa a pele lisinha, com os blends cuidando de dentro pra fora.", junto: "Teu blend personalizado pra continuar em casa", aviso };
     }
     if (principal === "Inchaço e retenção") return { servico: "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Pra desinchar, eliminar o que o corpo está retendo e modelar.", junto: "Drenagem linfática pra manter", aviso };
     if (principal === "Dores e tensão") {

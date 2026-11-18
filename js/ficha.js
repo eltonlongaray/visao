@@ -66,7 +66,7 @@ export async function salvarFichaCfg(cfg) {
 // === BLOCO 4: SESSÕES (registro de cada atendimento: palpação, medidas, observações) ===
 export async function getSessoes() {
   const { data, error } = await supabase.from('ficha_sessoes')
-    .select('id, cliente_nome, cliente_contato, cliente_digitos, data, palpacao, medidas, observacoes, created_at')
+    .select('*')   // '*' : a coluna `extra` (estética) pode ainda não existir
     .order('data', { ascending: true }).order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
   return data || [];
@@ -76,9 +76,11 @@ export async function salvarSessao(s) {
   const row = { owner_id: uid, cliente_nome: s.cliente_nome || null, cliente_contato: s.cliente_contato || null,
     cliente_digitos: _dig(s.cliente_contato) || null, data: s.data, palpacao: s.palpacao || {}, medidas: s.medidas || {},
     observacoes: (s.observacoes || '').trim() || null, updated_at: new Date().toISOString() };
+  if (s.extra) row.extra = s.extra;   // fotos, áreas tratadas, técnica (estética) — sql/ficha-sessoes-estetica.sql
   const q = s.id ? supabase.from('ficha_sessoes').update(row).eq('id', s.id) : supabase.from('ficha_sessoes').insert(row);
   const { data, error } = await q.select('*').single();
-  if (error) throw new Error(/ficha_sessoes/i.test(error.message || '') ? 'Falta rodar o SQL das sessões (sql/ficha-sessoes.sql)' : error.message);
+  if (error) throw new Error(/extra/i.test(error.message || '') ? 'Falta rodar o SQL das fotos da sessão (sql/ficha-sessoes-estetica.sql)'
+    : /ficha_sessoes/i.test(error.message || '') ? 'Falta rodar o SQL das sessões (sql/ficha-sessoes.sql)' : error.message);
   return data;
 }
 export async function excluirSessao(id) {

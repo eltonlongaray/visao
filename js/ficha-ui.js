@@ -8,7 +8,7 @@
 // Dados: ficha.js · Modelos: ficha-modelo.js · Página do cliente: ficha-publica.js
 // ─────────────────────────────────────────────────────────────
 import { getFichas, criarConviteFicha, ligarFichaCliente, excluirFicha, salvarFichaCfg } from './ficha.js';
-import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero, faltando } from './ficha-modelo.js';
+import { MODELOS, PROFISSOES, SUGESTOES_TIPOS, fichaTemDor, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, nomeDa, ladoDa, temMarca, mesmoNumero, faltando } from './ficha-modelo.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
@@ -73,7 +73,7 @@ export function secaoFichaHtml(cfg, clientes) {
     <div class="fi-secao-sub">Pra mandar pra um cliente específico, abra o cliente em 👥 Clientes. O link geral serve pra quem ainda não é cliente: a ficha cai no perfil pelo WhatsApp.</div>
     <div class="fi-botoes">
       <button class="fi-btn" id="fi-demo" type="button">👁️ Ver como o cliente vê</button>
-      <button class="fi-btn" id="fi-tipos" type="button">💆 Tipos de massagem que você atende</button>
+      ${fc.profissao === 'massoterapia' ? '<button class="fi-btn" id="fi-tipos" type="button">💆 Tipos de massagem que você atende</button>' : ''}
     </div>
     <div class="input-field-label" style="margin-top:10px">Link geral da ficha</div>
     <div class="ag-link-box">
@@ -263,6 +263,10 @@ export async function oferecerFichaAposAgendar(cfg, { nome, contato } = {}) {
 }
 
 // === BLOCO 5: FICHA NO PERFIL DO CLIENTE ===
+// O que a tela de sessão precisa saber: profissão, cfg (plano de medidas por cliente) e se a cliente autorizou fotos.
+const _ctxSessao = (cfg, resp) => ({ cfg, profissao: _cfgFicha(cfg).profissao, fotos: resp?.respostas?.foto_acomp || null,
+  temDor: fichaTemDor(resp) ?? (_cfgFicha(cfg).profissao === 'estetica' ? false : null),
+  insta: resp?.respostas?.foto_insta || null, salvarCfg: async fc => { await salvarFichaCfg(fc); cfg.ficha_cfg = fc; } });
 export function perfilFichaHtml(cfg, c) {
   if (!fichaAtiva(cfg)) return '';
   // Cada resposta é um registro (fase 1, 2, 3…): a mais recente em destaque, as anteriores embaixo.
@@ -279,7 +283,7 @@ export function perfilFichaHtml(cfg, c) {
       ${!resp && c.contato ? `<button class="fi-btn" id="fi-enviar" type="button">📤 Enviar ficha pelo WhatsApp</button>` : ''}
       ${!resp ? `<button class="fi-btn" id="fi-junto" type="button">✍️ ${st.rasc ? 'Continuar junto agora' : 'Preencher junto agora'}</button>` : ''}
     </div>
-    ${sessoesPerfilHtml(c)}
+    ${sessoesPerfilHtml(c, _ctxSessao(cfg, resp))}
   </div>`;
 }
 
@@ -302,7 +306,7 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     wirePerfilFicha(ov, cfg, c, { clientes, redesenhar });
     redesenhar?.();
   };
-  wireSessoesPerfil(ov, c, atualizar);
+  wireSessoesPerfil(ov, c, atualizar, _ctxSessao(cfg, _situacao(c).resp));
   ov.querySelectorAll('.fi-perfil [data-fi-ver]').forEach(b => b.addEventListener('click', () => {
     const f = _fichas.find(x => x.id === b.dataset.fiVer);
     if (f) abrirFicha(f, { cfg, clientes, redesenhar: atualizar, cliente: c });
