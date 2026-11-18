@@ -85,6 +85,7 @@ const TELAS = [
   [/^(desempenho|graficos?|estatisticas?|relatorios?)$/, '/desempenho', 'o Desempenho'],
   [/^(desafios?)$/, '/desafios', 'os Desafios'],
   [/^(preparo|preparo fisico|treino|meu treino)$/, '/preparo', 'o Preparo Físico'],
+  [/^(kanban|meu kanban|quadro|quadro kanban|tarefas do kanban)$/, '/kanban', 'o Kanban'],
   [/^(financeiro|financas|financeiro (?:pessoal|profissional)|meu dinheiro|minhas financas)$/, '/financeiro', 'o Financeiro'],
   [/^(chat|mural|comunidade|falcon hunters|mensagens)$/, '/chat', 'a Comunidade'],
   [/^(ajustes|configurac\w*|configs?|perfil)$/, '/ajustes', 'os Ajustes'],

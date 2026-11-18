@@ -22,6 +22,7 @@
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 8.19 — AJUSTES PELO PET (perfil, idioma, som das notificações, exportar, sugestão)
+// BLOCO 8.20 — KANBAN PESSOAL PELO PET (pôr, mover, apagar, ver)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -62,6 +63,7 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
+import * as PKB from './pet-kanban.js?v=20261118a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -919,6 +921,11 @@ async function dispatchCommand(text) {
       const r = await tentarDesafios(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // Kanban pessoal ("põe X no kanban", "move X pra fazendo"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarKanban(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarIdeal(semChamado(text));
@@ -1212,6 +1219,9 @@ async function routeCommand(text) {
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
   if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
+  const rKanban = await tentarKanban(text);
+  if (rKanban !== undefined) return rKanban;
 
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
@@ -7109,6 +7119,80 @@ Object.assign(PASSOS, {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.20 — KANBAN PESSOAL PELO PET (Élton, 18/11)
+// ═══════════════════════════════════════════════════════════════
+// "põe X no kanban", "move X pra fazendo", "apaga X do kanban", "o que tem no
+// meu kanban?". Leitor em pet-kanban.js; banco em kanban.js. Sempre com card.
+async function _kanbanDepois() {
+  try { (await import('./screens/tela-kanban.js')).recarregarKanban(); } catch {}
+}
+async function tentarKanban(text) {
+  const p = PKB.lerKanban(PR.semPedido(text));
+  if (!p) return undefined;
+  const K = await import('./kanban.js');
+  let cards;
+  try { cards = await K.lerCards(); }
+  catch (e) { console.warn('[pet-kanban]', e); return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const ic = (k) => K.COLUNAS.find(c => c.k === k)?.ic || '';
+  const nome = (k) => K.nomeColuna(k);
+  const abrir = [{ label: '📌 Abrir o Kanban', action: () => { location.hash = '#/kanban'; return null; } }];
+
+  if (p.acao === 'ver') {
+    const cols = K.COLUNAS.filter(c => !p.coluna || c.k === p.coluna);
+    const blocos = cols.map(c => {
+      const l = cards.filter(x => x.coluna === c.k).sort((a, b) => a.ordem - b.ordem);
+      return `${c.ic} <b>${c.nome}</b> (${l.length})` + (l.length ? '<br>' + l.slice(0, 15).map(x => `• ${_esc(x.titulo)}`).join('<br>') + (l.length > 15 ? `<br>… e mais ${l.length - 15}` : '') : '<br><em>vazio</em>');
+    });
+    const html = cards.length ? '📌 <b>Teu Kanban</b><br>' + blocos.join('<br><br>')
+      : '📌 Teu Kanban está vazio. Fala assim: <em>"põe estudar inglês no kanban"</em>.';
+    addChoices(html, abrir);
+    return null;
+  }
+
+  if (!p.itens.length) {
+    return p.acao === 'criar' ? 'O que eu ponho no Kanban? Ex.: <em>"põe ligar pro contador no kanban"</em>.'
+      : 'Qual card? Ex.: <em>"move estudar inglês pra fazendo"</em>.';
+  }
+
+  if (p.acao === 'criar') {
+    const col = p.coluna || 'afazer';
+    cardConfirmarLista(`📌 Pôr no Kanban, em <b>${ic(col)} ${nome(col)}</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
+      let lista = cards.slice();
+      for (const titulo of p.itens) lista.push(await K.criarCard({ titulo, coluna: col }, lista));
+      return `Pronto! ${p.itens.length === 1 ? 'Card criado' : `${p.itens.length} cards criados`} em ${ic(col)} ${nome(col)}. 📌`;
+    }, _kanbanDepois);
+    return null;
+  }
+
+  const achados = p.itens.map(x => ({ x, c: PKB.acharCard(cards, x) }));
+  const faltam = achados.filter(a => !a.c).map(a => a.x);
+  const ok = achados.filter(a => a.c).map(a => a.c);
+  if (!ok.length) return `Não achei ${faltam.map(x => `<b>${_esc(x)}</b>`).join(', ')} no teu Kanban. Me diz o nome do card como está lá.`;
+  const aviso = faltam.length ? `<br><small>Não achei: ${faltam.map(_esc).join(', ')}</small>` : '';
+
+  if (p.acao === 'apagar') {
+    cardConfirmarLista(`🗑️ Apagar do Kanban:<br>${ok.map(c => `• ${_esc(c.titulo)}`).join('<br>')}${aviso}`, async () => {
+      for (const c of ok) await K.apagarCard(c.id);
+      return ok.length === 1 ? 'Card apagado. 🗑️' : `${ok.length} cards apagados. 🗑️`;
+    }, _kanbanDepois);
+    return null;
+  }
+
+  // mover
+  if (!p.coluna) return `Pra qual coluna eu passo ${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b>` : 'esses cards'}? <em>A fazer</em>, <em>Fazendo</em> ou <em>Feito</em>.`;
+  const col = p.coluna;
+  const mover = ok.filter(c => c.coluna !== col);
+  if (!mover.length) return `${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b> já está` : 'Esses cards já estão'} em ${ic(col)} ${nome(col)}. 👍`;
+  cardConfirmarLista(`📌 Passar pra <b>${ic(col)} ${nome(col)}</b>:<br>${mover.map(c => `• ${_esc(c.titulo)} <small>(${nome(c.coluna)})</small>`).join('<br>')}${aviso}`, async () => {
+    const topo = cards.filter(x => x.coluna === col);
+    let ordem = topo.length ? Math.min(...topo.map(x => x.ordem)) - 1 : 0;
+    for (const c of mover) { await K.mudarCard(c.id, { coluna: col, ordem }); ordem -= 1; }
+    return `Feito! ${mover.length === 1 ? 'Card movido' : `${mover.length} cards movidos`} pra ${ic(col)} ${nome(col)}. 📌`;
+  }, _kanbanDepois);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════

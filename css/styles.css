@@ -9245,3 +9245,37 @@ body.rota-publica .bottom-nav { display: none !important; }
 /* Home: idioma embaixo dos horários e Sair no fim (Élton, 18/11) */
 .home-lang { margin: 10px 0 2px; justify-content: flex-start; }
 .home-sair { margin: 26px 0 8px; text-align: center; }
+
+/* ═══ Kanban (aba do menu, Élton 18/11) ═══ */
+.kb-tela { display: flex; flex-direction: column; height: calc(100dvh - 84px); padding-bottom: 8px; box-sizing: border-box; }
+.kb-tela .screen-title, .kb-tela .tab-switch { flex-shrink: 0; }
+.kb-corpo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.kb-nav { display: flex; gap: 6px; margin-bottom: 10px; flex-shrink: 0; }
+.kb-nav-btn { flex: 1; font: inherit; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 7px 4px; cursor: pointer; white-space: nowrap; }
+.kb-nav-btn span { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 2px; border-radius: 999px; background: color-mix(in srgb, var(--accent-2) 18%, var(--card)); font-size: 11px; }
+.kb-nav-btn.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.kb-nav-btn.on span { background: rgba(255,255,255,.22); }
+.kb-trilho { flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.kb-trilho::-webkit-scrollbar { display: none; }
+.kb-col { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow-y: auto; box-sizing: border-box; padding: 6px 6px 90px; }
+.kb-lista { display: flex; flex-direction: column; gap: 10px; }
+.kb-vazia { text-align: center; color: var(--muted); font-size: 13px; padding: 26px 10px; border: 1px dashed var(--border); border-radius: 14px; }
+.kb-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 13px 14px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: transform .12s, box-shadow .12s, border-color .12s; }
+.kb-card b { font-size: 15px; color: var(--text); word-break: break-word; }
+.kb-card small { font-size: 12.5px; color: var(--muted); line-height: 1.4; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.kb-card.sel { touch-action: none; border-color: var(--accent-2); box-shadow: 0 0 0 2px var(--accent-2), 0 10px 24px rgba(0,0,0,.35); transform: scale(1.01); }
+.kb-novo { margin-top: 12px; width: 100%; font: inherit; font-size: 14px; font-weight: 700; color: var(--accent-2); background: transparent; border: 1.5px dashed color-mix(in srgb, var(--accent-2) 50%, var(--border)); border-radius: 14px; padding: 12px; cursor: pointer; }
+.kb-selbar { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 60; display: flex; align-items: center; gap: 10px; background: var(--card); border: 1.5px solid var(--accent-2); border-radius: 18px; padding: 8px; box-shadow: 0 12px 30px rgba(0,0,0,.45); max-width: 520px; margin: 0 auto; }
+.kb-selbar[hidden] { display: none; }
+.kb-selbar-tx { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.kb-selbar-tx b { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kb-selbar-tx small { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.kb-seta { flex: none; width: 48px; height: 48px; border-radius: 14px; border: none; background: var(--accent); color: #fff; font-size: 30px; font-weight: 700; line-height: 1; cursor: pointer; }
+.kb-seta:disabled { opacity: .3; cursor: default; }
+.kb-editor-card { text-align: left; padding: 26px 20px 18px; }
+.kb-editor-card .bio-modal-title { text-align: center; margin-bottom: 14px; }
+.kb-in { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; color: var(--text); background: color-mix(in srgb, var(--text) 4%, transparent); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; margin-bottom: 10px; resize: vertical; }
+.kb-cols { display: flex; gap: 6px; margin: 2px 0 14px; }
+.kb-colbtn { flex: 1; font: inherit; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 2px; cursor: pointer; white-space: nowrap; }
+.kb-colbtn.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+.kb-apagar { color: #ef4444 !important; }
