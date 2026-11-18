@@ -63,7 +63,7 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
-import * as PKB from './pet-kanban.js?v=20261118a';
+import * as PKB from './pet-kanban.js?v=20261118b';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -7133,20 +7133,27 @@ async function tentarKanban(text) {
   const p = PKB.lerKanban(PR.semPedido(text));
   if (!p) return undefined;
   const K = await import('./kanban.js');
-  let cards;
-  try { cards = await K.lerCards(); }
+  // Quadro dito ("kanban profissional") ou, se não disse: criar vai pro pessoal,
+  // o resto procura nos dois (Pessoal e Profissional)
+  const quadros = p.quadro ? [p.quadro] : (p.acao === 'criar' ? ['pessoal'] : ['pessoal', 'profissional']);
+  let cards = [];
+  try { for (const q of quadros) cards.push(...(await K.lerCards(q))); }
   catch (e) { console.warn('[pet-kanban]', e); return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const qtxt = (q) => `${K.QUADROS.find(x => x.k === q)?.ic || ''} ${K.nomeQuadro(q)}`;
   const ic = (k) => K.COLUNAS.find(c => c.k === k)?.ic || '';
   const nome = (k) => K.nomeColuna(k);
   const abrir = [{ label: '📌 Abrir o Kanban', action: () => { location.hash = '#/kanban'; return null; } }];
 
   if (p.acao === 'ver') {
     const cols = K.COLUNAS.filter(c => !p.coluna || c.k === p.coluna);
-    const blocos = cols.map(c => {
-      const l = cards.filter(x => x.coluna === c.k).sort((a, b) => a.ordem - b.ordem);
-      return `${c.ic} <b>${c.nome}</b> (${l.length})` + (l.length ? '<br>' + l.slice(0, 15).map(x => `• ${_esc(x.titulo)}`).join('<br>') + (l.length > 15 ? `<br>… e mais ${l.length - 15}` : '') : '<br><em>vazio</em>');
+    const blocos = quadros.filter(q => p.quadro || cards.some(x => x.quadro === q)).map(q => {
+      const doQ = cards.filter(x => x.quadro === q);
+      return (quadros.length > 1 ? `<u>${qtxt(q)}</u><br>` : '') + cols.map(c => {
+        const l = doQ.filter(x => x.coluna === c.k).sort((a, b) => a.ordem - b.ordem);
+        return `${c.ic} <b>${c.nome}</b> (${l.length})` + (l.length ? '<br>' + l.slice(0, 15).map(x => `• ${_esc(x.titulo)}`).join('<br>') + (l.length > 15 ? `<br>… e mais ${l.length - 15}` : '') : '<br><em>vazio</em>');
+      }).join('<br><br>');
     });
-    const html = cards.length ? '📌 <b>Teu Kanban</b><br>' + blocos.join('<br><br>')
+    const html = cards.length ? `📌 <b>Teu Kanban${quadros.length === 1 ? ' ' + _esc(K.nomeQuadro(quadros[0])) : ''}</b><br>` + blocos.join('<br><br>')
       : '📌 Teu Kanban está vazio. Fala assim: <em>"põe estudar inglês no kanban"</em>.';
     addChoices(html, abrir);
     return null;
@@ -7159,9 +7166,10 @@ async function tentarKanban(text) {
 
   if (p.acao === 'criar') {
     const col = p.coluna || 'afazer';
-    cardConfirmarLista(`📌 Pôr no Kanban, em <b>${ic(col)} ${nome(col)}</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
+    const q = quadros[0];
+    cardConfirmarLista(`📌 Pôr no Kanban ${qtxt(q)}, em <b>${ic(col)} ${nome(col)}</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
       let lista = cards.slice();
-      for (const titulo of p.itens) lista.push(await K.criarCard({ titulo, coluna: col }, lista));
+      for (const titulo of p.itens) lista.push(await K.criarCard({ titulo, coluna: col, quadro: q }, lista));
       return `Pronto! ${p.itens.length === 1 ? 'Card criado' : `${p.itens.length} cards criados`} em ${ic(col)} ${nome(col)}. 📌`;
     }, _kanbanDepois);
     return null;
@@ -7187,9 +7195,12 @@ async function tentarKanban(text) {
   const mover = ok.filter(c => c.coluna !== col);
   if (!mover.length) return `${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b> já está` : 'Esses cards já estão'} em ${ic(col)} ${nome(col)}. 👍`;
   cardConfirmarLista(`📌 Passar pra <b>${ic(col)} ${nome(col)}</b>:<br>${mover.map(c => `• ${_esc(c.titulo)} <small>(${nome(c.coluna)})</small>`).join('<br>')}${aviso}`, async () => {
-    const topo = cards.filter(x => x.coluna === col);
-    let ordem = topo.length ? Math.min(...topo.map(x => x.ordem)) - 1 : 0;
-    for (const c of mover) { await K.mudarCard(c.id, { coluna: col, ordem }); ordem -= 1; }
+    for (const c of mover) {
+      const topo = cards.filter(x => x.coluna === col && x.quadro === c.quadro);
+      const ordem = topo.length ? Math.min(...topo.map(x => x.ordem)) - 1 : 0;
+      await K.mudarCard(c.id, { coluna: col, ordem });
+      c.coluna = col; c.ordem = ordem;
+    }
     return `Feito! ${mover.length === 1 ? 'Card movido' : `${mover.length} cards movidos`} pra ${ic(col)} ${nome(col)}. 📌`;
   }, _kanbanDepois);
   return null;

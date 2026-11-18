@@ -29,7 +29,7 @@ const DESTINO_RE = /\b(?:pra|pro|para|para o|pra coluna|na coluna|no|na|em)\s+(?
 export function lerKanban(texto) {
   const t = norm(texto);
   const falaKanban = /\bkanban\b/.test(t) || (/\bcards?\b/.test(t) && !/\bcartao do dia\b/.test(t));
-  const destino = t.match(DESTINO_RE) || t.match(/\bkanban\s+(?:na\s+|no\s+|em\s+)?(?:coluna\s+)?(fazendo|feito|a fazer)\b/);
+  const destino = t.match(DESTINO_RE) || t.match(/\bkanban\s+(?:(?:pessoal|profissional|do trabalho|de trabalho|da empresa)\s+)?(?:na\s+|no\s+|em\s+)?(?:coluna\s+)?(fazendo|feito|a fazer)\b/);
   const verboMover = /\b(mov\w*|pass\w*|mud\w*|lev\w*|mand\w*|arrast\w*|jog\w*|empurr\w*)\b/.test(t);
   // Sem a palavra kanban, só entra "move X pra fazendo" (coluna dita com verbo de mover)
   if (!falaKanban && !(verboMover && destino && /fazendo|a fazer|afazer|andamento/.test(destino[1]) || verboMover && destino && /\bcoluna\b/.test(t))) return null;
@@ -40,10 +40,13 @@ export function lerKanban(texto) {
   else if (/\b(poe|pon\w*|coloc\w*|bot\w*|adicion\w*|cri\w*|anot\w*|inclu\w*|add|acrescent\w*)\b/.test(t)) acao = 'criar';
   else acao = 'ver';
 
+  // Quadro: "kanban profissional", "kanban do trabalho" (null = não disse)
+  const quadro = /\bkanban\s+(?:profissional|do trabalho|de trabalho|da empresa)\b|\b(?:profissional|trabalho)\b.*\bkanban\b/.test(t) ? 'profissional'
+    : (/\bkanban\s+pessoal\b/.test(t) ? 'pessoal' : null);
   const coluna = destino ? colunaDaFrase(destino[0]) : (acao === 'ver' ? colunaDaFrase(t) : null);
   const itens = acao === 'ver' ? [] : itensDaFrase(texto);
-  if (acao !== 'ver' && !itens.length && acao !== 'criar') return { acao, itens, coluna };
-  return { acao, itens, coluna: coluna || (acao === 'criar' ? 'afazer' : null) };
+  if (acao !== 'ver' && !itens.length && acao !== 'criar') return { acao, itens, coluna, quadro };
+  return { acao, itens, coluna: coluna || (acao === 'criar' ? 'afazer' : null), quadro };
 }
 
 // Tira verbo, "no kanban", destino e artigos; separa por vírgula e " e "
@@ -51,8 +54,9 @@ export function itensDaFrase(texto) {
   let s = ' ' + String(texto || '').replace(/["“”]/g, ' ').replace(/[.!?]+\s*$/, '') + ' ';
   s = s.replace(/^\s*(?:falcon|pet)[,\s]+/i, ' ');
   s = s.replace(/\s(?:por favor|pra mim|para mim|a[ií])\b/gi, ' ');
+  s = s.replace(/(kanban)\s+(?:pessoal|profissional|do trabalho|de trabalho|da empresa)\b/gi, '$1');
   s = s.replace(/(kanban)\s+(?:n[oa]\s+|em\s+)?(?:coluna\s+)?(?:fazendo|feitos?|a fazer)\b/gi, '$1');
-  s = s.replace(/\s(?:n[oa]|d[oa]|pr[oa]|para o|pro meu|no meu|do meu|ao)\s+(?:meu\s+)?kanban(?:\s+pessoal)?\b/gi, ' ');
+  s = s.replace(/\s(?:n[oa]|d[oa]|pr[oa]|para o|pro meu|no meu|do meu|ao)\s+(?:meu\s+)?kanban(?:\s+(?:pessoal|profissional|do trabalho|de trabalho|da empresa))?\b/gi, ' ');
   s = s.replace(/\skanban\b/gi, ' ');
   s = s.replace(/\s(?:pra|pro|para|para o|na|no|em)\s+(?:o\s+|a\s+)?(?:coluna\s+)?(?:fazendo|feitos?|a fazer|afazer|conclu[ií]do|em andamento)\b/gi, ' ');
   s = s.replace(/^\s*(?:(?:eu\s+)?(?:quero|preciso|queria)\s+(?:que\s+(?:tu|voc[eê])\s+)?)?(?:me\s+)?(?:p[oõ]e|ponha|coloc\w*|bot\w*|adicion\w*|cri\w*|anot\w*|inclu\w*|add|acrescent\w*|mov\w*|pass\w*|mud\w*|lev\w*|mand\w*|arrast\w*|jog\w*|empurr\w*|apag\w*|exclu\w*|remov\w*|tir\w*|delet\w*)\s+/i, ' ');

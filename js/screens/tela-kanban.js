@@ -15,7 +15,8 @@
 //  • Com o card selecionado, arrasta pra cima/baixo pra escolher a posição.
 //    Toca nele de novo pra soltar.
 //  • Toque normal (sem segurar) abre o card pra editar.
-// Equipe = etapa 2 (convite igual o do desafio); por enquanto "em breve".
+// Pessoal e Profissional = quadros só meus (coluna quadro). Equipe = etapa 2
+// (convite igual o do desafio); por enquanto "em breve".
 
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: IMPORTS E ESTADO
@@ -25,7 +26,7 @@ import { showToast, confirmModal } from '../aviso-tela.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { COLUNAS, lerCards, criarCard, mudarCard, apagarCard, ordemEntre } from '../kanban.js';
 
-let aba = 'pessoal';     // 'pessoal' | 'equipe'
+let aba = 'pessoal';     // 'pessoal' | 'profissional' | 'equipe' (Élton, 18/11: 3 modalidades)
 let colIdx = 0;          // coluna visível (0..2)
 let cards = [];
 let selId = null;        // card selecionado (segurou)
@@ -48,6 +49,7 @@ export async function renderKanban(app) {
     </div>
     <div class="tab-switch" id="kb-abas">
       <button class="tab-btn ${aba === 'pessoal' ? 'active' : ''}" data-aba="pessoal">👤 Pessoal</button>
+      <button class="tab-btn ${aba === 'profissional' ? 'active' : ''}" data-aba="profissional">💼 Profissional</button>
       <button class="tab-btn ${aba === 'equipe' ? 'active' : ''}" data-aba="equipe">👥 Equipe</button>
     </div>
     <div id="kb-corpo" class="kb-corpo"></div>
@@ -64,17 +66,26 @@ export async function renderKanban(app) {
     aba = b.dataset.aba;
     app.querySelectorAll('#kb-abas .tab-btn').forEach(x => x.classList.toggle('active', x.dataset.aba === aba));
     soltar();
-    pintarCorpo();
+    carregar();
   });
   app.querySelector('#kb-selbar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-mover]');
     if (b) moverDeColuna(Number(b.dataset.mover));
   });
 
+  await carregar();
+}
+
+// Lê o quadro da aba atual (Pessoal ou Profissional)
+async function carregar() {
+  const app = _app;
+  if (aba === 'equipe') { pintarCorpo(); return; }
+  const quadro = aba;
+  colIdx = 0;
   pintarCorpo(true);
-  try { cards = await lerCards(); erroSql = null; }
+  try { cards = await lerCards(quadro); erroSql = null; }
   catch (e) { console.warn('[kanban]', e); erroSql = e.message; }
-  if (_app === app && document.contains(app.querySelector('#kb-corpo'))) pintarCorpo();
+  if (_app === app && aba === quadro && document.contains(app.querySelector('#kb-corpo'))) pintarCorpo();
 }
 
 function pintarCorpo(carregando = false) {
@@ -199,7 +210,7 @@ function pintarSelbar() {
   const bar = _app?.querySelector('#kb-selbar');
   if (!bar) return;
   const c = cards.find(x => x.id === selId);
-  bar.hidden = !c || aba !== 'pessoal';
+  bar.hidden = !c || aba === 'equipe';
   if (!c) return;
   const i = COLUNAS.findIndex(k => k.k === c.coluna);
   bar.querySelector('#kb-sel-nome').textContent = c.titulo;
@@ -291,7 +302,7 @@ function abrirEditor(card, colunaNova = 'afazer') {
     btn.disabled = true; btn.textContent = 'Salvando…';
     try {
       if (novo) {
-        cards.push(await criarCard({ titulo, descricao, coluna }, cards));
+        cards.push(await criarCard({ titulo, descricao, coluna, quadro: aba }, cards));
       } else {
         const patch = { titulo, descricao };
         if (coluna !== card.coluna) {
@@ -326,6 +337,7 @@ function abrirEditor(card, colunaNova = 'afazer') {
 // Pet mexeu no Kanban por fora: recarrega se a tela estiver aberta
 export async function recarregarKanban() {
   if (!_app || !document.contains(_app.querySelector('#kb-corpo'))) return;
-  try { cards = await lerCards(); erroSql = null; } catch (e) { erroSql = e.message; }
+  if (aba === 'equipe') return;
+  try { cards = await lerCards(aba); erroSql = null; } catch (e) { erroSql = e.message; }
   pintarCorpo();
 }
