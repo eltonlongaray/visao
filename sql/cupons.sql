@@ -34,10 +34,11 @@ declare v_owner uuid; c record;
 begin
   select user_id into v_owner from agenda_config where slug = p_slug;
   if v_owner is null or coalesce(trim(p_cupom), '') = '' then return json_build_object('ok', false); end if;
-  select codigo, descricao, desconto into c from cupons
+  select codigo, desconto into c from cupons
    where owner_id = v_owner and ativo and upper(codigo) = upper(trim(p_cupom)) limit 1;
   if not found then return json_build_object('ok', false); end if;
-  return json_build_object('ok', true, 'codigo', c.codigo, 'descricao', c.descricao, 'desconto', c.desconto);
+  -- a descrição é anotação interna da profissional (pode ter nome de cliente): NUNCA volta pro público
+  return json_build_object('ok', true, 'codigo', c.codigo, 'desconto', c.desconto);
 end; $$;
 grant execute on function validar_cupom(text, text) to anon, authenticated;
 
