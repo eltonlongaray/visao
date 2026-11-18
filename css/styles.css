@@ -9084,3 +9084,11 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-ok-cupom { margin: 8px auto; max-width: 320px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); border-left: 4px solid var(--green, #10b981); font-size: 14px; color: var(--text); }
 .cp-cup .cp-cup-desc, #cc-cod { min-width: 0; background: var(--card-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
 .cp-cup-pct input { width: 44px; text-align: center; }
+
+/* Serviços da Agenda (18/11): título legível + Custo/Sessões no mesmo estilo escuro dos outros campos */
+.ag-serv-tit { margin-top: 16px; font-size: 15px; font-weight: 800; color: var(--text); }
+.ag-serv-sub { margin: 4px 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.ag-serv-sub b { color: var(--text); font-weight: 700; }
+.ag-serv-extra .ag-serv-custo, .ag-serv-extra .ag-serv-sess { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; outline: none; }
+.ag-serv-extra .ag-serv-custo:focus, .ag-serv-extra .ag-serv-sess:focus { border-color: var(--accent); }
+.ag-serv-extra .ag-serv-custo::placeholder { color: var(--muted); opacity: .7; }

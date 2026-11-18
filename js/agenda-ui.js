@@ -458,7 +458,8 @@ function desenhar() {
           ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
         </select></label>
 
-      <div class="input-field-label" style="margin-top:12px">Serviços que você oferece <span class="ag-lbl-opt">— o cliente escolhe e a duração vem daqui</span></div>
+      <div class="ag-serv-tit">Serviços que você oferece</div>
+      <div class="ag-serv-sub">O cliente escolhe o serviço e a duração vem daqui.<br><b>Custo:</b> quanto te custa fazer (material, óleos), só você vê. <b>Sessões:</b> 1 = sessão avulsa, 5 = pacote de 5.</div>
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
 
@@ -673,7 +674,7 @@ function pintarServicos() {
       </div>
       <div class="ag-serv-linha ag-serv-extra">
         <span class="ag-serv-lb" title="Quanto custa pra você fazer (material, óleos…) — só você vê">Custo R$</span>
-        <input class="ag-serv-custo" type="text" inputmode="decimal" value="${_preco(s._custo ?? custoServico(s.id)) || ''}" placeholder="0,00">
+        <input class="ag-serv-custo" type="text" inputmode="decimal" value="${Number(s._custo ?? custoServico(s.id)) ? _preco(s._custo ?? custoServico(s.id)) : ''}" placeholder="0,00">
         <span class="ag-serv-lb" title="Pacote: quantas sessões a venda cobre (1 = sessão avulsa)">Sessões</span>
         <input class="ag-serv-sess" type="number" inputmode="numeric" min="1" value="${s.sessoes || 1}">
       </div>
