@@ -1,5 +1,5 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
-// CUPONS DE PARCERIA (18/11/2026) — lado da PROFISSIONAL
+// CUPONS DE DESCONTO (18/11/2026) — lado da PROFISSIONAL
 //   BLOCO 1 — dados (tabela `cupons`, só a dona)
 //   BLOCO 2 — popup "🎟️ Cupons" (criar, editar, ligar/desligar, apagar)
 // Quem agenda pelo link digita o código; o agendamento ganha `cupom` e
@@ -33,16 +33,16 @@ export async function abrirCupons() {
 
   const desenhar = () => {
     ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
-      <div class="ag-fhead">🎟️ Cupons de parceria</div>
+      <div class="ag-fhead">🎟️ Cupons de desconto</div>
       <div class="fi-secao-sub" style="margin-top:0">Quem agenda pelo seu link pode digitar o cupom. Ele aparece no agendamento e, ao finalizar, o pagamento já vem como <b>cortesia</b> (100%) ou com o desconto.</div>
       ${erro ? `<div class="fi-aviso">${_esc(erro)}</div>` : ''}
       ${lista.map(c => `<div class="cp-cup-lin" data-cup="${_esc(c.id)}">
         <input class="cp-cup-cod" value="${_esc(c.codigo)}" maxlength="30" data-f="codigo" aria-label="Código">
         <input inputmode="numeric" value="${c.desconto}" maxlength="3" data-f="desconto" aria-label="Desconto em %" title="% de desconto">
         <button type="button" class="cp-cup-on ${c.ativo ? 'on' : ''}" data-on>${c.ativo ? 'Ativo' : 'Pausado'}</button>
-        <input class="cp-cup-desc" value="${_esc(c.descricao || '')}" maxlength="80" data-f="descricao" placeholder="Pra quê? Ex: modelo de fotos, parceria Larissa">
+        <input class="cp-cup-desc" value="${_esc(c.descricao || '')}" maxlength="80" data-f="descricao" placeholder="Pra quem e pra quê? Ex: Larissa, modelo de glúteos, 5 sessões de Deusa Grega">
       </div>`).join('') || (erro ? '' : '<div class="fi-vazio">Nenhum cupom ainda.</div>')}
-      <div class="fi-secao-sub">% = desconto (100 = não cobra nada). Pra apagar um cupom, deixe o código em branco e salve.</div>
+      <div class="fi-secao-sub">Cada código tem o seu desconto em %. <b>100% = desconto integral</b> (parceria: a pessoa não paga nada). Pra apagar um cupom, deixe o código em branco e salve.</div>
       ${erro ? '' : '<button class="fi-btn" id="cup-novo" type="button">➕ Novo cupom</button>'}
       <div class="ag-fbtns">
         <button class="btn-secondary" id="cup-fechar" type="button">Fechar</button>

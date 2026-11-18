@@ -185,7 +185,7 @@ export async function aoFinalizarAtendimento(ag, { servicos = [], todos = [], ao
     ov.querySelector('#fv-item').value = ag.servico;
     if (ag.preco != null) ov.querySelector('#fv-valor').value = _numTxt(ag.preco);
   }
-  // Agendou com cupom de parceria: 100% → já marca Cortesia; senão aplica o desconto no valor.
+  // Agendou com cupom de desconto: 100% → já marca Cortesia; senão aplica o desconto no valor.
   if (ov && ag.cupom) {
     const d = Number(ag.cupom_desconto || 0);
     if (d >= 100) ov.querySelector('[data-forma="cortesia"]')?.click();

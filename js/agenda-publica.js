@@ -163,7 +163,7 @@ export async function renderAgendaPublica(app, slug) {
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
   let combo = [];                    // 2+ serviços num horário só (da triagem)
-  let cupom = null, cupomAberto = false;   // cupom de parceria conferido ({codigo, desconto, descricao})
+  let cupom = null, cupomAberto = false;   // cupom de desconto conferido ({codigo, desconto, descricao})
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
@@ -373,7 +373,7 @@ export async function renderAgendaPublica(app, slug) {
     }));
     const btn = app.querySelector('#ap-confirmar');
     if (btn) btn.addEventListener('click', () => confirmar(dia));
-    // cupom de parceria
+    // cupom de desconto
     app.querySelector('#ap-cupom-tog')?.addEventListener('click', () => { cupomAberto = true; desenhar(); app.querySelector('#ap-cupom')?.focus(); });
     app.querySelector('#ap-cupom-tirar')?.addEventListener('click', () => { cupom = null; cupomAberto = false; desenhar(); });
     app.querySelector('#ap-cupom-ok')?.addEventListener('click', async () => {
@@ -424,9 +424,9 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
-        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'sem custo' : `${cupom.desconto}% de desconto`}${cupom.descricao ? ` <small>(${_esc(cupom.descricao)})</small>` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
+        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
           : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
-          : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de parceria</button>'}
+          : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
       </div>`;
   }
@@ -475,7 +475,7 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null && !(cupomOk && cupomOk.desconto >= 100) ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
-          ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'sem custo' : `${cupomOk.desconto}% de desconto`}</div>` : ''}
+          ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupomOk.desconto}% de desconto`}</div>` : ''}
           ${waTri ? `<div class="ap-cd">
             <div class="ap-cd-t">Agora só falta confirmar o serviço que você agendou com ${(cfg.titulo || '').split(' · ')[0] ? `a <b>${_esc((cfg.titulo || '').split(' · ')[0])}</b>` : 'a profissional'} no WhatsApp.</div>
             <div class="ap-cd-sub">Você será direcionado em:</div>
