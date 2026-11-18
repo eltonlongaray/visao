@@ -142,7 +142,8 @@ function _avaliar(alvo, L) {
   const P = i => L[i];
   const meio = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const lado = (a, b, ref) => Math.abs(a.x - b.x) / Math.max(0.01, ref);   // largura ÷ referência vertical
-  const centro = x => (x < 0.38 ? 'Mova o celular pra esquerda' : x > 0.62 ? 'Mova o celular pra direita' : '');
+  // Sem 'esquerda/direita' (confundia conforme a câmera): o ponto na tela mostra onde a cliente está.
+  const centro = x => (x < 0.38 || x > 0.62 ? 'Leve o ponto pro meio do contorno' : '');
   const narizVisivel = (P(0).visibility ?? 0) > 0.6;
 
   if (alvo.startsWith('rosto')) {
@@ -210,8 +211,10 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
         <video class="fg-video" autoplay playsinline muted></video>
         ${fantasma ? `<img class="fg-fantasma" src="${_esc(fantasma)}" alt="">` : ''}
         <div class="fg-molde ${pose.alvo.startsWith('rosto') ? 'oval' : ''}"></div>
+        <div class="fg-alvo"></div><div class="fg-ponto" hidden></div>
       </div>
       <div class="fg-status" id="fg-status">Abrindo a câmera…</div>
+      <div class="fg-dica">Ajuste até o contorno ficar <b>verde</b>: o app tira a foto sozinho.</div>
       <div class="cam-guia-barra">
         <button type="button" class="cam-guia-btn" data-fg="cancel">Cancelar</button>
         <button type="button" class="cam-guia-shot" data-fg="shot" aria-label="Tirar foto agora"></button>
@@ -222,6 +225,15 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null;
     const fim = v => { rodando = false; if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
     const msg = (t, ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!ok); };
+    // ponto onde a cliente está (rosto: nariz; corpo: meio do tronco/quadril), na posição da imagem na tela
+    const ponto = ov.querySelector('.fg-ponto');
+    const marcar = L => {
+      if (!L || !video.videoWidth) { ponto.hidden = true; return; }
+      const ref = pose.alvo.startsWith('rosto') ? L[0] : (L[23] && L[24] ? { x: (L[23].x + L[24].x + (L[11]?.x ?? L[23].x) + (L[12]?.x ?? L[24].x)) / 4, y: ((L[23].y + L[24].y) / 2 + ((L[11]?.y ?? L[23].y) + (L[12]?.y ?? L[24].y)) / 2) / 2 } : L[0]);
+      const cw = video.clientWidth, ch = video.clientHeight, k = Math.min(cw / video.videoWidth, ch / video.videoHeight);
+      const ox = (cw - video.videoWidth * k) / 2, oy = (ch - video.videoHeight * k) / 2;
+      ponto.style.left = (ox + ref.x * video.videoWidth * k) + 'px'; ponto.style.top = (oy + ref.y * video.videoHeight * k) + 'px'; ponto.hidden = false;
+    };
 
     async function capturar(corte) {
       if (!video.videoWidth) return;
@@ -256,6 +268,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
         try {
           const r = detector.detectForVideo(video, performance.now());
           const av = _avaliar(pose.alvo, r?.landmarks?.[0]);
+          marcar(r?.landmarks?.[0]);
           ultimo = av;
           if (av.ok) {
             if (!okDesde) okDesde = performance.now();

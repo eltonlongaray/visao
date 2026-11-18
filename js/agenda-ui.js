@@ -12,6 +12,7 @@ import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
 import { abrirCupons, gerarCupomCliente, abrirPresente } from './cupons-ui.js';
+import { abrirIdentidade } from './identidade-ui.js';
 import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
@@ -460,6 +461,7 @@ function desenhar() {
         <select id="ag-horizonte">
           ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
         </select></label>
+      <button class="fi-btn" id="ag-idv" type="button">🎨 Identidade visual (cores e logo)</button>
       <label class="ag-ativar">
         <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
         <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
@@ -634,7 +636,8 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
-  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico() });
+  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), cfg: _cfg });
+  corpo.querySelector('#ag-idv')?.addEventListener('click', () => abrirIdentidade(_cfg));
   corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons(_optsCupom()));
   corpo.querySelector('#ag-pres')?.addEventListener('click', () => abrirPresente(_optsCupom()));
   wireSecaoFicha(corpo, { cfg: _cfg, clientes: _clientes(), redesenhar: _redesenharFicha });

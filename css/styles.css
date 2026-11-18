@@ -9210,3 +9210,31 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fin-topo { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
 .fin-topo::-webkit-scrollbar { display: none; }
 .fin-topo-btn { flex: none; min-width: auto; overflow: visible; text-overflow: clip; padding: 10px 14px; scroll-snap-align: start; }
+
+/* câmera guiada (18/11): contorno VERMELHO até acertar, letras maiores, ponto que mostra onde a cliente está */
+.fg-topo { font-size: 20px; }
+.fg-topo b { font-size: 21px; }
+.fg-instr { font-size: 15px; line-height: 1.45; }
+.fg-passo { font-size: 14px; }
+.fg-molde { border-color: #ef4444; border-style: solid; }
+.fg-molde.ok { border-color: #10b981; }
+.fg-status { font-size: 21px; color: #fecaca; }
+.fg-status.ok { color: #10b981; }
+.fg-dica { text-align: center; padding: 0 14px 8px; font-size: 15px; color: #fff; background: rgba(0,0,0,.7); }
+.fg-dica b { color: #10b981; }
+.fg-alvo { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2px dashed rgba(255,255,255,.8); border-radius: 50%; pointer-events: none; }
+.fg-ponto { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fbbf24; border: 2px solid #fff; pointer-events: none; transition: left .1s, top .1s; }
+.idv-previa { margin: 6px 0 4px; border-radius: 12px; overflow: hidden; background: var(--card-2); min-height: 120px; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.idv-previa img { width: 100%; display: block; }
+.idv-paletas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.idv-pal { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.idv-pal.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+.idv-bolas { display: inline-flex; }
+.idv-bolas i { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); margin-right: -4px; }
+.idv-cores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.idv-cor { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; }
+.idv-cor input { width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: none; padding: 2px; }
+.idv-logo { display: grid; gap: 8px; margin-top: 6px; }
+.idv-logo img { max-width: 160px; max-height: 120px; object-fit: contain; background: #fff; border-radius: 10px; padding: 8px; }
+.idv-logo-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.idv-logo-btns .fi-btn { width: auto; flex: 1; }

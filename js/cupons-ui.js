@@ -14,6 +14,8 @@ import { supabase } from './config-supabase.js';
 import { auth } from './autenticacao.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { desenharCartao } from './cartao-presente.js';
+import { logoUrlDe, nomeNegocioDe } from './identidade-ui.js';
 
 // === BLOCO 1: DADOS ===
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -220,7 +222,7 @@ export async function gerarCupomCliente(c, { linkAgenda = '' } = {}) {
 // === BLOCO 4: 🎁 CARTÃO PRESENTE ===
 // 1 sessão de um serviço, sem custo, com validade. Vira um código PRESENTE-XXXX.
 // Quem ganhou agenda pelo link e digita o código; o app já escolhe o serviço.
-export async function abrirPresente({ servicos = [], marca = '', linkAgenda = '' } = {}) {
+export async function abrirPresente({ servicos = [], marca = '', linkAgenda = '', cfg = null } = {}) {
   let existentes = [];
   try { existentes = await _listar(); } catch (e) { showToast(e.message, 'error'); return; }
   const servs = servicos.filter(s => (s.nome || '').trim());
@@ -260,40 +262,15 @@ export async function abrirPresente({ servicos = [], marca = '', linkAgenda = ''
     const { error } = await supabase.from('cupons').insert(row);
     if (error) { showToast(_erro(error).message, 'error'); b.disabled = false; b.textContent = 'Gerar cartão'; return; }
     close();
-    _telaPresente(await _imagemPresente(row, { marca, linkAgenda }), row, { marca, linkAgenda });
+    _telaPresente(await _imagemPresente(row, { marca, linkAgenda, cfg }), row, { marca, linkAgenda, cfg });
   };
 }
 
-// Imagem do cartão (1080 × 1350, cabe no WhatsApp e no story). Cores sólidas, sem degradê.
-async function _imagemPresente(c, { marca = '', linkAgenda = '' } = {}) {
-  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const x = cv.getContext('2d'), F = '"Segoe UI", Roboto, Arial, sans-serif', ROXO = '#4b2a7b', SUAVE = '#5b4a73';
-  x.fillStyle = '#f4eefb'; x.fillRect(0, 0, W, H);
-  x.strokeStyle = ROXO; x.lineWidth = 6; x.beginPath(); x.roundRect(40, 40, W - 80, H - 80, 36); x.stroke();
-  x.textAlign = 'center'; x.textBaseline = 'middle';
-  const linha = (t, y, tam, peso = 700, cor = ROXO) => { x.fillStyle = cor; x.font = `${peso} ${tam}px ${F}`; x.fillText(t, W / 2, y); };
-  const quebra = (t, y, tam, cor) => {   // até 2 linhas
-    x.font = `400 ${tam}px ${F}`;
-    const ls = [''];
-    for (const p of String(t).split(' ')) { const n = (ls[ls.length - 1] + ' ' + p).trim(); if (x.measureText(n).width > W - 240 && ls[ls.length - 1]) ls.push(p); else ls[ls.length - 1] = n; }
-    ls.slice(0, 2).forEach((l, i) => linha(l, y + i * tam * 1.3, tam, 400, cor));
-    return y + Math.min(2, ls.length) * tam * 1.3;
-  };
-  linha('🎁', 200, 130, 400);
-  linha('Cartão Presente', 340, 78, 800);
-  linha(`Para ${c.cliente_nome || ''}`, 450, 56, 700);
-  let y = quebra(`1 sessão de ${String(c.servico_nome || '').split(' (')[0]}`, 550, 44, '#2b1d40');
-  if (c.descricao) y = quebra(`“${c.descricao}”`, y + 40, 38, SUAVE);
-  if (c.de_nome) linha(`Com carinho, ${c.de_nome}`, y + 60, 38, 600, SUAVE);
-  x.fillStyle = '#ffffff'; x.beginPath(); x.roundRect(170, 880, W - 340, 150, 24); x.fill();
-  x.strokeStyle = ROXO; x.lineWidth = 3; x.setLineDash([12, 10]); x.stroke(); x.setLineDash([]);
-  linha('Código pra agendar', 925, 30, 600, SUAVE);
-  linha(c.codigo, 985, 58, 800);
-  linha(`Válido até ${_dataBr(c.validade)}`, 1090, 34, 600, SUAVE);
-  if (linkAgenda) linha(linkAgenda.replace(/^https?:\/\//, ''), 1150, 28, 400, SUAVE);
-  if (marca) linha(marca, 1240, 44, 800);
-  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92)); cv.width = 0; cv.height = 0;
-  return blob;
+// Imagem do cartão: arte premium horizontal "saindo do envelope", com a identidade
+// visual da profissional (cartao-presente.js + 🎨 Identidade visual).
+async function _imagemPresente(c, { marca = '', cfg = null } = {}) {
+  const logoUrl = cfg ? await logoUrlDe(cfg) : null;
+  return desenharCartao(c, { marca: cfg?.ficha_cfg?.marca || {}, nomeNegocio: cfg ? nomeNegocioDe(cfg) : marca, logoUrl });
 }
 function _textoPresente(c, { marca = '', linkAgenda = '' } = {}) {
   return `🎁 Um presente pra você, ${c.cliente_nome || ''}!\n\n${c.de_nome ? `${c.de_nome} te deu` : 'Você ganhou'} *1 sessão de ${String(c.servico_nome || '').split(' (')[0]}*${marca ? ` no ${marca}` : ''}.\n\n`
