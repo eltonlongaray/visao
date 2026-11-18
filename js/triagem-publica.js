@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=13`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=14`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
