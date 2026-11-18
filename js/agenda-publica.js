@@ -370,11 +370,22 @@ export async function renderAgendaPublica(app, slug) {
       const cod = (inp?.value || '').trim(); if (!cod) { inp?.focus(); return; }
       b.disabled = true; b.textContent = '…';
       const r = await validarCupom(cfg.slug, cod, ident?.contato || '');
-      if (r.ok) { cupom = r; cupomAberto = false; desenhar(); }
+      if (r.ok) {
+        cupom = r; cupomAberto = false;
+        // cartão presente: já escolhe o serviço do presente
+        if (r.tipo === 'presente' && r.servico) {
+          const n = x => String(x || '').toLowerCase();
+          const sv = (cfg.servicos || []).find(s => n(s.nome) === n(r.servico)) || (cfg.servicos || []).find(s => n(s.nome).startsWith(n(r.servico).split(' (')[0]));
+          if (sv) { selServ = sv.id; combo = []; }
+        }
+        desenhar();
+      }
       else {
         b.disabled = false; b.textContent = 'Aplicar';
         if (msg) msg.textContent = r.motivo === 'esgotado' ? 'As sessões desse cupom já acabaram. Fala com a profissional pra renovar.'
           : r.motivo === 'outra_pessoa' ? 'Esse cupom é de outra pessoa (vale só pro WhatsApp de quem recebeu).'
+          : r.motivo === 'vencido' ? 'Esse código venceu. Fala com a profissional.'
+          : r.motivo === 'usado' ? 'Esse cartão presente já foi usado.'
           : 'Cupom não encontrado. Confere o código.';
       }
     });
@@ -418,7 +429,8 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
-        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
+        ${cupom && cupom.tipo === 'presente' ? `<div class="ap-cupom-ok">🎁 Cartão presente <b>${_esc(cupom.codigo)}</b> · ${_esc(String(cupom.servico || '').split(' (')[0])} sem custo <button type="button" id="ap-cupom-tirar" aria-label="Tirar cartão">✕</button></div>`
+          : cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
           : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
           : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>

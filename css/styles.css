@@ -9177,3 +9177,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fg-rev img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
 .fg-rev-avisos { color: #fff; font-size: 13px; line-height: 1.4; padding: 0 14px; display: grid; gap: 4px; }
 .fg-aprovar { width: auto; padding: 12px 22px; }
+/* cartão presente (cupons-ui.js) */
+.cp-pres { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.cp-pres > div { flex: 1; min-width: 0; }
+.cp-pres small { color: var(--muted); font-size: 12px; }
+.cp-pres .fi-btn { width: auto; flex: none; padding: 8px 12px; }
+.cp-pres-img { width: 100%; border-radius: 12px; display: block; margin: 8px 0 12px; }
