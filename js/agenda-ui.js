@@ -409,6 +409,28 @@ export async function abrirAgenda() {
   desenhar();
 }
 
+// Blocos retráteis da Agenda (estilo Ritual: borda colorida à esquerda). O aberto/fechado
+// fica guardado no aparelho. Conteúdo fechado continua no DOM (o Salvar lê os campos).
+const _BLOCOS_PADRAO = { proximos: true };
+let _blocosAbertos = (() => { try { return { ..._BLOCOS_PADRAO, ...JSON.parse(localStorage.getItem('falcon_agenda_blocos') || '{}') }; } catch { return { ..._BLOCOS_PADRAO }; } })();
+function _bloco(id, titulo, conteudo, extra = '') {
+  const ab = !!_blocosAbertos[id];
+  return `<section class="ag-bloco${ab ? ' aberto' : ''}" data-bloco="${id}">
+    <button class="ag-bloco-tit" type="button" aria-expanded="${ab}"><span>${titulo}</span>${extra}<span class="ag-bloco-seta">${ab ? '▴' : '▾'}</span></button>
+    <div class="ag-bloco-corpo"${ab ? '' : ' hidden'}>${conteudo}</div>
+  </section>`;
+}
+function _wireBlocos(corpo) {
+  corpo.querySelectorAll('.ag-bloco-tit').forEach(b => b.addEventListener('click', () => {
+    const sec = b.closest('.ag-bloco'), id = sec.dataset.bloco, ab = !_blocosAbertos[id];
+    _blocosAbertos[id] = ab;
+    try { localStorage.setItem('falcon_agenda_blocos', JSON.stringify(_blocosAbertos)); } catch { /* sem storage */ }
+    sec.classList.toggle('aberto', ab); b.setAttribute('aria-expanded', ab);
+    sec.querySelector('.ag-bloco-corpo').hidden = !ab; b.querySelector('.ag-bloco-seta').textContent = ab ? '▴' : '▾';
+    if (ab && id === 'dias') { pintarTabs(); pintarDiaEditor(); }
+  }));
+}
+
 function desenhar() {
   const corpo = document.querySelector('#agenda-ov .ag-corpo');
   if (!corpo) return;
@@ -420,6 +442,7 @@ function desenhar() {
       <div class="ag-title">📅 Agenda Online</div>
     </div>
     <div class="ag-scroll">
+      ${_bloco('dados', '⚙️ Dados da agenda', `
       <label class="input-field"><div class="input-field-label">Título (o que o cliente vê)</div>
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
       <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
@@ -436,20 +459,23 @@ function desenhar() {
         <select id="ag-horizonte">
           ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
         </select></label>
+      <label class="ag-ativar">
+        <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
+        <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
+      </label>`)}
 
-      <div class="ag-serv-tit">Serviços que você oferece</div>
+      ${_bloco('servicos', '💆 Serviços que você oferece', `
       <div class="ag-serv-sub">O cliente escolhe o serviço e a duração vem daqui.<br><b>Custo:</b> quanto te custa fazer (material, óleos), só você vê. <b>Sessões:</b> 1 = sessão avulsa, 5 = pacote de 5.</div>
       <div class="ag-servs" id="ag-servs"></div>
-      <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
+      <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>`)}
 
-      <div class="ag-serv-tit">Dias que você atende</div>
+      ${_bloco('dias', '📆 Dias e horários', `
       <div class="ag-serv-sub">Dia desligado não aparece pro cliente.</div>
       <div class="ag-diassem" id="ag-diassem">
         ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
       </div>
       <button class="ag-chipbtn" id="ag-segsex" type="button" role="switch" aria-checked="false">📅 Atendo de Seg a Sex <span class="ag-switch" aria-hidden="true"></span></button>
-
-      <div class="ag-serv-tit">Horários livres pro cliente marcar</div>
+      <div class="ag-sub-tit">Horários livres pro cliente marcar</div>
       <div class="ag-serv-sub">Use as setas pra abrir semanas futuras.</div>
       <div class="ag-sem-nav">
         <button class="ag-sem-arrow" id="ag-sem-prev" type="button" aria-label="Semana anterior">‹</button>
@@ -460,38 +486,34 @@ function desenhar() {
       <div class="ag-tabs" id="ag-tabs">
         ${DOWS.map(d => `<button class="ag-tab" data-tab="${d.k}" type="button"><span class="ag-tab-dow">${d.lbl}</span><span class="ag-tab-data"></span><i class="ag-tab-dot"></i></button>`).join('')}
       </div>
-      <div class="ag-dia-editor" id="ag-dia-editor"></div>
+      <div class="ag-dia-editor" id="ag-dia-editor"></div>`)}
 
-      <label class="ag-ativar">
-        <input type="checkbox" id="ag-ativo" ${_cfg.ativo ? 'checked' : ''}>
-        <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
-      </label>
-
-      <div class="ag-serv-tit">Seu link</div>
+      ${_bloco('link', '🔗 Seu link', `
       <div class="ag-serv-sub">Põe na bio do Instagram.</div>
       <div class="ag-link-box">
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
-      </div>
+      </div>`)}
 
-      <div class="ag-serv-tit">📅 Próximos atendimentos</div>
-      <div class="ag-lista">${_proximosHtml()}</div>
+      ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
-      ${secaoFichaHtml(_cfg, _clientes())}
+      ${_bloco('ficha', '📋 Ficha de atendimento', secaoFichaHtml(_cfg, _clientes()))}
 
-      <div class="ag-serv-tit">👥 Clientes <span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span></div>
+      ${_bloco('clientes', '👥 Clientes', `
+
       <div class="fin-topo">
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>
         <button class="fin-topo-btn" id="ag-prod" type="button">🧴 Produtos</button>
         <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons</button>
       </div>
-      <div class="ag-lista">${clientesHtml}</div>
+      <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
     </div>
     <div class="ag-rodape">
       <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
     </div>`;
   wireFixos(corpo);
+  _wireBlocos(corpo);
   pintarTabs();
   pintarDiasSemana();
   pintarDiaEditor();

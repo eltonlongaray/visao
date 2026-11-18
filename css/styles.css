@@ -9120,3 +9120,17 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fin-pick-op.on { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
 .fin-pick-preco { font-size: 13.5px; font-weight: 800; color: var(--text); white-space: nowrap; }
 .fin-pick-outro { margin-top: 8px; }
+
+/* === BLOCO F11: AGENDA EM BLOCOS RETRÁTEIS (estilo Ritual: borda colorida à esquerda) === */
+.ag-bloco { margin-top: 12px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 14px; overflow: hidden; }
+.ag-bloco-tit { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: none; color: var(--text); font-family: inherit; font-size: 17px; font-weight: 800; text-align: left; padding: 15px 14px; cursor: pointer; }
+.ag-bloco-tit > span:first-child { flex: 1; }
+.ag-bloco-seta { color: var(--accent-2); font-size: 15px; }
+.ag-bloco-corpo { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.ag-bloco-corpo > :first-child { margin-top: 12px; }
+.ag-bloco .ag-tit-qtd { margin-left: 0; }
+.ag-sub-tit { margin-top: 18px; font-size: 15px; font-weight: 800; color: var(--text); }
+.ag-bloco .fi-secao { margin: 0; padding: 0; border: none; background: none; }
+.ag-bloco .fi-secao-tit { display: none; }
+/* perfil do cliente: Triagem e Histórico com respiro */
+.ag-cli-hist-btn { margin-top: 10px; }
