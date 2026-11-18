@@ -16,6 +16,7 @@ import { FRENTE, COSTAS, MEDIDAS, MEDIDAS_ALTURA, AREAS_TRATADAS, POSES, sessaoD
 import { subirFotoCorpo, assinarFotos } from './corpo.js';
 import { PROTOCOLOS, posesDe, nomePose, acompDoServico, fichaDoServico, conferirFoto, abrirCameraGuiada, montarAntesDepois, baixarArquivo, compartilharArquivos } from './fotos-guiadas.js';
 import { vendasDoCliente } from './financeiro-ui.js';
+import { getAgendamentosTodos, salvarAgendamentoManual, sincronizarTaskDoAgendamento } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
@@ -109,7 +110,9 @@ export function sessoesPerfilHtml(c, ctx = {}) {
         <div class="fs-trat-btns">
           <button class="fi-btn" data-trat-nova type="button">➕ Sessão de hoje</button>
           ${comp >= 2 ? '<button class="fi-btn" data-trat-comp type="button">🖼️ Antes × depois</button>' : ''}
+          ${t.id !== '_sem' ? '<button class="fi-btn" data-trat-trocar type="button">🔁 Trocar tratamento</button>' : ''}
         </div>
+        ${t.de ? `<div class="fs-trat-sub">Começou como ${_esc(t.de)}</div>` : ''}
         ${g.sessoes.slice().reverse().map(s => { const r = _resumoSess(s); return `<button class="fi-fase" data-fi-sess="${_esc(s.id)}" type="button">Sessão ${g.sessoes.indexOf(s) + 1} · ${_dataBr(s.data)}${r ? `<br><small>${r}</small>` : ''}</button>`; }).join('')}
       </div>`;
     }).join('')}
@@ -124,6 +127,10 @@ export function wireSessoesPerfil(ov, c, atualizar, ctx = {}) {
   ov.querySelector('#fi-trat-novo')?.addEventListener('click', () => _escolherTratamento(c, ctx, t => abrirSessao(c, null, atualizar, { ...ctx, trat: t })));
   ov.querySelectorAll('[data-trat-nova]').forEach(b => b.addEventListener('click', () => abrirSessao(c, null, atualizar, { ...ctx, trat: trat(b) })));
   ov.querySelectorAll('[data-trat-comp]').forEach(b => b.addEventListener('click', () => abrirComparativo(c, { ...ctx, trat: trat(b) })));
+  ov.querySelectorAll('[data-trat-trocar]').forEach(b => b.addEventListener('click', () => {
+    const g = grupos.find(x => x.trat.id === b.closest('[data-trat]')?.dataset.trat); if (!g) return;
+    _escolherTratamento(c, ctx, novo => _trocarTratamento(c, g, novo, ctx, atualizar), { titulo: `Trocar ${g.trat.nome} por…`, menos: g.trat.id });
+  }));
   ov.querySelectorAll('[data-fi-sess]').forEach(b => b.addEventListener('click', () => {
     const s = _sessoes.find(x => x.id === b.dataset.fiSess); if (s) abrirSessao(c, s, atualizar, { ...ctx, trat: s.extra?.trat || null });
   }));
@@ -140,19 +147,19 @@ export function wireSessoesPerfil(ov, c, atualizar, ctx = {}) {
 }
 
 // Escolher o tratamento: pacotes que a cliente comprou + os serviços da agenda.
-function _escolherTratamento(c, ctx, escolheu) {
+function _escolherTratamento(c, ctx, escolheu, { titulo = 'Qual tratamento?', menos = null } = {}) {
   const servs = ctx.cfg?.servicos || [];
-  const jaTem = new Set(_grupos(_doCliente(c)).map(g => g.trat.id));
+  const jaTem = new Set(_grupos(_doCliente(c)).map(g => g.trat.id)); if (menos) jaTem.add(menos);
   let vendas = []; try { vendas = vendasDoCliente(c) || []; } catch { vendas = []; }
   const pacotes = vendas.filter(v => v.tipo === 'pacote' && !jaTem.has('v:' + v.id)).map(v => {
     const s = servs.find(x => x.id === v.servico_id) || servs.find(x => x.nome === v.item);
     return { id: 'v:' + v.id, nome: String(v.item || '').split(' (')[0], sub: `Pacote comprado em ${_dataBr(v.data)} · ${v.sessoes || 1} sessões`, acomp: acompDoServico(s || { nome: v.item }), ficha: fichaDoServico(s || { nome: v.item }, ctx.profissao) };
   });
-  const avulsos = servs.filter(s => s.nome && !s.pacoteDe).map(s => ({ id: 's:' + s.id, nome: String(s.nome).split(' (')[0], sub: (s.sessoes || 1) > 1 ? `Pacote de ${s.sessoes} sessões` : 'Sessão', acomp: acompDoServico(s), ficha: fichaDoServico(s, ctx.profissao) }));
+  const avulsos = servs.filter(s => s.nome && !s.pacoteDe && 's:' + s.id !== menos).map(s => ({ id: 's:' + s.id, nome: String(s.nome).split(' (')[0], sub: (s.sessoes || 1) > 1 ? `Pacote de ${s.sessoes} sessões` : 'Sessão', acomp: acompDoServico(s), ficha: fichaDoServico(s, ctx.profissao) }));
   const fundo = document.createElement('div'); fundo.className = 'fin-pick-ov';
   const op = o => `<button type="button" class="fin-pick-op" data-id="${_esc(o.id)}"><span class="fin-pick-txt"><b>${_icone(o.acomp)} ${_esc(o.nome)}</b><small>${_esc(o.sub)}${o.acomp.length ? ' · ' + o.acomp.map(a => PROTOCOLOS[a].nome).join(' + ') : ' · sem fotos'}</small></span></button>`;
-  fundo.innerHTML = `<div class="fin-pick-folha" role="dialog" aria-label="Qual tratamento?">
-    <div class="fin-pick-tit">Qual tratamento?</div>
+  fundo.innerHTML = `<div class="fin-pick-folha" role="dialog" aria-label="${_esc(titulo)}">
+    <div class="fin-pick-tit">${_esc(titulo)}</div>
     <div class="fin-pick-lista">
       ${pacotes.length ? `<div class="fin-pick-grupo">Pacotes que ${_esc((c.nome || 'ela').split(' ')[0])} comprou</div>${pacotes.map(op).join('')}` : ''}
       <div class="fin-pick-grupo">Serviços</div>${avulsos.map(op).join('') || '<div class="fi-vazio">Cadastre os serviços na Agenda.</div>'}
@@ -163,6 +170,53 @@ function _escolherTratamento(c, ctx, escolheu) {
     const o = pacotes.concat(avulsos).find(x => x.id === b.dataset.id); fundo.remove();
     if (o) escolheu({ id: o.id, nome: o.nome, acomp: o.acomp, ficha: o.ficha });
   });
+}
+
+// Trocar de tratamento (ex: Deusa Grega → Esculpe; relaxante → miofascial): as sessões já
+// registradas passam pro novo (fica anotado de onde veio) e os PRÓXIMOS agendamentos do
+// tratamento antigo mudam de serviço. A venda/pacote já paga é ajustada no 💰 Financeiro.
+async function _trocarTratamento(c, g, novo, ctx, atualizar) {
+  const velho = g.trat, primeiro = (c.nome || '').split(' ')[0];
+  const servs = ctx.cfg?.servicos || [];
+  const sNovo = servs.find(s => 's:' + s.id === novo.id) || servs.find(s => String(s.nome).startsWith(novo.nome));
+  const base = n => String(n || '').replace(/^Pacote\s+/i, '').split(' – ')[0].split(' (')[0].trim().toLowerCase();
+  // próximos agendamentos (confirmados, de hoje pra frente) do serviço antigo
+  let futuros = [];
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);
+    futuros = (await getAgendamentosTodos()).filter(a => a.status === 'confirmado' && a.data >= hoje
+      && mesmoNumero(a.cliente_contato, c.contato) && base(a.servico) === base(velho.nome));
+  } catch { futuros = []; }
+  const ok = await confirmModal({
+    title: `Trocar ${velho.nome} por ${novo.nome}?`,
+    message: `${g.sessoes.length} sessão(ões) já registrada(s) passam pro ${novo.nome} (fica anotado que começou no ${velho.nome}).`
+      + (futuros.length && sNovo ? ` ${futuros.length} próximo(s) agendamento(s) de ${primeiro} também muda(m) pra ${novo.nome}.` : '')
+      + ` Se ${primeiro} já pagou, ajuste a venda em 💰 Financeiro.`,
+    confirmText: 'Trocar', cancelText: 'Voltar',
+  });
+  if (!ok) return;
+  try {
+    const trat = { id: novo.id, nome: novo.nome, acomp: novo.acomp || [], ...(novo.ficha ? { ficha: novo.ficha } : {}), de: velho.de || velho.nome };
+    for (const s of g.sessoes) {
+      const extra = { ...(s.extra || {}), trat };
+      const salvo = _demo ? { ...s, extra } : await salvarSessao({ id: s.id, data: s.data, palpacao: s.palpacao || {}, medidas: s.medidas || {}, extra,
+        observacoes: s.observacoes, cliente_nome: s.cliente_nome, cliente_contato: s.cliente_contato });
+      const i = _sessoes.findIndex(x => x.id === s.id); if (i >= 0) _sessoes[i] = salvo;
+    }
+    // o plano de medidas e a autorização de divulgar vão junto
+    const fc = { ...(ctx.cfg?.ficha_cfg || {}) }, kV = _planoKey(c, velho.id), kN = _planoKey(c, novo.id);
+    if (fc.planos?.[kV]) fc.planos = { ...fc.planos, [kN]: fc.planos[kV] };
+    if (fc.divulgar?.[kV]) fc.divulgar = { ...fc.divulgar, [kN]: fc.divulgar[kV] };
+    if (!_demo && (fc.planos?.[kN] || fc.divulgar?.[kN])) await ctx.salvarCfg?.(fc).catch(() => {});
+    let mudou = 0;
+    if (sNovo && !_demo) for (const a of futuros) {
+      const p = { id: a.id, data: a.data, hora: a.hora, cliente_nome: a.cliente_nome, cliente_contato: a.cliente_contato,
+        servico: sNovo.nome, preco: sNovo.preco ?? null, duracao_min: sNovo.duracaoMin || a.duracao_min };
+      try { await salvarAgendamentoManual(p); await sincronizarTaskDoAgendamento(p, a.data).catch(() => {}); mudou++; } catch { /* segue os outros */ }
+    }
+    atualizar?.();
+    showToast(`🔁 Agora é ${novo.nome}${mudou ? ` · ${mudou} agendamento(s) atualizado(s)` : ''}`, 'success');
+  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
 }
 
 // === BLOCO 3: TELA DA SESSÃO ===
