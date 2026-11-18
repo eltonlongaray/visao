@@ -13,6 +13,10 @@
     ],
     "rewrites": [
       {
+        "source": "/triagem/**",
+        "destination": "/triagem.html"
+      },
+      {
         "source": "/agenda-online/**",
         "destination": "/agenda.html"
       },
@@ -32,6 +36,24 @@
     "headers": [
       {
         "source": "**/*.@(js|mjs)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(agenda-online|triagem|ficha|rifa)/**",
         "headers": [
           {
             "key": "Cache-Control",

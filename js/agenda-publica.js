@@ -3,7 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
-import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico } from './agenda-publica-dados.js';
+import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, criarAgendamentoCombo, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -44,6 +44,16 @@ function _removerHist(slug, id) {
     const a = _lerHist(slug).filter(x => x.id !== id);
     localStorage.setItem(_histKey(slug), JSON.stringify(a));
   } catch {}
+}
+// Vindo da TRIAGEM (/triagem/<slug>): serviços escolhidos, nome, WhatsApp e a mensagem
+// que a cliente manda pra profissional depois de confirmar. Só vale com ?triagem=1 e por 1 dia.
+const _triKey = slug => `falcon_triagem_${slug}`;
+function _lerTriagem(slug) {
+  if (!new URLSearchParams(location.search).has('triagem')) return null;
+  try {
+    const t = JSON.parse(localStorage.getItem(_triKey(slug)) || 'null');
+    return t && Date.now() - (t.ts || 0) < 86400000 ? t : null;
+  } catch { return null; }
 }
 // Identidade do cliente NO APARELHO (nome + WhatsApp) — tipo um "login" leve.
 const _identKey = slug => `falcon_cliente_${slug}`;
@@ -140,15 +150,34 @@ export async function renderAgendaPublica(app, slug) {
   const _ultimoIso = dias.length ? dias[dias.length - 1].iso : iso(hoje);
   const _maxOffset = Math.max(0, Math.round((_fromIso(_ultimoIso) - _segPub(0)) / (7 * 86400000)));
   // começa na 1ª semana que tem algum horário
+  // Dia "com vaga": tem pelo menos um horário que ainda dá pra marcar (não passou, não está
+  // a menos de 5h, não ocupado). A agenda abre já no 1º dia assim — não num dia vazio.
+  const _temVaga = isoD => { const d = dias.find(x => x.iso === isoD); return !!d && d.horarios.some(h => !h.passou && !h.cedo && !h.ocupado); };
+  const _primeiroComVaga = off => _diasDaSemana(off).find(x => !x.past && _temVaga(x.iso))?.iso || null;
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_diasDaSemana(semOffset).some(x => !x.past)) semOffset++;
-  let selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
+  while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
+  let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
   let selServ = servicos.length ? servicos[0].id : null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
+  // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
+  const TRI = _lerTriagem(cfg.slug);
+  let combo = [];                    // 2+ serviços num horário só (da triagem)
+  let servAberto = false;            // lista de serviços aberta (botão retrátil)
+  if (TRI) {
+    if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
+    const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
+    if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
+  }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
-  const _durSel = () => (_servSel()?.duracaoMin) || cfg.duracao_min || 60;
+  const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
+  const _durSel = () => combo.length > 1
+    ? _comboServs().reduce((t, s) => t + (s.duracaoMin || cfg.duracao_min || 60), 0)
+    : ((_servSel()?.duracaoMin) || cfg.duracao_min || 60);
+  // nome e preço do que vai ser agendado (1 serviço ou a soma do combo)
+  const _comboNome = () => _comboServs().map(s => s.nome).join(' + ');
+  const _comboPreco = () => { const c = _comboServs(); return c.some(s => s.preco == null) ? null : c.reduce((t, s) => t + Number(s.preco), 0); };
 
   // Busca os agendamentos do cliente (pelo WhatsApp) e re-renderiza quando chegam.
   async function _carregarMeusAgs() {
@@ -202,14 +231,31 @@ export async function renderAgendaPublica(app, slug) {
   }
 
   // Seletor de serviço (só se o profissional cadastrou serviços)
-  function _servHtml() {
-    if (!servicos.length) return '';
-    return `<div class="ap-serv-wrap">
-      <div class="ap-serv-tit">Escolha o serviço</div>
-      ${servicos.map(s => `<button class="ap-serv-op ${selServ === s.id ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
+  // Seletor de serviço: mostra só o(s) escolhido(s) + um botão retrátil bem visível
+  // "Ver todos os serviços" (lista longa não empurra os horários pra baixo).
+  function _servCard(s, sel) {
+    return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
-      </button>`).join('')}
+      </button>`;
+  }
+  function _servHtml() {
+    if (!servicos.length) return '';
+    const escolhido = combo.length > 1
+      ? `<button class="ap-serv-op sel" type="button" disabled style="opacity:1">
+        <span class="ap-serv-nm">${_esc(_comboNome())}</span>
+        <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
+      </button>`
+      : (_servSel() ? _servCard(_servSel(), true) : '');
+    if (servicos.length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+    return `<div class="ap-serv-wrap">
+      <div class="ap-serv-tit">Serviço escolhido</div>
+      <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">
+        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${servicos.length})`}</span>
+      </button>
+      ${servAberto
+        ? servicos.map(s => _servCard(s, combo.length <= 1 && selServ === s.id)).join('')
+        : escolhido}
     </div>`;
   }
 
@@ -226,7 +272,7 @@ export async function renderAgendaPublica(app, slug) {
     const dia = dias.find(x => x.iso === selDia) || null;   // dias[] tem os horários
     const g = { manha: [], tarde: [], noite: [] };
     // Horários que já passaram somem da lista (não têm por que aparecer).
-    if (dia) dia.horarios.forEach(s => { if (!s.passou) g[_turno(s.hora)].push(s); });
+    if (dia) dia.horarios.forEach(s => { if (!s.passou && !s.cedo) g[_turno(s.hora)].push(s); });   // sem 5h de antecedência: some (o cliente não entende "cedo")
     const bloco = (lbl, icon, arr) => arr.length ? `
       <div class="ap-turno"><div class="ap-turno-lbl">${icon} ${lbl}</div>
       <div class="ap-slots">${arr.map(s => (s.ocupado || s.cedo)
@@ -267,6 +313,7 @@ export async function renderAgendaPublica(app, slug) {
 
   // Botão "Falar no WhatsApp" (do profissional), se ele configurou o número.
   function _waProHtml() {
+    if (TRI) return '';   // veio da triagem: o WhatsApp é o último passo, com a mensagem pronta
     const wa = _waProLink(cfg);
     return wa ? `<a class="ap-wa-pro" href="${wa}" target="_blank" rel="noopener">${WA_SVG_PUB} Falar no WhatsApp</a>` : '';
   }
@@ -307,7 +354,7 @@ export async function renderAgendaPublica(app, slug) {
     });
     const _irSemana = (novo) => {
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
+      selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
       selHora = null; desenhar();
     };
     app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
@@ -316,8 +363,9 @@ export async function renderAgendaPublica(app, slug) {
       selDia = b.dataset.dia; selHora = null; desenhar();
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; desenhar();
+      selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
     }));
+    app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -333,7 +381,7 @@ export async function renderAgendaPublica(app, slug) {
 
     // Cancelar um agendamento do próprio cliente (identificado pelo WhatsApp).
     app.querySelectorAll('.ap-hist-cancel').forEach(b => b.addEventListener('click', async () => {
-      if (!confirm('Cancelar este agendamento e liberar o horário?')) return;
+      if (!(await _confirmarBonito('Cancelar este agendamento?', 'O horário fica livre pra outra pessoa marcar.', 'Sim, cancelar', 'Voltar'))) return;
       const id = b.dataset.cancelId, dataC = b.dataset.cancelData, horaC = b.dataset.cancelHora;
       b.disabled = true; b.textContent = 'Cancelando…';
       try {
@@ -354,7 +402,9 @@ export async function renderAgendaPublica(app, slug) {
   function _formHtml(dia, hora) {
     const serv = _servSel();
     const fim = _fim(hora, _durSel());
-    const servLinha = serv
+    const servLinha = combo.length > 1
+      ? `<div class="ap-form-serv">💆 ${_esc(_comboNome())}${_comboPreco() != null ? ` · <b>R$ ${_precoTxt(_comboPreco())}</b>` : ''}</div>`
+      : serv
       ? `<div class="ap-form-serv">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · <b>R$ ${_precoTxt(serv.preco)}</b>` : ''}</div>`
       : '';
     return `
@@ -375,9 +425,13 @@ export async function renderAgendaPublica(app, slug) {
       const hora = selHora;
       const serv = _servSel();
       const fim = _fim(hora, _durSel());
-      const res = await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
+      const ehCombo = combo.length > 1;
+      const nomeServ = ehCombo ? _comboNome() : (serv?.nome || null);
+      const res = ehCombo
+        ? await criarAgendamentoCombo(cfg.slug, dia.iso, hora, nome, zap, combo)
+        : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: serv?.nome || null, id: res?.id, token: res?.token });
+      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
       // marca o intervalo recém-agendado (início→fim do serviço/duração) como ocupado
       const iniB = _hm(hora); const durB = _durSel() || DUR;
       if (!ocupados.has(dia.iso)) ocupados.set(dia.iso, []);
@@ -387,20 +441,51 @@ export async function renderAgendaPublica(app, slug) {
       const dataTxt = `${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}`;
       // Avisa o profissional no WhatsApp dele (o Falcon manda sozinho, via
       // CallMeBot). Fire-and-forget: não trava a confirmação do cliente.
-      notificarProfissional(cfg.slug, { nome, contato: zap, servico: serv?.nome || null, dataTxt, hora, fim });
+      notificarProfissional(cfg.slug, { nome, contato: zap, servico: nomeServ, dataTxt, hora, fim });
+      const precoOk = ehCombo ? _comboPreco() : (serv?.preco ?? null);
+      // Veio da triagem: último passo = a cliente manda o resumo pro WhatsApp da profissional
+      let waTri = '';
+      if (TRI && TRI.whatsapp && TRI.msg) {
+        const txt = TRI.msg.replace('{{QUANDO}}', `${dataTxt} às ${hora}${fim ? `–${fim}` : ''}`).replace('{{SERVICO}}', nomeServ || '—');
+        waTri = `https://wa.me/${String(TRI.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(txt)}`;
+        try { localStorage.removeItem(_triKey(cfg.slug)); } catch {}
+        combo = [];
+      }
       app.innerHTML = _tela(`
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
-          ${serv ? `<div class="ap-ok-sub">💆 ${_esc(serv.nome)}${serv.preco != null ? ` · R$ ${_precoTxt(serv.preco)}` : ''}</div>` : ''}
+          ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
+          ${waTri ? `<div class="ap-cd">
+            <div class="ap-cd-t">Agora só falta confirmar o serviço que você agendou com ${(cfg.titulo || '').split(' · ')[0] ? `a <b>${_esc((cfg.titulo || '').split(' · ')[0])}</b>` : 'a profissional'} no WhatsApp.</div>
+            <div class="ap-cd-sub">Você será direcionado em:</div>
+            <div class="ap-cd-anel">
+              <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ap-cd-fundo" cx="60" cy="60" r="52"/><circle class="ap-cd-prog" cx="60" cy="60" r="52"/></svg>
+              <span class="ap-cd-n" id="ap-ok-cont">5</span>
+            </div>
+            <a class="ap-cd-link" id="ap-ok-wa-link" href="${waTri}" hidden>Não abriu? Toque aqui</a>
+          </div>` : ''}
           ${cfg.endereco ? `<div class="ap-ok-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
           <div class="ap-ok-sub">${_esc(cfg.titulo || '')}</div>
           <div id="ap-ficha"></div>
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
-      _oferecerFicha(cfg.slug, nome, zap);
+      if (waTri) {
+        // 5, 4, 3, 2, 1 → abre o WhatsApp da profissional com tudo que ela escolheu
+        let n = 5;
+        const tick = setInterval(() => {
+          n--; const el = document.getElementById('ap-ok-cont'); if (el) { el.textContent = String(Math.max(n, 0)); el.classList.remove('pula'); void el.offsetWidth; el.classList.add('pula'); }
+          if (n <= 0) {
+            clearInterval(tick);
+            document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
+            location.href = waTri;
+          }
+        }, 1000);
+      } else {
+        _oferecerFicha(cfg.slug, nome, zap);
+      }
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
@@ -434,6 +519,27 @@ async function _oferecerFicha(slug, nome, zap) {
     try { localStorage.setItem(chave, JSON.stringify(d)); } catch {}
     location.href = `/ficha/${encodeURIComponent(slug)}`;
   };
+}
+
+// Pergunta de confirmação no estilo do app (no lugar do confirm() feio do navegador).
+function _confirmarBonito(titulo, texto, sim, nao) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'ap-conf-ov';
+    ov.innerHTML = `<div class="ap-conf" role="dialog" aria-modal="true">
+      <div class="ap-conf-t">${_esc(titulo)}</div>
+      ${texto ? `<div class="ap-conf-d">${_esc(texto)}</div>` : ''}
+      <div class="ap-conf-btns">
+        <button type="button" class="ap-conf-nao">${_esc(nao || 'Voltar')}</button>
+        <button type="button" class="ap-conf-sim">${_esc(sim || 'Confirmar')}</button>
+      </div></div>`;
+    const fim = v => { ov.classList.add('sai'); setTimeout(() => ov.remove(), 160); resolve(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) fim(false); });
+    ov.querySelector('.ap-conf-nao').onclick = () => fim(false);
+    ov.querySelector('.ap-conf-sim').onclick = () => fim(true);
+    document.body.appendChild(ov);
+    ov.querySelector('.ap-conf-nao').focus();
+  });
 }
 
 // wrapper visual + limpeza (remove a classe da rota ao sair)

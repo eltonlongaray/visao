@@ -16,9 +16,20 @@ function _codigo() {
 const _dig = s => String(s || '').replace(/\D/g, '');
 
 // === BLOCO 2: LEITURA ===
+// A triagem mora na mesma tabela (modelo 'triagem'), mas NÃO é ficha de atendimento.
 export async function getFichas() {
   const { data, error } = await supabase.from('fichas')
     .select('*')
+    .neq('modelo', 'triagem')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+// Triagens (/triagem/<slug>) — viram a etapa "Só triagem" e aparecem no perfil do cliente.
+export async function getTriagens() {
+  const { data, error } = await supabase.from('fichas')
+    .select('id, cliente_nome, cliente_contato, cliente_digitos, respostas, respondida_em, created_at')
+    .eq('modelo', 'triagem')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
