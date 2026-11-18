@@ -652,13 +652,29 @@ function _syncServicos() {
     s._custo = cu === '' ? 0 : (Number(cu) || 0);
     s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
     const ac = row.querySelectorAll('.ag-acomp'); if (ac.length) s.acomp = [...ac].filter(b => b.classList.contains('on')).map(b => b.dataset.acomp);
+    // 📦 Pacote dentro do serviço: vira um item escondido (pacoteDe = id do serviço) que a
+    // agenda pública mostra como opção do serviço. O id fica o mesmo (vendas e agendamentos apontam pra ele).
+    const pacOn = row.querySelector('.ag-pac-on')?.classList.contains('on');
+    const pacIdx = _cfg.servicos.findIndex(x => x.pacoteDe === s.id);
+    if (pacOn) {
+      const n = Math.max(2, parseInt(row.querySelector('.ag-pac-sess')?.value, 10) || 5);
+      const pp = (row.querySelector('.ag-pac-preco')?.value || '').replace(',', '.').trim();
+      const curto = String(s.nome || '').split(' – ')[0].split(' (')[0].trim();
+      const pac = { ...(pacIdx >= 0 ? _cfg.servicos[pacIdx] : { id: s.id + 'p' }), nome: `Pacote ${curto} – ${n} sessões`, duracaoMin: s.duracaoMin,
+        preco: pp === '' ? null : Number(pp), sessoes: n, pacoteDe: s.id, ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}) };
+      if (pacIdx >= 0) _cfg.servicos[pacIdx] = pac; else _cfg.servicos.push(pac);
+    } else if (pacIdx >= 0 && row.querySelector('.ag-pac-on')) {
+      _cfg.servicos.splice(pacIdx, 1);
+    }
   });
 }
 
 function pintarServicos() {
   const box = document.querySelector('#ag-servs');
   if (!box) return;
-  box.innerHTML = _cfg.servicos.length ? _cfg.servicos.map(s => `
+  const base = _cfg.servicos.filter(s => !s.pacoteDe);
+  const pacDe = s => _cfg.servicos.find(x => x.pacoteDe === s.id) || null;
+  box.innerHTML = base.length ? base.map(s => { const pc = pacDe(s); return `
     <div class="ag-serv" data-sid="${s.id}">
       <input class="ag-serv-nome" value="${_esc(s.nome || '')}" placeholder="Nome do serviço (ex: Massagem relaxante)">
       <div class="ag-serv-linha">
@@ -678,11 +694,29 @@ function pintarServicos() {
         <span class="ag-serv-lb">📸 Fotos</span>
         ${ACOMPS.map(a => `<button type="button" class="ag-acomp ${acompDoServico(s).includes(a) ? 'on' : ''}" data-acomp="${a}">${PROTOCOLOS[a].icone} ${PROTOCOLOS[a].nome}</button>`).join('')}
       </div>
-    </div>`).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
+      <div class="ag-pac">
+        <button type="button" class="ag-pac-on ${pc ? 'on' : ''}" aria-pressed="${!!pc}">📦 Tem pacote</button>
+        <span class="ag-pac-campos"${pc ? '' : ' hidden'}>
+          <input class="ag-pac-sess" type="number" inputmode="numeric" min="2" value="${pc?.sessoes || 5}" aria-label="Sessões do pacote"><span class="ag-serv-un">sessões</span>
+          <span class="ag-serv-lb">R$</span><input class="ag-pac-preco" type="text" inputmode="decimal" value="${pc ? _preco(pc.preco) : ''}" placeholder="0,00" aria-label="Preço do pacote">
+        </span>
+        <span class="ag-pac-cada">${pc && pc.preco && pc.sessoes ? `R$ ${_preco(pc.preco / pc.sessoes)} cada` : ''}</span>
+      </div>
+    </div>`; }).join('') : '<div class="ag-serv-vazio">Nenhum serviço ainda. Sem serviços, o cliente agenda com a duração padrão.</div>';
   box.querySelectorAll('.ag-acomp').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  box.querySelectorAll('.ag-pac-on').forEach(b => b.onclick = () => {
+    const on = !b.classList.contains('on'); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+    b.parentElement.querySelector('.ag-pac-campos').hidden = !on;
+    if (on) b.parentElement.querySelector('.ag-pac-preco')?.focus();
+  });
+  box.querySelectorAll('.ag-pac-preco, .ag-pac-sess').forEach(i => i.oninput = () => {
+    const w = i.closest('.ag-pac'), n = parseInt(w.querySelector('.ag-pac-sess').value, 10) || 0;
+    const v = Number(String(w.querySelector('.ag-pac-preco').value).replace(',', '.')) || 0;
+    w.querySelector('.ag-pac-cada').textContent = n > 1 && v ? `R$ ${_preco(v / n)} cada` : '';
+  });
   box.querySelectorAll('[data-rm-serv]').forEach(b => b.onclick = () => {
     _syncServicos();
-    _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ);
+    _cfg.servicos = _cfg.servicos.filter(s => s.id !== b.dataset.rmServ && s.pacoteDe !== b.dataset.rmServ);
     pintarServicos();
   });
 }
@@ -995,7 +1029,7 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}) }));
   // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
   const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO

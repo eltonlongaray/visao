@@ -147,7 +147,7 @@ export async function renderAgendaPublica(app, slug) {
   while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
   let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
   let selHora = null;
-  let selServ = servicos.length ? servicos[0].id : null;
+  let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
@@ -161,6 +161,10 @@ export async function renderAgendaPublica(app, slug) {
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
+  // Pacote dentro do serviço: o item do pacote (pacoteDe) não aparece na lista, vira opção do serviço.
+  const _lista = () => servicos.filter(s => !s.pacoteDe);
+  const _baseDe = s => (s && s.pacoteDe ? servicos.find(x => x.id === s.pacoteDe) || s : s);
+  const _pacoteDe = s => (s ? servicos.find(x => x.pacoteDe === s.id) || null : null);
   const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
   const _durSel = () => combo.length > 1
     ? _comboServs().reduce((t, s) => t + (s.duracaoMin || cfg.duracao_min || 60), 0)
@@ -223,6 +227,18 @@ export async function renderAgendaPublica(app, slug) {
   // Seletor de serviço (só se o profissional cadastrou serviços)
   // Seletor de serviço: mostra só o(s) escolhido(s) + um botão retrátil bem visível
   // "Ver todos os serviços" (lista longa não empurra os horários pra baixo).
+  function _pacoteHtml() {
+    const base = _baseDe(_servSel()), pac = _pacoteDe(base);
+    if (combo.length > 1 || !base || !pac) return '';
+    const ehPac = selServ === pac.id;
+    const cada = pac.preco != null && pac.sessoes ? pac.preco / pac.sessoes : null;
+    const eco = base.preco != null && pac.preco != null && pac.sessoes ? base.preco * pac.sessoes - pac.preco : 0;
+    return `<div class="ap-pac">
+      <button type="button" class="ap-pac-op ${ehPac ? '' : 'on'}" data-pac="${_esc(base.id)}"><span class="ap-pac-mk"></span><span><b>Sessão avulsa</b>${base.preco != null ? ` · R$ ${_precoTxt(base.preco)}` : ''}</span></button>
+      <button type="button" class="ap-pac-op ${ehPac ? 'on' : ''}" data-pac="${_esc(pac.id)}"><span class="ap-pac-mk"></span><span><b>Pacote ${pac.sessoes} sessões</b>${pac.preco != null ? ` · R$ ${_precoTxt(pac.preco)}` : ''}
+        ${cada ? `<small>R$ ${_precoTxt(cada)} cada${eco > 0 ? ` · economiza R$ ${_precoTxt(eco)}` : ''}</small>` : ''}</span></button>
+    </div>`;
+  }
   function _servCard(s, sel) {
     return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
         <span class="ap-serv-nm">${_esc(s.nome)}</span>
@@ -236,15 +252,15 @@ export async function renderAgendaPublica(app, slug) {
         <span class="ap-serv-nm">${_esc(_comboNome())}</span>
         <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
       </button>`
-      : (_servSel() ? _servCard(_servSel(), true) : '');
-    if (servicos.length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+      : (_servSel() ? _servCard(_baseDe(_servSel()), true) + _pacoteHtml() : '');
+    if (_lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Serviço escolhido</div>
       <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">
-        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${servicos.length})`}</span>
+        <span>${servAberto ? '▴ Fechar a lista de serviços' : `▾ Aperte aqui para ver todos os serviços (${_lista().length})`}</span>
       </button>
       ${servAberto
-        ? servicos.map(s => _servCard(s, combo.length <= 1 && selServ === s.id)).join('')
+        ? _lista().map(s => _servCard(s, combo.length <= 1 && _baseDe(_servSel())?.id === s.id)).join('')
         : escolhido}
     </div>`;
   }
@@ -356,6 +372,7 @@ export async function renderAgendaPublica(app, slug) {
       selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
+    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
