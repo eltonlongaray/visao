@@ -7120,7 +7120,7 @@ if (typeof window !== 'undefined') {
 // ═══════════════════════════════════════════════════════════════
 const SO_NA_TELA = {
   excluir: 'Excluir a conta eu não faço por aqui, por segurança: só tu na tela. Abrindo os Ajustes 👉 lá embaixo, em <b>🚪 Conta › Excluir minha conta</b>.',
-  sair: 'Sair da conta é só pela tela, por segurança. Abrindo os Ajustes 👉 lá embaixo, em <b>🚪 Conta › Sair</b>.',
+  sair: 'Sair da conta é só pela tela, por segurança. Abrindo a Home 👉 é o último botão lá embaixo, <b>↪ Sair da conta</b>.',
   biometria: 'A biometria precisa do teu toque no celular, então é pela tela. Abrindo os Ajustes 👉 em <b>Bloqueio biométrico</b>, é só ligar ou desligar a chave.',
 };
 
@@ -7129,7 +7129,8 @@ async function tentarAjustes(text) {
   if (!a) return undefined;
   switch (a.tipo) {
     case 'so_tela':
-      setTimeout(() => navigate('/ajustes'), 600);
+      // Sair mora no fim da Home (Élton, 18/11); excluir e biometria nos Ajustes
+      setTimeout(() => navigate(a.valor === 'sair' ? '/home' : '/ajustes'), 600);
       return SO_NA_TELA[a.valor];
     case 'sugestao': {
       if (!a.valor) return 'Manda! Escreve assim que eu envio: <em>"sugestão: o que tu quer melhorar no app"</em> 💡';

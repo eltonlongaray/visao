@@ -35,7 +35,7 @@ import { openTimePicker } from '../seletor-horario.js';
 import { openMorningMessages, hasUnreadToday } from '../mensagens-manha.js';
 import { trapModalBack } from '../modal-voltar.js';
 import { abrirEditorAtividade } from '../atividade-editor.js';
-import { t, getLang } from '../idioma.js';
+import { t, getLang, LANGS, setLang } from '../idioma.js';
 import { maybeInstallHint } from '../notificacoes.js';
 import { maybeInvitePerfil } from '../contato-perfil.js';
 import { openAvisosModal, loadAvisosDot } from '../avisos.js';
@@ -104,6 +104,13 @@ export async function renderHome(app) {
               <button type="button" class="time-pill-input tp-pill-trigger" id="pref-sleep" data-time="${toHHMM(profile.defaultSleepTime) || ''}">${toHHMM(profile.defaultSleepTime) || '--:--'}</button>
             </label>
           </div>
+          <!-- IDIOMA: veio da tela de modalidade, que deixou de existir (Élton, 18/11) -->
+          <div class="lang-picker home-lang">
+            <span class="lang-picker-label">${t('modal.lang.title')}</span>
+            <div class="lang-flags">
+              ${LANGS.map(l => `<button type="button" class="lang-flag-btn ${getLang() === l.code ? 'active' : ''}" data-lang="${l.code}" title="${l.label}" aria-label="${l.label}">${l.flag}</button>`).join('')}
+            </div>
+          </div>
           <div class="sleep-info" id="sleep-info">${sleepInfoHtml()}</div>
           <div class="agua-meta" id="agua-meta">${aguaMetaHtml()}</div>
         </div>
@@ -139,7 +146,7 @@ export async function renderHome(app) {
         <div class="reminders-icon">🛠️</div>
         <div class="reminders-text">
           <div class="reminders-title">Ferramentas</div>
-          <div class="reminders-sub">Agenda Online, Rifa e Aprenda outra língua</div>
+          <div class="reminders-sub">Agenda Online, Fontes de renda extra, Rifa e Aprenda outra língua</div>
         </div>
       </button>
 
@@ -192,6 +199,11 @@ export async function renderHome(app) {
 
       <!-- "Meus Objetivos" (com o Foco e Disciplina dentro) mudou-se pra Caixa
            de Ferramentas. Aqui na Home ficam só as Atividades que ele gera. -->
+
+      <!-- SAIR DA CONTA: última opção da Home (Élton, 18/11; antes nos Ajustes) -->
+      <div class="home-sair">
+        <button id="home-sair-btn" class="btn-sair-modalidade" type="button">${t('modal.logout')}</button>
+      </div>
 
     </div>
     ${bottomNav('home')}
@@ -498,6 +510,24 @@ function attachHandlers() {
     openMorningMessages();
     const dot = document.getElementById('msgs-dot');
     if (dot) dot.style.display = 'none';
+  });
+
+  // Idioma: troca e redesenha a Home já no idioma novo
+  document.querySelectorAll('.home-lang .lang-flag-btn').forEach(btn => btn.addEventListener('click', async () => {
+    if (btn.dataset.lang === getLang()) return;
+    await setLang(btn.dataset.lang);
+    const app = document.getElementById('app');
+    if (app) renderHome(app);
+  }));
+  // Sair da conta (com confirmação, igual era nos Ajustes)
+  document.getElementById('home-sair-btn')?.addEventListener('click', async () => {
+    const ok = await confirmModal({ title: 'Sair da conta?', message: 'Você precisará fazer login de novo. Seus dados continuam salvos.', confirmText: 'Sair', cancelText: 'Cancelar' });
+    if (!ok) return;
+    try {
+      const { signOut } = await import('../autenticacao.js');
+      await signOut(auth);
+      navigate('/login');
+    } catch (err) { console.error('[home] signOut:', err); showToast('Erro ao sair.', 'error'); }
   });
 
   document.getElementById('cartao-dia-card').addEventListener('click', () =>
