@@ -8,7 +8,7 @@
 <title>Demonstração · Ficha e Sessões</title>
 <base href="/">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="css/styles.css?v=20261016n">
+<link rel="stylesheet" href="css/styles.css?v=20261118a">
 <style>
   /* === BLOCO 1: PÁGINA DE DEMONSTRAÇÃO (lado da profissional, dados de exemplo) === */
   html, body { margin: 0; background-color: #0a0e1a; }
@@ -59,6 +59,27 @@ demoSessoes([
     palpacao: { lombar_d: 6, cervical_d: 4, trapezio_d: 5, trapezio_e: 3, escapula_d: 2 },
     medidas: { cintura: { antes: 76.5, depois: 75 }, abdomen: { antes: 90, depois: 88.5 }, panturrilha_d: { antes: 37, depois: 36 }, panturrilha_e: { antes: 37.5, depois: 36.5 } } },
 ]);
+
+// ?p=estetica → demonstração da ficha de Estética corporal (plano de medidas, alturas, fotos, antes × depois)
+if (new URLSearchParams(location.search).get('p') === 'estetica') {
+  cfg.ficha_cfg = { profissao: 'estetica', planos: { '5184551613': '1e5' } };
+  demoFichas([{ id: 'f2', codigo: 'demo', modelo: 'estetica', ...contato, respondida_em: dias(30) + 'T12:00:00Z',
+    respostas: { nascimento: '1988-03-02', conheceu: 'Instagram', tratar: ['Celulite', 'Gordura localizada'], prioridade: ['Culote', 'Flancos (pneuzinhos)', 'Abdômen'],
+      ja_estetica: 'Não', peso_atual: '68 kg', peso_ideal: '62 kg', peso_quando: '1 a 3 anos', agua: 'Até 1 litro', intestino: '3 vezes ou mais na semana',
+      urina: 'Até 2 vezes', inchaco: 'Às vezes', saude: ['Nenhuma dessas'], contraceptivo: 'Pílula', acompanhamento: ['Nenhum'], alergia: 'Não', remedio: 'Não',
+      foto_acomp: 'Sim, autorizo', foto_insta: 'Sim, pode usar sem o rosto' }, mapa: {} }]);
+  const f = { frente: 'img/corpo/mulher-frente.png', lado_d: 'img/corpo/mulher-lado.png' };
+  const med = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { antes: v }]));
+  demoSessoes([
+    { id: 'e1', ...contato, data: dias(28), created_at: dias(28) + 'T12:00:00Z', observacoes: 'Avaliação. Culote e flancos com bastante retenção.',
+      medidas: med({ peso: 68, abdomen_1: 84, abdomen_2: 88, abdomen_3: 92, perna_d_1: 60, perna_e_1: 60.5 }), extra: { fotos: f, areas: ['Culotes', 'Flancos'], tecnica: 'Modeladora + drenagem', levou: 'Xô Celulite 30 ml' } },
+    { id: 'e2', ...contato, data: dias(21), created_at: dias(21) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Flancos'] } },
+    { id: 'e3', ...contato, data: dias(14), created_at: dias(14) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Abdômen inferior'] } },
+    { id: 'e4', ...contato, data: dias(7), created_at: dias(7) + 'T12:00:00Z', medidas: {}, extra: { areas: ['Culotes', 'Flancos'] } },
+    { id: 'e5', ...contato, data: dias(0), created_at: dias(0) + 'T12:00:00Z', observacoes: 'Fechamento do pacote.',
+      medidas: med({ peso: 66.5, abdomen_1: 81, abdomen_2: 85.5, abdomen_3: 89, perna_d_1: 58, perna_e_1: 58.5 }), extra: { fotos: { frente: 'img/corpo/mulher-lado.png', lado_d: 'img/corpo/mulher-frente.png' }, areas: ['Culotes'] } },
+  ]);
+}
 
 const perfil = document.getElementById('dm-perfil');
 document.getElementById('dm-ficha').innerHTML = perfilFichaHtml(cfg, c);

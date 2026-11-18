@@ -81,8 +81,75 @@ const MASSOTERAPIA = {
   ],
 };
 
-export const MODELOS = { massoterapia: MASSOTERAPIA };
-export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "💆" }];
+// === BLOCO 2B: MODELO — ESTÉTICA CORPORAL (18/11, caso Alê) ===
+// Mesma base da massoterapia + bloco "Seu objetivo" (celulite, medidas, hábitos)
+// + saúde ampliada + autorização de fotos. "ordem": a ordem dos toques vira prioridade.
+const _q = id => MASSOTERAPIA.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+const AREAS_CORPO = ["Abdômen","Flancos (pneuzinhos)","Culote","Glúteo","Parte interna das coxas","Parte de trás das coxas",
+  "Joelhos","Braços (parte de trás)","Costas","Panturrilhas","Papada ou rosto"];
+const ESTETICA = {
+  profissao: "estetica",
+  titulo: "Ficha de atendimento",
+  blocos: [
+    { nome: "Quem é você", perguntas: [_q("nome"), _q("whatsapp"), _q("nascimento"), _q("conheceu"),
+      { id:"profissao_cli", tipo:"texto", q:"Sua profissão", ph:"Ex: professora, trabalho em escritório…" },
+    ]},
+    { nome: "Seu objetivo", perguntas: [
+      { id:"tratar", tipo:"varias", q:"O que você quer tratar?", aj:"Pode marcar vários.",
+        op:["Celulite","Estrias","Flacidez","Gordura localizada","Inchaço e retenção","Manchas","Pele do rosto"], outro:true },
+      { id:"prioridade", tipo:"varias", ordem:true, q:"Quais áreas mais te incomodam?",
+        aj:"Toque na ordem: a primeira é a que mais incomoda.", op: AREAS_CORPO, outro:true },
+      { id:"ja_estetica", tipo:"unica", q:"Já fez algum tratamento estético?", op:["Sim","Não"] },
+      { id:"ja_estetica_qual", tipo:"texto", q:"Qual e quando?", ph:"Ex: drenagem em 2024, criolipólise…", se: R => R.ja_estetica === "Sim", sub:true },
+      { id:"peso_atual", tipo:"texto", q:"Seu peso hoje", ph:"Ex: 68 kg (se souber)" },
+      { id:"peso_ideal", tipo:"texto", q:"Quanto você gostaria de pesar?", ph:"Ex: 62 kg" },
+      { id:"peso_quando", tipo:"unica", q:"Há quanto tempo você não está no peso que gostaria?",
+        op:["Estou no meu peso","Menos de 1 ano","1 a 3 anos","Mais de 3 anos"] },
+    ]},
+    { nome: "Seus hábitos", perguntas: [
+      { id:"agua", tipo:"unica", q:"Quanta água você bebe por dia?", op:["Quase nada","Até 1 litro","1 a 2 litros","Mais de 2 litros"] },
+      { id:"intestino", tipo:"unica", q:"Seu intestino funciona…", op:["Todos os dias","3 vezes ou mais na semana","1 vez na semana ou menos"] },
+      { id:"urina", tipo:"unica", q:"Quantas vezes você faz xixi por dia?", aj:"Ajuda a entender se o corpo está retendo líquido.",
+        op:["Até 2 vezes","3 a 5 vezes","Mais de 5 vezes"] },
+      _q("alimentacao"), _q("alimentacao_txt"), _q("sono"), _q("rotina"), _q("atividade"),
+      _q("inchaco"), _q("inchaco_quando"), _q("refeicao"),
+    ]},
+    { nome: "Como está seu corpo", perguntas: [_q("mapa"), _q("estresse")] },
+    { nome: "Saúde e segurança", perguntas: [
+      { id:"aviso_saude", tipo:"aviso", q:"Essas respostas garantem um tratamento seguro pra você. Elas ficam só com a profissional." },
+      { id:"saude", tipo:"varias", q:"Marque o que se aplica a você",
+        op:["Estou gestante","Estou amamentando","Fiz cirurgia nos últimos 6 meses","Tenho varizes","Já tive trombose","Pressão alta","Diabetes",
+          "Problema de pele ou ferida","Pele sensível ou que mancha fácil","Uso ácido na pele ou Roacutan","Tomo anticoagulante",
+          "Em tratamento de câncer","Uso marca-passo","Nenhuma dessas"], so:["Nenhuma dessas"] },
+      _q("gestante_semanas"), _q("cirurgia_qual"),
+      { id:"contraceptivo", tipo:"unica", q:"Usa algum método contraceptivo?",
+        op:["Nenhum","Pílula","DIU","Mirena","Implante","Adesivo","Estou na menopausa","Prefiro não dizer"] },
+      { id:"acompanhamento", tipo:"varias", q:"Faz acompanhamento com algum desses?", aj:"Pode marcar vários.",
+        op:["Nutricionista","Endocrinologista ou nutrólogo","Dermatologista","Ginecologista","Cardiologista","Psicólogo ou psiquiatra","Personal trainer","Nenhum"], outro:true, so:["Nenhum"] },
+      _q("alergia"), _q("alergia_qual"), _q("remedio"), _q("remedio_qual"),
+    ]},
+    { nome: "Fotos e preferências", perguntas: [
+      { id:"foto_acomp", tipo:"unica", q:"Posso tirar fotos do seu corpo pra acompanhar sua evolução?",
+        aj:"São 4 fotos (frente, costas e lados), só pra comparar o antes e depois. Ficam só comigo.", op:["Sim, autorizo","Não"] },
+      { id:"foto_insta", tipo:"unica", q:"Posso usar essas fotos no Instagram, sem mostrar seu rosto?",
+        op:["Sim, pode usar sem o rosto","Não, só pro meu acompanhamento"], se: R => R.foto_acomp === "Sim, autorizo", sub:true },
+      _q("nao_tocar"), _q("conversa"), _q("ambiente"), _q("algo_mais"),
+    ]},
+  ],
+};
+
+export const MODELOS = { massoterapia: MASSOTERAPIA, estetica: ESTETICA };
+export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "💆" },
+  { k: "estetica", nome: "Estética corporal", emoji: "✨" }];
+
+// O que cada profissão registra em cada SESSÃO (lado da profissional).
+// massoterapia: dor ao pressionar + medidas antes/depois (como sempre).
+// estetica: plano de medidas (todas × 1ª e 5ª), medidas por altura, 4 fotos, áreas tratadas, técnica/blend.
+export const SESSAO_POR_PROFISSAO = {
+  massoterapia: { palpacao: true, medidas: "antes_depois" },
+  estetica: { palpacao: false, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
+};
+export const sessaoDe = prof => SESSAO_POR_PROFISSAO[prof] || SESSAO_POR_PROFISSAO.massoterapia;
 
 // === BLOCO 3: MAPA DO CORPO — REGIÕES ===
 // Desenhadas só do lado ESQUERDO DA TELA (x < 120) e espelhadas. De frente, o lado
@@ -162,6 +229,21 @@ export const MEDIDAS = [
   { k: 'peso', nome: 'Peso', un: 'kg' },
 ];
 
+// Estética: medidas por ALTURA (como a ficha de papel da Alê). Um valor por sessão.
+const _alturas = (k, nome, n, passo) => Array.from({ length: n }, (_, i) => ({ k: `${k}_${i + 1}`, nome: `${nome} · altura ${i + 1}`, dica: `${i * passo} cm`, grupo: nome }));
+export const MEDIDAS_ALTURA = [
+  { k: 'peso', nome: 'Peso', un: 'kg', grupo: 'Peso' },
+  ..._alturas('braco_d', 'Braço direito', 3, 5), ..._alturas('braco_e', 'Braço esquerdo', 3, 5),
+  ..._alturas('abdomen', 'Abdômen', 5, 5), ..._alturas('costas', 'Costas', 5, 5),
+  ..._alturas('perna_d', 'Perna direita', 3, 10), ..._alturas('perna_e', 'Perna esquerda', 3, 10),
+];
+// Áreas tratadas na sessão (as "obstruções" do mapa da ficha de papel).
+export const AREAS_TRATADAS = {
+  Frente: ["Axilas","Colo","Abdômen superior","Abdômen inferior","Flancos","Culotes","Parte interna das coxas","Parte interna dos joelhos"],
+  Costas: ["Dorso superior","Dorso inferior","Parte de trás dos braços","Sub-glúteo"],
+};
+export const POSES = [{ k: 'frente', nome: 'Frente' }, { k: 'costas', nome: 'Costas' }, { k: 'lado_d', nome: 'Lado direito' }, { k: 'lado_e', nome: 'Lado esquerdo' }];
+
 // === BLOCO 6: O QUE FICOU EM BRANCO (aviso pra profissional antes de abrir a ficha) ===
 // Nome curto de cada pergunta, pra frase "Fulana não respondeu: sono, alergia…".
 export const CURTAS = {
@@ -173,6 +255,10 @@ export const CURTAS = {
   gestante_semanas: 'semanas de gestação', cirurgia_qual: 'qual cirurgia', alergia: 'alergia a óleo/creme/aroma',
   alergia_qual: 'qual alergia', remedio: 'remédio contínuo', remedio_qual: 'qual remédio', pressao: 'pressão preferida',
   conversa: 'conversa ou silêncio',
+  profissao_cli: 'profissão', tratar: 'o que quer tratar', prioridade: 'áreas que incomodam', ja_estetica: 'tratamento estético anterior',
+  ja_estetica_qual: 'qual tratamento estético', peso_atual: 'peso atual', peso_ideal: 'peso desejado', peso_quando: 'há quanto tempo fora do peso',
+  agua: 'água por dia', intestino: 'intestino', urina: 'vezes que urina', contraceptivo: 'contraceptivo', acompanhamento: 'acompanhamento médico',
+  foto_acomp: 'autorização de fotos', foto_insta: 'fotos no Instagram',
 };
 // Conta só o que a pessoa VIU (respeita as condicionais). Texto livre ("longo") e "opcional" não contam.
 export function faltando(modelo, r, mapa) {
