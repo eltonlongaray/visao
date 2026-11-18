@@ -11,7 +11,7 @@ import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente } from './cupons-ui.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
 import { carregarFichas, secaoFichaHtml, wireSecaoFicha, perfilFichaHtml, wirePerfilFicha, statusFichaClienteHtml, oferecerFichaAposAgendar } from './ficha-ui.js';
 
@@ -180,6 +180,7 @@ function _popupCliente(c) {
     <div class="ag-cli-acoes" style="margin:14px 0 8px">
       ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
       <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
+      <button class="ag-cli-wa-ed" id="agp-cupom" type="button">🎟️ Gerar cupom</button>
     </div>
     ${perfilFinanceiroHtml(c, { servicos: _cfg?.servicos || [] })}
     ${perfilFichaHtml(_cfg, c)}
@@ -198,6 +199,7 @@ function _popupCliente(c) {
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
   ov.querySelector('#agp-ok').onclick = () => close();
   ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
+  ov.querySelector('#agp-cupom').onclick = () => gerarCupomCliente(c, { linkAgenda: _cfg?.slug ? _linkPublico() : '' });
   wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
   wireDepoimentosPerfil(ov, c);
   // compras/pagamentos: depois de salvar, reabre o perfil atualizado

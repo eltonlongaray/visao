@@ -9063,3 +9063,17 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-cup-on { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 8px; padding: 8px 10px; font-family: inherit; font-weight: 700; font-size: 12px; cursor: pointer; }
 .cp-cup-on.on { color: var(--green, #10b981); border-color: var(--green, #10b981); }
 .ag-cupom-tag { display: inline-block; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: var(--green, #10b981); }
+/* cupons v2: sessões −/+, saldo, cupom da cliente */
+.cp-cup { padding: 10px 0; border-top: 1px solid var(--border); }
+.cp-cup .cp-cup-lin { border-top: none; padding: 0; grid-template-columns: 1fr 70px auto; }
+.cp-cup-pct { display: flex; align-items: center; gap: 3px; color: var(--muted); font-weight: 700; }
+.cp-cup-ses { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; font-size: 13px; color: var(--muted); }
+.cp-cup-ses button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 18px; font-weight: 800; cursor: pointer; font-family: inherit; }
+.cp-cup-ses b { min-width: 22px; text-align: center; font-size: 16px; color: var(--text); }
+.cp-cup-saldo { margin-left: auto; font-weight: 700; color: var(--green, #10b981); }
+.cp-cup-saldo.zero { color: #f59e0b; }
+.cp-cup-cli { font-size: 12.5px; color: var(--accent-2); font-weight: 700; margin: 6px 0 0; }
+.cp-cup .cp-cup-desc { width: 100%; margin-top: 6px; }
+.ap-ok-cupom { margin: 8px auto; max-width: 320px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); border-left: 4px solid var(--green, #10b981); font-size: 14px; color: var(--text); }
+.cp-cup .cp-cup-desc, #cc-cod { min-width: 0; background: var(--card-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
+.cp-cup-pct input { width: 44px; text-align: center; }

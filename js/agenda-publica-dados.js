@@ -78,8 +78,10 @@ export async function criarAgendamentoCombo(slug, dataISO, hora, nome, contato, 
 
 // Cupom de desconto (sql/cupons.sql): confere antes de confirmar e aplica logo depois de agendar.
 // Sem o SQL rodado, simplesmente "não vale" (o agendamento nunca trava por causa do cupom).
-export async function validarCupom(slug, codigo) {
-  const { data, error } = await supabase.rpc('validar_cupom', { p_slug: slug, p_cupom: (codigo || '').trim().slice(0, 30) });
+export async function validarCupom(slug, codigo, contato) {
+  let { data, error } = await supabase.rpc('validar_cupom', { p_slug: slug, p_cupom: (codigo || '').trim().slice(0, 30), p_contato: contato || null });
+  // sql/cupons-limite.sql ainda não rodou: cai na versão antiga (sem saldo)
+  if (error) ({ data, error } = await supabase.rpc('validar_cupom', { p_slug: slug, p_cupom: (codigo || '').trim().slice(0, 30) }));
   if (error) return { ok: false };
   return data || { ok: false };
 }

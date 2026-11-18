@@ -380,9 +380,14 @@ export async function renderAgendaPublica(app, slug) {
       const inp = app.querySelector('#ap-cupom'), msg = app.querySelector('#ap-cupom-msg'), b = app.querySelector('#ap-cupom-ok');
       const cod = (inp?.value || '').trim(); if (!cod) { inp?.focus(); return; }
       b.disabled = true; b.textContent = '…';
-      const r = await validarCupom(cfg.slug, cod);
+      const r = await validarCupom(cfg.slug, cod, ident?.contato || '');
       if (r.ok) { cupom = r; cupomAberto = false; desenhar(); }
-      else { b.disabled = false; b.textContent = 'Aplicar'; if (msg) msg.textContent = 'Cupom não encontrado. Confere o código.'; }
+      else {
+        b.disabled = false; b.textContent = 'Aplicar';
+        if (msg) msg.textContent = r.motivo === 'esgotado' ? 'As sessões desse cupom já acabaram. Fala com a profissional pra renovar.'
+          : r.motivo === 'outra_pessoa' ? 'Esse cupom é de outra pessoa (vale só pro WhatsApp de quem recebeu).'
+          : 'Cupom não encontrado. Confere o código.';
+      }
     });
 
     // Retráteis (Meus agendamentos / Histórico)
@@ -424,7 +429,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-res">📌 ${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)} · <b>${hora}${fim ? `–${fim}` : ''}</b></div>
         ${servLinha}
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
-        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
+        ${cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
           : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
           : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
@@ -475,7 +480,8 @@ export async function renderAgendaPublica(app, slug) {
           <div class="ap-ok-t">Agendamento confirmado!</div>
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null && !(cupomOk && cupomOk.desconto >= 100) ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
-          ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupomOk.desconto}% de desconto`}</div>` : ''}
+          ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupomOk.desconto}% de desconto`}</div>
+          ${cupomOk.restantes != null ? `<div class="ap-ok-cupom">${cupomOk.restantes > 0 ? `Você ainda tem <b>${cupomOk.restantes} de ${cupomOk.limite}</b> sessões nesse cupom.` : `Essa foi a última sessão do cupom (${cupomOk.limite} de ${cupomOk.limite}).`}</div>` : ''}` : ''}
           ${waTri ? `<div class="ap-cd">
             <div class="ap-cd-t">Agora só falta confirmar o serviço que você agendou com ${(cfg.titulo || '').split(' · ')[0] ? `a <b>${_esc((cfg.titulo || '').split(' · ')[0])}</b>` : 'a profissional'} no WhatsApp.</div>
             <div class="ap-cd-sub">Você será direcionado em:</div>
