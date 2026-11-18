@@ -470,7 +470,8 @@ function desenhar() {
       </div>
       <button class="ag-chipbtn" id="ag-segsex" type="button" role="switch" aria-checked="false">📅 Atendo de Seg a Sex <span class="ag-switch" aria-hidden="true"></span></button>
 
-      <div class="input-field-label" style="margin-top:14px">Horários que você deixa livres pro cliente marcar <span class="ag-lbl-opt">— use as setas pra abrir semanas futuras</span></div>
+      <div class="ag-serv-tit">Horários livres pro cliente marcar</div>
+      <div class="ag-serv-sub">Use as setas pra abrir semanas futuras.</div>
       <div class="ag-sem-nav">
         <button class="ag-sem-arrow" id="ag-sem-prev" type="button" aria-label="Semana anterior">‹</button>
         <div class="ag-sem-label" id="ag-sem-label">Toda semana (padrão)</div>
@@ -487,20 +488,19 @@ function desenhar() {
         <span><b>Agenda ativa</b> — ligada, o link funciona e as pessoas podem agendar.</span>
       </label>
 
-      <div class="input-field-label" style="margin-top:12px">Seu link (põe na bio do Instagram)</div>
+      <div class="ag-serv-tit">Seu link</div>
+      <div class="ag-serv-sub">Põe na bio do Instagram.</div>
       <div class="ag-link-box">
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
       </div>
 
-      <div class="input-field-label" style="margin-top:14px">📅 Próximos atendimentos</div>
+      <div class="ag-serv-tit">📅 Próximos atendimentos</div>
       <div class="ag-lista">${_proximosHtml()}</div>
 
       ${secaoFichaHtml(_cfg, _clientes())}
 
-      <div class="ag-ags-top">
-        <div class="input-field-label" style="margin:0">👥 Clientes</div>
-      </div>
+      <div class="ag-serv-tit">👥 Clientes</div>
       <div class="fin-topo">
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
         <button class="fin-topo-btn" id="ag-camp" type="button">📣 Campanhas</button>

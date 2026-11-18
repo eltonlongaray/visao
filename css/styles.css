@@ -9092,3 +9092,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ag-serv-extra .ag-serv-custo, .ag-serv-extra .ag-serv-sess { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 8px; font-size: 14px; font-family: inherit; box-sizing: border-box; outline: none; }
 .ag-serv-extra .ag-serv-custo:focus, .ag-serv-extra .ag-serv-sess:focus { border-color: var(--accent); }
 .ag-serv-extra .ag-serv-custo::placeholder { color: var(--muted); opacity: .7; }
+/* títulos de bloco da Agenda: maiores e com linha separando do bloco anterior */
+.ag-serv-tit { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 16px; }
+.ag-serv-tit + .ag-lista, .ag-serv-tit + .fin-topo { margin-top: 10px; }
+.fi-secao { margin-top: 22px; }
