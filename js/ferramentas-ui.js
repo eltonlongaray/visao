@@ -159,7 +159,7 @@ function _crescer(campo) {
   campo.style.height = Math.min(campo.scrollHeight + 2, 160) + 'px';
 }
 
-// ── Hub: cards Agenda Online / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
+// ── Hub: cards Agenda Online / Fontes de renda extra / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
 // (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
   if (modo === 'ferramentas') return `
@@ -172,6 +172,11 @@ function telaHub() {
         <span class="fr-hub-ic">📅</span>
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
+      </button>
+      <button class="fr-hubcard" data-hub-renda-extra type="button">
+        <span class="fr-hub-ic">💸</span>
+        <span class="fr-hub-tx"><b>Fontes de renda extra</b><small>Alunas, cursos e outras rendas além dos clientes</small></span>
+        <span class="fr-hub-tag">EM BREVE</span>
       </button>
       <button class="fr-hubcard" data-hub-rifa type="button">
         <span class="fr-hub-ic">🎟️</span>
@@ -471,6 +476,7 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-clareza]')) { abrirIdeal(); return; }       // abre por cima do hub
     if (e.target.closest('[data-hub-objetivos]')) { abrirObjetivos(); return; } // abre por cima do hub
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
+    if (e.target.closest('[data-hub-renda-extra]')) { showToast('💸 Fontes de renda extra está em desenvolvimento. Em breve! 🦅', 'info'); return; }
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
     if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
     if (e.target.closest('[data-hub-lingua]')) { showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'); return; }
