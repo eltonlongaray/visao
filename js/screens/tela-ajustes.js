@@ -200,7 +200,6 @@ export async function renderAjustes(app) {
         <!-- Ações rápidas (fixas — cada uma tem só uma opção) -->
         <section class="ajustes-section">
           ${row('restartTourBtn', t('ajustes.tutorial.title'), t('ajustes.tutorial.sub'))}
-          ${row('trocarModalidadeBtn', t('ajustes.modal.change'), t('ajustes.modal.sub'))}
           <div class="ajustes-row" id="rowBio">
             <div class="ajustes-row-main">
               <div class="ajustes-row-title">${t('ajustes.bio.title')}</div>
@@ -213,7 +212,6 @@ export async function renderAjustes(app) {
 
         <!-- Conta (retrátil, no fim de tudo) -->
         ${acc(t('ajustes.account'), `
-          ${row('signOutBtn', t('ajustes.signout'), t('ajustes.signout.sub'))}
           ${row('deleteAccountBtn', t('ajustes.delete.title'), t('ajustes.delete.sub'), { danger: true })}
         `, { id: 'accConta' })}
 
@@ -248,7 +246,6 @@ async function wire(app) {
   app.querySelectorAll('[data-route]').forEach(el =>
     el.addEventListener('click', () => navigate(el.dataset.route))
   );
-  app.querySelector('#trocarModalidadeBtn')?.addEventListener('click', () => navigate('/modalidade'));
 
   // ── Admin: "Ver como usuário" ──
   const admPrev = app.querySelector('#adminPreviewToggle');
@@ -566,7 +563,7 @@ async function wire(app) {
   // ── Guia de pop-up + vibração ──
   app.querySelector('#notifGuideBtn')?.addEventListener('click', () => showNotifPopupGuide(true));
 
-  // ── Sair ──
+  // ── Sair: mudou pro fim da Home (Élton, 18/11) ──
   app.querySelector('#signOutBtn')?.addEventListener('click', async () => {
     const ok = await confirmModal({ title: 'Sair da conta?', message: 'Você precisará fazer login de novo. Seus dados continuam salvos.', confirmText: 'Sair', cancelText: 'Cancelar' });
     if (!ok) return;

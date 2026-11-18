@@ -9242,3 +9242,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 /* Aba Financeiro: cards de vitrine dentro da tela (não do modal de Ferramentas) */
 .fin-hub { padding: 4px 0 calc(20px + env(safe-area-inset-bottom)); overflow: visible; }
 .fin-vazio { margin-top: 16px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.45; background: var(--card); border: 1px dashed var(--border); border-radius: 16px; padding: 24px 18px; }
+/* Home: idioma embaixo dos horários e Sair no fim (Élton, 18/11) */
+.home-lang { margin: 10px 0 2px; justify-content: flex-start; }
+.home-sair { margin: 26px 0 8px; text-align: center; }

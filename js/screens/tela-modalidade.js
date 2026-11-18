@@ -1,7 +1,7 @@
 ﻿// ─── ÍNDICE ──────────────────────────────────────────────────
 // BLOCO 1 — IMPORTS
-// BLOCO 2 — RENDER
-// BLOCO 3 — HANDLERS
+// BLOCO 2 — RENDER (entrada automática)
+// BLOCO 3 — FLUXO (consentimento → Home)
 // BLOCO 4 — HELPERS
 // ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════
@@ -13,133 +13,64 @@ import { navigate } from '../roteador.js';
 import { showToast } from '../aviso-tela.js';
 import { maybeOpenBioPrompt } from '../modal-biometria.js';
 import { ensurePessoalConsent } from '../modal-dados-saude.js';
-import { t, LANGS, getLang, setLang } from '../idioma.js';
+import { t } from '../idioma.js';
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 2: RENDER
+// BLOCO 2: RENDER — entrada automática
 // ═══════════════════════════════════════════════════════════════
-export function renderModalidade(app) {
-  const user = auth.currentUser;
-  const firstName = (user?.displayName || user?.email || 'amigo').split(/[ @]/)[0];
-
+// A escolha de modalidade (Pessoal / Financeira) deixou de existir (Élton,
+// 18/11): o Financeiro virou aba do menu. A rota /modalidade continua só como
+// PORTA DE ENTRADA depois do login/aceite: pede o consentimento dos dados de
+// saúde (LGPD, uma vez só) e segue direto pra Home (ou pro /welcome de quem
+// ainda não escolheu o template). Idioma foi pra Home, Sair também.
+export async function renderModalidade(app) {
   app.innerHTML = `
     <div class="onboarding modalidade-screen">
       <div class="onboarding-logo" style="background:#4f46e5"><img src="icons/icon-192.png?v=95" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
       <div class="onboarding-title">Falcon</div>
-      <div class="onboarding-sub" style="font-weight:600;color:var(--accent-2);margin-bottom:6px">
-        ${t('modal.hello', { name: escapeHtml(firstName) })}
-      </div>
-      <div class="onboarding-sub">${t('modal.start')}</div>
-
-      <!-- SELETOR DE IDIOMA -->
-      <div class="lang-picker">
-        <span class="lang-picker-label">${t('modal.lang.title')}</span>
-        <div class="lang-flags">
-          ${LANGS.map(l => `
-            <button
-              class="lang-flag-btn ${getLang() === l.code ? 'active' : ''}"
-              data-lang="${l.code}"
-              title="${l.label}"
-              aria-label="${l.label}"
-            >${l.flag}</button>
-          `).join('')}
-        </div>
-      </div>
-
-      <div class="onb-section-label">${t('modal.section')}</div>
-
-      <div class="template-card featured modalidade-card" data-modalidade="pessoal">
-        <span class="modalidade-badge dispo">
-          <span class="modalidade-badge-dot"></span>
-          ${t('modal.pessoal.badge')}
-        </span>
-        <div class="template-icon" style="background:rgba(124,58,237,0.20)">📋</div>
-        <div class="template-info">
-          <div class="template-name">${t('modal.pessoal.name')}</div>
-          <div class="template-desc">${t('modal.pessoal.desc')}</div>
-        </div>
-        <div class="template-arrow">›</div>
-      </div>
-
-      <div class="template-card template-financeiro modalidade-card" data-modalidade="financeira">
-        <span class="modalidade-badge soon">
-          ${t('modal.fin.badge')}
-        </span>
-        <div class="template-icon" style="background:rgba(245,158,11,0.20)">💰</div>
-        <div class="template-info">
-          <div class="template-name">${t('modal.fin.name')}</div>
-          <div class="template-desc">${t('modal.fin.desc')}</div>
-        </div>
-        <div class="template-arrow">›</div>
-      </div>
-
-      <div class="onb-footer">
-        ${t('modal.footer')}
-      </div>
-
-      <div style="margin-top:22px;text-align:center">
-        <button id="btnSairModalidade" class="btn-sair-modalidade" type="button">
-          ${t('modal.logout')}
-        </button>
-      </div>
-    </div>
-  `;
-
-  attachHandlers(app);
-
-  setTimeout(() => { maybeOpenBioPrompt(); }, 450);
+    </div>`;
+  await entrar(app);
 }
 
 
 // ═══════════════════════════════════════════════════════════════
-// BLOCO 3: HANDLERS
+// BLOCO 3: FLUXO
 // ═══════════════════════════════════════════════════════════════
-function attachHandlers(app) {
-  // ── Flags de idioma ──────────────────────────────────────────
-  app.querySelectorAll('.lang-flag-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const code = btn.dataset.lang;
-      await setLang(code);
-      renderModalidade(app);
-    });
-  });
+async function entrar(app) {
+  try {
+    const user = auth.currentUser;
+    if (!user) { navigate('/login'); return; }
 
-  // ── Pessoal ──────────────────────────────────────────────────
-  app.querySelector('[data-modalidade="pessoal"]')?.addEventListener('click', async () => {
-    const card = app.querySelector('[data-modalidade="pessoal"]');
-    card.style.opacity = '0.6';
-    card.style.pointerEvents = 'none';
-    try {
-      const user = auth.currentUser;
-      if (!user) { navigate('/login'); return; }
+    const ok = await ensurePessoalConsent();
+    if (!ok) { telaSemAceite(app); return; }
 
-      const ok = await ensurePessoalConsent();
-      if (!ok) {
-        card.style.opacity = '1';
-        card.style.pointerEvents = 'auto';
-        return;
-      }
+    const profile = await getProfile();
+    navigate(profile?.template ? '/home' : '/welcome');
+    setTimeout(() => { maybeOpenBioPrompt(); }, 450);
+  } catch (err) {
+    console.error('[Visão] entrada erro:', err);
+    showToast(t('toast.error.load'), 'error');
+    telaSemAceite(app, true);
+  }
+}
 
-      const profile = await getProfile();
-      const hasTemplate = !!profile?.template;
-      navigate(hasTemplate ? '/home' : '/welcome');
-    } catch (err) {
-      console.error('[Visão] modalidade pessoal erro:', err);
-      showToast(t('toast.error.load'), 'error');
-      card.style.opacity = '1';
-      card.style.pointerEvents = 'auto';
-    }
-  });
-
-  // ── Financeira ───────────────────────────────────────────────
-  app.querySelector('[data-modalidade="financeira"]')?.addEventListener('click', () => {
-    showToast(t('toast.fin.soon'), 'info');
-  });
-
-  app.querySelector('#goAjustesBtn')?.addEventListener('click', () => navigate('/ajustes'));
-
-  // ── Sair ─────────────────────────────────────────────────────
+// Recusou o consentimento (ou deu erro): sem ele o app não funciona, então
+// mostra o porquê e deixa aceitar de novo ou sair.
+function telaSemAceite(app, erro = false) {
+  app.innerHTML = `
+    <div class="onboarding modalidade-screen">
+      <div class="onboarding-logo" style="background:#4f46e5"><img src="icons/icon-192.png?v=95" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"></div>
+      <div class="onboarding-title">Falcon</div>
+      <div class="onboarding-sub">${erro
+        ? 'Não consegui carregar agora. Confere a internet e tenta de novo.'
+        : 'Pra usar o Falcon a gente precisa do teu aceite pros dados de rotina (sono, hidratação, atividades). Eles ficam só contigo.'}</div>
+      <button id="btnEntrarDeNovo" class="btn-primary" type="button" style="margin-top:18px;width:100%;max-width:320px">${erro ? 'Tentar de novo' : 'Ver e aceitar'}</button>
+      <div style="margin-top:22px;text-align:center">
+        <button id="btnSairModalidade" class="btn-sair-modalidade" type="button">${t('modal.logout')}</button>
+      </div>
+    </div>`;
+  app.querySelector('#btnEntrarDeNovo')?.addEventListener('click', () => renderModalidade(app));
   app.querySelector('#btnSairModalidade')?.addEventListener('click', async () => {
     try {
       const { signOut } = await import('../autenticacao.js');
