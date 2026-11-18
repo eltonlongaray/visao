@@ -463,7 +463,8 @@ function desenhar() {
       <div class="ag-servs" id="ag-servs"></div>
       <button class="ag-serv-add-btn" id="ag-serv-add" type="button">➕ Adicionar serviço</button>
 
-      <div class="input-field-label" style="margin-top:14px">Dias que você atende <span class="ag-lbl-opt">— dia desligado não aparece pro cliente</span></div>
+      <div class="ag-serv-tit">Dias que você atende</div>
+      <div class="ag-serv-sub">Dia desligado não aparece pro cliente.</div>
       <div class="ag-diassem" id="ag-diassem">
         ${DOWS.map(d => `<button class="ag-diasem" data-diasem="${d.k}" type="button">${d.lbl}</button>`).join('')}
       </div>
