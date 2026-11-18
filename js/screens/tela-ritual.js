@@ -384,6 +384,8 @@ async function loadWeek(promessaSemana) {
 //     mecanismo per-task no próprio Ritual.
 // ═══════════════════════════════════════════════════════════════
 async function autoGenerateMissingTasks(days = weekData) {
+  // Sem perfil ainda, não há molde: gerar agora marcaria o dia como "gerado" vazio.
+  if (!profile) return;
   const todayId = dayId(new Date());
   for (const day of days) {
     // Usa o id do dia (YYYY-MM-DD) para calcular DOW em hora local — evita bug de timezone
@@ -424,7 +426,14 @@ async function autoGenerateMissingTasks(days = weekData) {
     // Dia com tarefas (gerado OU não): sincroniza as FALTANTES do template (hoje em
     // diante). O `|| day.tasks.length > 0` cobre dias que ganharam tarefas sem passar
     // pela geração virgem (gen=false) — antes ficavam órfãos, sem puxar o molde.
-    if ((day.meta.generated || day.tasks.length > 0) && Array.isArray(template) && template.length > 0 && day.id >= todayId) {
+    // Dia que JÁ PASSOU (até 7 dias) e não recebeu NENHUMA do molde também é
+    // completado: a segunda 16/11 ficou só com a conta mensal e sem as repetidas
+    // (Élton, 17/11). Dia passado que tem pelo menos uma do molde não é mexido.
+    const semNadaDoMolde = Array.isArray(template) && template.length > 0
+      && !day.tasks.some(t => template.some(tm => keyOf(tm) === keyOf(t)));
+    const diasAtras = (new Date(todayId + 'T00:00:00') - new Date(day.id + 'T00:00:00')) / 86400000;
+    const passadoVazio = day.id < todayId && diasAtras <= 7 && semNadaDoMolde;
+    if ((day.meta.generated || day.tasks.length > 0) && Array.isArray(template) && template.length > 0 && (day.id >= todayId || passadoVazio)) {
       const existing = new Set(day.tasks.map(t => keyOf(t)));
       const missing = template.filter(tmpl => !existing.has(keyOf(tmpl)) && !isExcluded(tmpl));
       if (missing.length > 0) {
