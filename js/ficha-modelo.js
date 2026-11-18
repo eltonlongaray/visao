@@ -85,6 +85,8 @@ const MASSOTERAPIA = {
 // Mesma base da massoterapia + bloco "Seu objetivo" (celulite, medidas, hábitos)
 // + saúde ampliada + autorização de fotos. "ordem": a ordem dos toques vira prioridade.
 const _q = id => MASSOTERAPIA.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+// Peso só faz sentido pra quem quer mexer no corpo (medida, gordura, inchaço, flacidez).
+const _corpo = R => (R.tratar || []).some(x => ["Gordura localizada","Inchaço e retenção","Flacidez","Celulite"].includes(x));
 const _temDor = R => (R.dores || []).some(x => x !== "Não sinto dor");
 const AREAS_CORPO = ["Abdômen","Flancos (pneuzinhos)","Culote","Glúteo","Parte interna das coxas","Parte de trás das coxas",
   "Joelhos","Braços (parte de trás)","Costas","Panturrilhas","Papada ou rosto"];
@@ -102,9 +104,9 @@ const ESTETICA = {
         aj:"Toque na ordem: a primeira é a que mais incomoda.", op: AREAS_CORPO, outro:true },
       { id:"ja_estetica", tipo:"unica", q:"Já fez algum tratamento estético?", op:["Sim","Não"] },
       { id:"ja_estetica_qual", tipo:"texto", q:"Qual e quando?", ph:"Ex: drenagem em 2024, criolipólise…", se: R => R.ja_estetica === "Sim", sub:true },
-      { id:"peso_atual", tipo:"texto", q:"Seu peso hoje", ph:"Ex: 68 kg (se souber)" },
-      { id:"peso_ideal", tipo:"texto", q:"Quanto você gostaria de pesar?", ph:"Ex: 62 kg" },
-      { id:"peso_quando", tipo:"unica", q:"Há quanto tempo você não está no peso que gostaria?",
+      { id:"peso_atual", tipo:"texto", q:"Seu peso hoje", ph:"Ex: 68 kg (se souber)", se: R => _corpo(R) },
+      { id:"peso_ideal", tipo:"texto", q:"Quanto você gostaria de pesar?", ph:"Ex: 62 kg", opcional:true, se: R => _corpo(R) },
+      { id:"peso_quando", tipo:"unica", q:"Há quanto tempo você não está no peso que gostaria?", opcional:true, se: R => _corpo(R),
         op:["Estou no meu peso","Menos de 1 ano","1 a 3 anos","Mais de 3 anos"] },
     ]},
     { nome: "Seus hábitos", perguntas: [
