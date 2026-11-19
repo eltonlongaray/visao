@@ -44,6 +44,23 @@ window.TRIAGEM = {
   googleAds: "AW-11325048329",
   conversao: "AW-11325048329/H9K_CKHYvbgdEImMmpgq", // "Triagem enviada" (clique em Agendar)
 
+  // Depoimentos reais de clientes (WhatsApp, 19/11/2026). "chaves": palavras que ligam
+  // o depoimento ao que a pessoa respondeu/à indicação. "destaque": aparece na abertura.
+  // "img": print real do WhatsApp recortado (triagem-modelos/depoimentos/V83/), como nos da Larissa.
+  depoimentos: [
+    { nome: "Tici", servico: "Massagem modeladora", destaque: true, img: "tici.jpg",
+      chaves: ["celulite", "flacidez", "gordura", "medida", "modela", "deusa", "esculpe"],
+      texto: "Queria deixar registrado o excelente resultado que tive com as massagens modeladoras que fiz com a Alê. Resultado visível em algumas semanas. Além de profissional, é uma pessoa maravilhosa, que passa confiança e tranquilidade nos atendimentos. Super recomendo." },
+    { nome: "Andrea", servico: "Massagem abdominal", img: "andrea.jpg",
+      chaves: ["inchaço", "inchaco", "retenção", "abdom", "drenagem", "esculpe", "detox"],
+      texto: "Venho aqui, com muita satisfação, agradecer e parabenizar a Alexandra: as sessões de massagem abdominal tiveram, sim, resultados satisfatórios. Parabéns pelo profissionalismo e dedicação." },
+    { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg",
+      chaves: ["dor", "perna", "tensão", "tensao", "terapêutica", "terapeutica", "drenagem"],
+      texto: "Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
+    { nome: "Adronilda", servico: "Massagem terapêutica", img: "adronilda.jpg",
+      chaves: ["dor", "tensão", "tensao", "miofascial", "terapêutica", "terapeutica", "desportiva"],
+      texto: "Muito obrigada pelos teus atendimentos. Minha fase aguda já se foi. Tu tens mãos e instrumentos maravilhosos. Super recomendo teu trabalho." },
+  ],
   intro: {
     eyebrow: "Cuidado sob medida",
     titulo: "Oi! 💜",

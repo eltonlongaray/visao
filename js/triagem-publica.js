@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=17`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=18`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -81,6 +81,20 @@ function progresso() {
 }
 
 // === BLOCO 3: TELAS (intro, perguntas, vitrine) ===
+// Depoimentos (M.depoimentos): o que combina com as respostas/indicação; senão o de destaque.
+const _semAc = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function depoPara(texto, pular = []) {
+  const ds = (M.depoimentos || []).filter(d => !pular.includes(d));
+  if (!ds.length) return null;
+  const t = _semAc(texto);
+  return ds.find(d => (d.chaves || []).some(k => t.includes(_semAc(k)))) || ds.find(d => d.destaque) || ds[0];
+}
+function depoHtml(d) {
+  if (d && d.img) return `<figure class="depo-print"><img src="/triagem-modelos/depoimentos/${esc(SLUG)}/${esc(d.img)}" alt="Depoimento de ${esc(d.nome)} pelo WhatsApp: ${esc(d.texto)}"></figure>`;
+  return d ? `<figure class="depo"><blockquote>“${esc(d.texto)}”</blockquote><figcaption>— ${esc(d.nome)}${d.servico ? ` · ${esc(d.servico)}` : ''}</figcaption></figure>` : '';
+}
+const _respTxt = () => Object.values(st.r || {}).flat().join(' ');
+
 function intro() {
   const retomar = Object.keys(st.r).length > 0;
   const rod = M.intro.rodape ?? '';
@@ -88,6 +102,7 @@ function intro() {
     <p class="eyebrow">${esc(M.intro.eyebrow || '')}</p>
     <h1>${M.intro.titulo}</h1>
     ${[].concat(M.intro.texto).map(t => `<p class="lead">${esc(t)}</p>`).join('')}
+    ${depoHtml((M.depoimentos || []).find(d => d.destaque))}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     ${rod ? `<p class="rodape">${esc(rod)}</p>` : ''}</section>`;
   $('go').onclick = () => { st.i = retomar ? Math.min(Math.max(st.i, 0), passos().length - 1) : 0; salvar(); tela(); };
@@ -203,7 +218,8 @@ function contato() {
     <label class="campo">Teu WhatsApp<input id="c-zap" inputmode="tel" autocomplete="tel" placeholder="(51) 9 9999-9999" value="${esc(c.contato || '')}"></label>
     <p class="erro" id="erro"></p>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
-      <button class="btn" id="seg">Ver meu resultado →</button></div></section>`;
+      <button class="btn" id="seg">Ver meu resultado →</button></div>
+    ${depoHtml(depoPara(_respTxt(), (M.depoimentos || []).filter(d => d.destaque)))}</section>`;
   progresso();
   $('c-zap').oninput = e => { e.target.value = mascara(e.target.value); };
   $('volta').onclick = voltar;
@@ -304,6 +320,7 @@ function resultado() {
     <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra você')} 💜</h1>
     <div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>
     ${ind.aviso ? `<div class="aviso">${esc(ind.aviso)}</div>` : ''}
+    ${depoHtml(depoPara(ind.servico + ' ' + _respTxt()))}
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
     </div>` : ''}
