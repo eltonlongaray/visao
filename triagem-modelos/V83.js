@@ -203,6 +203,16 @@ window.TRIAGEM = {
       (inc.includes("Acne, cravos, pele oleosa e/ou porosa") || pele.includes("Acne e espinhas") || pele.includes("Cravos e poros abertos"));
     // Extra que a cliente pode somar (ex.: espinhas → tratamento de acne)
     const extras = acne ? [{ servico: "Limpeza de pele", titulo: "Tratamento de acne", porque: "Tu contou que tem espinhas: dá pra cuidar disso também." }] : [];
+    // O que ela marcou em "casa" também vira sugestão de serviço pra somar no atendimento
+    const porCasa = {
+      "Espinhas, cravos e pele oleosa": { servico: "Limpeza de pele", titulo: "Tratamento de acne", porque: "Tu marcou espinhas e pele oleosa: dá pra tratar isso no atendimento também." },
+      "Limpeza do rosto": { servico: "Limpeza de pele", porque: "Limpeza profunda pra deixar tua pele renovada." },
+      "Manchas na axila e virilha": { servico: "Tratamento para manchas", porque: "Tu marcou manchas: dá pra clarear no atendimento também." },
+      "Celulite, gordura e inchaço": { servico: "Sessão para celulite", porque: "Tu marcou celulite e gordura: dá pra cuidar disso no atendimento também." },
+      "Estrias e gestação": { servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", titulo: "Deusa Grega", porque: "Tu marcou estrias: a Deusa Grega cuida delas no atendimento." },
+      "Ansiedade, estresse e sono": { servico: "Massagem relaxante", porque: "Tu marcou ansiedade e sono: uma massagem relaxante ajuda a desacelerar." }
+    };
+    for (const c of (r.casa || [])) { const e = porCasa[c]; if (e && !extras.some(x => x.servico === e.servico)) extras.push(e); }
     const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
     const corpo = ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas"];
     if (corpo.includes(principal)) {
