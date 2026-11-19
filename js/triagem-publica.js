@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=20`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=21`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -142,7 +142,7 @@ function tela() {
     <p class="eyebrow">${esc(p.grupo || '')}</p>
     <h2 class="q">${esc(p.q)}</h2>
     ${p.ajuda ? `<p class="ajuda">${esc(p.ajuda)}</p>` : ''}
-    ${p.destaque ? `<p class="ajuda-destaque">${esc(p.destaque)}</p>` : ''}
+    ${p.destaque ? `<p class="ajuda-destaque">${[].concat(p.destaque).map(esc).join('<br>')}</p>` : ''}
     <div class="ops" role="${multi ? 'group' : 'radiogroup'}">
       ${p.ops.map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
         ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}</span><span class="marca-op"></span></button>`).join('')}

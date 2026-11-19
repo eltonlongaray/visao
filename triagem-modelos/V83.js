@@ -138,8 +138,7 @@ window.TRIAGEM = {
     // === CUIDADO EM CASA (aprovado 15/11): necessidades, sem mostrar produto; o catálogo vem depois ===
     { id: "casa", grupo: "Pra continuar em casa", tipo: "multi", curto: "Cuidar em casa",
       q: "No atendimento eu uso óleos essenciais e cremes naturais",
-      ajuda: "E tu pode levar pra casa pra continuar ou iniciar um novo tratamento.",
-      destaque: "O que te interessa? Pode marcar mais de uma.",
+      destaque: ["E tu pode levar pra casa pra continuar ou iniciar um novo tratamento.", "O que te interessa? Pode marcar mais de uma."],
       exclusivas: ["Não tenho interesse no momento"],
       ops: [
         { v: "Espinhas, cravos e pele oleosa", icone: "🌸" },
