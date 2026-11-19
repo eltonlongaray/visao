@@ -150,7 +150,7 @@ window.TRIAGEM = {
         { v: "Foliculite e pelos encravados", icone: "🪒" },
         { v: "Queda e falhas no cabelo ou barba", icone: "💇" },
         { v: "Celulite, gordura e inchaço", icone: "🍑" },
-        { v: "Estrias e gestação", icone: "🤰" },
+        { v: "Estrias", icone: "〰️" },
         { v: "Ansiedade, estresse e sono", icone: "🌙" },
         { v: "Outro", icone: "✍️", outro: true },
         { v: "Não tenho interesse no momento" }
@@ -172,7 +172,7 @@ window.TRIAGEM = {
     "Foliculite e pelos encravados": ["Blend Combate Foliculite", "Folico"],
     "Queda e falhas no cabelo ou barba": ["Blend Anti Queda"],
     "Celulite, gordura e inchaço": ["Blend Xô Celulite", "Hidrolato de alecrim do campo"],
-    "Estrias e gestação": ["Maestria"],
+    "Estrias": ["Maestria"],
     "Ansiedade, estresse e sono": ["Hidrolato de lavanda", "Água floral de verbena", "Hidrolato de capim-limão"]
   },
 
@@ -209,10 +209,11 @@ window.TRIAGEM = {
       "Limpeza do rosto": { servico: "Limpeza de pele", porque: "Limpeza profunda pra deixar tua pele renovada." },
       "Manchas na axila e virilha": { servico: "Tratamento para manchas", porque: "Tu marcou manchas: dá pra clarear no atendimento também." },
       "Celulite, gordura e inchaço": { servico: "Sessão para celulite", porque: "Tu marcou celulite e gordura: dá pra cuidar disso no atendimento também." },
-      "Estrias e gestação": { servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", titulo: "Deusa Grega", porque: "Tu marcou estrias: a Deusa Grega cuida delas no atendimento." },
+      "Estrias": { gestanteNao: true, servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", titulo: "Deusa Grega", porque: "Tu marcou estrias: a Deusa Grega cuida delas no atendimento." },
       "Ansiedade, estresse e sono": { servico: "Massagem relaxante", porque: "Tu marcou ansiedade e sono: uma massagem relaxante ajuda a desacelerar." }
     };
-    for (const c of (r.casa || [])) { const e = porCasa[c]; if (e && !extras.some(x => x.servico === e.servico)) extras.push(e); }
+    const gestante = (r.saude || []).includes("Estou gestante");
+    for (const c of (r.casa || [])) { const e = porCasa[c]; if (e && !(gestante && e.gestanteNao) && !extras.some(x => x.servico === e.servico)) extras.push(e); }
     const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
     const corpo = ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas"];
     if (corpo.includes(principal)) {
@@ -226,14 +227,14 @@ window.TRIAGEM = {
     if (principal === "Dores e tensão") {
       const t = r.dor_tipo;
       if (t === "Dor na articulação (artrose)" || t === "Esporão ou calos")
-        return { servico: "Sessão de LED (anti-inflamatória)", porque: "A luz de LED ajuda a aliviar a dor e a inflamação em casos como artrose, esporão e calos.", junto: "Massagem terapêutica nas áreas de tensão", aviso };
-      if (t === "Depois de treino ou esforço") return { servico: "Massagem desportiva localizada", porque: "Pra recuperar o músculo depois do esforço e soltar o que travou.", junto: "Sessão de LED pra desinflamar", aviso };
-      return { servico: "Massagem terapêutica", porque: "Pra soltar a tensão, destravar o músculo e aliviar a dor.", junto: "Liberação miofascial nos pontos mais travados", aviso };
+        return { servico: "Sessão de LED (anti-inflamatória)", porque: "A luz de LED ajuda a aliviar a dor e a inflamação em casos como artrose, esporão e calos.", junto: "Massagem terapêutica nas áreas de tensão", extras, aviso };
+      if (t === "Depois de treino ou esforço") return { servico: "Massagem desportiva localizada", porque: "Pra recuperar o músculo depois do esforço e soltar o que travou.", junto: "Sessão de LED pra desinflamar", extras, aviso };
+      return { servico: "Massagem terapêutica", porque: "Pra soltar a tensão, destravar o músculo e aliviar a dor.", junto: "Liberação miofascial nos pontos mais travados", extras, aviso };
     }
     if (principal === "Ansiedade e estresse")
       return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", extras, aviso };
-    if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-    if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", aviso };
+    if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
+    if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
     if (principal === "Queda de cabelo") return { servico: "Blend Anti Queda", porque: "Fórmula com alecrim e copaíba pra fortalecer os fios. Eu te explico como usar e a gente conversa sobre a causa da queda.", extras, aviso };
     return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", extras, aviso };
   },
