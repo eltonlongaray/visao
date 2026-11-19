@@ -261,7 +261,10 @@ function contato() {
   };
 }
 function mascara(v) {
-  const d = v.replace(/\D/g, '').slice(0, 11);
+  // número com o 55 do Brasil na frente (digitado ou colado do WhatsApp): tira o 55 e fica DDD + número
+  let d = v.replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  d = d.slice(0, 11);
   if (d.length <= 2) return d;
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
