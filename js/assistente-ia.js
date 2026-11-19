@@ -914,6 +914,12 @@ async function dispatchCommand(text) {
       const r = await tentarNegocio(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // "Acrescenta tríceps testa na polia", "falta um exercício na academia hoje":
+    // é o treino de hoje, não desafio (Élton, 18/11). Vem antes dos Desafios.
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarAcrescentarExercicio(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Desafios ("bebi 500 ml no desafio da água"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarDesafios(semChamado(text));
@@ -1219,6 +1225,9 @@ async function routeCommand(text) {
   // Atendimentos e rifas do dono (BLOCO 8.18)
   const rNeg = await tentarNegocio(text);
   if (rNeg !== undefined) return rNeg;
+
+  const rAddEx = await tentarAcrescentarExercicio(text);
+  if (rAddEx !== undefined) return rAddEx;
 
   // Desafios antes do Ritual: "bebi 500 ml no desafio da água" não é a água do dia
   const rDesafio = await tentarDesafios(text);
@@ -6797,6 +6806,33 @@ async function tentarTreinoFalado(text, pronto = null, dado = null, corr = null)
   return null;
 }
 
+// Acrescentar/editar exercício no treino de hoje (Élton, 18/11). Antes, "acrescenta
+// tríceps testa na polia" virava desafio, "editar academia" ia pra nuvem e "falta um
+// exercício na academia hoje" caía nos Desafios. Sem o nome do exercício, o Pet
+// pergunta e a próxima frase (10 min) com exercício entra no treino.
+let _esperaExercicio = 0;
+const RE_ADD_EXERC = /\b(acrescent\w*|adicion\w*|inclu\w*|coloc\w*|bot[ae]\w*|poe|ponha|add|soma|somar|faltou|falta|faltando|esqueci|edit\w*)\b/;
+async function tentarAcrescentarExercicio(text) {
+  const t = semAcento(String(text || '')).toLowerCase();
+  if (/\b(desafio|prova|kanban|lista|compra\w*|lembr\w*|ordem|amanha|segunda|terca|quarta|quinta|sexta|sabado|domingo)\b|\d{1,2}\s*h\b|\d{1,2}:\d{2}/.test(t)) return undefined;
+  const esperando = Date.now() - _esperaExercicio < 10 * 60e3;
+  const pede = RE_ADD_EXERC.test(t) || /^\s*exercicios? (?:da|na|do|no|pra|pro) (?:academia|treino)\b/.test(t);
+  if (!pede && !esperando) return undefined;
+  const r = TRN.lerTreinoFalado(text, { livre: true });
+  if (r?.exercicios?.length) {
+    _esperaExercicio = 0;
+    return tentarTreinoFalado(text, null, r);
+  }
+  // Sem exercício: "falta um exercício na academia", "editar academia/treino"
+  const pergunta = /\?|^\s*(que|quais?|como|quanto\w*|qual)\b/.test(t);
+  const semNome = /\b(falt\w*|esqueci|acrescent\w*|adicion\w*)\b.*\bexercicios?\b|\bexercicios?\b.*\b(falt\w*|esqueci)\b|\bedit\w*\s+(?:a\s+|o\s+)?(?:academia|treino|muscula\w*)\b/.test(t);
+  if (!pergunta && semNome && t.split(/\s+/).length <= 12) {
+    _esperaExercicio = Date.now();
+    return 'Qual exercício eu acrescento no treino de hoje? 💪 Fala o nome e, se quiser, séries e carga. Ex.: <em>"tríceps testa na polia 3x10 30 kg"</em>.<br><small>Pra corrigir um que já está lá: <em>"no supino foi 4x8"</em>. Pra tirar: <em>"tira o crossover"</em>.</small>';
+  }
+  return undefined;
+}
+
 // Consulta do treino (Élton, 04/11): "como tá o treino de hoje?", "o que eu
 // treinei ontem?", "quanto peguei no supino?". Só lê, não muda nada.
 async function tentarConsultaTreino(text) {
@@ -6816,7 +6852,7 @@ async function tentarConsultaTreino(text) {
         if (x.nome === q.exercicio.nome) vezes.push({ id: d.id, x });
       const nome = TRN.fmtExercicio({ nome: q.exercicio.nome });
       if (!vezes.length) return `Não achei <b>${_esc(nome)}</b> nos teus treinos dos últimos 90 dias.`;
-      const linhas = vezes.slice(0, 8).map(v => `• ${nomeDia(v.id)}: ${_esc(TRN.fmtExercicio({ ...v.x, nome: '' }).trim() || 'sem séries anotadas')}`);
+      const linhas = vezes.slice(0, 8).map(v => `• ${nomeDia(v.id)}: ${_esc(TRN.fmtExercicio({ ...v.x, nome: '' }).replace(/^[\s,]+/, '').trim() || 'sem séries anotadas')}`);
       return `💪 <b>${_esc(nome)}</b>, últimas vezes:<br>${linhas.join('<br>')}${vezes.length > 8 ? `<br><small>…e mais ${vezes.length - 8} antes.</small>` : ''}`;
     }
     const dias = (await fetchDaysRange(q.ini, q.fim)).sort((a, b) => String(b.id).localeCompare(String(a.id)));
