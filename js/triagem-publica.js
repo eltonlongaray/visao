@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=19`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=20`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -107,7 +107,7 @@ function depoTela() {
   const d = _depoAbertura();
   if (!d) { st.i = 0; salvar(); return tela(); }
   app.innerHTML = `<section class="tela">
-    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o trabalho da ${esc(M.profissional.nome)} 💜</h2>
+    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o meu trabalho 💜</h2>
     ${depoHtml(d)}
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="go">Começar as perguntas →</button></div></section>`;
@@ -142,6 +142,7 @@ function tela() {
     <p class="eyebrow">${esc(p.grupo || '')}</p>
     <h2 class="q">${esc(p.q)}</h2>
     ${p.ajuda ? `<p class="ajuda">${esc(p.ajuda)}</p>` : ''}
+    ${p.destaque ? `<p class="ajuda-destaque">${esc(p.destaque)}</p>` : ''}
     <div class="ops" role="${multi ? 'group' : 'radiogroup'}">
       ${p.ops.map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
         ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}</span><span class="marca-op"></span></button>`).join('')}
@@ -233,7 +234,7 @@ function contato() {
   const c = st.contato || {};
   app.innerHTML = `<section class="tela">
     <h2 class="q">Quase lá! 💜</h2>
-    <p class="ajuda">Pra ${esc(M.profissional.nome)} te reconhecer quando tu agendar:</p>
+    <p class="ajuda">Pra eu te reconhecer quando tu agendar:</p>
     <label class="campo">Teu nome<input id="c-nome" autocomplete="name" placeholder="Como tu gosta de ser chamada" value="${esc(c.nome || '')}"></label>
     <label class="campo">Teu WhatsApp<input id="c-zap" inputmode="tel" autocomplete="tel" placeholder="(51) 9 9999-9999" value="${esc(c.contato || '')}"></label>
     <p class="erro" id="erro"></p>
@@ -300,6 +301,23 @@ function pacoteTxt(s) {
   const v = blackAtiva() ? pac.preco : (depois ?? pac.preco);
   return `ou pacote de ${pac.sessoes} sessões: <b>${reais(v)}</b> (${reais(Math.round(v / pac.sessoes))} cada)`;
 }
+// Preço dentro da opção: "Sessão: R$ 197 (R$ 227 a partir de 01/12)" + "Tratamento de 5 sessões: …"
+function precoCurto(s) {
+  const depois = _porNome(M.precos?.depois, s.nome);
+  const black = _porNome(M.precos?.black, s.nome) ?? s.preco;
+  if (blackAtiva() && black != null && depois != null && depois !== black) return `<b>${reais(black)}</b> (${reais(depois)} a partir de ${proxDia()})`;
+  const v = blackAtiva() ? black : (depois ?? s.preco);
+  return v != null ? `<b>${reais(v)}</b>` : `valor no atendimento`;
+}
+function precosOpcao(s) {
+  if (s.sessoes > 1) return `<small class="pr">Tratamento completo: ${precoCurto(s)}</small>`;
+  const pac = SERV.find(x => x.pacoteDe === s.id);
+  const linhaPac = pac && pac.preco != null && pac.sessoes ? (() => {
+    const v = blackAtiva() ? pac.preco : (_porNome(M.precos?.depois, pac.nome) ?? pac.preco);
+    return `<small class="pr">Tratamento de ${pac.sessoes} sessões: <b>${reais(v)}</b> (${reais(Math.round(v / pac.sessoes))} cada)</small>`;
+  })() : '';
+  return `<small class="pr">Sessão: ${precoCurto(s)}</small>${linhaPac}`;
+}
 const nomeCurto = n => String(n || '').split(' – ')[0].split(' (')[0];
 
 // === BLOCO 6: RESULTADO (indicação · vou agendar · também me interessam) ===
@@ -351,11 +369,11 @@ function resultado() {
     ...(blend ? [{ v: blend.nome, blend: true }] : [])].filter((o, i, a) => a.findIndex(x => x.v === o.v) === i);
   salvar();
   app.innerHTML = `<section class="tela">
-    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra você')} 💜</h1>
+    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra ti')} 💜</h1>
     ${opcoes.length > 1 ? `<div class="card escolha"><h3>Escolhe o teu tratamento</h3><p class="ajuda" style="margin:0 0 .7rem">${esc(ind.porque)}</p>
       <div class="ops" role="radiogroup">${opcoes.map(s => `<button type="button" class="op trat" role="radio" aria-checked="${st.plano[0] === s.id}" data-id="${esc(s.id)}">
-        <span class="marca-op"></span><span class="trat-tx"><b>${esc(nomeCurto(s.nome))}</b>${s.id === servInd?.id ? ' <span class="selo">indicado pra ti</span>' : ''}
-        ${desc(s) ? `<small>${esc(desc(s))}</small>` : ''}<small class="pr">${precoTxt(s)}</small></span></button>`).join('')}</div></div>`
+        <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(nomeCurto(s.nome))}</b>${s.id === servInd?.id ? '<span class="selo">indicado pra ti</span>' : ''}</span>
+        ${desc(s) ? `<small>${esc(desc(s))}</small>` : ''}${precosOpcao(s)}</span></button>`).join('')}</div></div>`
     : `<div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>`}
     ${extras.length ? `<div class="card escolha"><h3>Quer cuidar disso também?</h3>
       <div class="ops">${extras.map(e => `<button type="button" class="op trat multi" role="checkbox" aria-checked="${st.plano.includes(e.s.id)}" data-extra="${esc(e.s.id)}">
@@ -364,7 +382,7 @@ function resultado() {
     ${depoHtml(_depoResultado(ind))}
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${s.sessoes > 1 ? `Pacote com ${s.sessoes} sessões` : 'Sessão'}: ${precoTxt(s)}</span>${pacoteTxt(s) ? `<span class="pr">${pacoteTxt(s)}</span>` : ''}</div>`).join('')}
-      ${plano.some(s => pacoteTxt(s)) ? `<p class="ajuda" style="margin:.6rem 0 0">Na agenda tu escolhe: uma sessão ou o pacote. O tratamento completo é o que dá mais resultado, e a ${esc(M.profissional.nome)} te explica tudo no atendimento.</p>` : ''}
+      ${plano.some(s => pacoteTxt(s)) ? `<p class="ajuda" style="margin:.6rem 0 0">Na agenda tu escolhe: uma sessão ou o pacote, e pode mudar depois. O tratamento completo é o que dá mais resultado, e eu te explico tudo no atendimento.</p>` : ''}
     </div>` : ''}
     ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
