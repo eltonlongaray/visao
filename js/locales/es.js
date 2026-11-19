@@ -24,6 +24,7 @@ export default {
   'nav.preparo':    'Físico',
   'nav.chat':      'Falcon Hunters',
   'nav.financeiro': 'Finanzas',
+  'nav.kanban':     'Kanban',
   'nav.ajustes':    'Ajustes',
   'desafios.sub':   'Encara un reto con la comunidad 🦅',
   'desafios.empty': 'Ningún reto activo por ahora. ¡Pronto habrá novedades! 🦅',

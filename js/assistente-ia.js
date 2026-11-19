@@ -22,6 +22,7 @@
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 8.19 — AJUSTES PELO PET (perfil, idioma, som das notificações, exportar, sugestão)
+// BLOCO 8.20 — KANBAN PELO PET (quadros, listas, cards; arquivar)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -62,6 +63,7 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
+import * as PKB from './pet-kanban.js?v=20261119a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -919,6 +921,11 @@ async function dispatchCommand(text) {
       const r = await tentarDesafios(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // Kanban pessoal ("põe X no kanban", "move X pra fazendo"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarKanban(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarIdeal(semChamado(text));
@@ -1212,6 +1219,9 @@ async function routeCommand(text) {
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
   if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
+  const rKanban = await tentarKanban(text);
+  if (rKanban !== undefined) return rKanban;
 
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
@@ -7109,6 +7119,143 @@ Object.assign(PASSOS, {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.20 — KANBAN PELO PET (Élton, 18-19/11 — formato Trello)
+// ═══════════════════════════════════════════════════════════════
+// "põe X no kanban", "põe X no quadro Casa na lista Urgente", "move X pra
+// fazendo", "passa X pra lista Revisão", "arquiva X", "o que tem no quadro Y?".
+// Quadros → listas → cards. "Apagar" ARQUIVA (volta pelo ⋮ do quadro).
+// Leitor em pet-kanban.js; banco em kanban.js. Sempre com card.
+async function _kanbanDepois() {
+  try { (await import('./screens/tela-kanban.js')).recarregarKanban(); } catch {}
+}
+async function tentarKanban(text) {
+  const p = PKB.lerKanban(PR.semPedido(text));
+  if (!p) return undefined;
+  const K = await import('./kanban.js');
+  let quadros, listas = [], cards = [];
+  try {
+    quadros = await K.lerQuadros(p.quadro || null);
+    if (p.quadroNome) {
+      const q = PKB.acharQuadro(quadros, p.quadroNome);
+      if (!q) {
+        return quadros.length ? `Não achei o quadro <b>${_esc(p.quadroNome)}</b>. Teus quadros: ${quadros.map(x => `<b>${_esc(x.nome)}</b>`).join(', ')}.`
+          : `Ainda não tens quadro no Kanban. Cria um na aba 📌 Kanban (ou fala <em>"põe X no kanban"</em> que eu crio o "Meu Kanban").`;
+      }
+      quadros = [q];
+    }
+    const ids = quadros.map(q => q.id);
+    [listas, cards] = await Promise.all([
+      Promise.all(ids.map(id => K.lerListas(id))).then(r => r.flat()),
+      K.lerCartoesDe(ids),
+    ]);
+  } catch (e) { console.warn('[pet-kanban]', e); return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const listasDe = (qid) => listas.filter(l => l.quadro_id === qid).sort((a, b) => a.ordem - b.ordem);
+  const nomeQ = (qid) => quadros.find(q => q.id === qid)?.nome || '';
+  const nomeL = (lid) => listas.find(l => l.id === lid)?.nome || '';
+  const abrir = [{ label: '📌 Abrir o Kanban', action: () => { location.hash = '#/kanban'; return null; } }];
+  // Lista de destino dentro de um quadro: nome dito ("lista Revisão") ou apelido ("fazendo")
+  const listaAlvo = (qid) => {
+    const ls = listasDe(qid);
+    if (p.lista) return PKB.acharLista(ls, p.lista);
+    if (p.coluna) return PKB.acharLista(ls, p.coluna === 'afazer' ? 'a fazer' : p.coluna);
+    return null;
+  };
+
+  if (p.acao === 'ver') {
+    if (!quadros.length) return '📌 Teu Kanban está vazio. Fala assim: <em>"põe estudar inglês no kanban"</em>.';
+    const filtroL = p.lista || p.coluna;
+    const blocos = quadros.map(q => {
+      let ls = listasDe(q.id);
+      if (filtroL) { const l = listaAlvo(q.id); ls = l ? [l] : []; }
+      if (!ls.length) return '';
+      return (quadros.length > 1 ? `<u>📋 ${_esc(q.nome)}</u><br>` : '') + ls.map(l => {
+        const cs = cards.filter(c => c.lista_id === l.id).sort((a, b) => a.ordem - b.ordem);
+        return `<b>${_esc(l.nome)}</b> (${cs.length})` + (cs.length ? '<br>' + cs.slice(0, 15).map(c => `${c.concluido ? '✅' : '•'} ${_esc(c.titulo)}`).join('<br>') + (cs.length > 15 ? `<br>… e mais ${cs.length - 15}` : '') : '<br><em>vazia</em>');
+      }).join('<br><br>');
+    }).filter(Boolean);
+    addChoices(blocos.length ? `📌 <b>${quadros.length === 1 ? _esc(quadros[0].nome) : 'Teu Kanban'}</b><br>${blocos.join('<br><br>')}` : 'Não achei essa lista nos teus quadros.', abrir);
+    return null;
+  }
+
+  if (!p.itens.length) {
+    return p.acao === 'criar' ? 'O que eu ponho no Kanban? Ex.: <em>"põe ligar pro contador no kanban"</em>.'
+      : 'Qual card? Ex.: <em>"move estudar inglês pra fazendo"</em>.';
+  }
+
+  if (p.acao === 'criar') {
+    // Sem quadro: cria o "Meu Kanban" (pessoal, ou profissional se disse)
+    if (!quadros.length) {
+      const area = p.quadro || 'pessoal';
+      cardConfirmarLista(`📌 Vou criar teu primeiro quadro <b>Meu Kanban</b> (${K.nomeArea(area)}) e pôr em <b>A fazer</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
+        const q = await K.criarQuadro({ area, nome: 'Meu Kanban', cor: 'roxo' });
+        const l = (await K.lerListas(q.id))[0];
+        const feitos = [];
+        for (const titulo of p.itens) feitos.push(await K.criarCartao({ quadro_id: q.id, lista_id: l.id, titulo }, feitos));
+        return `Pronto! Quadro criado com ${feitos.length === 1 ? '1 card' : `${feitos.length} cards`}. 📌`;
+      }, _kanbanDepois);
+      return null;
+    }
+    // Vários quadros e não disse qual: pergunta (⭐ favoritos primeiro)
+    const favs = quadros.filter(q => q.favorito);
+    const alvo = quadros.length === 1 ? quadros[0] : null;
+    const criarEm = (q) => {
+      const l = listaAlvo(q.id) || (p.lista ? null : listasDe(q.id)[0]);
+      if (!l) return p.lista ? `Não achei a lista <b>${_esc(p.lista)}</b> no quadro <b>${_esc(q.nome)}</b>. Listas: ${listasDe(q.id).map(x => _esc(x.nome)).join(', ')}.` : `O quadro <b>${_esc(q.nome)}</b> não tem lista. Cria uma lá na tela.`;
+      cardConfirmarLista(`📌 Pôr no quadro <b>${_esc(q.nome)}</b>, em <b>${_esc(l.nome)}</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
+        const naLista = cards.filter(c => c.lista_id === l.id);
+        for (const titulo of p.itens) naLista.push(await K.criarCartao({ quadro_id: q.id, lista_id: l.id, titulo }, naLista));
+        return `Pronto! ${p.itens.length === 1 ? 'Card criado' : `${p.itens.length} cards criados`} em ${_esc(l.nome)}. 📌`;
+      }, _kanbanDepois);
+      return null;
+    };
+    if (alvo) return criarEm(alvo);
+    const ordem = [...favs, ...quadros.filter(q => !q.favorito)];
+    addChoices(`Em qual quadro eu ponho ${p.itens.length === 1 ? `<b>${_esc(p.itens[0])}</b>` : 'esses cards'}?`,
+      ordem.slice(0, 8).map(q => ({ label: `${q.favorito ? '⭐ ' : ''}${q.nome}`, action: () => criarEm(q) })));
+    return null;
+  }
+
+  const achados = p.itens.map(x => ({ x, c: PKB.acharCard(cards, x) }));
+  const faltam = achados.filter(a => !a.c).map(a => a.x);
+  const ok = [...new Set(achados.filter(a => a.c).map(a => a.c))];
+  if (!ok.length) return `Não achei ${faltam.map(x => `<b>${_esc(x)}</b>`).join(', ')} no teu Kanban. Me diz o nome do card como está lá.`;
+  const aviso = faltam.length ? `<br><small>Não achei: ${faltam.map(_esc).join(', ')}</small>` : '';
+  const onde = (c) => `<small>(${_esc(quadros.length > 1 ? nomeQ(c.quadro_id) + ' · ' : '')}${_esc(nomeL(c.lista_id))})</small>`;
+
+  if (p.acao === 'apagar') {
+    cardConfirmarLista(`🗄️ Arquivar do Kanban:<br>${ok.map(c => `• ${_esc(c.titulo)} ${onde(c)}`).join('<br>')}${aviso}<br><small>Dá pra trazer de volta no ⋮ do quadro → Cartões arquivados.</small>`, async () => {
+      for (const c of ok) await K.mudarCartao(c.id, { arquivado: true });
+      return ok.length === 1 ? 'Card arquivado. 🗄️' : `${ok.length} cards arquivados. 🗄️`;
+    }, _kanbanDepois);
+    return null;
+  }
+
+  // mover: a lista de destino é procurada no quadro de cada card
+  if (!p.coluna && !p.lista) {
+    const ls = listasDe(ok[0].quadro_id).map(l => _esc(l.nome));
+    return `Pra qual lista eu passo ${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b>` : 'esses cards'}? ${ls.length ? ls.map(x => `<em>${x}</em>`).join(', ') : ''}`;
+  }
+  const planos = ok.map(c => ({ c, l: listaAlvo(c.quadro_id) }));
+  const semLista = planos.filter(x => !x.l);
+  if (semLista.length === planos.length) {
+    const q = ok[0].quadro_id;
+    return `Não achei a lista <b>${_esc(p.lista || p.coluna)}</b> no quadro <b>${_esc(nomeQ(q))}</b>. Listas: ${listasDe(q).map(l => _esc(l.nome)).join(', ')}.`;
+  }
+  const mover = planos.filter(x => x.l && x.l.id !== x.c.lista_id);
+  if (!mover.length) return `${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b> já está` : 'Esses cards já estão'} em ${_esc(planos.find(x => x.l).l.nome)}. 👍`;
+  cardConfirmarLista(`📌 Mover:<br>${mover.map(({ c, l }) => `• ${_esc(c.titulo)} <small>${_esc(nomeL(c.lista_id))} → <b>${_esc(l.nome)}</b></small>`).join('<br>')}${aviso}`, async () => {
+    for (const { c, l } of mover) {
+      const topo = cards.filter(x => x.lista_id === l.id);
+      const ordem = topo.length ? Math.min(...topo.map(x => x.ordem)) - 1 : 0;
+      await K.mudarCartao(c.id, { lista_id: l.id, ordem });
+      c.lista_id = l.id; c.ordem = ordem;
+    }
+    return `Feito! ${mover.length === 1 ? `Card movido pra ${_esc(mover[0].l.nome)}` : `${mover.length} cards movidos`}. 📌`;
+  }, _kanbanDepois);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
