@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=18`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=19`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -98,6 +98,23 @@ function depoHtml(d) {
   return d ? `<figure class="depo"><blockquote>“${esc(d.texto)}”</blockquote><figcaption>— ${esc(d.nome)}${d.servico ? ` · ${esc(d.servico)}` : ''}</figcaption></figure>` : '';
 }
 const _respTxt = () => Object.values(st.r || {}).flat().join(' ');
+const _depoAbertura = () => (M.depoimentos || []).find(d => d.destaque) || (M.depoimentos || [])[0] || null;
+const _depoContato = () => depoPara(_respTxt(), [_depoAbertura()]);
+const _depoResultado = ind => depoPara(ind.servico + ' ' + _respTxt(), [_depoAbertura(), _depoContato()]);
+
+// 2ª tela: apresenta uma cliente real antes das perguntas
+function depoTela() {
+  const d = _depoAbertura();
+  if (!d) { st.i = 0; salvar(); return tela(); }
+  app.innerHTML = `<section class="tela">
+    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o trabalho da ${esc(M.profissional.nome)} 💜</h2>
+    ${depoHtml(d)}
+    <div class="nav"><button class="voltar" id="volta">← Voltar</button>
+      <button class="btn" id="go">Começar as perguntas →</button></div></section>`;
+  $('volta').onclick = () => intro();
+  $('go').onclick = () => { st.i = 0; salvar(); tela(); window.scrollTo({ top: 0 }); };
+  window.scrollTo({ top: 0 });
+}
 
 function intro() {
   const retomar = Object.keys(st.r).length > 0;
@@ -106,10 +123,9 @@ function intro() {
     <p class="eyebrow">${esc(M.intro.eyebrow || '')}</p>
     <h1>${M.intro.titulo}</h1>
     ${[].concat(M.intro.texto).map(t => `<p class="lead">${esc(t)}</p>`).join('')}
-    ${depoHtml((M.depoimentos || []).find(d => d.destaque))}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     ${rod ? `<p class="rodape">${esc(rod)}</p>` : ''}</section>`;
-  $('go').onclick = () => { st.i = retomar ? Math.min(Math.max(st.i, 0), passos().length - 1) : 0; salvar(); tela(); };
+  $('go').onclick = () => { if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
   progresso();
 }
 
@@ -210,7 +226,7 @@ function avancar() {
   if (opOutro && [].concat(v).includes(opOutro) && !(st.r[p.id + '_outro'] || '').trim()) { $('erro').textContent = 'Escreve o que seria no campo "Qual?".'; return; }
   st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
 }
-function voltar() { if (st.i <= 0) { st.i = -1; salvar(); intro(); } else { st.i--; salvar(); tela(); } }
+function voltar() { if (st.i <= 0) { st.i = -1; salvar(); depoTela(); } else { st.i--; salvar(); tela(); } }
 
 // === BLOCO 4: NOME + WHATSAPP (é o que faz a cliente aparecer em "Só triagem") ===
 function contato() {
@@ -223,7 +239,7 @@ function contato() {
     <p class="erro" id="erro"></p>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="seg">Ver meu resultado →</button></div>
-    ${depoHtml(depoPara(_respTxt(), (M.depoimentos || []).filter(d => d.destaque)))}</section>`;
+    ${depoHtml(_depoContato())}</section>`;
   progresso();
   $('c-zap').oninput = e => { e.target.value = mascara(e.target.value); };
   $('volta').onclick = voltar;
@@ -276,6 +292,16 @@ function precoTxt(s) {
   return `<b>${reais(atual ?? depois)}</b>`;
 }
 
+// Pacote do serviço (item da agenda com pacoteDe): "ou pacote de 5 sessões: R$ 897 (R$ 179 cada)"
+function pacoteTxt(s) {
+  const pac = SERV.find(x => x.pacoteDe === s.id);
+  if (!pac || pac.preco == null || !pac.sessoes) return '';
+  const depois = _porNome(M.precos?.depois, pac.nome);
+  const v = blackAtiva() ? pac.preco : (depois ?? pac.preco);
+  return `ou pacote de ${pac.sessoes} sessões: <b>${reais(v)}</b> (${reais(Math.round(v / pac.sessoes))} cada)`;
+}
+const nomeCurto = n => String(n || '').split(' – ')[0].split(' (')[0];
+
 // === BLOCO 6: RESULTADO (indicação · vou agendar · também me interessam) ===
 function resumoLinhas() {
   const L = M.perguntas.filter(p => !p.mostrarSe || condicao(p.mostrarSe));
@@ -304,8 +330,12 @@ function resultado() {
   $('barra').style.width = '100%';
   const ind = M.indicacao(st.r);
   const servInd = servPorNome(ind.servico);
-  if (!st.plano) st.plano = servInd ? [servInd.id] : [];
+  // se as respostas mudaram (voltou e trocou), a indicação recomeça
+  if (!st.plano || st.planoPara !== ind.servico) { st.plano = servInd ? [servInd.id] : []; st.planoPara = ind.servico; }
+  const opcoes = (ind.opcoes || []).map(servPorNome).filter(Boolean);
+  const extras = (ind.extras || []).map(e => ({ ...e, s: servPorNome(e.servico) })).filter(e => e.s && !opcoes.includes(e.s) && e.s.id !== servInd?.id);
   const plano = st.plano.map(id => SERV.find(s => s.id === id)).filter(Boolean);
+  const desc = s => _porNome(M.descricoes, s.nome) || '';
   const sug = sugestoes(ind, st.plano);
   const blend = M.blendPersonalizado ? M.blendPersonalizado(st.r) : null;
   const blendsVit = st.r.__vitrine || [];
@@ -322,11 +352,19 @@ function resultado() {
   salvar();
   app.innerHTML = `<section class="tela">
     <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra você')} 💜</h1>
-    <div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>
+    ${opcoes.length > 1 ? `<div class="card escolha"><h3>Escolhe o teu tratamento</h3><p class="ajuda" style="margin:0 0 .7rem">${esc(ind.porque)}</p>
+      <div class="ops" role="radiogroup">${opcoes.map(s => `<button type="button" class="op trat" role="radio" aria-checked="${st.plano[0] === s.id}" data-id="${esc(s.id)}">
+        <span class="marca-op"></span><span class="trat-tx"><b>${esc(nomeCurto(s.nome))}</b>${s.id === servInd?.id ? ' <span class="selo">indicado pra ti</span>' : ''}
+        ${desc(s) ? `<small>${esc(desc(s))}</small>` : ''}<small class="pr">${precoTxt(s)}</small></span></button>`).join('')}</div></div>`
+    : `<div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>`}
+    ${extras.length ? `<div class="card escolha"><h3>Quer cuidar disso também?</h3>
+      <div class="ops">${extras.map(e => `<button type="button" class="op trat multi" role="checkbox" aria-checked="${st.plano.includes(e.s.id)}" data-extra="${esc(e.s.id)}">
+        <span class="marca-op"></span><span class="trat-tx"><b>${esc(e.titulo || nomeCurto(e.s.nome))}</b><small>${esc(e.porque || desc(e.s))}</small><small class="pr">${precoTxt(e.s)}</small></span></button>`).join('')}</div></div>` : ''}
     ${ind.aviso ? `<div class="aviso">${esc(ind.aviso)}</div>` : ''}
-    ${depoHtml(depoPara(ind.servico + ' ' + _respTxt()))}
+    ${depoHtml(_depoResultado(ind))}
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
-      ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
+      ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${s.sessoes > 1 ? `Pacote com ${s.sessoes} sessões` : 'Sessão'}: ${precoTxt(s)}</span>${pacoteTxt(s) ? `<span class="pr">${pacoteTxt(s)}</span>` : ''}</div>`).join('')}
+      ${plano.some(s => pacoteTxt(s)) ? `<p class="ajuda" style="margin:.6rem 0 0">Na agenda tu escolhe: uma sessão ou o pacote. O tratamento completo é o que dá mais resultado, e a ${esc(M.profissional.nome)} te explica tudo no atendimento.</p>` : ''}
     </div>` : ''}
     ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
@@ -337,6 +375,13 @@ function resultado() {
         <button class="voltar" id="refazer">Refazer as respostas</button></div>
     </div>
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
+  app.querySelectorAll('.op.trat[data-id]').forEach(b => b.onclick = () => {
+    st.plano = [b.dataset.id, ...st.plano.slice(1).filter(id => id !== b.dataset.id)]; salvar(); resultado();
+  });
+  app.querySelectorAll('.op.trat[data-extra]').forEach(b => b.onclick = () => {
+    const id = b.dataset.extra;
+    st.plano = st.plano.includes(id) ? st.plano.filter(x => x !== id) : [...st.plano, id]; salvar(); resultado();
+  });
   app.querySelectorAll('.int .op').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
     st.interesses = st.interesses.includes(v) ? st.interesses.filter(x => x !== v) : [...st.interesses, v];
@@ -362,6 +407,8 @@ async function irParaAgenda(ind, plano) {
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
     `✨ Indicação: ${ind.servico}`,
     ...(st.interesses.length ? [`💡 Também me interessam: ${st.interesses.join(', ')}`] : []),
+    ...(() => { const ps = [...new Set([].concat(st.r.casa || []).flatMap(n => M.produtosPor?.[n] || []))];
+      return ps.length ? [`🌿 Produtos pra casa que combinam: ${ps.join(', ')}`] : []; })(),
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');
   const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg,
     whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now() };

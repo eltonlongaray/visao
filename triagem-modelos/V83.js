@@ -35,8 +35,9 @@ window.TRIAGEM = {
     "Manchas": ["Tratamento para manchas", "Limpeza de pele"],
     "Acne, cravos, pele oleosa e/ou porosa": ["Limpeza de pele", "Tratamento para manchas"],
     "Dores e tensão": ["Massagem terapêutica", "Liberação miofascial", "Sessão de LED (anti-inflamatória)", "Massagem desportiva localizada"],
-    "Ansiedade e estresse": ["Massagem relaxante", "Reiki"],
-    "Quero só relaxar": ["Massagem relaxante", "Reiki"]
+    "Estrias": ["Deusa Grega – Modela / Reduz Medida / Pele Porcelana", "Sessão para celulite"],
+    "Ansiedade e estresse": ["Massagem relaxante"],
+    "Quero só relaxar": ["Massagem relaxante"]
   },
 
   // Google Ads (conta 845-725-3405). conversão "Triagem enviada" criada 14/11
@@ -76,7 +77,7 @@ window.TRIAGEM = {
     { id: "incomodo", grupo: "Sobre você", tipo: "multi", curto: "Incômodo",
       q: "O que mais te incomoda hoje?", ajuda: "Pode marcar mais de uma.",
       ops: [
-        { v: "Celulite", icone: "🍑" }, { v: "Flacidez", icone: "🤍" }, { v: "Gordura localizada / medidas", icone: "📏" },
+        { v: "Celulite", icone: "🍑" }, { v: "Estrias", icone: "〰️" }, { v: "Flacidez", icone: "🤍" }, { v: "Gordura localizada / medidas", icone: "📏" },
         { v: "Inchaço e retenção", icone: "💧" }, { v: "Manchas", icone: "🌗" }, { v: "Acne, cravos, pele oleosa e/ou porosa", icone: "🌸" },
         { v: "Dores e tensão", icone: "💆" }, { v: "Ansiedade e estresse", icone: "🌙" }, { v: "Queda de cabelo", icone: "💇" },
         { v: "Quero só relaxar", icone: "🕯️" }
@@ -101,7 +102,7 @@ window.TRIAGEM = {
       avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de você e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
     { id: "regiao", grupo: "Sobre você", tipo: "multi", curto: "Região",
       q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
       ops: [{ v: "Bumbum" }, { v: "Coxas" }, { v: "Culote" }, { v: "Barriga" }, { v: "Braços" }, { v: "Costas" }] },
     { id: "tempo", grupo: "Sobre você", tipo: "unica", curto: "Há quanto tempo",
       q: "Há quanto tempo isso te incomoda?",
@@ -117,7 +118,7 @@ window.TRIAGEM = {
         { v: "Experimentar uma sessão primeiro", icone: "✨" }
       ] },
     { id: "pele", grupo: "Tua pele", tipo: "multi", curto: "Pele e cabelo",
-      q: "E a tua pele, tem algo que te incomoda?", ajuda: "Com isso eu monto um blend feito pra você. Pode marcar mais de uma.",
+      q: "E a tua pele, tem algo que te incomoda?", ajuda: "Assim eu já cuido disso também. Pode marcar mais de uma.",
       exclusivas: ["Nada disso"],
       ops: [
         { v: "Manchas ou melasma", icone: "🌗" }, { v: "Acne e espinhas", icone: "🌸" }, { v: "Cravos e poros abertos", icone: "🔍" },
@@ -136,21 +137,21 @@ window.TRIAGEM = {
 
     // === CUIDADO EM CASA (aprovado 15/11): necessidades, sem mostrar produto; o catálogo vem depois ===
     { id: "casa", grupo: "Pra continuar em casa", tipo: "multi", curto: "Cuidar em casa",
-      q: "Se você fosse continuar o tratamento em casa, pra que seria?",
-      ajuda: "Usamos combinações de óleos essenciais e cremes naturais no seu atendimento, e você pode levar pra casa pra continuar o tratamento. Selecione o que acha interessante pro seu caso:",
+      q: "No atendimento eu uso óleos essenciais e cremes naturais, e tu pode levar pra casa pra continuar ou iniciar um novo tratamento. O que te interessa?",
+      ajuda: "Pode marcar mais de uma.",
       exclusivas: ["Não tenho interesse no momento"],
       ops: [
-        { v: "Rosto: acne, cravos, manchas, olheiras, poros abertos", icone: "🌸" },
-        { v: "Cabelo e barba: foliculite, falhas, queda, caspa", icone: "💇" },
-        { v: "Corpo: celulite, edema, queloide, linfedema", icone: "🍑" },
-        { v: "Varizes e vasinhos", icone: "🦵" },
-        { v: "Gordura localizada e inchaço", icone: "📏" },
-        { v: "Ansiedade e depressão", icone: "🌙" },
-        { v: "Bruxismo", icone: "😬" },
-        { v: "Insônia", icone: "😴" },
-        { v: "Enxaqueca", icone: "🤕" },
-        { v: "Dores musculares e nos nervos", icone: "💪" },
-        { v: "Dores nos ossos e articulações", icone: "🦴" },
+        { v: "Espinhas, cravos e pele oleosa", icone: "🌸" },
+        { v: "Manchas na axila e virilha", icone: "🌗" },
+        { v: "Olheiras e bolsas nos olhos", icone: "👁️" },
+        { v: "Pele seca", icone: "🏜️" },
+        { v: "Limpeza do rosto", icone: "🧼" },
+        { v: "Lábios ressecados", icone: "💋" },
+        { v: "Foliculite e pelos encravados", icone: "🪒" },
+        { v: "Queda e falhas no cabelo ou barba", icone: "💇" },
+        { v: "Celulite, gordura e inchaço", icone: "🍑" },
+        { v: "Estrias e gestação", icone: "🤰" },
+        { v: "Ansiedade, estresse e sono", icone: "🌙" },
         { v: "Outro", icone: "✍️", outro: true },
         { v: "Não tenho interesse no momento" }
       ] },
@@ -159,6 +160,30 @@ window.TRIAGEM = {
       ajuda: "Assim você faz sua encomenda sempre que sentir necessidade. 📦 Pedidos em até 7 dias úteis, pra retirar no espaço.",
       ops: [{ v: "Sim, quero o catálogo" }, { v: "Agora não" }] }
   ],
+
+  // Produtos reais da Alê por necessidade da pergunta "casa" (vão no resumo do WhatsApp pra ela montar o catálogo)
+  produtosPor: {
+    "Espinhas, cravos e pele oleosa": ["Folico", "Óleo de Melaleuca roll-on", "Hidrolato de melaleuca", "Hidrolato de gerânio"],
+    "Manchas na axila e virilha": ["Clarea"],
+    "Olheiras e bolsas nos olhos": ["Creme para área dos olhos"],
+    "Pele seca": ["Blend Pele Seca"],
+    "Limpeza do rosto": ["Espuma de limpeza facial"],
+    "Lábios ressecados": ["Blend Protetor Labial", "Blend Revitalização Labial"],
+    "Foliculite e pelos encravados": ["Blend Combate Foliculite", "Folico"],
+    "Queda e falhas no cabelo ou barba": ["Blend Anti Queda"],
+    "Celulite, gordura e inchaço": ["Blend Xô Celulite", "Hidrolato de alecrim do campo"],
+    "Estrias e gestação": ["Maestria"],
+    "Ansiedade, estresse e sono": ["Hidrolato de lavanda", "Água floral de verbena", "Hidrolato de capim-limão"]
+  },
+
+  // Descrição curta de cada tratamento quando a cliente escolhe entre opções (resultado)
+  descricoes: {
+    "Deusa Grega": "1h15 pra celulite e estrias: modela, reduz medida e deixa a pele lisinha.",
+    "Esculpe Detox": "Avaliação + 4 sessões de 45 min: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada.",
+    "Sessão para celulite": "45 min focados na celulite. Bom pra começar e sentir o resultado.",
+    "Drenagem linfática": "45 min pra tirar o inchaço e a retenção de líquido.",
+    "Limpeza de pele": "Limpeza profunda pra tratar a acne, os cravos e a oleosidade."
+  },
 
   // Vitrine de blends desligada (15/11): o cuidado em casa virou a pergunta "casa" + catálogo
   vitrine: null,
@@ -173,12 +198,21 @@ window.TRIAGEM = {
     const aviso = saude.length ? "Como você me contou algo sobre tua saúde, a primeira sessão começa com uma avaliação pra eu escolher as técnicas certas pra você." : "";
     const experimentar = r.objetivo === "Experimentar uma sessão primeiro";
     const principal = inc[0];
-    const corpo = ["Celulite", "Flacidez", "Gordura localizada / medidas"];
+    const pele = r.pele || [];
+    const acne = principal !== "Acne, cravos, pele oleosa e/ou porosa" &&
+      (inc.includes("Acne, cravos, pele oleosa e/ou porosa") || pele.includes("Acne e espinhas") || pele.includes("Cravos e poros abertos"));
+    // Extra que a cliente pode somar (ex.: espinhas → tratamento de acne)
+    const extras = acne ? [{ servico: "Limpeza de pele", titulo: "Tratamento de acne", porque: "Tu contou que tem espinhas: dá pra cuidar disso também." }] : [];
+    const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
+    const corpo = ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas"];
     if (corpo.includes(principal)) {
-      if (experimentar) return { servico: principal === "Celulite" ? "Sessão para celulite" : "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Uma sessão pra você sentir o resultado e a gente montar teu plano.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-      return { servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", porque: "Sessão de 1h15 pra celulite e estrias: modela, reduz medida e deixa a pele lisinha, com os blends cuidando de dentro pra fora.", junto: "Teu blend personalizado pra continuar em casa", aviso };
+      const servico = principal === "Gordura localizada / medidas" ? ESCULPE
+        : (experimentar && principal === "Celulite") ? "Sessão para celulite" : DEUSA;
+      return { servico, opcoes: [DEUSA, ESCULPE, "Sessão para celulite"], extras,
+        porque: "Separei os tratamentos que cuidam disso. Já deixei marcado o que mais combina com o que tu me contou, mas tu pode escolher outro:", aviso };
     }
-    if (principal === "Inchaço e retenção") return { servico: "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Pra desinchar, eliminar o que o corpo está retendo e modelar.", junto: "Drenagem linfática pra manter", aviso };
+    if (principal === "Inchaço e retenção") return { servico: ESCULPE, opcoes: [ESCULPE, "Drenagem linfática"], extras,
+      porque: "Pra desinchar e eliminar o que o corpo está retendo. Escolhe o que combina mais contigo:", aviso };
     if (principal === "Dores e tensão") {
       const t = r.dor_tipo;
       if (t === "Dor na articulação (artrose)" || t === "Esporão ou calos")
@@ -187,11 +221,11 @@ window.TRIAGEM = {
       return { servico: "Massagem terapêutica", porque: "Pra soltar a tensão, destravar o músculo e aliviar a dor.", junto: "Liberação miofascial nos pontos mais travados", aviso };
     }
     if (principal === "Ansiedade e estresse")
-      return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", junto: "Reiki pra equilibrar a energia + teu blend personalizado pra levar o cuidado pra casa", aviso };
+      return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", extras, aviso };
     if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", aviso };
     if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-    if (principal === "Queda de cabelo") return { servico: "Blend Capilar", porque: "Fórmula pra fortalecer os fios e estimular o crescimento — eu te explico como usar.", junto: "Uma conversa rápida pra eu entender a causa da queda", aviso };
-    return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", junto: "Blend Calma pra levar o cuidado pra casa", aviso };
+    if (principal === "Queda de cabelo") return { servico: "Blend Anti Queda", porque: "Fórmula com alecrim e copaíba pra fortalecer os fios. Eu te explico como usar e a gente conversa sobre a causa da queda.", extras, aviso };
+    return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", extras, aviso };
   },
 
   // === BLOCO 5: BLEND PERSONALIZADO (junta tudo que a pessoa marcou num blend só dela) ===
