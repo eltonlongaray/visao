@@ -80,6 +80,8 @@ export const EXERCICIOS = {
     E('Tríceps na polia com barra', ['triceps na polia', 'triceps pulley', 'triceps polia', 'triceps barra', 'pulley de triceps', 'triceps na polia com barra', 'triceps na polia com a barra', 'triceps polia com barra', 'triceps pulley com barra', 'triceps com barra', 'triceps com a barra', 'triceps na barra', 'triceps de barra', 'polia com barra', 'pulley com barra', 'extensao de triceps na polia', 'extensao de triceps na polia com barra', 'extensao de cotovelo na polia', 'triceps pushdown', 'pushdown', 'triceps puxada', 'triceps no pulley', 'triceps no cabo', 'triceps no cabo com barra', 'triceps pulley barra reta', 'triceps barra v', 'triceps com barra v'], true),
     E('Tríceps na polia com corda', ['triceps corda', 'triceps na corda', 'corda', 'triceps na polia com corda', 'triceps na polia com a corda', 'triceps polia com corda', 'triceps pulley com corda', 'triceps com corda', 'triceps com a corda', 'triceps de corda', 'polia com corda', 'pulley com corda', 'extensao de triceps na polia com corda', 'extensao de triceps com corda', 'triceps pushdown com corda', 'pushdown com corda', 'triceps no cabo com corda', 'triceps pulley corda'], true),
     E('Tríceps testa', ['triceps testa', 'testa', 'triceps testa com barra', 'triceps testa com barra w', 'triceps testa com halteres', 'extensao de triceps deitado', 'skull crusher', 'rosca testa'], true),
+    // Élton, 18/11: "tríceps testa na polia" é outro exercício (deitado, puxando o cabo)
+    E('Tríceps testa na polia', ['triceps testa na polia', 'testa na polia', 'triceps testa no cabo', 'testa no cabo', 'triceps testa na polia com barra', 'triceps testa na polia com corda', 'triceps testa no crossover', 'extensao de triceps deitado na polia', 'triceps testa polia']),
     E('Tríceps francês', ['triceps frances', 'frances', 'triceps frances com halter', 'triceps frances com halteres', 'extensao de triceps acima da cabeca', 'extensao de triceps sentado', 'triceps overhead', 'triceps frances na polia'], true),
     E('Mergulho no banco', ['mergulho no banco', 'triceps banco', 'triceps no banco', 'mergulho entre bancos', 'triceps mergulho', 'tricep dips', 'dips no banco']),
     E('Tríceps coice', ['triceps coice', 'coice', 'kickback', 'triceps coice com halter', 'triceps coice na polia', 'extensao de triceps unilateral curvado']),
@@ -161,6 +163,7 @@ export const TECNICO = {
   'Tríceps na polia com barra': ['Extensão de tríceps na polia com barra', 'tríceps pulley'],
   'Tríceps na polia com corda': ['Extensão de tríceps na polia com corda', 'tríceps corda'],
   'Tríceps testa': 'Extensão de tríceps deitado',
+  'Tríceps testa na polia': ['Extensão de tríceps deitado na polia', 'tríceps testa na polia'],
   'Tríceps francês': 'Extensão de tríceps acima da cabeça',
   'Tríceps coice': 'Extensão de tríceps unilateral curvado',
   'Supino fechado': 'Supino com pegada fechada',

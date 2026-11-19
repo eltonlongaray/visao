@@ -6873,7 +6873,8 @@ async function tentarConsultaTreino(text) {
       ? `Não achei <b>${_esc(TRN.fmtExercicio({ nome: q.exercicio.nome }))}</b> no treino de ${_esc(quando)}.`
       : quando === 'hoje' ? 'Ainda não tem treino anotado hoje. Quando terminar, me fala o que fez (ex.: <em>"fiz supino 4x10 com 40 kg"</em>) que eu anoto.'
       : `Não tem treino anotado ${quando === 'ontem' ? 'ontem' : `em ${_esc(quando)}`}.`;
-    return blocos.join('<br><br>');
+    const cab = quando === 'nesse período' ? `💪 <b>Teus treinos de ${rot(dayId(q.ini))} a ${rot(dayId(q.fim))}</b><br><br>` : '';
+    return cab + blocos.join('<br><br>');
   } catch (e) { console.warn('[pet-consulta-treino]', e); return 'Não consegui ver teu treino agora. Tenta de novo daqui a pouco.'; }
 }
 

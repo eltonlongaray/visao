@@ -394,7 +394,7 @@ export function lerConsultaTreino(texto, hoje = new Date()) {
   RE_SERIE.lastIndex = 0;
   const temSerie = RE_SERIE.test(' ' + numeraliza(t) + ' '); RE_SERIE.lastIndex = 0;
   if (temSerie) return null;   // tem séries: é registro, não pergunta
-  const pergunta = /\?\s*$/.test(String(texto).trim()) || /\b(como|o que|oque|qual|quais|quanto|quanta|quantas|quantos|quando|mostra|mostre|me (?:fala|diz|manda|mostra|passa)|ver|veja|lista|consulta\w*|resumo|anotac\w*|anotad\w*|registros?|registrad\w*|historico|ultim\w*)\b/.test(t);
+  const pergunta = /\?\s*$/.test(String(texto).trim()) || /\b(como|o que|oque|qual|quais|quanto|quanta|quantas|quantos|quando|mostr\w*|me (?:fala|diz|manda|mostra|passa)|ver|veja|lista\w*|consulta\w*|resumo|anotac\w*|anotad\w*|registros?|registrad\w*|historico|ultim\w*)\b/.test(t);
   if (!pergunta) return null;
   // "fiz peito hoje" é registro; "o que eu treinei ontem?" é pergunta
   if (/\b(fiz|treinei|malhei|terminei|acabei|registra|anota|marca|soma)\b/.test(t) && !/\?\s*$/.test(String(texto).trim())
@@ -427,6 +427,9 @@ export function lerConsultaTreino(texto, hoje = new Date()) {
   const exercicio = ex[0] ? { m: ex[0].m, nome: ex[0].nome } : null;
   // "como tá o meu treino?" sem dia segue pra constância por músculo;
   // "as anotações do treino" sem dia = hoje
+  // "quero ver os treinos da musculação", "lista os exercícios da academia" sem dia:
+  // os treinos da semana que passou, dia a dia (Élton, 18/11: vinha só a constância)
+  if (!ini && !exercicio && /\b(mostr\w*|ver|veja|lista\w*|manda|passa)\b/.test(t) && /\b(treinos|exercicios|atividades)\b/.test(t)) { ini = menos(6); fim = d0; }
   if (!ini && !exercicio) { if (!/\b(anotac\w*|anotad\w*|registros?|registrad\w*)\b/.test(t)) return null; ini = fim = d0; }
   return { ini, fim, exercicio };
 }
