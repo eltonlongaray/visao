@@ -13,7 +13,7 @@ const SLUG = location.pathname.replace(/^\/triagem\/?/, '').replace(/\/+$/, '').
 const app = document.getElementById('app');
 const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = id => document.getElementById(id);
-let M, SERV = [], CHAVE, st;
+let M, SERV = [], CHAVE, st, TESTE = false;
 
 (async function carregar() {
   if (!SLUG) { app.innerHTML = '<p class="lead">Link incompleto.</p>'; return; }
@@ -39,8 +39,12 @@ function iniciar() {
   if (c.tinta) raiz.setProperty('--tinta', c.tinta);
   document.title = M.profissional.negocio + ' · ' + (M.titulo || 'Triagem');
   $('marca').innerHTML = `${esc(M.profissional.negocio)}<small>${esc(M.profissional.nome)}</small>`;
+  // ?teste=1: modo teste — não grava a triagem, não carrega a tag do Google (não conta conversão)
+  // e não abre a agenda de verdade (não marca horário).
+  TESTE = new URLSearchParams(location.search).has('teste');
+  if (TESTE) document.body.insertAdjacentHTML('afterbegin', '<div class="faixa-teste">🧪 Modo teste · nada é salvo, não marca horário</div>');
   // Tag do Google da profissional (Google Ads), só se o modelo tiver uma
-  if (M.googleTag || M.googleAds) {
+  if (!TESTE && (M.googleTag || M.googleAds)) {
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () { window.dataLayer.push(arguments); };
     window.gtag('js', new Date());
@@ -48,7 +52,7 @@ function iniciar() {
     if (M.googleTag) tag('https://www.googletagmanager.com/gtm.js?id=' + M.googleTag);
     if (M.googleAds) { tag('https://www.googletagmanager.com/gtag/js?id=' + M.googleAds); window.gtag('config', M.googleAds); }
   }
-  CHAVE = 'falcon_triagem_estado_' + SLUG;
+  CHAVE = 'falcon_triagem_estado_' + SLUG + (TESTE ? '_teste' : '');
   st = { i: -1, r: {} };
   try { const x = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (x && x.r) st = x; } catch (e) {}
   // De onde veio (link do anúncio: ?utm_source=google&utm_campaign=blackfriday) — vai pro painel de Campanhas
@@ -230,7 +234,7 @@ function contato() {
     const mudou = !st.contato || st.contato.contato !== zap || st.contato.nome !== nome;
     st.contato = { nome, contato: zap }; salvar();
     $('seg').disabled = true; $('seg').textContent = 'Só um instante…';
-    if (mudou || !st.codigo) {
+    if (!TESTE && (mudou || !st.codigo)) {
       try {
         const { data, error } = await supabase.rpc('triagem_enviar', { p_slug: SLUG, p_nome: nome, p_contato: zap, p_respostas: pacote() });
         if (!error && data?.codigo) st.codigo = data.codigo;
@@ -348,6 +352,10 @@ function resultado() {
 // A agenda lê `falcon_triagem_<slug>`: serviços, nome, WhatsApp e a mensagem que a
 // cliente manda pra profissional depois de confirmar ({{QUANDO}} = dia e hora).
 async function irParaAgenda(ind, plano) {
+  if (TESTE) {   // modo teste: mostra o que aconteceria, sem abrir a agenda nem contar conversão
+    app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pra agenda da ${esc(M.profissional.nome)} escolher o horário de <b>${esc(plano.map(s => s.nome).join(' + ') || ind.servico)}</b> e, depois de confirmar, pro WhatsApp com o resumo da triagem. Nada foi salvo.</div>`);
+    $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+  }
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   const linhas = resumoLinhas();
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
