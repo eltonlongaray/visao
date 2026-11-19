@@ -237,10 +237,10 @@ function contato() {
     <p class="ajuda">Pra eu te reconhecer quando tu agendar:</p>
     <label class="campo">Teu nome<input id="c-nome" autocomplete="name" placeholder="Como tu gosta de ser chamada" value="${esc(c.nome || '')}"></label>
     <label class="campo">Teu WhatsApp<input id="c-zap" inputmode="tel" autocomplete="tel" placeholder="(51) 9 9999-9999" value="${esc(c.contato || '')}"></label>
+    ${depoHtml(_depoContato())}
     <p class="erro" id="erro"></p>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
-      <button class="btn" id="seg">Ver meu resultado →</button></div>
-    ${depoHtml(_depoContato())}</section>`;
+      <button class="btn" id="seg">Ver meu resultado →</button></div></section>`;
   progresso();
   $('c-zap').oninput = e => { e.target.value = mascara(e.target.value); };
   $('volta').onclick = voltar;
