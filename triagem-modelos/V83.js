@@ -55,7 +55,7 @@ window.TRIAGEM = {
     { nome: "Andrea", servico: "Massagem abdominal", img: "andrea.jpg",
       chaves: ["inchaço", "inchaco", "retenção", "abdom", "drenagem", "esculpe", "detox"],
       texto: "Venho aqui, com muita satisfação, agradecer e parabenizar a Alexandra: as sessões de massagem abdominal tiveram, sim, resultados satisfatórios. Parabéns pelo profissionalismo e dedicação." },
-    { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg",
+    { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg?v=2",
       chaves: ["dor", "perna", "tensão", "tensao", "terapêutica", "terapeutica", "drenagem"],
       texto: "Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
     { nome: "Adronilda", servico: "Massagem terapêutica", img: "adronilda.jpg",
