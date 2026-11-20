@@ -197,7 +197,84 @@ const PELE = {
   ],
 };
 
-export const MODELOS = { massoterapia: MASSOTERAPIA, estetica: ESTETICA, pele: PELE };
+
+// === BLOCO 2D: MODELO — FICHA ÚNICA POR QUEIXA (20/11, caso Alê) ===
+// Dados básicos + "O que te trouxe aqui?" → cada queixa abre só o bloco dela
+// (block "se"). Hábitos, saúde e preferências valem pra todas, sem repetir pergunta.
+// Reaproveita os ids das outras fichas: sessões, fotos e "tem dor" continuam funcionando.
+const _qe = id => ESTETICA.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+const _qp = id => PELE.blocos.flatMap(b => b.perguntas).find(p => p.id === id);
+export const QUEIXAS = {
+  dor: "Dores, tensão ou estresse",
+  corpo: "Gordura localizada, inchaço, celulite ou flacidez",
+  pele: "Acne, espinhas ou pele do rosto",
+  relax: "Relaxar e cuidar de mim",
+};
+const _tem = k => R => (R.queixas || []).includes(QUEIXAS[k]);
+const GERAL = {
+  profissao: "geral",
+  titulo: "Ficha de atendimento",
+  blocos: [
+    { nome: "Quem é você", perguntas: [_q("nome"), _q("whatsapp"), _q("nascimento"), _q("conheceu"), _qe("profissao_cli")] },
+    { nome: "O que te trouxe aqui", perguntas: [
+      { id:"queixas", tipo:"varias", q:"O que você quer cuidar?", aj:"Pode marcar mais de um. Cada um abre só as perguntas sobre ele.",
+        op:[QUEIXAS.dor, QUEIXAS.corpo, QUEIXAS.pele, QUEIXAS.relax] },
+    ]},
+    { nome: "Suas dores", se: _tem("dor"), perguntas: [
+      { ..._qe("dores"), q:"Que tipo de dor você sente?", op: _qe("dores").op.filter(x => x !== "Não sinto dor"), so: [] },
+      { ..._q("mapa"), q:"Onde dói?", aj:"Toque na parte do corpo e marque. Pode marcar quantas quiser." },
+      _q("ja_fez"), _q("fadiga"), _q("fadiga_onde"),
+    ]},
+    { nome: "Seu corpo", se: _tem("corpo"), perguntas: [
+      _qe("tratar"), _qe("prioridade"), _qe("ja_estetica"), _qe("ja_estetica_qual"),
+      { ..._qe("peso_atual"), se: undefined }, { ..._qe("peso_ideal"), se: undefined }, { ..._qe("peso_quando"), se: undefined },
+      _qe("urina"), _q("inchaco"), _q("inchaco_quando"), _q("refeicao"),
+    ]},
+    { nome: "Sua pele", se: _tem("pele"), perguntas: [
+      _qp("pele_queixa"), _qp("pele_onde"), _qp("pele_tempo"), _qp("pele_tipo"), _qp("pele_rotina"), _qp("pele_ja_fez"), _qp("pele_mexe"),
+      _qp("aviso_horm"), _qp("ciclo"), _qp("piora_ciclo"), _qp("horm_sinais"), _qp("alim_pele"), _qp("rotina_pele"),
+    ]},
+    { nome: "Rotina, alimentação e emoções", perguntas: [
+      _qe("agua"), _qe("intestino"), _q("alimentacao"), _q("alimentacao_txt"),
+      _q("rotina"), _q("atividade"), _q("sono"),
+      _q("estresse_causa"), _q("estresse_duracao"), _q("estresse"),
+    ]},
+    { nome: "Saúde e segurança", perguntas: [
+      { id:"aviso_saude", tipo:"aviso", q:"Essas respostas garantem um atendimento seguro pra você. Elas ficam só com a profissional." },
+      { id:"saude", tipo:"varias", q:"Marque o que se aplica a você",
+        op:["Estou gestante","Estou amamentando","Fiz cirurgia nos últimos 6 meses","Tenho varizes","Já tive trombose","Pressão alta","Diabetes",
+          "Problema de pele ou ferida","Pele sensível ou que mancha fácil","Uso ácido na pele ou Roacutan","Herpes no rosto","Alergia a cosmético",
+          "Tomo anticoagulante","Lesão recente (torção, distensão…)","Em tratamento de câncer","Uso marca-passo","Nenhuma dessas"], so:["Nenhuma dessas"] },
+      _q("gestante_semanas"), _q("cirurgia_qual"),
+      { id:"contraceptivo", tipo:"unica", q:"Usa algum método contraceptivo?",
+        op:["Nenhum","Pílula","DIU de cobre","DIU hormonal (Mirena)","Implante","Adesivo ou anel","Estou na menopausa","Prefiro não dizer"] },
+      _qe("acompanhamento"), _q("alergia"), _q("alergia_qual"), _q("remedio"), _q("remedio_qual"),
+    ]},
+    { nome: "Fotos e preferências", perguntas: [
+      { id:"foto_acomp", tipo:"unica", q:"Posso tirar fotos pra acompanhar sua evolução?",
+        aj:"Só pra comparar o antes e depois do tratamento. Ficam só comigo.", op:["Sim, autorizo","Não"], se: R => _tem("corpo")(R) || _tem("pele")(R) },
+      { ..._qe("foto_insta"), q:"Posso usar essas fotos no Instagram, sem mostrar seu rosto?" },
+      { ..._q("pressao"), se: R => _tem("dor")(R) || _tem("relax")(R) },
+      _q("nao_tocar"), _q("conversa"), _q("ambiente"), _q("algo_mais"),
+    ]},
+  ],
+};
+// Blocos que valem pra essas respostas (os de queixa só aparecem se ela marcou a queixa)
+// Quem usa a ficha única: estética (atende corpo, pele e massagem com fichas diferentes)
+export const usaFichaUnica = prof => prof === 'estetica';
+// Ficha antiga do serviço (massoterapia/estetica/pele) → queixa da ficha única
+export function queixaDoModelo(mod, nomeServico = '') {
+  if (mod === 'pele') return 'pele';
+  if (mod === 'estetica') return 'corpo';
+  return /relax/i.test(nomeServico) ? 'relax' : 'dor';
+}
+export const blocosDe = (modelo, R) => (modelo?.blocos || []).filter(b => !b.se || b.se(R || {}));
+// Queixa que já vem marcada pelo serviço agendado (?q=dor,corpo no link)
+export function queixasDoLink(q) {
+  return String(q || '').split(',').map(k => QUEIXAS[k.trim()]).filter(Boolean);
+}
+
+export const MODELOS = { massoterapia: MASSOTERAPIA, estetica: ESTETICA, pele: PELE, geral: GERAL };
 export const PROFISSOES = [{ k: "massoterapia", nome: "Massoterapeuta", emoji: "💆" },
   { k: "estetica", nome: "Estética corporal", emoji: "✨" }];
 
@@ -208,6 +285,7 @@ export const SESSAO_POR_PROFISSAO = {
   massoterapia: { palpacao: true, medidas: "antes_depois" },
   estetica: { palpacao: true, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
   pele: { palpacao: false, medidas: null, fotos: true, areas: false, tecnica: true, plano: true },
+  geral: { palpacao: true, medidas: "por_altura", fotos: true, areas: true, tecnica: true, plano: true },
 };
 // A ficha mostra que a pessoa tem dor? (aí a "dor ao pressionar" já abre na sessão)
 // true/false pela ficha; null = sem ficha respondida.
@@ -216,6 +294,7 @@ export function fichaTemDor(resp) {
   const r = resp.respostas || {};
   if (Object.values(resp.mapa || {}).some(m => (m?.dor || 0) > 0)) return true;
   if ((r.dores || []).some(x => x !== "Não sinto dor")) return true;
+  if ((r.queixas || []).includes(QUEIXAS.dor)) return true;
   if ((r.motivo || []).some(x => x === "Aliviar dor ou tensão" || x === "Recuperação de treino")) return true;
   return false;
 }
@@ -324,7 +403,7 @@ export const CURTAS = {
   inchaco_quando: 'quando incha', refeicao: 'tipo de refeição', alimentacao: 'alimentação', saude: 'condições de saúde',
   gestante_semanas: 'semanas de gestação', cirurgia_qual: 'qual cirurgia', alergia: 'alergia a óleo/creme/aroma',
   alergia_qual: 'qual alergia', remedio: 'remédio contínuo', remedio_qual: 'qual remédio', pressao: 'pressão preferida',
-  conversa: 'conversa ou silêncio', dores: 'se sente dor',
+  conversa: 'conversa ou silêncio', dores: 'se sente dor', queixas: 'o que quer cuidar',
   profissao_cli: 'profissão', tratar: 'o que quer tratar', prioridade: 'áreas que incomodam', ja_estetica: 'tratamento estético anterior',
   ja_estetica_qual: 'qual tratamento estético', peso_atual: 'peso atual', peso_ideal: 'peso desejado', peso_quando: 'há quanto tempo fora do peso',
   agua: 'água por dia', intestino: 'intestino', urina: 'vezes que urina', contraceptivo: 'contraceptivo', acompanhamento: 'acompanhamento médico',
@@ -337,7 +416,7 @@ export const CURTAS = {
 export function faltando(modelo, r, mapa) {
   r = r || {};
   const out = [];
-  for (const b of modelo.blocos) for (const p of b.perguntas) {
+  for (const b of blocosDe(modelo, r)) for (const p of b.perguntas) {
     if (p.tipo === 'aviso' || p.ident || p.opcional || p.tipo === 'longo') continue;
     if (p.se && !p.se(r)) continue;
     const saude = b.nome === 'Saúde e segurança';

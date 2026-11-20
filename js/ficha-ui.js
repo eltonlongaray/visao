@@ -13,6 +13,8 @@ import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { carregarSessoes, sessoesPerfilHtml, wireSessoesPerfil } from './ficha-sessoes-ui.js';
 import { fichaDoServico } from './fotos-guiadas.js';
+import { blocosDe, usaFichaUnica, queixaDoModelo } from './ficha-modelo.js';
+import { paletaDe } from './cartao-presente.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _fichas = [], _erroSql = false, _demo = false;
@@ -22,7 +24,8 @@ const _primeiro = s => String(s || '').trim().split(/\s+/)[0] || '';
 const _cfgFicha = cfg => (cfg && cfg.ficha_cfg && typeof cfg.ficha_cfg === 'object') ? cfg.ficha_cfg : {};
 export const fichaAtiva = cfg => !!MODELOS[_cfgFicha(cfg).profissao];
 const _linkGeral = cfg => `${location.origin}/ficha/${cfg.slug}`;
-const _linkCliente = (cfg, f) => `${location.origin}/ficha/${cfg.slug}/${f.codigo}`;
+// q = queixas que já vêm marcadas na ficha única (dor, corpo, pele, relax)
+const _linkCliente = (cfg, f, q = []) => `${location.origin}/ficha/${cfg.slug}/${f.codigo}${f.modelo === 'geral' && q.length ? '?q=' + q.join(',') : ''}`;
 function _waLink(zap, msg) {
   let d = String(zap || '').replace(/\D/g, '');
   if (!d) return null;
@@ -95,7 +98,7 @@ export function wireSecaoFicha(corpo, { cfg, clientes, redesenhar }) {
     try { await salvarFichaCfg(novo); cfg.ficha_cfg = novo; await carregarFichas(cfg); redesenhar(); showToast('📋 Ficha ativada!', 'success'); }
     catch (e) { showToast(e.message, 'error'); b.disabled = false; }
   }));
-  corpo.querySelector('#fi-demo')?.addEventListener('click', () => abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${_cfgFicha(cfg).profissao}`, 'Demonstração'));
+  corpo.querySelector('#fi-demo')?.addEventListener('click', () => abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${usaFichaUnica(_cfgFicha(cfg).profissao) ? 'geral' : _cfgFicha(cfg).profissao}`, 'Demonstração'));
   corpo.querySelector('#fi-tipos')?.addEventListener('click', () => _popupTipos(cfg));
   corpo.querySelector('#fi-copiar')?.addEventListener('click', async () => {
     const inp = corpo.querySelector('#fi-link');
@@ -181,19 +184,31 @@ export function abrirPaginaFicha(url, titulo, onFechar, prefill) {
 // === BLOCO 4B: SITUAÇÃO DA FICHA (o que falta, sem precisar abrir) ===
 // Quais fichas essa cliente precisa: pelos serviços que ela agendou (ex: Deusa → estética,
 // terapêutica → massoterapia) + as que ela já respondeu. Sem nada: a da profissão.
-const _NOME_MOD = { estetica: '✨ Estética', massoterapia: '💆 Massoterapia', pele: '🌸 Pele e acne' };
+const _NOME_MOD = { estetica: '✨ Estética', massoterapia: '💆 Massoterapia', pele: '🌸 Pele e acne', geral: '📋 Ficha única' };
 function _modeloDoServico(cfg, nome) {
   const servs = cfg?.servicos || [], n = String(nome || '').trim(); if (!n) return null;
   const s = servs.find(x => x.nome === n) || servs.find(x => n.startsWith(String(x.nome).split(' (')[0]));
-  return s ? fichaDoServico(s, _cfgFicha(cfg).profissao) : null;
+  if (!s) return null;
+  return usaFichaUnica(_cfgFicha(cfg).profissao) ? 'geral' : fichaDoServico(s, _cfgFicha(cfg).profissao);
 }
+// Queixa de cada serviço (ficha única): Esculpe → corpo, limpeza de acne → pele, terapêutica → dor…
+function _queixasDosServicos(cfg, nomes) {
+  const servs = cfg?.servicos || [], out = new Set();
+  for (const nome of nomes) {
+    const n = String(nome || '').trim(); if (!n) continue;
+    const s = servs.find(x => x.nome === n) || servs.find(x => n.startsWith(String(x.nome).split(' (')[0]));
+    if (s) out.add(queixaDoModelo(fichaDoServico(s, _cfgFicha(cfg).profissao), s.nome));
+  }
+  return [...out];
+}
+const _queixasDoCliente = (cfg, c) => _queixasDosServicos(cfg, (c.ags || []).flatMap(a => String(a.servico || '').split(' + ')));
 function _modelosDoCliente(cfg, c) {
   const prof = _cfgFicha(cfg).profissao, set = new Set();
   const ags = (c.ags || []).slice().sort((a, b) => (a.data < b.data ? 1 : -1));   // mais recente primeiro
   for (const a of ags) for (const nome of String(a.servico || '').split(' + ')) { const m = _modeloDoServico(cfg, nome); if (m) set.add(m); }
   for (const f of _fichasDoCliente(c)) if (f.modelo) set.add(f.modelo);
   const out = [...set].filter(m => MODELOS[m]);
-  return out.length ? out : [prof];
+  return out.length ? out : [usaFichaUnica(prof) ? 'geral' : prof];
 }
 function _situacao(c, modelo = null) {
   const fs = _fichasDoCliente(c).filter(f => !modelo || (f.modelo || 'massoterapia') === modelo);
@@ -239,7 +254,7 @@ async function _abrirJunto(cfg, c, aoFechar, modelo = null) {
   if (_demo) { abrirPaginaFicha(`/ficha/${cfg.slug}?demo=1&p=${modelo}`, 'Demonstração', null, prefill); return; }
   const f = await _fichaDoClienteOuNova(cfg, c, modelo);
   // ao fechar, recarrega pra ficha aparecer como respondida
-  abrirPaginaFicha(`/ficha/${cfg.slug}/${f.codigo}`, `Ficha de ${_primeiro(c.nome)}`,
+  abrirPaginaFicha(_linkCliente(cfg, f, _queixasDoCliente(cfg, c)).replace(location.origin, ''), `Ficha de ${_primeiro(c.nome)}`,
     async () => { await carregarFichas(cfg); aoFechar?.(); }, prefill);
 }
 
@@ -272,7 +287,7 @@ export async function oferecerFichaAposAgendar(cfg, { nome, contato, servico } =
       const w = window.open('', '_blank');
       try {
         const f = await _fichaDoClienteOuNova(cfg, c, modelo);
-        const msg = `Oi ${_primeiro(nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
+        const msg = `Oi ${_primeiro(nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f, _queixasDosServicos(cfg, String(servico || '').split(' + ')))}`;
         const url = _waLink(contato, msg);
         if (w) w.location.href = url; else location.href = url;
         close();
@@ -346,7 +361,7 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     const w = window.open('', '_blank');
     try {
       const f = await _fichaDoClienteOuNova(cfg, c, btn.dataset.fiEnviar);
-      const msg = `Oi ${_primeiro(c.nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f)}`;
+      const msg = `Oi ${_primeiro(c.nome)}! Pra eu preparar a sua sessão do seu jeito, responde essa fichinha (leva uns 5 minutos): ${_linkCliente(cfg, f, _queixasDoCliente(cfg, c))}`;
       const url = _waLink(c.contato, msg);
       if (w) w.location.href = url; else location.href = url;
     } catch (err) { try { w?.close(); } catch {} showToast('Erro: ' + err.message, 'error'); }
@@ -358,6 +373,73 @@ export function wirePerfilFicha(ov, cfg, c, { clientes, redesenhar } = {}) {
     catch (err) { showToast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
   }));
+}
+
+// === BLOCO 7: PDF DA FICHA (só as respostas do caso dela, separadas por bloco) ===
+// jsPDF vem do cdnjs na hora (só quando a profissional toca no botão).
+async function _jsPDF() {
+  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+  await new Promise((ok, erro) => { const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload = ok; s.onerror = () => erro(new Error('Sem internet pra montar o PDF')); document.head.appendChild(s); });
+  return window.jspdf.jsPDF;
+}
+// Helvetica do PDF não tem emoji: tira os símbolos e deixa o texto
+const _semEmoji = t => String(t || '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B00}-\u{2BFF}]/gu, '').replace(/\s{2,}/g, ' ').trim();
+async function _pdfFicha(f, cfg, modelo) {
+  const jsPDF = await _jsPDF();
+  const r = f.respostas || {}, mapa = f.mapa || {};
+  const cor = paletaDe(cfg?.ficha_cfg?.marca).principal || '#7c5ca8';
+  const rgb = [1, 3, 5].map(i => parseInt(cor.replace('#', '').slice(i - 1, i + 1), 16) || 0);
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, M = 16, LW = W - M * 2;
+  let y = 0;
+  const novaPag = () => { doc.addPage(); y = M; };
+  const cabe = h => { if (y + h > 297 - M) novaPag(); };
+  // cabeçalho
+  doc.setFillColor(...rgb); doc.rect(0, 0, W, 30, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
+  doc.text(_semEmoji(`Ficha de ${f.cliente_nome || 'cliente'}`), M, 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  const negocio = _semEmoji(cfg?.ficha_cfg?.marca?.nome || String(cfg?.titulo || '').split(' · ')[1] || cfg?.titulo || '');
+  doc.text([negocio, [f.cliente_contato, f.respondida_em ? 'respondida em ' + _dataBr(f.respondida_em) : ''].filter(Boolean).join(' · ')].filter(Boolean), M, 21);
+  y = 40;
+  for (const b of blocosDe(modelo, r)) {
+    const linhas = [];
+    for (const p of b.perguntas) {
+      if (p.tipo === 'aviso' || p.ident) continue;
+      if (p.se && !p.se(r)) continue;
+      if (p.tipo === 'mapa') {
+        const ms = Object.keys(mapa).filter(k => temMarca(mapa[k]));
+        if (ms.length) linhas.push([p.q, ms.map(k => { const m = mapa[k];
+          return `${nomeDa(k)}${ladoDa(k) ? ' (' + ladoDa(k) + ')' : ''}: ${TIPOS_MARCA.filter(t => m[t.k] > 0).map(t => t.nome.split(' ')[0].toLowerCase() + ' ' + NIVEIS[m[t.k]].toLowerCase()).join(', ')}`; }).join('; ')]);
+        continue;
+      }
+      const t = _valorTxt(p, r); if (t) linhas.push([p.q, t]);
+    }
+    if (!linhas.length) continue;
+    cabe(16);
+    doc.setFillColor(...rgb); doc.rect(M, y - 4.5, 1.6, 6.5, 'F');
+    doc.setTextColor(...rgb); doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5);
+    doc.text(_semEmoji(b.nome), M + 4, y); y += 7;
+    for (const [q, a] of linhas) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(90, 90, 100);
+      const qq = doc.splitTextToSize(_semEmoji(q), LW);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+      const aa = doc.splitTextToSize(_semEmoji(a), LW);
+      cabe(qq.length * 4.4 + aa.length * 5.2 + 3);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(90, 90, 100); doc.text(qq, M, y); y += qq.length * 4.4;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(30, 30, 40); doc.text(aa, M, y); y += aa.length * 5.2 + 3;
+    }
+    y += 4;
+  }
+  return doc.output('blob');
+}
+async function _compartilharPdf(blob, nome, texto) {
+  const file = new File([blob], nome, { type: 'application/pdf' });
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text: texto }); return; } catch { return; } }
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 // === BLOCO 6: VER A FICHA RESPONDIDA ===
@@ -394,7 +476,7 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
   const marcas = Object.keys(mapa).filter(k => temMarca(mapa[k]));
   const semCliente = !cliente && !clientes.some(c => c.contato && mesmoNumero(f.cliente_digitos || f.cliente_contato, c.contato));
   const falta = faltando(modelo, r, mapa);
-  const blocos = modelo.blocos.map((b, bi) => {
+  const blocos = blocosDe(modelo, r).map((b, bi) => {
     const linhas = b.perguntas.filter(p => !['aviso', 'mapa'].includes(p.tipo) && !p.ident).map(p => {
       const t = _valorTxt(p, r);
       return t ? `<div class="fi-qa"><div class="fi-q">${_esc(p.q)}</div><div class="fi-a">${_esc(t)}</div></div>` : '';
@@ -423,6 +505,7 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
     <div class="ag-scroll">
       <div class="fi-cab"><b>${_esc(f.cliente_nome || '')}</b><small>${_esc(f.cliente_contato || '')}${f.respondida_em ? ' · respondida em ' + _dataBr(f.respondida_em) : ''}</small></div>
       ${cfg ? `<button class="fi-btn fi-editar" id="fi-editar" type="button">✏️ Editar ficha${falta.length ? ' e completar o que falta' : ''}</button>` : ''}
+      <button class="fi-btn fi-editar" id="fi-pdf" type="button">📄 Compartilhar PDF da ficha</button>
       ${semCliente && clientes.length ? `<label class="input-field"><div class="input-field-label">Ligar a um cliente da Agenda</div>
         <select id="fi-ligar"><option value="">— é um cliente novo —</option>
           ${clientes.map(c => `<option value="${_esc(c.key)}">${_esc(c.nome)}${c.contato ? ' · ' + _esc(c.contato) : ''}</option>`).join('')}
@@ -447,6 +530,15 @@ export function abrirFicha(f, { cfg, clientes = [], redesenhar, cliente } = {}) 
       showToast(`✅ Ficha ligada a ${_primeiro(c.nome)}`, 'success'); close(); redesenhar?.();
     } catch (err) { showToast('Erro: ' + err.message, 'error'); }
   });
+  ov.querySelector('#fi-pdf').onclick = async e => {
+    const b = e.currentTarget; b.disabled = true; const txt0 = b.textContent; b.textContent = 'Montando o PDF…';
+    try {
+      const blob = await _pdfFicha(f, cfg, modelo);
+      const nome = `ficha-${String(f.cliente_nome || 'cliente').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cliente'}.pdf`;
+      await _compartilharPdf(blob, nome, `Ficha de ${f.cliente_nome || 'cliente'}`);
+    } catch (err) { showToast('Erro: ' + err.message, 'error'); }
+    finally { b.disabled = false; b.textContent = txt0; }
+  };
   ov.querySelector('#fi-editar')?.addEventListener('click', async () => {
     const c = cliente || { nome: f.cliente_nome, contato: f.cliente_contato };
     // abre por cima; ao terminar, fecha esta ficha (ficou velha) e atualiza o perfil
