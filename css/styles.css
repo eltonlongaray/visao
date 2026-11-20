@@ -9077,11 +9077,14 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-cup-esc { transition: transform .12s ease, background .15s, border-color .15s; }
 .cp-cup-esc:active { transform: scale(.97); }
 .cp-cup-esc[aria-pressed="true"] { transform: scale(.97); border-color: var(--green, #10b981); border-left-color: var(--green, #10b981); background: color-mix(in srgb, var(--green, #10b981) 14%, var(--card)); }
-/* chave "Enviar com cupom": sempre destacada, ligada ou não (20/11) */
-#ag-cup-tog, #ag-cup-tog:not(.on) { display: flex; width: 100%; justify-content: space-between; box-sizing: border-box; opacity: 1; margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 800; color: var(--text); border: 1.5px solid var(--accent-2); border-left: 4px solid var(--accent-2); background: color-mix(in srgb, var(--accent) 16%, var(--card-2)); }
-#ag-cup-tog .ag-switch { width: 40px; height: 22px; }
-#ag-cup-tog .ag-switch::after { width: 18px; height: 18px; }
-#ag-cup-tog.on .ag-switch::after { transform: translateX(18px); }
+/* chave "Enviar com cupom": destacada sem brilho, ligada ou não (20/11) */
+#ag-cup-tog, #ag-cup-tog:not(.on) { display: flex; align-items: center; width: 100%; justify-content: space-between; box-sizing: border-box; opacity: 1; margin-top: 14px; padding: 10px 14px; border-radius: 12px; font-size: 15px; font-weight: 700; color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--accent-2); background: var(--card); }
+.ag-cup-rot { display: inline-flex; align-items: center; gap: 10px; }
+.ag-cup-ic { font-size: 26px; line-height: 1; }
+#ag-cup-tog .ag-switch { width: 44px; height: 24px; background: color-mix(in srgb, var(--muted) 45%, var(--card-2)); box-shadow: inset 0 0 0 1px var(--muted); }
+#ag-cup-tog .ag-switch::after { top: 3px; left: 3px; width: 18px; height: 18px; }
+#ag-cup-tog.on .ag-switch { background: #22c55e; box-shadow: none; }
+#ag-cup-tog.on .ag-switch::after { transform: translateX(20px); }
 .ag-dest { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .ag-dest button { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px; border-radius: 12px; border: 1px solid var(--border); border-left: 4px solid var(--border); background: var(--card); color: var(--text); font-family: inherit; font-size: 13.5px; cursor: pointer; transition: transform .12s ease, background .15s, border-color .15s; }
 .ag-dest button small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }

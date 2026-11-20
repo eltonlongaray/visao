@@ -514,7 +514,7 @@ function desenhar() {
         <button id="ag-copiar-tri" class="btn-secondary" type="button">Copiar</button>
       </div>
       ` : ''}
-      <button class="ag-chipbtn ${_cupomLigado ? 'on' : ''}" id="ag-cup-tog" type="button" role="switch" aria-checked="${_cupomLigado}" style="margin-top:12px">🎟️ Enviar com cupom <span class="ag-switch" aria-hidden="true"></span></button>
+      <button class="ag-chipbtn ${_cupomLigado ? 'on' : ''}" id="ag-cup-tog" type="button" role="switch" aria-checked="${_cupomLigado}" style="margin-top:12px"><span class="ag-cup-rot"><span class="ag-cup-ic" aria-hidden="true">🎟️</span>Enviar com cupom</span><span class="ag-switch" aria-hidden="true"></span></button>
       <div id="ag-cup-sel"></div>
       ${_linkTriagemZap() || _cupomEnvio ? `<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}`)}
 
