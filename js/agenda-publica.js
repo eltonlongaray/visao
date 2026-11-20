@@ -144,9 +144,18 @@ export async function renderAgendaPublica(app, slug) {
   // a menos de 5h, não ocupado). A agenda abre já no 1º dia assim — não num dia vazio.
   const _temVaga = isoD => { const d = dias.find(x => x.iso === isoD); return !!d && d.horarios.some(h => !h.passou && !h.cedo && !h.ocupado); };
   const _primeiroComVaga = off => _diasDaSemana(off).find(x => !x.past && _temVaga(x.iso))?.iso || null;
+  // (20/11, Élton) Calendário de 2 semanas sempre visível: abre em ESTA semana + a próxima,
+  // já selecionando o 1º dia com vaga dessas 2; "Ver mais datas →" anda de 2 em 2 semanas.
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
-  let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
+  const _vagasDoDia = isoD => { const d = dias.find(x => x.iso === isoD); return d ? d.horarios.filter(h => !h.passou && !h.cedo && !h.ocupado).length : 0; };
+  const _semana7 = off => { const seg = _segPub(off); const hojeIso = iso(hoje); const out = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(seg); d.setDate(seg.getDate() + i); const isoD = iso(d);
+      out.push({ iso: isoD, date: d, past: isoD < hojeIso, hoje: isoD === hojeIso, aberto: _horariosDoDia(cfg, d).length > 0, vagas: isoD < hojeIso ? 0 : _vagasDoDia(isoD) }); }
+    return out; };
+  const _primeiroNoBloco = off => _primeiroComVaga(off) || _primeiroComVaga(off + 1);
+  // Próximo horário livre (de toda a agenda): atalho "Quero esse"
+  const _proximoLivre = () => { for (const d of dias) { const h = d.horarios.find(x => !x.passou && !x.cedo && !x.ocupado); if (h) return { iso: d.iso, date: d.date, hora: h.hora }; } return null; };
+  let selDia = _primeiroNoBloco(0) || null;
   let selHora = null;
   let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
@@ -307,21 +316,33 @@ export async function renderAgendaPublica(app, slug) {
       </div>
       ${_histHtml()}
       ${_servHtml()}
-      <div class="ap-semnav">
-        <button class="ap-semarrow" id="ap-sem-prev" type="button" ${semOffset <= 0 ? 'disabled' : ''} aria-label="Semana anterior">‹</button>
-        <div class="ap-semlabel">${_labelSem(semOffset)}</div>
-        <button class="ap-semarrow" id="ap-sem-next" type="button" ${semOffset >= _maxOffset ? 'disabled' : ''} aria-label="Próxima semana">›</button>
-      </div>
-      <div class="ap-dias">
-        ${diasSem.map(x => x.past
-          ? `<div class="ap-diachip past" aria-disabled="true"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></div>`
-          : `<button class="ap-diachip ${x.iso === selDia ? 'sel' : ''}" data-dia="${x.iso}" type="button"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`
-        ).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
+      ${(() => {   // atalho: próximo horário livre
+        const p = _proximoLivre(); if (!p) return '';
+        return `<div class="ap-prox"><div class="ap-prox-tx">📅 Próximo horário livre<b>${SEM[p.date.getDay()]} ${pad(p.date.getDate())}/${pad(p.date.getMonth() + 1)} às ${p.hora}</b></div>
+          <button class="ap-prox-btn" id="ap-prox-ok" type="button">Quero esse</button></div>`;
+      })()}
+      <div class="ap-cal-tit">Ou escolha o dia</div>
+      <div class="ap-cal">
+        <div class="ap-cal-dow">${['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(x => `<span>${x}</span>`).join('')}</div>
+        ${[semOffset, semOffset + 1].map(off => `
+          <div class="ap-cal-lbl">${off === 0 ? 'Esta semana' : off === 1 ? 'Semana que vem' : _labelSem(off)}</div>
+          <div class="ap-cal-row">${_semana7(off).map(x => {
+            const est = x.past ? 'past' : !x.aberto ? 'fechado' : x.vagas ? 'livre' : 'lotado';
+            const info = x.past ? '' : !x.aberto ? '' : x.vagas ? `${x.vagas} ${x.vagas === 1 ? 'horário' : 'horários'}` : 'lotado';
+            const cls = `ap-cal-d ${est}${x.iso === selDia ? ' sel' : ''}${x.hoje ? ' hoje' : ''}`;
+            const inner = `<span class="ap-cal-n">${x.date.getDate()}</span><span class="ap-cal-i">${info}</span>`;
+            return est === 'livre' ? `<button class="${cls}" data-dia="${x.iso}" type="button">${inner}</button>` : `<div class="${cls}" aria-disabled="true">${inner}</div>`;
+          }).join('')}</div>`).join('')}
+        ${[semOffset, semOffset + 1].some(off => _semana7(off).some(x => x.vagas)) ? '' : `<div class="ap-cal-vazio">Sem horário livre nessas 2 semanas.</div>`}
+        <div class="ap-cal-nav">
+          ${semOffset > 0 ? `<button class="ap-cal-voltar ap-sem-prev" type="button">‹ Voltar</button>` : ''}
+          ${semOffset + 2 <= _maxOffset ? `<button class="ap-cal-mais ap-sem-next" type="button">Ver mais datas →</button>` : ''}
+        </div>
       </div>
       <div class="ap-slots-wrap">
         ${(g.manha.length + g.tarde.length + g.noite.length)
           ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
-          : '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>'}
+          : (dia ? '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>' : '')}
       </div>
       ${selHora && dia ? _formHtml(dia, selHora) : ''}
       <div class="ap-wa-pro-wrap">${_waProHtml()}</div>
@@ -373,11 +394,18 @@ export async function renderAgendaPublica(app, slug) {
     const _irSemana = (novo) => {
       _passo(novo > semOffset ? 'Foi pra semana seguinte' : 'Voltou uma semana');
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
+      selDia = _primeiroNoBloco(semOffset) || null;
       selHora = null; desenhar();
     };
-    app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
-    app.querySelector('#ap-sem-next')?.addEventListener('click', () => { if (semOffset < _maxOffset) _irSemana(semOffset + 1); });
+    app.querySelectorAll('.ap-sem-prev').forEach(b => b.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 2); }));
+    app.querySelectorAll('.ap-sem-next').forEach(b => b.addEventListener('click', () => { if (semOffset + 2 <= _maxOffset) _irSemana(semOffset + 2); }));
+    app.querySelector('#ap-prox-ok')?.addEventListener('click', () => {
+      const p = _proximoLivre(); if (!p) return;
+      _passo(`Tocou em "Quero esse" (próximo livre: ${_diaTxt(p.iso)} às ${p.hora})`);
+      const alvo = Math.floor((_fromIso(p.iso) - _segPub(0)) / (7 * 86400000));
+      semOffset = Math.max(0, alvo - (alvo % 2)); selDia = p.iso; selHora = p.hora; desenhar();
+      const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
       selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia)); desenhar();
     }));
