@@ -82,16 +82,6 @@ window.TRIAGEM = {
         { v: "Dores e tensão", icone: "💆" }, { v: "Ansiedade e estresse", icone: "🌙" }, { v: "Queda de cabelo", icone: "💇" },
         { v: "Quero só relaxar", icone: "🕯️" }
       ] },
-    // Emocional (20/11): só quando ansiedade/estresse é o FOCO (o primeiro que ela marcou).
-    // Se ela marcou junto com celulite etc., não pergunta: fica registrado no resumo e vira
-    // sugestão de serviço no fim ("Quer cuidar disso também?") + produto em destaque na pergunta "casa".
-    // Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
-    { id: "emocional", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
-      q: "Além da ansiedade e do estresse, tem mais alguma coisa?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", primeiroDe: ["Ansiedade e estresse"] },
-      exclusivas: ["Só isso"],
-      ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
-      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
     { id: "regiao", grupo: "Sobre ti", tipo: "multi", curto: "Região",
       q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
       mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
@@ -109,6 +99,15 @@ window.TRIAGEM = {
         { v: "Esporão ou calos", icone: "🦶" },
         { v: "Depois de treino ou esforço", icone: "🏃‍♀️" }
       ] },
+    // Emocional (20/11, Élton): sempre DEPOIS da parte do corpo/dor, qualquer que seja a ordem
+    // em que ela marcou. Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
+    // No fim, ansiedade de lado vira "Quer cuidar disso também?" + produto em destaque em "casa".
+    { id: "emocional", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
+      q: "Como tu tem te sentido, além da ansiedade e do estresse?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
+      exclusivas: ["Só isso"],
+      ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
+      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
     { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
       q: "Há quanto tempo isso te incomoda?",
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
