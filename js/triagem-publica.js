@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=24`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=25`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -77,7 +77,16 @@ function itensVitrine() {
 function condicao(c) {
   const v = st.r[c.campo];
   const arr = Array.isArray(v) ? v : (v ? [v] : []);
+  // primeiroDe: só quando o PRIMEIRO marcado (o que mais incomoda) é um desses
+  if (c.primeiroDe) return c.primeiroDe.includes(arr[0]);
   return c.algumDe.some(x => arr.includes(x));
+}
+// "combina": opções ligadas ao que a pessoa já marcou sobem pro topo com um selo
+function opsDaTela(p) {
+  if (!p.combina) return p.ops.map(o => ({ ...o, combina: false }));
+  const marcados = Object.values(st.r).flat();
+  const liga = o => (p.combina[o.v] || []).some(x => marcados.includes(x));
+  return p.ops.map(o => ({ ...o, combina: liga(o) })).sort((a, b) => b.combina - a.combina);
 }
 function progresso() {
   const n = passos().length;
@@ -144,8 +153,8 @@ function tela() {
     ${p.ajuda ? `<p class="ajuda">${esc(p.ajuda)}</p>` : ''}
     ${p.destaque ? `<p class="ajuda-destaque">${[].concat(p.destaque).map(esc).join('<br>')}</p>` : ''}
     <div class="ops" role="${multi ? 'group' : 'radiogroup'}">
-      ${p.ops.map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
-        ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}</span><span class="marca-op"></span></button>`).join('')}
+      ${opsDaTela(p).map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
+        ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}${o.combina ? `<small class="combina">✨ Combina com o que tu me contou</small>` : ''}</span><span class="marca-op"></span></button>`).join('')}
     </div>
     ${p.ops.some(o => o.outro) ? `<label class="campo" id="outroBox" hidden>Qual?<input id="outroTxt" placeholder="Escreve aqui" value="${esc(st.r[p.id + '_outro'] || '')}"></label>` : ''}
     <p class="erro" id="erro"></p>
