@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=28`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=29`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -87,10 +87,12 @@ function condicao(c) {
 }
 // "combina": opções ligadas ao que a pessoa já marcou sobem pro topo com um selo
 function opsDaTela(p) {
-  if (!p.combina) return p.ops.map(o => ({ ...o, combina: false }));
   const marcados = Object.values(st.r).flat();
+  // ocultarSe: a opção some se a pessoa já marcou isso antes (não pergunta duas vezes)
+  const ops = p.ops.filter(o => !(o.ocultarSe || []).some(x => marcados.includes(x)));
+  if (!p.combina) return ops.map(o => ({ ...o, combina: false }));
   const liga = o => (p.combina[o.v] || []).some(x => marcados.includes(x));
-  return p.ops.map(o => ({ ...o, combina: liga(o) })).sort((a, b) => b.combina - a.combina);
+  return ops.map(o => ({ ...o, combina: liga(o) })).sort((a, b) => b.combina - a.combina);
 }
 function progresso() {
   const n = passos().length;

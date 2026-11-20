@@ -106,6 +106,8 @@ window.TRIAGEM = {
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
     { id: "antes", grupo: "Sobre ti", tipo: "unica", curto: "Tratamento antes",
       q: "Já fez algum tratamento pra isso?",
+      // não aparece quando ela marcou só "Quero só relaxar" (não tem "isso" pra tratar)
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção", "Manchas", "Acne, cravos, pele oleosa e/ou porosa", "Dores e tensão", "Queda de cabelo", "Ansiedade e estresse"] },
       ops: [{ v: "Nunca fiz" }, { v: "Sim, mas não tive resultado" }, { v: "Sim, tive resultado e quero manter" }] },
     // Emocional (20/11, Élton): sempre DEPOIS da parte do corpo/dor, qualquer que seja a ordem
     // em que ela marcou. Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
@@ -137,12 +139,13 @@ window.TRIAGEM = {
         { v: "Experimentar uma sessão primeiro", icone: "✨" }
       ] },
     { id: "pele", grupo: "Tua pele", tipo: "multi", curto: "Pele e cabelo",
+      // ocultarSe: a opção some se ela já marcou isso no começo (não pergunta duas vezes)
       q: "E a tua pele, tem algo que te incomoda?", ajuda: "Assim eu já cuido disso também. Pode marcar mais de uma.",
       exclusivas: ["Nada disso"],
       ops: [
-        { v: "Manchas ou melasma", icone: "🌗" }, { v: "Acne e espinhas", icone: "🌸" }, { v: "Cravos e poros abertos", icone: "🔍" },
-        { v: "Oleosidade", icone: "💧" }, { v: "Ressecamento", icone: "🏜️" }, { v: "Olheiras", icone: "👁️" },
-        { v: "Flacidez no rosto", icone: "✨" }, { v: "Queda de cabelo", icone: "💇" }, { v: "Nada disso" }
+        { v: "Manchas ou melasma", icone: "🌗", ocultarSe: ["Manchas"] }, { v: "Acne e espinhas", icone: "🌸", ocultarSe: ["Acne, cravos, pele oleosa e/ou porosa"] }, { v: "Cravos e poros abertos", icone: "🔍", ocultarSe: ["Acne, cravos, pele oleosa e/ou porosa"] },
+        { v: "Oleosidade", icone: "💧", ocultarSe: ["Acne, cravos, pele oleosa e/ou porosa"] }, { v: "Ressecamento", icone: "🏜️" }, { v: "Olheiras", icone: "👁️" },
+        { v: "Flacidez no rosto", icone: "✨" }, { v: "Queda de cabelo", icone: "💇", ocultarSe: ["Queda de cabelo"] }, { v: "Nada disso" }
       ] },
     { id: "saude", grupo: "Tua segurança", tipo: "multi", curto: "Saúde",
       q: "Algo que eu precise saber sobre tua saúde?", ajuda: "É pra eu cuidar de ti com segurança.",
@@ -222,7 +225,34 @@ window.TRIAGEM = {
 
   // === BLOCO 4: INDICAÇÃO (regra simples: a primeira que bater vale) ===
   // A indicação segue o PRIMEIRO incômodo que a pessoa marcou (é o que mais incomoda)
+  // Toda queixa marcada aparece no resultado: se nenhum serviço dela está na indicação/opções/extras,
+  // entra o primeiro de "interessesPor" como "Quer cuidar disso também?" (gestante não recebe Deusa/Esculpe)
   indicacao(r) {
+    const ind = this._indicacaoBase(r);
+    const gestante = (r.saude || []).includes("Estou gestante");
+    const base = n => String(n || "").split(" – ")[0].split(" (")[0];
+    const tem = new Set([ind.servico, ...(ind.opcoes || []), ...(ind.extras || []).map(e => e.servico)].map(base));
+    const extras = [...(ind.extras || [])];
+    const porque = {
+      "Celulite": "Tu também marcou celulite: dá pra cuidar disso no atendimento também.",
+      "Estrias": "Tu também marcou estrias: a Deusa Grega cuida delas no atendimento.",
+      "Flacidez": "Tu também marcou flacidez: dá pra trabalhar a firmeza da pele no atendimento.",
+      "Gordura localizada / medidas": "Tu também marcou gordura localizada: dá pra modelar e reduzir medida.",
+      "Inchaço e retenção": "Tu também marcou inchaço: a drenagem tira a retenção de líquido.",
+      "Manchas": "Tu também marcou manchas: dá pra clarear no atendimento também.",
+      "Acne, cravos, pele oleosa e/ou porosa": "Tu também marcou acne e pele oleosa: dá pra tratar isso no atendimento também.",
+      "Dores e tensão": "Tu também contou que sente dores e tensão: dá pra soltar isso no mesmo atendimento.",
+      "Ansiedade e estresse": "Tu também contou que anda com ansiedade e estresse: uma massagem relaxante ajuda a desacelerar."
+    };
+    for (const q of (r.incomodo || []).slice(1)) {
+      const lista = (this.interessesPor[q] || []).filter(n => !(gestante && /^(Deusa|Esculpe)/.test(n)));
+      if (!lista.length || lista.some(n => tem.has(base(n)))) continue;
+      extras.push({ servico: lista[0], titulo: base(lista[0]), porque: porque[q] || "" });
+      tem.add(base(lista[0]));
+    }
+    return { ...ind, extras };
+  },
+  _indicacaoBase(r) {
     const inc = r.incomodo || [];
     const saude = (r.saude || []).filter(x => x !== "Nada disso");
     const aviso = saude.length ? "Como tu me contou algo sobre tua saúde, a primeira sessão começa com uma avaliação pra eu escolher as técnicas certas pra ti." : "";
@@ -270,7 +300,7 @@ window.TRIAGEM = {
       return { servico, opcoes: [DEUSA, ESCULPE, "Sessão para celulite"], extras,
         porque: "Separei os tratamentos que cuidam disso. Já deixei marcado o que mais combina com o que tu me contou, mas tu pode escolher outro:", aviso };
     }
-    if (principal === "Inchaço e retenção") return { servico: ESCULPE, opcoes: [ESCULPE, "Drenagem linfática"], extras,
+    if (principal === "Inchaço e retenção") return { servico: experimentar ? "Drenagem linfática" : ESCULPE, opcoes: [ESCULPE, "Drenagem linfática"], extras,
       porque: "Pra desinchar e eliminar o que o corpo está retendo. Escolhe o que combina mais contigo:", aviso };
     if (principal === "Dores e tensão") {
       const t = r.dor_tipo;
