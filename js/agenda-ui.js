@@ -11,7 +11,7 @@ import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons, gerarCupomCliente, abrirPresente } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente, abrirPresente, escolherCupomEnviar } from './cupons-ui.js';
 import { abrirIdentidade } from './identidade-ui.js';
 import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
@@ -510,7 +510,8 @@ function desenhar() {
         <input id="ag-link-tri" readonly value="${_esc(_linkTriagemZap())}">
         <button id="ag-copiar-tri" class="btn-secondary" type="button">Copiar</button>
       </div>
-      <button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}`)}
+      <button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}
+      <button id="ag-zap-cupom" class="btn-secondary" type="button" style="margin-top:10px">🎟️ Enviar link com cupom</button>`)}
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
@@ -600,6 +601,7 @@ function wireFixos(corpo) {
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
     showToast('Seg a Sex ligados', 'success');
   });
+  corpo.querySelector('#ag-zap-cupom')?.addEventListener('click', () => escolherCupomEnviar(_linkPublico()));
   corpo.querySelector('#ag-copiar-tri')?.addEventListener('click', async () => {
     const inp = corpo.querySelector('#ag-link-tri');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }

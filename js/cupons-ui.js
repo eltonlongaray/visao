@@ -92,6 +92,7 @@ export async function abrirCupons(opts = {}) {
         <button type="button" data-menos aria-label="Menos uma sessão">−</button><b>${c.limite}</b><button type="button" data-mais aria-label="Mais uma sessão">+</button>
         <span class="cp-cup-saldo ${rest === 0 ? 'zero' : ''}">${usados} usada${usados === 1 ? '' : 's'} · ${rest === 0 ? 'acabou' : `resta${rest === 1 ? '' : 'm'} ${rest}`}</span>
       </div>
+      ${!c._novo && c.ativo && rest > 0 && opts.linkAgenda ? `<button type="button" class="fi-btn" data-enviar>📲 Enviar no WhatsApp</button>` : ''}
       ${rest === 0 && !c._novo ? '<button type="button" class="fi-btn" data-renovar>↻ Continuar com o mesmo código (mais sessões)</button>' : ''}
       ${c._renovar ? '<div class="cp-cup-cli">↻ Novo ciclo começa ao salvar</div>' : ''}
       <input class="cp-cup-desc" value="${_esc(c.descricao || '')}" maxlength="120" data-f="descricao" placeholder="Anotação só sua. Ex: Larissa, modelo de glúteos, 5 sessões de Deusa Grega">
@@ -121,6 +122,7 @@ export async function abrirCupons(opts = {}) {
     ov.querySelectorAll('[data-on]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.ativo = !c.ativo; desenhar(); });
     ov.querySelectorAll('[data-menos]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.max(1, c.limite - 1); desenhar(); });
     ov.querySelectorAll('[data-mais]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.min(999, c.limite + 1); desenhar(); });
+    ov.querySelectorAll('[data-enviar]').forEach(b => b.onclick = () => { const c = doCup(b); enviarCupomZap(c, opts.linkAgenda, Math.max(0, c.limite - (usos[c.id] || 0))); });
     ov.querySelectorAll('[data-renovar]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c._renovar = true; c.limite = 5; c.ativo = true; desenhar(); });
     ov.querySelector('#cup-salvar')?.addEventListener('click', salvar);
     const filtrar = () => {
@@ -161,6 +163,46 @@ export async function abrirCupons(opts = {}) {
     } catch (e) { showToast(e.message, 'error'); b.disabled = false; b.textContent = 'Salvar'; }
   }
   desenhar();
+}
+
+// === BLOCO 2b: MANDAR O LINK DA AGENDA JÁ COM UM CUPOM (WhatsApp) ===
+// O link leva ?cupom=CÓDIGO: a agenda já abre com o código preenchido no campo do cupom.
+export function textoCupomZap(c, link, restam = null) {
+  const n = restam ?? c.limite;
+  const ses = n === 1 ? '1 sessão' : `${n} sessões`;
+  const vale = c.desconto >= 100 ? `${ses} sem custo (desconto integral)` : `${c.desconto}% de desconto em ${n > 1 ? 'até ' : ''}${ses}`;
+  const url = link ? `${link}${link.includes('?') ? '&' : '?'}cupom=${encodeURIComponent(c.codigo)}` : '';
+  return `Oi! 💜 Separei um cupom pra ti: *${c.codigo}*\n`
+    + `🎟️ Vale ${vale}.\n\n`
+    + `Como usar: abre o link, escolhe o serviço e o horário e, antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`
+    + (url ? `\n${url}` : '');
+}
+export function enviarCupomZap(c, link, restam = null) {
+  window.open('https://wa.me/?text=' + encodeURIComponent(textoCupomZap(c, link, restam)), '_blank');
+}
+export async function escolherCupomEnviar(link) {
+  let lista = [], usos = {};
+  try { lista = (await _listar()).filter(c => c.tipo !== 'presente' && c.ativo); lista.forEach(c => { if (c.limite == null) c.limite = 5; }); usos = await _usos(lista); }
+  catch (e) { showToast(e.message, 'error'); return; }
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'cupz-ov';
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  const rest = c => Math.max(0, c.limite - (usos[c.id] || 0));
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">🎟️ Enviar link com cupom</div>
+    <div class="fi-secao-sub" style="margin-top:0">Escolhe o cupom. Abre o WhatsApp com o link da agenda, o código e como usar: é só escolher a cliente.</div>
+    <div class="cp-lista">${lista.length ? lista.map(c => `<button type="button" class="cp-cup cp-cup-esc" data-id="${_esc(c.id)}" ${rest(c) ? '' : 'disabled'}>
+      <b>${_esc(c.codigo)}</b> <span>${c.desconto >= 100 ? 'integral' : c.desconto + '%'} · ${rest(c) ? `resta${rest(c) === 1 ? '' : 'm'} ${rest(c)} de ${c.limite}` : 'acabou'}</span>
+      ${c.cliente_nome || c.descricao ? `<small>${_esc(c.cliente_nome ? 'Só pra ' + c.cliente_nome : c.descricao)}</small>` : ''}</button>`).join('')
+      : '<div class="fi-vazio">Nenhum cupom ativo. Crie em 🎟️ Cupons.</div>'}</div>
+    <div class="ag-fbtns"><button class="btn-secondary" id="cupz-fechar" type="button">Fechar</button></div>
+  </div></div>`;
+  ov.querySelector('#cupz-fechar').onclick = () => close();
+  ov.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+    const c = lista.find(x => x.id === b.dataset.id); if (!c) return;
+    enviarCupomZap(c, link, rest(c)); close();
+  });
 }
 
 // === BLOCO 3: CUPOM PRA UMA CLIENTE (perfil) ===

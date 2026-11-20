@@ -9070,6 +9070,10 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-lista { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 12px; }
 .cp-lista .cp-cup { border: 1px solid var(--border); border-left: 4px solid var(--accent, #7c3aed); border-radius: 12px; padding: 10px 12px 12px; background: var(--card); }
 .cp-lista .cp-cup[hidden] { display: none; }
+.cp-cup-esc { text-align: left; font-family: inherit; color: var(--text); cursor: pointer; display: flex; flex-direction: column; gap: 3px; font-size: 15px; }
+.cp-cup-esc span { font-size: 13px; color: var(--green, #10b981); font-weight: 700; }
+.cp-cup-esc small { font-size: 12.5px; color: var(--muted); }
+.cp-cup-esc:disabled { opacity: .5; cursor: default; }
 .cp-cup-rot { display: grid; grid-template-columns: 1fr 70px auto; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .cp-cup-codbox { display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card-2); overflow: hidden; }
 .cp-cup-codbox .cp-cup-cod { border: none !important; border-radius: 0 !important; background: transparent !important; flex: 1; min-width: 0; }

@@ -162,7 +162,8 @@ export async function renderAgendaPublica(app, slug) {
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
   let combo = [];                    // 2+ serviços num horário só (da triagem)
-  let cupom = null, cupomAberto = false;   // cupom de desconto conferido ({codigo, desconto, descricao})
+  const cupomUrl = (new URLSearchParams(location.search).get('cupom') || '').trim().toUpperCase().slice(0, 30);
+  let cupom = null, cupomAberto = false;   // cupom conferido ({codigo, desconto, descricao}); ?cupom= só deixa o campo preenchido
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
   // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
   // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
@@ -493,7 +494,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
         ${cupom && cupom.tipo === 'presente' ? `<div class="ap-cupom-ok">🎁 Cartão presente <b>${_esc(cupom.codigo)}</b> · ${_esc(String(cupom.servico || '').split(' (')[0])} sem custo <button type="button" id="ap-cupom-tirar" aria-label="Tirar cartão">✕</button></div>`
           : cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
-          : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
+          : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" value="${_esc(cupomUrl)}" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
           : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
       </div>`;
