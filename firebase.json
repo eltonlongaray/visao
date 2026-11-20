@@ -61,6 +61,23 @@
           }
         ]
       }
+    ],
+    "redirects": [
+      {
+        "source": "/ale",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/ale-insta",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/ale-zap",
+        "destination": "/triagem/V83?utm_source=whatsapp",
+        "type": 302
+      }
     ]
   }
 }
