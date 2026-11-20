@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=30`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=31`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -61,6 +61,15 @@ function iniciar() {
   st.i >= 0 && passos().length ? tela() : intro();
 }
 const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(st)); } catch (e) {} };
+// Caminho da cliente (20/11, Élton): cada passo com hora, vai junto na triagem salva (ficha da profissional)
+// e continua na agenda (agenda-publica.js). Antes do contato fica só no aparelho e sobe junto no envio.
+function passo(txt, enviar = true) {
+  st.caminho = st.caminho || [];
+  st.caminho.push({ p: txt, em: new Date().toISOString() });
+  if (st.caminho.length > 60) st.caminho = st.caminho.slice(-60);
+  salvar();
+  if (enviar && st.codigo && !TESTE) { try { supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }); } catch (e) {} }
+}
 
 // Passos que valem pra essa pessoa (perguntas condicionais somem se não se aplicam)
 function passos() {
@@ -140,7 +149,7 @@ function intro() {
     ${[].concat(M.intro.texto).map(t => `<p class="lead">${esc(t)}</p>`).join('')}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     ${rod ? `<p class="rodape">${esc(rod)}</p>` : ''}</section>`;
-  $('go').onclick = () => { if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
+  $('go').onclick = () => { passo(retomar ? 'Voltou pra triagem' : 'Começou a triagem', false); if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
   progresso();
 }
 
@@ -272,6 +281,7 @@ function contato() {
         if (!error && data?.codigo) st.codigo = data.codigo;
       } catch (e) {}
     }
+    passo('Mandou nome e WhatsApp');
     st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
   };
 }
@@ -351,7 +361,8 @@ function pacote() {
   const ind = M.indicacao(st.r);
   const nomeDe = id => SERV.find(s => s.id === id)?.nome || id;
   return { respostas: Object.fromEntries(resumoLinhas()), bruto: st.r, blends_vitrine: st.r.__vitrine || [],
-    indicacao: ind.servico, plano: (st.plano || []).map(nomeDe), interesses: st.interesses || [], origem: st.origem || null };
+    indicacao: ind.servico, plano: (st.plano || []).map(nomeDe), interesses: st.interesses || [], origem: st.origem || null,
+    caminho: st.caminho || [] };
 }
 function sugestoes(ind, planoIds) {
   const nomes = [];
@@ -368,6 +379,7 @@ function resultado() {
   const servInd = servPorNome(ind.servico);
   // se as respostas mudaram (voltou e trocou), a indicação recomeça
   if (!st.plano || st.planoPara !== ind.servico) { st.plano = servInd ? [servInd.id] : []; st.planoPara = ind.servico; }
+  if (st.viuResultado !== ind.servico) { st.viuResultado = ind.servico; passo('Viu o resultado (indicação: ' + ind.servico + ')'); }
   const opcoes = (ind.opcoes || []).map(servPorNome).filter(Boolean);
   const extras = (ind.extras || []).map(e => ({ ...e, s: servPorNome(e.servico) })).filter(e => e.s && !opcoes.includes(e.s) && e.s.id !== servInd?.id);
   const plano = st.plano.map(id => SERV.find(s => s.id === id)).filter(Boolean);
@@ -412,11 +424,14 @@ function resultado() {
     </div>
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
   app.querySelectorAll('.op.trat[data-id]').forEach(b => b.onclick = () => {
-    st.plano = [b.dataset.id, ...st.plano.slice(1).filter(id => id !== b.dataset.id)]; salvar(); resultado();
+    st.plano = [b.dataset.id, ...st.plano.slice(1).filter(id => id !== b.dataset.id)];
+    passo('Escolheu ' + (SERV.find(x => x.id === b.dataset.id)?.nome || b.dataset.id), false); salvar(); resultado();
   });
   app.querySelectorAll('.op.trat[data-extra]').forEach(b => b.onclick = () => {
     const id = b.dataset.extra;
-    st.plano = st.plano.includes(id) ? st.plano.filter(x => x !== id) : [...st.plano, id]; salvar(); resultado();
+    const tira = st.plano.includes(id);
+    st.plano = tira ? st.plano.filter(x => x !== id) : [...st.plano, id];
+    passo((tira ? 'Tirou ' : 'Somou ') + (SERV.find(x => x.id === id)?.nome || id), false); salvar(); resultado();
   });
   app.querySelectorAll('.int .op').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
@@ -425,7 +440,7 @@ function resultado() {
     b.setAttribute('aria-checked', st.interesses.includes(v)); salvar();
   });
   $('volta').onclick = () => { st.i = passos().length - 1; salvar(); tela(); window.scrollTo({ top: 0 }); };
-  $('refazer').onclick = () => { st = { i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
+  $('refazer').onclick = () => { passo('Refez as respostas', false); st = { caminho: st.caminho, i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
   // Indicação que ainda não está na agenda (ex.: tratamento com valor a combinar): vai pro WhatsApp dela
   $('agendar').onclick = () => plano.length ? irParaAgenda(ind, plano) : irParaWhatsApp(ind);
 }
@@ -437,7 +452,7 @@ function irParaWhatsApp(ind) {
     app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pro WhatsApp da ${esc(M.profissional.nome)} com a indicação <b>${esc(ind.servico)}</b> e o resumo da triagem. Nada foi salvo.</div>`);
     $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
   }
-  try { if (st.codigo) supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }); } catch (e) {}
+  passo('Foi pro WhatsApp combinar (' + ind.servico + ')');
   try { if (window.dataLayer) { window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
     if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' }); } } catch (e) {}
   location.href = `https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
@@ -452,6 +467,7 @@ async function irParaAgenda(ind, plano) {
     $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
   }
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
+  passo('Tocou em Escolher meu horário (' + (plano.map(s => s.nome).join(' + ') || ind.servico) + ')', false);
   const linhas = resumoLinhas();
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
@@ -461,7 +477,7 @@ async function irParaAgenda(ind, plano) {
       return ps.length ? [`🌿 Produtos pra casa que combinam: ${ps.join(', ')}`] : []; })(),
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');
   const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg,
-    whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now() };
+    whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now(), pacote: pacote() };
   try {
     localStorage.setItem('falcon_triagem_' + SLUG, JSON.stringify(handoff));
     localStorage.setItem('falcon_cliente_' + SLUG, JSON.stringify({ nome: handoff.nome, contato: handoff.contato }));

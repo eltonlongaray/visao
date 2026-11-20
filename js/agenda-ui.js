@@ -94,6 +94,11 @@ function _triagemPerfilHtml(c) {
       ${(r.plano || []).length ? `<div>📅 <b>Quer agendar:</b> ${_esc(r.plano.join(' + '))}</div>` : ''}
       ${(r.interesses || []).length ? `<div>💡 <b>Interesse:</b> ${_esc(r.interesses.join(', '))}</div>` : ''}
       ${linhas.length ? `<div style="margin-top:8px;color:var(--muted)">${linhas.map(([k, v]) => `<div>• <b>${_esc(k)}:</b> ${_esc(v)}</div>`).join('')}</div>` : ''}
+      ${(r.caminho || []).length ? `<div style="margin-top:10px"><b>🧭 Caminho da cliente</b>
+        <div style="margin-top:4px;color:var(--muted)">${r.caminho.map(c => {
+          const d = new Date(c.em); const h = isNaN(d) ? '' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+          return `<div>${_esc(h)} · ${_esc(c.p)}</div>`; }).join('')}</div>
+        <div style="margin-top:4px;font-size:12px;color:var(--muted)">O último passo é onde ela parou.</div></div>` : ''}
     </div>
   </div>`;
 }

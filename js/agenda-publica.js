@@ -3,6 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
+import { supabase } from './config-supabase.js';
 import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, criarAgendamentoCombo, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico, validarCupom, aplicarCupom } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -154,10 +155,21 @@ export async function renderAgendaPublica(app, slug) {
   let combo = [];                    // 2+ serviços num horário só (da triagem)
   let cupom = null, cupomAberto = false;   // cupom de desconto conferido ({codigo, desconto, descricao})
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
+  // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
+  // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
+  const _passo = (txt) => {
+    if (!TRI || !TRI.codigo || !TRI.pacote) return;
+    const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
+    try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
+    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }); } catch {}
+  };
+  const _diaTxt = isoD => { const [y, m, d] = String(isoD || '').split('-'); return d ? `${d}/${m}` : ''; };
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
     if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
+    const prim = _primeiroComVaga(semOffset);
+    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
@@ -359,6 +371,7 @@ export async function renderAgendaPublica(app, slug) {
       desenharIdentidade();
     });
     const _irSemana = (novo) => {
+      _passo(novo > semOffset ? 'Foi pra semana seguinte' : 'Voltou uma semana');
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
       selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
       selHora = null; desenhar();
@@ -366,15 +379,18 @@ export async function renderAgendaPublica(app, slug) {
     app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
     app.querySelector('#ap-sem-next')?.addEventListener('click', () => { if (semOffset < _maxOffset) _irSemana(semOffset + 1); });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
-      selDia = b.dataset.dia; selHora = null; desenhar();
+      selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia)); desenhar();
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
+      selServ = b.dataset.serv; combo = []; servAberto = false;
+      _passo('Trocou o serviço pra ' + (servicos.find(x => x.id === selServ)?.nome || '')); desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
     app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
-      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
+      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;
+      if (selHora) _passo(`Escolheu o horário ${selHora} de ${_diaTxt(selDia)}`);
+      desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
     const btn = app.querySelector('#ap-confirmar');
@@ -459,6 +475,7 @@ export async function renderAgendaPublica(app, slug) {
     const zap = ident?.contato || '';
     if (nome.length < 2 || zap.replace(/\D/g, '').length < 8) { ident = null; mostrar(); return; }
     const btn = app.querySelector('#ap-confirmar'); btn.disabled = true; btn.textContent = 'Agendando…';
+    _passo('Tocou em confirmar');
     try {
       const hora = selHora;
       const serv = _servSel();
@@ -470,6 +487,7 @@ export async function renderAgendaPublica(app, slug) {
         : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
       _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
+      _passo(`Agendou: ${nomeServ || 'serviço'} · ${_diaTxt(dia.iso)} às ${hora}`);
       // cupom: grava no agendamento recém-criado (falhar aqui não desfaz o agendamento)
       let cupomOk = null;
       if (cupom) { try { const r = await aplicarCupom(cfg.slug, dia.iso, hora, zap, cupom.codigo); if (r.ok) cupomOk = r; } catch {} cupom = null; }
@@ -534,6 +552,7 @@ export async function renderAgendaPublica(app, slug) {
           if (n <= 0) {
             clearInterval(tick);
             document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
+            _passo('Abriu o WhatsApp com a mensagem pronta (enviar é com ela)');
             location.href = waTri;
           }
         }, 1000);
@@ -542,6 +561,7 @@ export async function renderAgendaPublica(app, slug) {
       }
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
+      _passo('Erro ao agendar: ' + (e.message || 'sem detalhe'));
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
       try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
       for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
