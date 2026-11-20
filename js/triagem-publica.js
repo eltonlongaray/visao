@@ -13,7 +13,7 @@ const SLUG = location.pathname.replace(/^\/triagem\/?/, '').replace(/\/+$/, '').
 const app = document.getElementById('app');
 const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const $ = id => document.getElementById(id);
-let M, SERV = [], CHAVE, st;
+let M, SERV = [], CHAVE, st, TESTE = false;
 
 (async function carregar() {
   if (!SLUG) { app.innerHTML = '<p class="lead">Link incompleto.</p>'; return; }
@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=17`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=25`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -39,8 +39,12 @@ function iniciar() {
   if (c.tinta) raiz.setProperty('--tinta', c.tinta);
   document.title = M.profissional.negocio + ' · ' + (M.titulo || 'Triagem');
   $('marca').innerHTML = `${esc(M.profissional.negocio)}<small>${esc(M.profissional.nome)}</small>`;
+  // ?teste=1: modo teste — não grava a triagem, não carrega a tag do Google (não conta conversão)
+  // e não abre a agenda de verdade (não marca horário).
+  TESTE = new URLSearchParams(location.search).has('teste');
+  if (TESTE) document.body.insertAdjacentHTML('afterbegin', '<div class="faixa-teste">🧪 Modo teste · nada é salvo, não marca horário</div>');
   // Tag do Google da profissional (Google Ads), só se o modelo tiver uma
-  if (M.googleTag || M.googleAds) {
+  if (!TESTE && (M.googleTag || M.googleAds)) {
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () { window.dataLayer.push(arguments); };
     window.gtag('js', new Date());
@@ -48,7 +52,7 @@ function iniciar() {
     if (M.googleTag) tag('https://www.googletagmanager.com/gtm.js?id=' + M.googleTag);
     if (M.googleAds) { tag('https://www.googletagmanager.com/gtag/js?id=' + M.googleAds); window.gtag('config', M.googleAds); }
   }
-  CHAVE = 'falcon_triagem_estado_' + SLUG;
+  CHAVE = 'falcon_triagem_estado_' + SLUG + (TESTE ? '_teste' : '');
   st = { i: -1, r: {} };
   try { const x = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (x && x.r) st = x; } catch (e) {}
   // De onde veio (link do anúncio: ?utm_source=google&utm_campaign=blackfriday) — vai pro painel de Campanhas
@@ -73,7 +77,16 @@ function itensVitrine() {
 function condicao(c) {
   const v = st.r[c.campo];
   const arr = Array.isArray(v) ? v : (v ? [v] : []);
+  // primeiroDe: só quando o PRIMEIRO marcado (o que mais incomoda) é um desses
+  if (c.primeiroDe) return c.primeiroDe.includes(arr[0]);
   return c.algumDe.some(x => arr.includes(x));
+}
+// "combina": opções ligadas ao que a pessoa já marcou sobem pro topo com um selo
+function opsDaTela(p) {
+  if (!p.combina) return p.ops.map(o => ({ ...o, combina: false }));
+  const marcados = Object.values(st.r).flat();
+  const liga = o => (p.combina[o.v] || []).some(x => marcados.includes(x));
+  return p.ops.map(o => ({ ...o, combina: liga(o) })).sort((a, b) => b.combina - a.combina);
 }
 function progresso() {
   const n = passos().length;
@@ -81,6 +94,37 @@ function progresso() {
 }
 
 // === BLOCO 3: TELAS (intro, perguntas, vitrine) ===
+// Depoimentos (M.depoimentos): o que combina com as respostas/indicação; senão o de destaque.
+const _semAc = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function depoPara(texto, pular = []) {
+  const ds = (M.depoimentos || []).filter(d => !pular.includes(d));
+  if (!ds.length) return null;
+  const t = _semAc(texto);
+  return ds.find(d => (d.chaves || []).some(k => t.includes(_semAc(k)))) || ds.find(d => d.destaque) || ds[0];
+}
+function depoHtml(d) {
+  if (d && d.img) return `<figure class="depo-print"><img src="/triagem-modelos/depoimentos/${esc(SLUG)}/${esc(d.img)}" alt="Depoimento de ${esc(d.nome)} pelo WhatsApp: ${esc(d.texto)}"></figure>`;
+  return d ? `<figure class="depo"><blockquote>“${esc(d.texto)}”</blockquote><figcaption>— ${esc(d.nome)}${d.servico ? ` · ${esc(d.servico)}` : ''}</figcaption></figure>` : '';
+}
+const _respTxt = () => Object.values(st.r || {}).flat().join(' ');
+const _depoAbertura = () => (M.depoimentos || []).find(d => d.destaque) || (M.depoimentos || [])[0] || null;
+const _depoContato = () => depoPara(_respTxt(), [_depoAbertura()]);
+const _depoResultado = ind => depoPara(ind.servico + ' ' + _respTxt(), [_depoAbertura(), _depoContato()]);
+
+// 2ª tela: apresenta uma cliente real antes das perguntas
+function depoTela() {
+  const d = _depoAbertura();
+  if (!d) { st.i = 0; salvar(); return tela(); }
+  app.innerHTML = `<section class="tela">
+    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o meu trabalho 💜</h2>
+    ${depoHtml(d)}
+    <div class="nav"><button class="voltar" id="volta">← Voltar</button>
+      <button class="btn" id="go">Começar as perguntas →</button></div></section>`;
+  $('volta').onclick = () => intro();
+  $('go').onclick = () => { st.i = 0; salvar(); tela(); window.scrollTo({ top: 0 }); };
+  window.scrollTo({ top: 0 });
+}
+
 function intro() {
   const retomar = Object.keys(st.r).length > 0;
   const rod = M.intro.rodape ?? '';
@@ -90,7 +134,7 @@ function intro() {
     ${[].concat(M.intro.texto).map(t => `<p class="lead">${esc(t)}</p>`).join('')}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     ${rod ? `<p class="rodape">${esc(rod)}</p>` : ''}</section>`;
-  $('go').onclick = () => { st.i = retomar ? Math.min(Math.max(st.i, 0), passos().length - 1) : 0; salvar(); tela(); };
+  $('go').onclick = () => { if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
   progresso();
 }
 
@@ -107,9 +151,10 @@ function tela() {
     <p class="eyebrow">${esc(p.grupo || '')}</p>
     <h2 class="q">${esc(p.q)}</h2>
     ${p.ajuda ? `<p class="ajuda">${esc(p.ajuda)}</p>` : ''}
+    ${p.destaque ? `<p class="ajuda-destaque">${[].concat(p.destaque).map(esc).join('<br>')}</p>` : ''}
     <div class="ops" role="${multi ? 'group' : 'radiogroup'}">
-      ${p.ops.map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
-        ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}</span><span class="marca-op"></span></button>`).join('')}
+      ${opsDaTela(p).map(o => `<button type="button" class="op ${multi ? 'multi' : ''}" role="${multi ? 'checkbox' : 'radio'}" aria-checked="${marcado(o)}" data-v="${esc(o.v)}">
+        ${o.icone ? `<span class="ic">${o.icone}</span>` : ''}<span>${esc(o.v)}${o.combina ? `<small class="combina">✨ Combina com o que tu me contou</small>` : ''}</span><span class="marca-op"></span></button>`).join('')}
     </div>
     ${p.ops.some(o => o.outro) ? `<label class="campo" id="outroBox" hidden>Qual?<input id="outroTxt" placeholder="Escreve aqui" value="${esc(st.r[p.id + '_outro'] || '')}"></label>` : ''}
     <p class="erro" id="erro"></p>
@@ -191,16 +236,17 @@ function avancar() {
   if (opOutro && [].concat(v).includes(opOutro) && !(st.r[p.id + '_outro'] || '').trim()) { $('erro').textContent = 'Escreve o que seria no campo "Qual?".'; return; }
   st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
 }
-function voltar() { if (st.i <= 0) { st.i = -1; salvar(); intro(); } else { st.i--; salvar(); tela(); } }
+function voltar() { if (st.i <= 0) { st.i = -1; salvar(); depoTela(); } else { st.i--; salvar(); tela(); } }
 
 // === BLOCO 4: NOME + WHATSAPP (é o que faz a cliente aparecer em "Só triagem") ===
 function contato() {
   const c = st.contato || {};
   app.innerHTML = `<section class="tela">
     <h2 class="q">Quase lá! 💜</h2>
-    <p class="ajuda">Pra ${esc(M.profissional.nome)} te reconhecer quando tu agendar:</p>
+    <p class="ajuda">Pra eu te reconhecer quando tu agendar:</p>
     <label class="campo">Teu nome<input id="c-nome" autocomplete="name" placeholder="Como tu gosta de ser chamada" value="${esc(c.nome || '')}"></label>
     <label class="campo">Teu WhatsApp<input id="c-zap" inputmode="tel" autocomplete="tel" placeholder="(51) 9 9999-9999" value="${esc(c.contato || '')}"></label>
+    ${depoHtml(_depoContato())}
     <p class="erro" id="erro"></p>
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="seg">Ver meu resultado →</button></div></section>`;
@@ -214,7 +260,7 @@ function contato() {
     const mudou = !st.contato || st.contato.contato !== zap || st.contato.nome !== nome;
     st.contato = { nome, contato: zap }; salvar();
     $('seg').disabled = true; $('seg').textContent = 'Só um instante…';
-    if (mudou || !st.codigo) {
+    if (!TESTE && (mudou || !st.codigo)) {
       try {
         const { data, error } = await supabase.rpc('triagem_enviar', { p_slug: SLUG, p_nome: nome, p_contato: zap, p_respostas: pacote() });
         if (!error && data?.codigo) st.codigo = data.codigo;
@@ -224,7 +270,10 @@ function contato() {
   };
 }
 function mascara(v) {
-  const d = v.replace(/\D/g, '').slice(0, 11);
+  // número com o 55 do Brasil na frente (digitado ou colado do WhatsApp): tira o 55 e fica DDD + número
+  let d = v.replace(/\D/g, '');
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+  d = d.slice(0, 11);
   if (d.length <= 2) return d;
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
@@ -256,6 +305,33 @@ function precoTxt(s) {
   return `<b>${reais(atual ?? depois)}</b>`;
 }
 
+// Pacote do serviço (item da agenda com pacoteDe): "ou pacote de 5 sessões: R$ 897 (R$ 179 cada)"
+function pacoteTxt(s) {
+  const pac = SERV.find(x => x.pacoteDe === s.id);
+  if (!pac || pac.preco == null || !pac.sessoes) return '';
+  const depois = _porNome(M.precos?.depois, pac.nome);
+  const v = blackAtiva() ? pac.preco : (depois ?? pac.preco);
+  return `ou pacote de ${pac.sessoes} sessões: <b>${reais(v)}</b> (${reais(Math.round(v / pac.sessoes))} cada)`;
+}
+// Preço dentro da opção: "Sessão: R$ 197 (R$ 227 a partir de 01/12)" + "Tratamento de 5 sessões: …"
+function precoCurto(s) {
+  const depois = _porNome(M.precos?.depois, s.nome);
+  const black = _porNome(M.precos?.black, s.nome) ?? s.preco;
+  if (blackAtiva() && black != null && depois != null && depois !== black) return `<b>${reais(black)}</b> (${reais(depois)} a partir de ${proxDia()})`;
+  const v = blackAtiva() ? black : (depois ?? s.preco);
+  return v != null ? `<b>${reais(v)}</b>` : `valor no atendimento`;
+}
+function precosOpcao(s) {
+  if (s.sessoes > 1) return `<small class="pr">Tratamento completo: ${precoCurto(s)}</small>`;
+  const pac = SERV.find(x => x.pacoteDe === s.id);
+  const linhaPac = pac && pac.preco != null && pac.sessoes ? (() => {
+    const v = blackAtiva() ? pac.preco : (_porNome(M.precos?.depois, pac.nome) ?? pac.preco);
+    return `<small class="pr">Tratamento de ${pac.sessoes} sessões: <b>${reais(v)}</b> (${reais(Math.round(v / pac.sessoes))} cada)</small>`;
+  })() : '';
+  return `<small class="pr">Sessão: ${precoCurto(s)}</small>${linhaPac}`;
+}
+const nomeCurto = n => String(n || '').split(' – ')[0].split(' (')[0];
+
 // === BLOCO 6: RESULTADO (indicação · vou agendar · também me interessam) ===
 function resumoLinhas() {
   const L = M.perguntas.filter(p => !p.mostrarSe || condicao(p.mostrarSe));
@@ -284,8 +360,12 @@ function resultado() {
   $('barra').style.width = '100%';
   const ind = M.indicacao(st.r);
   const servInd = servPorNome(ind.servico);
-  if (!st.plano) st.plano = servInd ? [servInd.id] : [];
+  // se as respostas mudaram (voltou e trocou), a indicação recomeça
+  if (!st.plano || st.planoPara !== ind.servico) { st.plano = servInd ? [servInd.id] : []; st.planoPara = ind.servico; }
+  const opcoes = (ind.opcoes || []).map(servPorNome).filter(Boolean);
+  const extras = (ind.extras || []).map(e => ({ ...e, s: servPorNome(e.servico) })).filter(e => e.s && !opcoes.includes(e.s) && e.s.id !== servInd?.id);
   const plano = st.plano.map(id => SERV.find(s => s.id === id)).filter(Boolean);
+  const desc = s => _porNome(M.descricoes, s.nome) || '';
   const sug = sugestoes(ind, st.plano);
   const blend = M.blendPersonalizado ? M.blendPersonalizado(st.r) : null;
   const blendsVit = st.r.__vitrine || [];
@@ -301,11 +381,20 @@ function resultado() {
     ...(blend ? [{ v: blend.nome, blend: true }] : [])].filter((o, i, a) => a.findIndex(x => x.v === o.v) === i);
   salvar();
   app.innerHTML = `<section class="tela">
-    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra você')} 💜</h1>
-    <div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>
+    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra ti')} 💜</h1>
+    ${opcoes.length > 1 ? `<div class="card escolha"><h3>Escolhe o teu tratamento</h3><p class="ajuda" style="margin:0 0 .7rem">${esc(ind.porque)}</p>
+      <div class="ops" role="radiogroup">${opcoes.map(s => `<button type="button" class="op trat" role="radio" aria-checked="${st.plano[0] === s.id}" data-id="${esc(s.id)}">
+        <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(nomeCurto(s.nome))}</b>${s.id === servInd?.id ? '<span class="selo">indicado pra ti</span>' : ''}</span>
+        ${desc(s) ? `<small>${esc(desc(s))}</small>` : ''}${precosOpcao(s)}</span></button>`).join('')}</div></div>`
+    : `<div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>`}
+    ${extras.length ? `<div class="card escolha"><h3>Quer cuidar disso também?</h3>
+      <div class="ops">${extras.map(e => `<button type="button" class="op trat multi" role="checkbox" aria-checked="${st.plano.includes(e.s.id)}" data-extra="${esc(e.s.id)}">
+        <span class="marca-op"></span><span class="trat-tx"><b>${esc(e.titulo || nomeCurto(e.s.nome))}</b><small>${esc(e.porque || desc(e.s))}</small><small class="pr">${precoTxt(e.s)}</small></span></button>`).join('')}</div></div>` : ''}
     ${ind.aviso ? `<div class="aviso">${esc(ind.aviso)}</div>` : ''}
+    ${depoHtml(_depoResultado(ind))}
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
-      ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${precoTxt(s)}</span></div>`).join('')}
+      ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${s.sessoes > 1 ? `Pacote com ${s.sessoes} sessões` : 'Sessão'}: ${precoTxt(s)}</span>${pacoteTxt(s) ? `<span class="pr">${pacoteTxt(s)}</span>` : ''}</div>`).join('')}
+      ${plano.some(s => pacoteTxt(s)) ? `<p class="ajuda" style="margin:.6rem 0 0">Na agenda tu escolhe: uma sessão ou o pacote, e pode mudar depois. O tratamento completo é o que dá mais resultado, e eu te explico tudo no atendimento.</p>` : ''}
     </div>` : ''}
     ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
@@ -316,6 +405,13 @@ function resultado() {
         <button class="voltar" id="refazer">Refazer as respostas</button></div>
     </div>
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
+  app.querySelectorAll('.op.trat[data-id]').forEach(b => b.onclick = () => {
+    st.plano = [b.dataset.id, ...st.plano.slice(1).filter(id => id !== b.dataset.id)]; salvar(); resultado();
+  });
+  app.querySelectorAll('.op.trat[data-extra]').forEach(b => b.onclick = () => {
+    const id = b.dataset.extra;
+    st.plano = st.plano.includes(id) ? st.plano.filter(x => x !== id) : [...st.plano, id]; salvar(); resultado();
+  });
   app.querySelectorAll('.int .op').forEach(b => b.onclick = () => {
     const v = b.dataset.v;
     st.interesses = st.interesses.includes(v) ? st.interesses.filter(x => x !== v) : [...st.interesses, v];
@@ -331,12 +427,18 @@ function resultado() {
 // A agenda lê `falcon_triagem_<slug>`: serviços, nome, WhatsApp e a mensagem que a
 // cliente manda pra profissional depois de confirmar ({{QUANDO}} = dia e hora).
 async function irParaAgenda(ind, plano) {
+  if (TESTE) {   // modo teste: mostra o que aconteceria, sem abrir a agenda nem contar conversão
+    app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pra agenda da ${esc(M.profissional.nome)} escolher o horário de <b>${esc(plano.map(s => s.nome).join(' + ') || ind.servico)}</b> e, depois de confirmar, pro WhatsApp com o resumo da triagem. Nada foi salvo.</div>`);
+    $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+  }
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   const linhas = resumoLinhas();
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
     `✨ Indicação: ${ind.servico}`,
     ...(st.interesses.length ? [`💡 Também me interessam: ${st.interesses.join(', ')}`] : []),
+    ...(() => { const ps = [...new Set([].concat(st.r.casa || []).flatMap(n => M.produtosPor?.[n] || []))];
+      return ps.length ? [`🌿 Produtos pra casa que combinam: ${ps.join(', ')}`] : []; })(),
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');
   const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg,
     whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now() };

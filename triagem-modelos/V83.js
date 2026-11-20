@@ -35,8 +35,9 @@ window.TRIAGEM = {
     "Manchas": ["Tratamento para manchas", "Limpeza de pele"],
     "Acne, cravos, pele oleosa e/ou porosa": ["Limpeza de pele", "Tratamento para manchas"],
     "Dores e tensão": ["Massagem terapêutica", "Liberação miofascial", "Sessão de LED (anti-inflamatória)", "Massagem desportiva localizada"],
-    "Ansiedade e estresse": ["Massagem relaxante", "Reiki"],
-    "Quero só relaxar": ["Massagem relaxante", "Reiki"]
+    "Estrias": ["Deusa Grega – Modela / Reduz Medida / Pele Porcelana", "Sessão para celulite"],
+    "Ansiedade e estresse": ["Massagem relaxante"],
+    "Quero só relaxar": ["Massagem relaxante"]
   },
 
   // Google Ads (conta 845-725-3405). conversão "Triagem enviada" criada 14/11
@@ -44,28 +45,49 @@ window.TRIAGEM = {
   googleAds: "AW-11325048329",
   conversao: "AW-11325048329/H9K_CKHYvbgdEImMmpgq", // "Triagem enviada" (clique em Agendar)
 
+  // Depoimentos reais de clientes (WhatsApp, 19/11/2026). "chaves": palavras que ligam
+  // o depoimento ao que a pessoa respondeu/à indicação. "destaque": aparece na abertura.
+  // "img": print real do WhatsApp recortado (triagem-modelos/depoimentos/V83/), como nos da Larissa.
+  depoimentos: [
+    { nome: "Tici", servico: "Massagem modeladora", destaque: true, img: "tici.jpg",
+      chaves: ["celulite", "flacidez", "gordura", "medida", "modela", "deusa", "esculpe"],
+      texto: "Queria deixar registrado o excelente resultado que tive com as massagens modeladoras que fiz com a Alê. Resultado visível em algumas semanas. Além de profissional, é uma pessoa maravilhosa, que passa confiança e tranquilidade nos atendimentos. Super recomendo." },
+    { nome: "Andrea", servico: "Massagem abdominal", img: "andrea.jpg",
+      chaves: ["inchaço", "inchaco", "retenção", "abdom", "drenagem", "esculpe", "detox"],
+      texto: "Venho aqui, com muita satisfação, agradecer e parabenizar a Alexandra: as sessões de massagem abdominal tiveram, sim, resultados satisfatórios. Parabéns pelo profissionalismo e dedicação." },
+    { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg?v=2",
+      chaves: ["dor", "perna", "tensão", "tensao", "terapêutica", "terapeutica", "drenagem"],
+      texto: "Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
+    { nome: "Adronilda", servico: "Massagem terapêutica", img: "adronilda.jpg",
+      chaves: ["dor", "tensão", "tensao", "miofascial", "terapêutica", "terapeutica", "desportiva"],
+      texto: "Muito obrigada pelos teus atendimentos. Minha fase aguda já se foi. Tu tens mãos e instrumentos maravilhosos. Super recomendo teu trabalho." },
+  ],
   intro: {
     eyebrow: "Cuidado sob medida",
     titulo: "Oi! 💜",
     texto: [
-      "Antes de agendar, umas perguntinhas rápidas (2 min) pra Alê entender teu caso e te indicar o cuidado certo.",
-      "Depois tu escolhe teu horário, e tuas respostas chegam no WhatsApp dela, onde tu já pode tirar qualquer dúvida."
+      "Antes de agendar, umas perguntinhas rápidas (2 min) pra eu entender teu caso e te indicar o cuidado certo.",
+      "Depois tu escolhe teu horário, e tuas respostas chegam no meu WhatsApp, onde tu já pode tirar qualquer dúvida."
     ],
     rodape: ""
   },
 
   // === BLOCO 2: PERGUNTAS (uma por tela; "mostrarSe" faz a pergunta aparecer só quando faz sentido) ===
   perguntas: [
-    { id: "incomodo", grupo: "Sobre você", tipo: "multi", curto: "Incômodo",
+    { id: "incomodo", grupo: "Sobre ti", tipo: "multi", curto: "Incômodo",
       q: "O que mais te incomoda hoje?", ajuda: "Pode marcar mais de uma.",
       ops: [
-        { v: "Celulite", icone: "🍑" }, { v: "Flacidez", icone: "🤍" }, { v: "Gordura localizada / medidas", icone: "📏" },
+        { v: "Celulite", icone: "🍑" }, { v: "Estrias", icone: "〰️" }, { v: "Flacidez", icone: "🤍" }, { v: "Gordura localizada / medidas", icone: "📏" },
         { v: "Inchaço e retenção", icone: "💧" }, { v: "Manchas", icone: "🌗" }, { v: "Acne, cravos, pele oleosa e/ou porosa", icone: "🌸" },
         { v: "Dores e tensão", icone: "💆" }, { v: "Ansiedade e estresse", icone: "🌙" }, { v: "Queda de cabelo", icone: "💇" },
         { v: "Quero só relaxar", icone: "🕯️" }
       ] },
+    { id: "regiao", grupo: "Sobre ti", tipo: "multi", curto: "Região",
+      q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
+      ops: [{ v: "Bumbum" }, { v: "Coxas" }, { v: "Culote" }, { v: "Barriga" }, { v: "Braços" }, { v: "Costas" }] },
     { id: "dor_onde", grupo: "Sobre a dor", tipo: "multi", curto: "Onde dói",
-      q: "Onde você sente dor?", ajuda: "Pode marcar mais de uma.",
+      q: "Onde tu sente dor?", ajuda: "Pode marcar mais de uma.",
       mostrarSe: { campo: "incomodo", algumDe: ["Dores e tensão"] },
       ops: [{ v: "Pescoço e ombros" }, { v: "Costas e lombar" }, { v: "Pernas" }, { v: "Joelhos, mãos ou outras articulações" }, { v: "Pés (esporão, calos)" }] },
     { id: "dor_tipo", grupo: "Sobre a dor", tipo: "unica", curto: "Tipo de dor",
@@ -77,30 +99,30 @@ window.TRIAGEM = {
         { v: "Esporão ou calos", icone: "🦶" },
         { v: "Depois de treino ou esforço", icone: "🏃‍♀️" }
       ] },
-    { id: "emocional", grupo: "Como você está", tipo: "multi", curto: "Como tem se sentido",
-      q: "Como você tem se sentido?", ajuda: "Pode marcar mais de uma.",
+    // Emocional (20/11, Élton): sempre DEPOIS da parte do corpo/dor, qualquer que seja a ordem
+    // em que ela marcou. Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
+    // No fim, ansiedade de lado vira "Quer cuidar disso também?" + produto em destaque em "casa".
+    { id: "emocional", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
+      q: "Como tu tem te sentido, além da ansiedade e do estresse?", ajuda: "Pode marcar mais de uma.",
       mostrarSe: { campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
-      ops: [{ v: "Ansiosa" }, { v: "Estressada" }, { v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }],
-      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de você e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
-    { id: "regiao", grupo: "Sobre você", tipo: "multi", curto: "Região",
-      q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
-      ops: [{ v: "Bumbum" }, { v: "Coxas" }, { v: "Culote" }, { v: "Barriga" }, { v: "Braços" }, { v: "Costas" }] },
-    { id: "tempo", grupo: "Sobre você", tipo: "unica", curto: "Há quanto tempo",
+      exclusivas: ["Só isso"],
+      ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
+      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
+    { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
       q: "Há quanto tempo isso te incomoda?",
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
-    { id: "antes", grupo: "Sobre você", tipo: "unica", curto: "Tratamento antes",
+    { id: "antes", grupo: "Sobre ti", tipo: "unica", curto: "Tratamento antes",
       q: "Já fez algum tratamento pra isso?",
       ops: [{ v: "Nunca fiz" }, { v: "Sim, mas não tive resultado" }, { v: "Sim, tive resultado e quero manter" }] },
-    { id: "objetivo", grupo: "O que você busca", tipo: "unica", curto: "Objetivo",
-      q: "O que você busca agora?",
+    { id: "objetivo", grupo: "O que tu busca", tipo: "unica", curto: "Objetivo",
+      q: "O que tu busca agora?",
       ops: [
         { v: "Resultado pra uma data (verão, festa, viagem)", icone: "📅" },
         { v: "Cuidar de mim com constância", icone: "🦋" },
         { v: "Experimentar uma sessão primeiro", icone: "✨" }
       ] },
     { id: "pele", grupo: "Tua pele", tipo: "multi", curto: "Pele e cabelo",
-      q: "E a tua pele, tem algo que te incomoda?", ajuda: "Com isso eu monto um blend feito pra você. Pode marcar mais de uma.",
+      q: "E a tua pele, tem algo que te incomoda?", ajuda: "Assim eu já cuido disso também. Pode marcar mais de uma.",
       exclusivas: ["Nada disso"],
       ops: [
         { v: "Manchas ou melasma", icone: "🌗" }, { v: "Acne e espinhas", icone: "🌸" }, { v: "Cravos e poros abertos", icone: "🔍" },
@@ -108,40 +130,75 @@ window.TRIAGEM = {
         { v: "Flacidez no rosto", icone: "✨" }, { v: "Queda de cabelo", icone: "💇" }, { v: "Nada disso" }
       ] },
     { id: "saude", grupo: "Tua segurança", tipo: "multi", curto: "Saúde",
-      q: "Algo que eu precise saber sobre tua saúde?", ajuda: "É pra eu cuidar de você com segurança.",
+      q: "Algo que eu precise saber sobre tua saúde?", ajuda: "É pra eu cuidar de ti com segurança.",
       exclusivas: ["Nada disso"],
       ops: [{ v: "Estou gestante" }, { v: "Tenho varizes ou já tive trombose" }, { v: "Tenho alergia a algum óleo" }, { v: "Uso marcapasso" }, { v: "Nada disso" }],
       avisos: [
-        { se: "Estou gestante", texto: "Tudo bem! Alguns tratamentos são adaptados na gestação — eu avalio com você antes de começar." },
+        { se: "Estou gestante", texto: "Tudo bem! Alguns tratamentos são adaptados na gestação — eu avalio contigo antes de começar." },
         { se: "Tenho varizes ou já tive trombose", texto: "Obrigada por avisar. Eu avalio com cuidado na primeira conversa antes de qualquer técnica." },
-        { se: "Uso marcapasso", texto: "Obrigada por avisar. Alguns aparelhos não são indicados — eu escolho as técnicas certas pra você." }
+        { se: "Uso marcapasso", texto: "Obrigada por avisar. Alguns aparelhos não são indicados — eu escolho as técnicas certas pra ti." }
       ] },
 
     // === CUIDADO EM CASA (aprovado 15/11): necessidades, sem mostrar produto; o catálogo vem depois ===
     { id: "casa", grupo: "Pra continuar em casa", tipo: "multi", curto: "Cuidar em casa",
-      q: "Se você fosse continuar o tratamento em casa, pra que seria?",
-      ajuda: "Usamos combinações de óleos essenciais e cremes naturais no seu atendimento, e você pode levar pra casa pra continuar o tratamento. Selecione o que acha interessante pro seu caso:",
+      q: "No atendimento eu uso óleos essenciais e cremes naturais",
+      destaque: ["E tu pode levar pra casa pra continuar ou iniciar um novo tratamento.", "O que te interessa? Pode marcar mais de uma."],
       exclusivas: ["Não tenho interesse no momento"],
+      // O que combina com o que ela marcou no começo sobe pro topo com selo
+      combina: {
+        "Espinhas, cravos e pele oleosa": ["Acne, cravos, pele oleosa e/ou porosa", "Acne e espinhas", "Cravos e poros abertos", "Oleosidade"],
+        "Manchas na axila e virilha": ["Manchas"],
+        "Olheiras e bolsas nos olhos": ["Olheiras"],
+        "Pele seca": ["Ressecamento"],
+        "Queda e falhas no cabelo ou barba": ["Queda de cabelo"],
+        "Celulite, gordura e inchaço": ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"],
+        "Estrias": ["Estrias"],
+        "Ansiedade, estresse e sono": ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal"]
+      },
       ops: [
-        { v: "Rosto: acne, cravos, manchas, olheiras, poros abertos", icone: "🌸" },
-        { v: "Cabelo e barba: foliculite, falhas, queda, caspa", icone: "💇" },
-        { v: "Corpo: celulite, edema, queloide, linfedema", icone: "🍑" },
-        { v: "Varizes e vasinhos", icone: "🦵" },
-        { v: "Gordura localizada e inchaço", icone: "📏" },
-        { v: "Ansiedade e depressão", icone: "🌙" },
-        { v: "Bruxismo", icone: "😬" },
-        { v: "Insônia", icone: "😴" },
-        { v: "Enxaqueca", icone: "🤕" },
-        { v: "Dores musculares e nos nervos", icone: "💪" },
-        { v: "Dores nos ossos e articulações", icone: "🦴" },
+        { v: "Espinhas, cravos e pele oleosa", icone: "🌸" },
+        { v: "Manchas na axila e virilha", icone: "🌗" },
+        { v: "Olheiras e bolsas nos olhos", icone: "👁️" },
+        { v: "Pele seca", icone: "🏜️" },
+        { v: "Limpeza do rosto", icone: "🧼" },
+        { v: "Lábios ressecados", icone: "💋" },
+        { v: "Foliculite e pelos encravados", icone: "🪒" },
+        { v: "Queda e falhas no cabelo ou barba", icone: "💇" },
+        { v: "Celulite, gordura e inchaço", icone: "🍑" },
+        { v: "Estrias", icone: "〰️" },
+        { v: "Ansiedade, estresse e sono", icone: "🌙" },
         { v: "Outro", icone: "✍️", outro: true },
         { v: "Não tenho interesse no momento" }
       ] },
     { id: "catalogo", grupo: "Pra continuar em casa", tipo: "unica", curto: "Catálogo",
-      q: "Quer receber um catálogo com os produtos selecionados pra você?",
-      ajuda: "Assim você faz sua encomenda sempre que sentir necessidade. 📦 Pedidos em até 7 dias úteis, pra retirar no espaço.",
+      q: "Quer receber um catálogo com os produtos selecionados pra ti?",
+      ajuda: "Assim tu faz tua encomenda sempre que sentir necessidade. 📦 Pedidos em até 7 dias úteis, pra retirar no espaço.",
       ops: [{ v: "Sim, quero o catálogo" }, { v: "Agora não" }] }
   ],
+
+  // Produtos reais da Alê por necessidade da pergunta "casa" (vão no resumo do WhatsApp pra ela montar o catálogo)
+  produtosPor: {
+    "Espinhas, cravos e pele oleosa": ["Folico", "Óleo de Melaleuca roll-on", "Hidrolato de melaleuca", "Hidrolato de gerânio"],
+    "Manchas na axila e virilha": ["Clarea"],
+    "Olheiras e bolsas nos olhos": ["Creme para área dos olhos"],
+    "Pele seca": ["Blend Pele Seca"],
+    "Limpeza do rosto": ["Espuma de limpeza facial"],
+    "Lábios ressecados": ["Blend Protetor Labial", "Blend Revitalização Labial"],
+    "Foliculite e pelos encravados": ["Blend Combate Foliculite", "Folico"],
+    "Queda e falhas no cabelo ou barba": ["Blend Anti Queda"],
+    "Celulite, gordura e inchaço": ["Blend Xô Celulite", "Hidrolato de alecrim do campo"],
+    "Estrias": ["Maestria"],
+    "Ansiedade, estresse e sono": ["Hidrolato de lavanda", "Água floral de verbena", "Hidrolato de capim-limão"]
+  },
+
+  // Descrição curta de cada tratamento quando a cliente escolhe entre opções (resultado)
+  descricoes: {
+    "Deusa Grega": "1h15 pra celulite e estrias, com óleos e cremes naturais: modela, reduz medida e deixa a pele lisinha. Pode ser uma sessão avulsa ou o tratamento, com medidas e acompanhamento da tua evolução.",
+    "Esculpe Detox": "5 sessões de 45 min, com avaliação inicial (já com massagem), acompanhamento e avaliação final: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada.",
+    "Sessão para celulite": "45 min focados na celulite. Bom pra começar e sentir o resultado.",
+    "Drenagem linfática": "45 min pra tirar o inchaço e a retenção de líquido.",
+    "Limpeza de pele": "Limpeza profunda pra tratar a acne, os cravos e a oleosidade."
+  },
 
   // Vitrine de blends desligada (15/11): o cuidado em casa virou a pergunta "casa" + catálogo
   vitrine: null,
@@ -153,28 +210,62 @@ window.TRIAGEM = {
   indicacao(r) {
     const inc = r.incomodo || [];
     const saude = (r.saude || []).filter(x => x !== "Nada disso");
-    const aviso = saude.length ? "Como você me contou algo sobre tua saúde, a primeira sessão começa com uma avaliação pra eu escolher as técnicas certas pra você." : "";
+    const aviso = saude.length ? "Como tu me contou algo sobre tua saúde, a primeira sessão começa com uma avaliação pra eu escolher as técnicas certas pra ti." : "";
     const experimentar = r.objetivo === "Experimentar uma sessão primeiro";
     const principal = inc[0];
-    const corpo = ["Celulite", "Flacidez", "Gordura localizada / medidas"];
-    if (corpo.includes(principal)) {
-      if (experimentar) return { servico: principal === "Celulite" ? "Sessão para celulite" : "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Uma sessão pra você sentir o resultado e a gente montar teu plano.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-      return { servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", porque: "Sessão de 1h15 pra celulite e estrias: modela, reduz medida e deixa a pele lisinha, com os blends cuidando de dentro pra fora.", junto: "Teu blend personalizado pra continuar em casa", aviso };
+    const pele = r.pele || [];
+    const acne = principal !== "Acne, cravos, pele oleosa e/ou porosa" &&
+      (inc.includes("Acne, cravos, pele oleosa e/ou porosa") || pele.includes("Acne e espinhas") || pele.includes("Cravos e poros abertos"));
+    // Extra que a cliente pode somar (ex.: espinhas → tratamento de acne)
+    const extras = acne ? [{ servico: "Limpeza de pele", titulo: "Tratamento de acne", porque: "Tu contou que tem espinhas: dá pra cuidar disso também." }] : [];
+    // O que ela marcou em "casa" também vira sugestão de serviço pra somar no atendimento
+    const porCasa = {
+      "Espinhas, cravos e pele oleosa": { servico: "Limpeza de pele", titulo: "Tratamento de acne", porque: "Tu marcou espinhas e pele oleosa: dá pra tratar isso no atendimento também." },
+      "Limpeza do rosto": { servico: "Limpeza de pele", porque: "Limpeza profunda pra deixar tua pele renovada." },
+      "Manchas na axila e virilha": { servico: "Tratamento para manchas", porque: "Tu marcou manchas: dá pra clarear no atendimento também." },
+      "Celulite, gordura e inchaço": { servico: "Sessão para celulite", porque: "Tu marcou celulite e gordura: dá pra cuidar disso no atendimento também." },
+      "Estrias": { gestanteNao: true, servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", titulo: "Deusa Grega", porque: "Tu marcou estrias: a Deusa Grega cuida delas no atendimento." },
+      "Ansiedade, estresse e sono": { servico: "Massagem relaxante", porque: "Tu marcou ansiedade e sono: uma massagem relaxante ajuda a desacelerar." }
+    };
+    // Queixas "de outro assunto" (ex.: ansiedade junto com celulite): não viram pergunta,
+    // viram sugestão pra somar no fim
+    const grupoDe = { "Celulite": "corpo", "Estrias": "corpo", "Flacidez": "corpo", "Gordura localizada / medidas": "corpo", "Inchaço e retenção": "corpo",
+      "Manchas": "pele", "Acne, cravos, pele oleosa e/ou porosa": "pele", "Dores e tensão": "dor", "Ansiedade e estresse": "mente", "Quero só relaxar": "mente" };
+    const porOutroAssunto = {
+      "Ansiedade e estresse": { servico: "Massagem relaxante", porque: "Tu também contou que anda com ansiedade e estresse: uma massagem relaxante ajuda a desacelerar." },
+      "Dores e tensão": { servico: "Massagem terapêutica", porque: "Tu também contou que sente dores e tensão: dá pra soltar isso no mesmo atendimento." },
+      "Manchas": { servico: "Tratamento para manchas", porque: "Tu também marcou manchas: dá pra clarear no atendimento também." },
+      "Inchaço e retenção": { servico: "Drenagem linfática", porque: "Tu também marcou inchaço: a drenagem tira a retenção de líquido." }
+    };
+    for (const q of inc.slice(1)) {
+      const e = porOutroAssunto[q];
+      if (e && grupoDe[q] !== grupoDe[principal] && !extras.some(x => x.servico === e.servico)) extras.push(e);
     }
-    if (principal === "Inchaço e retenção") return { servico: "Esculpe Detox – Desincha / Elimina Toxinas / Modela", porque: "Pra desinchar, eliminar o que o corpo está retendo e modelar.", junto: "Drenagem linfática pra manter", aviso };
+    const gestante = (r.saude || []).includes("Estou gestante");
+    for (const c of (r.casa || [])) { const e = porCasa[c]; if (e && !(gestante && e.gestanteNao) && !extras.some(x => x.servico === e.servico)) extras.push(e); }
+    const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
+    const corpo = ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas"];
+    if (corpo.includes(principal)) {
+      const servico = principal === "Gordura localizada / medidas" ? ESCULPE
+        : (experimentar && principal === "Celulite") ? "Sessão para celulite" : DEUSA;
+      return { servico, opcoes: [DEUSA, ESCULPE, "Sessão para celulite"], extras,
+        porque: "Separei os tratamentos que cuidam disso. Já deixei marcado o que mais combina com o que tu me contou, mas tu pode escolher outro:", aviso };
+    }
+    if (principal === "Inchaço e retenção") return { servico: ESCULPE, opcoes: [ESCULPE, "Drenagem linfática"], extras,
+      porque: "Pra desinchar e eliminar o que o corpo está retendo. Escolhe o que combina mais contigo:", aviso };
     if (principal === "Dores e tensão") {
       const t = r.dor_tipo;
       if (t === "Dor na articulação (artrose)" || t === "Esporão ou calos")
-        return { servico: "Sessão de LED (anti-inflamatória)", porque: "A luz de LED ajuda a aliviar a dor e a inflamação em casos como artrose, esporão e calos.", junto: "Massagem terapêutica nas áreas de tensão", aviso };
-      if (t === "Depois de treino ou esforço") return { servico: "Massagem desportiva localizada", porque: "Pra recuperar o músculo depois do esforço e soltar o que travou.", junto: "Sessão de LED pra desinflamar", aviso };
-      return { servico: "Massagem terapêutica", porque: "Pra soltar a tensão, destravar o músculo e aliviar a dor.", junto: "Liberação miofascial nos pontos mais travados", aviso };
+        return { servico: "Sessão de LED (anti-inflamatória)", porque: "A luz de LED ajuda a aliviar a dor e a inflamação em casos como artrose, esporão e calos.", junto: "Massagem terapêutica nas áreas de tensão", extras, aviso };
+      if (t === "Depois de treino ou esforço") return { servico: "Massagem desportiva localizada", porque: "Pra recuperar o músculo depois do esforço e soltar o que travou.", junto: "Sessão de LED pra desinflamar", extras, aviso };
+      return { servico: "Massagem terapêutica", porque: "Pra soltar a tensão, destravar o músculo e aliviar a dor.", junto: "Liberação miofascial nos pontos mais travados", extras, aviso };
     }
     if (principal === "Ansiedade e estresse")
-      return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", junto: "Reiki pra equilibrar a energia + teu blend personalizado pra levar o cuidado pra casa", aviso };
-    if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-    if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", aviso };
-    if (principal === "Queda de cabelo") return { servico: "Blend Capilar", porque: "Fórmula pra fortalecer os fios e estimular o crescimento — eu te explico como usar.", junto: "Uma conversa rápida pra eu entender a causa da queda", aviso };
-    return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", junto: "Blend Calma pra levar o cuidado pra casa", aviso };
+      return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", extras, aviso };
+    if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
+    if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
+    if (principal === "Queda de cabelo") return { servico: "Blend Anti Queda", porque: "Fórmula com alecrim e copaíba pra fortalecer os fios. Eu te explico como usar e a gente conversa sobre a causa da queda.", extras, aviso };
+    return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", extras, aviso };
   },
 
   // === BLOCO 5: BLEND PERSONALIZADO (junta tudo que a pessoa marcou num blend só dela) ===
@@ -199,9 +290,9 @@ window.TRIAGEM = {
       nome: areas.length === 1 ? nomes[areas[0]] : "Blend Personalizado da Alê",
       icone: areas.length === 1 ? icones[areas[0]] : "🌿",
       para,
-      porque: "Feito sob medida por mim, com os óleos certos pro que você me contou. Eu preparo o teu frasco e te explico como usar em casa."
+      porque: "Feito sob medida por mim, com os óleos certos pro que tu me contou. Eu preparo o teu frasco e te explico como usar em casa."
     };
   },
 
-  resultado: { titulo: "Achei o cuidado certo pra você" }
+  resultado: { titulo: "Achei o cuidado certo pra ti" }
 };
