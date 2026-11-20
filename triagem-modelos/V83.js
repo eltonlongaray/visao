@@ -108,6 +108,12 @@ window.TRIAGEM = {
       exclusivas: ["Só isso"],
       ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
       avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
+    // Sem ansiedade marcada (20/11, Élton): depois do corpo, como ela se sente com ESSE problema
+    { id: "sentimento", grupo: "Como tu está", tipo: "multi", curto: "Como se sente com isso",
+      q: "Como tu te sente em relação a isso?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção", "Manchas", "Acne, cravos, pele oleosa e/ou porosa"], nenhumDe: ["Ansiedade e estresse"] },
+      exclusivas: ["Incomoda, mas convivo bem"],
+      ops: [{ v: "Insegura com o meu corpo" }, { v: "Evito usar biquíni, short ou roupa curta" }, { v: "Mexe com a minha autoestima" }, { v: "Incomoda, mas convivo bem" }] },
     { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
       q: "Há quanto tempo isso te incomoda?",
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
