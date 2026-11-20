@@ -122,7 +122,7 @@ export async function abrirCupons(opts = {}) {
     ov.querySelectorAll('[data-on]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.ativo = !c.ativo; desenhar(); });
     ov.querySelectorAll('[data-menos]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.max(1, c.limite - 1); desenhar(); });
     ov.querySelectorAll('[data-mais]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.min(999, c.limite + 1); desenhar(); });
-    ov.querySelectorAll('[data-enviar]').forEach(b => b.onclick = () => { const c = doCup(b); enviarCupomZap(c, opts.linkAgenda, Math.max(0, c.limite - (usos[c.id] || 0))); });
+    ov.querySelectorAll('[data-enviar]').forEach(b => b.onclick = () => { const c = doCup(b); destinoCupom(c, { triagem: opts.linkCupom, agenda: opts.linkAgenda }, Math.max(0, c.limite - (usos[c.id] || 0))); });
     ov.querySelectorAll('[data-renovar]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c._renovar = true; c.limite = 5; c.ativo = true; desenhar(); });
     ov.querySelector('#cup-salvar')?.addEventListener('click', salvar);
     const filtrar = () => {
@@ -174,13 +174,34 @@ export function textoCupomZap(c, link, restam = null) {
   const url = link ? `${link}${link.includes('?') ? '&' : '?'}cupom=${encodeURIComponent(c.codigo)}` : '';
   return `Oi! 💜 Separei um cupom pra ti: *${c.codigo}*\n`
     + `🎟️ Vale ${vale}.\n\n`
-    + `Como usar: abre o link, escolhe o serviço e o horário e, antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`
+    + (String(link || '').includes('/triagem/')
+      ? `Como usar: abre o link, responde umas perguntinhas rápidas e escolhe teu horário. Antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`
+      : `Como usar: abre o link, escolhe o serviço e o horário e, antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`)
     + (url ? `\n${url}` : '');
 }
 export function enviarCupomZap(c, link, restam = null) {
   window.open('https://wa.me/?text=' + encodeURIComponent(textoCupomZap(c, link, restam)), '_blank');
 }
-export async function escolherCupomEnviar(link) {
+// Pra onde o link leva: triagem (cliente nova) ou direto pra agenda (quem já é cliente).
+// links = { triagem, agenda }; sem triagem, vai direto pra agenda.
+export function destinoCupom(c, links, restam = null) {
+  if (!links?.triagem) { enviarCupomZap(c, links?.agenda, restam); return; }
+  const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'cupd-ov';
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">🎟️ ${_esc(c.codigo)}: pra onde o link leva?</div>
+    <div class="cp-lista">
+      <button type="button" class="cp-cup cp-cup-esc" data-dest="triagem"><b>📝 Pela triagem</b><small>Pra cliente nova: responde umas perguntas, recebe a indicação e depois agenda.</small></button>
+      <button type="button" class="cp-cup cp-cup-esc" data-dest="agenda"><b>📅 Direto na agenda</b><small>Pra quem já é cliente e já sabe o que quer.</small></button>
+    </div>
+    <div class="ag-fbtns"><button class="btn-secondary" id="cupd-fechar" type="button">Voltar</button></div>
+  </div></div>`;
+  ov.querySelector('#cupd-fechar').onclick = () => close();
+  ov.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { enviarCupomZap(c, links[b.dataset.dest], restam); close(); });
+}
+export async function escolherCupomEnviar(links) {
   let lista = [], usos = {};
   try { lista = (await _listar()).filter(c => c.tipo !== 'presente' && c.ativo); lista.forEach(c => { if (c.limite == null) c.limite = 5; }); usos = await _usos(lista); }
   catch (e) { showToast(e.message, 'error'); return; }
@@ -191,7 +212,7 @@ export async function escolherCupomEnviar(link) {
   const rest = c => Math.max(0, c.limite - (usos[c.id] || 0));
   ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
     <div class="ag-fhead">🎟️ Enviar link com cupom</div>
-    <div class="fi-secao-sub" style="margin-top:0">Escolhe o cupom. Abre o WhatsApp com o link da agenda, o código e como usar: é só escolher a cliente.</div>
+    <div class="fi-secao-sub" style="margin-top:0">Escolhe o cupom e pra onde o link leva (triagem ou direto na agenda). Abre o WhatsApp com o link, o código e como usar: é só escolher a cliente.</div>
     <div class="cp-lista">${lista.length ? lista.map(c => `<button type="button" class="cp-cup cp-cup-esc" data-id="${_esc(c.id)}" ${rest(c) ? '' : 'disabled'}>
       <b>${_esc(c.codigo)}</b> <span>${c.desconto >= 100 ? 'integral' : c.desconto + '%'} · ${rest(c) ? `resta${rest(c) === 1 ? '' : 'm'} ${rest(c)} de ${c.limite}` : 'acabou'}</span>
       ${c.cliente_nome || c.descricao ? `<small>${_esc(c.cliente_nome ? 'Só pra ' + c.cliente_nome : c.descricao)}</small>` : ''}</button>`).join('')
@@ -201,7 +222,7 @@ export async function escolherCupomEnviar(link) {
   ov.querySelector('#cupz-fechar').onclick = () => close();
   ov.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
     const c = lista.find(x => x.id === b.dataset.id); if (!c) return;
-    enviarCupomZap(c, link, rest(c)); close();
+    close(); destinoCupom(c, links, rest(c));
   });
 }
 

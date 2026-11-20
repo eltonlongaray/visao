@@ -286,6 +286,8 @@ function _waLembrete(ag) {
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 // Formulário (triagem) de quem tem um: link curto que marca a origem WhatsApp no painel de Campanhas
 const _TRIAGEM_ZAP = { V83: '/agenda-online/ale-zap' };
+// Link do cupom: pela triagem quando a profissional tem uma (a triagem leva o código até a agenda)
+const _linkCupom = () => _TRIAGEM_ZAP[_cfg?.slug] ? `${location.origin}/triagem/${_cfg.slug}?utm_source=cupom` : null;
 const _linkTriagemZap = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
@@ -601,7 +603,7 @@ function wireFixos(corpo) {
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
     showToast('Seg a Sex ligados', 'success');
   });
-  corpo.querySelector('#ag-zap-cupom')?.addEventListener('click', () => escolherCupomEnviar(_linkPublico()));
+  corpo.querySelector('#ag-zap-cupom')?.addEventListener('click', () => escolherCupomEnviar({ triagem: _linkCupom(), agenda: _linkPublico() }));
   corpo.querySelector('#ag-copiar-tri')?.addEventListener('click', async () => {
     const inp = corpo.querySelector('#ag-link-tri');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
@@ -662,7 +664,7 @@ ${_linkTriagemZap()}`;
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
-  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), cfg: _cfg });
+  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), linkCupom: _linkCupom(), cfg: _cfg });
   corpo.querySelector('#ag-idv')?.addEventListener('click', () => abrirIdentidade(_cfg));
   corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons(_optsCupom()));
   corpo.querySelector('#ag-pres')?.addEventListener('click', () => abrirPresente(_optsCupom()));

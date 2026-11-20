@@ -57,6 +57,8 @@ function iniciar() {
   try { const x = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (x && x.r) st = x; } catch (e) {}
   // De onde veio (link do anúncio: ?utm_source=google&utm_campaign=blackfriday) — vai pro painel de Campanhas
   const q = new URLSearchParams(location.search);
+  // ?cupom=CÓDIGO (link de cupom que a profissional mandou): guarda e entrega pra agenda no fim
+  if (q.get('cupom')) st.cupom = q.get('cupom').trim().toUpperCase().slice(0, 30);
   if (q.get('utm_source') || q.get('utm_campaign')) st.origem = { source: q.get('utm_source') || '', campaign: q.get('utm_campaign') || '', medium: q.get('utm_medium') || '' };
   st.i >= 0 && passos().length ? tela() : intro();
 }
@@ -472,6 +474,7 @@ async function irParaAgenda(ind, plano) {
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
     `✨ Indicação: ${ind.servico}`,
+    ...(st.cupom ? [`🎟️ Cupom: ${st.cupom}`] : []),
     ...(st.interesses.length ? [`💡 Também me interessam: ${st.interesses.join(', ')}`] : []),
     ...(() => { const ps = [...new Set([].concat(st.r.casa || []).flatMap(n => M.produtosPor?.[n] || []))];
       return ps.length ? [`🌿 Produtos pra casa que combinam: ${ps.join(', ')}`] : []; })(),
@@ -489,5 +492,5 @@ async function irParaAgenda(ind, plano) {
       if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' });
     }
   } catch (e) {}
-  setTimeout(() => { location.href = '/agenda-online/' + encodeURIComponent(SLUG) + '?triagem=1'; }, 350);
+  setTimeout(() => { location.href = '/agenda-online/' + encodeURIComponent(SLUG) + '?triagem=1' + (st.cupom ? '&cupom=' + encodeURIComponent(st.cupom) : ''); }, 350);
 }
