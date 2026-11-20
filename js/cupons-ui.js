@@ -172,12 +172,17 @@ export function textoCupomZap(c, link, restam = null) {
   const ses = n === 1 ? '1 sessão' : `${n} sessões`;
   const vale = c.desconto >= 100 ? `${ses} sem custo (desconto integral)` : `${c.desconto}% de desconto em ${n > 1 ? 'até ' : ''}${ses}`;
   const url = link ? `${link}${link.includes('?') ? '&' : '?'}cupom=${encodeURIComponent(c.codigo)}` : '';
-  return `Oi! 💜 Separei um cupom pra ti: *${c.codigo}*\n`
-    + `🎟️ Vale ${vale}.\n\n`
+  return `Oi! 💜 Separei um cupom de desconto pra ti.\n\n`
+    + `🎟️ O código é: *${c.codigo}*\n`
+    + `Ele vale ${vale}.\n\n`
+    + `*Como usar:*\n`
+    + `1️⃣ Abre o link aqui embaixo\n`
     + (String(link || '').includes('/triagem/')
-      ? `Como usar: abre o link, responde umas perguntinhas rápidas e escolhe teu horário. Antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`
-      : `Como usar: abre o link, escolhe o serviço e o horário e, antes de confirmar, toca em *"Tenho um cupom de desconto"*, cola o código e toca em *Aplicar*.`)
-    + (url ? `\n${url}` : '');
+      ? `2️⃣ Responde as perguntinhas rápidas e escolhe teu horário\n`
+      : `2️⃣ Escolhe o serviço e o horário\n`)
+    + `3️⃣ Antes de confirmar, toca em *"Tenho um cupom de desconto"*\n`
+    + `4️⃣ Cola o código *${c.codigo}* e toca em *Aplicar*`
+    + (url ? `\n\n👉 ${url}` : '');
 }
 export function enviarCupomZap(c, link, restam = null) {
   window.open('https://wa.me/?text=' + encodeURIComponent(textoCupomZap(c, link, restam)), '_blank');
