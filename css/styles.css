@@ -9077,6 +9077,11 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-cup-esc { transition: transform .12s ease, background .15s, border-color .15s; }
 .cp-cup-esc:active { transform: scale(.97); }
 .cp-cup-esc[aria-pressed="true"] { transform: scale(.97); border-color: var(--green, #10b981); border-left-color: var(--green, #10b981); background: color-mix(in srgb, var(--green, #10b981) 14%, var(--card)); }
+.ag-dest { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.ag-dest button { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px; border-radius: 12px; border: 1px solid var(--border); border-left: 4px solid var(--border); background: var(--card); color: var(--text); font-family: inherit; font-size: 13.5px; cursor: pointer; transition: transform .12s ease, background .15s, border-color .15s; }
+.ag-dest button small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.ag-dest button:active { transform: scale(.97); }
+.ag-dest button[aria-pressed="true"] { border-color: var(--green, #10b981); border-left-color: var(--green, #10b981); background: color-mix(in srgb, var(--green, #10b981) 14%, var(--card)); }
 .ag-cup-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--green, #10b981); background: color-mix(in srgb, var(--green, #10b981) 12%, var(--card-2)); color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; }
 .ag-cup-chip span { color: var(--accent-2); font-weight: 700; font-size: 12px; margin-left: 4px; }
 @media (prefers-reduced-motion: reduce) { .cp-cup-esc, .cp-cup-esc:active, .cp-cup-esc[aria-pressed="true"] { transition: none; transform: none; } }
