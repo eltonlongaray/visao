@@ -126,8 +126,8 @@ window.TRIAGEM = {
     // Tempo do emocional (20/11, Élton): uma pergunta de tempo pro corpo, outra pra como ela se sente
     { id: "tempo_sentindo", grupo: "Como tu está", tipo: "unica", curto: "Há quanto tempo se sente assim",
       q: "Há quanto tempo tu vem te sentindo assim?",
-      mostrarSe: [{ campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
-        { campo: "emocional_geral", algumDe: ["Ansiosa", "Estressada", "Cansada, sem energia", "Dormindo mal", "Triste, desanimada"] }],
+      // só quando ela marcou ansiedade/estresse como queixa no começo (Élton: só celulite não repete)
+      mostrarSe: { campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
     { id: "objetivo", grupo: "O que tu busca", tipo: "unica", curto: "Objetivo",
       q: "O que tu busca agora?",
