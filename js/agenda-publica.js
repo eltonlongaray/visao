@@ -339,6 +339,7 @@ export async function renderAgendaPublica(app, slug) {
           ${semOffset + 2 <= _maxOffset ? `<button class="ap-cal-mais ap-sem-next" type="button">Ver mais datas →</button>` : ''}
         </div>
       </div>
+      ${dia ? `<div class="ap-hor-tit">Horários disponíveis<small>${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}</small></div>` : ''}
       <div class="ap-slots-wrap">
         ${(g.manha.length + g.tarde.length + g.noite.length)
           ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
