@@ -99,6 +99,14 @@ window.TRIAGEM = {
         { v: "Esporão ou calos", icone: "🦶" },
         { v: "Depois de treino ou esforço", icone: "🏃‍♀️" }
       ] },
+    { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
+      q: "Há quanto tempo isso te incomoda?",
+      // só quando tem queixa física (a do emocional é a pergunta "tempo_sentindo")
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção", "Manchas", "Acne, cravos, pele oleosa e/ou porosa", "Dores e tensão", "Queda de cabelo"] },
+      ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
+    { id: "antes", grupo: "Sobre ti", tipo: "unica", curto: "Tratamento antes",
+      q: "Já fez algum tratamento pra isso?",
+      ops: [{ v: "Nunca fiz" }, { v: "Sim, mas não tive resultado" }, { v: "Sim, tive resultado e quero manter" }] },
     // Emocional (20/11, Élton): sempre DEPOIS da parte do corpo/dor, qualquer que seja a ordem
     // em que ela marcou. Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
     // No fim, ansiedade de lado vira "Quer cuidar disso também?" + produto em destaque em "casa".
@@ -108,18 +116,19 @@ window.TRIAGEM = {
       exclusivas: ["Só isso"],
       ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
       avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
-    // Sem ansiedade marcada (20/11, Élton): depois do corpo, como ela se sente com ESSE problema
-    { id: "sentimento", grupo: "Como tu está", tipo: "multi", curto: "Como se sente com isso",
-      q: "Como tu te sente em relação a isso?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção", "Manchas", "Acne, cravos, pele oleosa e/ou porosa"], nenhumDe: ["Ansiedade e estresse"] },
-      exclusivas: ["Incomoda, mas convivo bem"],
-      ops: [{ v: "Insegura com o meu corpo" }, { v: "Evito usar biquíni, short ou roupa curta" }, { v: "Mexe com a minha autoestima" }, { v: "Incomoda, mas convivo bem" }] },
-    { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
-      q: "Há quanto tempo isso te incomoda?",
+    // Sem ansiedade marcada (20/11, Élton): o mesmo card, com ansiedade e estresse incluídos
+    { id: "emocional_geral", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
+      q: "Como tu vem te sentindo ultimamente?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", nenhumDe: ["Ansiedade e estresse"] },
+      exclusivas: ["Tô bem, tranquila"],
+      ops: [{ v: "Ansiosa" }, { v: "Estressada" }, { v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Tô bem, tranquila" }],
+      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
+    // Tempo do emocional (20/11, Élton): uma pergunta de tempo pro corpo, outra pra como ela se sente
+    { id: "tempo_sentindo", grupo: "Como tu está", tipo: "unica", curto: "Há quanto tempo se sente assim",
+      q: "Há quanto tempo tu vem te sentindo assim?",
+      // só quando ela marcou ansiedade/estresse como queixa no começo (Élton: só celulite não repete)
+      mostrarSe: { campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
-    { id: "antes", grupo: "Sobre ti", tipo: "unica", curto: "Tratamento antes",
-      q: "Já fez algum tratamento pra isso?",
-      ops: [{ v: "Nunca fiz" }, { v: "Sim, mas não tive resultado" }, { v: "Sim, tive resultado e quero manter" }] },
     { id: "objetivo", grupo: "O que tu busca", tipo: "unica", curto: "Objetivo",
       q: "O que tu busca agora?",
       ops: [
@@ -159,7 +168,7 @@ window.TRIAGEM = {
         "Queda e falhas no cabelo ou barba": ["Queda de cabelo"],
         "Celulite, gordura e inchaço": ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"],
         "Estrias": ["Estrias"],
-        "Ansiedade, estresse e sono": ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal"]
+        "Ansiedade, estresse e sono": ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal", "Ansiosa", "Estressada"]
       },
       ops: [
         { v: "Espinhas, cravos e pele oleosa", icone: "🌸" },
@@ -243,6 +252,10 @@ window.TRIAGEM = {
       "Manchas": { servico: "Tratamento para manchas", porque: "Tu também marcou manchas: dá pra clarear no atendimento também." },
       "Inchaço e retenção": { servico: "Drenagem linfática", porque: "Tu também marcou inchaço: a drenagem tira a retenção de líquido." }
     };
+    // Marcou ansiosa/estressada/dormindo mal na tela "como tu vem te sentindo" → massagem relaxante no fim
+    const sentiu = (r.emocional_geral || []).filter(x => ["Ansiosa", "Estressada", "Dormindo mal"].includes(x));
+    if (sentiu.length && principal !== "Ansiedade e estresse" && principal !== "Quero só relaxar")
+      extras.push({ servico: "Massagem relaxante", porque: "Tu contou que anda " + sentiu.map(x => x.toLowerCase()).join(" e ") + ": uma massagem relaxante ajuda a desacelerar." });
     for (const q of inc.slice(1)) {
       const e = porOutroAssunto[q];
       if (e && grupoDe[q] !== grupoDe[principal] && !extras.some(x => x.servico === e.servico)) extras.push(e);
