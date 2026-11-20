@@ -516,7 +516,7 @@ function desenhar() {
       ` : ''}
       <button class="ag-chipbtn ${_cupomLigado ? 'on' : ''}" id="ag-cup-tog" type="button" role="switch" aria-checked="${_cupomLigado}" style="margin-top:12px"><span class="ag-cup-rot"><span class="ag-cup-ic" aria-hidden="true">🎟️</span>Enviar com cupom</span><span class="ag-switch" aria-hidden="true"></span></button>
       <div id="ag-cup-sel"></div>
-      ${_linkTriagemZap() || _cupomEnvio ? `<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}`)}
+      ${_linkTriagemZap() || _cupomEnvio ? `<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Enviar link no WhatsApp</button>` : ''}`)}
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
@@ -632,11 +632,8 @@ function wireFixos(corpo) {
       setTimeout(pintaCupom, 250);
     });
     let zap = corpo.querySelector('#ag-zap-tri');
-    if (!zap && _cupomEnvio) { box.insertAdjacentHTML('afterend', '<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>'); corpo.querySelector('#ag-zap-tri').addEventListener('click', compartilhar); }
+    if (!zap && _cupomEnvio) { box.insertAdjacentHTML('afterend', '<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Enviar link no WhatsApp</button>'); corpo.querySelector('#ag-zap-tri').addEventListener('click', compartilhar); }
     if (zap && !_cupomEnvio && !_linkTriagemZap()) zap.remove();
-    zap = corpo.querySelector('#ag-zap-tri');
-    if (zap) zap.textContent = !_cupomEnvio ? '📲 Compartilhar no WhatsApp'
-      : `📲 Enviar cupom ${_cupomEnvio.c.codigo} ${_linkCupom() && _cupomDestino === 'triagem' ? 'pela triagem' : 'direto na agenda'}`;
   };
   corpo.querySelector('#ag-cup-tog')?.addEventListener('click', async () => {
     _cupomLigado = !_cupomLigado;
