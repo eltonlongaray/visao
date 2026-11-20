@@ -163,7 +163,8 @@ export async function renderAgendaPublica(app, slug) {
   const TRI = _lerTriagem(cfg.slug);
   let combo = [];                    // 2+ serviços num horário só (da triagem)
   const cupomUrl = (new URLSearchParams(location.search).get('cupom') || '').trim().toUpperCase().slice(0, 30);
-  let cupom = null, cupomAberto = false;   // cupom conferido ({codigo, desconto, descricao}); ?cupom= só deixa o campo preenchido
+  // cupom conferido ({codigo, desconto, descricao}). ?cupom= no link: o campo já abre preenchido e é aplicado sozinho
+  let cupom = null, cupomAberto = !!cupomUrl, cupomAuto = false;
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
   // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
   // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
@@ -452,6 +453,8 @@ export async function renderAgendaPublica(app, slug) {
           : 'Cupom não encontrado. Confere o código.';
       }
     });
+    // veio com ?cupom= no link: aplica sozinho uma vez, quando aparece o formulário de confirmar
+    if (cupomUrl && !cupomAuto && !cupom && app.querySelector('#ap-cupom-ok')) { cupomAuto = true; app.querySelector('#ap-cupom-ok').click(); }
 
     // Retráteis (Meus agendamentos / Histórico)
     app.querySelectorAll('.ap-accord-btn').forEach(b => b.addEventListener('click', () => {

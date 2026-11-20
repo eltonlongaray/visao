@@ -287,7 +287,7 @@ const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 // Formulário (triagem) de quem tem um: link curto que marca a origem WhatsApp no painel de Campanhas
 const _TRIAGEM_ZAP = { V83: '/agenda-online/ale-zap' };
 // Link do cupom: pela triagem quando a profissional tem uma (a triagem leva o código até a agenda)
-const _linkCupom = () => _TRIAGEM_ZAP[_cfg?.slug] ? `${location.origin}/triagem/${_cfg.slug}?utm_source=cupom` : null;
+const _linkCupom = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;   // link do zap (repassa o ?cupom= pra triagem)
 let _cupomEnvio = null, _cupomLigado = false, _cuponsAtivos = null, _cupomDestino = 'triagem';   // chave "Enviar com cupom": cupom escolhido ({ c, restam })
 const _linkTriagemZap = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
@@ -653,7 +653,7 @@ function wireFixos(corpo) {
   });
   function compartilhar() {
     if (_cupomLigado && !_cupomEnvio) { showToast('Toca num cupom da lista primeiro', 'info'); return; }
-    if (_cupomEnvio) { enviarCupomZap(_cupomEnvio.c, _linkCupom() && _cupomDestino === 'triagem' ? _linkCupom() : _linkPublico(), _cupomEnvio.restam); return; }
+    if (_cupomEnvio) { { const tri = !!_linkCupom() && _cupomDestino === 'triagem'; enviarCupomZap(_cupomEnvio.c, tri ? _linkCupom() : _linkPublico(), _cupomEnvio.restam, tri); } return; }
     const txt = `Oi! 💜 Antes de agendar, responde essa triagem rapidinha (2 min) pra eu entender teu caso e te indicar o cuidado certo. No final tu já escolhe teu horário:
 ${_linkTriagemZap()}`;
     window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');

@@ -166,8 +166,8 @@ export async function abrirCupons(opts = {}) {
 }
 
 // === BLOCO 2b: MANDAR O LINK DA AGENDA JÁ COM UM CUPOM (WhatsApp) ===
-// O link leva ?cupom=CÓDIGO: a agenda já abre com o código preenchido no campo do cupom.
-export function textoCupomZap(c, link, restam = null) {
+// O link leva ?cupom=CÓDIGO: a agenda aplica o cupom sozinha na hora de confirmar.
+export function textoCupomZap(c, link, restam = null, viaTriagem = false) {
   const n = restam ?? c.limite;
   const ses = n === 1 ? '1 sessão' : `${n} sessões`;
   const vale = c.desconto >= 100 ? `${ses} sem custo (desconto integral)` : `${c.desconto}% de desconto em ${n > 1 ? 'até ' : ''}${ses}`;
@@ -177,15 +177,15 @@ export function textoCupomZap(c, link, restam = null) {
     + `Ele vale ${vale}.\n\n`
     + `*Como usar:*\n`
     + `1️⃣ Abre o link aqui embaixo\n`
-    + (String(link || '').includes('/triagem/')
+    + (viaTriagem || String(link || '').includes('/triagem/')
       ? `2️⃣ Responde as perguntinhas rápidas e escolhe teu horário\n`
       : `2️⃣ Escolhe o serviço e o horário\n`)
-    + `3️⃣ Antes de confirmar, toca em *"Tenho um cupom de desconto"*\n`
-    + `4️⃣ Cola o código *${c.codigo}* e toca em *Aplicar*`
+    + `3️⃣ Na hora de confirmar, o cupom já vai estar aplicado ✅\n\n`
+    + `Se não aparecer, toca em *"Tenho um cupom de desconto"*, cola o código *${c.codigo}* e toca em *Aplicar*.`
     + (url ? `\n\n👉 ${url}` : '');
 }
-export function enviarCupomZap(c, link, restam = null) {
-  window.open('https://wa.me/?text=' + encodeURIComponent(textoCupomZap(c, link, restam)), '_blank');
+export function enviarCupomZap(c, link, restam = null, viaTriagem = false) {
+  window.open('https://wa.me/?text=' + encodeURIComponent(textoCupomZap(c, link, restam, viaTriagem)), '_blank');
 }
 // Pra onde o link leva: triagem (cliente nova) ou direto pra agenda (quem já é cliente).
 // links = { triagem, agenda }; sem triagem, vai direto pra agenda.
@@ -204,7 +204,7 @@ export function destinoCupom(c, links, restam = null) {
     <div class="ag-fbtns"><button class="btn-secondary" id="cupd-fechar" type="button">Voltar</button></div>
   </div></div>`;
   ov.querySelector('#cupd-fechar').onclick = () => close();
-  ov.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { enviarCupomZap(c, links[b.dataset.dest], restam); close(); });
+  ov.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { enviarCupomZap(c, links[b.dataset.dest], restam, b.dataset.dest === 'triagem'); close(); });
 }
 // Cupons ativos com o saldo de sessões (chave "Enviar com cupom" da agenda, que lista ali mesmo)
 export async function listarCuponsAtivos() {
