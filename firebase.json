@@ -77,6 +77,16 @@
         "source": "/ale-zap",
         "destination": "/triagem/V83?utm_source=whatsapp",
         "type": 302
+      },
+      {
+        "source": "/agenda-online/ale",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/agenda-online/ale-zap",
+        "destination": "/triagem/V83?utm_source=whatsapp",
+        "type": 302
       }
     ]
   }
