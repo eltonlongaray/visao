@@ -82,6 +82,20 @@ window.TRIAGEM = {
         { v: "Dores e tensão", icone: "💆" }, { v: "Ansiedade e estresse", icone: "🌙" }, { v: "Queda de cabelo", icone: "💇" },
         { v: "Quero só relaxar", icone: "🕯️" }
       ] },
+    // Emocional (20/11): só quando ansiedade/estresse é o FOCO (o primeiro que ela marcou).
+    // Se ela marcou junto com celulite etc., não pergunta: fica registrado no resumo e vira
+    // sugestão de serviço no fim ("Quer cuidar disso também?") + produto em destaque na pergunta "casa".
+    // Sem "Ansiosa"/"Estressada": ela já disse isso na primeira tela.
+    { id: "emocional", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
+      q: "Além da ansiedade e do estresse, tem mais alguma coisa?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", primeiroDe: ["Ansiedade e estresse"] },
+      exclusivas: ["Só isso"],
+      ops: [{ v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }, { v: "Só isso" }],
+      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
+    { id: "regiao", grupo: "Sobre ti", tipo: "multi", curto: "Região",
+      q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
+      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
+      ops: [{ v: "Bumbum" }, { v: "Coxas" }, { v: "Culote" }, { v: "Barriga" }, { v: "Braços" }, { v: "Costas" }] },
     { id: "dor_onde", grupo: "Sobre a dor", tipo: "multi", curto: "Onde dói",
       q: "Onde tu sente dor?", ajuda: "Pode marcar mais de uma.",
       mostrarSe: { campo: "incomodo", algumDe: ["Dores e tensão"] },
@@ -95,15 +109,6 @@ window.TRIAGEM = {
         { v: "Esporão ou calos", icone: "🦶" },
         { v: "Depois de treino ou esforço", icone: "🏃‍♀️" }
       ] },
-    { id: "emocional", grupo: "Como tu está", tipo: "multi", curto: "Como tem se sentido",
-      q: "Como tu tem te sentido?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", algumDe: ["Ansiedade e estresse"] },
-      ops: [{ v: "Ansiosa" }, { v: "Estressada" }, { v: "Cansada, sem energia" }, { v: "Dormindo mal" }, { v: "Triste, desanimada" }],
-      avisos: [{ se: "Triste, desanimada", texto: "Obrigada por confiar em mim 💜 Os atendimentos ajudam a cuidar de ti e complementam, mas não substituem, o acompanhamento com psicólogo ou médico." }] },
-    { id: "regiao", grupo: "Sobre ti", tipo: "multi", curto: "Região",
-      q: "Em qual parte do corpo?", ajuda: "Pode marcar mais de uma.",
-      mostrarSe: { campo: "incomodo", algumDe: ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"] },
-      ops: [{ v: "Bumbum" }, { v: "Coxas" }, { v: "Culote" }, { v: "Barriga" }, { v: "Braços" }, { v: "Costas" }] },
     { id: "tempo", grupo: "Sobre ti", tipo: "unica", curto: "Há quanto tempo",
       q: "Há quanto tempo isso te incomoda?",
       ops: [{ v: "Menos de 6 meses" }, { v: "De 6 meses a 2 anos" }, { v: "Mais de 2 anos" }] },
@@ -140,6 +145,17 @@ window.TRIAGEM = {
       q: "No atendimento eu uso óleos essenciais e cremes naturais",
       destaque: ["E tu pode levar pra casa pra continuar ou iniciar um novo tratamento.", "O que te interessa? Pode marcar mais de uma."],
       exclusivas: ["Não tenho interesse no momento"],
+      // O que combina com o que ela marcou no começo sobe pro topo com selo
+      combina: {
+        "Espinhas, cravos e pele oleosa": ["Acne, cravos, pele oleosa e/ou porosa", "Acne e espinhas", "Cravos e poros abertos", "Oleosidade"],
+        "Manchas na axila e virilha": ["Manchas"],
+        "Olheiras e bolsas nos olhos": ["Olheiras"],
+        "Pele seca": ["Ressecamento"],
+        "Queda e falhas no cabelo ou barba": ["Queda de cabelo"],
+        "Celulite, gordura e inchaço": ["Celulite", "Flacidez", "Gordura localizada / medidas", "Inchaço e retenção"],
+        "Estrias": ["Estrias"],
+        "Ansiedade, estresse e sono": ["Ansiedade e estresse", "Quero só relaxar", "Dormindo mal"]
+      },
       ops: [
         { v: "Espinhas, cravos e pele oleosa", icone: "🌸" },
         { v: "Manchas na axila e virilha", icone: "🌗" },
@@ -212,6 +228,20 @@ window.TRIAGEM = {
       "Estrias": { gestanteNao: true, servico: "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", titulo: "Deusa Grega", porque: "Tu marcou estrias: a Deusa Grega cuida delas no atendimento." },
       "Ansiedade, estresse e sono": { servico: "Massagem relaxante", porque: "Tu marcou ansiedade e sono: uma massagem relaxante ajuda a desacelerar." }
     };
+    // Queixas "de outro assunto" (ex.: ansiedade junto com celulite): não viram pergunta,
+    // viram sugestão pra somar no fim
+    const grupoDe = { "Celulite": "corpo", "Estrias": "corpo", "Flacidez": "corpo", "Gordura localizada / medidas": "corpo", "Inchaço e retenção": "corpo",
+      "Manchas": "pele", "Acne, cravos, pele oleosa e/ou porosa": "pele", "Dores e tensão": "dor", "Ansiedade e estresse": "mente", "Quero só relaxar": "mente" };
+    const porOutroAssunto = {
+      "Ansiedade e estresse": { servico: "Massagem relaxante", porque: "Tu também contou que anda com ansiedade e estresse: uma massagem relaxante ajuda a desacelerar." },
+      "Dores e tensão": { servico: "Massagem terapêutica", porque: "Tu também contou que sente dores e tensão: dá pra soltar isso no mesmo atendimento." },
+      "Manchas": { servico: "Tratamento para manchas", porque: "Tu também marcou manchas: dá pra clarear no atendimento também." },
+      "Inchaço e retenção": { servico: "Drenagem linfática", porque: "Tu também marcou inchaço: a drenagem tira a retenção de líquido." }
+    };
+    for (const q of inc.slice(1)) {
+      const e = porOutroAssunto[q];
+      if (e && grupoDe[q] !== grupoDe[principal] && !extras.some(x => x.servico === e.servico)) extras.push(e);
+    }
     const gestante = (r.saude || []).includes("Estou gestante");
     for (const c of (r.casa || [])) { const e = porCasa[c]; if (e && !(gestante && e.gestanteNao) && !extras.some(x => x.servico === e.servico)) extras.push(e); }
     const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
