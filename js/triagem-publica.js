@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=27`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=28`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -75,6 +75,8 @@ function itensVitrine() {
   return M.vitrine.itens.map(it => ({ ...it, indicado: indicado(it) })).sort((a, b) => b.indicado - a.indicado);
 }
 function condicao(c) {
+  // lista de condições: vale se QUALQUER uma valer
+  if (Array.isArray(c)) return c.some(condicao);
   const v = st.r[c.campo];
   const arr = Array.isArray(v) ? v : (v ? [v] : []);
   // primeiroDe: só quando o PRIMEIRO marcado (o que mais incomoda) é um desses
