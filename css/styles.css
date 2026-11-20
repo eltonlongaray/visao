@@ -9066,6 +9066,16 @@ body.rota-publica .bottom-nav { display: none !important; }
 .cp-cup-lin { display: grid; grid-template-columns: 1fr 64px auto; gap: 6px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
 .cp-cup-lin input { min-width: 0; width: 100%; background: var(--card-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
 .cp-cup-cod { text-transform: uppercase; font-weight: 700; }
+/* cupom em card próprio (borda estilo Ritual) + busca no topo (20/11) */
+.cp-lista { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 12px; }
+.cp-lista .cp-cup { border: 1px solid var(--border); border-left: 4px solid var(--accent, #7c3aed); border-radius: 12px; padding: 10px 12px 12px; background: var(--card); }
+.cp-lista .cp-cup[hidden] { display: none; }
+.cp-cup-rot { display: grid; grid-template-columns: 1fr 70px auto; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.cp-cup-codbox { display: flex; align-items: stretch; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card-2); overflow: hidden; }
+.cp-cup-codbox .cp-cup-cod { border: none !important; border-radius: 0 !important; background: transparent !important; flex: 1; min-width: 0; }
+.cp-cup-suf { display: flex; align-items: center; padding: 0 8px; font-weight: 800; font-size: 14px; color: var(--accent-2, #a78bfa); background: var(--card); border-left: 1px solid var(--border); white-space: nowrap; }
+.cp-busca { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; background: var(--card-2); margin-top: 10px; }
+.cp-busca input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text); padding: 10px 0; font-family: inherit; font-size: 14px; outline: none; }
 .cp-cup-desc { grid-column: 1 / -1; }
 .cp-cup-on { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 8px; padding: 8px 10px; font-family: inherit; font-weight: 700; font-size: 12px; cursor: pointer; }
 .cp-cup-on.on { color: var(--green, #10b981); border-color: var(--green, #10b981); }

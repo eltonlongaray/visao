@@ -52,11 +52,18 @@ function _codigoPara(nome, desconto, existentes) {
   while (usados.has(cod)) cod = base + fim + (n++);
   return cod;
 }
+// Sufixo que o sistema cria depois da palavra digitada (BLACK + .LDS12): deixa o código único e difícil de adivinhar
+function _sufixo(existentes) {
+  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ', N = '23456789', r = s => s[Math.floor(Math.random() * s.length)];
+  const usados = new Set(existentes.map(x => String(x.codigo || '').toUpperCase()));
+  let suf; do { suf = '.' + r(L) + r(L) + r(L) + r(N) + r(N); } while ([...usados].some(c => c.endsWith(suf)));
+  return suf;
+}
 const _txtDesc = d => d >= 100 ? 'desconto integral' : `${d}% de desconto`;
 
 // === BLOCO 2: POPUP ===
 export async function abrirCupons(opts = {}) {
-  let lista = [], presentes = [], usos = {}, erro = '';
+  let lista = [], presentes = [], usos = {}, erro = '', filtro = '';
   try {
     const todos = await _listar(); todos.forEach(c => { if (c.limite == null) c.limite = 5; });
     usos = await _usos(todos);
@@ -70,9 +77,12 @@ export async function abrirCupons(opts = {}) {
 
   const linha = c => {
     const usados = c._renovar ? 0 : (usos[c.id] || 0), rest = Math.max(0, c.limite - usados);
-    return `<div class="cp-cup" data-cup="${_esc(c.id)}">
+    const busca = `${c.codigo || ''}${c._suf || ''} ${c.descricao || ''} ${c.cliente_nome || ''}`.toLowerCase();
+    return `<div class="cp-cup" data-cup="${_esc(c.id)}" data-busca="${_esc(busca)}">
+      <div class="cp-cup-rot"><span>Código</span><span>Desconto</span><span></span></div>
       <div class="cp-cup-lin">
-        <input class="cp-cup-cod" value="${_esc(c.codigo)}" maxlength="30" data-f="codigo" aria-label="Código">
+        ${c._novo ? `<div class="cp-cup-codbox"><input class="cp-cup-cod" value="${_esc(c.codigo)}" maxlength="22" data-f="codigo" placeholder="PALAVRA" aria-label="Palavra do código"><span class="cp-cup-suf" title="Criado pelo sistema">${_esc(c._suf)}</span></div>`
+          : `<input class="cp-cup-cod" value="${_esc(c.codigo)}" maxlength="30" data-f="codigo" aria-label="Código">`}
         <label class="cp-cup-pct"><input inputmode="numeric" value="${c.desconto}" maxlength="3" data-f="desconto" aria-label="Desconto em %">%</label>
         <button type="button" class="cp-cup-on ${c.ativo ? 'on' : ''}" data-on>${c.ativo ? 'Ativo' : 'Pausado'}</button>
       </div>
@@ -92,16 +102,11 @@ export async function abrirCupons(opts = {}) {
       <div class="ag-fhead">🎟️ Cupons de desconto</div>
       <div class="fi-secao-sub" style="margin-top:0">Quem agenda pelo seu link digita o código. Cada código tem o seu desconto (<b>100% = integral</b>, a pessoa não paga) e um número de sessões: o saldo baixa sozinho a cada agendamento e volta se a pessoa cancelar.</div>
       ${erro ? `<div class="fi-aviso">${_esc(erro)}</div>` : ''}
-      ${lista.map(linha).join('') || (erro ? '' : '<div class="fi-vazio">Nenhum cupom ainda.</div>')}
+      ${lista.length > 1 ? `<label class="cp-busca"><span aria-hidden="true">🔍</span><input id="cup-busca" type="search" placeholder="Buscar cupom (código ou anotação)" value="${_esc(filtro)}"></label>` : ''}
+      <div class="cp-lista">${lista.map(linha).join('') || (erro ? '' : '<div class="fi-vazio">Nenhum cupom ainda.</div>')}</div>
+      <div class="fi-vazio" id="cup-nada" hidden>Nenhum cupom com esse nome.</div>
       <div class="fi-secao-sub">Pra apagar um cupom, deixe o código em branco e salve. Cupom de uma cliente só: abra a cliente em 👥 Clientes → 🎟️ Gerar cupom.</div>
       ${erro ? '' : '<button class="fi-btn" id="cup-novo" type="button">➕ Novo cupom</button>'}
-      <div class="ag-sub-tit">🎁 Cartões presente</div>
-      ${presentes.length ? presentes.slice().reverse().map(c => {
-        const usado = (usos[c.id] || 0) >= c.limite, venceu = c.validade && c.validade < _hoje();
-        return `<div class="cp-pres"><div><b>${_esc(c.codigo)}</b> · ${_esc(String(c.servico_nome || '').split(' (')[0])}<br><small>Para ${_esc(c.cliente_nome || '—')}${c.de_nome ? ` · de ${_esc(c.de_nome)}` : ''} · ${usado ? '✅ usado' : venceu ? '⌛ venceu' : `vale até ${_dataBr(c.validade)}`}</small></div>
-          ${usado || venceu ? '' : `<button class="fi-btn" type="button" data-reenviar="${_esc(c.id)}" aria-label="Mandar de novo">📤</button>`}</div>`;
-      }).join('') : '<div class="fi-vazio">Nenhum cartão presente ainda.</div>'}
-      ${erro ? '' : '<button class="fi-btn" id="cup-presente" type="button">🎁 Novo cartão presente</button>'}
       <div class="ag-fbtns">
         <button class="btn-secondary" id="cup-fechar" type="button">Fechar</button>
         ${erro ? '' : '<button class="btn-primary" id="cup-salvar" type="button">Salvar</button>'}
@@ -109,7 +114,7 @@ export async function abrirCupons(opts = {}) {
     </div></div>`;
     ov.querySelector('#cup-fechar').onclick = () => close();
     ov.querySelector('#cup-novo')?.addEventListener('click', () => {
-      lerTela(); lista.push({ id: 'novo' + Date.now(), codigo: lista.length ? '' : 'PARCERIA', desconto: 100, limite: 5, ativo: true, descricao: '', _novo: true }); desenhar();
+      lerTela(); filtro = ''; lista.push({ id: 'novo' + Date.now(), codigo: '', _suf: _sufixo([...lista, ...presentes]), desconto: 100, limite: 5, ativo: true, descricao: '', _novo: true }); desenhar();
       const ult = ov.querySelectorAll('.cp-cup-cod'); ult[ult.length - 1]?.focus();
     });
     const doCup = el => lista.find(x => x.id === el.closest('[data-cup]').dataset.cup);
@@ -118,22 +123,25 @@ export async function abrirCupons(opts = {}) {
     ov.querySelectorAll('[data-mais]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c.limite = Math.min(999, c.limite + 1); desenhar(); });
     ov.querySelectorAll('[data-renovar]').forEach(b => b.onclick = () => { lerTela(); const c = doCup(b); c._renovar = true; c.limite = 5; c.ativo = true; desenhar(); });
     ov.querySelector('#cup-salvar')?.addEventListener('click', salvar);
-    ov.querySelector('#cup-presente')?.addEventListener('click', () => { close(); abrirPresente(opts); });
-    ov.querySelectorAll('[data-reenviar]').forEach(b => b.onclick = async () => {
-      const c = presentes.find(x => x.id === b.dataset.reenviar); if (!c) return;
-      _compartilhar(await _imagemPresente(c, opts), c, opts);
-    });
+    const filtrar = () => {
+      const q = filtro.trim().toLowerCase(); let n = 0;
+      ov.querySelectorAll('.cp-lista [data-cup]').forEach(el => { const v = !q || el.dataset.busca.includes(q); el.hidden = !v; if (v) n++; });
+      const nada = ov.querySelector('#cup-nada'); if (nada) nada.hidden = !(q && !n);
+    };
+    ov.querySelector('#cup-busca')?.addEventListener('input', e => { filtro = e.target.value; filtrar(); });
+    filtrar();
   };
   const lerTela = () => ov.querySelectorAll('[data-cup]').forEach(el => {
     const c = lista.find(x => x.id === el.dataset.cup); if (!c) return;
-    c.codigo = el.querySelector('[data-f="codigo"]').value.trim().toUpperCase().replace(/\s+/g, '');
+    c.codigo = el.querySelector('[data-f="codigo"]').value.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9.]/g, '');
     c.desconto = Math.max(1, Math.min(100, parseInt(el.querySelector('[data-f="desconto"]').value, 10) || 100));
     c.descricao = el.querySelector('[data-f="descricao"]').value.trim();
   });
   async function salvar() {
     lerTela();
     const uid = auth.currentUser?.uid; if (!uid) { showToast('Sessão expirada', 'error'); return; }
-    const codigos = lista.map(c => c.codigo).filter(Boolean);
+    const codFinal = c => c.codigo ? (c._novo ? c.codigo + c._suf : c.codigo) : '';
+    const codigos = lista.map(codFinal).filter(Boolean);
     if (new Set(codigos).size !== codigos.length) { showToast('Tem dois cupons com o mesmo código', 'error'); return; }
     const b = ov.querySelector('#cup-salvar'); b.disabled = true; b.textContent = 'Salvando…';
     try {
@@ -142,7 +150,7 @@ export async function abrirCupons(opts = {}) {
           if (!c._novo) { const { error } = await supabase.from('cupons').delete().eq('id', c.id); if (error) throw _erro(error); }
           continue;
         }
-        const row = { codigo: c.codigo, desconto: c.desconto, limite: c.limite, ativo: c.ativo, descricao: c.descricao || null };
+        const row = { codigo: codFinal(c), desconto: c.desconto, limite: c.limite, ativo: c.ativo, descricao: c.descricao || null };
         if (c._renovar) row.ciclo_inicio = new Date().toISOString();
         const { error } = c._novo
           ? await supabase.from('cupons').insert({ ...row, owner_id: uid })

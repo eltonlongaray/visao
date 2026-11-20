@@ -284,6 +284,9 @@ function _waLembrete(ag) {
   return `${wa}?text=${encodeURIComponent(msg)}`;
 }
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
+// Formulário (triagem) de quem tem um: link curto que marca a origem WhatsApp no painel de Campanhas
+const _TRIAGEM_ZAP = { V83: '/agenda-online/ale-zap' };
+const _linkTriagemZap = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
 const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
@@ -501,7 +504,13 @@ function desenhar() {
       <div class="ag-link-box">
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
-      </div>`)}
+      </div>
+      ${_linkTriagemZap() ? `<div class="ag-serv-sub" style="margin-top:14px">📝 Formulário (triagem): manda pra cliente antes de agendar.</div>
+      <div class="ag-link-box">
+        <input id="ag-link-tri" readonly value="${_esc(_linkTriagemZap())}">
+        <button id="ag-copiar-tri" class="btn-secondary" type="button">Copiar</button>
+      </div>
+      <button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}`)}
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
@@ -590,6 +599,16 @@ function wireFixos(corpo) {
     delete base['6']; delete base['0'];
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
     showToast('Seg a Sex ligados', 'success');
+  });
+  corpo.querySelector('#ag-copiar-tri')?.addEventListener('click', async () => {
+    const inp = corpo.querySelector('#ag-link-tri');
+    try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
+    catch { inp.focus(); inp.select(); showToast('Segure no link e copie', 'info'); }
+  });
+  corpo.querySelector('#ag-zap-tri')?.addEventListener('click', () => {
+    const txt = `Oi! 💜 Antes de agendar, responde essa triagem rapidinha (2 min) pra eu entender teu caso e te indicar o cuidado certo. No final tu já escolhe teu horário:
+${_linkTriagemZap()}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
   });
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
