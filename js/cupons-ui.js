@@ -206,6 +206,13 @@ export function destinoCupom(c, links, restam = null) {
   ov.querySelector('#cupd-fechar').onclick = () => close();
   ov.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { enviarCupomZap(c, links[b.dataset.dest], restam); close(); });
 }
+// Cupons ativos com o saldo de sessões (chave "Enviar com cupom" da agenda, que lista ali mesmo)
+export async function listarCuponsAtivos() {
+  const lista = (await _listar()).filter(c => c.tipo !== 'presente' && c.ativo);
+  lista.forEach(c => { if (c.limite == null) c.limite = 5; });
+  const usos = await _usos(lista);
+  return lista.map(c => ({ c, restam: Math.max(0, c.limite - (usos[c.id] || 0)) }));
+}
 export async function escolherCupomEnviar(links) {
   let lista = [], usos = {};
   try { lista = (await _listar()).filter(c => c.tipo !== 'presente' && c.ativo); lista.forEach(c => { if (c.limite == null) c.limite = 5; }); usos = await _usos(lista); }

@@ -11,7 +11,7 @@ import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons, gerarCupomCliente, abrirPresente, escolherCupomEnviar } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente, abrirPresente, listarCuponsAtivos, destinoCupom } from './cupons-ui.js';
 import { abrirIdentidade } from './identidade-ui.js';
 import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
@@ -288,6 +288,7 @@ const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
 const _TRIAGEM_ZAP = { V83: '/agenda-online/ale-zap' };
 // Link do cupom: pela triagem quando a profissional tem uma (a triagem leva o código até a agenda)
 const _linkCupom = () => _TRIAGEM_ZAP[_cfg?.slug] ? `${location.origin}/triagem/${_cfg.slug}?utm_source=cupom` : null;
+let _cupomEnvio = null, _cupomLigado = false, _cuponsAtivos = null;   // chave "Enviar com cupom": cupom escolhido ({ c, restam })
 const _linkTriagemZap = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
@@ -512,8 +513,10 @@ function desenhar() {
         <input id="ag-link-tri" readonly value="${_esc(_linkTriagemZap())}">
         <button id="ag-copiar-tri" class="btn-secondary" type="button">Copiar</button>
       </div>
-      <button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}
-      <button id="ag-zap-cupom" class="btn-secondary" type="button" style="margin-top:10px">🎟️ Enviar link com cupom</button>`)}
+      ` : ''}
+      <button class="ag-chipbtn ${_cupomLigado ? 'on' : ''}" id="ag-cup-tog" type="button" role="switch" aria-checked="${_cupomLigado}" style="margin-top:12px">🎟️ Enviar com cupom <span class="ag-switch" aria-hidden="true"></span></button>
+      <div id="ag-cup-sel"></div>
+      ${_linkTriagemZap() || _cupomEnvio ? `<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>` : ''}`)}
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
@@ -603,17 +606,49 @@ function wireFixos(corpo) {
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
     showToast('Seg a Sex ligados', 'success');
   });
-  corpo.querySelector('#ag-zap-cupom')?.addEventListener('click', () => escolherCupomEnviar({ triagem: _linkCupom(), agenda: _linkPublico() }));
+  // Chave "Enviar com cupom": liga → a lista de cupons abre aqui embaixo; toca no cupom → vai junto no link
+  const linhaCup = ({ c, restam }) => `<button type="button" class="cp-cup cp-cup-esc" data-cupid="${_esc(c.id)}" aria-pressed="${_cupomEnvio?.c.id === c.id}" ${restam ? '' : 'disabled'}>
+    <b>${_esc(c.codigo)}${_cupomEnvio?.c.id === c.id ? ' ✓' : ''}</b> <span>${c.desconto >= 100 ? 'integral' : c.desconto + '%'} · ${restam ? `resta${restam === 1 ? '' : 'm'} ${restam} de ${c.limite}` : 'acabou'}</span>
+    ${c.cliente_nome || c.descricao ? `<small>${_esc(c.cliente_nome ? 'Só pra ' + c.cliente_nome : c.descricao)}</small>` : ''}</button>`;
+  const pintaCupom = () => {
+    const tog = corpo.querySelector('#ag-cup-tog'), box = corpo.querySelector('#ag-cup-sel'); if (!tog || !box) return;
+    tog.classList.toggle('on', _cupomLigado); tog.setAttribute('aria-checked', _cupomLigado);
+    box.innerHTML = !_cupomLigado ? ''
+      : !_cuponsAtivos ? '<div class="fi-vazio">Carregando os cupons…</div>'
+      : _cuponsAtivos.length ? `<div class="ag-serv-sub" style="margin-top:8px">Toca no cupom que vai junto no link:</div><div class="cp-lista">${_cuponsAtivos.map(linhaCup).join('')}</div>`
+      : '<div class="fi-vazio">Nenhum cupom ativo. Crie em 🎟️ Cupons.</div>';
+    box.querySelectorAll('[data-cupid]').forEach(b => b.onclick = () => {
+      const r = _cuponsAtivos.find(x => x.c.id === b.dataset.cupid); if (!r) return;
+      _cupomEnvio = r;
+      box.querySelectorAll('[data-cupid]').forEach(x => x.setAttribute('aria-pressed', x === b));
+      showToast(`🎟️ Cupom ${r.c.codigo} adicionado`, 'success');
+      setTimeout(pintaCupom, 250);
+    });
+    let zap = corpo.querySelector('#ag-zap-tri');
+    if (!zap && _cupomEnvio) { box.insertAdjacentHTML('afterend', '<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Compartilhar no WhatsApp</button>'); corpo.querySelector('#ag-zap-tri').addEventListener('click', compartilhar); }
+    if (zap && !_cupomEnvio && !_linkTriagemZap()) zap.remove();
+  };
+  corpo.querySelector('#ag-cup-tog')?.addEventListener('click', async () => {
+    _cupomLigado = !_cupomLigado;
+    if (!_cupomLigado) { _cupomEnvio = null; pintaCupom(); return; }
+    pintaCupom();
+    try { _cuponsAtivos = await listarCuponsAtivos(); } catch (e) { _cuponsAtivos = []; showToast(e.message, 'error'); }
+    pintaCupom();
+  });
+  pintaCupom();
   corpo.querySelector('#ag-copiar-tri')?.addEventListener('click', async () => {
     const inp = corpo.querySelector('#ag-link-tri');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
     catch { inp.focus(); inp.select(); showToast('Segure no link e copie', 'info'); }
   });
-  corpo.querySelector('#ag-zap-tri')?.addEventListener('click', () => {
+  function compartilhar() {
+    if (_cupomLigado && !_cupomEnvio) { showToast('Toca num cupom da lista primeiro', 'info'); return; }
+    if (_cupomEnvio) { destinoCupom(_cupomEnvio.c, { triagem: _linkCupom(), agenda: _linkPublico() }, _cupomEnvio.restam); return; }
     const txt = `Oi! 💜 Antes de agendar, responde essa triagem rapidinha (2 min) pra eu entender teu caso e te indicar o cuidado certo. No final tu já escolhe teu horário:
 ${_linkTriagemZap()}`;
     window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
-  });
+  }
+  corpo.querySelector('#ag-zap-tri')?.addEventListener('click', compartilhar);
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
