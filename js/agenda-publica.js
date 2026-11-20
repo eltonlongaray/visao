@@ -3,6 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
+import { supabase } from './config-supabase.js';
 import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, criarAgendamentoCombo, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico, validarCupom, aplicarCupom } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -143,9 +144,18 @@ export async function renderAgendaPublica(app, slug) {
   // a menos de 5h, não ocupado). A agenda abre já no 1º dia assim — não num dia vazio.
   const _temVaga = isoD => { const d = dias.find(x => x.iso === isoD); return !!d && d.horarios.some(h => !h.passou && !h.cedo && !h.ocupado); };
   const _primeiroComVaga = off => _diasDaSemana(off).find(x => !x.past && _temVaga(x.iso))?.iso || null;
+  // (20/11, Élton) Calendário de 2 semanas sempre visível: abre em ESTA semana + a próxima,
+  // já selecionando o 1º dia com vaga dessas 2; "Ver mais datas →" anda de 2 em 2 semanas.
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
-  let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
+  const _vagasDoDia = isoD => { const d = dias.find(x => x.iso === isoD); return d ? d.horarios.filter(h => !h.passou && !h.cedo && !h.ocupado).length : 0; };
+  const _semana7 = off => { const seg = _segPub(off); const hojeIso = iso(hoje); const out = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(seg); d.setDate(seg.getDate() + i); const isoD = iso(d);
+      out.push({ iso: isoD, date: d, past: isoD < hojeIso, hoje: isoD === hojeIso, aberto: _horariosDoDia(cfg, d).length > 0, vagas: isoD < hojeIso ? 0 : _vagasDoDia(isoD) }); }
+    return out; };
+  const _primeiroNoBloco = off => _primeiroComVaga(off) || _primeiroComVaga(off + 1);
+  // Próximo horário livre (de toda a agenda): atalho "Quero esse"
+  const _proximoLivre = () => { for (const d of dias) { const h = d.horarios.find(x => !x.passou && !x.cedo && !x.ocupado); if (h) return { iso: d.iso, date: d.date, hora: h.hora }; } return null; };
+  let selDia = _primeiroNoBloco(0) || null;
   let selHora = null;
   let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
@@ -154,10 +164,21 @@ export async function renderAgendaPublica(app, slug) {
   let combo = [];                    // 2+ serviços num horário só (da triagem)
   let cupom = null, cupomAberto = false;   // cupom de desconto conferido ({codigo, desconto, descricao})
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
+  // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
+  // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
+  const _passo = (txt) => {
+    if (!TRI || !TRI.codigo || !TRI.pacote) return;
+    const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
+    try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
+    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }); } catch {}
+  };
+  const _diaTxt = isoD => { const [y, m, d] = String(isoD || '').split('-'); return d ? `${d}/${m}` : ''; };
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
     if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
+    const prim = _primeiroComVaga(semOffset);
+    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
@@ -295,21 +316,34 @@ export async function renderAgendaPublica(app, slug) {
       </div>
       ${_histHtml()}
       ${_servHtml()}
-      <div class="ap-semnav">
-        <button class="ap-semarrow" id="ap-sem-prev" type="button" ${semOffset <= 0 ? 'disabled' : ''} aria-label="Semana anterior">‹</button>
-        <div class="ap-semlabel">${_labelSem(semOffset)}</div>
-        <button class="ap-semarrow" id="ap-sem-next" type="button" ${semOffset >= _maxOffset ? 'disabled' : ''} aria-label="Próxima semana">›</button>
+      ${(() => {   // atalho: próximo horário livre
+        const p = _proximoLivre(); if (!p) return '';
+        return `<div class="ap-prox"><div class="ap-prox-tx">📅 Próximo horário livre<b>${SEM[p.date.getDay()]} ${pad(p.date.getDate())}/${pad(p.date.getMonth() + 1)} às ${p.hora}</b></div>
+          <button class="ap-prox-btn" id="ap-prox-ok" type="button">Quero esse</button></div>`;
+      })()}
+      <div class="ap-cal-tit">Ou escolha o dia</div>
+      <div class="ap-cal">
+        <div class="ap-cal-dow">${['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(x => `<span>${x}</span>`).join('')}</div>
+        ${[semOffset, semOffset + 1].map(off => `
+          <div class="ap-cal-lbl">${off === 0 ? 'Esta semana' : off === 1 ? 'Semana que vem' : _labelSem(off)}</div>
+          <div class="ap-cal-row">${_semana7(off).map(x => {
+            const est = x.past ? 'past' : !x.aberto ? 'fechado' : x.vagas ? 'livre' : 'lotado';
+            const info = x.past ? '' : !x.aberto ? '' : x.vagas ? `${x.vagas} ${x.vagas === 1 ? 'horário' : 'horários'}` : 'lotado';
+            const cls = `ap-cal-d ${est}${x.iso === selDia ? ' sel' : ''}${x.hoje ? ' hoje' : ''}`;
+            const inner = `<span class="ap-cal-n">${x.date.getDate()}</span><span class="ap-cal-i">${info}</span>`;
+            return est === 'livre' ? `<button class="${cls}" data-dia="${x.iso}" type="button">${inner}</button>` : `<div class="${cls}" aria-disabled="true">${inner}</div>`;
+          }).join('')}</div>`).join('')}
+        ${[semOffset, semOffset + 1].some(off => _semana7(off).some(x => x.vagas)) ? '' : `<div class="ap-cal-vazio">Sem horário livre nessas 2 semanas.</div>`}
+        <div class="ap-cal-nav">
+          ${semOffset > 0 ? `<button class="ap-cal-voltar ap-sem-prev" type="button">‹ Voltar</button>` : ''}
+          ${semOffset + 2 <= _maxOffset ? `<button class="ap-cal-mais ap-sem-next" type="button">Ver mais datas →</button>` : ''}
+        </div>
       </div>
-      <div class="ap-dias">
-        ${diasSem.map(x => x.past
-          ? `<div class="ap-diachip past" aria-disabled="true"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></div>`
-          : `<button class="ap-diachip ${x.iso === selDia ? 'sel' : ''}" data-dia="${x.iso}" type="button"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`
-        ).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
-      </div>
+      ${dia ? `<div class="ap-hor-tit">Horários disponíveis<small>${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}</small></div>` : ''}
       <div class="ap-slots-wrap">
         ${(g.manha.length + g.tarde.length + g.noite.length)
           ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
-          : '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>'}
+          : (dia ? '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>' : '')}
       </div>
       ${selHora && dia ? _formHtml(dia, selHora) : ''}
       <div class="ap-wa-pro-wrap">${_waProHtml()}</div>
@@ -359,22 +393,33 @@ export async function renderAgendaPublica(app, slug) {
       desenharIdentidade();
     });
     const _irSemana = (novo) => {
+      _passo(novo > semOffset ? 'Foi pra semana seguinte' : 'Voltou uma semana');
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
+      selDia = _primeiroNoBloco(semOffset) || null;
       selHora = null; desenhar();
     };
-    app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
-    app.querySelector('#ap-sem-next')?.addEventListener('click', () => { if (semOffset < _maxOffset) _irSemana(semOffset + 1); });
+    app.querySelectorAll('.ap-sem-prev').forEach(b => b.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 2); }));
+    app.querySelectorAll('.ap-sem-next').forEach(b => b.addEventListener('click', () => { if (semOffset + 2 <= _maxOffset) _irSemana(semOffset + 2); }));
+    app.querySelector('#ap-prox-ok')?.addEventListener('click', () => {
+      const p = _proximoLivre(); if (!p) return;
+      _passo(`Tocou em "Quero esse" (próximo livre: ${_diaTxt(p.iso)} às ${p.hora})`);
+      const alvo = Math.floor((_fromIso(p.iso) - _segPub(0)) / (7 * 86400000));
+      semOffset = Math.max(0, alvo - (alvo % 2)); selDia = p.iso; selHora = p.hora; desenhar();
+      const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
-      selDia = b.dataset.dia; selHora = null; desenhar();
+      selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia)); desenhar();
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
+      selServ = b.dataset.serv; combo = []; servAberto = false;
+      _passo('Trocou o serviço pra ' + (servicos.find(x => x.id === selServ)?.nome || '')); desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
     app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
-      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
+      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;
+      if (selHora) _passo(`Escolheu o horário ${selHora} de ${_diaTxt(selDia)}`);
+      desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
     const btn = app.querySelector('#ap-confirmar');
@@ -459,6 +504,7 @@ export async function renderAgendaPublica(app, slug) {
     const zap = ident?.contato || '';
     if (nome.length < 2 || zap.replace(/\D/g, '').length < 8) { ident = null; mostrar(); return; }
     const btn = app.querySelector('#ap-confirmar'); btn.disabled = true; btn.textContent = 'Agendando…';
+    _passo('Tocou em confirmar');
     try {
       const hora = selHora;
       const serv = _servSel();
@@ -470,6 +516,7 @@ export async function renderAgendaPublica(app, slug) {
         : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
       _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
+      _passo(`Agendou: ${nomeServ || 'serviço'} · ${_diaTxt(dia.iso)} às ${hora}`);
       // cupom: grava no agendamento recém-criado (falhar aqui não desfaz o agendamento)
       let cupomOk = null;
       if (cupom) { try { const r = await aplicarCupom(cfg.slug, dia.iso, hora, zap, cupom.codigo); if (r.ok) cupomOk = r; } catch {} cupom = null; }
@@ -534,6 +581,7 @@ export async function renderAgendaPublica(app, slug) {
           if (n <= 0) {
             clearInterval(tick);
             document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
+            _passo('Abriu o WhatsApp com a mensagem pronta (enviar é com ela)');
             location.href = waTri;
           }
         }, 1000);
@@ -542,6 +590,7 @@ export async function renderAgendaPublica(app, slug) {
       }
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
+      _passo('Erro ao agendar: ' + (e.message || 'sem detalhe'));
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
       try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
       for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);

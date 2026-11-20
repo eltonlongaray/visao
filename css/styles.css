@@ -9245,3 +9245,33 @@ body.rota-publica .bottom-nav { display: none !important; }
 /* Home: idioma embaixo dos horários e Sair no fim (Élton, 18/11) */
 .home-lang { margin: 10px 0 2px; justify-content: flex-start; }
 .home-sair { margin: 26px 0 8px; text-align: center; }
+
+/* ── Agenda pública: calendário de 2 semanas (20/11/2026) ── */
+.ap-prox { display: flex; align-items: center; gap: 10px; margin: 10px 0 14px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 16%, var(--card-2)); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.ap-prox-tx { flex: 1; font-size: 13px; color: var(--muted); line-height: 1.35; }
+.ap-prox-tx b { display: block; font-size: 16px; color: var(--text); margin-top: 2px; }
+.ap-prox-btn { flex: none; border: 0; border-radius: 12px; padding: 11px 14px; background: var(--accent); color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; }
+.ap-cal-tit { font-size: 17px; font-weight: 800; color: var(--text); margin: 6px 0 8px; line-height: 1.2; }
+.ap-cal { background: var(--card-2); border: 1px solid var(--border); border-radius: 16px; padding: 10px 8px 12px; margin-bottom: 12px; }
+.ap-cal-dow, .ap-cal-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ap-cal-dow span { text-align: center; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: .2px; }
+.ap-cal-lbl { font-size: 14.5px; font-weight: 800; color: var(--text); margin: 12px 2px 6px; }
+.ap-cal-d { min-height: 52px; border-radius: 10px; border: 1px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 1px; background: transparent; color: var(--text); font: inherit; }
+.ap-cal-n { font-size: 15px; font-weight: 800; line-height: 1; }
+.ap-cal-i { font-size: 9.5px; font-weight: 700; line-height: 1.1; text-align: center; min-height: 10px; }
+.ap-cal-d.past { opacity: .28; }
+.ap-cal-d.past .ap-cal-n { text-decoration: line-through; }
+.ap-cal-d.fechado { opacity: .32; }
+.ap-cal-d.lotado { opacity: .6; }
+.ap-cal-d.lotado .ap-cal-i { color: #f87171; }
+.ap-cal-d.livre { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); cursor: pointer; }
+.ap-cal-d.livre .ap-cal-i { color: #34d399; }
+.ap-cal-d.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ap-cal-d.sel .ap-cal-i { color: #fff; }
+.ap-cal-d.hoje { box-shadow: inset 0 0 0 2px var(--text); }
+.ap-cal-vazio { text-align: center; font-size: 13px; color: var(--muted); margin: 12px 0 2px; }
+.ap-cal-nav { display: flex; gap: 8px; margin-top: 12px; }
+.ap-cal-mais { flex: 1; border: 0; border-radius: 12px; padding: 14px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer; }
+.ap-cal-voltar { flex: none; border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; background: transparent; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
+.ap-hor-tit { font-size: 17px; font-weight: 800; color: var(--text); margin: 6px 0 10px; line-height: 1.2; }
+.ap-hor-tit small { display: block; font-size: 14px; font-weight: 700; color: var(--accent); margin-top: 3px; }
