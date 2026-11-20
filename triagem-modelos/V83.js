@@ -295,7 +295,8 @@ window.TRIAGEM = {
     const DEUSA = "Deusa Grega – Modela / Reduz Medida / Pele Porcelana", ESCULPE = "Esculpe Detox – Desincha / Elimina Toxinas / Modela";
     const corpo = ["Celulite", "Estrias", "Flacidez", "Gordura localizada / medidas"];
     if (corpo.includes(principal)) {
-      const servico = principal === "Gordura localizada / medidas" ? ESCULPE
+      // Gordura + "experimentar" (20/11, Élton): não indica o Esculpe (pacote) → Deusa Grega avulsa
+      const servico = principal === "Gordura localizada / medidas" ? (experimentar ? DEUSA : ESCULPE)
         : (experimentar && principal === "Celulite") ? "Sessão para celulite" : DEUSA;
       return { servico, opcoes: [DEUSA, ESCULPE, "Sessão para celulite"], extras,
         porque: "Separei os tratamentos que cuidam disso. Já deixei marcado o que mais combina com o que tu me contou, mas tu pode escolher outro:", aviso };
@@ -313,7 +314,9 @@ window.TRIAGEM = {
       return { servico: "Massagem relaxante", porque: "Um momento pra desacelerar o corpo e a mente.", extras, aviso };
     if (principal === "Manchas") return { servico: "Tratamento para manchas", porque: "Clareamento com blends e técnicas pra uniformizar a pele.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
     if (principal === "Acne, cravos, pele oleosa e/ou porosa") return { servico: "Limpeza de pele", porque: "Limpeza profunda pra controlar a oleosidade e cuidar da acne.", junto: "Teu blend personalizado pra continuar em casa", extras, aviso };
-    if (principal === "Queda de cabelo") return { servico: "Blend Anti Queda", porque: "Fórmula com alecrim e copaíba pra fortalecer os fios. Eu te explico como usar e a gente conversa sobre a causa da queda.", extras, aviso };
+    // Queda (20/11, Élton): "Tratamento anti-queda", valor a combinar com a Alê. Se ela cadastrar esse
+    // serviço na agenda (pode ser sem preço), a cliente agenda; senão o botão vai pro WhatsApp dela.
+    if (principal === "Queda de cabelo") return { servico: "Tratamento anti-queda", porque: "Pra fortalecer os fios e cuidar da causa da queda. O valor a gente combina direto, conforme o teu caso.", extras, aviso };
     return { servico: "Massagem relaxante", porque: "Um momento só seu pra desacelerar.", extras, aviso };
   },
 

@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=29`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=30`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -406,7 +406,7 @@ function resultado() {
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
     </div>` : ''}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
-      <button class="btn full" id="agendar">📅 Escolher meu horário</button>
+      <button class="btn full" id="agendar">${plano.length ? '📅 Escolher meu horário' : `💬 Combinar com a ${esc(M.profissional.nome)} no WhatsApp`}</button>
       <div class="nav" style="margin-top:.2rem"><button class="voltar" id="volta">← Voltar</button>
         <button class="voltar" id="refazer">Refazer as respostas</button></div>
     </div>
@@ -426,7 +426,21 @@ function resultado() {
   });
   $('volta').onclick = () => { st.i = passos().length - 1; salvar(); tela(); window.scrollTo({ top: 0 }); };
   $('refazer').onclick = () => { st = { i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
-  $('agendar').onclick = () => irParaAgenda(ind, plano);
+  // Indicação que ainda não está na agenda (ex.: tratamento com valor a combinar): vai pro WhatsApp dela
+  $('agendar').onclick = () => plano.length ? irParaAgenda(ind, plano) : irParaWhatsApp(ind);
+}
+
+function irParaWhatsApp(ind) {
+  const msg = [`Oi ${M.profissional.nome}! Fiz a triagem 💜`, `✨ Indicação: ${ind.servico}`,
+    'Quero saber como funciona e o valor.', '', ...resumoLinhas().map(([k, v]) => `• ${k}: ${v}`)].join('\n');
+  if (TESTE) {
+    app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pro WhatsApp da ${esc(M.profissional.nome)} com a indicação <b>${esc(ind.servico)}</b> e o resumo da triagem. Nada foi salvo.</div>`);
+    $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+  }
+  try { if (st.codigo) supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }); } catch (e) {}
+  try { if (window.dataLayer) { window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
+    if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' }); } } catch (e) {}
+  location.href = `https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
 }
 
 // === BLOCO 7: PASSA PRA AGENDA (já preenchida) + CONVERSÃO DO GOOGLE ===
