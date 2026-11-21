@@ -304,17 +304,24 @@ export async function renderAgendaPublica(app, slug) {
   // meus horários não batem" + botão "Me ajuda, Lari". O botão NÃO diz que é WhatsApp (Élton:
   // a função fica escondida pra curioso não ficar chamando) — só ao tocar abre o WhatsApp dela
   // com a mensagem pronta. Textos: servico.ajuda = { texto, botao } (padrão abaixo).
-  function _ajudaHorarioHtml() {
-    const s = combo.length > 1 ? null : _servSel();
-    if (!s || !s.horarios || !_waProLink(cfg)) return '';
+  function _ajudaHorarioHtml() { return ''; }   // (21/11) agora mora dentro do card do serviço (_servCardHorario)
+  // (21/11, Élton) Serviço com horário próprio = UM card só: serviço + horários (letra maior)
+  // + "meus horários não batem" + botão de ajuda. É <div> (não <button>) pra caber o botão dentro.
+  function _servCardHorario(s) {
+    const _sepH = '<span style="display:block;height:1px;background:var(--border);margin:12px 0 10px"></span>';
     const aj = s.ajuda || {};
-    const texto = aj.texto || 'Eu quero muito, mas os meus horários não batem';
-    // (21/11, Élton) destacado igual ao card do serviço + instrução de tocar no botão
-    return `<div class="ap-ajuda-h ap-serv-op sel" style="cursor:default;align-items:center;text-align:center;gap:4px;padding:14px">
-      <span class="ap-serv-nm" style="text-wrap:balance">${_esc(texto)}</span>
-      <span class="ap-serv-mt">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
-      <button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem;margin-top:8px">${_esc(aj.botao || 'Me ajuda')}</button>
-    </div>`;
+    const ajuda = _waProLink(cfg) ? `${_sepH}
+        <span class="ap-serv-nm" style="display:block;text-align:center;text-wrap:balance">${_esc(aj.texto || 'Eu quero muito, mas os meus horários não batem')}</span>
+        <span class="ap-serv-mt" style="display:block;text-align:center">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
+        <span style="display:block;text-align:center;margin-top:8px"><button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem">${_esc(aj.botao || 'Me ajuda')}</button></span>` : '';
+    return `<div class="ap-serv-op sel ap-serv-unico" style="cursor:default">
+        <span class="ap-serv-nm">${_esc(s.nome)}${s.destaque ? ` <span style="display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#050404;color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap">🖤 ${_esc(s.destaque)}</span>` : ''}</span>
+        <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+        ${s.nota ? `${_sepH}
+        <span class="ap-serv-mt" style="display:block;text-align:center;opacity:1;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase">🕔 Horários desta sessão</span>
+        ${String(s.nota).split('·').map(t => t.trim()).filter(Boolean).map(t => `<span style="display:block;text-align:center;font-size:1.08rem;font-weight:800;margin-top:2px">${_esc(t.charAt(0).toUpperCase() + t.slice(1))}</span>`).join('')}` : ''}
+        ${ajuda}
+      </div>`;
   }
   function _servHtml() {
     if (!servicos.length) return '';
@@ -323,7 +330,7 @@ export async function renderAgendaPublica(app, slug) {
         <span class="ap-serv-nm">${_esc(_comboNome())}</span>
         <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
       </button>`
-      : (_servSel() ? _servCard(_baseDe(_servSel()), true) + _pacoteHtml() : '');
+      : (_servSel() ? (_baseDe(_servSel()).horarios ? _servCardHorario(_baseDe(_servSel())) : _servCard(_baseDe(_servSel()), true)) + _pacoteHtml() : '');
     if (FOCO || _lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Serviço escolhido</div>
