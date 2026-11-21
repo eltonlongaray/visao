@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Larissa Rodrigues · Sessão especial</title>
+<!-- CÓPIA de triagem.html só com a prévia do link (WhatsApp) da Larissa. Ao mudar triagem.html, copie de novo e troque só estas metas. -->
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Sessão especial de Black Friday 🤍">
+<meta property="og:description" content="Responda rapidinho e escolha seu horário com a Larissa · Massoterapia">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://estilo-falcon.web.app/triagem-modelos/img/Y35-previa.jpg?v=1">
+<base href="/">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F8F5FA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO 1: IDENTIDADE (as cores vêm do modelo da profissional)
+   ═══════════════════════════════════════════════════════════════ */
+:root{ --fundo:#F8F5FA; --cor:#8B6FA0; --cor-clara:#EEE7F3; --tinta:#4E3B5A; --cinza:#7A6E82; --linha:#E4DCEA; --branco:#fff; --ease:cubic-bezier(.16,1,.3,1) }
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--fundo);color:var(--tinta);font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-size:17px;line-height:1.5;
+  min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--cor);outline-offset:3px}
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO 2: TOPO E PROGRESSO
+   ═══════════════════════════════════════════════════════════════ */
+.topo{padding:18px 20px 0;max-width:34rem;margin:0 auto;width:100%}
+.marca{font-family:"Playfair Display",serif;font-weight:600;font-size:1.05rem;color:var(--tinta)}
+.marca small{display:block;font-family:"Plus Jakarta Sans";font-size:.72rem;color:var(--cinza);letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+.barra{height:4px;background:var(--cor-clara);border-radius:4px;margin-top:14px;overflow:hidden}
+.barra i{display:block;height:100%;width:0;background:var(--cor);transition:width .4s var(--ease)}
+
+.wrap{flex:1;width:100%;max-width:34rem;margin:0 auto;padding:26px 20px 36px;display:flex;flex-direction:column}
+.tela{flex:1;display:flex;flex-direction:column;animation:entra .35s var(--ease) both}
+@keyframes entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tela{animation:none}}
+.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--cor)}
+h1{font-family:"Playfair Display",serif;font-size:clamp(1.9rem,7.5vw,2.4rem);line-height:1.15;font-weight:600;margin:.5rem 0 .9rem}
+h1 em{color:var(--cor)}
+.q{font-family:"Playfair Display",serif;font-size:clamp(1.5rem,6vw,1.85rem);line-height:1.2;font-weight:600;margin:.4rem 0 .5rem}
+.lead{color:var(--cinza);margin-bottom:.8rem}
+/* depoimentos reais (M.depoimentos) */
+.faixa-teste{position:sticky;top:0;z-index:50;background:#fef3c7;color:#78350f;text-align:center;font-size:.85rem;font-weight:600;padding:.45rem .6rem}
+.depo-print{margin:1.1rem 0 .4rem;border-radius:16px;overflow:hidden;border:1px solid var(--linha)}
+.depo-print img{width:100%;display:block}
+.depo{margin:1.1rem 0 .4rem;padding:.9rem 1rem;background:var(--branco);border:1px solid var(--linha);border-left:4px solid var(--cor);border-radius:14px}
+.depo blockquote{font-style:italic;color:var(--tinta);line-height:1.5;font-size:.95rem}
+.depo figcaption{margin-top:.45rem;font-size:.8rem;font-weight:600;color:var(--cor)}
+.ajuda{font-size:.9rem;color:var(--cinza);margin-bottom:1rem}
+.ajuda-destaque{font-size:1.02rem;font-weight:700;color:var(--tinta);background:var(--cor-clara);border-left:4px solid var(--cor);border-radius:10px;padding:.65rem .85rem;margin:0 0 1rem;line-height:1.45}
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO 3: OPÇÕES E VITRINE
+   ═══════════════════════════════════════════════════════════════ */
+.ops{display:flex;flex-direction:column;gap:.55rem;margin-top:.3rem}
+.op{text-align:left;font-size:1rem;font-weight:600;color:var(--tinta);background:var(--branco);border:1.5px solid var(--linha);border-radius:16px;
+  padding:.85rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.75rem;transition:border-color .15s,background .15s,transform .1s}
+.op:active{transform:scale(.99)}
+.op .ic{font-size:1.25rem;flex:none;width:1.6rem;text-align:center}
+.op small.combina{display:block;font-size:.78rem;font-weight:600;color:var(--cor);margin-top:.15rem}
+.op .marca-op{margin-left:auto;flex:none;width:1.25rem;height:1.25rem;border-radius:50%;border:2px solid var(--marca, var(--linha))}
+.op.multi .marca-op{border-radius:6px}
+.op[aria-checked="true"]{background:var(--cor-clara);border-color:var(--cor)}
+.op[aria-checked="true"] .marca-op{background:var(--cor);border-color:var(--cor);box-shadow:inset 0 0 0 3px var(--cor-clara)}
+.vit{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.3rem}
+.prod{background:var(--branco);border:1.5px solid var(--linha);border-radius:18px;padding:.9rem;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:.35rem}
+.prod .foto{height:84px;border-radius:12px;background:var(--cor-clara);display:grid;place-items:center;font-size:2rem;overflow:hidden}
+.prod .foto img{width:100%;height:100%;object-fit:cover}
+.prod b{font-size:.95rem}
+.prod span{font-size:.8rem;color:var(--cinza);line-height:1.35}
+.prod .selo{font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--cor);border-radius:999px;padding:.15rem .55rem;align-self:flex-start}
+.prod{position:relative;transition:background .15s,border-color .15s}
+.prod[aria-checked="true"]{border-color:#5E9C4B;background:#EAF5E4}
+.prod[aria-checked="true"]::after{content:"✓";position:absolute;top:-11px;right:-11px;width:32px;height:32px;border-radius:50%;
+  background:#2F6B2A;color:#fff;font-size:18px;font-weight:900;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.18);
+  animation:marca .25s cubic-bezier(.16,1,.3,1) both}
+@keyframes marca{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.prod[aria-checked="true"]::after{animation:none}}
+.vit{padding:12px 12px 0 0;margin-right:-12px}
+.op.recusa{margin:.2rem 0 .4rem;font-weight:600;font-size:.95rem}
+.op.recusa .marca-op{margin-left:0;margin-right:.2rem;order:-1}
+.erro{color:#B42318;font-size:.88rem;margin-top:.6rem;min-height:1.2rem}
+.aviso{background:var(--branco);border:1px solid var(--linha);border-left:4px solid var(--cor);border-radius:12px;padding:.8rem 1rem;font-size:.9rem;color:var(--cinza);margin-top:.8rem}
+
+/* ═══════════════════════════════════════════════════════════════
+   BLOCO 4: NAVEGAÇÃO E RESULTADO
+   ═══════════════════════════════════════════════════════════════ */
+.nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1.3rem}
+.btn{border:none;cursor:pointer;background:var(--cor);color:#fff;font-weight:800;font-size:1.02rem;padding:.95rem 1.6rem;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:.5rem}
+.btn.full{width:100%}
+.btn.sec{background:var(--branco);color:var(--tinta);border:1.5px solid var(--linha)}
+.voltar{background:none;border:none;color:var(--cinza);font-size:.95rem;font-weight:600;cursor:pointer;padding:.5rem 0}
+.card{background:var(--branco);border:1px solid var(--linha);border-radius:18px;padding:1rem 1.1rem;margin-top:1rem}
+.card h3{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cor);margin-bottom:.4rem}
+.indic{font-family:"Playfair Display",serif;font-size:1.35rem;font-weight:600;line-height:1.25}
+.resumo div{font-size:.92rem;padding:.25rem 0;border-bottom:1px dashed var(--linha)}
+.resumo div:last-child{border:none}
+.resumo b{color:var(--tinta)}
+.blend{border-left:4px solid var(--cor)}
+.blend-row{display:flex;gap:.8rem;align-items:center}
+.blend-foto{flex:none;width:68px;height:68px;border-radius:14px;background:var(--cor-clara);display:grid;place-items:center;font-size:1.9rem;overflow:hidden}
+.blend-foto img{width:100%;height:100%;object-fit:cover}
+.focos{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.7rem}
+.focos span{font-size:.78rem;font-weight:700;background:var(--cor-clara);color:var(--cor);border-radius:999px;padding:.2rem .65rem}
+.rodape{margin-top:auto;padding-top:1.6rem;font-size:.75rem;color:var(--cinza);text-align:center}
+.campo{display:flex;flex-direction:column;gap:.35rem;margin-top:.9rem;font-size:.9rem;font-weight:700;color:var(--tinta)}
+.campo input{font:inherit;font-size:1rem;font-weight:500;color:var(--tinta);background:var(--branco);border:1.5px solid var(--linha);border-radius:14px;padding:.85rem 1rem;outline:none}
+.campo input:focus{border-color:var(--cor)}
+.campo[hidden]{display:none}
+.plano .item{display:flex;flex-direction:column;gap:.15rem;padding:.55rem 0;border-bottom:1px dashed var(--linha)}
+.plano .item:last-child{border:none}
+.plano .nm{font-weight:700}
+.plano .pr{font-size:.88rem;color:var(--cinza)}
+.plano .pr b{color:var(--tinta)}
+/* escolher tratamento no resultado */
+.escolha .op.trat{align-items:flex-start;padding:.85rem .95rem}
+.escolha .op.trat .marca-op{margin:.15rem .2rem 0 0;order:-1}
+.trat-tx{display:flex;flex-direction:column;gap:.2rem}
+.trat-tx small{font-weight:400;font-size:.86rem;color:var(--cinza);line-height:1.4}
+.trat-tx small.pr b{color:var(--tinta)}
+.trat-nm{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem}
+.trat-nm .selo{margin-left:0}
+.selo{display:inline-block;font-size:.7rem;font-weight:700;color:var(--cor);background:var(--cor-clara);border-radius:99px;padding:.1rem .5rem;margin-left:.3rem;vertical-align:middle}
+.tot{margin-top:.6rem;padding-top:.6rem;border-top:1.5px solid var(--linha);font-size:.95rem}
+.int .op{padding:.7rem .9rem;font-size:.95rem}
+.int .op .marca-op{margin-left:0;margin-right:.2rem;order:-1;border-radius:6px}
+</style>
+</head>
+<body>
+<header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
+<main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
+<script type="module" src="js/triagem-publica.js?v=37"></script>
+</body>
+</html>

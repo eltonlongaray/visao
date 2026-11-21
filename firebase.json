@@ -13,6 +13,14 @@
     ],
     "rewrites": [
       {
+        "source": "/triagem/Y35",
+        "destination": "/triagem-Y35.html"
+      },
+      {
+        "source": "/triagem/Y35/**",
+        "destination": "/triagem-Y35.html"
+      },
+      {
         "source": "/triagem/**",
         "destination": "/triagem.html"
       },
