@@ -70,8 +70,10 @@ function passo(txt, enviar = true) {
   st.caminho.push({ p: txt, em: new Date().toISOString() });
   if (st.caminho.length > 60) st.caminho = st.caminho.slice(-60);
   salvar();
-  if (enviar && st.codigo && !TESTE) { try { supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }); } catch (e) {} }
+  // O rpc só dispara com then/await (sem isso não saía nada); fila em série mantém a ordem.
+  if (enviar && st.codigo && !TESTE) { const pc = pacote(); _filaPasso = _filaPasso.then(() => supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pc })).then(() => {}, () => {}); }
 }
+var _filaPasso = Promise.resolve();
 
 // Passos que valem pra essa pessoa (perguntas condicionais somem se não se aplicam)
 function passos() {
