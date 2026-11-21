@@ -20,10 +20,16 @@ const _hm = t => { const p = String(t || '').split(':'); return (+p[0] || 0) * 6
 const _segISO = (d) => { const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return iso(x); };
 // Horários efetivos de um dia: se a SEMANA tem exceção (cfg.semanas[segunda]),
 // usa ela (mesmo vazia = dia fechado); senão cai no padrão (disponibilidade[dow]).
+// (21/11) Serviço com HORÁRIO PRÓPRIO (servico.horarios = {dow: [horas]}, ex.: Black da
+// Larissa só seg–sex a partir das 17h e sábado o dia todo): vale o horário do serviço.
+// Semana de exceção com o dia fechado continua fechada. cfg.__servHorarios = serviço escolhido.
 const _horariosDoDia = (cfg, d) => {
   const wk = cfg.semanas && cfg.semanas[_segISO(d)];
   const base = wk != null ? wk : (cfg.disponibilidade || {});
-  return (base[String(d.getDay())] || []).slice().sort();
+  const dia = base[String(d.getDay())] || [];
+  const hs = cfg.__servHorarios;
+  if (hs) return (wk != null && !dia.length) ? [] : (hs[String(d.getDay())] || []).slice().sort();
+  return dia.slice().sort();
 };
 
 // Histórico do cliente NO APARELHO dele (localStorage por slug). Sem conta, sem servidor.
@@ -101,6 +107,8 @@ export async function renderAgendaPublica(app, slug) {
   const AGORA = Date.now();
   const MIN_ANTEC_MS = 5 * 60 * 60 * 1000;
   const dias = [];
+  function _montarDias() {
+  dias.length = 0;
   for (let i = 0; i <= JANELA; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
     const times = _horariosDoDia(cfg, d);
@@ -114,6 +122,8 @@ export async function renderAgendaPublica(app, slug) {
     });
     dias.push({ iso: iso(d), date: d, horarios });
   }
+  }
+  _montarDias();
 
   const servicos = Array.isArray(cfg.servicos) ? cfg.servicos : [];
 
@@ -179,8 +189,6 @@ export async function renderAgendaPublica(app, slug) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
     if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
-    const prim = _primeiroComVaga(semOffset);
-    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
@@ -195,6 +203,21 @@ export async function renderAgendaPublica(app, slug) {
   // nome e preço do que vai ser agendado (1 serviço ou a soma do combo)
   const _comboNome = () => _comboServs().map(s => s.nome).join(' + ');
   const _comboPreco = () => { const c = _comboServs(); return c.some(s => s.preco == null) ? null : c.reduce((t, s) => t + Number(s.preco), 0); };
+  // Serviço com horário próprio: refaz os dias/horários e reposiciona o dia escolhido
+  function _aplicarHorariosServ() {
+    const comH = (combo.length > 1 ? _comboServs() : [_servSel()]).find(s => s && s.horarios);
+    const novo = comH ? comH.horarios : null;
+    if (novo === (cfg.__servHorarios || null)) return;
+    cfg.__servHorarios = novo;
+    _montarDias();
+    for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
+    if (!selDia || !_temVaga(selDia)) { selDia = _primeiroNoBloco(semOffset) || null; selHora = null; }
+  }
+  _aplicarHorariosServ();
+  if (TRI) {
+    const prim = _primeiroComVaga(semOffset);
+    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
+  }
 
   // Busca os agendamentos do cliente (pelo WhatsApp) e re-renderiza quando chegam.
   async function _carregarMeusAgs() {
@@ -414,10 +437,11 @@ export async function renderAgendaPublica(app, slug) {
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       selServ = b.dataset.serv; combo = []; servAberto = false;
+      _aplicarHorariosServ();
       _passo('Trocou o serviço pra ' + (servicos.find(x => x.id === selServ)?.nome || '')); desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
-    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
+    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; _aplicarHorariosServ(); desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;
       if (selHora) _passo(`Escolheu o horário ${selHora} de ${_diaTxt(selDia)}`);
@@ -440,7 +464,7 @@ export async function renderAgendaPublica(app, slug) {
         if (r.tipo === 'presente' && r.servico) {
           const n = x => String(x || '').toLowerCase();
           const sv = (cfg.servicos || []).find(s => n(s.nome) === n(r.servico)) || (cfg.servicos || []).find(s => n(s.nome).startsWith(n(r.servico).split(' (')[0]));
-          if (sv) { selServ = sv.id; combo = []; }
+          if (sv) { selServ = sv.id; combo = []; _aplicarHorariosServ(); }
         }
         desenhar();
       }
