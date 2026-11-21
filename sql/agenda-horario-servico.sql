@@ -6,7 +6,7 @@
 --      Se o serviço escolhido tem `horarios`, o dia/hora é validado contra ELE
 --      (pode abrir sábado mesmo com a agenda fechada no sábado); semana de exceção
 --      com o dia fechado continua fechada. Sem `horarios`, nada muda.
---   2) Cria a "Sessão Black Friday" (90 min, R$ 197) na agenda da Larissa (Y35):
+--   2) Cria a "Sessão especial" (em destaque Black Friday) (90 min, R$ 197) na agenda da Larissa (Y35):
 --      seg a sex a partir das 17h e sábado o dia todo (a obra faz barulho de dia).
 --      Em 01/12 a Larissa troca o preço pra R$ 247 no app (Agenda → Serviços).
 -- É aditivo e pode rodar de novo sem duplicar o serviço.
@@ -102,9 +102,11 @@ grant execute on function criar_agendamento(text, date, text, text, text, text) 
 update agenda_config
 set servicos = coalesce(servicos, '[]'::jsonb) || jsonb_build_array(jsonb_build_object(
   'id', 'sblack90',
-  'nome', 'Sessão Black Friday',
+  'nome', 'Sessão especial',
   'duracaoMin', 90,
   'preco', 197,
+  'destaque', 'Black Friday',
+  'nota', 'Seg a sex a partir das 17h · sábado o dia todo',
   'horarios', jsonb_build_object(
     '1', jsonb_build_array('17:00', '18:30'),
     '2', jsonb_build_array('17:00', '18:30'),
@@ -117,7 +119,14 @@ set servicos = coalesce(servicos, '[]'::jsonb) || jsonb_build_array(jsonb_build_
 where slug = 'Y35'
   and not exists (select 1 from jsonb_array_elements(coalesce(servicos, '[]'::jsonb)) s where s->>'id' = 'sblack90');
 
--- Conferência: deve aparecer a "Sessão Black Friday" com os horários
+-- Se o serviço já existia (rodou antes desta versão), garante o destaque e a nota:
+update agenda_config
+set servicos = (select jsonb_agg(case when s->>'id' = 'sblack90'
+    then s || jsonb_build_object('destaque', 'Black Friday', 'nota', 'Seg a sex a partir das 17h · sábado o dia todo')
+    else s end) from jsonb_array_elements(servicos) s)
+where slug = 'Y35';
+
+-- Conferência: deve aparecer a "Sessão especial" com os horários
 select s->>'nome' as servico, s->>'duracaoMin' as min, s->>'preco' as preco, s->'horarios' as horarios
 from agenda_config, jsonb_array_elements(servicos) s
 where slug = 'Y35';

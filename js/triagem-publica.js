@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=31`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=32`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -479,7 +479,8 @@ async function irParaAgenda(ind, plano) {
     ...(() => { const ps = [...new Set([].concat(st.r.casa || []).flatMap(n => M.produtosPor?.[n] || []))];
       return ps.length ? [`🌿 Produtos pra casa que combinam: ${ps.join(', ')}`] : []; })(),
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');
-  const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg,
+  // foco (modelo com focoNoServico): a agenda abre só com esse serviço, sem a lista dos outros
+  const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg, foco: !!M.focoNoServico,
     whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now(), pacote: pacote() };
   try {
     localStorage.setItem('falcon_triagem_' + SLUG, JSON.stringify(handoff));

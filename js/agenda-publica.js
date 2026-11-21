@@ -167,7 +167,8 @@ export async function renderAgendaPublica(app, slug) {
   const _proximoLivre = () => { for (const d of dias) { const h = d.horarios.find(x => !x.passou && !x.cedo && !x.ocupado); if (h) return { iso: d.iso, date: d.date, hora: h.hora }; } return null; };
   let selDia = _primeiroNoBloco(0) || null;
   let selHora = null;
-  let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
+  // (21/11) serviço com `destaque` (ex.: "Black Friday") abre já escolhido e vem 1º na lista
+  let selServ = (servicos.find(s => s.destaque && !s.pacoteDe) || servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
@@ -193,7 +194,9 @@ export async function renderAgendaPublica(app, slug) {
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
   // Pacote dentro do serviço: o item do pacote (pacoteDe) não aparece na lista, vira opção do serviço.
-  const _lista = () => servicos.filter(s => !s.pacoteDe);
+  const _lista = () => servicos.filter(s => !s.pacoteDe).sort((a, b) => (!!b.destaque) - (!!a.destaque));
+  // Veio da triagem com foco num produto só (modelo com focoNoServico): sem lista de outros serviços
+  const FOCO = !!(TRI && TRI.foco && (TRI.servicos || []).length);
   const _baseDe = s => (s && s.pacoteDe ? servicos.find(x => x.id === s.pacoteDe) || s : s);
   const _pacoteDe = s => (s ? servicos.find(x => x.pacoteDe === s.id) || null : null);
   const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
@@ -287,8 +290,9 @@ export async function renderAgendaPublica(app, slug) {
   }
   function _servCard(s, sel) {
     return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
-        <span class="ap-serv-nm">${_esc(s.nome)}</span>
+        <span class="ap-serv-nm">${_esc(s.nome)}${s.destaque ? ` <span style="display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#050404;color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap">🖤 ${_esc(s.destaque)}</span>` : ''}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+        ${s.nota ? `<span class="ap-serv-mt" style="display:block;margin-top:.2rem;opacity:.85">🕔 ${_esc(s.nota)}</span>` : ''}
       </button>`;
   }
   function _servHtml() {
@@ -299,7 +303,7 @@ export async function renderAgendaPublica(app, slug) {
         <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
       </button>`
       : (_servSel() ? _servCard(_baseDe(_servSel()), true) + _pacoteHtml() : '');
-    if (_lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+    if (FOCO || _lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Serviço escolhido</div>
       <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">

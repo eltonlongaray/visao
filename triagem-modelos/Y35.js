@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // MODELO DE TRIAGEM — Larissa Rodrigues (massoterapia) · agenda Y35
 // Abre em /triagem/Y35. Funil da Black Friday (post → "eu quero" → direct → aqui → agenda).
-// Um serviço só: "Sessão Black Friday" (90 min) — tem horário próprio na agenda
+// Um serviço só: "Sessão especial" (90 min, destaque Black Friday) — tem horário próprio na agenda
 // (seg–sex a partir das 17h, sábado o dia todo), ver sql/agenda-horario-servico.sql.
 // Perguntas aprovadas pelo Élton em 21/11/2026 (campanha-black-friday/triagem-perguntas.md).
 // ═══════════════════════════════════════════════════════════════
@@ -20,10 +20,12 @@ window.TRIAGEM = {
   // R$ 197 até 30/11, depois R$ 247 (só essa sessão entra na Black)
   precos: {
     prazo: "30/11",
-    black: { "Sessão Black Friday": 197 },
-    depois: { "Sessão Black Friday": 247 }
+    black: { "Sessão especial": 197 },
+    depois: { "Sessão especial": 247 }
   },
   mostrarInteresses: false,
+  // foco total nesse produto: a agenda abre só com a sessão da Black (outros serviços = link da bio)
+  focoNoServico: true,
   // Depoimentos: só depois que as clientes autorizarem (Ana Paula, Yasmin, Kelly)
   depoimentos: [],
   intro: {
@@ -81,7 +83,7 @@ window.TRIAGEM = {
 
   // === BLOCO 3: INDICAÇÃO (um serviço só; a agenda já abre nele) ===
   indicacao: () => ({
-    servico: "Sessão Black Friday",
+    servico: "Sessão especial",
     porque: "90 minutos só pra você: chá, aromaterapia e uma escuta atenta; massagem 3 em 1 (inchaço, contraturas e relaxamento); no final, meditação, reiki ou breathwork. Durante a semana a partir das 17h e sábado o dia todo."
   })
 };
