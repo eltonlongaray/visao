@@ -172,6 +172,11 @@ export async function renderAgendaPublica(app, slug) {
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
+  // (21/11) ?teste=1: modo teste — percorre tudo, mas NÃO marca horário, não aplica cupom,
+  // não registra passos da triagem e não abre o WhatsApp sozinho (só mostra a mensagem).
+  const TESTE = new URLSearchParams(location.search).has('teste');
+  if (TESTE && !document.querySelector('.ap-faixa-teste')) document.body.insertAdjacentHTML('afterbegin',
+    '<div class="ap-faixa-teste" style="position:sticky;top:0;z-index:50;background:#FEF3C7;color:#78350F;text-align:center;font:600 .85rem/1.3 system-ui,sans-serif;padding:.55rem .8rem">🧪 Modo teste · nada é salvo, não marca horário</div>');
   let combo = [];                    // 2+ serviços num horário só (da triagem)
   const cupomUrl = (new URLSearchParams(location.search).get('cupom') || '').trim().toUpperCase().slice(0, 30);
   // cupom conferido ({codigo, desconto, descricao}). ?cupom= no link: o campo já abre preenchido e é aplicado sozinho
@@ -180,7 +185,7 @@ export async function renderAgendaPublica(app, slug) {
   // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
   // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
   const _passo = (txt) => {
-    if (!TRI || !TRI.codigo || !TRI.pacote) return;
+    if (TESTE || !TRI || !TRI.codigo || !TRI.pacote) return;
     const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
     try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
     try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }); } catch {}
@@ -543,14 +548,15 @@ export async function renderAgendaPublica(app, slug) {
       const fim = _fim(hora, _durSel());
       const ehCombo = combo.length > 1;
       const nomeServ = ehCombo ? _comboNome() : (serv?.nome || null);
-      const res = ehCombo
+      const res = TESTE ? {} : ehCombo
         ? await criarAgendamentoCombo(cfg.slug, dia.iso, hora, nome, zap, combo)
         : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
+      if (!TESTE) _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
       _passo(`Agendou: ${nomeServ || 'serviço'} · ${_diaTxt(dia.iso)} às ${hora}`);
       // cupom: grava no agendamento recém-criado (falhar aqui não desfaz o agendamento)
       let cupomOk = null;
+      if (cupom && TESTE) { cupomOk = cupom; cupom = null; }
       if (cupom) { try { const r = await aplicarCupom(cfg.slug, dia.iso, hora, zap, cupom.codigo); if (r.ok) cupomOk = r; } catch {} cupom = null; }
       // marca o intervalo recém-agendado (início→fim do serviço/duração) como ocupado
       const iniB = _hm(hora); const durB = _durSel() || DUR;
@@ -586,6 +592,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
           <div class="ap-ok-t">Agendamento confirmado!</div>
+          ${TESTE ? '<div class="ap-ok-sub" style="color:#78350F;font-weight:600">🧪 Modo teste: nada foi marcado na agenda.</div>' : ''}
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null && !(cupomOk && cupomOk.desconto >= 100) ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
           ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupomOk.desconto}% de desconto`}</div>
@@ -605,7 +612,13 @@ export async function renderAgendaPublica(app, slug) {
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
-      if (waTri) {
+      if (waTri && TESTE) {
+        // modo teste: mostra a mensagem que iria pro WhatsApp, sem abrir nada
+        const txtWa = decodeURIComponent(waTri.split('?text=')[1] || '');
+        const cd = app.querySelector('.ap-cd');
+        if (cd) cd.innerHTML = `<div class="ap-cd-t">🧪 Aqui a cliente iria pro WhatsApp da profissional com esta mensagem pronta (no teste, nada é aberto nem enviado):</div>
+          <pre style="white-space:pre-wrap;text-align:left;font:inherit;font-size:.85rem;background:rgba(0,0,0,.05);border-radius:10px;padding:.7rem .8rem;margin:.6rem 0 0">${_esc(txtWa)}</pre>`;
+      } else if (waTri) {
         // 5, 4, 3, 2, 1 → abre o WhatsApp da profissional com tudo que ela escolheu
         let n = 5;
         const tick = setInterval(() => {

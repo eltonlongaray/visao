@@ -464,10 +464,8 @@ function irParaWhatsApp(ind) {
 // A agenda lê `falcon_triagem_<slug>`: serviços, nome, WhatsApp e a mensagem que a
 // cliente manda pra profissional depois de confirmar ({{QUANDO}} = dia e hora).
 async function irParaAgenda(ind, plano) {
-  if (TESTE) {   // modo teste: mostra o que aconteceria, sem abrir a agenda nem contar conversão
-    app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pra agenda da ${esc(M.profissional.nome)} escolher o horário de <b>${esc(plano.map(s => s.nome).join(' + ') || ind.servico)}</b> e, depois de confirmar, pro WhatsApp com o resumo da triagem. Nada foi salvo.</div>`);
-    $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
-  }
+  // modo teste (21/11): segue pra agenda TAMBÉM em teste (?teste=1 lá), que percorre tudo sem marcar horário
+  // nem mandar nada; aqui não grava a triagem nem conta conversão (st.codigo fica vazio e a tag não carrega).
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   passo('Tocou em Escolher meu horário (' + (plano.map(s => s.nome).join(' + ') || ind.servico) + ')', false);
   const linhas = resumoLinhas();
@@ -493,5 +491,5 @@ async function irParaAgenda(ind, plano) {
       if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' });
     }
   } catch (e) {}
-  setTimeout(() => { location.href = '/agenda-online/' + encodeURIComponent(SLUG) + '?triagem=1' + (st.cupom ? '&cupom=' + encodeURIComponent(st.cupom) : ''); }, 350);
+  setTimeout(() => { location.href = '/agenda-online/' + encodeURIComponent(SLUG) + '?triagem=1' + (st.cupom ? '&cupom=' + encodeURIComponent(st.cupom) : '') + (TESTE ? '&teste=1' : ''); }, 350);
 }
