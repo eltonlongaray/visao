@@ -300,6 +300,20 @@ export async function renderAgendaPublica(app, slug) {
         ${s.nota ? `<span class="ap-serv-mt" style="display:block;margin-top:.2rem;opacity:.85">🕔 ${_esc(s.nota)}</span>` : ''}
       </button>`;
   }
+  // (21/11) Serviço com horário próprio (ex.: Black da Larissa): frase "quero muito, mas os
+  // meus horários não batem" + botão "Me ajuda, Lari". O botão NÃO diz que é WhatsApp (Élton:
+  // a função fica escondida pra curioso não ficar chamando) — só ao tocar abre o WhatsApp dela
+  // com a mensagem pronta. Textos: servico.ajuda = { texto, botao } (padrão abaixo).
+  function _ajudaHorarioHtml() {
+    const s = combo.length > 1 ? null : _servSel();
+    if (!s || !s.horarios || !_waProLink(cfg)) return '';
+    const aj = s.ajuda || {};
+    const texto = aj.texto || 'Eu quero muito, mas os meus horários não batem';
+    return `<div class="ap-ajuda-h" style="text-align:center;margin:.5rem 0 .2rem">
+      <p style="font-size:.88rem;opacity:.78;margin:0 0 .45rem">${_esc(texto)}</p>
+      <button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem">${_esc(aj.botao || 'Me ajuda')}</button>
+    </div>`;
+  }
   function _servHtml() {
     if (!servicos.length) return '';
     const escolhido = combo.length > 1
@@ -350,6 +364,7 @@ export async function renderAgendaPublica(app, slug) {
       </div>
       ${_histHtml()}
       ${_servHtml()}
+      ${_ajudaHorarioHtml()}
       ${(() => {   // atalho: próximo horário livre
         const p = _proximoLivre(); if (!p) return '';
         return `<div class="ap-prox"><div class="ap-prox-tx">📅 Próximo horário livre<b>${SEM[p.date.getDay()]} ${pad(p.date.getDate())}/${pad(p.date.getMonth() + 1)} às ${p.hora}</b></div>
@@ -450,6 +465,15 @@ export async function renderAgendaPublica(app, slug) {
       _passo('Trocou o serviço pra ' + (servicos.find(x => x.id === selServ)?.nome || '')); desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
+    app.querySelector('#ap-ajuda-btn')?.addEventListener('click', () => {
+      const s = _servSel();
+      let d = String(cfg.whatsapp || '').replace(/\D/g, ''); if (d.length <= 11) d = '55' + d;
+      const txt = `Oi! Eu quero muito a ${s?.nome || 'sessão'}${s?.destaque ? ` da ${s.destaque}` : ''}, mas os meus horários não batem${s?.nota ? ` (${s.nota})` : ''}. Tem como você me ajudar?`
+        + (ident?.nome ? `\n\n👤 ${ident.nome}` : '');
+      _passo('Pediu ajuda no WhatsApp (horários não batem)');
+      if (TESTE) { _aviso('🧪 Modo teste: aqui abriria o WhatsApp com: "' + txt.split('\n')[0] + '"'); return; }
+      location.href = `https://wa.me/${d}?text=${encodeURIComponent(txt)}`;
+    });
     app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; _aplicarHorariosServ(); desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;

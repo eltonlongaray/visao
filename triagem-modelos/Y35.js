@@ -109,7 +109,7 @@ window.TRIAGEM = {
     }[r && r.final] || "meditação, reiki ou breathwork";
     return {
       servico: "Sessão especial",
-      porque: `90 minutos só pra você: chá, aromaterapia e uma escuta atenta; massagem 3 em 1 (inchaço, contraturas e relaxamento); no final, ${fim}. Durante a semana a partir das 17h e sábado o dia todo.`
+      porque: `90 minutos só pra você: chá, aromaterapia e uma escuta atenta; massagem 3 em 1 (inchaço, contraturas e relaxamento); no final, ${fim}.`
     };
   }
 };

@@ -130,3 +130,12 @@ where slug = 'Y35';
 select s->>'nome' as servico, s->>'duracaoMin' as min, s->>'preco' as preco, s->'horarios' as horarios
 from agenda_config, jsonb_array_elements(servicos) s
 where slug = 'Y35';
+
+-- === BLOCO 3 (21/11): FRASE + BOTÃO "ME AJUDA, LARI" NA SESSÃO ESPECIAL ===
+-- Aparece embaixo da sessão na agenda; o botão abre o WhatsApp dela (sem dizer que é WhatsApp).
+update agenda_config
+set servicos = (select jsonb_agg(case when s->>'id' = 'sblack90'
+    then s || '{"ajuda": {"texto": "Eu quero muito, mas os meus horários não batem", "botao": "Me ajuda, Lari"}}'::jsonb
+    else s end order by i)
+  from jsonb_array_elements(servicos) with ordinality as t(s, i))
+where slug = 'Y35';
