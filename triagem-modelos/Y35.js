@@ -16,7 +16,11 @@ window.TRIAGEM = {
     whatsapp: "5551984551613"
   },
   // paleta da marca dela: rosa-texto, blush, off-white, preto
-  cores: { principal: "#C4646B", clara: "#FCDDDA", fundo: "#F4F1ED", tinta: "#050404" },
+  // cinza/marca mais escuros (21/11, Élton: texto e quadradinhos estavam apagados)
+  cores: { principal: "#C4646B", clara: "#FCDDDA", fundo: "#F4F1ED", tinta: "#050404", cinza: "#3F3A38", linha: "#D9CFCB", marca: "#8E8380" },
+  coracao: "🤍",
+  // um produto só: sem o card "Minha indicação" (a descrição vai no "Vou agendar")
+  semIndicacao: true,
   // R$ 197 até 30/11, depois R$ 247 (só essa sessão entra na Black)
   precos: {
     prazo: "30/11",
@@ -50,7 +54,7 @@ window.TRIAGEM = {
     { id: "dor_onde", grupo: "Sobre você", tipo: "multi", curto: "Onde sente mais",
       q: "Onde você sente mais?", ajuda: "Pode marcar mais de uma.",
       mostrarSe: { campo: "incomodo", algumDe: ["Dores e tensão no corpo"] },
-      ops: [{ v: "Pescoço e ombros" }, { v: "Costas e lombar" }, { v: "Pernas" }, { v: "Cabeça (tensão)" }, { v: "Outro lugar", outro: true }] },
+      ops: [{ v: "Pescoço e ombros" }, { v: "Costas e lombar" }, { v: "Pernas" }, { v: "Dor de cabeça" }, { v: "Outro lugar", outro: true }] },
     { id: "inchaco", grupo: "Sobre você", tipo: "unica", curto: "Quando incha",
       q: "Quando o inchaço aparece mais?",
       mostrarSe: { campo: "incomodo", algumDe: ["Barriga inchada, retenção"] },
@@ -72,14 +76,27 @@ window.TRIAGEM = {
     { id: "saude", grupo: "Sua segurança", tipo: "multi", curto: "Saúde",
       q: "Algo que eu precise saber sobre sua saúde?", ajuda: "É pra eu cuidar de você com segurança.",
       exclusivas: ["Nada disso"],
-      ops: [{ v: "Estou gestante" }, { v: "Tenho varizes ou já tive trombose" }, { v: "Tenho alergia a algum óleo ou cheiro" },
+      ops: [{ v: "Estou gestante" }, { v: "Tenho varizes ou já tive trombose" }, { v: "Tenho alergia a algum ativo de creme (ex.: mentol, cânfora, fragrância)" },
         { v: "Tenho pressão alta" }, { v: "Fiz cirurgia recente" }, { v: "Nada disso" }],
-      avisos: ["Estou gestante", "Tenho varizes ou já tive trombose", "Tenho alergia a algum óleo ou cheiro", "Tenho pressão alta", "Fiz cirurgia recente"]
+      avisos: ["Estou gestante", "Tenho varizes ou já tive trombose", "Tenho alergia a algum ativo de creme (ex.: mentol, cânfora, fragrância)", "Tenho pressão alta", "Fiz cirurgia recente"]
         .map(se => ({ se, texto: "Obrigada por avisar 🤍 Eu adapto a sessão pra você com segurança e a gente conversa antes de começar." })) },
     { id: "origem", grupo: "Pra terminar", tipo: "unica", curto: "Como me conheceu",
       q: "Como você me conheceu?",
-      ops: [{ v: "Pelo post da Black Friday" }, { v: "Pelo Instagram" }, { v: "Indicação de alguém" }, { v: "Já sou cliente" }] }
+      ops: [{ v: "Pelo Instagram" }, { v: "Indicação de alguém" }, { v: "Já sou cliente" }] }
   ],
+
+  // "Ainda não é o meu momento": cuidados mais em conta (o que combina com as respostas sobe)
+  naoEhMomento: {
+    botao: "Ainda não é o meu momento",
+    titulo: "Tudo bem",
+    texto: "Cada uma tem o seu momento. Talvez um desses cuidados caiba melhor agora:",
+    servicos: ["Massagem relaxante", "Drenagem linfática", "Massagem terapêutica"],
+    combinaPor: {
+      "Massagem terapêutica": ["Dores e tensão no corpo"],
+      "Drenagem linfática": ["Barriga inchada, retenção"],
+      "Massagem relaxante": ["Cabeça cheia, ansiedade", "Cansaço, sem energia", "Dormindo mal", "Só quero um tempo pra mim"]
+    }
+  },
 
   // === BLOCO 3: INDICAÇÃO (um serviço só; a agenda já abre nele) ===
   indicacao: () => ({

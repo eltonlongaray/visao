@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=32`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=33`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -37,6 +37,9 @@ function iniciar() {
   if (c.clara) raiz.setProperty('--cor-clara', c.clara);
   if (c.fundo) { raiz.setProperty('--fundo', c.fundo); document.body.style.background = c.fundo; }
   if (c.tinta) raiz.setProperty('--tinta', c.tinta);
+  if (c.cinza) raiz.setProperty('--cinza', c.cinza);     // texto de apoio (lead/ajuda)
+  if (c.linha) raiz.setProperty('--linha', c.linha);
+  if (c.marca) raiz.setProperty('--marca', c.marca);     // borda do quadradinho de marcar
   document.title = M.profissional.negocio + ' · ' + (M.titulo || 'Triagem');
   $('marca').innerHTML = `${esc(M.profissional.negocio)}<small>${esc(M.profissional.nome)}</small>`;
   // ?teste=1: modo teste — não grava a triagem, não carrega a tag do Google (não conta conversão)
@@ -133,7 +136,7 @@ function depoTela() {
   const d = _depoAbertura();
   if (!d) { st.i = 0; salvar(); return tela(); }
   app.innerHTML = `<section class="tela">
-    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o meu trabalho 💜</h2>
+    <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o meu trabalho ${esc(M.coracao || '💜')}</h2>
     ${depoHtml(d)}
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="go">Começar as perguntas →</button></div></section>`;
@@ -259,7 +262,7 @@ function voltar() { if (st.i <= 0) { st.i = -1; salvar(); depoTela(); } else { s
 function contato() {
   const c = st.contato || {};
   app.innerHTML = `<section class="tela">
-    <h2 class="q">Quase lá! 💜</h2>
+    <h2 class="q">Quase lá! ${esc(M.coracao || '💜')}</h2>
     <p class="ajuda">Pra eu te reconhecer quando tu agendar:</p>
     <label class="campo">Teu nome<input id="c-nome" autocomplete="name" placeholder="Como tu gosta de ser chamada" value="${esc(c.nome || '')}"></label>
     <label class="campo">Teu WhatsApp<input id="c-zap" inputmode="tel" autocomplete="tel" placeholder="(51) 9 9999-9999" value="${esc(c.contato || '')}"></label>
@@ -401,12 +404,12 @@ function resultado() {
     ...(blend ? [{ v: blend.nome, blend: true }] : [])].filter((o, i, a) => a.findIndex(x => x.v === o.v) === i);
   salvar();
   app.innerHTML = `<section class="tela">
-    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra ti')} 💜</h1>
+    <h1>${esc(M.resultado?.titulo || 'Achei o cuidado certo pra ti')} ${esc(M.coracao || '💜')}</h1>
     ${opcoes.length > 1 ? `<div class="card escolha"><h3>Escolhe o teu tratamento</h3><p class="ajuda" style="margin:0 0 .7rem">${esc(ind.porque)}</p>
       <div class="ops" role="radiogroup">${opcoes.map(s => `<button type="button" class="op trat" role="radio" aria-checked="${st.plano[0] === s.id}" data-id="${esc(s.id)}">
         <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(nomeCurto(s.nome))}</b>${s.id === servInd?.id ? '<span class="selo">indicado pra ti</span>' : ''}</span>
         ${desc(s) ? `<small>${esc(desc(s))}</small>` : ''}${precosOpcao(s)}</span></button>`).join('')}</div></div>`
-    : `<div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>`}
+    : M.semIndicacao ? '' : `<div class="card"><h3>Minha indicação</h3><p class="indic">${esc(ind.servico)}</p><p class="ajuda" style="margin:.4rem 0 0">${esc(ind.porque)}</p></div>`}
     ${extras.length ? `<div class="card escolha"><h3>Quer cuidar disso também?</h3>
       <div class="ops">${extras.map(e => `<button type="button" class="op trat multi" role="checkbox" aria-checked="${st.plano.includes(e.s.id)}" data-extra="${esc(e.s.id)}">
         <span class="marca-op"></span><span class="trat-tx"><b>${esc(e.titulo || nomeCurto(e.s.nome))}</b><small>${esc(e.porque || desc(e.s))}</small><small class="pr">${precoTxt(e.s)}</small></span></button>`).join('')}</div></div>` : ''}
@@ -414,6 +417,7 @@ function resultado() {
     ${depoHtml(_depoResultado(ind))}
     ${plano.length ? `<div class="card plano"><h3>Vou agendar</h3>
       ${plano.map(s => `<div class="item"><span class="nm">${esc(s.nome)} · ${s.duracaoMin || 60} min</span><span class="pr">${s.sessoes > 1 ? `Pacote com ${s.sessoes} sessões` : 'Sessão'}: ${precoTxt(s)}</span>${pacoteTxt(s) ? `<span class="pr">${pacoteTxt(s)}</span>` : ''}</div>`).join('')}
+      ${M.semIndicacao && ind.porque ? `<p class="ajuda" style="margin:.6rem 0 0">${esc(ind.porque)}</p>` : ''}
       ${plano.some(s => pacoteTxt(s)) ? `<p class="ajuda" style="margin:.6rem 0 0">Na agenda tu escolhe: uma sessão ou o pacote, e pode mudar depois. O tratamento completo é o que dá mais resultado, e eu te explico tudo no atendimento.</p>` : ''}
     </div>` : ''}
     ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
@@ -421,6 +425,7 @@ function resultado() {
     </div>` : ''}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
       <button class="btn full" id="agendar">${plano.length ? '📅 Escolher meu horário' : `💬 Combinar com a ${esc(M.profissional.nome)} no WhatsApp`}</button>
+      ${M.naoEhMomento && plano.length ? `<button class="btn full sec" id="nao-momento">${esc(M.naoEhMomento.botao || 'Ainda não é o meu momento')}</button>` : ''}
       <div class="nav" style="margin-top:.2rem"><button class="voltar" id="volta">← Voltar</button>
         <button class="voltar" id="refazer">Refazer as respostas</button></div>
     </div>
@@ -445,14 +450,48 @@ function resultado() {
   $('refazer').onclick = () => { passo('Refez as respostas', false); st = { caminho: st.caminho, i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
   // Indicação que ainda não está na agenda (ex.: tratamento com valor a combinar): vai pro WhatsApp dela
   $('agendar').onclick = () => plano.length ? irParaAgenda(ind, plano) : irParaWhatsApp(ind);
+  if ($('nao-momento')) $('nao-momento').onclick = () => { passo('Disse que ainda não é o momento (viu outras opções)'); naoEhMomento(ind); window.scrollTo({ top: 0 }); };
+}
+
+// "Ainda não é o meu momento" (21/11, Élton): quem chegou até aqui e não quis agendar
+// (sem nem ver os horários) costuma travar no valor → mostra os cuidados mais em conta,
+// o que combina com as respostas primeiro, e cada um abre a agenda só com aquele serviço.
+function naoEhMomento(ind) {
+  const N = M.naoEhMomento;
+  const marcados = Object.values(st.r).flat();
+  const lista = (N.servicos || []).map(n => ({ n, s: servPorNome(n) })).filter(x => x.s)
+    .map(({ n, s }) => ({ s, combina: (N.combinaPor?.[n] || []).some(x => marcados.includes(x)) }))
+    .sort((a, b) => (b.combina - a.combina) || ((a.s.preco ?? 1e9) - (b.s.preco ?? 1e9)));
+  app.innerHTML = `<section class="tela">
+    <h1>${esc(N.titulo || 'Tudo bem')} ${esc(M.coracao || '💜')}</h1>
+    ${N.texto ? `<p class="lead">${esc(N.texto)}</p>` : ''}
+    ${lista.map(({ s, combina }) => `<div class="card">
+      ${combina ? `<h3>Combina com o que você me contou</h3>` : ''}
+      <p class="indic" style="margin:0">${esc(s.nome)}</p>
+      <p class="ajuda" style="margin:.25rem 0 .7rem">${s.duracaoMin || 60} min${s.preco != null ? ` · <b>${reais(s.preco)}</b>` : ''}</p>
+      <button class="btn full" data-alt="${esc(s.id)}">📅 Ver horários</button></div>`).join('')}
+    <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
+      <button class="btn full sec" id="alt-zap">💬 Prefiro conversar com a ${esc(M.profissional.nome)}</button>
+      <div class="nav" style="margin-top:.2rem"><button class="voltar" id="volta">← Voltar</button></div>
+    </div>
+    <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
+  app.querySelectorAll('[data-alt]').forEach(b => b.onclick = () => {
+    const s = SERV.find(x => x.id === b.dataset.alt);
+    passo('Escolheu outra opção: ' + s.nome, false);
+    app.querySelectorAll('[data-alt]').forEach(x => { x.removeAttribute('id'); });
+    b.id = 'agendar';   // irParaAgenda mostra "Abrindo a agenda…" no botão #agendar
+    irParaAgenda({ ...ind, servico: `${ind.servico} (disse que ainda não é o momento; escolheu ${s.nome})` }, [s]);
+  });
+  $('alt-zap').onclick = () => irParaWhatsApp({ ...ind, servico: `${ind.servico} (ainda não é o meu momento, quero conhecer outras opções)` });
+  $('volta').onclick = () => { resultado(); window.scrollTo({ top: 0 }); };
 }
 
 function irParaWhatsApp(ind) {
-  const msg = [`Oi ${M.profissional.nome}! Fiz a triagem 💜`, `✨ Indicação: ${ind.servico}`,
+  const msg = [`Oi ${M.profissional.nome}! Fiz a triagem ${M.coracao || '💜'}`, `✨ Indicação: ${ind.servico}`,
     'Quero saber como funciona e o valor.', '', ...resumoLinhas().map(([k, v]) => `• ${k}: ${v}`)].join('\n');
   if (TESTE) {
     app.insertAdjacentHTML('beforeend', `<div class="aviso" style="margin-top:1rem">🧪 <b>Modo teste.</b> Aqui a cliente iria pro WhatsApp da ${esc(M.profissional.nome)} com a indicação <b>${esc(ind.servico)}</b> e o resumo da triagem. Nada foi salvo.</div>`);
-    $('agendar').disabled = true; app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
+    $('agendar') && ($('agendar').disabled = true); app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
   }
   passo('Foi pro WhatsApp combinar (' + ind.servico + ')');
   try { if (window.dataLayer) { window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
@@ -469,7 +508,7 @@ async function irParaAgenda(ind, plano) {
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   passo('Tocou em Escolher meu horário (' + (plano.map(s => s.nome).join(' + ') || ind.servico) + ')', false);
   const linhas = resumoLinhas();
-  const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link 💜`, '',
+  const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link ${M.coracao || '💜'}`, '',
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
     `✨ Indicação: ${ind.servico}`,
     ...(st.cupom ? [`🎟️ Cupom: ${st.cupom}`] : []),
