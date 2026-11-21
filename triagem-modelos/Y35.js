@@ -89,6 +89,7 @@ window.TRIAGEM = {
   naoEhMomento: {
     botao: "Ainda não é o meu momento",
     titulo: "Tudo bem",
+    botaoZap: "Quero falar com a Lari no WhatsApp",
     texto: "Cada uma tem o seu momento. Talvez um desses cuidados caiba melhor agora:",
     servicos: ["Massagem relaxante", "Drenagem linfática", "Massagem terapêutica"],
     combinaPor: {

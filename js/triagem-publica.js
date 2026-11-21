@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=35`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=36`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -471,7 +471,8 @@ function naoEhMomento(ind) {
       <p class="ajuda" style="margin:.25rem 0 .7rem">${s.duracaoMin || 60} min${s.preco != null ? ` · <b>${reais(s.preco)}</b>` : ''}</p>
       <button class="btn full" data-alt="${esc(s.id)}">📅 Ver horários</button></div>`).join('')}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
-      <button class="btn full sec" id="alt-zap">💬 Prefiro conversar com a ${esc(M.profissional.nome)}</button>
+      <!-- (21/11, Élton) tem que ficar NÍTIDO que é WhatsApp: verde + ícone + "no WhatsApp" -->
+      <button class="btn full" id="alt-zap" style="background:#25D366;color:#fff"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg> ${esc(N.botaoZap || `Quero falar com a ${M.profissional.nome} no WhatsApp`)}</button>
       <div class="nav" style="margin-top:.2rem"><button class="voltar" id="volta">← Voltar</button></div>
     </div>
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
