@@ -309,9 +309,11 @@ export async function renderAgendaPublica(app, slug) {
     if (!s || !s.horarios || !_waProLink(cfg)) return '';
     const aj = s.ajuda || {};
     const texto = aj.texto || 'Eu quero muito, mas os meus horários não batem';
-    return `<div class="ap-ajuda-h" style="text-align:center;margin:.5rem 0 .2rem">
-      <p style="font-size:.88rem;opacity:.78;margin:0 0 .45rem">${_esc(texto)}</p>
-      <button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem">${_esc(aj.botao || 'Me ajuda')}</button>
+    // (21/11, Élton) destacado igual ao card do serviço + instrução de tocar no botão
+    return `<div class="ap-ajuda-h ap-serv-op sel" style="cursor:default;align-items:center;text-align:center;gap:4px;padding:14px">
+      <span class="ap-serv-nm" style="text-wrap:balance">${_esc(texto)}</span>
+      <span class="ap-serv-mt">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
+      <button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem;margin-top:8px">${_esc(aj.botao || 'Me ajuda')}</button>
     </div>`;
   }
   function _servHtml() {
