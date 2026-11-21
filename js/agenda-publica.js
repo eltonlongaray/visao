@@ -172,15 +172,19 @@ export async function renderAgendaPublica(app, slug) {
     if (!TRI || !TRI.codigo || !TRI.pacote) return;
     const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
     try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
-    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }); } catch {}
+    // O rpc do supabase só dispara com then/await: sem isso o passo nunca saía da tela (bug até v898).
+    // Fila em série pra um envio antigo não chegar depois e apagar o passo mais novo.
+    const snap = JSON.parse(JSON.stringify(pc));
+    _filaPasso = _filaPasso.then(() => supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: snap })).then(() => {}, () => {});
   };
+  let _filaPasso = Promise.resolve();
   const _diaTxt = isoD => { const [y, m, d] = String(isoD || '').split('-'); return d ? `${d}/${m}` : ''; };
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
     if (ids.length) { selServ = ids[0]; if (ids.length > 1) combo = ids; }
-    const prim = _primeiroComVaga(semOffset);
-    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
+    const prim = _proximoLivre();
+    _passo('Abriu a agenda' + (prim ? ` (próximo horário livre: ${_diaTxt(prim.iso)} às ${prim.hora})` : ' (sem nenhum horário livre)'));
   }
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
