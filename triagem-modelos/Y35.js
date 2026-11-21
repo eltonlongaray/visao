@@ -99,8 +99,17 @@ window.TRIAGEM = {
   },
 
   // === BLOCO 3: INDICAÇÃO (um serviço só; a agenda já abre nele) ===
-  indicacao: () => ({
-    servico: "Sessão especial",
-    porque: "90 minutos só pra você: chá, aromaterapia e uma escuta atenta; massagem 3 em 1 (inchaço, contraturas e relaxamento); no final, meditação, reiki ou breathwork. Durante a semana a partir das 17h e sábado o dia todo."
-  })
+  // o final da sessão segue o que ela escolheu na pergunta "final" (21/11, Élton)
+  indicacao: (r) => {
+    const fim = {
+      "Meditação guiada": "meditação guiada",
+      "Reiki": "reiki",
+      "Breathwork (respiração)": "breathwork (respiração)",
+      "Quero que você escolha por mim": "o que eu sentir que você mais precisa: meditação, reiki ou breathwork"
+    }[r && r.final] || "meditação, reiki ou breathwork";
+    return {
+      servico: "Sessão especial",
+      porque: `90 minutos só pra você: chá, aromaterapia e uma escuta atenta; massagem 3 em 1 (inchaço, contraturas e relaxamento); no final, ${fim}. Durante a semana a partir das 17h e sábado o dia todo.`
+    };
+  }
 };
