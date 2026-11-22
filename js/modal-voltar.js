@@ -16,10 +16,24 @@
 
 let trapCounter = 0;
 
+// Fecha um modal e abre outro na mesma hora (ex.: "Editar contato" no perfil):
+// o history.back() do que fechou roda depois (setTimeout) e tirava o state do
+// modal NOVO, que fechava sozinho. Agora, enquanto há um back pendente, o
+// pushState do modal novo espera esse back terminar.
+let backsPendentes = 0;
+let filaPush = [];
+function _soltarFila() {
+  const f = filaPush; filaPush = [];
+  f.forEach(fn => { try { fn(); } catch (e) { console.warn('[modal-back]', e); } });
+}
+window.addEventListener('popstate', () => {
+  if (backsPendentes > 0 && --backsPendentes === 0) _soltarFila();
+});
+
 export function trapModalBack(onClose) {
   const myId = ++trapCounter;
   const myKey = `t${myId}`;
-  let popped = false, cameFromPop = false;
+  let popped = false, cameFromPop = false, armado = false;
 
   const onPop = () => {
     // Se nosso marcador AINDA está no state, foi um trap aninhado que fechou
@@ -31,18 +45,27 @@ export function trapModalBack(onClose) {
   };
 
   // Pega state atual (pode ser null) e adiciona NOSSO marcador
-  const prevState = history.state || {};
-  const newState = { ...prevState, [myKey]: true };
-  window.addEventListener('popstate', onPop);
-  history.pushState(newState, '');
+  const armar = () => {
+    if (popped) return;   // fechou antes de armar: não empilha nada
+    armado = true;
+    const prevState = history.state || {};
+    window.addEventListener('popstate', onPop);
+    history.pushState({ ...prevState, [myKey]: true }, '');
+  };
+  if (backsPendentes > 0) filaPush.push(armar); else armar();
 
   const finish = () => {
     if (popped) return;
     popped = true;
     window.removeEventListener('popstate', onPop);
-    if (!cameFromPop) {
+    if (armado && !cameFromPop) {
       // Pop nosso state (delay pra evitar reentrada antes do unmount completar)
-      setTimeout(() => { try { history.back(); } catch {} }, 0);
+      backsPendentes++;
+      setTimeout(() => {
+        try { history.back(); } catch {}
+        // segurança: se o navegador não mandar popstate, não trava a fila
+        setTimeout(() => { if (backsPendentes > 0) { backsPendentes = 0; _soltarFila(); } }, 600);
+      }, 0);
     }
     try { onClose(); } catch (err) { console.warn('[modal-back] onClose threw:', err); }
   };
