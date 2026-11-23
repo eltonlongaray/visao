@@ -312,11 +312,12 @@ export async function renderAgendaPublica(app, slug) {
     const aj = s.ajuda || {};
     const ajuda = _waProLink(cfg) ? `${_sepH}
         <span class="ap-serv-nm" style="display:block;text-align:center;text-wrap:balance">${_esc(aj.texto || 'Eu quero muito, mas os meus horários não batem')}</span>
-        <span class="ap-serv-mt" style="display:block;text-align:center">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
+        <span class="ap-serv-mt" style="display:block;text-align:center;text-wrap:balance">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
         <span style="display:block;text-align:center;margin-top:8px"><button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem">${_esc(aj.botao || 'Me ajuda')}</button></span>` : '';
     return `<div class="ap-serv-op sel ap-serv-unico" style="cursor:default">
         <span class="ap-serv-nm">${_esc(s.nome)}${s.destaque ? ` <span style="display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#050404;color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap">🖤 ${_esc(s.destaque)}</span>` : ''}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+        ${s.promo ? `<span class="ap-serv-mt" style="display:block;opacity:1;font-weight:700;margin-top:2px">${_esc(s.promo)}</span>` : ''}
         ${s.nota ? `${_sepH}
         <span class="ap-serv-mt" style="display:block;text-align:center;opacity:1;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase">🕔 Horários desta sessão</span>
         ${String(s.nota).split('·').map(t => t.trim()).filter(Boolean).map(t => `<span style="display:block;text-align:center;font-size:1.08rem;font-weight:800;margin-top:2px">${_esc(t.charAt(0).toUpperCase() + t.slice(1))}</span>`).join('')}` : ''}

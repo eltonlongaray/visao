@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=36`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=37`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -321,6 +321,9 @@ function precoTxt(s) {
   const black = _porNome(M.precos?.black, s.nome) ?? s.preco;   // preço de Black do modelo, senão o da agenda
   const atual = blackAtiva() ? black : (depois ?? s.preco);
   if (atual == null && depois == null) return `valor com a ${esc(M.profissional.nome)}`;
+  // precos.legenda (modelo): texto próprio da regra da Black, com {black} {depois} {prazo} {depoisDe}
+  if (black != null && depois != null && blackAtiva() && M.precos.legenda)
+    return esc(M.precos.legenda).replace('{black}', `<b>${reais(black)}</b>`).replace('{depois}', reais(depois)).replace('{prazo}', esc(M.precos.prazo)).replace('{depoisDe}', proxDia());
   if (black != null && depois != null && blackAtiva())
     return `Black até ${esc(M.precos.prazo)}: <b>${reais(black)}</b> · a partir de ${proxDia()}: ${reais(depois)}`;
   return `<b>${reais(atual ?? depois)}</b>`;

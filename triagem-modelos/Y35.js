@@ -25,7 +25,9 @@ window.TRIAGEM = {
   precos: {
     prazo: "30/11",
     black: { "Sessão especial": 197 },
-    depois: { "Sessão especial": 247 }
+    depois: { "Sessão especial": 247 },
+    // (21/11, Larissa) paga até 30/11 e usa em até 30 dias
+    legenda: "{black} pagando até {prazo} (use em até 30 dias) · a partir de {depoisDe}: {depois}"
   },
   mostrarInteresses: false,
   // foco total nesse produto: a agenda abre só com a sessão da Black (outros serviços = link da bio)

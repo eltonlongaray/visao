@@ -139,3 +139,16 @@ set servicos = (select jsonb_agg(case when s->>'id' = 'sblack90'
     else s end order by i)
   from jsonb_array_elements(servicos) with ordinality as t(s, i))
 where slug = 'Y35';
+
+-- === BLOCO 4 (22/11, Larissa): SÁBADO SOB CONSULTA + "PAGANDO ATÉ 30/11 · USE EM ATÉ 30 DIAS" ===
+-- Tira o sábado dos horários da sessão (vira "sob consulta" pelo botão Me ajuda, Lari).
+update agenda_config
+set servicos = (select jsonb_agg(case when s->>'id' = 'sblack90'
+    then jsonb_set(s, '{horarios}', (s->'horarios') - '6')
+      || jsonb_build_object(
+           'nota',  'Seg a sex a partir das 17h · Sábado sob consulta',
+           'promo', 'Pagando até 30/11 · use em até 30 dias',
+           'ajuda', coalesce(s->'ajuda', '{}'::jsonb) || '{"sub": "Toque no botão abaixo para pedir ajuda ou consultar o sábado"}'::jsonb)
+    else s end order by i)
+  from jsonb_array_elements(servicos) with ordinality as t(s, i))
+where slug = 'Y35';
