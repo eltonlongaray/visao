@@ -18,6 +18,7 @@ window.TRIAGEM = {
   // Preço de Black: o da agenda vale até o prazo; depois sobe pro "depois"
   precos: {
     prazo: "30/11",
+    semDepois: true,   // (25/11) só "Preço da Black: R$ X" — o preço de depois confundia ("só posso agendar até 30/11?")
     // preço de Black (até o prazo) — se não tiver aqui, vale o preço da agenda
     black: { "Esculpe Detox": 597, "Deusa Grega": 197 },
     depois: { "Sessão para celulite": 145, "Esculpe Detox": 747, "Deusa Grega": 227, "Pacote Deusa Grega": 997, "Liberação miofascial": 185,
@@ -25,6 +26,12 @@ window.TRIAGEM = {
       "Pacote Sessão para celulite": 649, "Pacote Drenagem linfática": 559, "Pacote Tratamento para manchas": 699,
       "Pacote Sessão de LED": 559, "Pacote Massagem desportiva": 599, "Pacote Limpeza de pele": 569 }
   },
+
+  // (25/11) caixa em destaque acima do "Escolher meu horário" (só durante a Black)
+  avisoAgendar: [
+    "📅 Pode agendar agora pra dezembro: o preço da Black vale pra quem marca até 30/11, mesmo que a sessão seja depois.",
+    "💳 Tu não paga nada agora. Paga só no dia, depois do atendimento.",
+  ],
 
   // "Serviços que também me interessam": o que oferecer pra cada incômodo (nomes da agenda)
   interessesPor: {

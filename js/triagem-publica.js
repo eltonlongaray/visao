@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=38`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=39`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -325,6 +325,8 @@ function precoTxt(s) {
   const black = _porNome(M.precos?.black, s.nome) ?? s.preco;   // preço de Black do modelo, senão o da agenda
   const atual = blackAtiva() ? black : (depois ?? s.preco);
   if (atual == null && depois == null) return `valor com a ${esc(M.profissional.nome)}`;
+  // precos.semDepois (25/11, Alê): mostra só o preço da Black, sem o "a partir de 01/12" (parecia que só dava pra agendar até o prazo)
+  if (black != null && depois != null && depois !== black && blackAtiva() && M.precos?.semDepois) return `<b>${reais(black)}</b> (preço da Black)`;
   // precos.legenda (modelo): texto próprio da regra da Black, com {black} {depois} {prazo} {depoisDe}
   if (black != null && depois != null && blackAtiva() && M.precos.legenda)
     return esc(M.precos.legenda).replace('{black}', `<b>${reais(black)}</b>`).replace('{depois}', reais(depois)).replace('{prazo}', esc(M.precos.prazo)).replace('{depoisDe}', proxDia());
@@ -345,6 +347,7 @@ function pacoteTxt(s) {
 function precoCurto(s) {
   const depois = _porNome(M.precos?.depois, s.nome);
   const black = _porNome(M.precos?.black, s.nome) ?? s.preco;
+  if (blackAtiva() && black != null && depois != null && depois !== black && M.precos?.semDepois) return `<b>${reais(black)}</b> (preço da Black)`;
   if (blackAtiva() && black != null && depois != null && depois !== black) return `<b>${reais(black)}</b> (${reais(depois)} a partir de ${proxDia()})`;
   const v = blackAtiva() ? black : (depois ?? s.preco);
   return v != null ? `<b>${reais(v)}</b>` : `valor no atendimento`;
@@ -430,6 +433,7 @@ function resultado() {
     ${ops.length && M.mostrarInteresses !== false ? `<div class="card int"><h3>Serviços que também me interessam</h3>
       <div class="ops">${ops.map(o => `<button type="button" class="op multi" role="checkbox" aria-checked="${st.interesses.includes(o.v)}" data-v="${esc(o.v)}"><span class="marca-op"></span><span>${esc(o.v)}${o.blend ? ' 🌿' : ''}</span></button>`).join('')}</div>
     </div>` : ''}
+    ${plano.length && blackAtiva() && M.avisoAgendar ? `<p class="ajuda-destaque" style="margin-top:1.1rem">${[].concat(M.avisoAgendar).map(esc).join('<br>')}</p>` : ''}
     <div style="display:flex;flex-direction:column;gap:.6rem;margin-top:1.3rem">
       <button class="btn full" id="agendar">${plano.length ? '📅 Escolher meu horário' : `💬 Combinar com a ${esc(M.profissional.nome)} no WhatsApp`}</button>
       ${M.naoEhMomento && plano.length ? `<button class="btn full sec" id="nao-momento">${esc(M.naoEhMomento.botao || 'Ainda não é o meu momento')}</button>` : ''}
