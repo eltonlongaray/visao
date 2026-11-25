@@ -3,7 +3,8 @@
 //   pdfRelatorioSessao({ cliente, sessao, lista, n, cfg, trat }) → Blob (A4, jsPDF)
 //   Conteúdo: cabeçalho na cor da marca · dor ao pressionar por região (hoje × anterior
 //   × 1ª sessão, com "melhorou/piorou") · gráfico da média de dor sessão a sessão ·
-//   medidas (antes/depois ou por altura) · áreas, técnica e o que levou · orientações
+//   medidas (resumo "já reduziu X cm", tabela 1ª vez × hoje × na sessão × desde a 1ª e
+//   gráfico de centímetros a menos) · áreas, técnica e o que levou · orientações
 //   pra casa (extra.orientacoes). As OBSERVAÇÕES da sessão NÃO entram: são anotações
 //   internas da profissional (Élton, 25/11).
 //   compartilharPdf(blob, nome, texto) → share do celular (WhatsApp) ou download.
@@ -130,26 +131,86 @@ export async function pdfRelatorioSessao({ cliente, sessao, lista = [], n = 1, c
     doc.text('Média da dor ao pressionar em cada sessão (quanto mais baixo, melhor).', M, y); y += 8;
   }
 
-  // --- medidas ---
+  // --- medidas (25/11, Élton: no mesmo nível da dor — resumo, tabela e gráfico) ---
   const med = sessao?.medidas || {};
   const ks = Object.keys(med).filter(k => med[k] && (_num(med[k].antes) != null || _num(med[k].depois) != null));
   if (ks.length) {
     titulo('Medidas');
-    const porAltura = ks.some(k => MEDIDAS_ALTURA.some(m => m.k === k));
-    const nomeMed = k => (MEDIDAS.concat(MEDIDAS_ALTURA).find(m => m.k === k)?.nome || med[k]?.nome || k.replace(/^x_/, '')).split(' (')[0];
-    for (const k of ks) {
-      cabe(7);
-      const a = _num(med[k].antes), d = _num(med[k].depois);
-      const pri = primeira?.medidas?.[k], vPri = pri ? (_num(pri.depois) ?? _num(pri.antes)) : null;
-      const agora = d ?? a;
-      let linha = porAltura || d == null ? `${_fmt(agora)} cm` : `antes ${_fmt(a)} · depois ${_fmt(d)} cm`;
-      if (!porAltura && a != null && d != null && a !== d) linha += ` (${d < a ? '-' : '+'}${_fmt(Math.abs(a - d))} na sessão)`;
-      if (vPri != null && agora != null && vPri !== agora) linha += ` · desde a 1ª sessão: ${agora < vPri ? '-' : '+'}${_fmt(Math.abs(vPri - agora))} cm`;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...TINTA); doc.text(_txt(nomeMed(k)), M + 1.5, y);
-      doc.setFont('helvetica', 'normal'); doc.text(_txt(linha), M + 58, y);
-      y += 6.5;
+    const defDe = k => MEDIDAS.concat(MEDIDAS_ALTURA).find(m => m.k === k) || null;
+    const nomeMed = k => { const d = defDe(k); const g = d?.grupo && d.grupo !== 'Peso' ? `${d.grupo} · altura ${k.split('_').pop()}` : (d?.nome || med[k]?.nome || k.replace(/^x_/, '')); return g.split(' (')[0]; };
+    const unDe = k => defDe(k)?.un || 'cm';
+    const valor = m => (m ? (_num(m.depois) ?? _num(m.antes)) : null);       // valor final da sessão
+    // 1ª vez que a medida foi tirada (no plano "1ª e a cada 5" nem toda sessão mede)
+    // ponto de partida = como ela CHEGOU na 1ª vez (o "antes" da 1ª sessão em que mediu)
+    const partida = m => (m ? (_num(m.antes) ?? _num(m.depois)) : null);
+    const priDe = k => { for (const x of anteriores) { const v = partida(x.medidas?.[k]); if (v != null) return v; } return null; };
+    const linhas = ks.map(k => {
+      const a = _num(med[k].antes), d = _num(med[k].depois), hoje = d ?? a, pri = priDe(k);
+      return { k, nome: nomeMed(k), un: unDe(k), a, d, hoje, pri, desde: pri != null && hoje != null ? hoje - pri : null };
+    });
+    // resumo: soma das medidas em cm que existem hoje e na 1ª vez
+    const emCm = linhas.filter(l => l.un === 'cm' && l.desde != null);
+    const total = emCm.reduce((t, l) => t + l.desde, 0);
+    const naSessao = linhas.filter(l => l.un === 'cm' && l.a != null && l.d != null).reduce((t, l) => t + (l.d - l.a), 0);
+    if (emCm.length && total < -0.05) paragrafo(`Desde a 1ª sessão, você já reduziu ${_fmt(-total)} cm no total (somando as ${emCm.length} medidas).`);
+    else if (Math.abs(naSessao) > 0.05 && naSessao < 0) paragrafo(`Só nesta sessão, foram ${_fmt(-naSessao)} cm a menos (somando as medidas).`);
+    y += 1;
+    // tabela: Medida | 1ª vez | Hoje | Na sessão | Desde a 1ª
+    const temAntesDepois = linhas.some(l => l.a != null && l.d != null);
+    const cols = [M, M + 62, M + 88, M + 118, M + 146];
+    cabe(10);
+    doc.setFillColor(...FUNDO); doc.rect(M, y - 4.5, LW, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...TINTA);
+    ['Medida', '1ª vez', 'Hoje', temAntesDepois ? 'Na sessão' : '', 'Desde a 1ª'].forEach((h, c) => h && doc.text(h, cols[c] + 1.5, y));
+    y += 7;
+    for (const l of linhas) {
+      cabe(7.5);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...TINTA);
+      doc.text(_txt(l.nome), cols[0] + 1.5, y);
+      doc.text(l.pri != null ? `${_fmt(l.pri)}` : '—', cols[1] + 1.5, y);
+      doc.setFont('helvetica', 'bold'); doc.text(`${_fmt(l.hoje)} ${l.un}`, cols[2] + 1.5, y);
+      doc.setFont('helvetica', 'normal');
+      if (temAntesDepois) {
+        const dif = l.a != null && l.d != null ? l.d - l.a : null;
+        doc.setTextColor(...(dif != null && dif < 0 ? [16, 140, 100] : [120, 120, 130]));
+        doc.text(dif == null ? '—' : dif === 0 ? 'igual' : `${dif < 0 ? '-' : '+'}${_fmt(Math.abs(dif))}`, cols[3] + 1.5, y);
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...(l.desde != null && l.desde < 0 ? [16, 140, 100] : l.desde > 0 ? [200, 60, 60] : [120, 120, 130]));
+      doc.text(l.desde == null ? 'primeira medida' : l.desde === 0 ? 'igual' : `${l.desde < 0 ? '-' : '+'}${_fmt(Math.abs(l.desde))} ${l.un}`, cols[4] + 1.5, y);
+      doc.setDrawColor(230, 228, 232); doc.line(M, y + 2.4, M + LW, y + 2.4);
+      y += 7.5;
     }
-    y += 4;
+    y += 3;
+    // gráfico: centímetros a menos desde a 1ª sessão (soma das medidas que existem nas duas)
+    const sessoes = anteriores.concat([sessao]);
+    const base = {}; for (const l of emCm) base[l.k] = l.pri;
+    const serieM = sessoes.map((x, idx) => {
+      const vs = Object.keys(base).map(k => valor(x.medidas?.[k])).filter(v => v != null);
+      if (!vs.length) return null;
+      const soma = Object.keys(base).reduce((t, k) => { const v = valor(x.medidas?.[k]); return v != null ? t + (base[k] - v) : t; }, 0);
+      return { i: idx + 1, red: soma };
+    }).filter(Boolean);
+    if (serieM.length >= 2) {
+      cabe(56);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...COR);
+      doc.text('Centímetros a menos desde a 1ª sessão', M, y + 2); y += 6;
+      const max = Math.max(2, ...serieM.map(x => x.red));
+      const gx = M + 8, gy = y + 2, gw = LW - 14, gh = 34;
+      const bw = Math.min(16, gw / serieM.length - 6);
+      doc.setDrawColor(225, 222, 228); doc.setLineWidth(0.2); doc.line(gx, gy + gh, gx + gw, gy + gh);
+      serieM.forEach((x, j) => {
+        const cx = gx + (j + 0.5) * (gw / serieM.length);
+        const h = Math.max(0, x.red) / max * gh;
+        doc.setFillColor(...(j === serieM.length - 1 ? COR : _mix(COR, [255, 255, 255], 0.45)));
+        if (h > 0.2) doc.rect(cx - bw / 2, gy + gh - h, bw, h, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...TINTA);
+        doc.text(`${_fmt(Math.max(0, x.red))} cm`, cx, gy + gh - h - 2, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(140, 140, 150); doc.text(`S${x.i}`, cx, gy + gh + 5, { align: 'center' });
+      });
+      y = gy + gh + 12;
+    }
+    y += 2;
   }
 
   // --- o que foi feito ---
