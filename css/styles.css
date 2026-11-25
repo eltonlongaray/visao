@@ -9394,3 +9394,29 @@ body.rota-publica .bottom-nav { display: none !important; }
 .mt-rot2 { display: block; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin: 12px 0 6px; }
 .mt-link-mini { background: none; border: none; padding: 0 0 0 6px; color: var(--accent-2); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline; }
 .mt-link-btns .btn-secondary { flex: none; width: auto; padding: 7px 12px; text-decoration: none; }
+
+/* ── Financeiro → Profissional: receita do mês por fonte de renda (25/11/2026) ── */
+.finp-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 12px; }
+.finp-mes { font-weight: 700; }
+.finp-seta { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.finp-seta:disabled { opacity: .35; cursor: default; }
+.finp-total { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+.finp-total small { display: block; color: var(--muted); font-size: 12.5px; }
+.finp-total b { display: block; font-size: 1.7rem; margin-top: 2px; }
+.finp-barra { display: flex; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 10px; background: var(--border); }
+.finp-barra i { display: block; height: 100%; }
+.finp-fonte { background: var(--card); border: 1px solid color-mix(in srgb, var(--fonte-cor) 40%, transparent); border-left: 4px solid var(--fonte-cor); border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+.finp-fonte-tit { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 12px 12px 14px; background: none; border: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.finp-fonte-ic { font-size: 1.4rem; flex: none; }
+.finp-fonte-tx { flex: 1; min-width: 0; }
+.finp-fonte-tx b { display: block; }
+.finp-fonte-tx small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.finp-fonte-val { flex: none; text-align: right; font-weight: 700; }
+.finp-fonte-val small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.finp-fonte-seta { flex: none; color: var(--muted); }
+.finp-itens { border-top: 1px solid var(--border); padding: 4px 14px 8px; }
+.finp-item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.finp-item:last-child { border-bottom: none; }
+.finp-item small { display: block; color: var(--muted); font-size: 12px; }
+.finp-item-v { text-align: right; flex: none; font-weight: 600; }
+.finp-obs { color: var(--muted); font-size: 12px; text-align: center; margin: 14px 8px 4px; }
