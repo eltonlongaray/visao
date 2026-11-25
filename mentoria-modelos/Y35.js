@@ -45,7 +45,7 @@ M.pesquisa = {
   intro: {
     eyebrow: "Pesquisa entre colegas",
     h1: "Oi! Tô criando um <em>projeto</em>.",
-    lead: ["É pra melhorar a qualidade de vida e elevar o padrão das profissionais da massoterapia. Antes de mostrar, quero ouvir quem vive isso na pele: as colegas.",
+    lead: ["É pra melhorar a qualidade de vida e elevar o padrão das profissionais da massoterapia. Quero ouvir quem vive isso na pele: as colegas.",
            "São {n} perguntas, leva uns 8 minutos. Responde com sinceridade, não tem resposta certa 🤍"],
   },
   perguntas: [

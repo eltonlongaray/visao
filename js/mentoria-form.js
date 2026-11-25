@@ -22,7 +22,7 @@ let M, F, P, CHAVE, st = { i: -1, r: {} };
 (function carregar() {
   if (!SLUG) { app.innerHTML = '<p class="lead">Link incompleto.</p>'; return; }
   const s = document.createElement('script');
-  s.src = `/mentoria-modelos/${SLUG}.js?v=2`;
+  s.src = `/mentoria-modelos/${SLUG}.js?v=3`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Formulário não encontrado.</p>'; };
   document.head.appendChild(s);
