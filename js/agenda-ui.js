@@ -10,6 +10,7 @@ import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens } from './ficha.js';
+import { mensagensPerfilHtml, wireMensagensPerfil } from './mensagens-prontas.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
 import { abrirCupons, gerarCupomCliente, abrirPresente, listarCuponsAtivos, enviarCupomZap } from './cupons-ui.js';
 import { abrirIdentidade } from './identidade-ui.js';
@@ -193,6 +194,7 @@ function _popupCliente(c) {
     ${perfilFichaHtml(_cfg, c)}
     ${depoimentosPerfilHtml()}
     ${_triagemPerfilHtml(c)}
+    ${mensagensPerfilHtml(c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
     <div class="ag-hist-lista" id="agp-hist" hidden>
       ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
@@ -213,6 +215,7 @@ function _popupCliente(c) {
   wirePerfilFinanceiro(ov, c, { servicos: _cfg?.servicos || [], aoMudar: () => {
     close(); const novo = _clientes().find(x => x.key === c.key); if (novo) _popupCliente(novo);
   } });
+  wireMensagensPerfil(ov, _cfg, c);
   ov.querySelector('#agp-tri-btn')?.addEventListener('click', () => {
     const h = ov.querySelector('#agp-tri'); const s = ov.querySelector('#agp-tri-seta');
     const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
