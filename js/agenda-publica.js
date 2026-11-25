@@ -357,6 +357,9 @@ export async function renderAgendaPublica(app, slug) {
 
   // ── render principal ──
   function desenhar() {
+    // (25/11) ocupado = o serviço ESCOLHIDO cabe sem encavalar (limpeza de 75 min às 13:30 não pode com alguém às 14:30)
+    try { const dur = _durSel(); for (const dd of dias) for (const sl of dd.horarios) sl.ocupado = estaOcupado(ocupados, dd.iso, sl.hora, dur);
+      if (selHora && dias.find(x => x.iso === selDia)?.horarios.find(x => x.hora === selHora)?.ocupado) selHora = null; } catch {}
     if (!dias.length) {
       app.innerHTML = _tela(`
         <div class="ap-head"><div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div></div>
