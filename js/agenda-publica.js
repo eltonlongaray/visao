@@ -107,6 +107,22 @@ export async function renderAgendaPublica(app, slug) {
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const ate = new Date(hoje); ate.setDate(ate.getDate() + JANELA);
   const DUR = cfg.duracao_min || 60;   // duração-padrão do slot (pra checar sobreposição)
+  const INT = Number(cfg.intervalo_min) || 0;   // (25/11) folga entre atendimentos
+  // (25/11) Horário que se ajusta: depois de um atendimento que termina fora da hora cheia,
+  // oferece fim + intervalo (arredondado pra 5 min). Ex.: limpeza 13:30–14:45 + 15 → 15:00.
+  // Vale entre o 1º e o último horário do dia, e o último pode ser empurrado até 30 min.
+  const _hmTxt = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  function _comEncaixes(times, isoD) {
+    if (!times.length) return times;
+    const toM = h => { const [a, b] = h.split(':').map(Number); return a * 60 + (b || 0); };
+    const min = toM(times[0]), max = toM(times[times.length - 1]) + 30;
+    const extra = [];
+    for (const iv of (ocupados.get?.(isoD) || [])) {
+      const t = Math.ceil((iv.fim + INT) / 5) * 5;
+      if (t > min && t <= max && !times.includes(_hmTxt(t))) extra.push(_hmTxt(t));
+    }
+    return extra.length ? [...new Set([...times, ...extra])].sort() : times;
+  }
   let ocupados = new Map();
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
@@ -121,7 +137,7 @@ export async function renderAgendaPublica(app, slug) {
   dias.length = 0;
   for (let i = 0; i <= JANELA; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
-    const times = _horariosDoDia(cfg, d);
+    const times = _comEncaixes(_horariosDoDia(cfg, d), iso(d));
     if (!times.length) continue;
     const horarios = times.map(h => {
       const [hh, mm] = h.split(':').map(Number);
@@ -358,7 +374,7 @@ export async function renderAgendaPublica(app, slug) {
   // ── render principal ──
   function desenhar() {
     // (25/11) ocupado = o serviço ESCOLHIDO cabe sem encavalar (limpeza de 75 min às 13:30 não pode com alguém às 14:30)
-    try { const dur = _durSel(); for (const dd of dias) for (const sl of dd.horarios) sl.ocupado = estaOcupado(ocupados, dd.iso, sl.hora, dur);
+    try { _montarDias(); const dur = _durSel(); for (const dd of dias) for (const sl of dd.horarios) sl.ocupado = estaOcupado(ocupados, dd.iso, sl.hora, dur, INT);
       if (selHora && dias.find(x => x.iso === selDia)?.horarios.find(x => x.hora === selHora)?.ocupado) selHora = null; } catch {}
     if (!dias.length) {
       app.innerHTML = _tela(`
