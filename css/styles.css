@@ -7743,13 +7743,13 @@ body.sem-rolagem { overflow: hidden; }
 /* Agenda Online e Rifa Solidária abrem em TELA CHEIA, igual à Caixa de
    Ferramentas — não como popup centralizado. Sobrescreve o .modal-overlay
    (grid/place-items:center + 20px padding) e o .ag-modal (max-width 480). */
-#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov, #fi-sessao-ov { padding: 0; place-items: stretch; }
-#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal, #fi-sessao-ov .ag-modal {
+#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov, #fi-sessao-ov, #renda-ov, #mentoria-ov { padding: 0; place-items: stretch; }
+#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal, #fi-sessao-ov .ag-modal, #renda-ov .ag-modal, #mentoria-ov .ag-modal {
   width: 100%; max-width: 100%;
   height: 100vh; height: 100dvh; max-height: 100dvh;
   border: 0; border-radius: 0;
 }
-#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo, #fi-sessao-ov .ag-corpo {
+#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo, #fi-sessao-ov .ag-corpo, #renda-ov .ag-corpo, #mentoria-ov .ag-corpo {
   height: 100vh; height: 100dvh; max-height: 100dvh;
 }
 .ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
@@ -9326,3 +9326,69 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-slots-wrap.chama .ap-slot:not(.ocupado) { border-color: var(--accent); animation: apSlotChama .5s ease-out .35s 2; }
 @keyframes apSlotChama { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 @media (prefers-reduced-motion: reduce) { .ap-slots-wrap.chama .ap-slot { animation: none; } }
+
+/* === BLOCO F13: 🎓 MENTORIA (Fontes de renda extra — mentoria-ui.js) === */
+.mt-hub { display: flex; flex-direction: column; gap: 12px; }
+.mt-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
+.mt-stats > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.mt-stats b { display: block; font-size: 20px; font-weight: 800; color: var(--text); }
+.mt-stats small { font-size: 11px; color: var(--muted); }
+.mt-qtd { display: inline-block; min-width: 22px; padding: 1px 7px; margin-left: 4px; border-radius: 999px; font-size: 12px; font-weight: 800; color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, var(--card)); text-align: center; }
+.mt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.mt-chip { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.mt-chip small { opacity: .8; }
+.mt-chip.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.mt-busca { margin-bottom: 10px; }
+.mt-lista { display: flex; flex-direction: column; gap: 8px; }
+.mt-pessoa { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 12px; overflow: hidden; }
+.mt-pessoa.aberta { border-left-color: var(--accent); }
+.mt-pessoa-cab { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: none; border: none; color: inherit; font-family: inherit; text-align: left; padding: 11px 12px; cursor: pointer; }
+.mt-pessoa-nome { flex: 1; min-width: 0; font-weight: 800; font-size: 15px; color: var(--text); }
+.mt-pessoa-sub { width: 100%; font-size: 12px; color: var(--muted); }
+.mt-selo { flex: none; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, var(--card)); }
+.mt-selo.aluna { color: #16a34a; background: color-mix(in srgb, #16a34a 15%, var(--card)); }
+.mt-selo.reservou { color: #d97706; background: color-mix(in srgb, #d97706 15%, var(--card)); }
+.mt-selo.selecionada { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 15%, var(--card)); }
+.mt-det { padding: 4px 12px 12px; border-top: 1px solid var(--border); }
+.mt-acoes { margin: 10px 0 4px; }
+.mt-zap { display: inline-flex; text-decoration: none; width: auto; padding: 8px 14px; }
+.mt-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.mt-rot { width: 70px; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.mt-mini { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 11px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.mt-mini.on { border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.mt-nota { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.mt-sub { margin: 16px 0 8px; font-size: 14px; font-weight: 800; color: var(--text); }
+.mt-sub small { font-weight: 600; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.mt-msgs { display: flex; flex-direction: column; gap: 6px; }
+.mt-msg { text-align: left; border: 1px solid var(--border); border-left: 4px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 8px 10px; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.mt-msg small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.mt-msg.sug { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.mt-msg.feito { color: var(--muted); }
+.mt-resp { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); }
+.mt-resp summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--text); }
+.mt-resp summary small { color: var(--muted); font-weight: 600; margin-left: 4px; }
+.mt-resp dl { margin-top: 6px; }
+.mt-resp dt { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 8px; }
+.mt-resp dd { font-size: 14px; color: var(--text); margin: 2px 0 0; white-space: pre-wrap; }
+.mt-barra { position: relative; display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: var(--card-2); font-size: 13px; color: var(--text); overflow: hidden; }
+.mt-barra span, .mt-barra b { position: relative; z-index: 1; }
+.mt-barra i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.mt-cit { margin: 8px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); font-size: 13.5px; color: var(--text); white-space: pre-wrap; }
+.mt-cit cite { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.mt-notas { margin-top: 4px; width: 100%; }
+.mt-apagar { margin-top: 12px; background: none; border: none; color: var(--red); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 4px 0; }
+.mt-add { margin-top: 12px; width: 100%; }
+.mt-aluna { background: var(--card); border: 1px solid var(--border); border-left: 4px solid #16a34a; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.mt-aluna-top { display: flex; align-items: center; gap: 8px; }
+.mt-aluna-top b { flex: 1; color: var(--text); }
+.mt-zap-mini { text-decoration: none; font-size: 18px; }
+.mt-presenca { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-aula { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 5px 10px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.mt-aula.on { color: #16a34a; border-color: #16a34a; background: color-mix(in srgb, #16a34a 12%, var(--card)); }
+.mt-copia { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--card); }
+.mt-copia-rot { font-weight: 800; font-size: 14px; color: var(--text); }
+.mt-copia pre { white-space: pre-wrap; font-family: inherit; font-size: 13.5px; color: var(--text); margin: 6px 0 8px; line-height: 1.45; }
+.mt-copia .btn-secondary { width: auto; padding: 7px 14px; }
+.mt-link { font-size: 13px; font-weight: 700; color: var(--accent-2); word-break: break-all; }
+.mt-link-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-link-btns .btn-secondary { flex: none; width: auto; padding: 7px 12px; text-decoration: none; }

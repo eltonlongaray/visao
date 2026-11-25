@@ -25,6 +25,30 @@
         "destination": "/triagem.html"
       },
       {
+        "source": "/pesquisa/Y35",
+        "destination": "/mentoria-pesquisa-Y35.html"
+      },
+      {
+        "source": "/pesquisa/Y35/**",
+        "destination": "/mentoria-pesquisa-Y35.html"
+      },
+      {
+        "source": "/pesquisa/**",
+        "destination": "/mentoria-form.html"
+      },
+      {
+        "source": "/selecao/Y35",
+        "destination": "/mentoria-selecao-Y35.html"
+      },
+      {
+        "source": "/selecao/Y35/**",
+        "destination": "/mentoria-selecao-Y35.html"
+      },
+      {
+        "source": "/selecao/**",
+        "destination": "/mentoria-form.html"
+      },
+      {
         "source": "/agenda-online/**",
         "destination": "/agenda.html"
       },
@@ -61,7 +85,7 @@
         ]
       },
       {
-        "source": "/@(agenda-online|triagem|ficha|rifa)/**",
+        "source": "/@(agenda-online|triagem|ficha|rifa|pesquisa|selecao)/**",
         "headers": [
           {
             "key": "Cache-Control",
