@@ -19,6 +19,11 @@ const _data = iso => iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
 const _brl = v => v == null ? '[valor]' : 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 });
 const _wa = (contato, txt) => { const d = digitosDe(contato); return d ? `https://wa.me/55${d}${txt ? `?text=${encodeURIComponent(txt)}` : ''}` : null; };
 
+const FORMAS = [['pix', 'Pix'], ['cartao', 'Cartão à vista'], ['parcelado', 'Cartão parcelado'], ['dinheiro', 'Dinheiro'], ['outro', 'Outro']];
+const _formaTxt = l => {
+  const f = FORMAS.find(x => x[0] === l.pago_forma)?.[1] || '';
+  return f + (l.pago_forma === 'parcelado' && l.pago_parcelas ? ` em ${l.pago_parcelas}x` : '');
+};
 let _leads = [], _M = null, _slug = '', _close = null;
 let _blocos = { inscritas: true }, _filtro = 'todas', _busca = '', _aberto = null;
 
@@ -290,7 +295,8 @@ function _alunas(alunas) {
       <div class="mt-aluna" data-id="${l.id}">
         <div class="mt-aluna-top"><b>${_esc(l.nome || 'Sem nome')}</b>
           ${_wa(l.contato || l.digitos) ? `<a class="mt-zap-mini" href="${_wa(l.contato || l.digitos)}" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>` : ''}</div>
-        <div class="mt-pessoa-sub">Pagou em ${_data(l.pago_em)}</div>
+        <div class="mt-pessoa-sub">Pagou em ${_data(l.pago_em)}${l.pago_valor != null ? ` · <b>${_brl(Number(l.pago_valor))}</b>` : ''}${l.pago_forma ? ` · ${_esc(_formaTxt(l))}` : ''}
+          <button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button></div>
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
       </div>`).join('')}`).join('');
 }
@@ -387,6 +393,7 @@ function ligar(corpo) {
     if (notas) notas.onblur = () => { if ((notas.value || '') !== (l.notas || '')) salvarLead(l.id, { notas: notas.value }).then(() => { l.notas = notas.value; showToast('Anotação salva', 'success'); }).catch(e => showToast(e.message, 'error')); };
   });
 
+  corpo.querySelectorAll('.mt-aluna [data-pagto]').forEach(b => b.onclick = () => _modalPagamento(_leads.find(x => x.id === b.closest('.mt-aluna').dataset.id)));
   corpo.querySelectorAll('.mt-aluna [data-aula]').forEach(b => b.onclick = () => {
     const l = _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id), k = b.dataset.aula;
     _salvar(l, { presenca: { ...(l.presenca || {}), [k]: !l.presenca?.[k] } });
@@ -403,8 +410,12 @@ async function _acao(l, a) {
   if (a === 'selecionar') return _salvar(l, { selecionada: !l.selecionada });
   if (a === 'foi') return _salvar(l, { compareceu: l.compareceu === true ? null : true });
   if (a === 'naofoi') return _salvar(l, { compareceu: l.compareceu === false ? null : false });
-  if (a === 'pagou') return _salvar(l, { pago_em: agora, nao_agora: false, selecionada: true });
-  if (a === 'desfazer') return _salvar(l, { pago_em: null });
+  if (a === 'pagou') return _modalPagamento(l);
+  if (a === 'desfazer') {
+    const ok = await confirmModal({ title: 'Desfazer pagamento?', message: `${l.nome || 'Ela'} volta pra Inscritas e o valor sai da renda da mentoria.`, confirmText: 'Desfazer' });
+    if (ok) _salvar(l, { pago_em: null, pago_valor: null, pago_forma: null, pago_parcelas: null });
+    return;
+  }
   if (a === 'reservou') return _salvar(l, { reservou_em: agora, nao_agora: false });
   if (a === 'naoagora') return _salvar(l, { nao_agora: true });
   if (a === 'reabrir') return _salvar(l, { nao_agora: false });
@@ -414,6 +425,54 @@ async function _acao(l, a) {
     try { await apagarLead(l.id); _leads = _leads.filter(x => x.id !== l.id); _aberto = null; desenhar(); }
     catch (e) { showToast(e.message, 'error'); }
   }
+}
+
+// ── Pagamento: valor (sugestão = preço da oferta), forma, parcelas e data ──
+// Vai pro Financeiro como renda da MENTORIA (separada dos clientes): sql/mentoria-pagamento.sql
+function _modalPagamento(l) {
+  if (!l) return;
+  const o = _M?.oferta || {};
+  const z = n => String(n).padStart(2, '0'), d = l.pago_em ? new Date(l.pago_em) : new Date();
+  const dataIni = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  let forma = l.pago_forma || (l.reserva_forma === 'cartao' ? 'cartao' : l.reserva_forma === 'pix' ? 'pix' : '');
+  const valorIni = l.pago_valor != null ? l.pago_valor : (o.precoHoje ?? '');
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal"><div class="modal-title">✅ Pagamento de ${_esc((l.nome || 'aluna').split(' ')[0])}</div>
+    <div class="fi-secao-sub">Entra no Financeiro como renda da mentoria, separada dos clientes.</div>
+    <label class="mt-rot2" for="mp-v">Valor recebido (R$)</label>
+    <input class="input-field" id="mp-v" type="number" inputmode="decimal" min="0" step="0.01" value="${_esc(valorIni)}">
+    <div class="mt-rot2">Forma de pagamento</div>
+    <div class="mt-chips">${FORMAS.map(([k, t]) => `<button class="mt-chip${forma === k ? ' on' : ''}" data-forma="${k}" type="button">${t}</button>`).join('')}</div>
+    <div id="mp-parc-box"${forma === 'parcelado' ? '' : ' hidden'}><label class="mt-rot2" for="mp-p">Em quantas vezes</label>
+      <input class="input-field" id="mp-p" type="number" inputmode="numeric" min="2" max="24" value="${_esc(l.pago_parcelas || o.parcelas || '')}"></div>
+    <label class="mt-rot2" for="mp-d">Data do pagamento</label>
+    <input class="input-field" id="mp-d" type="date" value="${dataIni}">
+    <div class="modal-actions"><button class="btn-secondary" data-x type="button">Cancelar</button><button class="btn-primary" data-ok type="button">Salvar</button></div></div>`;
+  document.body.appendChild(ov);
+  const fechar = trapModalBack(() => ov.remove());
+  ov.querySelector('[data-x]').onclick = () => history.back();
+  ov.addEventListener('click', e => { if (e.target === ov) history.back(); });
+  ov.querySelectorAll('[data-forma]').forEach(b => b.onclick = () => {
+    forma = b.dataset.forma;
+    ov.querySelectorAll('[data-forma]').forEach(x => x.classList.toggle('on', x === b));
+    ov.querySelector('#mp-parc-box').hidden = forma !== 'parcelado';
+  });
+  ov.querySelector('[data-ok]').onclick = async () => {
+    const valor = parseFloat(String(ov.querySelector('#mp-v').value).replace(',', '.'));
+    if (!(valor >= 0)) return showToast('Coloque o valor recebido', 'error');
+    if (!forma) return showToast('Escolha a forma de pagamento', 'error');
+    const parc = forma === 'parcelado' ? parseInt(ov.querySelector('#mp-p').value, 10) || null : null;
+    const dia = ov.querySelector('#mp-d').value;
+    const pagoEm = dia ? new Date(`${dia}T12:00:00`).toISOString() : new Date().toISOString();
+    const patch = { pago_em: pagoEm, pago_valor: Math.round(valor * 100) / 100, pago_forma: forma, pago_parcelas: parc, nao_agora: false, selecionada: true };
+    try { await salvarLead(l.id, patch); Object.assign(l, patch); history.back(); desenhar(); showToast('Pagamento salvo 🎓', 'success'); }
+    catch (e) {
+      showToast(/pago_valor|pago_forma|pago_parcelas|column/i.test(e.message) ? 'Falta rodar o SQL mentoria-pagamento.sql no Supabase' : 'Não consegui salvar: ' + e.message, 'error');
+    }
+  };
+  setTimeout(() => ov.querySelector('#mp-v').focus(), 60);
+  return fechar;
 }
 
 function _adicionar() {

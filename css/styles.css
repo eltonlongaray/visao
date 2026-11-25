@@ -9391,4 +9391,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .mt-copia .btn-secondary { width: auto; padding: 7px 14px; }
 .mt-link { font-size: 13px; font-weight: 700; color: var(--accent-2); word-break: break-all; }
 .mt-link-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-rot2 { display: block; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin: 12px 0 6px; }
+.mt-link-mini { background: none; border: none; padding: 0 0 0 6px; color: var(--accent-2); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline; }
 .mt-link-btns .btn-secondary { flex: none; width: auto; padding: 7px 12px; text-decoration: none; }
