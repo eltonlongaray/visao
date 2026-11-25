@@ -9308,3 +9308,8 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-cal-voltar { flex: none; border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; background: transparent; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
 .ap-hor-tit { font-size: 17px; font-weight: 800; color: var(--text); margin: 6px 0 10px; line-height: 1.2; }
 .ap-hor-tit small { display: block; font-size: 14px; font-weight: 700; color: var(--accent); margin-top: 3px; }
+/* (25/11) depois de tocar no dia: título vira "Agora escolha o horário" e os horários dão um toque */
+.ap-hor-tit.chama { color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px; scroll-margin-top: 14px; }
+.ap-slots-wrap.chama .ap-slot:not(.ocupado) { border-color: var(--accent); animation: apSlotChama .5s ease-out .35s 2; }
+@keyframes apSlotChama { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@media (prefers-reduced-motion: reduce) { .ap-slots-wrap.chama .ap-slot { animation: none; } }

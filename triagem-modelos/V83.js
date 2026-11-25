@@ -40,10 +40,12 @@ window.TRIAGEM = {
     "Quero só relaxar": ["Massagem relaxante"]
   },
 
-  // Google Ads (conta 845-725-3405). conversão "Triagem enviada" criada 14/11
+  // Google Ads (conta Espaço Viver 845-725-3405, tag AW-18575065829).
+  // (25/11) o AW-11325048329 antigo NÃO era desta conta → 0 conversões. Agora a conversão
+  // "Enviar formulário de lead" conta quando a cliente manda nome e WhatsApp na triagem.
   googleTag: "GTM-N48CWL3C",
-  googleAds: "AW-11325048329",
-  conversao: "AW-11325048329/H9K_CKHYvbgdEImMmpgq", // "Triagem enviada" (clique em Agendar)
+  googleAds: "AW-18575065829",
+  conversao: "AW-18575065829/W_elCMTFtbgdEOWFpJlF", // "Enviar formulário de lead" (triagem enviada)
 
   // Depoimentos reais de clientes (WhatsApp, 19/11/2026). "chaves": palavras que ligam
   // o depoimento ao que a pessoa respondeu/à indicação. "destaque": aparece na abertura.

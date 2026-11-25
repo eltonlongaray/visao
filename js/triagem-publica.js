@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=37`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=38`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -286,6 +286,10 @@ function contato() {
         if (!error && data?.codigo) st.codigo = data.codigo;
       } catch (e) {}
     }
+    // (25/11) conversão do Google Ads = triagem enviada (nome + WhatsApp), uma vez por triagem
+    if (!TESTE && st.codigo && st.convEnviada !== st.codigo) {
+      try { if (window.gtag && M.conversao) { window.gtag('event', 'conversion', { send_to: M.conversao }); st.convEnviada = st.codigo; } } catch (e) {}
+    }
     passo('Mandou nome e WhatsApp');
     st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
   };
@@ -499,7 +503,7 @@ function irParaWhatsApp(ind) {
   }
   passo('Foi pro WhatsApp combinar (' + ind.servico + ')');
   try { if (window.dataLayer) { window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
-    if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' }); } } catch (e) {}
+  } } catch (e) {}
   location.href = `https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -531,7 +535,6 @@ async function irParaAgenda(ind, plano) {
   try {
     if (window.dataLayer) {
       window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
-      if (M.conversao) window.gtag('event', 'conversion', { send_to: M.conversao, transport_type: 'beacon' });
     }
   } catch (e) {}
   setTimeout(() => { location.href = '/agenda-online/' + encodeURIComponent(SLUG) + '?triagem=1' + (st.cupom ? '&cupom=' + encodeURIComponent(st.cupom) : '') + (TESTE ? '&teste=1' : ''); }, 350);

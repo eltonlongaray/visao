@@ -167,6 +167,7 @@ export async function renderAgendaPublica(app, slug) {
   const _proximoLivre = () => { for (const d of dias) { const h = d.horarios.find(x => !x.passou && !x.cedo && !x.ocupado); if (h) return { iso: d.iso, date: d.date, hora: h.hora }; } return null; };
   let selDia = _primeiroNoBloco(0) || null;
   let selHora = null;
+  let chamaHora = false;   // (25/11) tocou num dia → desce até os horários e chama atenção pra escolher a hora
   // (21/11) serviço com `destaque` (ex.: "Black Friday") abre já escolhido e vem 1º na lista
   let selServ = (servicos.find(s => s.destaque && !s.pacoteDe) || servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
@@ -398,8 +399,8 @@ export async function renderAgendaPublica(app, slug) {
           ${semOffset + 2 <= _maxOffset ? `<button class="ap-cal-mais ap-sem-next" type="button">Ver mais datas →</button>` : ''}
         </div>
       </div>
-      ${dia ? `<div class="ap-hor-tit">Horários disponíveis<small>${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}</small></div>` : ''}
-      <div class="ap-slots-wrap">
+      ${dia ? `<div class="ap-hor-tit${chamaHora && !selHora ? ' chama' : ''}">${chamaHora && !selHora ? '👇 Agora escolha o horário' : 'Horários disponíveis'}<small>${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}</small></div>` : ''}
+      <div class="ap-slots-wrap${chamaHora && !selHora ? ' chama' : ''}">
         ${(g.manha.length + g.tarde.length + g.noite.length)
           ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
           : (dia ? '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>' : '')}
@@ -467,7 +468,11 @@ export async function renderAgendaPublica(app, slug) {
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
-      selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia)); desenhar();
+      selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia));
+      chamaHora = true; desenhar();
+      // desce sozinho até os horários (a cliente nem sempre percebe que falta escolher a hora)
+      const t = app.querySelector('.ap-hor-tit');
+      if (t) requestAnimationFrame(() => t.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       selServ = b.dataset.serv; combo = []; servAberto = false;
@@ -487,6 +492,7 @@ export async function renderAgendaPublica(app, slug) {
     app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; _aplicarHorariosServ(); desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
       selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;
+      if (selHora) chamaHora = false;
       if (selHora) _passo(`Escolheu o horário ${selHora} de ${_diaTxt(selDia)}`);
       desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
