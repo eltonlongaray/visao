@@ -2,7 +2,7 @@
 // Ferramentas → 💸 Fontes de renda extra → 🎓 MENTORIA (lado da dona).
 //   BLOCO 1: Fontes de renda extra (hub)       BLOCO 2: abrir a Mentoria
 //   BLOCO 3: etapas e mensagens sugeridas      BLOCO 4: tela (retráteis)
-//   BLOCO 5: 📝 Inscritas                       BLOCO 6: 🎓 Alunas
+//   BLOCO 5: 🤝 Colegas · 📝 Inscritas            BLOCO 6: 🎓 Alunas
 //   BLOCO 7: 📊 O que elas responderam          BLOCO 8: 💬 Conversa · 📣 Grupo · 🔗 Formulários
 //   BLOCO 9: ações (salvar, WhatsApp, copiar, adicionar, apagar)
 // Veio do castelo (/castelo/selecao/painel + /castelo/vendas): mesma lógica de etapas,
@@ -95,6 +95,11 @@ function etapa(l) {
   return 'manual';
 }
 const _temContato = l => digitosDe(l.contato || l.digitos).length >= 10;
+// Colega = respondeu a pesquisa. Inscrita = entrou no funil da aula/mentoria
+// (seleção, reserva, selecionada, pagou ou adicionada à mão). Colega que se inscreve aparece nos dois.
+const ehColega = l => !!l.formularios?.pesquisa;
+const ehInscrita = l => !!(l.formularios?.selecao || l.reservou_em || l.pago_em || l.selecionada || l.nao_agora
+  || ['manual', 'reserva', 'castelo'].includes(l.origem));
 // Mensagens do caminho de venda só fazem sentido pra quem entrou na seleção/aula ou reservou
 const _noCaminho = e => ['selecionada', 'reservou', 'aluna'].includes(e);
 
@@ -143,7 +148,8 @@ function _bloco(id, titulo, qtd, conteudo) {
 
 function desenhar() {
   const corpo = _corpo(); if (!corpo) return;
-  const pessoas = _leads.filter(_temContato);
+  const pessoas = _leads.filter(l => _temContato(l) && ehInscrita(l));
+  const colegas = _leads.filter(l => _temContato(l) && ehColega(l));
   const alunas = _leads.filter(l => l.pago_em);
   const nResp = _leads.filter(l => l.formularios && Object.keys(l.formularios).length).length;
   const n = e => pessoas.filter(l => etapa(l) === e).length;
@@ -155,12 +161,13 @@ function desenhar() {
     </div>
     <div class="ag-scroll">
       <div class="mt-stats">
+        <div><b>${colegas.length}</b><small>Colegas</small></div>
         <div><b>${pessoas.length}</b><small>Inscritas</small></div>
         <div><b>${n('selecionada') + n('reservou') + n('aluna')}</b><small>Selecionadas</small></div>
-        <div><b>${n('reservou')}</b><small>Falta pagar</small></div>
         <div><b>${alunas.length}</b><small>Alunas</small></div>
       </div>
       ${!_M ? `<div class="fi-bloco alerta"><div class="fi-bloco-tit">Formulários ainda não configurados</div><div class="fi-secao-sub" style="margin:0">Sua lista de inscritas e alunas já funciona. Os formulários e as mensagens prontas são montados sob medida pra você: fale com o suporte do Falcon.</div></div>` : ''}
+      ${_M?.pesquisa || colegas.length ? _bloco('colegas', '🤝 Colegas (pesquisa)', colegas.length, () => _colegas(colegas)) : ''}
       ${_bloco('inscritas', '📝 Inscritas', pessoas.length, () => _inscritas(pessoas))}
       ${_bloco('alunas', '🎓 Alunas', alunas.length, () => _alunas(alunas))}
       ${_bloco('respostas', '📊 O que elas responderam', nResp, _respostas)}
@@ -177,7 +184,6 @@ function desenhar() {
 // ═══════════════════════════════════════════════════════════════
 const FILTROS = [
   ['todas', 'Todas', () => true],
-  ['pesquisa', 'Pesquisa', l => !!l.formularios?.pesquisa],
   ['selecao', 'Seleção', l => !!l.formularios?.selecao],
   ['selecionadas', 'Selecionadas', l => ['selecionada', 'reservou', 'aluna'].includes(etapa(l))],
   ['reservou', 'Falta pagar', l => etapa(l) === 'reservou'],
@@ -191,20 +197,44 @@ function _inscritas(pessoas) {
   return `
     <div class="mt-chips">${FILTROS.map(([k, t, fn]) => `<button class="mt-chip${_filtro === k ? ' on' : ''}" data-filtro="${k}" type="button">${t} <small>${pessoas.filter(fn).length}</small></button>`).join('')}</div>
     <input class="input-field mt-busca" id="mt-busca" type="search" placeholder="Buscar por nome, @ ou WhatsApp" value="${_esc(_busca)}">
-    <div class="mt-lista">${lista.length ? lista.map(_cardPessoa).join('') : '<div class="ag-vazio">Ninguém aqui por enquanto.</div>'}</div>
+    <div class="mt-lista">${lista.length ? lista.map(l => _cardPessoa(l, 'insc')).join('') : '<div class="ag-vazio">Ninguém aqui por enquanto.</div>'}</div>
     <button class="btn-secondary mt-add" id="mt-add" type="button">➕ Adicionar pessoa (quem comentou e não preencheu)</button>`;
 }
 
-function _cardPessoa(l) {
-  const e = etapa(l), ab = _aberto === l.id, forms = l.formularios || {};
+function _cardPessoa(l, onde) {
+  const e = etapa(l), chave = `${onde}:${l.id}`, ab = _aberto === chave, forms = l.formularios || {};
+  const colega = onde === 'col';
+  const selo = colega ? (ehInscrita(l) ? '<span class="mt-selo selecionada">📝 Também se inscreveu</span>' : '')
+                      : `<span class="mt-selo ${e}">${ETAPAS[e]}</span>`;
+  const sub = colega ? [forms.pesquisa?.tempo_atende, forms.pesquisa?.mais_incomoda && `mais incomoda: ${forms.pesquisa.mais_incomoda}`, _data(forms.pesquisa?._em || l.created_at)]
+                     : [ehColega(l) ? '🤝 colega' : '', forms.selecao ? '📝 seleção' : '', l.instagram ? _esc(l.instagram) : '', _data(l.created_at)];
   return `<article class="mt-pessoa${ab ? ' aberta' : ''}" data-id="${l.id}">
-    <button class="mt-pessoa-cab" data-abrir="${l.id}" type="button">
+    <button class="mt-pessoa-cab" data-abrir="${chave}" type="button">
       <span class="mt-pessoa-nome">${_esc(l.nome || 'Sem nome')}</span>
-      <span class="mt-selo ${e}">${ETAPAS[e]}</span>
-      <span class="mt-pessoa-sub">${[forms.pesquisa ? '📊 pesquisa' : '', forms.selecao ? '📝 seleção' : '', l.instagram ? _esc(l.instagram) : '', _data(l.created_at)].filter(Boolean).join(' · ')}</span>
+      ${selo}
+      <span class="mt-pessoa-sub">${sub.filter(Boolean).map(x => _esc(x)).join(' · ')}</span>
     </button>
-    ${ab ? _detalhe(l, e) : ''}
+    ${ab ? (colega ? _detalheColega(l) : _detalhe(l, e)) : ''}
   </article>`;
+}
+
+// Colega: sem etapa nem mensagem de venda (não está no funil) — só contato, respostas e anotações
+function _detalheColega(l) {
+  const zap = _wa(l.contato || l.digitos);
+  return `<div class="mt-det">
+    <div class="mt-acoes">${zap ? `<a class="btn-secondary mt-zap" href="${zap}" target="_blank" rel="noopener">💬 WhatsApp ${_esc(l.contato || '')}</a>` : ''}</div>
+    ${_respostasDe(l, 'pesquisa', true)}
+    <div class="mt-sub">Anotações</div>
+    <textarea class="input-field mt-notas" data-notas rows="3" placeholder="Só pra você: o que conversaram, se ela pode virar aluna…">${_esc(l.notas || '')}</textarea>
+    <button class="mt-apagar" data-acao="apagar" type="button">Apagar pessoa</button>
+  </div>`;
+}
+
+function _colegas(colegas) {
+  const q = _busca.trim().toLowerCase();
+  const lista = colegas.filter(l => !q || `${l.nome} ${l.contato}`.toLowerCase().includes(q));
+  return `<div class="fi-secao-sub" style="margin-top:0">Quem respondeu a pesquisa entre colegas. Não entra no funil de venda: é daqui que vem a dor real pra grande tese.</div>
+    <div class="mt-lista">${lista.length ? lista.map(l => _cardPessoa(l, 'col')).join('') : '<div class="ag-vazio">Nenhuma colega respondeu ainda. O link está em 🔗 Formulários e links.</div>'}</div>`;
 }
 
 function _detalhe(l, e) {
@@ -236,12 +266,12 @@ function _detalhe(l, e) {
 const forms_ = l => l.formularios || {};
 
 // Respostas de UM formulário da pessoa, com o texto da pergunta
-function _respostasDe(l, form) {
+function _respostasDe(l, form, aberta) {
   const r = forms_(l)[form] || {}, ps = _M?.[form]?.perguntas || [];
   const pular = new Set(['nome', 'whatsapp', 'instagram', '_contato']);
   const itens = (ps.length ? ps.map(p => [p.id, p.q]) : Object.keys(r).map(k => [k, k]))
     .filter(([k]) => !pular.has(k) && !k.startsWith('_') && r[k] != null && String(r[k]).trim() !== '');
-  return `<details class="mt-resp"${form === 'selecao' ? ' open' : ''}><summary>${form === 'selecao' ? '📝 Respostas da seleção' : '📊 Respostas da pesquisa'}${r._em ? ` <small>${_data(r._em)}</small>` : ''}</summary>
+  return `<details class="mt-resp"${form === 'selecao' || aberta ? ' open' : ''}><summary>${form === 'selecao' ? '📝 Respostas da seleção' : '📊 Respostas da pesquisa'}${r._em ? ` <small>${_data(r._em)}</small>` : ''}</summary>
     <dl>${itens.map(([k, q]) => `<dt>${_esc(q)}</dt><dd>${_esc(Array.isArray(r[k]) ? r[k].join(' · ') : r[k])}</dd>`).join('')}</dl></details>`;
 }
 
