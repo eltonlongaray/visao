@@ -54,7 +54,7 @@ export function carregarModelo(slug) {
     if (!slug) return res(null);
     if (window.MENTORIA_MODELO && window.__mentoriaSlug === slug) return res(window.MENTORIA_MODELO);
     const s = document.createElement('script');
-    s.src = `/mentoria-modelos/${slug}.js?v=3`;
+    s.src = `/mentoria-modelos/${slug}.js?v=4`;
     s.onload = () => { window.__mentoriaSlug = slug; res(window.MENTORIA_MODELO || null); };
     s.onerror = () => res(null);
     document.head.appendChild(s);
