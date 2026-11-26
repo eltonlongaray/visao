@@ -9466,9 +9466,9 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fg-nivel-faixa { position: absolute; left: 4px; right: 4px; top: 50%; height: 9%; transform: translateY(-50%); border-radius: 4px; background: rgba(16,185,129,.28); border: 1px solid rgba(16,185,129,.6); }
 
 /* ═══ KANBAN das tarefas do dia (Ferramentas › 📌 Kanban, 26/11) ═══ */
-#kanban-ov { padding: 0; place-items: stretch; }
-#kanban-ov .ag-modal { width: 100%; max-width: 100%; height: 100vh; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
-#kanban-ov .ag-corpo { height: 100vh; height: 100dvh; max-height: 100dvh; }
+#kanban-ov, #financeiro-ov { padding: 0; place-items: stretch; }
+#kanban-ov .ag-modal, #financeiro-ov .ag-modal { width: 100%; max-width: 100%; height: 100vh; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+#kanban-ov .ag-corpo, #financeiro-ov .ag-corpo { height: 100vh; height: 100dvh; max-height: 100dvh; }
 .kb-corpo { background: var(--bg); }
 .kb-mods { margin: 12px 0 4px; padding: 0 16px 4px; scroll-padding: 0 16px; flex: none; }
 .kb-mod { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
@@ -9517,3 +9517,5 @@ body.rota-publica .bottom-nav { display: none !important; }
 .kb-add-x { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
 .kb-vaga { border: 2px dashed var(--muted); border-radius: 12px; margin-bottom: 8px; opacity: .6; }
 .kb-fantasma { position: fixed; z-index: 100000; pointer-events: none; transform: rotate(-3deg); box-shadow: 0 14px 30px rgba(0,0,0,.5); margin: 0; }
+/* Financeiro como card da Caixa de Ferramentas (26/11) */
+#financeiro-ov .fin-sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }

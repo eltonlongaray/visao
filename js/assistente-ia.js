@@ -54,7 +54,7 @@ import * as PC from './pet-conversa.js?v=20261006a';
 import * as PN from './pet-nuvem.js?v=20261126a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
-import * as PCF from './pet-config.js?v=20261024b';
+import * as PCF from './pet-config.js?v=20261126a';
 import * as PDS from './pet-desempenho.js?v=20261021a';
 import * as PI from './pet-ideal.js?v=20261026a';
 import * as PDF from './pet-desafios.js?v=20261103a';
@@ -5295,6 +5295,10 @@ async function tentarConfig(text) {
   const t = PR.semPedido(text);
   const tela = PCF.lerAbrirTela(t);
   if (tela) {
+    if (tela.rota === 'financeiro') {   // card da Caixa de Ferramentas (26/11), abre por cima
+      setTimeout(() => import('./screens/tela-financeiro.js').then(m => m.abrirFinanceiroTela()).catch(() => {}), 400);
+      return `Abrindo ${tela.nome} 👉`;
+    }
     if (tela.rota === 'metodo' || tela.rota === 'ferramentas') {
       setTimeout(() => import('./ferramentas-ui.js').then(m => { m.ligarFerramentas(); (tela.rota === 'metodo' ? m.abrirMetodo : m.abrirFerramentas)(); }).catch(() => {}), 400);
       return `Abrindo ${tela.nome} 👉`;
