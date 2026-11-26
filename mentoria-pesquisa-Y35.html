@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Formulário</title>
+<!-- CÓPIA de mentoria-form.html só com a prévia do link (WhatsApp) da Larissa. Ao mudar mentoria-form.html, copie de novo e troque só as metas og:.
+     Página PÚBLICA dos formulários da 🎓 Mentoria: /pesquisa/<slug> e /selecao/<slug>.
+     Quem tem prévia própria no WhatsApp ganha uma CÓPIA deste arquivo (mentoria-<slug>.html)
+     trocando só as metas og:. Ao mudar este arquivo, copie de novo. -->
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Uma pesquisa entre colegas de massagem 🤍">
+<meta property="og:description" content="10 perguntas rápidas · Larissa Rodrigues · Massoterapia">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://estilo-falcon.web.app/mentoria-modelos/img/Y35-pesquisa.jpg?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<base href="/">
+<meta name="theme-color" content="#F4F1ED">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Karla:wght@400;500;600;700&display=swap">
+<style>
+  /* === BLOCO 1: IDENTIDADE (as cores vêm do modelo da profissional) === */
+  :root{
+    --bg:#F4F1ED; --ink:#050404; --soft:#3F3A38; --muted:#5f5856;
+    --rosa:#E48F94; --rosa-txt:#C4646B; --blush:#FCDDDA; --line:rgba(5,4,4,.12); --card:#fffdfa;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ font-family:"Karla",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; min-height:100dvh;
+    line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .serif{ font-family:"Cormorant Garamond",Georgia,serif; font-weight:600; }
+  button{ font-family:inherit; }
+  :focus-visible{ outline:2px solid var(--rosa-txt); outline-offset:3px; }
+  .faixa-teste{ position:sticky; top:0; z-index:50; background:var(--ink); color:var(--blush); text-align:center;
+    font-size:.72rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; padding:.45rem .6rem; }
+
+  /* === BLOCO 2: ESTRUTURA === */
+  .wrap{ max-width:34rem; margin:0 auto; padding:1.2rem 1.3rem 2.5rem; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; }
+  .top{ display:flex; align-items:center; gap:.9rem; margin-bottom:1.6rem; min-height:2.2rem; }
+  .lr{ width:2.6rem; height:auto; opacity:.85; flex:none; }
+  .prog{ flex:1; }
+  .prog .bar{ height:3px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .prog .bar i{ display:block; height:100%; width:0; background:var(--rosa); transition:width .35s ease; }
+  .prog .n{ font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:.35rem; font-weight:600; }
+  .tela{ flex:1; display:flex; flex-direction:column; animation:entra .35s ease both; }
+  @keyframes entra{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion:reduce){ .tela{ animation:none; } .prog .bar i{ transition:none; } }
+
+  .eyebrow{ font-size:.72rem; font-weight:700; letter-spacing:.24em; text-transform:uppercase; color:var(--rosa-txt); }
+  .rule{ width:3.2rem; height:2px; background:var(--rosa); margin:.8rem 0 1.2rem; }
+  h1{ font-size:clamp(2.2rem,9vw,2.9rem); line-height:1.02; margin-bottom:1rem; text-wrap:balance; }
+  h1 em{ color:var(--rosa-txt); }
+  .lead{ font-size:1.05rem; color:var(--soft); margin-bottom:.8rem; max-width:30rem; }
+  .pre{ font-size:1rem; color:var(--soft); background:var(--card); border-left:3px solid var(--rosa); padding:.85rem 1rem; border-radius:0 10px 10px 0; margin-bottom:1rem; }
+  .q{ font-size:clamp(1.6rem,6.6vw,2.05rem); line-height:1.12; margin-bottom:.55rem; text-wrap:balance; }
+  .ajuda{ font-size:.95rem; color:var(--muted); margin-bottom:1rem; }
+  .opc{ font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-left:.3rem; font-family:"Karla",sans-serif; }
+
+  /* === BLOCO 3: CAMPOS === */
+  input[type=text],input[type=tel],textarea{ width:100%; font-family:inherit; font-size:1.08rem; color:var(--ink); background:var(--card);
+    border:1px solid var(--line); border-radius:12px; padding:.9rem 1rem; margin-top:.4rem; }
+  textarea{ min-height:9rem; resize:vertical; line-height:1.45; }
+  input:focus,textarea:focus{ outline:none; border-color:var(--rosa-txt); box-shadow:0 0 0 3px rgba(228,143,148,.22); }
+  .rot{ display:block; font-size:.8rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:1rem; }
+  .ops{ display:flex; flex-direction:column; gap:.55rem; margin-top:.5rem; }
+  .op{ text-align:left; font-size:1.02rem; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:.85rem 1rem; cursor:pointer; display:flex; align-items:center; gap:.75rem; transition:border-color .15s, background .15s; }
+  .op:hover{ border-color:var(--rosa); }
+  .op .dot{ flex:none; width:1.05rem; height:1.05rem; border-radius:50%; border:1.5px solid var(--muted); display:grid; place-items:center; }
+  .op.quad .dot{ border-radius:4px; }
+  .op[aria-checked="true"]{ background:var(--ink); color:#F4F1ED; border-color:var(--ink); }
+  .op[aria-checked="true"] .dot{ border-color:var(--rosa); }
+  .op[aria-checked="true"] .dot::after{ content:""; width:.5rem; height:.5rem; border-radius:50%; background:var(--rosa); }
+  .op.quad[aria-checked="true"] .dot::after{ border-radius:2px; }
+  .outro{ margin-top:.55rem; }
+  .erro{ color:#b3434b; font-size:.9rem; margin-top:.6rem; min-height:1.2rem; }
+
+  /* === BLOCO 4: NAVEGAÇÃO === */
+  .nav{ display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:1.6rem; }
+  .btn{ border:none; cursor:pointer; background:var(--ink); color:#F4F1ED; font-weight:700; font-size:1rem; padding:.95rem 1.6rem; border-radius:999px; }
+  .btn:hover{ background:#2a2626; } .btn:disabled{ opacity:.5; cursor:wait; }
+  .voltar{ background:none; border:none; color:var(--soft); font-size:.95rem; cursor:pointer; padding:.5rem 0; }
+  .dica{ font-size:.82rem; color:var(--muted); margin-top:.6rem; }
+  .assin{ margin-top:auto; padding-top:2rem; font-family:"Cormorant Garamond",serif; font-style:italic; color:var(--rosa-txt); font-size:1.05rem; }
+
+  /* === BLOCO 5: TELA FINAL === */
+  body.fim{ background:radial-gradient(120% 70% at 50% 0%, var(--blush) 0%, var(--bg) 55%); }
+  .final{ position:relative; flex:1; display:flex; align-items:center; padding:2rem 0 1rem; overflow:hidden; }
+  .final-lr{ position:absolute; width:min(26rem,90%); left:50%; top:46%; transform:translate(-50%,-50%); opacity:.06; pointer-events:none; }
+  .final-in{ position:relative; text-align:center; width:100%; }
+  .final .rule{ margin:.8rem auto 1.3rem; }
+  .final h1{ font-size:clamp(2.1rem,8.5vw,2.8rem); margin-bottom:1.2rem; }
+  .final .lead{ margin-left:auto; margin-right:auto; }
+  .final-btn{ display:inline-block; text-decoration:none; margin-top:1rem; }
+  .final-assin{ margin-top:2.2rem; font-size:.9rem; color:var(--muted); }
+  .final-assin span{ font-family:"Cormorant Garamond",serif; font-style:italic; font-size:1.6rem; color:var(--rosa-txt); }
+  .r1,.r2,.r3,.r4,.r5{ animation:sobe .7s ease both; }
+  .r2{ animation-delay:.15s } .r3{ animation-delay:.35s } .r4{ animation-delay:.55s } .r5{ animation-delay:.75s }
+  @keyframes sobe{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+  @media (prefers-reduced-motion:reduce){ .r1,.r2,.r3,.r4,.r5{ animation:none; } }
+</style>
+</head>
+<body>
+<main class="wrap" id="app" aria-live="polite"></main>
+<script type="module" src="js/mentoria-form.js?v=5"></script>
+</body>
+</html>

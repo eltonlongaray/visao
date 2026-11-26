@@ -9,9 +9,10 @@ import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
-import { getTriagens } from './ficha.js';
+import { getTriagens, ligarFichaCliente, excluirFicha } from './ficha.js';
+import { mensagensPerfilHtml, wireMensagensPerfil } from './mensagens-prontas.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
-import { abrirCupons, gerarCupomCliente, abrirPresente } from './cupons-ui.js';
+import { abrirCupons, gerarCupomCliente, abrirPresente, listarCuponsAtivos, enviarCupomZap } from './cupons-ui.js';
 import { abrirIdentidade } from './identidade-ui.js';
 import { PROTOCOLOS, ACOMPS, acompDoServico, fichaDoServico, FICHAS_NOMES } from './fotos-guiadas.js';
 import { carregarFinanceiro, perfilFinanceiroHtml, wirePerfilFinanceiro, aoFinalizarAtendimento, abrirFinanceiro, abrirCampanhas, abrirProdutos, custoServico, salvarCustos, finCfg } from './financeiro-ui.js';
@@ -48,13 +49,18 @@ function _waLink(zap) {
   return `https://wa.me/${d}`;
 }
 // Agrupa os atendimentos por cliente (chave = WhatsApp, ou nome se não tiver).
+// (26/11) Mesmo número escrito de jeitos diferentes = mesma cliente: sem 55 e sem o 9 da frente
+// (51 99999-0000 = 5551999990000 = 51 9999-0000). Sem número, junta pelo nome.
+const _numChave = d => { d = String(d || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, ''); return d.length === 11 ? d.slice(0, 2) + d.slice(3) : d; };
+const _nomeChave = n => String(n || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 function _clientes() {
   const map = new Map();
   for (const a of _todos) {
-    const key = (a.cliente_contato || '').replace(/\D/g, '') || (a.cliente_nome || '').trim().toLowerCase();
-    if (!key) continue;
-    if (!map.has(key)) map.set(key, { key, nome: a.cliente_nome, contato: a.cliente_contato, ags: [] });
-    const c = map.get(key);
+    const nk = _numChave(a.cliente_contato) || _nomeChave(a.cliente_nome);   // agrupa pelo número normalizado
+    if (!nk) continue;
+    const key = (a.cliente_contato || '').replace(/\D/g, '') || (a.cliente_nome || '').trim().toLowerCase();   // c.key continua igual (outras telas usam)
+    if (!map.has(nk)) map.set(nk, { key, nome: a.cliente_nome, contato: a.cliente_contato, ags: [] });
+    const c = map.get(nk);
     c.ags.push(a);
     if (!c.contato && a.cliente_contato) c.contato = a.cliente_contato;   // completa o zap se algum tiver
   }
@@ -63,8 +69,11 @@ function _clientes() {
   for (const t of _triagens) {
     const dig = _k(t.cliente_digitos || t.cliente_contato);
     if (!dig) continue;
-    let c = [...map.values()].find(x => _k(x.key) === dig || _k(x.contato) === dig);
-    if (!c) { c = { key: dig, nome: t.cliente_nome, contato: t.cliente_contato, ags: [] }; map.set(dig, c); }
+    const nk = _numChave(dig), nm = _nomeChave(t.cliente_nome);
+    let c = [...map.values()].find(x => _numChave(x.key) === nk || _numChave(x.contato) === nk)
+      || [...map.values()].find(x => !x.contato && nm && _nomeChave(x.nome) === nm);   // cadastrada sem WhatsApp
+    if (!c) { c = { key: dig, nome: t.cliente_nome, contato: t.cliente_contato, ags: [] }; map.set(nk, c); }
+    if (!c.contato && t.cliente_contato) c.contato = t.cliente_contato;
     (c.triagens = c.triagens || []).push(t);
   }
   return [...map.values()].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
@@ -94,6 +103,11 @@ function _triagemPerfilHtml(c) {
       ${(r.plano || []).length ? `<div>📅 <b>Quer agendar:</b> ${_esc(r.plano.join(' + '))}</div>` : ''}
       ${(r.interesses || []).length ? `<div>💡 <b>Interesse:</b> ${_esc(r.interesses.join(', '))}</div>` : ''}
       ${linhas.length ? `<div style="margin-top:8px;color:var(--muted)">${linhas.map(([k, v]) => `<div>• <b>${_esc(k)}:</b> ${_esc(v)}</div>`).join('')}</div>` : ''}
+      ${(r.caminho || []).length ? `<div style="margin-top:10px"><b>🧭 Caminho da cliente</b>
+        <div style="margin-top:4px;color:var(--muted)">${r.caminho.map(c => {
+          const d = new Date(c.em); const h = isNaN(d) ? '' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+          return `<div>${_esc(h)} · ${_esc(c.p)}</div>`; }).join('')}</div>
+        <div style="margin-top:4px;font-size:12px;color:var(--muted)">O último passo é onde ela parou.</div></div>` : ''}
     </div>
   </div>`;
 }
@@ -115,6 +129,62 @@ function _proximosHtml() {
 }
 
 // Editar CONTATO de um cliente: nome + WhatsApp (atualiza TODOS os atendimentos dele).
+async function _recarregarClientes() {
+  _todos = await getAgendamentosTodos().catch(() => _todos);
+  _triagens = await getTriagens().catch(() => _triagens);
+}
+
+// (26/11) Excluir a cliente: cancela os atendimentos dela e apaga as triagens.
+async function _excluirCliente(c) {
+  const n = c.ags.length, t = (c.triagens || []).length;
+  const partes = [];
+  if (n) partes.push(`${n} atendimento${n > 1 ? 's' : ''} (cancelado${n > 1 ? 's' : ''}, sai do Ritual também)`);
+  if (t) partes.push(`${t} triagem${t > 1 ? 's' : ''} (apagada${t > 1 ? 's' : ''})`);
+  const ok = await confirmModal({ title: `Excluir ${c.nome || 'cliente'}?`, danger: true, confirmText: 'Excluir',
+    message: `Some da lista de clientes: ${partes.join(' e ')}. Não dá pra desfazer.` });
+  if (!ok) return;
+  try {
+    for (const a of c.ags) await excluirAtendimento(a);
+    for (const x of (c.triagens || [])) await excluirFicha(x.id);
+    await _recarregarClientes(); desenhar(); showToast('🗑️ Cliente excluída', 'success');
+  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+// (26/11) Juntar com outro cliente (a mesma pessoa apareceu 2 vezes): passa tudo pro nome e WhatsApp da escolhida.
+function _juntarCliente(c) {
+  const outros = _clientes().filter(x => x.key !== c.key).sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt', { sensitivity: 'base' }));
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'ag-juntar-ov';
+  ov.innerHTML = `<div class="modal ag-fmodal"><div class="ag-fcorpo">
+    <div class="ag-fhead">🔗 Juntar ${_esc(c.nome || 'cliente')} com…</div>
+    <div class="ag-cli-perfil-sub">Escolha a cliente que é a mesma pessoa. Os atendimentos e triagens passam pra ela.</div>
+    <div class="ag-cli-busca" style="margin-top:10px"><span class="ag-cli-lupa">🔍</span><input id="agj-busca" placeholder="Buscar cliente…" autocomplete="off"></div>
+    <div class="ag-cli-lista" id="agj-lista" style="max-height:50vh;overflow:auto">
+      ${outros.map(x => `<button class="ag-cli-row" data-juntar="${_esc(x.key)}" data-nome="${_esc((x.nome || '').toLowerCase())}" type="button">
+        <div class="ag-cli-row-info"><b>${_esc(x.nome)}</b><small>${x.contato ? _esc(x.contato) : 'sem WhatsApp'} · ${x.ags.length} atend.${(x.triagens || []).length ? ' · 📝 triagem' : ''}</small></div><span class="ag-cli-row-ch">›</span></button>`).join('')}
+    </div>
+    <div class="ag-fbtns"><button class="btn-secondary" id="agj-fechar" type="button">Fechar</button></div>
+  </div></div>`;
+  document.body.appendChild(ov);
+  const close = trapModalBack(() => ov.remove());
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('#agj-fechar').onclick = () => close();
+  ov.querySelector('#agj-busca').oninput = e => { const q = e.target.value.trim().toLowerCase();
+    ov.querySelectorAll('[data-juntar]').forEach(b => { b.hidden = !!q && !b.dataset.nome.includes(q); }); };
+  ov.querySelectorAll('[data-juntar]').forEach(b => b.onclick = async () => {
+    const alvo = outros.find(x => x.key === b.dataset.juntar); if (!alvo) return;
+    const ok = await confirmModal({ title: 'Juntar as duas?', confirmText: 'Juntar',
+      message: `"${c.nome}" vira "${alvo.nome}"${alvo.contato ? ` (${alvo.contato})` : ''}. Os atendimentos e triagens ficam todos numa cliente só.` });
+    if (!ok) return;
+    try {
+      const nome = alvo.nome, contato = alvo.contato || c.contato || '';
+      await atualizarCliente([...c.ags, ...alvo.ags].map(a => a.id), { nome, contato });
+      for (const t of [...(c.triagens || []), ...(alvo.triagens || [])]) await ligarFichaCliente(t.id, { nome, contato });
+      await _recarregarClientes(); close(); desenhar(); showToast('🔗 Clientes juntadas', 'success');
+    } catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  });
+}
+
 async function _editarZapCliente(c) {
   const ov = document.createElement('div');
   ov.className = 'modal-overlay'; ov.id = 'ag-zap-ov';
@@ -140,7 +210,8 @@ async function _editarZapCliente(c) {
     const btn = ov.querySelector('#agz-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
     try {
       await atualizarCliente(c.ags.map(a => a.id), { nome, contato: num });
-      _todos = await getAgendamentosTodos().catch(() => _todos);
+      for (const t of (c.triagens || [])) await ligarFichaCliente(t.id, { nome, contato: num });   // quem só fez triagem também
+      await _recarregarClientes();
       close(); desenhar(); showToast('✅ Contato atualizado', 'success');
     } catch (e) { showToast('Erro: ' + e.message, 'error'); if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Salvar'; } }
   };
@@ -183,11 +254,14 @@ function _popupCliente(c) {
       ${wa ? `<a class="ag-cli-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} Chamar no WhatsApp</a>` : ''}
       <button class="ag-cli-wa-ed" id="agp-editar" type="button">✏️ Editar contato</button>
       <button class="ag-cli-wa-ed" id="agp-cupom" type="button">🎟️ Gerar cupom</button>
+      <button class="ag-cli-wa-ed" id="agp-juntar" type="button">🔗 Juntar com outro cliente</button>
+      <button class="ag-cli-wa-ed ag-cli-excluir" id="agp-excluir" type="button">🗑️ Excluir cliente</button>
     </div>
     ${perfilFinanceiroHtml(c, { servicos: _cfg?.servicos || [] })}
     ${perfilFichaHtml(_cfg, c)}
     ${depoimentosPerfilHtml()}
     ${_triagemPerfilHtml(c)}
+    ${mensagensPerfilHtml(c)}
     <button class="ag-cli-hist-btn" id="agp-hist-btn" type="button">📋 Histórico <span class="ag-cli-hist-seta" id="agp-hist-seta">▾</span></button>
     <div class="ag-hist-lista" id="agp-hist" hidden>
       ${c.ags.map((a, i) => { const fim = _fimHora(a.hora, a.duracao_min); return `<div class="ag-cli-h${i > 0 ? ' div' : ''}">
@@ -200,7 +274,11 @@ function _popupCliente(c) {
   const close = trapModalBack(() => ov.remove());
   ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
   ov.querySelector('#agp-ok').onclick = () => close();
-  ov.querySelector('#agp-editar').onclick = () => { close(); _editarZapCliente(c); };
+  // (26/11) abre a próxima tela só depois do "voltar" do perfil (antes ela abria e fechava na hora)
+  const _depois = fn => { close(); setTimeout(fn, 250); };
+  ov.querySelector('#agp-editar').onclick = () => _depois(() => _editarZapCliente(c));
+  ov.querySelector('#agp-juntar').onclick = () => _depois(() => _juntarCliente(c));
+  ov.querySelector('#agp-excluir').onclick = () => _depois(() => _excluirCliente(c));
   ov.querySelector('#agp-cupom').onclick = () => gerarCupomCliente(c, { linkAgenda: _cfg?.slug ? _linkPublico() : '' });
   wirePerfilFicha(ov, _cfg, c, { clientes: _clientes(), redesenhar: _redesenharFicha });
   wireDepoimentosPerfil(ov, c);
@@ -208,6 +286,7 @@ function _popupCliente(c) {
   wirePerfilFinanceiro(ov, c, { servicos: _cfg?.servicos || [], aoMudar: () => {
     close(); const novo = _clientes().find(x => x.key === c.key); if (novo) _popupCliente(novo);
   } });
+  wireMensagensPerfil(ov, _cfg, c);
   ov.querySelector('#agp-tri-btn')?.addEventListener('click', () => {
     const h = ov.querySelector('#agp-tri'); const s = ov.querySelector('#agp-tri-seta');
     const abrir = h.hidden; h.hidden = !abrir; if (s) s.textContent = abrir ? '▴' : '▾';
@@ -279,6 +358,12 @@ function _waLembrete(ag) {
   return `${wa}?text=${encodeURIComponent(msg)}`;
 }
 const _linkPublico = () => `${location.origin}/agenda-online/${_cfg.slug}`;
+// Formulário (triagem) de quem tem um: link curto que marca a origem WhatsApp no painel de Campanhas
+const _TRIAGEM_ZAP = { V83: '/agenda-online/ale-zap' };
+// Link do cupom: pela triagem quando a profissional tem uma (a triagem leva o código até a agenda)
+const _linkCupom = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;   // link do zap (repassa o ?cupom= pra triagem)
+let _cupomEnvio = null, _cupomLigado = false, _cuponsAtivos = null, _cupomDestino = 'triagem';   // chave "Enviar com cupom": cupom escolhido ({ c, restam })
+const _linkTriagemZap = () => _TRIAGEM_ZAP[_cfg?.slug] ? location.origin + _TRIAGEM_ZAP[_cfg.slug] : null;
 const _turno = h => (h < '12:00' ? 'manha' : h < '18:00' ? 'tarde' : 'noite');
 const _sid = () => 's' + Math.random().toString(36).slice(2, 8);
 const _preco = v => (v == null || v === '' ? '' : Number(v).toFixed(2).replace('.', ','));
@@ -457,6 +542,11 @@ function desenhar() {
           ${[30, 45, 60, 90, 120].map(m => `<option value="${m}" ${_cfg.duracao_min === m ? 'selected' : ''}>${m} min</option>`).join('')}
         </select></label>
 
+      <label class="input-field"><div class="input-field-label">⏱️ Intervalo entre atendimentos <span class="ag-lbl-opt">— folga pra arrumar a sala. Se um atendimento passar da hora, o próximo horário se ajusta sozinho</span></div>
+        <select id="ag-intervalo">
+          ${[0, 10, 15, 20, 30].map(m => `<option value="${m}" ${(Number(_cfg.intervalo_min) || 0) === m ? 'selected' : ''}>${m ? m + ' min' : 'Sem intervalo'}</option>`).join('')}
+        </select></label>
+
       <label class="input-field"><div class="input-field-label">Até quando o cliente pode marcar? <span class="ag-lbl-opt">— quanto tempo pra frente o link mostra</span></div>
         <select id="ag-horizonte">
           ${[1, 2, 3, 6].map(m => `<option value="${m}" ${(_cfg.horizonte_meses || 3) === m ? 'selected' : ''}>${m === 1 ? '1 mês' : m + ' meses'}</option>`).join('')}
@@ -496,7 +586,16 @@ function desenhar() {
       <div class="ag-link-box">
         <input id="ag-link" readonly value="${_esc(_linkPublico())}">
         <button id="ag-copiar" class="btn-secondary" type="button">Copiar</button>
-      </div>`)}
+      </div>
+      ${_linkTriagemZap() ? `<div class="ag-serv-sub" style="margin-top:14px">📝 Formulário (triagem): manda pra cliente antes de agendar.</div>
+      <div class="ag-link-box">
+        <input id="ag-link-tri" readonly value="${_esc(_linkTriagemZap())}">
+        <button id="ag-copiar-tri" class="btn-secondary" type="button">Copiar</button>
+      </div>
+      ` : ''}
+      <button class="ag-chipbtn ${_cupomLigado ? 'on' : ''}" id="ag-cup-tog" type="button" role="switch" aria-checked="${_cupomLigado}" style="margin-top:12px"><span class="ag-cup-rot"><span class="ag-cup-ic" aria-hidden="true">🎟️</span>Enviar com cupom</span><span class="ag-switch" aria-hidden="true"></span></button>
+      <div id="ag-cup-sel"></div>
+      ${_linkTriagemZap() || _cupomEnvio ? `<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Enviar link no WhatsApp</button>` : ''}`)}
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
@@ -586,6 +685,56 @@ function wireFixos(corpo) {
     pintarDiasSemana(); pintarTabs(); pintarDiaEditor();
     showToast('Seg a Sex ligados', 'success');
   });
+  // Chave "Enviar com cupom": liga → a lista de cupons abre aqui embaixo; toca no cupom → vai junto no link
+  const linhaCup = ({ c, restam }) => `<button type="button" class="cp-cup cp-cup-esc" data-cupid="${_esc(c.id)}" aria-pressed="${_cupomEnvio?.c.id === c.id}" ${restam ? '' : 'disabled'}>
+    <b>${_esc(c.codigo)}${_cupomEnvio?.c.id === c.id ? ' ✓' : ''}</b> <span>${c.desconto >= 100 ? 'integral' : c.desconto + '%'} · ${restam ? `resta${restam === 1 ? '' : 'm'} ${restam} de ${c.limite}` : 'acabou'}</span>
+    ${c.cliente_nome || c.descricao ? `<small>${_esc(c.cliente_nome ? 'Só pra ' + c.cliente_nome : c.descricao)}</small>` : ''}</button>`;
+  const pintaCupom = () => {
+    const tog = corpo.querySelector('#ag-cup-tog'), box = corpo.querySelector('#ag-cup-sel'); if (!tog || !box) return;
+    tog.classList.toggle('on', _cupomLigado); tog.setAttribute('aria-checked', _cupomLigado);
+    box.innerHTML = !_cupomLigado ? ''
+      : !_cuponsAtivos ? '<div class="fi-vazio">Carregando os cupons…</div>'
+      : _cuponsAtivos.length ? `<div class="ag-serv-sub" style="margin-top:8px">Toca no cupom que vai junto no link:</div><div class="cp-lista">${_cuponsAtivos.map(linhaCup).join('')}</div>`
+      : '<div class="fi-vazio">Nenhum cupom ativo. Crie em 🎟️ Cupons.</div>';
+    // Depois de escolher o cupom: pra onde o link leva (só quem tem triagem escolhe; senão vai direto pra agenda)
+    if (_cupomLigado && _cupomEnvio && _linkCupom()) box.insertAdjacentHTML('beforeend', `<div class="ag-serv-sub" style="margin-top:12px">Pra onde o link leva?</div>
+      <div class="ag-dest">
+        <button type="button" data-dest="triagem" aria-pressed="${_cupomDestino === 'triagem'}"><b>📝 Pela triagem</b><small>Cliente nova: responde as perguntas e depois agenda</small></button>
+        <button type="button" data-dest="agenda" aria-pressed="${_cupomDestino === 'agenda'}"><b>📅 Direto na agenda</b><small>Já é cliente e sabe o que quer</small></button>
+      </div>`);
+    box.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { _cupomDestino = b.dataset.dest; pintaCupom(); });
+    box.querySelectorAll('[data-cupid]').forEach(b => b.onclick = () => {
+      const r = _cuponsAtivos.find(x => x.c.id === b.dataset.cupid); if (!r) return;
+      _cupomEnvio = r;
+      box.querySelectorAll('[data-cupid]').forEach(x => x.setAttribute('aria-pressed', x === b));
+      showToast(`🎟️ Cupom ${r.c.codigo} adicionado`, 'success');
+      setTimeout(pintaCupom, 250);
+    });
+    let zap = corpo.querySelector('#ag-zap-tri');
+    if (!zap && _cupomEnvio) { box.insertAdjacentHTML('afterend', '<button id="ag-zap-tri" class="btn-primary" type="button" style="margin-top:8px">📲 Enviar link no WhatsApp</button>'); corpo.querySelector('#ag-zap-tri').addEventListener('click', compartilhar); }
+    if (zap && !_cupomEnvio && !_linkTriagemZap()) zap.remove();
+  };
+  corpo.querySelector('#ag-cup-tog')?.addEventListener('click', async () => {
+    _cupomLigado = !_cupomLigado;
+    if (!_cupomLigado) { _cupomEnvio = null; pintaCupom(); return; }
+    pintaCupom();
+    try { _cuponsAtivos = await listarCuponsAtivos(); } catch (e) { _cuponsAtivos = []; showToast(e.message, 'error'); }
+    pintaCupom();
+  });
+  pintaCupom();
+  corpo.querySelector('#ag-copiar-tri')?.addEventListener('click', async () => {
+    const inp = corpo.querySelector('#ag-link-tri');
+    try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
+    catch { inp.focus(); inp.select(); showToast('Segure no link e copie', 'info'); }
+  });
+  function compartilhar() {
+    if (_cupomLigado && !_cupomEnvio) { showToast('Toca num cupom da lista primeiro', 'info'); return; }
+    if (_cupomEnvio) { { const tri = !!_linkCupom() && _cupomDestino === 'triagem'; enviarCupomZap(_cupomEnvio.c, tri ? _linkCupom() : _linkPublico(), _cupomEnvio.restam, tri); } return; }
+    const txt = `Oi! 💜 Antes de agendar, responde essa triagem rapidinha (2 min) pra eu entender teu caso e te indicar o cuidado certo. No final tu já escolhe teu horário:
+${_linkTriagemZap()}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }
+  corpo.querySelector('#ag-zap-tri')?.addEventListener('click', compartilhar);
   corpo.querySelector('#ag-copiar').onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
@@ -636,7 +785,7 @@ function wireFixos(corpo) {
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
-  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), cfg: _cfg });
+  const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), linkCupom: _linkCupom(), cfg: _cfg });
   corpo.querySelector('#ag-idv')?.addEventListener('click', () => abrirIdentidade(_cfg));
   corpo.querySelector('#ag-cup')?.addEventListener('click', () => abrirCupons(_optsCupom()));
   corpo.querySelector('#ag-pres')?.addEventListener('click', () => abrirPresente(_optsCupom()));
@@ -1035,6 +1184,7 @@ async function salvar() {
   const endereco = corpo.querySelector('#ag-endereco').value.trim() || null;
   const whatsapp = corpo.querySelector('#ag-whatsapp')?.value.trim() || null;
   const duracao_min = parseInt(corpo.querySelector('#ag-dur').value, 10) || 60;
+  const intervalo_min = parseInt(corpo.querySelector('#ag-intervalo')?.value, 10) || 0;
   const horizonte_meses = parseInt(corpo.querySelector('#ag-horizonte')?.value, 10) || 3;
   const ativo = corpo.querySelector('#ag-ativo').checked;
   // serviços: sincroniza inputs e mantém só os com nome
@@ -1069,8 +1219,8 @@ async function salvar() {
   }
   const btn = corpo.querySelector('#ag-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
-    _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
+    await salvarAgendaConfig({ titulo, endereco, whatsapp, duracao_min, intervalo_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos });
+    _cfg = { ..._cfg, titulo, endereco, whatsapp, duracao_min, intervalo_min, horizonte_meses, disponibilidade: disp, semanas, ativo, servicos };
     try { await salvarCustos(custos); } catch (e) { showToast('Custos: ' + e.message, 'info'); }
     showToast('✅ Agenda salva!', 'success');
   } catch (e) {

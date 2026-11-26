@@ -19,6 +19,7 @@ import { vendasDoCliente } from './financeiro-ui.js';
 import { getAgendamentosTodos, salvarAgendamentoManual, sincronizarTaskDoAgendamento } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { pdfRelatorioSessao, compartilharPdf, nomeArquivo } from './relatorio-sessao.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _sessoes = [], _erroSql = false, _demo = false;
@@ -304,12 +305,21 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
 
       <div class="fi-bloco">
         <div class="fi-bloco-tit">📝 Observações da sessão</div>
+        <div class="fi-secao-sub" style="margin-top:0">Só pra você: não vão no relatório da cliente.</div>
         <textarea id="fs-obs" rows="4" placeholder="Ex: trapézio direito muito carregado, liberou bem; indicar 4 sessões de drenagem" style="width:100%">${_esc(st.observacoes)}</textarea>
+      </div>
+
+      <div class="fi-bloco">
+        <div class="fi-bloco-tit">🏠 Pra fazer em casa</div>
+        <div class="fi-secao-sub" style="margin-top:0">Vai no relatório da cliente. Uma orientação por linha.</div>
+        <textarea id="fs-orient" rows="3" placeholder="Ex: alongar o pescoço 2x ao dia&#10;beber 2 litros de água&#10;evitar dormir de bruços" style="width:100%">${_esc(st.extra.orientacoes || '')}</textarea>
       </div>
 
       ${sessao ? '<button class="fi-excluir" id="fs-excluir" type="button">🗑 Apagar essa sessão</button>' : ''}
     </div>
-    <div class="ag-rodape"><button class="btn-primary" id="fs-salvar" type="button">Salvar sessão</button></div>
+    <div class="ag-rodape" style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn-secondary" id="fs-relatorio" type="button">📄 Enviar relatório pra cliente</button>
+      <button class="btn-primary" id="fs-salvar" type="button">Salvar sessão</button></div>
   </div></div>
   <div class="fs-fundo" id="fs-fundo"></div>
   <div class="fs-folha" id="fs-folha">
@@ -575,19 +585,37 @@ export function abrirSessao(c, sessao, onSalvo, ctx = {}) {
   desenharAreas();
 
   // --- salvar / apagar ---
+  // extra da sessão (fotos, áreas, técnica, o que levou e orientações pra casa)
+  function _extraAtual() {
+    const extra = { ...st.extra };
+    if ($('#fs-tecnica')) extra.tecnica = $('#fs-tecnica').value.trim();
+    if ($('#fs-levou')) extra.levou = $('#fs-levou').value.trim();
+    extra.orientacoes = ($('#fs-orient')?.value || '').trim();
+    if (!extra.orientacoes) delete extra.orientacoes;
+    extra.fotos = Object.fromEntries(Object.entries(extra.fotos || {}).filter(([, v]) => v));
+    return extra;
+  }
+  // relatório em PDF com o que está na tela agora (não precisa salvar antes)
+  $('#fs-relatorio').onclick = async () => {
+    const b = $('#fs-relatorio'); const t0 = b.textContent; b.disabled = true; b.textContent = 'Montando o PDF…';
+    try {
+      const medidas = {};
+      for (const [k, v] of Object.entries(st.medidas)) if (v && (v.antes != null || v.depois != null)) medidas[k] = v;
+      const atual = { id: st.id || '_nova', data: $('#fs-data').value || _hoje(), created_at: sessao?.created_at || new Date().toISOString(),
+        palpacao: st.palpacao, medidas, extra: _extraAtual() };
+      const listaRel = lista.filter(x => x.id !== st.id).concat([atual]).sort((a, b) => (a.data + (a.created_at || '') < b.data + (b.created_at || '') ? -1 : 1));
+      const blob = await pdfRelatorioSessao({ cliente: c, sessao: atual, lista: listaRel, n: listaRel.indexOf(atual) + 1, cfg: ctx.cfg, trat });
+      await compartilharPdf(blob, nomeArquivo(c, listaRel.indexOf(atual) + 1), `Relatório da sua sessão, ${(c.nome || '').split(' ')[0]} 🤍`);
+    } catch (e) { showToast(e.message || 'Não deu pra montar o PDF', 'error'); }
+    b.disabled = false; b.textContent = t0;
+  };
   $('#fs-salvar').onclick = async () => {
     const btn = $('#fs-salvar'); btn.disabled = true; btn.textContent = 'Salvando…';
     // limpa medidas vazias (mantém o nome das extras só se tiver valor)
     const medidas = {};
     for (const [k, v] of Object.entries(st.medidas)) if (v && (v.antes != null || v.depois != null)) medidas[k] = v;
     try {
-      let extra = null;
-      if (cs.fotos || cs.areas || cs.tecnica) {
-        extra = { ...st.extra };
-        if ($('#fs-tecnica')) extra.tecnica = $('#fs-tecnica').value.trim();
-        if ($('#fs-levou')) extra.levou = $('#fs-levou').value.trim();
-        extra.fotos = Object.fromEntries(Object.entries(extra.fotos || {}).filter(([, v]) => v));
-      }
+      const extra = _extraAtual();
       const salvo = _demo ? { id: st.id || 'demo' + Date.now(), data: $('#fs-data').value || _hoje(), palpacao: st.palpacao, medidas, extra,
         observacoes: $('#fs-obs').value, cliente_nome: c.nome, cliente_contato: c.contato, created_at: new Date().toISOString() }
         : await salvarSessao({ id: st.id, data: $('#fs-data').value || _hoje(), palpacao: st.palpacao, medidas, extra,

@@ -11,7 +11,9 @@
 // ─────────────────────────────────────────────────────────────
 import { supabase } from './config-supabase.js';
 import { avisarDonoPush } from './agenda-publica-dados.js';
-import { MODELOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, MOMENTOS, ladoDa, baseDa, nomeDa, temMarca } from './ficha-modelo.js';
+import { MODELOS, FRENTE, COSTAS, TIPOS_MARCA, NIVEIS, MOMENTOS, ladoDa, baseDa, nomeDa, temMarca, blocosDe, queixasDoLink, usaFichaUnica } from './ficha-modelo.js';
+// Blocos que valem pras respostas de agora (ficha única: só os das queixas marcadas)
+const BL = () => blocosDe(MODELO, R);
 
 // === BLOCO 1: ESTADO ===
 const [SLUG, CODIGO] = location.pathname.replace(/^\/ficha\/?/, '').replace(/\/+$/, '').split('/').map(s => decodeURIComponent(s || '').trim());
@@ -63,7 +65,9 @@ async function iniciar() {
     const { data, error } = await supabase.rpc('ficha_info', { p_slug: SLUG, p_codigo: CODIGO || null });
     if (error) throw new Error(error.message);
     INFO = data || {};
-    MODELO = (!CODIGO && MODELOS[M_LINK]) || MODELOS[INFO.modelo] || MODELOS[INFO.profissao];
+    // link geral de quem usa a ficha única (estética): abre a ficha por queixa
+    const unica = !CODIGO && !MODELOS[M_LINK] && usaFichaUnica(INFO.profissao);
+    MODELO = (unica && MODELOS.geral) || (!CODIGO && MODELOS[M_LINK]) || MODELOS[INFO.modelo] || MODELOS[INFO.profissao];
     if (!MODELO) throw new Error('modelo');
   } catch {
     if (DEMO) INFO = { nome: '', profissao: new URLSearchParams(location.search).get('p') || 'massoterapia' };
@@ -78,6 +82,11 @@ async function iniciar() {
   CLIENTE = INFO.cliente_nome || '';
   if (!DEMO) carregarRascunho();
   if (CLIENTE && !R.nome) R.nome = CLIENTE;
+  // ?q=dor,corpo: a queixa do serviço agendado já vem marcada (ela pode mudar)
+  if (MODELO === MODELOS.geral && !(R.queixas || []).length) {
+    const q = queixasDoLink(new URLSearchParams(location.search).get('q'));
+    if (q.length) R.queixas = q;
+  }
   desenharTela();
   ouvirPreenchimento();
 }
@@ -87,9 +96,10 @@ function desenharTela() {
   window.scrollTo(0, 0);
   const app = $('app');
   if (tela === -1) return telaInicio(app);
-  if (tela === MODELO.blocos.length) return telaFinal(app);
-  const b = MODELO.blocos[tela];
-  const total = MODELO.blocos.length;
+  const blocos = BL();
+  if (tela >= blocos.length) return telaFinal(app);
+  const b = blocos[tela];
+  const total = blocos.length;
   app.innerHTML = `
     ${faixaDemo()}
     <div class="topo"><span>Parte ${tela + 1} de ${total}</span><span>${esc(PRO)}</span></div>
@@ -229,7 +239,7 @@ function montarPergunta(p) {
 
 function atualizarCondicionais() {
   document.querySelectorAll('#perguntas [data-id]').forEach(el => {
-    const p = MODELO.blocos[tela].perguntas.find(x => x.id === el.dataset.id);
+    const p = (BL()[tela]?.perguntas || []).find(x => x.id === el.dataset.id);
     if (p && p.se) el.hidden = !p.se(R);
   });
 }
@@ -249,7 +259,7 @@ function validar() {
   if (DEMO) return true;
   if (tela < 0) return consentiu;
   let ok = true;
-  for (const p of MODELO.blocos[tela].perguntas) {
+  for (const p of (BL()[tela]?.perguntas || [])) {
     if (!p.obrig || (p.ident && CODIGO)) continue;
     const v = String(R[p.id] || '').trim();
     const bom = p.tipo === 'whats' ? v.replace(/\D/g, '').length >= 10 : v.length >= 2;
@@ -269,7 +279,7 @@ function validar() {
 // Só guarda o que a pessoa respondeu (tira vazios e respostas de perguntas que sumiram).
 function respostasLimpas() {
   const out = {};
-  for (const b of MODELO.blocos) for (const p of b.perguntas) {
+  for (const b of BL()) for (const p of b.perguntas) {
     if (p.tipo === 'aviso' || p.tipo === 'mapa') continue;
     if (p.se && !p.se(R)) continue;
     const v = R[p.id];
@@ -327,8 +337,8 @@ function ligarArraste() {
   }, { passive: true });
 }
 function seguir() {
-  if (DEMO) { if (tela < MODELO.blocos.length) { tela++; desenharTela(); } return; }
-  if (tela === MODELO.blocos.length - 1) return enviar();
+  if (DEMO) { if (tela < BL().length) { tela++; desenharTela(); } return; }
+  if (tela === BL().length - 1) return enviar();
   tela++; salvar(); desenharTela();
 }
 $('b-voltar').onclick = () => { if (tela > -1) { tela--; desenharTela(); } };

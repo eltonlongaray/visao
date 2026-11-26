@@ -13,8 +13,40 @@
     ],
     "rewrites": [
       {
+        "source": "/triagem/Y35",
+        "destination": "/triagem-Y35.html"
+      },
+      {
+        "source": "/triagem/Y35/**",
+        "destination": "/triagem-Y35.html"
+      },
+      {
         "source": "/triagem/**",
         "destination": "/triagem.html"
+      },
+      {
+        "source": "/pesquisa/Y35",
+        "destination": "/mentoria-pesquisa-Y35.html"
+      },
+      {
+        "source": "/pesquisa/Y35/**",
+        "destination": "/mentoria-pesquisa-Y35.html"
+      },
+      {
+        "source": "/pesquisa/**",
+        "destination": "/mentoria-form.html"
+      },
+      {
+        "source": "/selecao/Y35",
+        "destination": "/mentoria-selecao-Y35.html"
+      },
+      {
+        "source": "/selecao/Y35/**",
+        "destination": "/mentoria-selecao-Y35.html"
+      },
+      {
+        "source": "/selecao/**",
+        "destination": "/mentoria-form.html"
       },
       {
         "source": "/agenda-online/**",
@@ -53,13 +85,40 @@
         ]
       },
       {
-        "source": "/@(agenda-online|triagem|ficha|rifa)/**",
+        "source": "/@(agenda-online|triagem|ficha|rifa|pesquisa|selecao)/**",
         "headers": [
           {
             "key": "Cache-Control",
             "value": "no-cache"
           }
         ]
+      }
+    ],
+    "redirects": [
+      {
+        "source": "/ale",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/ale-insta",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/ale-zap",
+        "destination": "/triagem/V83?utm_source=whatsapp",
+        "type": 302
+      },
+      {
+        "source": "/agenda-online/ale",
+        "destination": "/triagem/V83?utm_source=instagram",
+        "type": 302
+      },
+      {
+        "source": "/agenda-online/ale-zap",
+        "destination": "/triagem/V83?utm_source=whatsapp",
+        "type": 302
       }
     ]
   }

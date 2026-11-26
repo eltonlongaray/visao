@@ -18,6 +18,7 @@ import { abrirEditorAtividade } from './atividade-editor.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
+import { abrirRendaExtra } from './mentoria-ui.js';
 import { abrirObjetivos, abrirEditorObjetivo } from './objetivos-ui.js';
 import { abrirIdeal } from './ideal-ui.js';
 import { abrirGuiaMetodo, guiaDeveAbrir } from './metodo-guia.js';
@@ -175,8 +176,7 @@ function telaHub() {
       </button>
       <button class="fr-hubcard" data-hub-renda-extra type="button">
         <span class="fr-hub-ic">💸</span>
-        <span class="fr-hub-tx"><b>Fontes de renda extra</b><small>Alunas, cursos e outras rendas além dos clientes</small></span>
-        <span class="fr-hub-tag">EM BREVE</span>
+        <span class="fr-hub-tx"><b>Fontes de renda extra</b><small>Mentoria: inscritas, alunas e formulários</small></span>
       </button>
       <button class="fr-hubcard" data-hub-rifa type="button">
         <span class="fr-hub-ic">🎟️</span>
@@ -476,7 +476,7 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-clareza]')) { abrirIdeal(); return; }       // abre por cima do hub
     if (e.target.closest('[data-hub-objetivos]')) { abrirObjetivos(); return; } // abre por cima do hub
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
-    if (e.target.closest('[data-hub-renda-extra]')) { showToast('💸 Fontes de renda extra está em desenvolvimento. Em breve! 🦅', 'info'); return; }
+    if (e.target.closest('[data-hub-renda-extra]')) { abrirRendaExtra(); return; }   // abre por cima do hub (🎓 Mentoria)
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
     if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
     if (e.target.closest('[data-hub-lingua]')) { showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'); return; }

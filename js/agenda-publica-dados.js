@@ -11,9 +11,9 @@ import { supabase } from './config-supabase.js';
 export async function getAgendaPublica(slug) {
   const s = (slug || '').trim();
   let res = await supabase.from('agenda_config')
-    .select('slug, titulo, endereco, whatsapp, duracao_min, disponibilidade, semanas, horizonte_meses, ativo, servicos')
+    .select('slug, titulo, endereco, whatsapp, duracao_min, intervalo_min, disponibilidade, semanas, horizonte_meses, ativo, servicos')
     .eq('slug', s).eq('ativo', true).maybeSingle();
-  if (res.error && /semanas|horizonte_meses|whatsapp/i.test(res.error.message || '')) {
+  if (res.error && /semanas|horizonte_meses|whatsapp|intervalo_min/i.test(res.error.message || '')) {
     res = await supabase.from('agenda_config')
       .select('slug, titulo, endereco, duracao_min, disponibilidade, ativo, servicos')
       .eq('slug', s).eq('ativo', true).maybeSingle();
@@ -42,11 +42,12 @@ export async function getSlotsOcupados(slug, deISO, ateISO) {
 }
 
 // Um slot [hora, hora+dur] está ocupado se sobrepõe QUALQUER intervalo daquele dia.
-export function estaOcupado(mapa, dateISO, hora, durMin = 60) {
+// intMin = intervalo entre atendimentos (folga dos dois lados)
+export function estaOcupado(mapa, dateISO, hora, durMin = 60, intMin = 0) {
   const arr = mapa && typeof mapa.get === 'function' ? mapa.get(dateISO) : null;
   if (!arr || !arr.length) return false;
   const ini = _hm(hora), fim = ini + (durMin || 60);
-  return arr.some(iv => ini < iv.fim && iv.ini < fim);
+  return arr.some(iv => ini < iv.fim + intMin && iv.ini < fim + intMin);
 }
 
 // Cria um agendamento via RPC (valida disponibilidade + não estar ocupado).

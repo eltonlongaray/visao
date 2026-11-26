@@ -3,6 +3,7 @@
 // Visitante vê os dias/horários livres do dono (via slug) e agenda com
 // nome + WhatsApp. Usa só as funções anônimas de agenda.js (RPCs seguras).
 // ─────────────────────────────────────────────────────────────
+import { supabase } from './config-supabase.js';
 import { getAgendaPublica, getSlotsOcupados, estaOcupado, criarAgendamento, criarAgendamentoCombo, cancelarAgendamentoPublico, getMeusAgendamentos, cancelarMeuAgendamento, fichaStatusPublico, validarCupom, aplicarCupom } from './agenda-publica-dados.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -19,10 +20,16 @@ const _hm = t => { const p = String(t || '').split(':'); return (+p[0] || 0) * 6
 const _segISO = (d) => { const x = new Date(d); const dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return iso(x); };
 // Horários efetivos de um dia: se a SEMANA tem exceção (cfg.semanas[segunda]),
 // usa ela (mesmo vazia = dia fechado); senão cai no padrão (disponibilidade[dow]).
+// (21/11) Serviço com HORÁRIO PRÓPRIO (servico.horarios = {dow: [horas]}, ex.: Black da
+// Larissa só seg–sex a partir das 17h e sábado o dia todo): vale o horário do serviço.
+// Semana de exceção com o dia fechado continua fechada. cfg.__servHorarios = serviço escolhido.
 const _horariosDoDia = (cfg, d) => {
   const wk = cfg.semanas && cfg.semanas[_segISO(d)];
   const base = wk != null ? wk : (cfg.disponibilidade || {});
-  return (base[String(d.getDay())] || []).slice().sort();
+  const dia = base[String(d.getDay())] || [];
+  const hs = cfg.__servHorarios;
+  if (hs) return (wk != null && !dia.length) ? [] : (hs[String(d.getDay())] || []).slice().sort();
+  return dia.slice().sort();
 };
 
 // Histórico do cliente NO APARELHO dele (localStorage por slug). Sem conta, sem servidor.
@@ -72,6 +79,16 @@ function _waProLink(cfg) {
 // hora). A profissional também recebe o push do Falcon (_avisarDono).
 const WA_SVG_PUB = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="flex:none"><path d="M17.5 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.63.71.23 1.35.19 1.86.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.42-.07-.12-.27-.19-.57-.34zM12 2a10 10 0 0 0-8.55 15.2L2 22l4.9-1.28A10 10 0 1 0 12 2zm5.9 15.9A8 8 0 0 1 7.6 19.2l-.28-.17-2.9.76.77-2.83-.18-.29A8 8 0 1 1 17.9 17.9z"/></svg>';
 
+// (25/11) Aviso no topo da agenda por profissional, com data pra sumir sozinho (ate = último dia que aparece)
+const _AVISO_TOPO = {
+  V83: { ate: '2026-11-30', txt: '💳 Não paga nada agora: o pagamento é no dia, depois do atendimento. Agendando até 30/11, tu garante o preço da Black, mesmo marcando a sessão para dezembro.' },
+};
+function _avisoTopo(slug) {
+  const a = _AVISO_TOPO[slug]; if (!a) return '';
+  if (iso(new Date()) > a.ate) return '';
+  return `<div class="ap-aviso-topo">${_esc(a.txt)}</div>`;
+}
+
 export async function renderAgendaPublica(app, slug) {
   // esconde nav/pet caso o dono abra o link logado dentro do app
   document.body.classList.add('rota-publica');
@@ -90,6 +107,22 @@ export async function renderAgendaPublica(app, slug) {
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const ate = new Date(hoje); ate.setDate(ate.getDate() + JANELA);
   const DUR = cfg.duracao_min || 60;   // duração-padrão do slot (pra checar sobreposição)
+  const INT = Number(cfg.intervalo_min) || 0;   // (25/11) folga entre atendimentos
+  // (25/11) Horário que se ajusta: depois de um atendimento que termina fora da hora cheia,
+  // oferece fim + intervalo (arredondado pra 5 min). Ex.: limpeza 13:30–14:45 + 15 → 15:00.
+  // Vale entre o 1º e o último horário do dia, e o último pode ser empurrado até 30 min.
+  const _hmTxt = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  function _comEncaixes(times, isoD) {
+    if (!times.length) return times;
+    const toM = h => { const [a, b] = h.split(':').map(Number); return a * 60 + (b || 0); };
+    const min = toM(times[0]), max = toM(times[times.length - 1]) + 30;
+    const extra = [];
+    for (const iv of (ocupados.get?.(isoD) || [])) {
+      const t = Math.ceil((iv.fim + INT) / 5) * 5;
+      if (t > min && t <= max && !times.includes(_hmTxt(t))) extra.push(_hmTxt(t));
+    }
+    return extra.length ? [...new Set([...times, ...extra])].sort() : times;
+  }
   let ocupados = new Map();
   try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
 
@@ -100,9 +133,11 @@ export async function renderAgendaPublica(app, slug) {
   const AGORA = Date.now();
   const MIN_ANTEC_MS = 5 * 60 * 60 * 1000;
   const dias = [];
+  function _montarDias() {
+  dias.length = 0;
   for (let i = 0; i <= JANELA; i++) {
     const d = new Date(hoje); d.setDate(d.getDate() + i);
-    const times = _horariosDoDia(cfg, d);
+    const times = _comEncaixes(_horariosDoDia(cfg, d), iso(d));
     if (!times.length) continue;
     const horarios = times.map(h => {
       const [hh, mm] = h.split(':').map(Number);
@@ -113,6 +148,8 @@ export async function renderAgendaPublica(app, slug) {
     });
     dias.push({ iso: iso(d), date: d, horarios });
   }
+  }
+  _montarDias();
 
   const servicos = Array.isArray(cfg.servicos) ? cfg.servicos : [];
 
@@ -143,17 +180,52 @@ export async function renderAgendaPublica(app, slug) {
   // a menos de 5h, não ocupado). A agenda abre já no 1º dia assim — não num dia vazio.
   const _temVaga = isoD => { const d = dias.find(x => x.iso === isoD); return !!d && d.horarios.some(h => !h.passou && !h.cedo && !h.ocupado); };
   const _primeiroComVaga = off => _diasDaSemana(off).find(x => !x.past && _temVaga(x.iso))?.iso || null;
+  // (20/11, Élton) Calendário de 2 semanas sempre visível: abre em ESTA semana + a próxima,
+  // já selecionando o 1º dia com vaga dessas 2; "Ver mais datas →" anda de 2 em 2 semanas.
   let semOffset = 0;
-  while (semOffset < _maxOffset && !_primeiroComVaga(semOffset)) semOffset++;
-  let selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || dias[0]?.iso || null;
+  const _vagasDoDia = isoD => { const d = dias.find(x => x.iso === isoD); return d ? d.horarios.filter(h => !h.passou && !h.cedo && !h.ocupado).length : 0; };
+  const _semana7 = off => { const seg = _segPub(off); const hojeIso = iso(hoje); const out = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(seg); d.setDate(seg.getDate() + i); const isoD = iso(d);
+      out.push({ iso: isoD, date: d, past: isoD < hojeIso, hoje: isoD === hojeIso, aberto: _horariosDoDia(cfg, d).length > 0, vagas: isoD < hojeIso ? 0 : _vagasDoDia(isoD) }); }
+    return out; };
+  const _primeiroNoBloco = off => _primeiroComVaga(off) || _primeiroComVaga(off + 1);
+  // Próximo horário livre (de toda a agenda): atalho "Quero esse"
+  const _proximoLivre = () => { for (const d of dias) { const h = d.horarios.find(x => !x.passou && !x.cedo && !x.ocupado); if (h) return { iso: d.iso, date: d.date, hora: h.hora }; } return null; };
+  let selDia = _primeiroNoBloco(0) || null;
   let selHora = null;
-  let selServ = (servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
+  let chamaHora = false;   // (25/11) tocou num dia → desce até os horários e chama atenção pra escolher a hora
+  // (21/11) serviço com `destaque` (ex.: "Black Friday") abre já escolhido e vem 1º na lista
+  let selServ = (servicos.find(s => s.destaque && !s.pacoteDe) || servicos.find(s => !s.pacoteDe) || servicos[0])?.id || null;
   let ident = _lerIdent(cfg.slug);   // {nome, contato} — identificação do cliente (1x)
   // Triagem: já chega identificada e com o(s) serviço(s) escolhido(s)
   const TRI = _lerTriagem(cfg.slug);
+  // (21/11) ?teste=1: modo teste — percorre tudo, mas NÃO marca horário, não aplica cupom,
+  // não registra passos da triagem e não abre o WhatsApp sozinho (só mostra a mensagem).
+  const TESTE = new URLSearchParams(location.search).has('teste');
+  if (TESTE && !document.querySelector('.ap-faixa-teste')) document.body.insertAdjacentHTML('afterbegin',
+    '<div class="ap-faixa-teste" style="position:sticky;top:0;z-index:50;background:#FEF3C7;color:#78350F;text-align:center;font:600 .85rem/1.3 system-ui,sans-serif;padding:.55rem .8rem">🧪 Modo teste · nada é salvo, não marca horário</div>');
   let combo = [];                    // 2+ serviços num horário só (da triagem)
-  let cupom = null, cupomAberto = false;   // cupom de desconto conferido ({codigo, desconto, descricao})
+  const cupomUrl = (new URLSearchParams(location.search).get('cupom') || '').trim().toUpperCase().slice(0, 30);
+  // cupom conferido ({codigo, desconto, descricao}). ?cupom= no link: o campo já abre preenchido e é aplicado sozinho
+  let cupom = null, cupomAberto = !!cupomUrl, cupomAuto = false;
   let servAberto = false;            // lista de serviços aberta (botão retrátil)
+  // Caminho da cliente que veio da triagem (20/11): cada passo daqui vai pra triagem salva,
+  // pra profissional ver na ficha até onde a cliente chegou (abriu, escolheu dia/hora, confirmou, WhatsApp).
+  const _passo = (txt) => {
+    if (TESTE || !TRI || !TRI.codigo || !TRI.pacote) return;
+    const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
+    try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
+    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }).then(() => {}, () => {}); } catch {}
+  };
+  // (26/11) funil da triagem continua aqui: abriu a agenda / agendou (1x por visita)
+  const _funil = (ordem, nome) => {
+    if (TESTE || !TRI || !TRI.sessao) return;
+    TRI.funil = TRI.funil || []; if (TRI.funil.includes(nome)) return; TRI.funil.push(nome);
+    try { localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
+    try { supabase.rpc('triagem_passo', { p_slug: cfg.slug, p_sessao: TRI.sessao, p_ordem: ordem, p_passo: nome, p_origem: TRI.origem || null }).then(() => {}, () => {}); } catch {}
+  };
+  _funil(80, 'Abriu a agenda');
+  const _diaTxt = isoD => { const [y, m, d] = String(isoD || '').split('-'); return d ? `${d}/${m}` : ''; };
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
     const ids = (TRI.servicos || []).filter(id => servicos.some(s => s.id === id));
@@ -162,7 +234,9 @@ export async function renderAgendaPublica(app, slug) {
   let meusAgs = [];                  // agendamentos do cliente (buscados do servidor pelo WhatsApp)
   const _servSel = () => servicos.find(s => s.id === selServ) || null;
   // Pacote dentro do serviço: o item do pacote (pacoteDe) não aparece na lista, vira opção do serviço.
-  const _lista = () => servicos.filter(s => !s.pacoteDe);
+  const _lista = () => servicos.filter(s => !s.pacoteDe).sort((a, b) => (!!b.destaque) - (!!a.destaque));
+  // Veio da triagem com foco num produto só (modelo com focoNoServico): sem lista de outros serviços
+  const FOCO = !!(TRI && TRI.foco && (TRI.servicos || []).length);
   const _baseDe = s => (s && s.pacoteDe ? servicos.find(x => x.id === s.pacoteDe) || s : s);
   const _pacoteDe = s => (s ? servicos.find(x => x.pacoteDe === s.id) || null : null);
   const _comboServs = () => combo.map(id => servicos.find(s => s.id === id)).filter(Boolean);
@@ -172,6 +246,21 @@ export async function renderAgendaPublica(app, slug) {
   // nome e preço do que vai ser agendado (1 serviço ou a soma do combo)
   const _comboNome = () => _comboServs().map(s => s.nome).join(' + ');
   const _comboPreco = () => { const c = _comboServs(); return c.some(s => s.preco == null) ? null : c.reduce((t, s) => t + Number(s.preco), 0); };
+  // Serviço com horário próprio: refaz os dias/horários e reposiciona o dia escolhido
+  function _aplicarHorariosServ() {
+    const comH = (combo.length > 1 ? _comboServs() : [_servSel()]).find(s => s && s.horarios);
+    const novo = comH ? comH.horarios : null;
+    if (novo === (cfg.__servHorarios || null)) return;
+    cfg.__servHorarios = novo;
+    _montarDias();
+    for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);
+    if (!selDia || !_temVaga(selDia)) { selDia = _primeiroNoBloco(semOffset) || null; selHora = null; }
+  }
+  _aplicarHorariosServ();
+  if (TRI) {
+    const prim = _primeiroComVaga(semOffset);
+    _passo('Abriu a agenda' + (prim ? ` (primeiro dia com horário livre: ${_diaTxt(prim)})` : ' (sem horário livre)'));
+  }
 
   // Busca os agendamentos do cliente (pelo WhatsApp) e re-renderiza quando chegam.
   async function _carregarMeusAgs() {
@@ -241,9 +330,34 @@ export async function renderAgendaPublica(app, slug) {
   }
   function _servCard(s, sel) {
     return `<button class="ap-serv-op ${sel ? 'sel' : ''}" data-serv="${_esc(s.id)}" type="button">
-        <span class="ap-serv-nm">${_esc(s.nome)}</span>
+        <span class="ap-serv-nm">${_esc(s.nome)}${s.destaque ? ` <span style="display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#050404;color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap">🖤 ${_esc(s.destaque)}</span>` : ''}</span>
         <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+        ${s.nota ? `<span class="ap-serv-mt" style="display:block;margin-top:.2rem;opacity:.85">🕔 ${_esc(s.nota)}</span>` : ''}
       </button>`;
+  }
+  // (21/11) Serviço com horário próprio (ex.: Black da Larissa): frase "quero muito, mas os
+  // meus horários não batem" + botão "Me ajuda, Lari". O botão NÃO diz que é WhatsApp (Élton:
+  // a função fica escondida pra curioso não ficar chamando) — só ao tocar abre o WhatsApp dela
+  // com a mensagem pronta. Textos: servico.ajuda = { texto, botao } (padrão abaixo).
+  function _ajudaHorarioHtml() { return ''; }   // (21/11) agora mora dentro do card do serviço (_servCardHorario)
+  // (21/11, Élton) Serviço com horário próprio = UM card só: serviço + horários (letra maior)
+  // + "meus horários não batem" + botão de ajuda. É <div> (não <button>) pra caber o botão dentro.
+  function _servCardHorario(s) {
+    const _sepH = '<span style="display:block;height:1px;background:var(--border);margin:12px 0 10px"></span>';
+    const aj = s.ajuda || {};
+    const ajuda = _waProLink(cfg) ? `${_sepH}
+        <span class="ap-serv-nm" style="display:block;text-align:center;text-wrap:balance">${_esc(aj.texto || 'Eu quero muito, mas os meus horários não batem')}</span>
+        <span class="ap-serv-mt" style="display:block;text-align:center;text-wrap:balance">${_esc(aj.sub || 'Toque no botão abaixo para pedir ajuda')}</span>
+        <span style="display:block;text-align:center;margin-top:8px"><button type="button" class="btn-primary" id="ap-ajuda-btn" style="width:auto;padding:.7rem 1.4rem">${_esc(aj.botao || 'Me ajuda')}</button></span>` : '';
+    return `<div class="ap-serv-op sel ap-serv-unico" style="cursor:default">
+        <span class="ap-serv-nm">${_esc(s.nome)}${s.destaque ? ` <span style="display:inline-block;vertical-align:middle;margin-left:.35rem;padding:.12rem .5rem;border-radius:999px;background:#050404;color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.04em;white-space:nowrap">🖤 ${_esc(s.destaque)}</span>` : ''}</span>
+        <span class="ap-serv-mt">${s.duracaoMin || cfg.duracao_min} min${s.preco != null ? ` · R$ ${_precoTxt(s.preco)}` : ''}</span>
+        ${s.promo ? `<span class="ap-serv-mt" style="display:block;opacity:1;font-weight:700;margin-top:2px">${_esc(s.promo)}</span>` : ''}
+        ${s.nota ? `${_sepH}
+        <span class="ap-serv-mt" style="display:block;text-align:center;opacity:1;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase">🕔 Horários desta sessão</span>
+        ${String(s.nota).split('·').map(t => t.trim()).filter(Boolean).map(t => `<span style="display:block;text-align:center;font-size:1.08rem;font-weight:800;margin-top:2px">${_esc(t.charAt(0).toUpperCase() + t.slice(1))}</span>`).join('')}` : ''}
+        ${ajuda}
+      </div>`;
   }
   function _servHtml() {
     if (!servicos.length) return '';
@@ -252,8 +366,8 @@ export async function renderAgendaPublica(app, slug) {
         <span class="ap-serv-nm">${_esc(_comboNome())}</span>
         <span class="ap-serv-mt">${_durSel()} min${_comboPreco() != null ? ` · R$ ${_precoTxt(_comboPreco())}` : ''}</span>
       </button>`
-      : (_servSel() ? _servCard(_baseDe(_servSel()), true) + _pacoteHtml() : '');
-    if (_lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
+      : (_servSel() ? (_baseDe(_servSel()).horarios ? _servCardHorario(_baseDe(_servSel())) : _servCard(_baseDe(_servSel()), true)) + _pacoteHtml() : '');
+    if (FOCO || _lista().length <= 1) return `<div class="ap-serv-wrap"><div class="ap-serv-tit">Serviço</div>${escolhido}</div>`;
     return `<div class="ap-serv-wrap">
       <div class="ap-serv-tit">Serviço escolhido</div>
       <button class="ap-serv-toggle" id="ap-serv-toggle" type="button" aria-expanded="${servAberto}">
@@ -267,6 +381,9 @@ export async function renderAgendaPublica(app, slug) {
 
   // ── render principal ──
   function desenhar() {
+    // (25/11) ocupado = o serviço ESCOLHIDO cabe sem encavalar (limpeza de 75 min às 13:30 não pode com alguém às 14:30)
+    try { _montarDias(); const dur = _durSel(); for (const dd of dias) for (const sl of dd.horarios) sl.ocupado = estaOcupado(ocupados, dd.iso, sl.hora, dur, INT);
+      if (selHora && dias.find(x => x.iso === selDia)?.horarios.find(x => x.hora === selHora)?.ocupado) selHora = null; } catch {}
     if (!dias.length) {
       app.innerHTML = _tela(`
         <div class="ap-head"><div class="ap-titulo">${_esc(cfg.titulo || 'Agende comigo')}</div></div>
@@ -291,25 +408,40 @@ export async function renderAgendaPublica(app, slug) {
         ${ident?.nome ? `<div class="ap-ola">👋 Olá, <b>${_esc(ident.nome.split(' ')[0])}</b>! <button class="ap-trocar" id="ap-trocar" type="button">Não é você? Trocar</button></div>` : ''}
         <div class="ap-sub">${servicos.length ? 'Escolha o serviço e o horário' : 'Escolha um horário'}</div>
         ${cfg.endereco ? `<div class="ap-end">📍 ${_esc(cfg.endereco)}</div>` : ''}
+        ${_avisoTopo(cfg.slug)}
         <div class="ap-aviso24">⚠️ <b>Precisa cancelar?</b> Avise com <b>24h de antecedência</b>, por favor.</div>
       </div>
       ${_histHtml()}
       ${_servHtml()}
-      <div class="ap-semnav">
-        <button class="ap-semarrow" id="ap-sem-prev" type="button" ${semOffset <= 0 ? 'disabled' : ''} aria-label="Semana anterior">‹</button>
-        <div class="ap-semlabel">${_labelSem(semOffset)}</div>
-        <button class="ap-semarrow" id="ap-sem-next" type="button" ${semOffset >= _maxOffset ? 'disabled' : ''} aria-label="Próxima semana">›</button>
+      ${_ajudaHorarioHtml()}
+      ${(() => {   // atalho: próximo horário livre
+        const p = _proximoLivre(); if (!p) return '';
+        return `<div class="ap-prox"><div class="ap-prox-tx">📅 Próximo horário livre<b>${SEM[p.date.getDay()]} ${pad(p.date.getDate())}/${pad(p.date.getMonth() + 1)} às ${p.hora}</b></div>
+          <button class="ap-prox-btn" id="ap-prox-ok" type="button">Quero esse</button></div>`;
+      })()}
+      <div class="ap-cal-tit">Ou escolha o dia</div>
+      <div class="ap-cal">
+        <div class="ap-cal-dow">${['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(x => `<span>${x}</span>`).join('')}</div>
+        ${[semOffset, semOffset + 1].map(off => `
+          <div class="ap-cal-lbl">${off === 0 ? 'Esta semana' : off === 1 ? 'Semana que vem' : _labelSem(off)}</div>
+          <div class="ap-cal-row">${_semana7(off).map(x => {
+            const est = x.past ? 'past' : !x.aberto ? 'fechado' : x.vagas ? 'livre' : 'lotado';
+            const info = x.past ? '' : !x.aberto ? '' : x.vagas ? `${x.vagas} ${x.vagas === 1 ? 'horário' : 'horários'}` : 'lotado';
+            const cls = `ap-cal-d ${est}${x.iso === selDia ? ' sel' : ''}${x.hoje ? ' hoje' : ''}`;
+            const inner = `<span class="ap-cal-n">${x.date.getDate()}</span><span class="ap-cal-i">${info}</span>`;
+            return est === 'livre' ? `<button class="${cls}" data-dia="${x.iso}" type="button">${inner}</button>` : `<div class="${cls}" aria-disabled="true">${inner}</div>`;
+          }).join('')}</div>`).join('')}
+        ${[semOffset, semOffset + 1].some(off => _semana7(off).some(x => x.vagas)) ? '' : `<div class="ap-cal-vazio">Sem horário livre nessas 2 semanas.</div>`}
+        <div class="ap-cal-nav">
+          ${semOffset > 0 ? `<button class="ap-cal-voltar ap-sem-prev" type="button">‹ Voltar</button>` : ''}
+          ${semOffset + 2 <= _maxOffset ? `<button class="ap-cal-mais ap-sem-next" type="button">Ver mais datas →</button>` : ''}
+        </div>
       </div>
-      <div class="ap-dias">
-        ${diasSem.map(x => x.past
-          ? `<div class="ap-diachip past" aria-disabled="true"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></div>`
-          : `<button class="ap-diachip ${x.iso === selDia ? 'sel' : ''}" data-dia="${x.iso}" type="button"><span class="ap-diachip-dow">${SEM3[x.date.getDay()]}</span><span class="ap-diachip-num">${pad(x.date.getDate())}</span></button>`
-        ).join('') || '<div class="ap-semvazio">Sem horários nesta semana. Use ›</div>'}
-      </div>
-      <div class="ap-slots-wrap">
+      ${dia ? `<div class="ap-hor-tit${chamaHora && !selHora ? ' chama' : ''}">${chamaHora && !selHora ? '👇 Agora escolha o horário' : 'Horários disponíveis'}<small>${SEM[dia.date.getDay()]}, ${pad(dia.date.getDate())}/${pad(dia.date.getMonth() + 1)}</small></div>` : ''}
+      <div class="ap-slots-wrap${chamaHora && !selHora ? ' chama' : ''}">
         ${(g.manha.length + g.tarde.length + g.noite.length)
           ? bloco('Manhã', '🌅', g.manha) + bloco('Tarde', '☀️', g.tarde) + bloco('Noite', '🌙', g.noite)
-          : '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>'}
+          : (dia ? '<div class="ap-vazio">Nenhum horário disponível neste dia. 🌙<br><small>Escolha outro dia acima.</small></div>' : '')}
       </div>
       ${selHora && dia ? _formHtml(dia, selHora) : ''}
       <div class="ap-wa-pro-wrap">${_waProHtml()}</div>
@@ -359,22 +491,48 @@ export async function renderAgendaPublica(app, slug) {
       desenharIdentidade();
     });
     const _irSemana = (novo) => {
+      _passo(novo > semOffset ? 'Foi pra semana seguinte' : 'Voltou uma semana');
       semOffset = Math.max(0, Math.min(_maxOffset, novo));
-      selDia = _primeiroComVaga(semOffset) || _diasDaSemana(semOffset).find(x => !x.past)?.iso || null;
+      selDia = _primeiroNoBloco(semOffset) || null;
       selHora = null; desenhar();
     };
-    app.querySelector('#ap-sem-prev')?.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 1); });
-    app.querySelector('#ap-sem-next')?.addEventListener('click', () => { if (semOffset < _maxOffset) _irSemana(semOffset + 1); });
+    app.querySelectorAll('.ap-sem-prev').forEach(b => b.addEventListener('click', () => { if (semOffset > 0) _irSemana(semOffset - 2); }));
+    app.querySelectorAll('.ap-sem-next').forEach(b => b.addEventListener('click', () => { if (semOffset + 2 <= _maxOffset) _irSemana(semOffset + 2); }));
+    app.querySelector('#ap-prox-ok')?.addEventListener('click', () => {
+      const p = _proximoLivre(); if (!p) return;
+      _passo(`Tocou em "Quero esse" (próximo livre: ${_diaTxt(p.iso)} às ${p.hora})`);
+      const alvo = Math.floor((_fromIso(p.iso) - _segPub(0)) / (7 * 86400000));
+      semOffset = Math.max(0, alvo - (alvo % 2)); selDia = p.iso; selHora = p.hora; desenhar();
+      const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     app.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
-      selDia = b.dataset.dia; selHora = null; desenhar();
+      selDia = b.dataset.dia; selHora = null; _passo('Olhou o dia ' + _diaTxt(selDia));
+      chamaHora = true; desenhar();
+      // desce sozinho até os horários (a cliente nem sempre percebe que falta escolher a hora)
+      const t = app.querySelector('.ap-hor-tit');
+      if (t) requestAnimationFrame(() => t.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }));
     app.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
-      selServ = b.dataset.serv; combo = []; servAberto = false; desenhar();
+      selServ = b.dataset.serv; combo = []; servAberto = false;
+      _aplicarHorariosServ();
+      _passo('Trocou o serviço pra ' + (servicos.find(x => x.id === selServ)?.nome || '')); desenhar();
     }));
     app.querySelector('#ap-serv-toggle')?.addEventListener('click', () => { servAberto = !servAberto; desenhar(); });
-    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; desenhar(); }));
+    app.querySelector('#ap-ajuda-btn')?.addEventListener('click', () => {
+      const s = _servSel();
+      let d = String(cfg.whatsapp || '').replace(/\D/g, ''); if (d.length <= 11) d = '55' + d;
+      const txt = `Oi! Eu quero muito a ${s?.nome || 'sessão'}${s?.destaque ? ` da ${s.destaque}` : ''}, mas os meus horários não batem${s?.nota ? ` (${s.nota})` : ''}. Tem como você me ajudar?`
+        + (ident?.nome ? `\n\n👤 ${ident.nome}` : '');
+      _passo('Pediu ajuda no WhatsApp (horários não batem)');
+      if (TESTE) { _aviso('🧪 Modo teste: aqui abriria o WhatsApp com: "' + txt.split('\n')[0] + '"'); return; }
+      location.href = `https://wa.me/${d}?text=${encodeURIComponent(txt)}`;
+    });
+    app.querySelectorAll('[data-pac]').forEach(b => b.addEventListener('click', () => { selServ = b.dataset.pac; _aplicarHorariosServ(); desenhar(); }));
     app.querySelectorAll('[data-hora]').forEach(b => b.addEventListener('click', () => {
-      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora; desenhar();
+      selHora = (selHora === b.dataset.hora) ? null : b.dataset.hora;
+      if (selHora) chamaHora = false;
+      if (selHora) _passo(`Escolheu o horário ${selHora} de ${_diaTxt(selDia)}`);
+      desenhar();
       const f = app.querySelector('.ap-form'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
     const btn = app.querySelector('#ap-confirmar');
@@ -393,7 +551,7 @@ export async function renderAgendaPublica(app, slug) {
         if (r.tipo === 'presente' && r.servico) {
           const n = x => String(x || '').toLowerCase();
           const sv = (cfg.servicos || []).find(s => n(s.nome) === n(r.servico)) || (cfg.servicos || []).find(s => n(s.nome).startsWith(n(r.servico).split(' (')[0]));
-          if (sv) { selServ = sv.id; combo = []; }
+          if (sv) { selServ = sv.id; combo = []; _aplicarHorariosServ(); }
         }
         desenhar();
       }
@@ -406,6 +564,8 @@ export async function renderAgendaPublica(app, slug) {
           : 'Cupom não encontrado. Confere o código.';
       }
     });
+    // veio com ?cupom= no link: aplica sozinho uma vez, quando aparece o formulário de confirmar
+    if (cupomUrl && !cupomAuto && !cupom && app.querySelector('#ap-cupom-ok')) { cupomAuto = true; app.querySelector('#ap-cupom-ok').click(); }
 
     // Retráteis (Meus agendamentos / Histórico)
     app.querySelectorAll('.ap-accord-btn').forEach(b => b.addEventListener('click', () => {
@@ -448,7 +608,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-form-ident">Agendando como <b>${_esc(ident?.nome || '')}</b>${ident?.contato ? ` · ${_esc(ident.contato)}` : ''}</div>
         ${cupom && cupom.tipo === 'presente' ? `<div class="ap-cupom-ok">🎁 Cartão presente <b>${_esc(cupom.codigo)}</b> · ${_esc(String(cupom.servico || '').split(' (')[0])} sem custo <button type="button" id="ap-cupom-tirar" aria-label="Tirar cartão">✕</button></div>`
           : cupom ? `<div class="ap-cupom-ok">🎟️ Cupom <b>${_esc(cupom.codigo)}</b> · ${cupom.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupom.desconto}% de desconto`}${cupom.restantes != null ? ` · <b>${cupom.restantes} de ${cupom.limite}</b> sessões disponíveis` : ''} <button type="button" id="ap-cupom-tirar" aria-label="Tirar cupom">✕</button></div>`
-          : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
+          : cupomAberto ? `<div class="ap-cupom-linha"><input id="ap-cupom" value="${_esc(cupomUrl)}" placeholder="Código do cupom" maxlength="30" autocapitalize="characters" autocomplete="off"><button class="btn-secondary" id="ap-cupom-ok" type="button">Aplicar</button></div><div class="ap-cupom-msg" id="ap-cupom-msg"></div>`
           : '<button class="ap-cupom-tog" id="ap-cupom-tog" type="button">🎟️ Tenho um cupom de desconto</button>'}
         <button class="btn-primary" id="ap-confirmar" type="button">Confirmar agendamento</button>
       </div>`;
@@ -459,19 +619,23 @@ export async function renderAgendaPublica(app, slug) {
     const zap = ident?.contato || '';
     if (nome.length < 2 || zap.replace(/\D/g, '').length < 8) { ident = null; mostrar(); return; }
     const btn = app.querySelector('#ap-confirmar'); btn.disabled = true; btn.textContent = 'Agendando…';
+    _passo('Tocou em confirmar');
     try {
       const hora = selHora;
       const serv = _servSel();
       const fim = _fim(hora, _durSel());
       const ehCombo = combo.length > 1;
       const nomeServ = ehCombo ? _comboNome() : (serv?.nome || null);
-      const res = ehCombo
+      const res = TESTE ? {} : ehCombo
         ? await criarAgendamentoCombo(cfg.slug, dia.iso, hora, nome, zap, combo)
         : await criarAgendamento(cfg.slug, dia.iso, hora, nome, zap, selServ);
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
-      _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
+      if (!TESTE) _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
+      _passo(`Agendou: ${nomeServ || 'serviço'} · ${_diaTxt(dia.iso)} às ${hora}`);
+      _funil(90, 'Agendou');
       // cupom: grava no agendamento recém-criado (falhar aqui não desfaz o agendamento)
       let cupomOk = null;
+      if (cupom && TESTE) { cupomOk = cupom; cupom = null; }
       if (cupom) { try { const r = await aplicarCupom(cfg.slug, dia.iso, hora, zap, cupom.codigo); if (r.ok) cupomOk = r; } catch {} cupom = null; }
       // marca o intervalo recém-agendado (início→fim do serviço/duração) como ocupado
       const iniB = _hm(hora); const durB = _durSel() || DUR;
@@ -507,6 +671,7 @@ export async function renderAgendaPublica(app, slug) {
         <div class="ap-ok">
           <div class="ap-ok-ic">✅</div>
           <div class="ap-ok-t">Agendamento confirmado!</div>
+          ${TESTE ? '<div class="ap-ok-sub" style="color:#78350F;font-weight:600">🧪 Modo teste: nada foi marcado na agenda.</div>' : ''}
           <div class="ap-ok-d">${dataTxt} às <b>${hora}${fim ? `–${fim}` : ''}</b></div>
           ${nomeServ ? `<div class="ap-ok-sub">💆 ${_esc(nomeServ)}${precoOk != null && !(cupomOk && cupomOk.desconto >= 100) ? ` · R$ ${_precoTxt(precoOk)}` : ''}</div>` : ''}
           ${cupomOk ? `<div class="ap-ok-sub">🎟️ Cupom ${_esc(cupomOk.codigo)} · ${cupomOk.desconto >= 100 ? 'desconto integral (sem custo)' : `${cupomOk.desconto}% de desconto`}</div>
@@ -526,7 +691,13 @@ export async function renderAgendaPublica(app, slug) {
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
-      if (waTri) {
+      if (waTri && TESTE) {
+        // modo teste: mostra a mensagem que iria pro WhatsApp, sem abrir nada
+        const txtWa = decodeURIComponent(waTri.split('?text=')[1] || '');
+        const cd = app.querySelector('.ap-cd');
+        if (cd) cd.innerHTML = `<div class="ap-cd-t">🧪 Aqui a cliente iria pro WhatsApp da profissional com esta mensagem pronta (no teste, nada é aberto nem enviado):</div>
+          <pre style="white-space:pre-wrap;text-align:left;font:inherit;font-size:.85rem;background:rgba(0,0,0,.05);border-radius:10px;padding:.7rem .8rem;margin:.6rem 0 0">${_esc(txtWa)}</pre>`;
+      } else if (waTri) {
         // 5, 4, 3, 2, 1 → abre o WhatsApp da profissional com tudo que ela escolheu
         let n = 5;
         const tick = setInterval(() => {
@@ -534,6 +705,7 @@ export async function renderAgendaPublica(app, slug) {
           if (n <= 0) {
             clearInterval(tick);
             document.getElementById('ap-ok-wa-link')?.removeAttribute('hidden');
+            _passo('Abriu o WhatsApp com a mensagem pronta (enviar é com ela)');
             location.href = waTri;
           }
         }, 1000);
@@ -542,6 +714,7 @@ export async function renderAgendaPublica(app, slug) {
       }
     } catch (e) {
       _aviso(e.message || 'Não deu pra agendar');
+      _passo('Erro ao agendar: ' + (e.message || 'sem detalhe'));
       // horário pode ter sido pego: recarrega ocupados e re-marca todos os dias
       try { ocupados = await getSlotsOcupados(cfg.slug, iso(hoje), iso(ate)); } catch {}
       for (const dd of dias) for (const s of dd.horarios) s.ocupado = estaOcupado(ocupados, dd.iso, s.hora, DUR);

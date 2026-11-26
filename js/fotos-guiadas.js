@@ -3,7 +3,8 @@
 //   BLOCO 1 — protocolos (rosto, celulite, corpo e medidas): poses + instruções
 //   BLOCO 2 — sugerir o tipo de acompanhamento pelo nome do serviço
 //   BLOCO 3 — conferir foto da galeria (resolução, tremida, luz, reflexo, posição)
-//   BLOCO 4 — câmera guiada: molde + "aproxime/afaste/vire" e foto AUTOMÁTICA
+//   BLOCO 4 — câmera guiada: molde + "aproxime/afaste/vire" e foto AUTOMÁTICA,
+//             nível de inclinação na lateral e rosto em oval com o fundo escurecido
 //   BLOCO 5 — montar o antes × depois (com o nome do negócio), baixar e compartilhar
 // A detecção (MediaPipe Pose, Google) roda NO APARELHO: a foto não sai pra análise.
 // Sem o modelo (internet ruim, celular antigo), a câmera continua com o botão manual.
@@ -80,7 +81,8 @@ export async function conferirFoto(blob, pose, antesUrl = null) {
   let bmp; try { bmp = await createImageBitmap(blob); } catch { return ['Não consegui abrir essa foto.']; }
   const W = bmp.width, H = bmp.height;
   const tipo = String(pose || '').split('_')[0];
-  if (Math.min(W, H) < 1000) avisos.push('Foto com <b>pouca resolução</b>: o antes × depois fica borrado. Tire pela câmera do app.');
+  // Rosto sai recortado no oval (26/11): ~700 px já é nítido; corpo continua pedindo 1000
+  if (Math.min(W, H) < (String(pose || '').startsWith('rosto') ? 600 : 1000)) avisos.push('Foto com <b>pouca resolução</b>: o antes × depois fica borrado. Tire pela câmera do app.');
   if (tipo !== 'rosto' && W > H * 1.05) avisos.push('Foto do corpo deve ser <b>em pé (vertical)</b>, não deitada.');
   const st = _estatisticas(bmp);
   if (st.nitidez < 18) avisos.push('A foto ficou <b>tremida ou desfocada</b>. Apoie o celular e espere focar antes de tirar.');
@@ -117,6 +119,19 @@ function _estatisticas(bmp) {
   return { media: soma / (w * h), estouro: estouro / (w * h), nitidez: Math.sqrt(Math.max(0, s2 / n - mL * mL)) };
 }
 
+// Brilho médio (0–255) de uma região do vídeo, numa cópia de 48 px.
+// Mesma régua da revisão (conferirFoto): < 70 = escura, > 205 = estourada.
+function _brilho(fonte, sx, sy, sw, sh) {
+  const W = 48, H = Math.max(1, Math.round(48 * sh / sw));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(fonte, sx, sy, sw, sh, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data;
+  let soma = 0;
+  for (let i = 0; i < d.length; i += 4) soma += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  return soma / (W * H);
+}
+
 // === BLOCO 4: CÂMERA GUIADA ===
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODELO = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
@@ -133,31 +148,134 @@ async function _carregarDetector() {
   return _carregando;
 }
 
+// FUNDO LEVEMENTE DESFOCADO no rosto (Élton, 26/11: "efeito cinematográfico,
+// levemente embaçado"). O Selfie Segmenter (MediaPipe) separa pessoa × fundo no
+// próprio aparelho; a pessoa fica nítida e o fundo ganha um desfoque leve.
+// Se o modelo não carregar, a foto sai normal (sem desfoque) — nunca trava.
+const SEG_MODELO = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
+let _seg = null, _segCarregando = null;
+function _carregarSegmentador() {
+  if (_seg) return Promise.resolve(_seg);
+  if (!_segCarregando) _segCarregando = (async () => {
+    const { FilesetResolver, ImageSegmenter } = await import(`${MP}/vision_bundle.mjs`);
+    const fs = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+    const criar = delegate => ImageSegmenter.createFromOptions(fs, {
+      baseOptions: { modelAssetPath: SEG_MODELO, delegate }, runningMode: 'IMAGE',
+      outputConfidenceMasks: true, outputCategoryMask: false });
+    try { _seg = await criar('GPU'); } catch { _seg = await criar('CPU'); }
+    return _seg;
+  })().catch(e => { _segCarregando = null; throw e; });
+  return _segCarregando;
+}
+// Desfoque barato e igual em todo navegador: reduz e amplia de novo (2 passadas)
+function _desfocado(src, w, h, fator) {
+  const a = document.createElement('canvas'); a.width = Math.max(1, Math.round(w / fator)); a.height = Math.max(1, Math.round(h / fator));
+  const ga = a.getContext('2d'); ga.imageSmoothingQuality = 'high'; ga.drawImage(src, 0, 0, a.width, a.height);
+  const b2 = document.createElement('canvas'); b2.width = Math.max(1, Math.round(a.width / 2)); b2.height = Math.max(1, Math.round(a.height / 2));
+  b2.getContext('2d').drawImage(a, 0, 0, b2.width, b2.height);
+  const o = document.createElement('canvas'); o.width = w; o.height = h;
+  const go = o.getContext('2d'); go.imageSmoothingQuality = 'high'; go.drawImage(a, 0, 0, w, h);
+  go.globalAlpha = 0.5; go.drawImage(b2, 0, 0, w, h); go.globalAlpha = 1;
+  return o;
+}
+// Aplica no canvas da foto: fundo levemente desfocado, pessoa nítida (borda suave)
+async function _desfocarFundo(cv) {
+  const seg = await Promise.race([_carregarSegmentador(), new Promise((_, r) => setTimeout(() => r(new Error('demorou')), 5000))]);
+  const res = seg.segment(cv);
+  const m = res?.confidenceMasks?.[0];
+  if (!m) { res?.close?.(); return false; }
+  const mw = m.width, mh = m.height, conf = m.getAsFloat32Array();
+  // Máscara: opaco = pessoa. Rampa suave entre 0,3 e 0,7 de confiança (sem serrilhado)
+  const mc = document.createElement('canvas'); mc.width = mw; mc.height = mh;
+  const gm = mc.getContext('2d'), img = gm.createImageData(mw, mh);
+  let pessoa = 0;
+  for (let i = 0; i < conf.length; i++) {
+    const a = Math.min(1, Math.max(0, (conf[i] - 0.3) / 0.4));
+    img.data[i * 4 + 3] = Math.round(a * 255); pessoa += a;
+  }
+  gm.putImageData(img, 0, 0);
+  res.close?.();
+  if (pessoa / conf.length < 0.05) return false;   // não achou ninguém: não mexe na foto
+  const w = cv.width, h = cv.height;
+  // Fundo sem a pessoa (transparente onde ela está): ao desfocar, a cor dela não
+  // "vaza" pro fundo — some o halo claro em volta do contorno
+  const soFundo = document.createElement('canvas'); soFundo.width = w; soFundo.height = h;
+  const gs = soFundo.getContext('2d');
+  gs.drawImage(cv, 0, 0);
+  gs.globalCompositeOperation = 'destination-out';
+  gs.drawImage(mc, 0, 0, w, h);
+  const fundo = _desfocado(soFundo, w, h, Math.max(5, Math.round(Math.max(w, h) / 180)));   // levemente (26/11: "um pouquinho mais")
+  const frente = document.createElement('canvas'); frente.width = w; frente.height = h;
+  const gf = frente.getContext('2d');
+  gf.drawImage(cv, 0, 0);
+  gf.globalCompositeOperation = 'destination-in';
+  gf.imageSmoothingQuality = 'high';
+  gf.drawImage(mc, 0, 0, w, h);    // máscara pequena ampliada = borda naturalmente suave
+  const g = cv.getContext('2d');
+  g.drawImage(fundo, 0, 0);
+  g.drawImage(frente, 0, 0);
+  return true;
+}
+
+// NITIDEZ (Élton, 26/11): quanto mais bordas definidas, maior o número. Mede numa
+// cópia pequena (240 px) em cinza — rápido até no celular. Serve pra comparar fotos
+// da mesma cena (rajada / foto nativa) e ficar com a menos tremida.
+function _nitidez(fonte, sx, sy, sw, sh) {
+  const W = 240, H = Math.max(1, Math.round(240 * sh / sw));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(fonte, sx, sy, sw, sh, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data, cinza = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) cinza[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+  let soma = 0, soma2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x, l = 4 * cinza[i] - cinza[i - 1] - cinza[i + 1] - cinza[i - W] - cinza[i + W];
+    soma += l; soma2 += l * l; n++;
+  }
+  return n ? soma2 / n - (soma / n) ** 2 : 0;
+}
+
 // Avalia o enquadramento. L = 33 pontos normalizados (0–1). Devolve { ok, msg, corte }.
 // corte = {y0, y1} (fração da altura) pra tirar o rosto das fotos de corpo.
 const VIS = 0.55;
 const _v = p => p && (p.visibility ?? 1) > VIS;
-function _avaliar(alvo, L) {
+// Centro e tamanho do rosto. De FRENTE: nariz e largura dos pontos do rosto.
+// De LADO (Élton, 26/11, vídeo do teste): os pontos encolhem pra um lado, então a
+// largura "mentia" ("Aproxime-se" com o rosto grande) e o nariz fica na ponta do
+// perfil. De lado vale a distância orelha↔nariz (≈ 0,7 da largura da cabeça) e o
+// centro é o meio entre a orelha visível e o nariz.
+function _rosto(alvo, L) {
+  const nz = L[0], oe = L[7], od = L[8];
+  if (alvo === 'rosto_lado') {
+    const orelha = Math.abs(oe.x - nz.x) > Math.abs(od.x - nz.x) ? oe : od;   // a de trás (longe do nariz) é a visível
+    return { x: (orelha.x + nz.x) / 2, y: (orelha.y + nz.y) / 2, tam: Math.abs(orelha.x - nz.x) / 0.7 };
+  }
+  const xs = L.slice(0, 11).map(p => p.x);
+  return { x: nz.x, y: nz.y, tam: Math.max(...xs) - Math.min(...xs) };
+}
+
+// folga: quando o contorno JÁ está verde, a faixa do centro alarga um pouco (histerese):
+// uma tremidinha na beirada não apaga o verde nem zera o tempo da foto (Élton, 26/11).
+function _avaliar(alvo, L, folga = 0) {
   if (!L) return { ok: false, msg: 'Enquadre a cliente na tela' };
   const P = i => L[i];
   const meio = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const lado = (a, b, ref) => Math.abs(a.x - b.x) / Math.max(0.01, ref);   // largura ÷ referência vertical
   // Sem 'esquerda/direita' (confundia conforme a câmera): o ponto na tela mostra onde a cliente está.
-  const centro = x => (x < 0.38 || x > 0.62 ? 'Leve o ponto pro meio do contorno' : '');
+  const centro = x => (x < 0.35 - folga || x > 0.65 + folga ? 'Leve o ponto pro meio do contorno' : '');
   const narizVisivel = (P(0).visibility ?? 0) > 0.6;
 
   if (alvo.startsWith('rosto')) {
     const nz = P(0), oe = P(7), od = P(8);
     if (!_v(nz)) return { ok: false, msg: 'Enquadre o rosto da cliente' };
-    // Tamanho do rosto = largura dos pontos do rosto (olhos, orelhas, boca): vale de frente e de lado.
-    const xs = L.slice(0, 11).map(p => p.x), larg = Math.max(...xs) - Math.min(...xs);
+    const R = _rosto(alvo, L);
     // Giro: nariz em relação ao meio das orelhas (0 = de frente; ~0,5+ = de perfil).
     // O modelo "chuta" a orelha escondida com visibilidade alta, então vale o giro, não a visibilidade.
     const giro = Math.abs(nz.x - (oe.x + od.x) / 2) / Math.max(0.01, Math.abs(oe.x - od.x));
-    if (larg < 0.26) return { ok: false, msg: 'Aproxime-se um pouco' };
-    if (larg > 0.55) return { ok: false, msg: 'Afaste-se um pouco' };
-    const c = centro(nz.x); if (c) return { ok: false, msg: c };
-    if (nz.y < 0.30 || nz.y > 0.62) return { ok: false, msg: nz.y < 0.30 ? 'Abaixe um pouco o celular' : 'Suba um pouco o celular' };
+    if (R.tam < 0.24 - folga) return { ok: false, msg: 'Aproxime-se um pouco' };
+    if (R.tam > 0.58 + folga) return { ok: false, msg: 'Afaste-se um pouco' };
+    const c = centro(R.x); if (c) return { ok: false, msg: c };
+    if (R.y < 0.28 - folga || R.y > 0.64 + folga) return { ok: false, msg: R.y < 0.28 - folga ? 'Abaixe um pouco o celular' : 'Suba um pouco o celular' };
     if (alvo === 'rosto_frente' && giro > 0.22) return { ok: false, msg: 'Peça pra cliente olhar reto pra câmera' };
     if (alvo === 'rosto_lado' && giro < 0.45) return { ok: false, msg: 'Peça pra cliente virar mais o rosto de lado' };
     return { ok: true, msg: 'Perfeito! Segura assim…' };
@@ -210,8 +328,20 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       <div class="fg-palco">
         <video class="fg-video" autoplay playsinline muted></video>
         ${fantasma ? `<img class="fg-fantasma" src="${_esc(fantasma)}" alt="">` : ''}
+        ${pose.alvo.startsWith('rosto') ? '<div class="fg-mascara" aria-hidden="true"></div>' : ''}
         <div class="fg-molde ${pose.alvo.startsWith('rosto') ? 'oval' : ''}"></div>
         <div class="fg-alvo"></div><div class="fg-ponto" hidden></div>
+        <div class="fg-nivel" hidden aria-label="Nível do celular">
+          <div class="fg-nivel-faixa"></div>
+          <div class="fg-nivel-trilho">${'<i></i>'.repeat(9)}</div>
+          <div class="fg-nivel-linha"></div>
+          <span class="fg-nivel-grau"></span>
+        </div>
+        <div class="fg-horiz" hidden aria-label="Nível esquerda/direita">
+          <i class="fg-horiz-ref esq"></i><i class="fg-horiz-ref dir"></i>
+          <div class="fg-horiz-linha"></div>
+        </div>
+        <button type="button" class="fg-nivel-ativar" data-fg="nivel" hidden>📐 Ativar nível</button>
       </div>
       <div class="fg-status" id="fg-status">Abrindo a câmera…</div>
       <div class="fg-dica">Ajuste até o contorno ficar <b>verde</b>: o app tira a foto sozinho.</div>
@@ -222,26 +352,170 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       </div>`;
     document.body.appendChild(ov);
     const video = ov.querySelector('video'), status = ov.querySelector('#fg-status'), molde = ov.querySelector('.fg-molde');
-    let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null;
-    const fim = v => { rodando = false; if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
-    const msg = (t, ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!ok); };
+    let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null, suave = null;
+    let luz = 'boa', luzEm = 0;   // 'boa' | 'escura' | 'clara' (medida ao vivo)
+    const fim = v => { rodando = false; window.removeEventListener('deviceorientation', aoInclinar); window.removeEventListener('devicemotion', aoMover); if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
+
+    // NÍVEL (Élton, 26/11): barra vertical na lateral. A linha anda pra cima/baixo
+    // conforme a inclinação pra frente/trás (beta: 90° = celular em pé) e fica
+    // VERDE no meio quando está a 90° ± 3°. Sem sensor (computador), não aparece.
+    const nivel = ov.querySelector('.fg-nivel'), nivelGrau = ov.querySelector('.fg-nivel-grau'), btNivel = ov.querySelector('.fg-nivel-ativar');
+    let beta = null, nivelReto = false, nivelPedido = false, nivelGrauTxt = '', nivelOkCls = null;   // beta só existe com sensor ativo
+    const nivelLinha = ov.querySelector('.fg-nivel-linha');
+    // O evento do sensor só GUARDA o valor (chega 60x/s); o desenho é 1x por quadro
+    // e mexe só no transform: a linha não engasga quando a detecção do rosto pesa.
+    // Verde com "trava" (Élton, 26/11: a linha pulava o verde): entra a 3° e só sai
+    // depois de 5°, então a tremidinha da mão não derruba o verde.
+    const reto = (dif, jaEra) => Math.abs(dif) <= (jaEra ? 5 : 3);
+    let usaGravidade = false;   // com acelerômetro, o giroscópio (beta) fica de reserva
+    function aoInclinar(e) {
+      if (e.beta == null || usaGravidade) return;
+      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.2;
+      nivelReto = reto(beta - 90, nivelReto);
+      if (!nivelPedido) { nivelPedido = true; requestAnimationFrame(pintarNivel); }
+    }
+    // HORIZONTE (Élton, 26/11): linha embaixo do oval que gira junto com o horizonte
+    // real e fica VERDE e reta quando o celular não pende pra esquerda nem pra direita.
+    // Usa a gravidade (acelerômetro): com o celular em pé, o "gamma" fica instável.
+    const horiz = ov.querySelector('.fg-horiz'), horizLinha = ov.querySelector('.fg-horiz-linha');
+    let roll = null, rollReto = false;
+    // PARADO (Élton, 26/11: foto tremida): a foto automática só sai com o celular firme
+    // por meio segundo. Sem giroscópio, não trava nada (vale como parado).
+    let mexendo = null, paradoDesde = 0;
+    const PARADO_MS = 500, LIMITE_GIRO = 10;   // graus por segundo
+    const estaParado = () => mexendo == null || (mexendo < LIMITE_GIRO && paradoDesde && performance.now() - paradoDesde >= PARADO_MS);
+    function aoMover(e) {
+      const rr = e.rotationRate;
+      if (rr && (rr.alpha != null || rr.beta != null || rr.gamma != null)) {
+        const v = Math.hypot(rr.alpha || 0, rr.beta || 0, rr.gamma || 0);
+        mexendo = mexendo == null ? v : mexendo + (v - mexendo) * 0.3;
+        if (mexendo < LIMITE_GIRO) { if (!paradoDesde) paradoDesde = performance.now(); } else paradoDesde = 0;
+      }
+      const gr = e.accelerationIncludingGravity;
+      if (!gr || gr.x == null || gr.y == null) return;
+      let x = gr.x, y = gr.y, z = gr.z ?? 0;
+      if (y < 0) { x = -x; y = -y; z = -z; }   // iPhone manda o sinal invertido do Android
+      if (Math.hypot(x, y) < 3) return;   // celular quase deitado: sem referência de lado
+      const r = Math.atan2(x, y) * 180 / Math.PI;
+      roll = roll == null ? r : roll + (r - roll) * 0.25;
+      rollReto = reto(roll, rollReto);
+      // Frente/trás pela gravidade: 90° = em pé (mesma escala do beta)
+      if (gr.z != null) {
+        const b2 = 90 - Math.atan2(z, Math.hypot(x, y)) * 180 / Math.PI;
+        usaGravidade = true;
+        beta = beta == null ? b2 : beta + (b2 - beta) * 0.2;
+        nivelReto = reto(beta - 90, nivelReto);
+      }
+      if (!nivelPedido) { nivelPedido = true; requestAnimationFrame(pintarNivel); }
+    }
+    function pintarNivel() {
+      nivelPedido = false;
+      if (roll != null) {
+        if (horiz.hidden) { horiz.hidden = false; btNivel.hidden = true; }
+        horizLinha.style.transform = `rotate(${Math.max(-30, Math.min(30, roll)).toFixed(1)}deg)`;
+        horiz.classList.toggle('ok', rollReto);
+      }
+      if (beta == null) return;
+      if (!ov.isConnected) return;
+      if (nivel.hidden) { nivel.hidden = false; btNivel.hidden = true; }
+      const meia = nivel.clientHeight * 0.44;
+      nivelLinha.style.transform = `translateY(${(Math.max(-1, Math.min(1, (beta - 90) / 30)) * meia).toFixed(1)}px)`;
+      if (nivelOkCls !== nivelReto) { nivelOkCls = nivelReto; nivel.classList.toggle('ok', nivelReto); }
+      const g = nivelReto ? '90°' : `${Math.round(beta)}°`;
+      if (g !== nivelGrauTxt) { nivelGrauTxt = g; nivelGrau.textContent = g; }
+    }
+    async function ligarNivel() {
+      const D = window.DeviceOrientationEvent;
+      if (!D) return;
+      window.removeEventListener('deviceorientation', aoInclinar);
+      window.addEventListener('deviceorientation', aoInclinar);   // sem permissão, só não chega nada
+      window.removeEventListener('devicemotion', aoMover);
+      window.addEventListener('devicemotion', aoMover);
+      // iPhone (e alguns navegadores): o sensor só libera com um toque → botão "Ativar nível"
+      const M = window.DeviceMotionEvent;
+      const pedir = async X => (typeof X?.requestPermission === 'function' ? X.requestPermission() : 'granted');
+      try {
+        const [a, m] = await Promise.all([pedir(D), pedir(M)]);
+        if ((a !== 'granted' || m !== 'granted') && beta == null && roll == null) btNivel.hidden = false;
+      } catch { if (beta == null && roll == null) btNivel.hidden = false; }
+    }
+    ligarNivel();
+    // moldeOk separado: enquadrada mas com o celular torto = contorno verde, mensagem ainda não
+    const msg = (t, ok, moldeOk = ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!moldeOk); };
     // ponto onde a cliente está (rosto: nariz; corpo: meio do tronco/quadril), na posição da imagem na tela
     const ponto = ov.querySelector('.fg-ponto');
     const marcar = L => {
       if (!L || !video.videoWidth) { ponto.hidden = true; return; }
-      const ref = pose.alvo.startsWith('rosto') ? L[0] : (L[23] && L[24] ? { x: (L[23].x + L[24].x + (L[11]?.x ?? L[23].x) + (L[12]?.x ?? L[24].x)) / 4, y: ((L[23].y + L[24].y) / 2 + ((L[11]?.y ?? L[23].y) + (L[12]?.y ?? L[24].y)) / 2) / 2 } : L[0]);
+      const ref = pose.alvo.startsWith('rosto') ? _rosto(pose.alvo, L) : (L[23] && L[24] ? { x: (L[23].x + L[24].x + (L[11]?.x ?? L[23].x) + (L[12]?.x ?? L[24].x)) / 4, y: ((L[23].y + L[24].y) / 2 + ((L[11]?.y ?? L[23].y) + (L[12]?.y ?? L[24].y)) / 2) / 2 } : L[0]);
       const cw = video.clientWidth, ch = video.clientHeight, k = Math.min(cw / video.videoWidth, ch / video.videoHeight);
       const ox = (cw - video.videoWidth * k) / 2, oy = (ch - video.videoHeight * k) / 2;
       ponto.style.left = (ox + ref.x * video.videoWidth * k) + 'px'; ponto.style.top = (oy + ref.y * video.videoHeight * k) + 'px'; ponto.hidden = false;
     };
 
-    async function capturar(corte) {
-      if (!video.videoWidth) return;
+    // Rosto (Élton, 26/11: "achei muito distante"): a foto é a região do OVAL + uma
+    // margem, em pixels do vídeo — o que a pessoa encaixou no oval é o que sai na foto.
+    const ehRosto = pose.alvo.startsWith('rosto');
+    if (ehRosto) _carregarSegmentador().catch(() => {});   // já baixa o modelo do fundo desfocado
+    function _caixaOval() {
+      const vr = video.getBoundingClientRect(), mr = molde.getBoundingClientRect();
       const vw = video.videoWidth, vh = video.videoHeight;
-      const y0 = corte ? Math.round(corte.y0 * vh) : 0, y1 = corte ? Math.round(corte.y1 * vh) : vh;
-      const k = Math.min(1, 2000 / Math.max(vw, y1 - y0));
-      const cv = document.createElement('canvas'); cv.width = Math.round(vw * k); cv.height = Math.round((y1 - y0) * k);
-      cv.getContext('2d').drawImage(video, 0, y0, vw, y1 - y0, 0, 0, cv.width, cv.height);
+      const k = Math.min(vr.width / vw, vr.height / vh);
+      const ox = vr.left + (vr.width - vw * k) / 2, oy = vr.top + (vr.height - vh * k) / 2;
+      const mx = mr.width * 0.08, my = mr.height * 0.05;   // margem curta: orelhas, cabelo e pescoço
+      const x0 = Math.max(0, (mr.left - mx - ox) / k), x1 = Math.min(vw, (mr.right + mx - ox) / k);
+      const y0 = Math.max(0, (mr.top - my - oy) / k), y1 = Math.min(vh, (mr.bottom + my - oy) / k);
+      return { x0, x1, y0, y1, tela: { left: mr.left - mx - vr.left, top: mr.top - my - vr.top, width: mr.width + 2 * mx, height: mr.height + 2 * my } };
+    }
+    // FOTO NÍTIDA (Élton, 26/11): (2) rajada de 8 quadros em ~0,5 s e fica o mais
+    // nítido; (3) no Android, também pede a FOTO da câmera (ImageCapture: usa o
+    // estabilizador e o processamento do aparelho) e fica com ela se for mais nítida.
+    let capturando = false;
+    async function _fotoNativa(timeoutMs = 2500) {
+      const track = stream?.getVideoTracks?.()[0];
+      if (!track || typeof window.ImageCapture !== 'function') return null;
+      try {
+        const ic = new window.ImageCapture(track);
+        const blob = await Promise.race([ic.takePhoto(), new Promise((_, r) => setTimeout(() => r(new Error('demorou')), timeoutMs))]);
+        return await createImageBitmap(blob);
+      } catch { return null; }
+    }
+    async function capturar(corte) {
+      if (!video.videoWidth || capturando) return;
+      capturando = true; rodando = false;   // para o loop: nada de segunda captura no meio
+      status.textContent = 'Segura firme… 📸';
+      const vw = video.videoWidth, vh = video.videoHeight;
+      let x0 = 0, x1 = vw, y0 = corte ? Math.round(corte.y0 * vh) : 0, y1 = corte ? Math.round(corte.y1 * vh) : vh;
+      if (ehRosto) ({ x0, x1, y0, y1 } = _caixaOval());
+      const w = Math.round(x1 - x0), h = Math.round(y1 - y0);
+      const k = Math.min(1, 2000 / Math.max(w, h));
+      const cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      const gcv = cv.getContext('2d');
+      // (2) rajada: só desenha em tamanho cheio quando o quadro é o mais nítido até agora
+      let melhor = -1;
+      for (let i = 0; i < 8; i++) {
+        if (i) await new Promise(r => setTimeout(r, 60));
+        const nota = _nitidez(video, x0, y0, w, h);
+        if (nota > melhor) { melhor = nota; gcv.drawImage(video, Math.round(x0), Math.round(y0), w, h, 0, 0, cv.width, cv.height); }
+      }
+      // (3) foto nativa (Android): mesma região, se a proporção bater com a do vídeo
+      const nat = await _fotoNativa();
+      if (nat) {
+        const mesmaProporcao = Math.abs(nat.width / nat.height - vw / vh) < 0.03;
+        if (mesmaProporcao) {
+          const fx = nat.width / vw, fy = nat.height / vh;
+          const nx0 = x0 * fx, ny0 = y0 * fy, nw = w * fx, nh = h * fy;
+          if (_nitidez(nat, nx0, ny0, nw, nh) > melhor) {
+            const k2 = Math.min(1, 2000 / Math.max(nw, nh));
+            cv.width = Math.round(nw * k2); cv.height = Math.round(nh * k2);   // aproveita a resolução maior
+            cv.getContext('2d').drawImage(nat, nx0, ny0, nw, nh, 0, 0, cv.width, cv.height);
+          }
+        }
+        nat.close?.();
+      }
+      if (ehRosto) {
+        status.textContent = 'Deixando o fundo suave…';
+        await _desfocarFundo(cv).catch(() => false);   // falhou: foto normal
+      }
       const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9)); cv.width = 0; cv.height = 0;
       rodando = false;
       revisar(blob);
@@ -259,37 +533,78 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
         const a = e.target.closest('[data-rv]')?.dataset.rv; if (!a) return;
         URL.revokeObjectURL(url);
         if (a === 'ok') return fim(blob);
-        rv.remove(); okDesde = 0; rodando = true; loop();
+        rv.remove(); okDesde = 0; capturando = false; rodando = true; loop();
       });
     }
     function loop() {
       if (!rodando) return;
+      let gasto = 0;
+      // LUZ AO VIVO (Élton, 26/11): mede a cada ~0,5 s. "Trava" pra não piscar:
+      // escura abaixo de 70 e só volta a boa acima de 78 (estourada: acima de 205 / volta abaixo de 197).
+      if (video.readyState >= 2 && video.videoWidth && performance.now() - luzEm > 500) {
+        luzEm = performance.now();
+        try {
+          const vw = video.videoWidth, vh = video.videoHeight;
+          const c = ehRosto ? _caixaOval() : { x0: vw * 0.2, x1: vw * 0.8, y0: vh * 0.15, y1: vh * 0.85 };
+          const m = _brilho(video, c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0);
+          luz = luz === 'escura' ? (m > 78 ? (m > 205 ? 'clara' : 'boa') : 'escura')
+            : luz === 'clara' ? (m < 197 ? (m < 70 ? 'escura' : 'boa') : 'clara')
+            : (m < 70 ? 'escura' : m > 205 ? 'clara' : 'boa');
+        } catch { /* um quadro ruim não para a câmera */ }
+      }
       if (detector && video.readyState >= 2) {
         try {
-          const r = detector.detectForVideo(video, performance.now());
-          const av = _avaliar(pose.alvo, r?.landmarks?.[0]);
-          marcar(r?.landmarks?.[0]);
-          ultimo = av;
+          const t0 = performance.now();
+          const r = detector.detectForVideo(video, t0);
+          gasto = performance.now() - t0;
+          // Suaviza os pontos (média com a leitura anterior): a bolinha para de pular
+          const L = r?.landmarks?.[0];
+          suave = !L ? null : !suave ? L : L.map((p, i) => ({ x: suave[i].x + (p.x - suave[i].x) * 0.45, y: suave[i].y + (p.y - suave[i].y) * 0.45, visibility: p.visibility }));
+          let av = _avaliar(pose.alvo, suave, ultimo?.ok ? 0.05 : 0);
+          marcar(suave);
+          ultimo = av;   // o botão redondo usa o enquadramento (corte), com ou sem nível
+          // Foto automática também espera o NÍVEL verde (se o sensor estiver ativo)
+          // No escuro o detector nem acha a pessoa: diz a causa real (luz), não "Enquadre…"
+          if (!av.ok && luz === 'escura' && /^Enquadre/.test(av.msg)) av = { ok: false, msg: '💡 Pouca luz: procure uma janela ou acenda a luz de frente' };
+          if (av.ok && luz === 'escura') av = { ok: false, msg: '💡 Pouca luz: procure uma janela ou acenda a luz de frente', enquadrado: true };
+          else if (av.ok && luz === 'clara') av = { ok: false, msg: '☀️ Luz forte demais: saia do sol direto ou da luz estourada', enquadrado: true };
+          else if (av.ok && beta != null && !nivelReto) av = { ok: false, msg: 'Deixe o celular em pé até o nível ficar verde', enquadrado: true };
+          else if (av.ok && roll != null && !rollReto) av = { ok: false, msg: 'Endireite o celular: sem pender pro lado', enquadrado: true };
+          else if (av.ok && !estaParado()) av = { ok: false, msg: 'Segura firme…', enquadrado: true };
           if (av.ok) {
             if (!okDesde) okDesde = performance.now();
             const falta = Math.max(0, 1200 - (performance.now() - okDesde));
             msg(falta > 0 ? av.msg : '📸', true);
             if (falta === 0) { capturar(av.corte); return; }
-          } else { okDesde = 0; msg(av.msg, false); }
+          } else { okDesde = 0; msg(av.msg, false, !!av.enquadrado); }
         } catch { /* um quadro ruim não para a câmera */ }
       }
-      setTimeout(() => requestAnimationFrame(loop), 110);
+      // ~15 leituras/s; se o aparelho for lento (detecção demorada), espaça pra não travar
+      setTimeout(() => requestAnimationFrame(loop), gasto > 60 ? 110 : 45);
     }
     ov.addEventListener('click', e => {
       const a = e.target.closest('[data-fg]')?.dataset.fg; if (!a) return;
       if (a === 'cancel') return fim(null);
       if (a === 'shot') return capturar(ultimo?.ok ? ultimo.corte : null);
       if (a === 'fant') ov.querySelector('.fg-fantasma')?.classList.toggle('fora');
+      if (a === 'nivel') { btNivel.hidden = true; ligarNivel(); }
     });
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 2560 } }, audio: false });
         video.srcObject = stream;
+        const fant = ov.querySelector('.fg-fantasma');
+        if (ehRosto && fant) video.addEventListener('loadedmetadata', () => {
+          const ajusta = () => {
+            if (!fant.naturalWidth || !video.videoWidth) return;
+            const c = _caixaOval().tela;
+            // Só encaixa no oval se a foto do antes já for recortada (proporção parecida);
+            // foto antiga com a câmera inteira continua por cima da tela toda.
+            if (Math.abs(fant.naturalWidth / fant.naturalHeight - c.width / c.height) > 0.12) return;
+            Object.assign(fant.style, { inset: 'auto', left: c.left + 'px', top: c.top + 'px', width: c.width + 'px', height: c.height + 'px', objectFit: 'fill' });
+          };
+          if (fant.complete) ajusta(); else fant.addEventListener('load', ajusta, { once: true });
+        }, { once: true });
       } catch { msg('Não consegui abrir a câmera. Use a galeria.', false); return; }
       msg('Preparando o guia de enquadramento…', false);
       try {
