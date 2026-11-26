@@ -9453,3 +9453,11 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fg-nivel.ok .fg-nivel-grau { color: #10b981; }
 .fg-nivel-ativar { position: absolute; right: 8px; bottom: 12px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.55); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
 .ag-cli-excluir { color: var(--danger, #e5484d); }
+
+/* Horizonte (esquerda/direita): linha embaixo do oval que gira com o horizonte real; marcas fixas nas pontas (26/11) */
+.fg-horiz { position: absolute; left: 50%; top: 88%; width: 62%; height: 0; transform: translateX(-50%); pointer-events: none; }
+.fg-horiz-ref { position: absolute; top: -1px; width: 14%; border-top: 2px dashed rgba(255,255,255,.7); }
+.fg-horiz-ref.esq { left: -16%; } .fg-horiz-ref.dir { right: -16%; }
+.fg-horiz-linha { position: absolute; left: 0; right: 0; top: -1.5px; height: 3px; border-radius: 2px; background: #ef4444; will-change: transform; transition: background-color .15s; }
+.fg-horiz.ok .fg-horiz-linha { background: #10b981; }
+.fg-horiz.ok .fg-horiz-ref { border-top-color: #10b981; }
