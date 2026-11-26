@@ -215,6 +215,17 @@ export function fraseDoApp(j) {
         default: return null;
       }
     }
+    case 'renda': {
+      const nome = limpa(j.texto), onde = limpa(j.lista);
+      switch (j.campo) {
+        case 'abrir': return 'abre as fontes de renda';
+        case 'listar': return 'quais minhas fontes de renda';
+        case 'criar': return nome ? `cria a fonte de renda ${nome}${onde ? ' dentro de ' + onde : ''}` : null;
+        case 'cliente': return nome && onde ? `adiciona a cliente ${nome} na ${onde}` : null;
+        case 'ver_clientes': return onde ? `quais os clientes da ${onde}` : null;
+        default: return null;
+      }
+    }
     case 'ideal': {
       const itens = juntar(j.itens), area = limpa(j.texto);
       const no = `no meu ideal${area ? ' ' + area : ''}`;
