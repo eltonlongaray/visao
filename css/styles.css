@@ -8994,6 +8994,17 @@ body.rota-publica .bottom-nav { display: none !important; }
 .camp-funil b { font-size: 20px; }
 .camp-funil small { font-size: 11px; color: var(--muted); }
 .camp-funil span { color: var(--muted); }
+/* (26/11) funil da triagem por tela */
+.camp-fchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.camp-fchip { background: var(--card-2, var(--card)); border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.camp-fchip.sel { border-color: var(--accent); color: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.camp-fsep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+.camp-flista { display: flex; flex-direction: column; gap: 8px; }
+.camp-fl-t { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.camp-fl-t span { color: var(--text); }
+.camp-fl-barra { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-top: 3px; }
+.camp-fl-barra i { display: block; height: 100%; background: var(--accent); }
+.camp-fl-perda { font-size: 11px; color: var(--danger, #e5484d); }
 .camp-inv { display: flex; gap: 6px; }
 .camp-inv-in { flex: 1; background: var(--card-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; font: inherit; font-size: 14px; }
 .prod-ed { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }

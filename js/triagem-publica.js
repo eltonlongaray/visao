@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=39`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=40`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -73,7 +73,19 @@ function passo(txt, enviar = true) {
   st.caminho.push({ p: txt, em: new Date().toISOString() });
   if (st.caminho.length > 60) st.caminho = st.caminho.slice(-60);
   salvar();
-  if (enviar && st.codigo && !TESTE) { try { supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }); } catch (e) {} }
+  // .then(): o rpc do supabase-js v2 só dispara quando alguém "espera" por ele
+  if (enviar && st.codigo && !TESTE) { try { supabase.rpc('triagem_atualizar', { p_slug: SLUG, p_codigo: st.codigo, p_respostas: pacote() }).then(() => {}, () => {}); } catch (e) {} }
+}
+
+// (26/11) FUNIL: quantas pessoas chegam em cada tela (sem nome nem WhatsApp). 1x por tela por visita.
+// sql/triagem-funil.sql · resumo em 📣 Campanhas. Em modo teste não conta.
+function funil(ordem, nome) {
+  if (TESTE) return;
+  if (!st.sessao) { st.sessao = Date.now().toString(36) + Math.random().toString(36).slice(2, 10); salvar(); }
+  st.funil = st.funil || [];
+  if (st.funil.includes(nome)) return;
+  st.funil.push(nome); salvar();
+  try { supabase.rpc('triagem_passo', { p_slug: SLUG, p_sessao: st.sessao, p_ordem: ordem, p_passo: nome, p_origem: st.origem?.source || null }).then(() => {}, () => {}); } catch (e) {}
 }
 
 // Passos que valem pra essa pessoa (perguntas condicionais somem se não se aplicam)
@@ -135,26 +147,28 @@ const _depoResultado = ind => depoPara(ind.servico + ' ' + _respTxt(), [_depoAbe
 function depoTela() {
   const d = _depoAbertura();
   if (!d) { st.i = 0; salvar(); return tela(); }
+  funil(2, 'Viu o depoimento');
   app.innerHTML = `<section class="tela">
     <h2 class="q">Veja o que a ${esc(d.nome)} diz sobre o meu trabalho ${esc(M.coracao || '💜')}</h2>
     ${depoHtml(d)}
     <div class="nav"><button class="voltar" id="volta">← Voltar</button>
       <button class="btn" id="go">Começar as perguntas →</button></div></section>`;
   $('volta').onclick = () => intro();
-  $('go').onclick = () => { st.i = 0; salvar(); tela(); window.scrollTo({ top: 0 }); };
+  $('go').onclick = () => { funil(3, 'Começou as perguntas'); st.i = 0; salvar(); tela(); window.scrollTo({ top: 0 }); };
   window.scrollTo({ top: 0 });
 }
 
 function intro() {
   const retomar = Object.keys(st.r).length > 0;
   const rod = M.intro.rodape ?? '';
+  funil(0, 'Abriu a triagem');
   app.innerHTML = `<section class="tela">
     <p class="eyebrow">${esc(M.intro.eyebrow || '')}</p>
     <h1>${M.intro.titulo}</h1>
     ${[].concat(M.intro.texto).map(t => `<p class="lead">${esc(t)}</p>`).join('')}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     ${rod ? `<p class="rodape">${esc(rod)}</p>` : ''}</section>`;
-  $('go').onclick = () => { passo(retomar ? 'Voltou pra triagem' : 'Começou a triagem', false); if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
+  $('go').onclick = () => { funil(1, 'Tocou em Começar'); passo(retomar ? 'Voltou pra triagem' : 'Começou a triagem', false); if (!retomar) return depoTela(); st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); };
   progresso();
 }
 
@@ -162,8 +176,9 @@ function tela() {
   const L = passos();
   if (st.i >= L.length) return resultado();
   const p = L[st.i];
-  if (p.tipo === 'vitrine') return vitrine();
-  if (p.tipo === 'contato') return contato();
+  if (p.tipo === 'vitrine') { funil(45, 'Viu os produtos'); return vitrine(); }
+  if (p.tipo === 'contato') { funil(50, 'Tela de nome e WhatsApp'); return contato(); }
+  { const n = M.perguntas.indexOf(p); funil(10 + n, `Pergunta ${n + 1}: ${(p.curto || p.q || p.id).slice(0, 45)}`); }
   const v = st.r[p.id];
   const multi = p.tipo === 'multi';
   const marcado = o => multi ? (v || []).includes(o.v) : v === o.v;
@@ -291,6 +306,7 @@ function contato() {
       try { if (window.gtag && M.conversao) { window.gtag('event', 'conversion', { send_to: M.conversao }); st.convEnviada = st.codigo; } } catch (e) {}
     }
     passo('Mandou nome e WhatsApp');
+    funil(51, 'Mandou nome e WhatsApp');
     st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
   };
 }
@@ -390,6 +406,7 @@ function sugestoes(ind, planoIds) {
 }
 function resultado() {
   $('barra').style.width = '100%';
+  funil(60, 'Viu o resultado');
   const ind = M.indicacao(st.r);
   const servInd = servPorNome(ind.servico);
   // se as respostas mudaram (voltou e trocou), a indicação recomeça
@@ -461,7 +478,7 @@ function resultado() {
   $('refazer').onclick = () => { passo('Refez as respostas', false); st = { caminho: st.caminho, i: -1, r: {}, contato: st.contato, origem: st.origem }; salvar(); intro(); };
   // Indicação que ainda não está na agenda (ex.: tratamento com valor a combinar): vai pro WhatsApp dela
   $('agendar').onclick = () => plano.length ? irParaAgenda(ind, plano) : irParaWhatsApp(ind);
-  if ($('nao-momento')) $('nao-momento').onclick = () => { passo('Disse que ainda não é o momento (viu outras opções)'); naoEhMomento(ind); window.scrollTo({ top: 0 }); };
+  if ($('nao-momento')) $('nao-momento').onclick = () => { passo('Disse que ainda não é o momento (viu outras opções)'); funil(72, 'Ainda não é o momento'); naoEhMomento(ind); window.scrollTo({ top: 0 }); };
 }
 
 // "Ainda não é o meu momento" (21/11, Élton): quem chegou até aqui e não quis agendar
@@ -506,6 +523,7 @@ function irParaWhatsApp(ind) {
     $('agendar') && ($('agendar').disabled = true); app.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return;
   }
   passo('Foi pro WhatsApp combinar (' + ind.servico + ')');
+  funil(71, 'Foi pro WhatsApp combinar');
   try { if (window.dataLayer) { window.dataLayer.push({ event: 'triagem_enviada', profissional: SLUG, servico: ind.servico });
   } } catch (e) {}
   location.href = `https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
@@ -519,6 +537,7 @@ async function irParaAgenda(ind, plano) {
   // nem mandar nada; aqui não grava a triagem nem conta conversão (st.codigo fica vazio e a tag não carrega).
   const b = $('agendar'); b.disabled = true; b.textContent = 'Abrindo a agenda…';
   passo('Tocou em Escolher meu horário (' + (plano.map(s => s.nome).join(' + ') || ind.servico) + ')', false);
+  funil(70, 'Tocou em Escolher meu horário');
   const linhas = resumoLinhas();
   const msg = [`Oi ${M.profissional.nome}! Fiz a triagem e agendei pelo teu link ${M.coracao || '💜'}`, '',
     '📅 Agendei: {{SERVICO}} · {{QUANDO}}',
@@ -530,7 +549,8 @@ async function irParaAgenda(ind, plano) {
     '', ...linhas.map(([k, v]) => `• ${k}: ${v}`)].join('\n');
   // foco (modelo com focoNoServico): a agenda abre só com esse serviço, sem a lista dos outros
   const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg, foco: !!M.focoNoServico,
-    whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now(), pacote: pacote() };
+    whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now(), pacote: pacote(),
+    sessao: st.sessao || null, origem: st.origem?.source || null };   // funil continua na agenda
   try {
     localStorage.setItem('falcon_triagem_' + SLUG, JSON.stringify(handoff));
     localStorage.setItem('falcon_cliente_' + SLUG, JSON.stringify({ nome: handoff.nome, contato: handoff.contato }));

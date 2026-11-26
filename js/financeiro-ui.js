@@ -11,6 +11,7 @@
 import { getVendas, salvarVenda, excluirVenda, getFinCfg, salvarFinCfg, getCampanhas, salvarCampanha, pacotesDoCliente, somar, porMes, digitos } from './financeiro.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { supabase } from './config-supabase.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _vendas = [], _fin = { custos: {}, produtos: [] }, _camps = [], _erroSql = false;
@@ -279,6 +280,36 @@ export async function abrirFinanceiro({ clientes = [], servicos = [] } = {}) {
 
 // === BLOCO 6: 📣 CAMPANHAS (de onde veio a cliente → quanto voltou) ===
 // A origem vem da triagem (utm_source/utm_campaign do link do anúncio).
+// (26/11) Funil da triagem: quantas pessoas chegaram em cada tela (sql/triagem-funil.sql)
+const _ORIG_NOME = { google: 'Google', instagram: 'Instagram', whatsapp: 'WhatsApp', direto: 'Link direto' };
+async function _funilTriagem(box, dias = 7, origem = '') {
+  if (!box) return;
+  const de = new Date(); de.setDate(de.getDate() - (dias - 1));
+  const iso = `${de.getFullYear()}-${String(de.getMonth() + 1).padStart(2, '0')}-${String(de.getDate()).padStart(2, '0')}`;
+  let rows = [];
+  try { const { data, error } = await supabase.rpc('triagem_funil', { p_de: iso }); if (error) throw error; rows = data || []; }
+  catch { box.innerHTML = '<div class="camp-t">🔎 Onde as pessoas param na triagem</div><div class="fin-sub">Ainda não disponível.</div>'; return; }
+  const origens = [...new Set(rows.map(r => r.origem))];
+  const filtro = rows.filter(r => !origem || r.origem === origem);
+  const porPasso = new Map();
+  for (const r of filtro) { const x = porPasso.get(r.passo) || { ordem: r.ordem, passo: r.passo, n: 0 }; x.n += Number(r.pessoas) || 0; x.ordem = Math.min(x.ordem, r.ordem); porPasso.set(r.passo, x); }
+  const passos = [...porPasso.values()].sort((a, b) => a.ordem - b.ordem);
+  const topo = passos[0]?.n || 0;
+  const chip = (v, txt, on) => `<button type="button" class="camp-fchip${on ? ' sel' : ''}" ${v}>${txt}</button>`;
+  box.innerHTML = `<div class="camp-t">🔎 Onde as pessoas param na triagem</div>
+    <div class="camp-fchips">${chip('data-dias="7"', '7 dias', dias === 7)}${chip('data-dias="30"', '30 dias', dias === 30)}
+      <span class="camp-fsep"></span>${chip('data-orig=""', 'Todas', !origem)}${origens.map(o => chip(`data-orig="${_esc(o)}"`, _esc(_ORIG_NOME[o] || o), origem === o)).join('')}</div>
+    ${passos.length ? `<div class="camp-flista">${passos.map((p, i) => {
+      const ant = i ? passos[i - 1].n : p.n, perdeu = Math.max(0, ant - p.n);
+      return `<div class="camp-fl"><div class="camp-fl-t"><span>${_esc(p.passo)}</span><b>${p.n}</b></div>
+        <div class="camp-fl-barra"><i style="width:${topo ? Math.round(p.n / topo * 100) : 0}%"></i></div>
+        ${perdeu ? `<small class="camp-fl-perda">−${perdeu} pararam aqui</small>` : ''}</div>`; }).join('')}</div>
+      <div class="fin-sub">Conta pessoas (sem nome), uma vez por tela. Começou a contar em 26/11.</div>`
+    : '<div class="fin-sub">Ninguém abriu a triagem nesse período ainda.</div>'}`;
+  box.querySelectorAll('[data-dias]').forEach(b => b.onclick = () => _funilTriagem(box, Number(b.dataset.dias), origem));
+  box.querySelectorAll('[data-orig]').forEach(b => b.onclick = () => _funilTriagem(box, dias, b.dataset.orig));
+}
+
 export async function abrirCampanhas({ clientes = [] } = {}) {
   await carregarFinanceiro().catch(() => {});
   const grupos = new Map();
@@ -320,12 +351,14 @@ export async function abrirCampanhas({ clientes = [] } = {}) {
       ${l.g.codigo !== 'direto' ? `<div class="camp-inv"><input class="camp-inv-in" data-camp="${_esc(l.g.codigo)}" data-origem="${_esc(l.g.origem)}" inputmode="decimal" placeholder="Quanto investiu (R$)" value="${l.inv ? _numTxt(l.inv) : ''}">
         <button class="btn-secondary camp-inv-ok" data-camp="${_esc(l.g.codigo)}" type="button">Salvar</button></div>` : ''}
     </div>`).join('') : '<div class="fin-vazio">Quando alguém fizer a triagem pelo link de um anúncio, a campanha aparece aqui.</div>'}
+    <div class="camp-card" id="camp-tri-funil"><div class="camp-t">🔎 Onde as pessoas param na triagem</div><div class="fin-sub">Carregando…</div></div>
     <div class="ag-fbtns"><button class="btn-primary" id="camp-ok" type="button">Fechar</button></div>
   </div></div>`;
   document.body.appendChild(ov);
   const close = trapModalBack(() => ov.remove());
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#camp-ok').onclick = () => close();
+  _funilTriagem(ov.querySelector('#camp-tri-funil'));
   ov.querySelectorAll('.camp-inv-ok').forEach(b => b.onclick = async () => {
     const inp = ov.querySelector(`.camp-inv-in[data-camp="${CSS.escape(b.dataset.camp)}"]`);
     b.disabled = true;

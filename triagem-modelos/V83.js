@@ -222,7 +222,7 @@ window.TRIAGEM = {
   descricoes: {
     "Deusa Grega": "1h15 pra celulite e estrias, com óleos e cremes naturais: modela, reduz medida e deixa a pele lisinha. Pode ser uma sessão avulsa ou o tratamento, com medidas e acompanhamento da tua evolução.",
     "Esculpe Detox": "5 sessões de 45 min, com avaliação inicial (já com massagem), acompanhamento e avaliação final: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada.",
-    "Sessão para celulite": "45 min focados na celulite. Bom pra começar e sentir o resultado.",
+    "Sessão para celulite": "45 min focados na celulite, com blends de óleos essenciais e cremes naturais. Bom pra começar e sentir o resultado.",
     "Drenagem linfática": "45 min pra tirar o inchaço e a retenção de líquido.",
     "Limpeza de pele": "Limpeza profunda pra tratar a acne, os cravos e a oleosidade."
   },

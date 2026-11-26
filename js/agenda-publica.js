@@ -215,8 +215,16 @@ export async function renderAgendaPublica(app, slug) {
     if (TESTE || !TRI || !TRI.codigo || !TRI.pacote) return;
     const pc = TRI.pacote; pc.caminho = (pc.caminho || []).concat([{ p: txt, em: new Date().toISOString() }]).slice(-60);
     try { if (localStorage.getItem(_triKey(cfg.slug))) localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
-    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }); } catch {}
+    try { supabase.rpc('triagem_atualizar', { p_slug: cfg.slug, p_codigo: TRI.codigo, p_respostas: pc }).then(() => {}, () => {}); } catch {}
   };
+  // (26/11) funil da triagem continua aqui: abriu a agenda / agendou (1x por visita)
+  const _funil = (ordem, nome) => {
+    if (TESTE || !TRI || !TRI.sessao) return;
+    TRI.funil = TRI.funil || []; if (TRI.funil.includes(nome)) return; TRI.funil.push(nome);
+    try { localStorage.setItem(_triKey(cfg.slug), JSON.stringify(TRI)); } catch {}
+    try { supabase.rpc('triagem_passo', { p_slug: cfg.slug, p_sessao: TRI.sessao, p_ordem: ordem, p_passo: nome, p_origem: TRI.origem || null }).then(() => {}, () => {}); } catch {}
+  };
+  _funil(80, 'Abriu a agenda');
   const _diaTxt = isoD => { const [y, m, d] = String(isoD || '').split('-'); return d ? `${d}/${m}` : ''; };
   if (TRI) {
     if (TRI.nome && TRI.contato) { ident = { nome: TRI.nome, contato: TRI.contato }; _salvarIdent(cfg.slug, ident); }
@@ -624,6 +632,7 @@ export async function renderAgendaPublica(app, slug) {
       // guarda no histórico do aparelho (com id+token pra poder cancelar) e tira dos disponíveis
       if (!TESTE) _salvarHist(cfg.slug, { data: dia.iso, hora, nome, servico: nomeServ, id: res?.id, token: res?.token });
       _passo(`Agendou: ${nomeServ || 'serviço'} · ${_diaTxt(dia.iso)} às ${hora}`);
+      _funil(90, 'Agendou');
       // cupom: grava no agendamento recém-criado (falhar aqui não desfaz o agendamento)
       let cupomOk = null;
       if (cupom && TESTE) { cupomOk = cupom; cupom = null; }
