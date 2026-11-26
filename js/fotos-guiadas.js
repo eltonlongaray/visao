@@ -191,7 +191,7 @@ async function _desfocarFundo(cv) {
   gs.drawImage(cv, 0, 0);
   gs.globalCompositeOperation = 'destination-out';
   gs.drawImage(mc, 0, 0, w, h);
-  const fundo = _desfocado(soFundo, w, h, Math.max(4, Math.round(Math.max(w, h) / 260)));   // levemente
+  const fundo = _desfocado(soFundo, w, h, Math.max(5, Math.round(Math.max(w, h) / 180)));   // levemente (26/11: "um pouquinho mais")
   const frente = document.createElement('canvas'); frente.width = w; frente.height = h;
   const gf = frente.getContext('2d');
   gf.drawImage(cv, 0, 0);
@@ -301,6 +301,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
         <div class="fg-molde ${pose.alvo.startsWith('rosto') ? 'oval' : ''}"></div>
         <div class="fg-alvo"></div><div class="fg-ponto" hidden></div>
         <div class="fg-nivel" hidden aria-label="Nível do celular">
+          <div class="fg-nivel-faixa"></div>
           <div class="fg-nivel-trilho">${'<i></i>'.repeat(9)}</div>
           <div class="fg-nivel-linha"></div>
           <span class="fg-nivel-grau"></span>
@@ -331,10 +332,14 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     const nivelLinha = ov.querySelector('.fg-nivel-linha');
     // O evento do sensor só GUARDA o valor (chega 60x/s); o desenho é 1x por quadro
     // e mexe só no transform: a linha não engasga quando a detecção do rosto pesa.
+    // Verde com "trava" (Élton, 26/11: a linha pulava o verde): entra a 3° e só sai
+    // depois de 5°, então a tremidinha da mão não derruba o verde.
+    const reto = (dif, jaEra) => Math.abs(dif) <= (jaEra ? 5 : 3);
+    let usaGravidade = false;   // com acelerômetro, o giroscópio (beta) fica de reserva
     function aoInclinar(e) {
-      if (e.beta == null) return;
-      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.5;    // suaviza o tremido sem atrasar
-      nivelReto = Math.abs(beta - 90) <= 3;
+      if (e.beta == null || usaGravidade) return;
+      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.2;
+      nivelReto = reto(beta - 90, nivelReto);
       if (!nivelPedido) { nivelPedido = true; requestAnimationFrame(pintarNivel); }
     }
     // HORIZONTE (Élton, 26/11): linha embaixo do oval que gira junto com o horizonte
@@ -345,12 +350,19 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     function aoMover(e) {
       const gr = e.accelerationIncludingGravity;
       if (!gr || gr.x == null || gr.y == null) return;
-      let x = gr.x, y = gr.y;
-      if (y < 0) { x = -x; y = -y; }   // iPhone manda o sinal invertido do Android
+      let x = gr.x, y = gr.y, z = gr.z ?? 0;
+      if (y < 0) { x = -x; y = -y; z = -z; }   // iPhone manda o sinal invertido do Android
       if (Math.hypot(x, y) < 3) return;   // celular quase deitado: sem referência de lado
       const r = Math.atan2(x, y) * 180 / Math.PI;
-      roll = roll == null ? r : roll + (r - roll) * 0.5;
-      rollReto = Math.abs(roll) <= 3;
+      roll = roll == null ? r : roll + (r - roll) * 0.25;
+      rollReto = reto(roll, rollReto);
+      // Frente/trás pela gravidade: 90° = em pé (mesma escala do beta)
+      if (gr.z != null) {
+        const b2 = 90 - Math.atan2(z, Math.hypot(x, y)) * 180 / Math.PI;
+        usaGravidade = true;
+        beta = beta == null ? b2 : beta + (b2 - beta) * 0.2;
+        nivelReto = reto(beta - 90, nivelReto);
+      }
       if (!nivelPedido) { nivelPedido = true; requestAnimationFrame(pintarNivel); }
     }
     function pintarNivel() {
@@ -364,7 +376,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       if (!ov.isConnected) return;
       if (nivel.hidden) { nivel.hidden = false; btNivel.hidden = true; }
       const meia = nivel.clientHeight * 0.44;
-      nivelLinha.style.transform = `translateY(${(Math.max(-1, Math.min(1, (beta - 90) / 20)) * meia).toFixed(1)}px)`;
+      nivelLinha.style.transform = `translateY(${(Math.max(-1, Math.min(1, (beta - 90) / 30)) * meia).toFixed(1)}px)`;
       if (nivelOkCls !== nivelReto) { nivelOkCls = nivelReto; nivel.classList.toggle('ok', nivelReto); }
       const g = nivelReto ? '90°' : `${Math.round(beta)}°`;
       if (g !== nivelGrauTxt) { nivelGrauTxt = g; nivelGrau.textContent = g; }

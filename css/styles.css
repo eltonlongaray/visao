@@ -9461,3 +9461,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .fg-horiz-linha { position: absolute; left: 0; right: 0; top: -1.5px; height: 3px; border-radius: 2px; background: #ef4444; will-change: transform; transition: background-color .15s; }
 .fg-horiz.ok .fg-horiz-linha { background: #10b981; }
 .fg-horiz.ok .fg-horiz-ref { border-top-color: #10b981; }
+
+/* Faixa verde fixa no meio da barra do nível: mostra onde mirar (±3° de ±30°) */
+.fg-nivel-faixa { position: absolute; left: 4px; right: 4px; top: 50%; height: 9%; transform: translateY(-50%); border-radius: 4px; background: rgba(16,185,129,.28); border: 1px solid rgba(16,185,129,.6); }
