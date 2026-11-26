@@ -138,13 +138,15 @@ async function _carregarDetector() {
 // corte = {y0, y1} (fração da altura) pra tirar o rosto das fotos de corpo.
 const VIS = 0.55;
 const _v = p => p && (p.visibility ?? 1) > VIS;
-function _avaliar(alvo, L) {
+// folga: quando o contorno JÁ está verde, a faixa do centro alarga um pouco (histerese):
+// uma tremidinha na beirada não apaga o verde nem zera o tempo da foto (Élton, 26/11).
+function _avaliar(alvo, L, folga = 0) {
   if (!L) return { ok: false, msg: 'Enquadre a cliente na tela' };
   const P = i => L[i];
   const meio = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const lado = (a, b, ref) => Math.abs(a.x - b.x) / Math.max(0.01, ref);   // largura ÷ referência vertical
   // Sem 'esquerda/direita' (confundia conforme a câmera): o ponto na tela mostra onde a cliente está.
-  const centro = x => (x < 0.38 || x > 0.62 ? 'Leve o ponto pro meio do contorno' : '');
+  const centro = x => (x < 0.35 - folga || x > 0.65 + folga ? 'Leve o ponto pro meio do contorno' : '');
   const narizVisivel = (P(0).visibility ?? 0) > 0.6;
 
   if (alvo.startsWith('rosto')) {
@@ -158,7 +160,7 @@ function _avaliar(alvo, L) {
     if (larg < 0.26) return { ok: false, msg: 'Aproxime-se um pouco' };
     if (larg > 0.55) return { ok: false, msg: 'Afaste-se um pouco' };
     const c = centro(nz.x); if (c) return { ok: false, msg: c };
-    if (nz.y < 0.30 || nz.y > 0.62) return { ok: false, msg: nz.y < 0.30 ? 'Abaixe um pouco o celular' : 'Suba um pouco o celular' };
+    if (nz.y < 0.28 - folga || nz.y > 0.64 + folga) return { ok: false, msg: nz.y < 0.28 - folga ? 'Abaixe um pouco o celular' : 'Suba um pouco o celular' };
     if (alvo === 'rosto_frente' && giro > 0.22) return { ok: false, msg: 'Peça pra cliente olhar reto pra câmera' };
     if (alvo === 'rosto_lado' && giro < 0.45) return { ok: false, msg: 'Peça pra cliente virar mais o rosto de lado' };
     return { ok: true, msg: 'Perfeito! Segura assim…' };
@@ -230,18 +232,19 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       </div>`;
     document.body.appendChild(ov);
     const video = ov.querySelector('video'), status = ov.querySelector('#fg-status'), molde = ov.querySelector('.fg-molde');
-    let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null;
+    let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null, suave = null;
     const fim = v => { rodando = false; window.removeEventListener('deviceorientation', aoInclinar); if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
 
     // NÍVEL (Élton, 26/11): barra vertical na lateral. A linha anda pra cima/baixo
     // conforme a inclinação pra frente/trás (beta: 90° = celular em pé) e fica
     // VERDE no meio quando está a 90° ± 2°. Sem sensor (computador), não aparece.
     const nivel = ov.querySelector('.fg-nivel'), nivelGrau = ov.querySelector('.fg-nivel-grau'), btNivel = ov.querySelector('.fg-nivel-ativar');
-    let beta = null;
+    let beta = null, nivelReto = false;   // beta só existe com sensor ativo
     function aoInclinar(e) {
       if (e.beta == null) return;
       beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.3;    // suaviza o tremido da mão
-      const d = beta - 90, reto = Math.abs(d) <= 2;
+      const d = beta - 90, reto = Math.abs(d) <= 3;
+      nivelReto = reto;
       nivel.hidden = false; btNivel.hidden = true;
       nivel.style.setProperty('--off', Math.max(-1, Math.min(1, d / 20)).toFixed(3));
       nivel.classList.toggle('ok', reto);
@@ -258,7 +261,8 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       catch { if (beta == null) btNivel.hidden = false; }
     }
     ligarNivel();
-    const msg = (t, ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!ok); };
+    // moldeOk separado: enquadrada mas com o celular torto = contorno verde, mensagem ainda não
+    const msg = (t, ok, moldeOk = ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!moldeOk); };
     // ponto onde a cliente está (rosto: nariz; corpo: meio do tronco/quadril), na posição da imagem na tela
     const ponto = ov.querySelector('.fg-ponto');
     const marcar = L => {
@@ -298,21 +302,30 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     }
     function loop() {
       if (!rodando) return;
+      let gasto = 0;
       if (detector && video.readyState >= 2) {
         try {
-          const r = detector.detectForVideo(video, performance.now());
-          const av = _avaliar(pose.alvo, r?.landmarks?.[0]);
-          marcar(r?.landmarks?.[0]);
-          ultimo = av;
+          const t0 = performance.now();
+          const r = detector.detectForVideo(video, t0);
+          gasto = performance.now() - t0;
+          // Suaviza os pontos (média com a leitura anterior): a bolinha para de pular
+          const L = r?.landmarks?.[0];
+          suave = !L ? null : !suave ? L : L.map((p, i) => ({ x: suave[i].x + (p.x - suave[i].x) * 0.45, y: suave[i].y + (p.y - suave[i].y) * 0.45, visibility: p.visibility }));
+          let av = _avaliar(pose.alvo, suave, ultimo?.ok ? 0.05 : 0);
+          marcar(suave);
+          ultimo = av;   // o botão redondo usa o enquadramento (corte), com ou sem nível
+          // Foto automática também espera o NÍVEL verde (se o sensor estiver ativo)
+          if (av.ok && beta != null && !nivelReto) av = { ok: false, msg: 'Deixe o celular em pé até o nível ficar verde', enquadrado: true };
           if (av.ok) {
             if (!okDesde) okDesde = performance.now();
             const falta = Math.max(0, 1200 - (performance.now() - okDesde));
             msg(falta > 0 ? av.msg : '📸', true);
             if (falta === 0) { capturar(av.corte); return; }
-          } else { okDesde = 0; msg(av.msg, false); }
+          } else { okDesde = 0; msg(av.msg, false, !!av.enquadrado); }
         } catch { /* um quadro ruim não para a câmera */ }
       }
-      setTimeout(() => requestAnimationFrame(loop), 110);
+      // ~15 leituras/s; se o aparelho for lento (detecção demorada), espaça pra não travar
+      setTimeout(() => requestAnimationFrame(loop), gasto > 60 ? 110 : 45);
     }
     ov.addEventListener('click', e => {
       const a = e.target.closest('[data-fg]')?.dataset.fg; if (!a) return;
