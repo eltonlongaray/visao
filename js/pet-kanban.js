@@ -106,3 +106,89 @@ export function itensDaFrase(texto) {
     .map(x => x.replace(/^[\s:;\-–]+/, '').replace(/^\s*(?:o|a|os|as)\s+/i, '').trim())
     .filter(x => x && x.length <= 200 && norm(x).length > 0);
 }
+
+// === BLOCO 4: LISTA COLADA (vários trabalhos de uma vez, Élton 26/11) ===
+// Formato (a 1ª linha é "kanban"; cada trabalho vira uma modalidade e cada
+// tarefa vai pra coluna escrita na frente, bem separado):
+//   kanban
+//   Larissa
+//   A fazer: tarefa 1; tarefa 2
+//   Fazendo: tarefa 3
+//   Feito: tarefa 4
+//   Alê
+//   A fazer:
+//   - tarefa 1
+//   - tarefa 2
+// "Larissa: t1; t2" numa linha só = tudo em A fazer.
+// Devolve [{ modalidade, tarefas: [{ titulo, coluna }] }] ou null se não for lista.
+const COLUNA_LINHA = /^(a fazer|afazer|pendentes?|fazendo|em andamento|andamento|feito|feitos|conclu[ií]d[oa]s?|pronto|prontos)\s*:?\s*(.*)$/i;
+const _colunaDe = (s) => { const t = norm(s); return /fazendo|andamento/.test(t) ? 'fazendo' : /feito|conclu|pronto/.test(t) ? 'feito' : 'afazer'; };
+const _limpaLinha = (s) => String(s || '').replace(/^\s*(?:[-–•*·▪◦]|\d+[.)])\s*/, '').replace(/^#+\s*/, '').replace(/\*\*/g, '').trim();
+const _itens = (s) => String(s || '').split(/\s*;\s*/).map(x => x.replace(/[.;]+$/, '').trim()).filter(Boolean);
+
+export function lerBloco(texto) {
+  const linhas = String(texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (linhas.length < 2 || !/^kanban\b/i.test(_limpaLinha(linhas[0]).replace(/[:.!]+$/, '').trim())) return null;
+  const grupos = []; let atual = null, col = 'afazer';
+  const novo = (nome) => {
+    const n = nome.replace(/[:.]+$/, '').trim().slice(0, 40);
+    atual = grupos.find(g => norm(g.modalidade) === norm(n));
+    if (!atual) { atual = { modalidade: n, tarefas: [] }; grupos.push(atual); }
+    col = 'afazer';
+  };
+  const add = (titulo, coluna) => {
+    const t = titulo.slice(0, 300);
+    if (t && atual && !atual.tarefas.some(x => norm(x.titulo) === norm(t))) atual.tarefas.push({ titulo: t, coluna });
+  };
+  const resto = _limpaLinha(linhas[0]).replace(/^kanban\b[:\s]*/i, '').trim();
+  const corpo = resto ? [resto, ...linhas.slice(1)] : linhas.slice(1);
+  for (const bruta of corpo) {
+    const marcador = /^\s*(?:[-–•*·▪◦]|\d+[.)])\s+/.test(bruta);
+    const l = _limpaLinha(bruta);
+    if (!l) continue;
+    const c = l.match(COLUNA_LINHA);
+    if (c && atual) { col = _colunaDe(c[1]); _itens(c[2]).forEach(x => add(x, col)); continue; }
+    if (marcador && atual) { _itens(l).forEach(x => add(x, col)); continue; }
+    // "Larissa: t1; t2" (trabalho e tarefas na mesma linha)
+    const m = l.match(/^([^:]{1,40}):\s*(.+)$/);
+    if (m) { novo(m[1]); _itens(m[2]).forEach(x => add(x, 'afazer')); continue; }
+    if (l.length <= 40 && !/[;]/.test(l)) { novo(l); continue; }
+    if (atual) _itens(l).forEach(x => add(x, col));
+  }
+  const ok = grupos.filter(g => g.modalidade);
+  return ok.length ? ok : null;
+}
+
+// === BLOCO 5: MODALIDADES PELO PET ===
+// "cria a modalidade Treino", "renomeia a modalidade Casa pra Lar",
+// "muda a cor da Faculdade pra rosa", "apaga a modalidade Pessoal".
+// Devolve { acao: 'criar'|'renomear'|'cor'|'apagar', nome, novo, cor } ou null.
+const CORES_FALADAS = { azul: 'azul', roxo: 'roxo', roxa: 'roxo', lilas: 'roxo', verde: 'verde', laranja: 'laranja', rosa: 'rosa', pink: 'rosa', vermelho: 'vermelho', vermelha: 'vermelho', ciano: 'ciano', turquesa: 'ciano', 'azul claro': 'ciano', amarelo: 'amarelo', amarela: 'amarelo' };
+export function corFalada(t) {
+  const n = norm(t);
+  const k = Object.keys(CORES_FALADAS).sort((a, b) => b.length - a.length).find(c => new RegExp(`\\b${c}\\b`).test(n));
+  return k ? CORES_FALADAS[k] : null;
+}
+export function lerModalidadeCmd(texto) {
+  const bruto = String(texto || '').trim().replace(/[.!?]+$/, '');
+  const t = norm(bruto);
+  if (!/\bmodalidades?\b/.test(t) && !/\bcor d[aoe]s?\b.*\bkanban\b|\bkanban\b.*\bcor\b/.test(t)) return null;
+  if (/^(?:quais|que|me mostr\w*|mostr\w*|lista\w*|ver)\b.*\bmodalidades\b/.test(t)) return { acao: 'listar' };
+  const nomeApos = (re) => { const m = bruto.match(re); return m ? m[1].trim().replace(/^["“]|["”]$/g, '') : ''; };
+  if (/\b(cri\w*|nova|adicion\w*|add)\b/.test(t) && !/\b(mud\w*|troc\w*|renome\w*|apag\w*)\b/.test(t)) {
+    const nome = nomeApos(/modalidade\s+(?:nova\s+)?(?:d[aeo]s?\s+|chamada\s+)?(.+?)(?:\s+(?:na|com a|de)\s+cor\s+.+)?$/i);
+    return nome ? { acao: 'criar', nome: nome.slice(0, 40), cor: corFalada(bruto.replace(/^.*\bcor\b/i, '')) } : { acao: 'criar', nome: '' };
+  }
+  if (/\b(apag\w*|exclu\w*|remov\w*|delet\w*|tir\w*)\b/.test(t)) {
+    return { acao: 'apagar', nome: nomeApos(/modalidade\s+(?:d[aeo]s?\s+)?(.+)$/i) };
+  }
+  if (/\bcor\b/.test(t)) {
+    const m = bruto.match(/\bcor\s+(?:d[aeo]s?\s+)?(?:modalidade\s+)?(.+?)\s+(?:pra|para|pro|em|de)\s+(.+)$/i);
+    return m ? { acao: 'cor', nome: m[1].replace(/\s+no kanban$/i, '').trim(), cor: corFalada(m[2]), corFalada: m[2].trim() } : null;
+  }
+  if (/\b(renome\w*|muda\w* o nome|troca\w* o nome|nome)\b/.test(t)) {
+    const m = bruto.match(/modalidade\s+(?:d[aeo]s?\s+)?(.+?)\s+(?:pra|para|por)\s+(.+)$/i);
+    return m ? { acao: 'renomear', nome: m[1].trim(), novo: m[2].trim().slice(0, 40) } : null;
+  }
+  return null;
+}

@@ -9519,3 +9519,13 @@ body.rota-publica .bottom-nav { display: none !important; }
 .kb-fantasma { position: fixed; z-index: 100000; pointer-events: none; transform: rotate(-3deg); box-shadow: 0 14px 30px rgba(0,0,0,.5); margin: 0; }
 /* Financeiro como card da Caixa de Ferramentas (26/11) */
 #financeiro-ov .fin-sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+
+/* 📌 Enviar pro Kanban (lista da Caixa de Ferramentas) */
+.fr-pro-kanban {
+  display: block; width: calc(100% - 32px); margin: 18px 16px 4px;
+  padding: 11px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card-2); color: var(--text); font-size: 13.5px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.fr-dica-kanban { margin: 0 16px 6px; text-align: center; font-size: 12px; color: var(--muted); }
+#ferramentas-ov .fr-texto { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

@@ -5,6 +5,7 @@
 // BLOCO 2 — MODALIDADES
 // BLOCO 3 — TAREFAS (as 3 datas: criado, foi pra Fazendo, concluído)
 // BLOCO 4 — AJUDANTES (datas, tempo que levou)
+// BLOCO 5 — VINDO DAS LISTAS (enviar itens pro Kanban)
 // ─────────────────────────────────────────────────────────────
 import { supabase } from './config-supabase.js';
 
@@ -170,4 +171,30 @@ export function linhaCurta(t) {
   if (t.coluna === 'fazendo') return t.fazendo_em ? `começou ${quando(t.fazendo_em)}` : `criado ${quando(t.criado_em)}`;
   const l = levou(t);
   return `concluído ${hora(t.feito_em)}${l ? ` · levou ${l}` : ''}`;
+}
+
+// === BLOCO 5: VINDO DAS LISTAS ===
+// Itens das listas da Caixa de Ferramentas viram cards no "A fazer" da
+// modalidade com esse nome (cria se não existir). Élton, 26/11.
+const _n = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+export const mesmoNome = (a, b) => _n(a) === _n(b);
+
+export async function enviarPraModalidade(nome, titulos) {
+  const mods = await lerModalidades();
+  let mod = mods.find(m => mesmoNome(m.nome, nome)), criada = false;
+  if (!mod) {
+    const usadas = new Set(mods.map(m => m.cor));
+    const corK = (CORES.find(c => !usadas.has(c.k)) || CORES[mods.length % CORES.length]).k;
+    mod = await criarModalidade(nome, corK, (mods.length ? Math.max(...mods.map(m => m.ordem)) : 0) + 1);
+    criada = true;
+  }
+  const irmas = (await lerTarefas(mod.id)).filter(t => t.coluna === 'afazer');
+  let n = 0;
+  // de trás pra frente: o 1º da lista fica no topo da coluna
+  for (const t of [...titulos].reverse()) {
+    if (!String(t || '').trim()) continue;
+    irmas.push(await criarTarefa({ modalidade_id: mod.id, titulo: t, coluna: 'afazer' }, irmas)); n++;
+  }
+  return { mod, criada, n };
 }
