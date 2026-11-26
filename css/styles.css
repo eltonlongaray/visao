@@ -9431,3 +9431,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 .finp-item small { display: block; color: var(--muted); font-size: 12px; }
 .finp-item-v { text-align: right; flex: none; font-weight: 600; }
 .finp-obs { color: var(--muted); font-size: 12px; text-align: center; margin: 14px 8px 4px; }
+
+/* (26/11) Mentoria: botão da planilha de respostas */
+.mt-planilha { width: 100%; margin: 4px 0 10px; }
