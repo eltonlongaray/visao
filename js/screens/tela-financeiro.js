@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// VISÃO · Tela /financeiro — aba do menu inferior (Élton, 18/11)
+// VISÃO · Financeiro — card da Caixa de Ferramentas (Élton, 26/11; era aba do menu desde 18/11)
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // Arquivo único: casca da aba Financeiro: abas Pessoal e Profissional no
@@ -13,8 +13,8 @@
 //    Agenda Online (financeiro.js), pra ninguém lançar duas vezes.
 //  • Pessoal: a SOMA dos pró-labores (cada fonte de renda tem o seu) +
 //    as despesas pessoais, sem misturar com o profissional.
-import { bottomNav } from '../components/menu-inferior.js';
 import { showToast } from '../aviso-tela.js';
+import { trapModalBack } from '../modal-voltar.js';
 import { montarProfissional } from '../financeiro-profissional.js';
 
 // Abas no topo, igual à Comunidade (Élton, 18/11: no lugar dos dois cards)
@@ -47,30 +47,50 @@ function corpo() {
     </button>`).join('')}</div>`;
 }
 
-export function renderFinanceiro(app) {
-  app.innerHTML = `<div class="screen-pad fin-screen">
-    <div class="screen-title">
-      <h1>💰 Financeiro</h1>
-      <div class="sub">Pessoal e profissional, cada um no seu lugar.</div>
+const SVG_VOLTAR = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>`;
+
+// Abre em tela cheia por cima (igual à Agenda e ao Kanban). Élton, 26/11:
+// a barra de baixo já tinha coisa demais, o Financeiro foi pra Ferramentas.
+export function abrirFinanceiroTela() {
+  if (document.getElementById('financeiro-ov')) return;
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'financeiro-ov';
+  ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo">
+    <div class="ag-header">
+      <button class="fr-voltar" data-fin-voltar type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
+      <div class="ag-title">💰 Financeiro</div>
     </div>
-    <div class="tab-switch" id="fin-abas">
-      <button class="tab-btn ${aba === 'pessoal' ? 'active' : ''}" data-aba="pessoal">👤 Pessoal</button>
-      <button class="tab-btn ${aba === 'profissional' ? 'active' : ''}" data-aba="profissional">💼 Profissional</button>
+    <div class="ag-scroll fin-screen">
+      <div class="sub fin-sub">Pessoal e profissional, cada um no seu lugar.</div>
+      <div class="tab-switch" id="fin-abas">
+        <button class="tab-btn ${aba === 'pessoal' ? 'active' : ''}" data-aba="pessoal">👤 Pessoal</button>
+        <button class="tab-btn ${aba === 'profissional' ? 'active' : ''}" data-aba="profissional">💼 Profissional</button>
+      </div>
+      <div id="fin-corpo">${corpo()}</div>
     </div>
-    <div id="fin-corpo">${corpo()}</div>
-  </div>${bottomNav('financeiro')}`;
-  const prof = () => { const box = app.querySelector('#fin-prof'); if (box) montarProfissional(box); };
+  </div></div>`;
+  document.body.appendChild(ov);
+  trapModalBack(() => ov.remove());
+  // history.back(): o popstate fecha (e o hub Ferramentas por baixo continua aberto)
+  ov.querySelector('[data-fin-voltar]').addEventListener('click', () => history.back());
+  const prof = () => { const box = ov.querySelector('#fin-prof'); if (box) montarProfissional(box); };
   prof();
-  app.querySelector('#fin-corpo').addEventListener('click', (e) => {
+  ov.querySelector('#fin-corpo').addEventListener('click', (e) => {
     const c = e.target.closest('[data-fin-card]');
     if (c) showToast(`${c.dataset.finCard} está em desenvolvimento. Em breve! 🦅`, 'info');
   });
-  app.querySelector('#fin-abas').addEventListener('click', (e) => {
+  ov.querySelector('#fin-abas').addEventListener('click', (e) => {
     const b = e.target.closest('[data-aba]');
     if (!b || b.dataset.aba === aba) return;
     aba = b.dataset.aba;
-    app.querySelectorAll('#fin-abas .tab-btn').forEach(x => x.classList.toggle('active', x.dataset.aba === aba));
-    app.querySelector('#fin-corpo').innerHTML = corpo();
+    ov.querySelectorAll('#fin-abas .tab-btn').forEach(x => x.classList.toggle('active', x.dataset.aba === aba));
+    ov.querySelector('#fin-corpo').innerHTML = corpo();
     prof();
   });
+}
+
+// Link antigo #/financeiro (da época da aba): vai pra Home e abre por cima
+export function renderFinanceiro() {
+  location.replace('#/home');
+  setTimeout(abrirFinanceiroTela, 350);
 }
