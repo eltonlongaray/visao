@@ -395,7 +395,8 @@ function telaItens() {
           ${total ? `<span class="fr-secao-total">${reais(total)}</span>` : ''}
           ${pend.length ? `<span class="fr-secao-cont">${pend.length}</span>` : ''}
         </button>
-        ${aberta ? `<button class="fr-secao-x" data-editar-secao="${sec.id}" aria-label="Renomear categoria">✏️</button>
+        ${aberta ? `<button class="fr-secao-x" data-kanban-secao="${sec.id}" aria-label="Enviar essa categoria pro Kanban">📌</button>
+        <button class="fr-secao-x" data-editar-secao="${sec.id}" aria-label="Renomear categoria">✏️</button>
         <button class="fr-secao-x" data-apagar-secao="${sec.id}" aria-label="Apagar categoria">🗑</button>` : ''}
       </div>
       ${aberta ? `${formNova(sec.id, 'Adicionar em ' + sec.nome + '…')}
@@ -417,6 +418,9 @@ function telaItens() {
 
       ${g.secoes.length ? secoesHtml
         : '<div class="fr-vazio-grupo">Crie uma categoria pra começar (ex.: Cozinha, Mercado).</div>'}
+
+      <button class="fr-pro-kanban" data-pro-kanban>📌 Enviar pro Kanban</button>
+      <div class="fr-dica-kanban">Ou segure um item pra mandar só ele.</div>
 
       <div class="fr-rodape">
         ${g.custom ? `<button class="fr-renomear" data-renomear>✏️ Renomear grupo</button>` : ''}
@@ -465,6 +469,7 @@ export function ligarFerramentas() {
     if (campo && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); campo.form?.requestSubmit(); }
   });
   ligarArrastar();
+  ligarSegurarItem();
 
   // O Ideal mandou itens pras Prioridades: abre a tela delas (Élton, 26/10)
   document.addEventListener('falcon:ir-prioridades', async () => {
@@ -546,6 +551,7 @@ export function ligarFerramentas() {
     if (vl) { await editarValor(vl.dataset.valor); return; }
 
     const ed = e.target.closest('[data-editar]');
+    if (ed && _segurou) { _segurou = false; return; }   // segurou pra mandar pro Kanban
     if (ed) { await editarInline(ed.dataset.editar); return; }
 
     const edS = e.target.closest('[data-editar-secao]');
@@ -553,6 +559,10 @@ export function ligarFerramentas() {
 
     const apS = e.target.closest('[data-apagar-secao]');
     if (apS) { await apagarSecaoUI(apS.dataset.apagarSecao); return; }
+
+    if (e.target.closest('[data-pro-kanban]')) { await enviarProKanban(); return; }
+    const kbS = e.target.closest('[data-kanban-secao]');
+    if (kbS) { await enviarProKanban({ secaoId: kbS.dataset.kanbanSecao }); return; }
 
     if (e.target.closest('[data-renomear]')) { await renomear(); return; }
     if (e.target.closest('[data-apagar-grupo]')) { await apagarGrupoUI(); return; }
@@ -646,6 +656,61 @@ function _reordenarLocal(secaoId, ids) {
   const pos = new Map(ids.map((id, i) => [id, i]));
   arr.sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0));
   arr.forEach((it, i) => { it.ord = i; });
+}
+
+// ── 📌 Enviar pro Kanban (Élton, 26/11) ──
+// Grupo inteiro, uma categoria ou um item só. Só vai o que está pendente; o que
+// foi sai da lista (vira card no "A fazer"). Antes, a janelinha pergunta o nome
+// da modalidade, já preenchido com o nome do grupo.
+let _segurou = false;
+function ligarSegurarItem() {
+  let timer = null, x0 = 0, y0 = 0;
+  const parar = () => { clearTimeout(timer); timer = null; };
+  document.addEventListener('pointerdown', (e) => {
+    const tx = e.target.closest?.('#ferramentas-ov .fr-texto[data-editar]');
+    if (!tx || !grupoAberto) return;
+    x0 = e.clientX; y0 = e.clientY; _segurou = false; parar();
+    timer = setTimeout(() => {
+      timer = null; _segurou = true;
+      if (navigator.vibrate) try { navigator.vibrate(15); } catch { /* sem vibrar */ }
+      enviarProKanban({ itemId: tx.dataset.editar });
+    }, 600);
+  });
+  document.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) parar(); });
+  document.addEventListener('pointerup', parar);
+  document.addEventListener('pointercancel', parar);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('#ferramentas-ov .fr-texto')) e.preventDefault(); });
+}
+
+async function enviarProKanban({ secaoId = null, itemId = null } = {}) {
+  const g = grupos.find(x => x.nome === grupoAberto);
+  if (!g) return;
+  const sec = secaoId ? g.secoes.find(s => s.id === secaoId) : null;
+  let itens;
+  if (itemId) { const it = _item(itemId); itens = it ? [it] : []; }
+  else if (sec) itens = sec.itens.filter(i => !i.feito);
+  else itens = [...g.soltos, ...g.secoes.flatMap(s => s.itens)].filter(i => !i.feito);
+  if (!itens.length) { showToast('Não tem nada pendente aqui pra mandar pro Kanban.', 'info'); return; }
+
+  const K = await import('./kanban.js');
+  let mods = [];
+  try { mods = await K.lerModalidades(); } catch (err) { showToast(err.message, 'error'); return; }
+  // Se já existe a modalidade com esse nome (ex.: "🏠 Casa"), usa o nome dela
+  const comoMod = (n) => mods.find(m => K.mesmoNome(m.nome, n))?.nome || n;
+  const sugs = [];
+  for (const n of [g.nome, sec?.nome, ...mods.map(m => m.nome)].filter(Boolean).map(comoMod)) if (!sugs.some(x => K.mesmoNome(x, n))) sugs.push(n);
+  const qual = itemId ? `"${separarValor(itens[0].texto).base.slice(0, 40)}"` : `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`;
+  const nome = await pedirTexto({
+    titulo: `📌 ${qual} ${itens.length === 1 ? 'vai' : 'vão'} pro "A fazer" do Kanban. Nome da modalidade:`,
+    valor: comoMod(g.nome), sugestoes: sugs.slice(0, 8), ok: 'Enviar', max: 40,
+  });
+  if (!nome) return;
+  try {
+    const r = await K.enviarPraModalidade(nome, itens.map(i => i.texto));
+    for (const it of itens) { _removerItemLocal(it.id); await apagarItem(it.id); }
+    desenhar();
+    showToast(`📌 ${r.n === 1 ? '1 card foi' : r.n + ' cards foram'} pro Kanban em ${r.mod.nome}${r.criada ? ' (modalidade nova)' : ''}`, 'success');
+  } catch (err) { showToast(err.message, 'error'); await _recarregar(); }
 }
 
 // ── auxiliares ──

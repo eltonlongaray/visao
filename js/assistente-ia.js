@@ -7287,7 +7287,42 @@ async function tentarModalidade(text) {
   return undefined;
 }
 
+// "manda a lista da Casa pro Kanban", "envia a categoria Reforma pro kanban":
+// os itens pendentes viram cards no "A fazer" (modalidade com o nome do grupo,
+// ou o nome que a pessoa disser: "...pro kanban na modalidade Obra").
+async function tentarListaProKanban(text) {
+  const t = PR.semPedido(text);
+  if (!/\bkanban\b/i.test(t) || !/\b(manda|mandar|envia|enviar|passa|passar|joga|jogar|leva|levar|transforma|transformar|coloca|colocar|bota|botar)\b/i.test(t)) return undefined;
+  if (!/\b(lista|listas|categoria|grupo)\b/i.test(t)) return undefined;
+  const arv = await arvoreListas(true);
+  const semKb = t.replace(/\bkanban\b.*$/i, ' ');
+  const alvo = PL.acharAlvo(arv, semKb);
+  if (!alvo.grupo) {
+    if (alvo.candidatos?.length) return `Achei mais de uma lista com esse nome: ${alvo.candidatos.map(c => `<b>${_esc(PL.ondeTexto(c.grupo, c.secao))}</b>`).join(', ')}. Me diz o grupo também.`;
+    return `Qual lista vai pro Kanban? As tuas: ${arv.map(g => `<b>${_esc(g.nome)}</b>`).join(', ')}.`;
+  }
+  const itens = PL.todosItens(arv, alvo).filter(x => !x.item.feito);
+  const onde = PL.ondeTexto(alvo.grupo, alvo.secao);
+  if (!itens.length) return `A lista <b>${_esc(onde)}</b> não tem nada pendente pra mandar pro Kanban.`;
+  const mNome = t.match(/\bmodalidade\s+(?:chamada\s+|de\s+|do\s+|da\s+)?["“]?([^"”,.!?]{2,40})/i);
+  const nome = (mNome ? mNome[1] : alvo.grupo.nome).trim();
+  const K = await import('./kanban.js');
+  let mods = [];
+  try { mods = await K.lerModalidades(); } catch (e) { return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const existe = mods.find(m => K.mesmoNome(m.nome, nome));
+  const lista = itens.slice(0, 12).map(x => `• ${_esc(x.item.texto)}`).join('<br>') + (itens.length > 12 ? `<br>… e mais ${itens.length - 12}` : '');
+  cardConfirmarLista(`📌 Mandar ${itens.length === 1 ? '1 item' : itens.length + ' itens'} de <b>${_esc(onde)}</b> pro <u>A fazer</u> do Kanban, na modalidade <b>${_esc(existe ? existe.nome : nome)}</b>${existe ? '' : ' <small>🆕 nova</small>'}?<br><br>${lista}<br><br><small>Eles saem da lista e viram cards. Pra outro nome, fala "...pro Kanban na modalidade X".</small>`, async () => {
+    const r = await K.enviarPraModalidade(nome, itens.map(x => x.item.texto));
+    for (const x of itens) await apagarItem(x.item.id);
+    _arvore = null;
+    return `Pronto! ${r.n === 1 ? '1 card foi' : r.n + ' cards foram'} pro Kanban em <b>${_esc(r.mod.nome)}</b>. 📌`;
+  }, _kanbanDepois, async () => addChoices('Quer ver?', [{ label: '📌 Abrir o Kanban', action: () => { _abrirKanbanTela(); return null; } }]));
+  return null;
+}
+
 async function tentarKanban(text) {
+  const rl = await tentarListaProKanban(text);
+  if (rl !== undefined) return rl;
   const rm = await tentarModalidade(text);
   if (rm !== undefined) return rm;
   const p = PKB.lerKanban(PR.semPedido(text));
