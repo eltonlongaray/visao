@@ -201,6 +201,20 @@ export function fraseDoApp(j) {
         default: return null;
       }
     }
+    case 'kanban': {
+      const itens = juntar(j.itens), mod = limpa(j.texto);
+      const no = `no kanban${mod ? ' da ' + mod.replace(/^(d[aoe]s?|de)\s+/i, '') : ''}`;
+      const col = /fazendo|andamento|comec/i.test(j.lista || '') ? 'fazendo' : /feit|conclu|pront|termin/i.test(j.lista || '') ? 'feito' : /fazer|pendent/i.test(j.lista || '') ? 'a fazer' : '';
+      switch (j.campo) {
+        case 'ver': return `o que tem ${no}`;
+        case 'abrir': return `abre o kanban${mod ? ' da ' + mod : ''}`;
+        case 'tempo': return `quanto tempo levei nas tarefas ${no} essa semana`;
+        case 'criar': return itens ? `põe ${itens} ${no}${col ? ' na coluna ' + col : ''}` : null;
+        case 'mover': return itens ? `move ${itens} ${no} pra ${col || 'fazendo'}` : null;
+        case 'apagar': return itens ? `apaga ${itens} ${no}` : null;
+        default: return null;
+      }
+    }
     case 'ideal': {
       const itens = juntar(j.itens), area = limpa(j.texto);
       const no = `no meu ideal${area ? ' ' + area : ''}`;

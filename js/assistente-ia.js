@@ -22,6 +22,7 @@
 // BLOCO 8.16 — AJUDA PRA LEMBRAR DE REGISTRAR / TER CONSTÂNCIA
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 8.19 — AJUSTES PELO PET (perfil, idioma, som das notificações, exportar, sugestão)
+// BLOCO 8.20 — KANBAN PELO PET (tarefas do dia: modalidades e colunas A fazer/Fazendo/Feito)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -50,7 +51,7 @@ import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261104a';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261103b';
+import * as PN from './pet-nuvem.js?v=20261126a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261024b';
@@ -62,6 +63,7 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
+import * as PKB from './pet-kanban.js?v=20261126a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -925,6 +927,11 @@ async function dispatchCommand(text) {
       const r = await tentarDesafios(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // Kanban das tarefas do dia ("põe X no kanban da casa", "terminei X"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarKanban(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Ideal, os 6 pilares ("marca ler no meu ideal"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarIdeal(semChamado(text));
@@ -1218,6 +1225,9 @@ async function routeCommand(text) {
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
   if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
+  const rKanban = await tentarKanban(text);
+  if (rKanban !== undefined) return rKanban;
 
   const rIdeal = await tentarIdeal(text);
   if (rIdeal !== undefined) return rIdeal;
@@ -7146,6 +7156,135 @@ Object.assign(PASSOS, {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('falcon:convite-boas-vindas', (e) => { if (e.detail?.codigo) boasVindasConvite(e.detail.codigo); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.20 — KANBAN PELO PET (Élton, 26/11 — tarefas do dia, em Ferramentas)
+// ═══════════════════════════════════════════════════════════════
+// "põe comprar pão no kanban da casa", "move o relatório pra fazendo",
+// "terminei o trabalho da faculdade" (→ Feito), "o que tem no meu kanban?",
+// "quanto tempo levei nas tarefas da faculdade essa semana?", "abre o kanban".
+// Modalidades (Trabalho, Faculdade, Casa, Pessoal…) → colunas A fazer/Fazendo/Feito.
+// Leitor em pet-kanban.js; banco em kanban.js; tela em kanban-ui.js. Sempre com card.
+async function _kanbanDepois() {
+  try { (await import('./kanban-ui.js')).recarregarKanban(); } catch {}
+}
+function _abrirKanbanTela(modalidade) {
+  import('./kanban-ui.js').then(m => m.abrirKanban(modalidade ? { modalidade } : {})).catch(() => {});
+}
+async function tentarKanban(text) {
+  const p = PKB.lerKanban(PR.semPedido(text));
+  if (!p) return undefined;
+  const K = await import('./kanban.js');
+  let mods, tarefas;
+  try { [mods, tarefas] = await Promise.all([K.lerModalidades(), K.lerTarefas()]); }
+  catch (e) {
+    if (p.porVerbo) return undefined;   // "terminei X" sem kanban: deixa pro resto do Pet
+    console.warn('[pet-kanban]', e); return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`;
+  }
+  // Modalidade: "kanban da casa" ou o nome dela solto na frase ("tarefas da faculdade")
+  let mod = p.modalidade ? PKB.acharModalidade(mods, p.modalidade) : null;
+  if (p.modalidade && !mod && !p.porVerbo) {
+    return `Não achei a modalidade <b>${_esc(p.modalidade)}</b> no Kanban. As tuas: ${mods.map(m => `<b>${_esc(m.nome)}</b>`).join(', ')}.`;
+  }
+  if (!mod && ['ver', 'tempo'].includes(p.acao)) mod = PKB.modalidadeNaFrase(mods, text);
+  const nomeM = (id) => mods.find(m => m.id === id)?.nome || '';
+  const abrir = (m) => [{ label: '📌 Abrir o Kanban', action: () => { _abrirKanbanTela(m?.id); return null; } }];
+
+  if (p.acao === 'abrir') { _abrirKanbanTela(mod?.id); return `Abrindo o Kanban${mod ? ` em <b>${_esc(mod.nome)}</b>` : ''} 📌`; }
+
+  if (p.acao === 'ver') {
+    const ms = mod ? [mod] : mods;
+    const cols = p.coluna ? K.COLUNAS.filter(c => c.k === p.coluna) : K.COLUNAS.filter(c => c.k !== 'feito');
+    const blocos = ms.map(m => {
+      const linhas = cols.map(c => {
+        let l = tarefas.filter(t => t.modalidade_id === m.id && t.coluna === c.k);
+        if (c.k === 'feito') l = l.sort((a, b) => String(b.feito_em).localeCompare(String(a.feito_em))).slice(0, 10);
+        else l = l.sort((a, b) => a.ordem - b.ordem);
+        if (!l.length) return '';
+        return `<b>${c.nome}</b> (${l.length})<br>` + l.slice(0, 15).map(t => `• ${_esc(t.titulo)} <small>${_esc(K.linhaCurta(t))}</small>`).join('<br>');
+      }).filter(Boolean);
+      return linhas.length ? (ms.length > 1 ? `<u>${_esc(m.nome)}</u><br>` : '') + linhas.join('<br>') : '';
+    }).filter(Boolean);
+    addChoices(blocos.length ? `📌 <b>${mod ? _esc(mod.nome) : 'Teu Kanban'}</b><br>${blocos.join('<br><br>')}`
+      : `📌 Nada ${p.coluna ? `em ${K.nomeColuna(p.coluna)}` : 'pendente'}${mod ? ` em ${_esc(mod.nome)}` : ' no Kanban'}. Fala <em>"põe X no kanban da casa"</em> pra criar.`, abrir(mod));
+    return null;
+  }
+
+  if (p.acao === 'tempo') {
+    // Concluídas nesta semana (seg → hoje) com o tempo entre Fazendo e Feito
+    const seg = new Date(); seg.setHours(0, 0, 0, 0); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7));
+    const feitas = tarefas.filter(t => t.coluna === 'feito' && t.feito_em && new Date(t.feito_em) >= seg && (!mod || t.modalidade_id === mod.id));
+    if (!feitas.length) return `Nenhuma tarefa${mod ? ` de ${_esc(mod.nome)}` : ''} concluída essa semana ainda.`;
+    const comTempo = feitas.filter(t => K.levou(t));
+    const total = comTempo.reduce((s, t) => s + (new Date(t.feito_em) - new Date(t.fazendo_em)), 0);
+    const lista = comTempo.slice(0, 12).map(t => `• ${_esc(t.titulo)}: ${_esc(K.levou(t))}${mod ? '' : ` <small>(${_esc(nomeM(t.modalidade_id))})</small>`}`).join('<br>');
+    return `⏱️ Essa semana${mod ? ` em <b>${_esc(mod.nome)}</b>` : ''}: <b>${feitas.length}</b> ${feitas.length === 1 ? 'tarefa concluída' : 'tarefas concluídas'}`
+      + (comTempo.length ? `, <b>${_esc(K.duracao(total))}</b> no total entre começar e concluir.<br>${lista}` : '.')
+      + (feitas.length > comTempo.length ? `<br><small>${feitas.length - comTempo.length} foram direto pra Feito, sem passar por Fazendo (sem tempo contado).</small>` : '');
+  }
+
+  if (!p.itens.length) {
+    if (p.porVerbo) return undefined;
+    return p.acao === 'criar' ? 'O que eu ponho no Kanban? Ex.: <em>"põe comprar pão no kanban da casa"</em>.'
+      : 'Qual tarefa? Ex.: <em>"move responder e-mails pra fazendo"</em>.';
+  }
+
+  if (p.acao === 'criar') {
+    const col = p.coluna || 'afazer';
+    const criarEm = (m) => {
+      cardConfirmarLista(`📌 Pôr em <b>${_esc(m.nome)}</b>, na coluna <b>${K.nomeColuna(col)}</b>:<br>${p.itens.map(x => `• ${_esc(x)}`).join('<br>')}`, async () => {
+        const irmas = tarefas.filter(t => t.modalidade_id === m.id && t.coluna === col);
+        for (const titulo of p.itens) irmas.push(await K.criarTarefa({ modalidade_id: m.id, titulo, coluna: col }, irmas));
+        return `Pronto! ${p.itens.length === 1 ? 'Tarefa criada' : `${p.itens.length} tarefas criadas`} em ${_esc(m.nome)}. 📌`;
+      }, _kanbanDepois);
+      return null;
+    };
+    if (mod) return criarEm(mod);
+    if (mods.length === 1) return criarEm(mods[0]);
+    addChoices(`Em qual modalidade eu ponho ${p.itens.length === 1 ? `<b>${_esc(p.itens[0])}</b>` : 'essas tarefas'}?`,
+      mods.slice(0, 10).map(m => ({ label: m.nome, action: () => criarEm(m) })));
+    return null;
+  }
+
+  // mover / apagar: acha as tarefas (na modalidade dita, ou em todas)
+  const base = tarefas.filter(t => !mod || t.modalidade_id === mod.id);
+  const ativas = base.filter(t => t.coluna !== 'feito');
+  const achar = (x) => (p.acao === 'mover' && p.coluna !== 'afazer' ? PKB.acharTarefa(ativas, x, p.porVerbo) : null) || PKB.acharTarefa(base, x, p.porVerbo);
+  const achados = p.itens.map(x => ({ x, t: achar(x) }));
+  const ok = [...new Set(achados.filter(a => a.t).map(a => a.t))];
+  if (!ok.length) {
+    if (p.porVerbo) return undefined;   // não é tarefa do Kanban: deixa pro resto do Pet
+    return `Não achei ${p.itens.map(x => `<b>${_esc(x)}</b>`).join(', ')} no teu Kanban. Me diz o nome da tarefa como está lá.`;
+  }
+  const faltam = achados.filter(a => !a.t).map(a => a.x);
+  const aviso = faltam.length ? `<br><small>Não achei: ${faltam.map(_esc).join(', ')}</small>` : '';
+  const onde = (t) => `<small>(${_esc(nomeM(t.modalidade_id))} · ${K.nomeColuna(t.coluna)})</small>`;
+
+  if (p.acao === 'apagar') {
+    cardConfirmarLista(`🗑️ Apagar do Kanban:<br>${ok.map(t => `• ${_esc(t.titulo)} ${onde(t)}`).join('<br>')}${aviso}`, async () => {
+      for (const t of ok) await K.apagarTarefa(t.id);
+      return ok.length === 1 ? 'Tarefa apagada. 🗑️' : `${ok.length} tarefas apagadas. 🗑️`;
+    }, _kanbanDepois);
+    return null;
+  }
+
+  if (!p.coluna) {
+    return `Pra qual coluna eu passo ${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b>` : 'essas tarefas'}? <em>A fazer</em>, <em>Fazendo</em> ou <em>Feito</em>.`;
+  }
+  const mover = ok.filter(t => t.coluna !== p.coluna);
+  if (!mover.length) return `${ok.length === 1 ? `<b>${_esc(ok[0].titulo)}</b> já está` : 'Essas tarefas já estão'} em ${K.nomeColuna(p.coluna)}. 👍`;
+  cardConfirmarLista(`📌 Mover pra <b>${K.nomeColuna(p.coluna)}</b>:<br>${mover.map(t => `• ${_esc(t.titulo)} ${onde(t)}`).join('<br>')}${aviso}`, async () => {
+    for (const t of mover) {
+      const irmas = tarefas.filter(x => x.modalidade_id === t.modalidade_id && x.coluna === p.coluna);
+      const ordem = irmas.length ? Math.min(...irmas.map(x => x.ordem)) - 1 : 0;
+      await K.moverTarefa(t, p.coluna, ordem);
+    }
+    const t0 = mover[0];
+    const extra = p.coluna === 'feito' && mover.length === 1 && K.levou(t0) ? ` Levou ${_esc(K.levou(t0))}.` : '';
+    return `Feito! ${mover.length === 1 ? `<b>${_esc(t0.titulo)}</b> foi pra ${K.nomeColuna(p.coluna)}` : `${mover.length} tarefas foram pra ${K.nomeColuna(p.coluna)}`}.${extra} 📌`;
+  }, _kanbanDepois);
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════
