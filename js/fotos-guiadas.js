@@ -204,6 +204,24 @@ async function _desfocarFundo(cv) {
   return true;
 }
 
+// NITIDEZ (Élton, 26/11): quanto mais bordas definidas, maior o número. Mede numa
+// cópia pequena (240 px) em cinza — rápido até no celular. Serve pra comparar fotos
+// da mesma cena (rajada / foto nativa) e ficar com a menos tremida.
+function _nitidez(fonte, sx, sy, sw, sh) {
+  const W = 240, H = Math.max(1, Math.round(240 * sh / sw));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(fonte, sx, sy, sw, sh, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data, cinza = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) cinza[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
+  let soma = 0, soma2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x, l = 4 * cinza[i] - cinza[i - 1] - cinza[i + 1] - cinza[i - W] - cinza[i + W];
+    soma += l; soma2 += l * l; n++;
+  }
+  return n ? soma2 / n - (soma / n) ** 2 : 0;
+}
+
 // Avalia o enquadramento. L = 33 pontos normalizados (0–1). Devolve { ok, msg, corte }.
 // corte = {y0, y1} (fração da altura) pra tirar o rosto das fotos de corpo.
 const VIS = 0.55;
@@ -347,7 +365,18 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     // Usa a gravidade (acelerômetro): com o celular em pé, o "gamma" fica instável.
     const horiz = ov.querySelector('.fg-horiz'), horizLinha = ov.querySelector('.fg-horiz-linha');
     let roll = null, rollReto = false;
+    // PARADO (Élton, 26/11: foto tremida): a foto automática só sai com o celular firme
+    // por meio segundo. Sem giroscópio, não trava nada (vale como parado).
+    let mexendo = null, paradoDesde = 0;
+    const PARADO_MS = 500, LIMITE_GIRO = 10;   // graus por segundo
+    const estaParado = () => mexendo == null || (mexendo < LIMITE_GIRO && paradoDesde && performance.now() - paradoDesde >= PARADO_MS);
     function aoMover(e) {
+      const rr = e.rotationRate;
+      if (rr && (rr.alpha != null || rr.beta != null || rr.gamma != null)) {
+        const v = Math.hypot(rr.alpha || 0, rr.beta || 0, rr.gamma || 0);
+        mexendo = mexendo == null ? v : mexendo + (v - mexendo) * 0.3;
+        if (mexendo < LIMITE_GIRO) { if (!paradoDesde) paradoDesde = performance.now(); } else paradoDesde = 0;
+      }
       const gr = e.accelerationIncludingGravity;
       if (!gr || gr.x == null || gr.y == null) return;
       let x = gr.x, y = gr.y, z = gr.z ?? 0;
@@ -423,15 +452,52 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       const y0 = Math.max(0, (mr.top - my - oy) / k), y1 = Math.min(vh, (mr.bottom + my - oy) / k);
       return { x0, x1, y0, y1, tela: { left: mr.left - mx - vr.left, top: mr.top - my - vr.top, width: mr.width + 2 * mx, height: mr.height + 2 * my } };
     }
+    // FOTO NÍTIDA (Élton, 26/11): (2) rajada de 8 quadros em ~0,5 s e fica o mais
+    // nítido; (3) no Android, também pede a FOTO da câmera (ImageCapture: usa o
+    // estabilizador e o processamento do aparelho) e fica com ela se for mais nítida.
+    let capturando = false;
+    async function _fotoNativa(timeoutMs = 2500) {
+      const track = stream?.getVideoTracks?.()[0];
+      if (!track || typeof window.ImageCapture !== 'function') return null;
+      try {
+        const ic = new window.ImageCapture(track);
+        const blob = await Promise.race([ic.takePhoto(), new Promise((_, r) => setTimeout(() => r(new Error('demorou')), timeoutMs))]);
+        return await createImageBitmap(blob);
+      } catch { return null; }
+    }
     async function capturar(corte) {
-      if (!video.videoWidth) return;
+      if (!video.videoWidth || capturando) return;
+      capturando = true; rodando = false;   // para o loop: nada de segunda captura no meio
+      status.textContent = 'Segura firme… 📸';
       const vw = video.videoWidth, vh = video.videoHeight;
       let x0 = 0, x1 = vw, y0 = corte ? Math.round(corte.y0 * vh) : 0, y1 = corte ? Math.round(corte.y1 * vh) : vh;
       if (ehRosto) ({ x0, x1, y0, y1 } = _caixaOval());
       const w = Math.round(x1 - x0), h = Math.round(y1 - y0);
       const k = Math.min(1, 2000 / Math.max(w, h));
       const cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
-      cv.getContext('2d').drawImage(video, Math.round(x0), Math.round(y0), w, h, 0, 0, cv.width, cv.height);
+      const gcv = cv.getContext('2d');
+      // (2) rajada: só desenha em tamanho cheio quando o quadro é o mais nítido até agora
+      let melhor = -1;
+      for (let i = 0; i < 8; i++) {
+        if (i) await new Promise(r => setTimeout(r, 60));
+        const nota = _nitidez(video, x0, y0, w, h);
+        if (nota > melhor) { melhor = nota; gcv.drawImage(video, Math.round(x0), Math.round(y0), w, h, 0, 0, cv.width, cv.height); }
+      }
+      // (3) foto nativa (Android): mesma região, se a proporção bater com a do vídeo
+      const nat = await _fotoNativa();
+      if (nat) {
+        const mesmaProporcao = Math.abs(nat.width / nat.height - vw / vh) < 0.03;
+        if (mesmaProporcao) {
+          const fx = nat.width / vw, fy = nat.height / vh;
+          const nx0 = x0 * fx, ny0 = y0 * fy, nw = w * fx, nh = h * fy;
+          if (_nitidez(nat, nx0, ny0, nw, nh) > melhor) {
+            const k2 = Math.min(1, 2000 / Math.max(nw, nh));
+            cv.width = Math.round(nw * k2); cv.height = Math.round(nh * k2);   // aproveita a resolução maior
+            cv.getContext('2d').drawImage(nat, nx0, ny0, nw, nh, 0, 0, cv.width, cv.height);
+          }
+        }
+        nat.close?.();
+      }
       if (ehRosto) {
         status.textContent = 'Deixando o fundo suave…';
         await _desfocarFundo(cv).catch(() => false);   // falhou: foto normal
@@ -453,7 +519,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
         const a = e.target.closest('[data-rv]')?.dataset.rv; if (!a) return;
         URL.revokeObjectURL(url);
         if (a === 'ok') return fim(blob);
-        rv.remove(); okDesde = 0; rodando = true; loop();
+        rv.remove(); okDesde = 0; capturando = false; rodando = true; loop();
       });
     }
     function loop() {
@@ -473,6 +539,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
           // Foto automática também espera o NÍVEL verde (se o sensor estiver ativo)
           if (av.ok && beta != null && !nivelReto) av = { ok: false, msg: 'Deixe o celular em pé até o nível ficar verde', enquadrado: true };
           else if (av.ok && roll != null && !rollReto) av = { ok: false, msg: 'Endireite o celular: sem pender pro lado', enquadrado: true };
+          else if (av.ok && !estaParado()) av = { ok: false, msg: 'Segura firme…', enquadrado: true };
           if (av.ok) {
             if (!okDesde) okDesde = performance.now();
             const falta = Math.max(0, 1200 - (performance.now() - okDesde));
