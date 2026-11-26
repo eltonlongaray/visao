@@ -63,7 +63,7 @@ import { navigate, forceRender } from './roteador.js';
 import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
-import * as PKB from './pet-kanban.js?v=20261126a';
+import * as PKB from './pet-kanban.js?v=20261126b';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -860,7 +860,9 @@ async function dispatchCommand(text) {
     // O card "qual atividade é essa?" é a última fala do Pet: a frase é a resposta dele
     // (vem antes da conversa guiada, que pode ter ficado aberta lá em cima)
     const gate = typeof text !== 'function' && convState?.type === 'gate_atividade';
-    if (typeof text !== 'function') reply = tentarDescricaoDoCard(semChamado(text));
+    // Lista colada "kanban / Trabalho / A fazer: … / Fazendo: …" (vários trabalhos de uma vez)
+    if (typeof text !== 'function' && PKB.lerBloco(semChamado(text))) reply = await tentarKanbanBloco(semChamado(text));
+    if (reply === undefined && typeof text !== 'function') reply = tentarDescricaoDoCard(semChamado(text));
     if (reply === undefined && gate && convState.ultimo()) reply = await tentarGateAtividade(semChamado(text));
     if (reply === undefined && typeof text !== 'function' && conversaAtiva()) reply = await continuarConversa(semChamado(text));
     // "Quantas séries de barra fixa?" → "3": completa o exercício (treino falado)
@@ -7176,7 +7178,118 @@ async function _kanbanDepois() {
 function _abrirKanbanTela(modalidade) {
   import('./kanban-ui.js').then(m => m.abrirKanban(modalidade ? { modalidade } : {})).catch(() => {});
 }
+// Lista colada com vários trabalhos (Élton, 26/11): cada trabalho vira uma
+// modalidade (cria as que faltam) e cada tarefa vai pra coluna escrita na
+// frente (A fazer / Fazendo / Feito). Um card só pra confirmar tudo.
+async function tentarKanbanBloco(text) {
+  const grupos = PKB.lerBloco(text);
+  if (!grupos) return undefined;
+  const K = await import('./kanban.js');
+  let mods, tarefas;
+  try { [mods, tarefas] = await Promise.all([K.lerModalidades(), K.lerTarefas()]); }
+  catch (e) { return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const usadas = new Set(mods.map(m => m.cor));
+  const livre = () => { const c = K.CORES.find(x => !usadas.has(x.k)) || K.CORES[(usadas.size) % K.CORES.length]; usadas.add(c.k); return c.k; };
+  const plano = grupos.map(g => {
+    const mod = mods.find(m => PKB.norm(m.nome) === PKB.norm(g.modalidade)) || PKB.acharModalidade(mods, g.modalidade);
+    const cor = mod ? mod.cor : livre();
+    const daMod = mod ? tarefas.filter(t => t.modalidade_id === mod.id) : [];
+    const itens = g.tarefas.map(x => {
+      const ja = daMod.find(t => PKB.norm(t.titulo) === PKB.norm(x.titulo));
+      return { ...x, ja, acao: !ja ? 'criar' : ja.coluna !== x.coluna ? 'mover' : 'igual' };
+    });
+    return { nome: mod ? mod.nome : g.modalidade, mod, cor, itens };
+  });
+  const total = plano.reduce((n, p) => n + p.itens.filter(i => i.acao !== 'igual').length, 0);
+  const novas = plano.filter(p => !p.mod).length;
+  if (!total && !novas) return '📌 Tudo isso já está no teu Kanban, do jeito que tu mandou. 👍';
+  const resumo = plano.map(p => {
+    const c = K.cor(p.cor);
+    const cab = `<b>${_esc(p.nome)}</b> ${p.mod ? '' : `<small>🆕 modalidade nova · ${c.nome}</small>`}`;
+    const cols = K.COLUNAS.map(col => {
+      const l = p.itens.filter(i => i.coluna === col.k);
+      if (!l.length) return '';
+      return `<u>${col.nome}</u><br>` + l.map(i => `• ${_esc(i.titulo)}${i.acao === 'mover' ? ` <small>(estava em ${K.nomeColuna(i.ja.coluna)})</small>` : i.acao === 'igual' ? ' <small>(já está)</small>' : ''}`).join('<br>');
+    }).filter(Boolean).join('<br>');
+    return `${cab}<br>${cols}`;
+  }).join('<br><br>');
+  cardConfirmarLista(`📌 Montar o Kanban assim:<br><br>${resumo}`, async () => {
+    let criadas = 0, movidas = 0, mods2 = 0;
+    for (const p of plano) {
+      let mod = p.mod;
+      if (!mod) {
+        const ordem = (mods.length ? Math.max(...mods.map(x => x.ordem)) : 0) + 1;
+        mod = await K.criarModalidade(p.nome, p.cor, ordem); mods.push(mod); mods2++;
+      }
+      for (const col of K.COLUNAS) {
+        const irmas = tarefas.filter(t => t.modalidade_id === mod.id && t.coluna === col.k);
+        // de baixo pra cima, pra ficar na mesma ordem da lista no topo da coluna
+        for (const i of p.itens.filter(x => x.coluna === col.k).reverse()) {
+          if (i.acao === 'criar') { const n = await K.criarTarefa({ modalidade_id: mod.id, titulo: i.titulo, coluna: col.k }, irmas); irmas.push(n); tarefas.push(n); criadas++; }
+          else if (i.acao === 'mover') { const ordem = irmas.length ? Math.min(...irmas.map(x => x.ordem)) - 1 : 0; await K.moverTarefa(i.ja, col.k, ordem); irmas.push(i.ja); movidas++; }
+        }
+      }
+    }
+    const partes = [mods2 && `${mods2} ${mods2 === 1 ? 'modalidade nova' : 'modalidades novas'}`, criadas && `${criadas} ${criadas === 1 ? 'tarefa criada' : 'tarefas criadas'}`, movidas && `${movidas} ${movidas === 1 ? 'tarefa mudou' : 'tarefas mudaram'} de coluna`].filter(Boolean);
+    return `Pronto! ${partes.join(', ')}. 📌`;
+  }, _kanbanDepois, async () => addChoices('Quer ver?', [{ label: '📌 Abrir o Kanban', action: () => { _abrirKanbanTela(); return null; } }]));
+  return null;
+}
+
+// "cria a modalidade Treino", "muda a cor da Casa pra rosa", "renomeia a
+// modalidade X pra Y", "apaga a modalidade X", "quais minhas modalidades"
+async function tentarModalidade(text) {
+  const p = PKB.lerModalidadeCmd(PR.semPedido(text));
+  if (!p) return undefined;
+  const K = await import('./kanban.js');
+  let mods, tarefas;
+  try { [mods, tarefas] = await Promise.all([K.lerModalidades(), K.lerTarefas()]); }
+  catch (e) { return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const lista = () => mods.map(m => `<b>${_esc(m.nome)}</b> <small>(${K.cor(m.cor).nome})</small>`).join(', ');
+  const coresTxt = K.CORES.map(c => c.nome.toLowerCase()).join(', ');
+  if (p.acao === 'listar') return `📌 Tuas modalidades no Kanban: ${lista()}.`;
+  if (p.acao === 'criar') {
+    if (!p.nome) return 'Qual o nome da modalidade? Ex.: <em>"cria a modalidade Treino"</em>.';
+    const ja = mods.find(m => PKB.norm(m.nome) === PKB.norm(p.nome));
+    if (ja) return `Já tens a modalidade <b>${_esc(ja.nome)}</b>. 👍`;
+    const usadas = new Set(mods.map(m => m.cor));
+    const cor = p.cor || (K.CORES.find(c => !usadas.has(c.k)) || K.CORES[0]).k;
+    cardConfirmarLista(`📌 Criar a modalidade <b>${_esc(p.nome)}</b> no Kanban, na cor <b>${K.cor(cor).nome}</b>?`, async () => {
+      await K.criarModalidade(p.nome, cor, (mods.length ? Math.max(...mods.map(x => x.ordem)) : 0) + 1);
+      return `Modalidade <b>${_esc(p.nome)}</b> criada. 📌`;
+    }, _kanbanDepois);
+    return null;
+  }
+  const mod = p.nome ? (mods.find(m => PKB.norm(m.nome) === PKB.norm(p.nome)) || PKB.acharModalidade(mods, p.nome)) : null;
+  if (!mod) return `Não achei a modalidade <b>${_esc(p.nome || '')}</b>. As tuas: ${lista()}.`;
+  if (p.acao === 'cor') {
+    if (!p.cor) return `Essa cor eu não tenho na paleta 😕 Dá pra escolher: ${coresTxt}.`;
+    cardConfirmarLista(`🎨 <b>${_esc(mod.nome)}</b> fica <b>${K.cor(p.cor).nome}</b> (cor do botão e dos cards)?`, async () => {
+      await K.mudarModalidade(mod.id, { cor: p.cor }); return 'Cor trocada. 🎨';
+    }, _kanbanDepois);
+    return null;
+  }
+  if (p.acao === 'renomear') {
+    if (!p.novo) return 'Qual o nome novo?';
+    cardConfirmarLista(`✏️ A modalidade <b>${_esc(mod.nome)}</b> passa a se chamar <b>${_esc(p.novo)}</b>?`, async () => {
+      await K.mudarModalidade(mod.id, { nome: p.novo }); return 'Nome trocado. ✏️';
+    }, _kanbanDepois);
+    return null;
+  }
+  if (p.acao === 'apagar') {
+    if (mods.length <= 1) return 'Precisa ficar pelo menos uma modalidade no Kanban.';
+    const n = tarefas.filter(t => t.modalidade_id === mod.id).length;
+    cardConfirmarLista(`🗑️ Apagar a modalidade <b>${_esc(mod.nome)}</b>${n ? ` e as ${n === 1 ? 'tarefa' : n + ' tarefas'} dela (inclusive o histórico do Feito)` : ''}?`, async () => {
+      await K.apagarModalidade(mod.id); return 'Modalidade apagada. 🗑️';
+    }, _kanbanDepois);
+    return null;
+  }
+  return undefined;
+}
+
 async function tentarKanban(text) {
+  const rm = await tentarModalidade(text);
+  if (rm !== undefined) return rm;
   const p = PKB.lerKanban(PR.semPedido(text));
   if (!p) return undefined;
   const K = await import('./kanban.js');
