@@ -18,6 +18,7 @@ import { abrirEditorAtividade } from './atividade-editor.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { abrirAgenda } from './agenda-ui.js';
 import { abrirRifas } from './rifas-ui.js';
+import { abrirKanban } from './kanban-ui.js';
 import { abrirRendaExtra } from './mentoria-ui.js';
 import { abrirObjetivos, abrirEditorObjetivo } from './objetivos-ui.js';
 import { abrirIdeal } from './ideal-ui.js';
@@ -160,7 +161,7 @@ function _crescer(campo) {
   campo.style.height = Math.min(campo.scrollHeight + 2, 160) + 'px';
 }
 
-// ── Hub: cards Agenda Online / Fontes de renda extra / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
+// ── Hub: cards Agenda Online / Kanban (26/11) / Fontes de renda extra / Rifa / Língua (Financeiro virou aba do menu, Élton 18/11) ──
 // (Élton, 21/10: "Listas" virou Objetivos e "Meus Objetivos" virou Minhas Metas)
 function telaHub() {
   if (modo === 'ferramentas') return `
@@ -173,6 +174,10 @@ function telaHub() {
         <span class="fr-hub-ic">📅</span>
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
+      </button>
+      <button class="fr-hubcard" data-hub-kanban type="button">
+        <span class="fr-hub-ic">📌</span>
+        <span class="fr-hub-tx"><b>Kanban</b><small>Tarefas do dia: a fazer, fazendo e feito</small></span>
       </button>
       <button class="fr-hubcard" data-hub-renda-extra type="button">
         <span class="fr-hub-ic">💸</span>
@@ -430,7 +435,7 @@ export function ligarFerramentas() {
     if (!ov || _hist === 0) return;
     // Agenda/Rifa aberta POR CIMA do hub → deixa o modal dela tratar o back (ela fecha,
     // o hub reaparece). Sem isso, o back fechava o hub junto.
-    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov') || document.getElementById('ideal-ov')) return;
+    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov') || document.getElementById('ideal-ov') || document.getElementById('kanban-ov')) return;
     // Nível que ficou no histórico. Igual ao nosso = só fechou uma janelinha
     // por cima (confirmar, nova categoria): a pessoa continua onde estava.
     const nivel = Number(history.state?.fr) || 0;
@@ -478,6 +483,7 @@ export function ligarFerramentas() {
     if (e.target.closest('[data-hub-agenda]')) { abrirAgenda(); return; }   // abre por cima do hub
     if (e.target.closest('[data-hub-renda-extra]')) { abrirRendaExtra(); return; }   // abre por cima do hub (🎓 Mentoria)
     if (e.target.closest('[data-hub-rifa]')) { abrirRifas(); return; }
+    if (e.target.closest('[data-hub-kanban]')) { abrirKanban(); return; }
     if (e.target.closest('[data-guia]')) { abrirGuia(false); return; }
     if (e.target.closest('[data-hub-lingua]')) { showToast('🌎 Aprenda outra língua está em desenvolvimento. Em breve! 🦅', 'info'); return; }
 
