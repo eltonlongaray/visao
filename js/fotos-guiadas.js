@@ -3,7 +3,8 @@
 //   BLOCO 1 — protocolos (rosto, celulite, corpo e medidas): poses + instruções
 //   BLOCO 2 — sugerir o tipo de acompanhamento pelo nome do serviço
 //   BLOCO 3 — conferir foto da galeria (resolução, tremida, luz, reflexo, posição)
-//   BLOCO 4 — câmera guiada: molde + "aproxime/afaste/vire" e foto AUTOMÁTICA
+//   BLOCO 4 — câmera guiada: molde + "aproxime/afaste/vire" e foto AUTOMÁTICA,
+//             nível de inclinação na lateral e rosto em oval com o fundo escurecido
 //   BLOCO 5 — montar o antes × depois (com o nome do negócio), baixar e compartilhar
 // A detecção (MediaPipe Pose, Google) roda NO APARELHO: a foto não sai pra análise.
 // Sem o modelo (internet ruim, celular antigo), a câmera continua com o botão manual.
@@ -210,8 +211,15 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       <div class="fg-palco">
         <video class="fg-video" autoplay playsinline muted></video>
         ${fantasma ? `<img class="fg-fantasma" src="${_esc(fantasma)}" alt="">` : ''}
+        ${pose.alvo.startsWith('rosto') ? '<div class="fg-mascara" aria-hidden="true"></div>' : ''}
         <div class="fg-molde ${pose.alvo.startsWith('rosto') ? 'oval' : ''}"></div>
         <div class="fg-alvo"></div><div class="fg-ponto" hidden></div>
+        <div class="fg-nivel" hidden aria-label="Nível do celular">
+          <div class="fg-nivel-trilho">${'<i></i>'.repeat(9)}</div>
+          <div class="fg-nivel-linha"></div>
+          <span class="fg-nivel-grau"></span>
+        </div>
+        <button type="button" class="fg-nivel-ativar" data-fg="nivel" hidden>📐 Ativar nível</button>
       </div>
       <div class="fg-status" id="fg-status">Abrindo a câmera…</div>
       <div class="fg-dica">Ajuste até o contorno ficar <b>verde</b>: o app tira a foto sozinho.</div>
@@ -223,7 +231,33 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     document.body.appendChild(ov);
     const video = ov.querySelector('video'), status = ov.querySelector('#fg-status'), molde = ov.querySelector('.fg-molde');
     let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null;
-    const fim = v => { rodando = false; if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
+    const fim = v => { rodando = false; window.removeEventListener('deviceorientation', aoInclinar); if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
+
+    // NÍVEL (Élton, 26/11): barra vertical na lateral. A linha anda pra cima/baixo
+    // conforme a inclinação pra frente/trás (beta: 90° = celular em pé) e fica
+    // VERDE no meio quando está a 90° ± 2°. Sem sensor (computador), não aparece.
+    const nivel = ov.querySelector('.fg-nivel'), nivelGrau = ov.querySelector('.fg-nivel-grau'), btNivel = ov.querySelector('.fg-nivel-ativar');
+    let beta = null;
+    function aoInclinar(e) {
+      if (e.beta == null) return;
+      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.3;    // suaviza o tremido da mão
+      const d = beta - 90, reto = Math.abs(d) <= 2;
+      nivel.hidden = false; btNivel.hidden = true;
+      nivel.style.setProperty('--off', Math.max(-1, Math.min(1, d / 20)).toFixed(3));
+      nivel.classList.toggle('ok', reto);
+      nivelGrau.textContent = reto ? '90°' : `${Math.round(beta)}°`;
+    }
+    async function ligarNivel() {
+      const D = window.DeviceOrientationEvent;
+      if (!D) return;
+      window.removeEventListener('deviceorientation', aoInclinar);
+      window.addEventListener('deviceorientation', aoInclinar);   // sem permissão, só não chega nada
+      if (typeof D.requestPermission !== 'function') return;
+      // iPhone (e alguns navegadores): o sensor só libera com um toque → botão "Ativar nível"
+      try { if ((await D.requestPermission()) !== 'granted' && beta == null) btNivel.hidden = false; }
+      catch { if (beta == null) btNivel.hidden = false; }
+    }
+    ligarNivel();
     const msg = (t, ok) => { status.textContent = t; status.classList.toggle('ok', !!ok); molde.classList.toggle('ok', !!ok); };
     // ponto onde a cliente está (rosto: nariz; corpo: meio do tronco/quadril), na posição da imagem na tela
     const ponto = ov.querySelector('.fg-ponto');
@@ -285,6 +319,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       if (a === 'cancel') return fim(null);
       if (a === 'shot') return capturar(ultimo?.ok ? ultimo.corte : null);
       if (a === 'fant') ov.querySelector('.fg-fantasma')?.classList.toggle('fora');
+      if (a === 'nivel') { btNivel.hidden = true; ligarNivel(); }
     });
     (async () => {
       try {
