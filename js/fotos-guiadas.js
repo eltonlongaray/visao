@@ -119,6 +119,19 @@ function _estatisticas(bmp) {
   return { media: soma / (w * h), estouro: estouro / (w * h), nitidez: Math.sqrt(Math.max(0, s2 / n - mL * mL)) };
 }
 
+// Brilho médio (0–255) de uma região do vídeo, numa cópia de 48 px.
+// Mesma régua da revisão (conferirFoto): < 70 = escura, > 205 = estourada.
+function _brilho(fonte, sx, sy, sw, sh) {
+  const W = 48, H = Math.max(1, Math.round(48 * sh / sw));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(fonte, sx, sy, sw, sh, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data;
+  let soma = 0;
+  for (let i = 0; i < d.length; i += 4) soma += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  return soma / (W * H);
+}
+
 // === BLOCO 4: CÂMERA GUIADA ===
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODELO = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
@@ -340,6 +353,7 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     document.body.appendChild(ov);
     const video = ov.querySelector('video'), status = ov.querySelector('#fg-status'), molde = ov.querySelector('.fg-molde');
     let stream = null, rodando = true, okDesde = 0, ultimo = null, detector = null, suave = null;
+    let luz = 'boa', luzEm = 0;   // 'boa' | 'escura' | 'clara' (medida ao vivo)
     const fim = v => { rodando = false; window.removeEventListener('deviceorientation', aoInclinar); window.removeEventListener('devicemotion', aoMover); if (stream) stream.getTracks().forEach(t => t.stop()); ov.remove(); resolve(v); };
 
     // NÍVEL (Élton, 26/11): barra vertical na lateral. A linha anda pra cima/baixo
@@ -525,6 +539,19 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
     function loop() {
       if (!rodando) return;
       let gasto = 0;
+      // LUZ AO VIVO (Élton, 26/11): mede a cada ~0,5 s. "Trava" pra não piscar:
+      // escura abaixo de 70 e só volta a boa acima de 78 (estourada: acima de 205 / volta abaixo de 197).
+      if (video.readyState >= 2 && video.videoWidth && performance.now() - luzEm > 500) {
+        luzEm = performance.now();
+        try {
+          const vw = video.videoWidth, vh = video.videoHeight;
+          const c = ehRosto ? _caixaOval() : { x0: vw * 0.2, x1: vw * 0.8, y0: vh * 0.15, y1: vh * 0.85 };
+          const m = _brilho(video, c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0);
+          luz = luz === 'escura' ? (m > 78 ? (m > 205 ? 'clara' : 'boa') : 'escura')
+            : luz === 'clara' ? (m < 197 ? (m < 70 ? 'escura' : 'boa') : 'clara')
+            : (m < 70 ? 'escura' : m > 205 ? 'clara' : 'boa');
+        } catch { /* um quadro ruim não para a câmera */ }
+      }
       if (detector && video.readyState >= 2) {
         try {
           const t0 = performance.now();
@@ -537,7 +564,11 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
           marcar(suave);
           ultimo = av;   // o botão redondo usa o enquadramento (corte), com ou sem nível
           // Foto automática também espera o NÍVEL verde (se o sensor estiver ativo)
-          if (av.ok && beta != null && !nivelReto) av = { ok: false, msg: 'Deixe o celular em pé até o nível ficar verde', enquadrado: true };
+          // No escuro o detector nem acha a pessoa: diz a causa real (luz), não "Enquadre…"
+          if (!av.ok && luz === 'escura' && /^Enquadre/.test(av.msg)) av = { ok: false, msg: '💡 Pouca luz: procure uma janela ou acenda a luz de frente' };
+          if (av.ok && luz === 'escura') av = { ok: false, msg: '💡 Pouca luz: procure uma janela ou acenda a luz de frente', enquadrado: true };
+          else if (av.ok && luz === 'clara') av = { ok: false, msg: '☀️ Luz forte demais: saia do sol direto ou da luz estourada', enquadrado: true };
+          else if (av.ok && beta != null && !nivelReto) av = { ok: false, msg: 'Deixe o celular em pé até o nível ficar verde', enquadrado: true };
           else if (av.ok && roll != null && !rollReto) av = { ok: false, msg: 'Endireite o celular: sem pender pro lado', enquadrado: true };
           else if (av.ok && !estaParado()) av = { ok: false, msg: 'Segura firme…', enquadrado: true };
           if (av.ok) {
