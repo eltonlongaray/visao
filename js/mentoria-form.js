@@ -46,6 +46,17 @@ function iniciar() {
   telaIntro();
 }
 const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(st)); } catch (e) {} };
+// (26/11) FUNIL: quantas pessoas chegam em cada tela (sem nome). Mesmo contador da triagem
+// (sql/triagem-funil.sql + sql/mentoria-funil.sql); aparece no app em 📣 Campanhas. Teste não conta.
+const ORIGEM = new URLSearchParams(location.search).get('utm_source') || null;
+function funil(ordem, nome) {
+  if (TESTE) return;
+  if (!st.sessao) st.sessao = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  st.funil = st.funil || [];
+  if (st.funil.includes(nome)) return;
+  st.funil.push(nome); salvar();
+  try { supabase.rpc('triagem_passo', { p_slug: SLUG, p_sessao: st.sessao, p_ordem: ordem, p_passo: nome, p_origem: st.origem || ORIGEM, p_form: FORM }).then(() => {}, () => {}); } catch (e) {}
+}
 const logo = () => M.marca?.logo ? `<img class="lr" src="${esc(M.marca.logo)}" alt="${esc(M.marca.nome || '')}">` : '';
 
 function topo(prog) {
@@ -59,13 +70,15 @@ function topo(prog) {
 // === BLOCO 3: TELAS ===
 function telaIntro() {
   const retomar = Object.keys(st.r).length > 0, I = F.intro;
+  if (ORIGEM && !st.origem) st.origem = ORIGEM;
+  funil(0, 'Abriu o formulário');
   app.innerHTML = topo(false) + `<section class="tela">
     <p class="eyebrow">${esc(I.eyebrow)}</p><div class="rule"></div>
     <h1 class="serif">${I.h1}</h1>
     ${I.lead.map(t => `<p class="lead">${esc(t.replace('{n}', P.filter(p => p.tipo !== 'contato').length))}</p>`).join('')}
     <div class="nav"><span></span><button class="btn" id="go">${retomar ? 'Continuar de onde parei' : 'Começar'} →</button></div>
     <p class="assin">${esc(M.marca?.assinatura || '')}</p></section>`;
-  $('go').onclick = () => { st.i = retomar ? Math.min(Math.max(st.i, 0), P.length - 1) : 0; salvar(); telaPergunta(); };
+  $('go').onclick = () => { funil(1, 'Tocou em Começar'); st.i = retomar ? Math.min(Math.max(st.i, 0), P.length - 1) : 0; salvar(); telaPergunta(); };
 }
 
 // Opções que vêm de outra resposta (ex.: "qual mais te incomoda" = só o que ela marcou)
@@ -99,6 +112,7 @@ function campoDe(p) {
 }
 
 function telaPergunta() {
+  funil(10 + st.i, P[st.i]?.tipo === 'contato' ? 'Tela de nome e WhatsApp' : `Pergunta ${st.i + 1}: ${String(P[st.i]?.curto || P[st.i]?.q || '').slice(0, 45)}`);
   const p = P[st.i], ultima = P.slice(st.i + 1).every(x => x.opsDe && opsDe(x).length <= 1);
   app.innerHTML = topo(true) + `<section class="tela">
     ${p.pre ? `<p class="pre">${esc(p.pre)}</p>` : ''}
@@ -218,6 +232,7 @@ async function enviar() {
       console.error(error); return;
     }
   }
+  funil(99, 'Enviou as respostas');
   try { localStorage.removeItem(CHAVE); } catch (e) {}
   telaFinal(nome, !!zap);
 }
