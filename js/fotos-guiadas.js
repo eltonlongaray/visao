@@ -81,7 +81,8 @@ export async function conferirFoto(blob, pose, antesUrl = null) {
   let bmp; try { bmp = await createImageBitmap(blob); } catch { return ['Não consegui abrir essa foto.']; }
   const W = bmp.width, H = bmp.height;
   const tipo = String(pose || '').split('_')[0];
-  if (Math.min(W, H) < 1000) avisos.push('Foto com <b>pouca resolução</b>: o antes × depois fica borrado. Tire pela câmera do app.');
+  // Rosto sai recortado no oval (26/11): ~700 px já é nítido; corpo continua pedindo 1000
+  if (Math.min(W, H) < (String(pose || '').startsWith('rosto') ? 600 : 1000)) avisos.push('Foto com <b>pouca resolução</b>: o antes × depois fica borrado. Tire pela câmera do app.');
   if (tipo !== 'rosto' && W > H * 1.05) avisos.push('Foto do corpo deve ser <b>em pé (vertical)</b>, não deitada.');
   const st = _estatisticas(bmp);
   if (st.nitidez < 18) avisos.push('A foto ficou <b>tremida ou desfocada</b>. Apoie o celular e espere focar antes de tirar.');
@@ -237,18 +238,27 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
 
     // NÍVEL (Élton, 26/11): barra vertical na lateral. A linha anda pra cima/baixo
     // conforme a inclinação pra frente/trás (beta: 90° = celular em pé) e fica
-    // VERDE no meio quando está a 90° ± 2°. Sem sensor (computador), não aparece.
+    // VERDE no meio quando está a 90° ± 3°. Sem sensor (computador), não aparece.
     const nivel = ov.querySelector('.fg-nivel'), nivelGrau = ov.querySelector('.fg-nivel-grau'), btNivel = ov.querySelector('.fg-nivel-ativar');
-    let beta = null, nivelReto = false;   // beta só existe com sensor ativo
+    let beta = null, nivelReto = false, nivelPedido = false, nivelGrauTxt = '', nivelOkCls = null;   // beta só existe com sensor ativo
+    const nivelLinha = ov.querySelector('.fg-nivel-linha');
+    // O evento do sensor só GUARDA o valor (chega 60x/s); o desenho é 1x por quadro
+    // e mexe só no transform: a linha não engasga quando a detecção do rosto pesa.
     function aoInclinar(e) {
       if (e.beta == null) return;
-      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.3;    // suaviza o tremido da mão
-      const d = beta - 90, reto = Math.abs(d) <= 3;
-      nivelReto = reto;
-      nivel.hidden = false; btNivel.hidden = true;
-      nivel.style.setProperty('--off', Math.max(-1, Math.min(1, d / 20)).toFixed(3));
-      nivel.classList.toggle('ok', reto);
-      nivelGrau.textContent = reto ? '90°' : `${Math.round(beta)}°`;
+      beta = beta == null ? e.beta : beta + (e.beta - beta) * 0.5;    // suaviza o tremido sem atrasar
+      nivelReto = Math.abs(beta - 90) <= 3;
+      if (!nivelPedido) { nivelPedido = true; requestAnimationFrame(pintarNivel); }
+    }
+    function pintarNivel() {
+      nivelPedido = false;
+      if (!rodando && !ov.isConnected) return;
+      if (nivel.hidden) { nivel.hidden = false; btNivel.hidden = true; }
+      const meia = nivel.clientHeight * 0.44;
+      nivelLinha.style.transform = `translateY(${(Math.max(-1, Math.min(1, (beta - 90) / 20)) * meia).toFixed(1)}px)`;
+      if (nivelOkCls !== nivelReto) { nivelOkCls = nivelReto; nivel.classList.toggle('ok', nivelReto); }
+      const g = nivelReto ? '90°' : `${Math.round(beta)}°`;
+      if (g !== nivelGrauTxt) { nivelGrauTxt = g; nivelGrau.textContent = g; }
     }
     async function ligarNivel() {
       const D = window.DeviceOrientationEvent;
@@ -273,13 +283,28 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       ponto.style.left = (ox + ref.x * video.videoWidth * k) + 'px'; ponto.style.top = (oy + ref.y * video.videoHeight * k) + 'px'; ponto.hidden = false;
     };
 
+    // Rosto (Élton, 26/11: "achei muito distante"): a foto é a região do OVAL + uma
+    // margem, em pixels do vídeo — o que a pessoa encaixou no oval é o que sai na foto.
+    const ehRosto = pose.alvo.startsWith('rosto');
+    function _caixaOval() {
+      const vr = video.getBoundingClientRect(), mr = molde.getBoundingClientRect();
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const k = Math.min(vr.width / vw, vr.height / vh);
+      const ox = vr.left + (vr.width - vw * k) / 2, oy = vr.top + (vr.height - vh * k) / 2;
+      const mx = mr.width * 0.08, my = mr.height * 0.05;   // margem curta: orelhas, cabelo e pescoço
+      const x0 = Math.max(0, (mr.left - mx - ox) / k), x1 = Math.min(vw, (mr.right + mx - ox) / k);
+      const y0 = Math.max(0, (mr.top - my - oy) / k), y1 = Math.min(vh, (mr.bottom + my - oy) / k);
+      return { x0, x1, y0, y1, tela: { left: mr.left - mx - vr.left, top: mr.top - my - vr.top, width: mr.width + 2 * mx, height: mr.height + 2 * my } };
+    }
     async function capturar(corte) {
       if (!video.videoWidth) return;
       const vw = video.videoWidth, vh = video.videoHeight;
-      const y0 = corte ? Math.round(corte.y0 * vh) : 0, y1 = corte ? Math.round(corte.y1 * vh) : vh;
-      const k = Math.min(1, 2000 / Math.max(vw, y1 - y0));
-      const cv = document.createElement('canvas'); cv.width = Math.round(vw * k); cv.height = Math.round((y1 - y0) * k);
-      cv.getContext('2d').drawImage(video, 0, y0, vw, y1 - y0, 0, 0, cv.width, cv.height);
+      let x0 = 0, x1 = vw, y0 = corte ? Math.round(corte.y0 * vh) : 0, y1 = corte ? Math.round(corte.y1 * vh) : vh;
+      if (ehRosto) ({ x0, x1, y0, y1 } = _caixaOval());
+      const w = Math.round(x1 - x0), h = Math.round(y1 - y0);
+      const k = Math.min(1, 2000 / Math.max(w, h));
+      const cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      cv.getContext('2d').drawImage(video, Math.round(x0), Math.round(y0), w, h, 0, 0, cv.width, cv.height);
       const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9)); cv.width = 0; cv.height = 0;
       rodando = false;
       revisar(blob);
@@ -338,6 +363,18 @@ export function abrirCameraGuiada(pose, { instr = '', fantasma = null, passo = '
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 2560 } }, audio: false });
         video.srcObject = stream;
+        const fant = ov.querySelector('.fg-fantasma');
+        if (ehRosto && fant) video.addEventListener('loadedmetadata', () => {
+          const ajusta = () => {
+            if (!fant.naturalWidth || !video.videoWidth) return;
+            const c = _caixaOval().tela;
+            // Só encaixa no oval se a foto do antes já for recortada (proporção parecida);
+            // foto antiga com a câmera inteira continua por cima da tela toda.
+            if (Math.abs(fant.naturalWidth / fant.naturalHeight - c.width / c.height) > 0.12) return;
+            Object.assign(fant.style, { inset: 'auto', left: c.left + 'px', top: c.top + 'px', width: c.width + 'px', height: c.height + 'px', objectFit: 'fill' });
+          };
+          if (fant.complete) ajusta(); else fant.addEventListener('load', ajusta, { once: true });
+        }, { once: true });
       } catch { msg('Não consegui abrir a câmera. Use a galeria.', false); return; }
       msg('Preparando o guia de enquadramento…', false);
       try {
