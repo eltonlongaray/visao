@@ -3,7 +3,8 @@
 // ═══════════════════════════════════════════════════════════════
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // Arquivo único: casca da aba Financeiro: abas Pessoal e Profissional no
-// topo e cards de vitrine (EM BREVE) do que vai ter em cada uma.
+// topo; Pessoal com cards de vitrine (EM BREVE) e Profissional com a receita
+// do mês por fonte de renda (financeiro-profissional.js).
 // ─────────────────────────────────────────────────────────────
 // Plano combinado com o Élton:
 //  • Profissional: receitas e despesas separadas por FONTE DE RENDA
@@ -14,6 +15,7 @@
 //    as despesas pessoais, sem misturar com o profissional.
 import { bottomNav } from '../components/menu-inferior.js';
 import { showToast } from '../aviso-tela.js';
+import { montarProfissional } from '../financeiro-profissional.js';
 
 // Abas no topo, igual à Comunidade (Élton, 18/11: no lugar dos dois cards)
 let aba = 'pessoal';   // 'pessoal' | 'profissional'
@@ -35,7 +37,8 @@ const CARDS = {
 };
 
 function corpo() {
-  if (!CARDS[aba].length) return `<div class="fin-vazio">💼 O financeiro profissional está em desenvolvimento. Em breve! 🦅</div>`;
+  // Profissional: receita do mês por fonte de renda (Clientes + Mentoria), 25/11
+  if (aba === 'profissional') return '<div id="fin-prof"></div>';
   return `<div class="fr-hub fin-hub">${CARDS[aba].map(([ic, nome, desc]) => `
     <button class="fr-hubcard" data-fin-card="${nome}" type="button">
       <span class="fr-hub-ic">${ic}</span>
@@ -56,6 +59,8 @@ export function renderFinanceiro(app) {
     </div>
     <div id="fin-corpo">${corpo()}</div>
   </div>${bottomNav('financeiro')}`;
+  const prof = () => { const box = app.querySelector('#fin-prof'); if (box) montarProfissional(box); };
+  prof();
   app.querySelector('#fin-corpo').addEventListener('click', (e) => {
     const c = e.target.closest('[data-fin-card]');
     if (c) showToast(`${c.dataset.finCard} está em desenvolvimento. Em breve! 🦅`, 'info');
@@ -66,5 +71,6 @@ export function renderFinanceiro(app) {
     aba = b.dataset.aba;
     app.querySelectorAll('#fin-abas .tab-btn').forEach(x => x.classList.toggle('active', x.dataset.aba === aba));
     app.querySelector('#fin-corpo').innerHTML = corpo();
+    prof();
   });
 }

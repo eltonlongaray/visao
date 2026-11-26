@@ -7743,13 +7743,13 @@ body.sem-rolagem { overflow: hidden; }
 /* Agenda Online e Rifa Solidária abrem em TELA CHEIA, igual à Caixa de
    Ferramentas — não como popup centralizado. Sobrescreve o .modal-overlay
    (grid/place-items:center + 20px padding) e o .ag-modal (max-width 480). */
-#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov, #fi-sessao-ov { padding: 0; place-items: stretch; }
-#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal, #fi-sessao-ov .ag-modal {
+#agenda-ov, #rifas-ov, #objetivos-ov, #fi-ver-ov, #fi-sessao-ov, #renda-ov, #mentoria-ov { padding: 0; place-items: stretch; }
+#agenda-ov .ag-modal, #rifas-ov .ag-modal, #objetivos-ov .ag-modal, #fi-ver-ov .ag-modal, #fi-sessao-ov .ag-modal, #renda-ov .ag-modal, #mentoria-ov .ag-modal {
   width: 100%; max-width: 100%;
   height: 100vh; height: 100dvh; max-height: 100dvh;
   border: 0; border-radius: 0;
 }
-#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo, #fi-sessao-ov .ag-corpo {
+#agenda-ov .ag-corpo, #rifas-ov .ag-corpo, #objetivos-ov .ag-corpo, #fi-ver-ov .ag-corpo, #fi-sessao-ov .ag-corpo, #renda-ov .ag-corpo, #mentoria-ov .ag-corpo {
   height: 100vh; height: 100dvh; max-height: 100dvh;
 }
 .ag-load, .ag-erro { padding: 40px 24px; text-align: center; color: var(--muted); line-height: 1.5; }
@@ -7939,6 +7939,18 @@ body.sem-rolagem { overflow: hidden; }
 .ag-cli-acoes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .ag-cli-wa { display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; padding: 10px; border-radius: 10px; background: #25D366; color: #fff; font-size: 14px; font-weight: 700; }
 .ag-cli-wa-ed { background: var(--card); border: 1px solid var(--border); color: var(--accent-2); border-radius: 10px; padding: 9px; font-size: 13px; font-weight: 700; cursor: pointer; }
+/* (25/11) Mensagens prontas no perfil da cliente */
+#agp-msg { padding: 8px 2px 10px; }
+.ag-msg-dica { border-left: 4px solid var(--accent); background: var(--card); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-bottom: 10px; }
+.ag-msg-dica summary { cursor: pointer; font-weight: 700; color: var(--text); }
+.ag-msg-dica ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.5; color: var(--muted); }
+.ag-msg-ops { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ag-msg-op { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 7px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ag-msg-op.sel { border-color: var(--accent); color: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.ag-msg-txt { width: 100%; box-sizing: border-box; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px; font: inherit; font-size: 14px; line-height: 1.45; resize: vertical; }
+.ag-msg-acoes { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+.ag-msg-acoes .ag-cli-wa { border: 0; cursor: pointer; }
+.ag-msg-obs { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .ag-cli-hist-tit { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
 .ag-hist-lista { max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; margin: 6px 0 12px; }
 .ag-det-btn.wa { grid-column: 1 / -1; background: #25D366; border-color: #25D366; color: #fff; }
@@ -8027,6 +8039,7 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-titulo { font-size: 22px; font-weight: 800; color: var(--text); }
 .ap-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .ap-end { font-size: 13px; color: var(--accent-2); margin-top: 8px; line-height: 1.4; }
+.ap-aviso-topo { margin-top: 12px; padding: 10px 12px; border-left: 4px solid var(--accent); border-radius: 8px; background: var(--card-2); color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.45; text-align: left; }
 .ap-ola { font-size: 15px; color: var(--text); margin-top: 6px; }
 .ap-ola b { color: var(--accent-2); }
 .ap-trocar { background: none; border: none; color: var(--accent-2); font-size: 12px; font-weight: 600; text-decoration: underline; cursor: pointer; font-family: inherit; padding: 0; margin-left: 6px; }
@@ -8981,6 +8994,17 @@ body.rota-publica .bottom-nav { display: none !important; }
 .camp-funil b { font-size: 20px; }
 .camp-funil small { font-size: 11px; color: var(--muted); }
 .camp-funil span { color: var(--muted); }
+/* (26/11) funil da triagem por tela */
+.camp-fchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.camp-fchip { background: var(--card-2, var(--card)); border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.camp-fchip.sel { border-color: var(--accent); color: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.camp-fsep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+.camp-flista { display: flex; flex-direction: column; gap: 8px; }
+.camp-fl-t { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.camp-fl-t span { color: var(--text); }
+.camp-fl-barra { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-top: 3px; }
+.camp-fl-barra i { display: block; height: 100%; background: var(--accent); }
+.camp-fl-perda { font-size: 11px; color: var(--danger, #e5484d); }
 .camp-inv { display: flex; gap: 6px; }
 .camp-inv-in { flex: 1; background: var(--card-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; font: inherit; font-size: 14px; }
 .prod-ed { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -9308,3 +9332,135 @@ body.rota-publica .bottom-nav { display: none !important; }
 .ap-cal-voltar { flex: none; border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; background: transparent; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
 .ap-hor-tit { font-size: 17px; font-weight: 800; color: var(--text); margin: 6px 0 10px; line-height: 1.2; }
 .ap-hor-tit small { display: block; font-size: 14px; font-weight: 700; color: var(--accent); margin-top: 3px; }
+/* (25/11) depois de tocar no dia: título vira "Agora escolha o horário" e os horários dão um toque */
+.ap-hor-tit.chama { color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px; scroll-margin-top: 14px; }
+.ap-slots-wrap.chama .ap-slot:not(.ocupado) { border-color: var(--accent); animation: apSlotChama .5s ease-out .35s 2; }
+@keyframes apSlotChama { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@media (prefers-reduced-motion: reduce) { .ap-slots-wrap.chama .ap-slot { animation: none; } }
+
+/* === BLOCO F13: 🎓 MENTORIA (Fontes de renda extra — mentoria-ui.js) === */
+.mt-hub { display: flex; flex-direction: column; gap: 12px; }
+.mt-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
+.mt-stats > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.mt-stats b { display: block; font-size: 20px; font-weight: 800; color: var(--text); }
+.mt-stats small { font-size: 11px; color: var(--muted); }
+.mt-qtd { display: inline-block; min-width: 22px; padding: 1px 7px; margin-left: 4px; border-radius: 999px; font-size: 12px; font-weight: 800; color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 14%, var(--card)); text-align: center; }
+.mt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.mt-chip { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.mt-chip small { opacity: .8; }
+.mt-chip.on { color: var(--text); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.mt-busca { margin-bottom: 10px; }
+.mt-lista { display: flex; flex-direction: column; gap: 8px; }
+.mt-pessoa { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 12px; overflow: hidden; }
+.mt-pessoa.aberta { border-left-color: var(--accent); }
+.mt-pessoa-cab { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; background: none; border: none; color: inherit; font-family: inherit; text-align: left; padding: 11px 12px; cursor: pointer; }
+.mt-pessoa-nome { flex: 1; min-width: 0; font-weight: 800; font-size: 15px; color: var(--text); }
+.mt-pessoa-sub { width: 100%; font-size: 12px; color: var(--muted); }
+.mt-selo { flex: none; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, var(--card)); }
+.mt-selo.aluna { color: #16a34a; background: color-mix(in srgb, #16a34a 15%, var(--card)); }
+.mt-selo.reservou { color: #d97706; background: color-mix(in srgb, #d97706 15%, var(--card)); }
+.mt-selo.selecionada { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 15%, var(--card)); }
+.mt-det { padding: 4px 12px 12px; border-top: 1px solid var(--border); }
+.mt-acoes { margin: 10px 0 4px; }
+.mt-zap { display: inline-flex; text-decoration: none; width: auto; padding: 8px 14px; }
+.mt-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.mt-rot { width: 70px; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+.mt-mini { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 11px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.mt-mini.on { border-color: var(--accent-2); background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.mt-nota { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.mt-sub { margin: 16px 0 8px; font-size: 14px; font-weight: 800; color: var(--text); }
+.mt-sub small { font-weight: 600; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.mt-msgs { display: flex; flex-direction: column; gap: 6px; }
+.mt-msg { text-align: left; border: 1px solid var(--border); border-left: 4px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 8px 10px; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.mt-msg small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.mt-msg.sug { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.mt-msg.feito { color: var(--muted); }
+.mt-resp { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--card); }
+.mt-resp summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--text); }
+.mt-resp summary small { color: var(--muted); font-weight: 600; margin-left: 4px; }
+.mt-resp dl { margin-top: 6px; }
+.mt-resp dt { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 8px; }
+.mt-resp dd { font-size: 14px; color: var(--text); margin: 2px 0 0; white-space: pre-wrap; }
+.mt-barra { position: relative; display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: var(--card-2); font-size: 13px; color: var(--text); overflow: hidden; }
+.mt-barra span, .mt-barra b { position: relative; z-index: 1; }
+.mt-barra i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.mt-cit { margin: 8px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); font-size: 13.5px; color: var(--text); white-space: pre-wrap; }
+.mt-cit cite { display: block; font-style: normal; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.mt-notas { margin-top: 4px; width: 100%; }
+.mt-apagar { margin-top: 12px; background: none; border: none; color: var(--red); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 4px 0; }
+.mt-add { margin-top: 12px; width: 100%; }
+.mt-aluna { background: var(--card); border: 1px solid var(--border); border-left: 4px solid #16a34a; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.mt-aluna-top { display: flex; align-items: center; gap: 8px; }
+.mt-aluna-top b { flex: 1; color: var(--text); }
+.mt-zap-mini { text-decoration: none; font-size: 18px; }
+.mt-presenca { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-aula { border: 1px solid var(--border); background: var(--card); color: var(--muted); border-radius: 999px; padding: 5px 10px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.mt-aula.on { color: #16a34a; border-color: #16a34a; background: color-mix(in srgb, #16a34a 12%, var(--card)); }
+.mt-copia { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--card); }
+.mt-copia-rot { font-weight: 800; font-size: 14px; color: var(--text); }
+.mt-copia pre { white-space: pre-wrap; font-family: inherit; font-size: 13.5px; color: var(--text); margin: 6px 0 8px; line-height: 1.45; }
+.mt-copia .btn-secondary { width: auto; padding: 7px 14px; }
+.mt-link { font-size: 13px; font-weight: 700; color: var(--accent-2); word-break: break-all; }
+.mt-link-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-rot2 { display: block; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin: 12px 0 6px; }
+.mt-link-mini { background: none; border: none; padding: 0 0 0 6px; color: var(--accent-2); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.mt-link-btns .btn-secondary { flex: none; width: auto; padding: 7px 12px; text-decoration: none; }
+
+/* ── Financeiro → Profissional: receita do mês por fonte de renda (25/11/2026) ── */
+.finp-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 12px; }
+.finp-mes { font-weight: 700; }
+.finp-seta { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.finp-seta:disabled { opacity: .35; cursor: default; }
+.finp-total { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+.finp-total small { display: block; color: var(--muted); font-size: 12.5px; }
+.finp-total b { display: block; font-size: 1.7rem; margin-top: 2px; }
+.finp-barra { display: flex; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 10px; background: var(--border); }
+.finp-barra i { display: block; height: 100%; }
+.finp-fonte { background: var(--card); border: 1px solid color-mix(in srgb, var(--fonte-cor) 40%, transparent); border-left: 4px solid var(--fonte-cor); border-radius: 14px; margin-bottom: 10px; overflow: hidden; }
+.finp-fonte-tit { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 12px 12px 14px; background: none; border: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.finp-fonte-ic { font-size: 1.4rem; flex: none; }
+.finp-fonte-tx { flex: 1; min-width: 0; }
+.finp-fonte-tx b { display: block; }
+.finp-fonte-tx small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.finp-fonte-val { flex: none; text-align: right; font-weight: 700; }
+.finp-fonte-val small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.finp-fonte-seta { flex: none; color: var(--muted); }
+.finp-itens { border-top: 1px solid var(--border); padding: 4px 14px 8px; }
+.finp-item { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.finp-item:last-child { border-bottom: none; }
+.finp-item small { display: block; color: var(--muted); font-size: 12px; }
+.finp-item-v { text-align: right; flex: none; font-weight: 600; }
+.finp-obs { color: var(--muted); font-size: 12px; text-align: center; margin: 14px 8px 4px; }
+
+/* (26/11) Mentoria: botão da planilha de respostas */
+.mt-planilha { width: 100%; margin: 4px 0 10px; }
+
+/* ── Câmera guiada: rosto estilo banco digital + nível de inclinação (26/11/2026) ── */
+/* Fora do oval do rosto fica escuro e desfocado; o recorte é o mesmo oval do .fg-molde.oval
+   (22% dos lados, 14% em cima, 22% embaixo → elipse 28% × 32% centrada em 50% 46%) */
+.fg-mascara { position: absolute; inset: 0; pointer-events: none; background: rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  -webkit-mask: radial-gradient(ellipse 28% 32% at 50% 46%, transparent 98%, #000 100%);
+  mask: radial-gradient(ellipse 28% 32% at 50% 46%, transparent 98%, #000 100%); }
+/* Nível: barra na lateral com tracejados; a linha anda conforme --off (-1 a 1) */
+.fg-nivel { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 34px; height: 46%; border-radius: 17px; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.25); pointer-events: none; }
+.fg-nivel-trilho { position: absolute; inset: 10px 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; }
+.fg-nivel-trilho i { display: block; width: 50%; border-top: 2px dashed rgba(255,255,255,.5); }
+.fg-nivel-trilho i:nth-child(5) { width: 80%; border-top-color: rgba(255,255,255,.9); }
+.fg-nivel-linha { position: absolute; left: 3px; right: 3px; height: 4px; margin-top: -2px; border-radius: 2px; background: #ef4444; top: 50%; will-change: transform; transition: background-color .15s; }
+.fg-nivel.ok .fg-nivel-linha { background: #10b981; }
+.fg-nivel-grau { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.fg-nivel.ok .fg-nivel-grau { color: #10b981; }
+.fg-nivel-ativar { position: absolute; right: 8px; bottom: 12px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.55); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.ag-cli-excluir { color: var(--danger, #e5484d); }
+
+/* Horizonte (esquerda/direita): linha embaixo do oval que gira com o horizonte real; marcas fixas nas pontas (26/11) */
+.fg-horiz { position: absolute; left: 50%; top: 88%; width: 62%; height: 0; transform: translateX(-50%); pointer-events: none; }
+.fg-horiz-ref { position: absolute; top: -1px; width: 14%; border-top: 2px dashed rgba(255,255,255,.7); }
+.fg-horiz-ref.esq { left: -16%; } .fg-horiz-ref.dir { right: -16%; }
+.fg-horiz-linha { position: absolute; left: 0; right: 0; top: -1.5px; height: 3px; border-radius: 2px; background: #ef4444; will-change: transform; transition: background-color .15s; }
+.fg-horiz.ok .fg-horiz-linha { background: #10b981; }
+.fg-horiz.ok .fg-horiz-ref { border-top-color: #10b981; }
+
+/* Faixa verde fixa no meio da barra do nível: mostra onde mirar (±3° de ±30°) */
+.fg-nivel-faixa { position: absolute; left: 4px; right: 4px; top: 50%; height: 9%; transform: translateY(-50%); border-radius: 4px; background: rgba(16,185,129,.28); border: 1px solid rgba(16,185,129,.6); }

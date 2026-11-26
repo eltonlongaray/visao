@@ -11,6 +11,7 @@
 import { getVendas, salvarVenda, excluirVenda, getFinCfg, salvarFinCfg, getCampanhas, salvarCampanha, pacotesDoCliente, somar, porMes, digitos } from './financeiro.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { supabase } from './config-supabase.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _vendas = [], _fin = { custos: {}, produtos: [] }, _camps = [], _erroSql = false;
@@ -279,6 +280,72 @@ export async function abrirFinanceiro({ clientes = [], servicos = [] } = {}) {
 
 // === BLOCO 6: 📣 CAMPANHAS (de onde veio a cliente → quanto voltou) ===
 // A origem vem da triagem (utm_source/utm_campaign do link do anúncio).
+// (26/11) Funil da triagem: quantas pessoas chegaram em cada tela (sql/triagem-funil.sql)
+const _ORIG_NOME = { google: 'Google', instagram: 'Instagram', whatsapp: 'WhatsApp', direto: 'Link direto' };
+// (26/11) Planilha (.xlsx) da TRIAGEM: 1 linha por triagem, 1 coluna por pergunta (vale pra toda profissional)
+async function _planilhaTriagem(clientes, botao) {
+  const txt0 = botao.textContent; botao.disabled = true; botao.textContent = 'Montando a planilha…';
+  try {
+    if (!window.XLSX) await new Promise((ok, erro) => { const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = () => erro(new Error('Sem internet pra montar a planilha')); document.head.appendChild(s); });
+    const X = window.XLSX;
+    const ts = clientes.flatMap(c => (c.triagens || []).map(t => ({ c, t })))
+      .sort((a, b) => String(a.t.created_at).localeCompare(String(b.t.created_at)));
+    const perguntas = [...new Set(ts.flatMap(({ t }) => Object.keys(t.respostas?.respostas || {})))];
+    const val = v => Array.isArray(v) ? v.join(' · ') : (v ?? '');
+    const dt = s => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const linhas = [['Respondeu em', 'Nome', 'WhatsApp', 'Veio de', 'Indicação', 'Quer agendar', 'Também interessa', 'Agendou?', ...perguntas],
+      ...ts.map(({ c, t }) => { const r = t.respostas || {};
+        return [dt(t.respondida_em || t.created_at), t.cliente_nome || c.nome || '', t.cliente_contato || c.contato || '',
+          r.origem?.source || 'direto', r.indicacao || '', val(r.plano), val(r.interesses),
+          (c.ags || []).some(a => a.created_at >= t.created_at) ? 'Sim' : 'Não',
+          ...perguntas.map(k => val(r.respostas?.[k]))]; })];
+    const ws = X.utils.aoa_to_sheet(linhas);
+    ws['!cols'] = linhas[0].map((t, i) => ({ wch: i < 4 ? 18 : Math.min(50, Math.max(16, String(t).length + 4)) }));
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'Triagem');
+    const blob = new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const nome = `triagem-respostas-${new Date().toLocaleDateString('pt-BR').split('/').join('-')}.xlsx`;
+    const file = new File([blob], nome, { type: blob.type });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: nome }); } catch {} }
+    else { const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
+  finally { botao.disabled = false; botao.textContent = txt0; }
+}
+const _FORM_NOME = { triagem: 'Triagem', selecao: 'Seleção (alunas)', pesquisa: 'Pesquisa (colegas)' };
+async function _funilTriagem(box, dias = 7, origem = '', form = '') {
+  if (!box) return;
+  const de = new Date(); de.setDate(de.getDate() - (dias - 1));
+  const iso = `${de.getFullYear()}-${String(de.getMonth() + 1).padStart(2, '0')}-${String(de.getDate()).padStart(2, '0')}`;
+  let rows = [];
+  try { const { data, error } = await supabase.rpc('triagem_funil', { p_de: iso }); if (error) throw error; rows = data || []; }
+  catch { box.innerHTML = '<div class="camp-t">🔎 Onde as pessoas param na triagem</div><div class="fin-sub">Ainda não disponível.</div>'; return; }
+  rows.forEach(r => { r.form = r.form || 'triagem'; });
+  const forms = [...new Set(rows.map(r => r.form))];
+  if (!form || !forms.includes(form)) form = forms.includes('triagem') ? 'triagem' : (forms[0] || 'triagem');
+  rows = rows.filter(r => r.form === form);
+  const origens = [...new Set(rows.map(r => r.origem))];
+  const filtro = rows.filter(r => !origem || r.origem === origem);
+  const porPasso = new Map();
+  for (const r of filtro) { const x = porPasso.get(r.passo) || { ordem: r.ordem, passo: r.passo, n: 0 }; x.n += Number(r.pessoas) || 0; x.ordem = Math.min(x.ordem, r.ordem); porPasso.set(r.passo, x); }
+  const passos = [...porPasso.values()].sort((a, b) => a.ordem - b.ordem);
+  const topo = passos[0]?.n || 0;
+  const chip = (v, txt, on) => `<button type="button" class="camp-fchip${on ? ' sel' : ''}" ${v}>${txt}</button>`;
+  box.innerHTML = `<div class="camp-t">🔎 Onde as pessoas param ${forms.length > 1 ? 'nos formulários' : 'na triagem'}</div>
+    ${forms.length > 1 ? `<div class="camp-fchips">${forms.map(f => chip(`data-form="${_esc(f)}"`, _esc(_FORM_NOME[f] || f), form === f)).join('')}</div>` : ''}
+    <div class="camp-fchips">${chip('data-dias="7"', '7 dias', dias === 7)}${chip('data-dias="30"', '30 dias', dias === 30)}
+      <span class="camp-fsep"></span>${chip('data-orig=""', 'Todas', !origem)}${origens.map(o => chip(`data-orig="${_esc(o)}"`, _esc(_ORIG_NOME[o] || o), origem === o)).join('')}</div>
+    ${passos.length ? `<div class="camp-flista">${passos.map((p, i) => {
+      const ant = i ? passos[i - 1].n : p.n, perdeu = Math.max(0, ant - p.n);
+      return `<div class="camp-fl"><div class="camp-fl-t"><span>${_esc(p.passo)}</span><b>${p.n}</b></div>
+        <div class="camp-fl-barra"><i style="width:${topo ? Math.round(p.n / topo * 100) : 0}%"></i></div>
+        ${perdeu ? `<small class="camp-fl-perda">−${perdeu} pararam aqui</small>` : ''}</div>`; }).join('')}</div>
+      <div class="fin-sub">Conta pessoas (sem nome), uma vez por tela. Começou a contar em 26/11.</div>`
+    : '<div class="fin-sub">Ninguém abriu a triagem nesse período ainda.</div>'}`;
+  box.querySelectorAll('[data-dias]').forEach(b => b.onclick = () => _funilTriagem(box, Number(b.dataset.dias), origem, form));
+  box.querySelectorAll('[data-orig]').forEach(b => b.onclick = () => _funilTriagem(box, dias, b.dataset.orig, form));
+  box.querySelectorAll('[data-form]').forEach(b => b.onclick = () => _funilTriagem(box, dias, '', b.dataset.form));
+}
+
 export async function abrirCampanhas({ clientes = [] } = {}) {
   await carregarFinanceiro().catch(() => {});
   const grupos = new Map();
@@ -320,12 +387,16 @@ export async function abrirCampanhas({ clientes = [] } = {}) {
       ${l.g.codigo !== 'direto' ? `<div class="camp-inv"><input class="camp-inv-in" data-camp="${_esc(l.g.codigo)}" data-origem="${_esc(l.g.origem)}" inputmode="decimal" placeholder="Quanto investiu (R$)" value="${l.inv ? _numTxt(l.inv) : ''}">
         <button class="btn-secondary camp-inv-ok" data-camp="${_esc(l.g.codigo)}" type="button">Salvar</button></div>` : ''}
     </div>`).join('') : '<div class="fin-vazio">Quando alguém fizer a triagem pelo link de um anúncio, a campanha aparece aqui.</div>'}
+    ${clientes.some(c => (c.triagens || []).length) ? '<button class="btn-secondary mt-planilha" id="camp-planilha" type="button">📗 Compartilhar planilha com as respostas da triagem</button>' : ''}
+    <div class="camp-card" id="camp-tri-funil"><div class="camp-t">🔎 Onde as pessoas param na triagem</div><div class="fin-sub">Carregando…</div></div>
     <div class="ag-fbtns"><button class="btn-primary" id="camp-ok" type="button">Fechar</button></div>
   </div></div>`;
   document.body.appendChild(ov);
   const close = trapModalBack(() => ov.remove());
   ov.addEventListener('click', e => { if (e.target === ov) close(); });
   ov.querySelector('#camp-ok').onclick = () => close();
+  _funilTriagem(ov.querySelector('#camp-tri-funil'));
+  ov.querySelector('#camp-planilha')?.addEventListener('click', e => _planilhaTriagem(clientes, e.currentTarget));
   ov.querySelectorAll('.camp-inv-ok').forEach(b => b.onclick = async () => {
     const inp = ov.querySelector(`.camp-inv-in[data-camp="${CSS.escape(b.dataset.camp)}"]`);
     b.disabled = true;

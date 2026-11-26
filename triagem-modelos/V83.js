@@ -18,6 +18,7 @@ window.TRIAGEM = {
   // Preço de Black: o da agenda vale até o prazo; depois sobe pro "depois"
   precos: {
     prazo: "30/11",
+    semDepois: true,   // (25/11) só "Preço da Black: R$ X" — o preço de depois confundia ("só posso agendar até 30/11?")
     // preço de Black (até o prazo) — se não tiver aqui, vale o preço da agenda
     black: { "Esculpe Detox": 597, "Deusa Grega": 197 },
     depois: { "Sessão para celulite": 145, "Esculpe Detox": 747, "Deusa Grega": 227, "Pacote Deusa Grega": 997, "Liberação miofascial": 185,
@@ -25,6 +26,12 @@ window.TRIAGEM = {
       "Pacote Sessão para celulite": 649, "Pacote Drenagem linfática": 559, "Pacote Tratamento para manchas": 699,
       "Pacote Sessão de LED": 559, "Pacote Massagem desportiva": 599, "Pacote Limpeza de pele": 569 }
   },
+
+  // (25/11) caixa em destaque acima do "Escolher meu horário" (só durante a Black)
+  avisoAgendar: [
+    "📅 Pode agendar agora pra dezembro: o preço da Black vale pra quem marca até 30/11, mesmo que a sessão seja depois.",
+    "💳 Tu não paga nada agora. Paga só no dia, depois do atendimento.",
+  ],
 
   // "Serviços que também me interessam": o que oferecer pra cada incômodo (nomes da agenda)
   interessesPor: {
@@ -40,10 +47,12 @@ window.TRIAGEM = {
     "Quero só relaxar": ["Massagem relaxante"]
   },
 
-  // Google Ads (conta 845-725-3405). conversão "Triagem enviada" criada 14/11
+  // Google Ads (conta Espaço Viver 845-725-3405, tag AW-18575065829).
+  // (25/11) o AW-11325048329 antigo NÃO era desta conta → 0 conversões. Agora a conversão
+  // "Enviar formulário de lead" conta quando a cliente manda nome e WhatsApp na triagem.
   googleTag: "GTM-N48CWL3C",
-  googleAds: "AW-11325048329",
-  conversao: "AW-11325048329/H9K_CKHYvbgdEImMmpgq", // "Triagem enviada" (clique em Agendar)
+  googleAds: "AW-18575065829",
+  conversao: "AW-18575065829/W_elCMTFtbgdEOWFpJlF", // "Enviar formulário de lead" (triagem enviada)
 
   // Depoimentos reais de clientes (WhatsApp, 19/11/2026). "chaves": palavras que ligam
   // o depoimento ao que a pessoa respondeu/à indicação. "destaque": aparece na abertura.
@@ -213,7 +222,7 @@ window.TRIAGEM = {
   descricoes: {
     "Deusa Grega": "1h15 pra celulite e estrias, com óleos e cremes naturais: modela, reduz medida e deixa a pele lisinha. Pode ser uma sessão avulsa ou o tratamento, com medidas e acompanhamento da tua evolução.",
     "Esculpe Detox": "5 sessões de 45 min, com avaliação inicial (já com massagem), acompanhamento e avaliação final: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada.",
-    "Sessão para celulite": "45 min focados na celulite. Bom pra começar e sentir o resultado.",
+    "Sessão para celulite": "45 min focados na celulite, com blends de óleos essenciais e cremes naturais. Bom pra começar e sentir o resultado.",
     "Drenagem linfática": "45 min pra tirar o inchaço e a retenção de líquido.",
     "Limpeza de pele": "Limpeza profunda pra tratar a acne, os cravos e a oleosidade."
   },
