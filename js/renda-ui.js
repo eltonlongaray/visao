@@ -33,6 +33,14 @@ export async function abrirFontesRenda(paiId = null) {
   _redesenhos.add(pintar);
   try { if (!paiId || !_fontes.length) await _recarregar(); }
   catch (e) {
+    // Sem o SQL ainda: mostra a Mentoria, como era antes, pra ninguém perder o acesso
+    if (!paiId && /Falta rodar o SQL/.test(e.message)) {
+      _fontes = [{ id: '__mentoria', nome: 'Mentoria', icone: '🎓', tipo: 'mentoria', pai_id: null, ordem: 0 }];
+      pintar(); ov.querySelectorAll('[data-editar], [data-novo]').forEach(x => x.remove());
+      _fontes = [];
+      ov.querySelector('[data-abrir]')?.addEventListener('click', async () => (await import('./mentoria-ui.js')).abrirMentoria());
+      return fechar;
+    }
     ov.querySelector('.ag-corpo').innerHTML = `<div class="ag-header"><button class="fr-voltar" data-voltar type="button" aria-label="Voltar">${SVG_VOLTAR}</button><div class="ag-title">💸 Fontes de renda</div></div>
       <div class="ag-erro">Não deu pra carregar.<br><small>${_esc(e.message)}</small></div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
