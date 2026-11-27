@@ -64,7 +64,7 @@ export function carregarModelo(slug) {
 // === BLOCO 4: PERMUTA (Élton, 27/11) ===
 // Aluna que paga a mentoria em serviço (ex.: uma massagem por semana). Cada massagem = um pagamento.
 // O atraso é automático: semanas desde o início × por semana − feitas. Duas na mesma semana quitam uma atrasada.
-// mentoria_leads.permuta (jsonb): { total, unit, servico, inicio: 'AAAA-MM-DD', porSemana, anteriores, itens: [{ d: 'AAAA-MM-DD', t: 'feita' }] }
+// mentoria_leads.permuta (jsonb): { total, unit, servico, inicio: 'AAAA-MM-DD', porSemana, anteriores, itens: [{ d: 'AAAA-MM-DD', t: 'feita', em: ISO de quando foi registrada }] }
 // SQL: sql/mentoria-permuta.sql
 export function resumoPermuta(p, hoje = new Date()) {
   if (!p || !(Number(p.total) > 0) || !(Number(p.unit) > 0)) return null;

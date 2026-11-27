@@ -285,27 +285,43 @@ function _alunas(alunas) {
 const _hoje = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
 const _plural = (w, n) => n === 1 ? w : /m$/.test(w) ? w.slice(0, -1) + 'ns' : /[rsz]$/.test(w) ? w + 'es' : w + 's';
 const _dBR = d => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? `${m[3]}/${m[2]}` : ''; };
+// Cada massagem tem número e quando foi registrada (27/11: Élton quer o registro com data)
+const _numeradas = p => {
+  const base = Number(p?.anteriores) || 0;
+  return (p?.itens || []).filter(i => i.t === 'feita' || i.t === 'repos')
+    .slice().sort((a, b) => (a.d + (a.em || '')) < (b.d + (b.em || '')) ? -1 : 1)
+    .map((i, k) => ({ ...i, n: base + k + 1 }));
+};
+const _quando = i => {
+  if (!i.em) return _dBR(i.d);
+  const t = new Date(i.em), z = n => String(n).padStart(2, '0');
+  return `${z(t.getDate())}/${z(t.getMonth() + 1)}/${t.getFullYear()} às ${z(t.getHours())}h${z(t.getMinutes())}`;
+};
+
 function _permutaHtml(l) {
   const r = resumoPermuta(l.permuta);
   if (!r) return '';
-  const itens = (l.permuta.itens || []).filter(i => i.t === 'feita' || i.t === 'repos').slice().sort((a, b) => (a.d < b.d ? 1 : -1));
-  const serv = _esc(r.servico.toLowerCase());
-  const hojeN = itens.filter(i => i.d === _hoje()).length;
+  const itens = _numeradas(l.permuta).reverse();
+  const serv = _esc(r.servico.toLowerCase()), Serv = _esc(r.servico);
+  const ult = itens[0];
   const situacao = r.quitada ? '✅ Quitada' : r.esperadas == null ? '' : r.atrasadas ? `<b class="mt-perm-atraso">⚠️ ${r.atrasadas} atrasada${r.atrasadas === 1 ? '' : 's'}</b>` : r.adiantadas ? `✓ Em dia (${r.adiantadas} adiantada${r.adiantadas === 1 ? '' : 's'})` : '✓ Em dia';
   return `<div class="mt-perm">
-    <div class="mt-perm-top"><span>🔁 Permuta · ${_esc(r.servico)} a ${_brl(r.unit)}</span><button class="mt-link-mini" data-perm-ed type="button">Editar</button></div>
+    <div class="mt-perm-top"><span>🔁 Permuta · ${Serv} a ${_brl(r.unit)}</span><button class="mt-link-mini" data-perm-ed type="button">Editar</button></div>
     <div class="mt-perm-barra"><i style="width:${r.pct}%"></i></div>
     <div class="mt-perm-num"><b>${r.feitas} de ${r.precisa} ${_plural(serv, 2)}</b><span>${_brl(r.pago)} de ${_brl(r.total)}</span></div>
     <div class="mt-perm-sub">${situacao}${r.quitada ? '' : `${situacao ? ' · ' : ''}faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}</div>
-    ${r.quitada ? '' : `<div class="mt-perm-acoes"><button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button>${hojeN ? `<span class="mt-perm-sub">Hoje: ${hojeN}</span>` : ''}</div>`}
-    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map((i, k) => `
-      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>✓ ${serv}</span><button class="mt-perm-x" data-perm-x="${i.d}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
+    ${r.quitada ? '' : `<button class="mt-perm-check" data-perm="feita" type="button"><span class="mt-perm-ck">✓</span><span>${Serv} nº ${r.feitas + 1}<small>Toca quando ela fizer</small></span></button>`}
+    ${ult ? `<div class="mt-perm-ult">Última: <b>nº ${ult.n}</b> em ${_quando(ult)}</div>` : ''}
+    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map(i => `
+      <div class="mt-perm-item"><span>nº ${i.n}</span><span>✓ ${_quando(i)}</span><button class="mt-perm-x" data-perm-x="${i.d}" data-em="${_esc(i.em || '')}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
   </div>`;
 }
 
 async function _marcarPermuta(l, t = 'feita', dia = _hoje()) {
-  const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || []), { d: dia, t: 'feita' }] };
-  await _salvarPermuta(l, p, `${p.servico || 'Massagem'} marcada ✓`);
+  const n = (resumoPermuta(l.permuta)?.feitas || 0) + 1, em = new Date().toISOString();
+  const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || []), { d: dia, t: 'feita', em }] };
+  const hh = new Date(em), z = x => String(x).padStart(2, '0');
+  await _salvarPermuta(l, p, `✅ ${p.servico || 'Massagem'} nº ${n} confirmada (${z(hh.getDate())}/${z(hh.getMonth() + 1)} às ${z(hh.getHours())}h${z(hh.getMinutes())})`);
 }
 async function _salvarPermuta(l, p, msg) {
   try { await salvarLead(l.id, { permuta: p }); l.permuta = p; desenhar(); if (msg) showToast(msg, 'success'); }
@@ -515,8 +531,8 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
-    const l = _alunaDe(b), d = b.dataset.permX, itens = [...(l.permuta.itens || [])];
-    const k = itens.findIndex(i => i.d === d && (i.t === 'feita' || i.t === 'repos'));
+    const l = _alunaDe(b), d = b.dataset.permX, em = b.dataset.em || '', itens = [...(l.permuta.itens || [])];
+    const k = itens.findIndex(i => i.d === d && (i.em || '') === em && (i.t === 'feita' || i.t === 'repos'));
     if (k >= 0) itens.splice(k, 1);
     _salvarPermuta(l, { ...l.permuta, itens }, 'Tirado do histórico');
   });

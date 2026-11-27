@@ -7303,7 +7303,7 @@ async function tentarPermuta(text) {
   if (p.acao === 'falta') return `Não precisa marcar falta: cada ${serv} é um pagamento e o atraso eu conto sozinho pelas semanas. ${linha(r)}`;
   const d = new Date(); if (p.dia === 'ontem') d.setDate(d.getDate() - 1);
   const z = n => String(n).padStart(2, '0'), dia = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-  const novo = { ...l.permuta, itens: [...(l.permuta.itens || []), { d: dia, t: 'feita' }] };
+  const novo = { ...l.permuta, itens: [...(l.permuta.itens || []), { d: dia, t: 'feita', em: new Date().toISOString() }] };
   const ja = (l.permuta.itens || []).filter(i => i.d === dia).length;
   cardConfirmarLista(`🔁 Marcar ${ja ? 'mais uma' : 'a'} ${serv} de <b>${nome}</b> ${p.dia} (${_brlPerm(r.unit)}) na permuta?${r.atrasadas ? `<br><small>Ela tem ${r.atrasadas} atrasada${r.atrasadas === 1 ? '' : 's'}: essa quita uma.</small>` : ''}`, async () => {
     await M.salvarLead(l.id, { permuta: novo });
