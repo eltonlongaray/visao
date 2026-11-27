@@ -3,7 +3,7 @@
 // o andamento da entrega dos dois lados, sem se sentir em desvantagem.
 //   BLOCO 1: a jornada padrão (Mentoria Comunicação Holística, 6 meses, 15 fases)
 //   BLOCO 2: conta (fase atual, R$ entregue por pilar, presentes)
-//   BLOCO 3: tela do relatório (Salvar PDF · Mandar resumo no WhatsApp · Ajustar)
+//   BLOCO 3: tela do relatório (Baixar PDF · Enviar o PDF pelo compartilhar do celular · Ajustar)
 //   BLOCO 4: ajustar (fase atual e presentes com valor)
 // Dados: mentoria_leads.jornada (jsonb) — { atual, presentes: [{ nome, valor, nota, grupo }] }.
 // Sem nada salvo, usa a jornada padrão e a fase vem pela data. SQL: sql/mentoria-jornada.sql
@@ -12,6 +12,7 @@
 import { resumoPermuta, salvarLead } from './mentoria.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { folhaParaPdf, enviarPdf, baixarPdf, nomePdf } from './folha-pdf.js';
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _plural = w => /m$/.test(w) ? w.slice(0, -1) + 'ns' : /[rsz]$/.test(w) ? w + 'es' : w + 's';
@@ -182,14 +183,30 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         <footer class="rel-rodape">Feito com 💛 no Falcon</footer>
       </article>
       <div class="mt-rel-compartilhar no-print">
-        <button class="mt-rel-zap" data-zap type="button">📤 Compartilhar no WhatsApp</button>
-        <small>Abre o WhatsApp pra tu escolher o grupo ou a conversa</small>
+        <button class="mt-rel-zap" data-zap type="button">📤 Enviar o PDF no WhatsApp</button>
+        <small>Escolhe o WhatsApp e qualquer contato ou grupo</small>
       </div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
-    ov.querySelector('[data-pdf]').onclick = () => window.print();
-    ov.querySelector('[data-zap]').onclick = () => {
-      // Sem número fixo: o Élton escolhe o grupo do projeto ou a conversa (27/11)
-      window.open(`https://wa.me/?text=${encodeURIComponent(textoResumo(l))}`, '_blank', 'noopener');
+    // PDF de verdade (27/11: o Élton quer mandar o ARQUIVO, não o resumo, pra qualquer contato/grupo).
+    // Já monta ao abrir, pra o toque no botão abrir o compartilhar na hora.
+    const arqNome = nomePdf('relatorio-mentoria', l.nome);
+    let pdf = null;
+    const montando = new Promise(ok => setTimeout(ok, 150)).then(() => folhaParaPdf(ov.querySelector('.mt-rel-folha'))).then(b => (pdf = b));
+    montando.catch(() => {});
+    const bZap = ov.querySelector('[data-zap]');
+    const rotulo = bZap.textContent;
+    ov.querySelector('[data-pdf]').onclick = async () => {
+      try { baixarPdf(pdf || await montando, arqNome); } catch (e) { showToast(e.message || 'Não consegui montar o PDF', 'error'); }
+    };
+    bZap.onclick = async () => {
+      if (!pdf) {
+        bZap.disabled = true; bZap.textContent = '⏳ Preparando o PDF…';
+        try { await montando; } catch (e) { bZap.disabled = false; bZap.textContent = rotulo; return showToast(e.message || 'Não consegui montar o PDF', 'error'); }
+        bZap.disabled = false;
+      }
+      const r = await enviarPdf(pdf, arqNome);
+      bZap.textContent = r === 'sem-gesto' ? '📤 PDF pronto! Toca pra enviar' : rotulo;
+      if (r === 'baixado') showToast('PDF salvo no celular. Agora é só anexar no WhatsApp.', 'success');
     };
     ov.querySelector('[data-ajustar]').onclick = () => _modalAjustar(l, async jornada => {
       try { await salvarLead(l.id, { jornada }); l.jornada = jornada; desenhar(); aoSalvar?.(); showToast('Relatório ajustado ✓', 'success'); }
