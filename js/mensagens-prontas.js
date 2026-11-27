@@ -62,23 +62,27 @@ function _oferecidos(slug) {
 function marcarOferecidos(slug, cli, hs) {
   try {
     const a = _oferecidos(slug).filter(x => x.cli !== cli);
-    for (const h of hs) a.push({ k: h.k, cli, ate: Date.now() + 2 * 86400000 });
+    for (const h of hs) a.push({ k: h.k, dur: h.dur || 60, cli, ate: Date.now() + 2 * 86400000 });
     localStorage.setItem(_OFK(slug), JSON.stringify(a.slice(-80)));
   } catch {}
 }
-async function horariosLivres(cfg, cli, n = 2) {
+async function horariosLivres(cfg, cli, n = 2, durCli = 0) {
   const ini = new Date(); ini.setHours(0, 0, 0, 0); ini.setDate(ini.getDate() + 1);
   const fim = new Date(ini); fim.setDate(fim.getDate() + 30);
   let ocup = new Map();
   try { ocup = await getSlotsOcupados(cfg.slug, iso(ini), iso(fim)); } catch {}
-  const DUR = cfg.duracao_min || 60, INT = Number(cfg.intervalo_min) || 0, out = [];
-  const ofs = _oferecidos(cfg.slug), deOutra = k => ofs.some(x => x.k === k && x.cli !== cli);
+  const DUR = durCli || cfg.duracao_min || 60, INT = Number(cfg.intervalo_min) || 0, out = [];
+  // oferecido pra OUTRA cliente conta como ocupado (com a duração do serviço dela + intervalo), pra não encavalar
+  const toM = h => { const [a, b] = h.split(':').map(Number); return a * 60 + (b || 0); };
+  const ofs = _oferecidos(cfg.slug).filter(x => x.cli !== cli);
+  const deOutra = (isoD, h) => ofs.some(x => { const [d0, h0] = x.k.split(' '); if (d0 !== isoD) return false;
+    const a = toM(h0), b = toM(h); return b < a + (x.dur || 60) + INT && a < b + DUR + INT; });
   for (let d = new Date(ini); d <= fim && out.length < n; d.setDate(d.getDate() + 1)) {
     const livres = _horariosDoDia(cfg, d).filter(h => !estaOcupado(ocup, iso(d), h, DUR, INT));
     // prefere o 2º horário do dia (nem o primeiro nem o último) e pula o que já foi oferecido pra outra cliente
     const ordem = livres.length > 1 ? [livres[1], livres[0], ...livres.slice(2)] : livres;
-    const h = ordem.find(x => !deOutra(`${iso(d)} ${x}`));
-    if (h) out.push({ k: `${iso(d)} ${h}`, txt: `${SEM[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${h.replace(':', 'h')}` });
+    const h = ordem.find(x => !deOutra(iso(d), x));
+    if (h) out.push({ k: `${iso(d)} ${h}`, dur: DUR, txt: `${SEM[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${h.replace(':', 'h')}` });
   }
   return out;
 }
@@ -98,7 +102,8 @@ function dadosCliente(cfg, c) {
     nome: primeiro(c.nome),
     temTriagem: !!t,
     servico: nomeCurto(servNome),
-    sessoes: Number(serv?.sessoes) > 1 ? Number(serv.sessoes) : 0,   // pacote (ex.: Esculpe = 5 sessões)
+    sessoes: Number(serv?.sessoes) > 1 ? Number(serv.sessoes) : 0,
+    duracao: Number(serv?.duracaoMin) || 0,   // pra sugerir horário que caiba o serviço dela   // pacote (ex.: Esculpe = 5 sessões)
     preco: preco != null ? reais(preco) : '',
     queixa: queixa ? queixa + (regiao ? ` (${regiao})` : '') : '',
     querExperimentar: /experimentar/i.test(resp['Objetivo'] || ''),
@@ -188,7 +193,8 @@ export function wireMensagensPerfil(ov, cfg, c) {
     const abrir = box.hidden; box.hidden = !abrir; if (seta) seta.textContent = abrir ? '▴' : '▾';
     if (!abrir || ms) return;
     box.innerHTML = '<div class="ag-msg-obs">Montando as mensagens…</div>';
-    hsObj = await horariosLivres(cfg || {}, c.key);
+    const dc = dadosCliente(cfg, c);
+    hsObj = await horariosLivres(cfg || {}, c.key, 2, dc.duracao);
     ms = modelos(cfg, c, hsObj.map(h => h.txt));
     sel = ms[0]?.id || null;
     desenhar();
