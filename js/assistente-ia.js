@@ -7281,7 +7281,7 @@ async function tentarPermuta(text) {
     const alunas = leads.filter(l => l.pago_em || l.permuta);
     const a = alunas.find(x => { const n = PRD.norm(x.nome || '').split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
     if (!a) return undefined;
-    const R = await import('./mentoria-relatorio.js?v=1');
+    const R = await import('./mentoria-relatorio.js?v=2');
     R.abrirRelatorio(a);
     return `📄 Abri o relatório da <b>${_esc((a.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;
   }

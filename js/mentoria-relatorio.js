@@ -47,17 +47,16 @@ export const JORNADA_PADRAO = {
   ],
 };
 
-// Presentes: entregues sem custo pra ela, mas com o valor de cada um (Élton quer que ela saiba).
+// Bônus: entregues sem custo pra ela, mas com quanto custaria cada um (Élton quer que ela saiba).
 export const PRESENTES_PADRAO = [
   { grupo: 'Programação', nome: 'Agenda online no Falcon', valor: 2000, nota: 'tu pagava R$ 60 por mês em outra' },
-  { grupo: 'Programação', nome: 'Ficha e relatório de sessão', valor: 1500 },
+  { grupo: 'Programação', nome: 'Ficha de atendimento e acompanhamento', valor: 2000, nota: 'ficha que a cliente preenche (com mapa do corpo), registro de cada sessão (dor por região, medidas antes e depois, observações) e o histórico de cada cliente' },
   { grupo: 'Programação', nome: 'Pesquisa das colegas com sorteio', valor: 1500 },
-  { grupo: 'Programação', nome: 'Seleção com painel de inscritas e alunas no teu Falcon', valor: 3500 },
+  { grupo: 'Programação', nome: 'Seleção das alunas da tua mentoria', valor: 3500, nota: 'formulário de inscrição e um painel no teu Falcon pra ver quem se inscreveu, escolher as alunas e acompanhar cada uma' },
   { grupo: 'Programação', nome: 'Página de vendas da mentoria e painel de vendas', valor: 3500 },
   { grupo: 'Programação', nome: 'Página privada do workshop, com login', valor: 1500 },
-  { grupo: 'Campanha', nome: 'Sessão especial da Black Friday', valor: 600 },
-  { grupo: 'Campanha', nome: 'Campanha de Black Friday (estratégia e roteiro)', valor: 1500 },
-  { grupo: 'Conteúdo', nome: 'Carrosséis prontos (sorteio e Black Friday)', valor: 800 },
+  { grupo: 'Campanha de Black Friday', nome: 'Carrossel com funil de vendas integrado', valor: 1500, nota: 'leva a cliente a preencher a pesquisa (coleta de dados), com a criação do formulário' },
+  { grupo: 'Campanha de Black Friday', nome: 'Sessão especial da Black Friday na agenda', valor: 800, nota: 'formulário e ajustes do agendamento pra horários específicos' },
 ];
 
 // === BLOCO 2: CONTA ===
@@ -102,7 +101,7 @@ export function textoResumo(l, hoje = new Date()) {
     const p = r.permuta, serv = p.servico.toLowerCase();
     linhas.push(`🔁 *Tua entrega:* ${p.feitas} de ${p.precisa} ${_plural(serv)}, ${_brl(p.pago)} de ${_brl(p.total)}${p.quitada ? ' ✅' : p.atrasadas ? ` (${p.atrasadas} atrasada${p.atrasadas === 1 ? '' : 's'})` : ' (em dia)'}.`);
   }
-  linhas.push('', `🎁 *Presentes, sem custo pra ti:* ${_brl(r.presentesTotal)} em ${r.presentes.map(p => p.nome.toLowerCase()).slice(0, 3).join(', ')}${r.presentes.length > 3 ? ' e mais' : ''}.`);
+  linhas.push('', `🎁 *Bônus que tu ganhou (sem custo):* ${_brl(r.presentesTotal)} em ${r.presentes.map(p => p.nome.toLowerCase()).slice(0, 3).join(', ')}${r.presentes.length > 3 ? ' e mais' : ''}.`);
   return linhas.join('\n');
 }
 
@@ -168,11 +167,11 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         ${r.pilares.map(pilarHtml).join('')}
 
         <div class="rel-linha"></div>
-        <h3 class="rel-h">🎁 Presentes, sem custo pra ti</h3>
-        <p class="rel-p">Não cobro nada disso. Coloquei o valor de cada um só pra tu saber o que já foi entregue além da mentoria.</p>
+        <h3 class="rel-h">🎁 Bônus que tu ganhou</h3>
+        <p class="rel-p">Tudo isso é bônus, sem custo pra ti. Coloquei quanto custaria cada item só pra tu saber o que já foi entregue além da mentoria.</p>
         ${grupos.map(g => `<div class="rel-grupo">${_esc(g)}</div>${r.presentes.filter(x => (x.grupo || 'Outros') === g).map(x => `
           <div class="rel-pres"><div>${_esc(x.nome)}${x.nota ? `<small>${_esc(x.nota)}</small>` : ''}</div><span>${_brl(x.valor)}</span></div>`).join('')}`).join('')}
-        <div class="rel-pres rel-pres-tot"><div>Total em presentes</div><span>${_brl(r.presentesTotal)}</span></div>
+        <div class="rel-pres rel-pres-tot"><div>Quanto custaria tudo</div><span>${_brl(r.presentesTotal)}</span></div>
         <footer class="rel-rodape">Feito com 🤍 no Falcon</footer>
       </article>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
@@ -201,14 +200,15 @@ function _modalAjustar(l, salvar) {
   ov.style.zIndex = '9500'; // acima da folha do relatório
   const lista = () => pres.map((x, i) => `<div class="rel-ed-item" data-i="${i}">
       <input class="input-field" data-k="nome" value="${_esc(x.nome)}" placeholder="O que foi">
+      <input class="input-field" data-k="nota" value="${_esc(x.nota || '')}" placeholder="O que tem dentro (opcional)">
       <div class="obj-linha"><input class="input-field" data-k="valor" type="number" inputmode="numeric" min="0" value="${_esc(x.valor)}" placeholder="R$">
       <input class="input-field" data-k="grupo" value="${_esc(x.grupo || '')}" placeholder="Grupo"><button class="mt-perm-x" data-rm type="button" aria-label="Tirar">✕</button></div></div>`).join('');
   ov.innerHTML = `<div class="modal mt-perm-modal"><div class="modal-title">✏️ Ajustar relatório</div>
     <label class="mt-rot2" for="rl-f">Onde vocês estão</label>
     <select class="input-field" id="rl-f"><option value="auto"${auto ? ' selected' : ''}>Pela data (agora: fase ${faseDaData()})</option>
       ${opcoes.map(([n, t]) => `<option value="${n}"${!auto && j.atual === n ? ' selected' : ''}>${_esc(t)}</option>`).join('')}</select>
-    <div class="mt-rot2">🎁 Presentes e valores</div><div id="rl-pres">${lista()}</div>
-    <button class="mt-link-mini" data-add type="button">＋ Presente</button>
+    <div class="mt-rot2">🎁 Bônus e quanto custaria</div><div id="rl-pres">${lista()}</div>
+    <button class="mt-link-mini" data-add type="button">＋ Bônus</button>
     <div class="modal-actions"><button class="btn-secondary" data-x type="button">Cancelar</button><button class="btn-primary" data-ok type="button">Salvar</button></div></div>`;
   document.body.appendChild(ov);
   trapModalBack(() => ov.remove());
