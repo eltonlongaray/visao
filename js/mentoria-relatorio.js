@@ -12,7 +12,7 @@
 import { resumoPermuta, salvarLead } from './mentoria.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { folhaParaPdf, enviarPdf, baixarPdf, nomePdf } from './folha-pdf.js?v=2';
+import { folhaParaPdf, enviarPdf, baixarPdf, nomePdf } from './folha-pdf.js?v=3';
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _plural = w => /m$/.test(w) ? w.slice(0, -1) + 'ns' : /[rsz]$/.test(w) ? w + 'es' : w + 's';

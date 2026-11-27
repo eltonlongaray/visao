@@ -12,7 +12,7 @@ import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digi
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { abrirRelatorio } from './mentoria-relatorio.js?v=13';
+import { abrirRelatorio } from './mentoria-relatorio.js?v=14';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));

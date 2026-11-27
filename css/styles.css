@@ -9734,6 +9734,11 @@ textarea.mt-msg-txt:focus { outline: 2px solid #25d366; }
 }
 @media (min-width: 680px) { .mt-rel-folha { margin: 4px auto 32px; } }
 .rel-bonus-tit { font-weight: 700; font-size: 15px; margin: 18px 0 2px; color: #3b2f2a; }
+.rel-pdf .rel-tit { font-size: 30px; }
+.rel-pdf .rel-h { font-size: 23px; margin-top: 24px; }
+.rel-pdf .rel-pilar-top b { font-size: 17px; }
+.rel-pdf .rel-card-rot, .rel-pdf .rel-grupo { font-size: 14px; }
+.rel-pdf .rel-bonus-tit { font-size: 18px; }
 .rel-bonus-tit small { display: block; font-weight: 400; font-size: 12px; color: #a8968a; }
 /* Proposta e relatório do cliente (cliente-relatorio.js, 27/11) */
 .rd-prop { display: block; font-size: 12.5px; color: var(--accent); font-weight: 600; margin-top: 4px; }
