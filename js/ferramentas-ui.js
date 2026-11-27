@@ -444,7 +444,7 @@ export function ligarFerramentas() {
     if (!ov || _hist === 0) return;
     // Agenda/Rifa aberta POR CIMA do hub → deixa o modal dela tratar o back (ela fecha,
     // o hub reaparece). Sem isso, o back fechava o hub junto.
-    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov') || document.getElementById('ideal-ov') || document.getElementById('kanban-ov') || document.getElementById('financeiro-ov')) return;
+    if (document.getElementById('agenda-ov') || document.getElementById('rifas-ov') || document.getElementById('objetivos-ov') || document.getElementById('ideal-ov') || document.getElementById('kanban-ov') || document.getElementById('financeiro-ov') || document.querySelector('[id^="renda-"], #mentoria-ov')) return;
     // Nível que ficou no histórico. Igual ao nosso = só fechou uma janelinha
     // por cima (confirmar, nova categoria): a pessoa continua onde estava.
     const nivel = Number(history.state?.fr) || 0;

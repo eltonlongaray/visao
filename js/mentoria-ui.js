@@ -30,34 +30,9 @@ let _blocos = { inscritas: true }, _filtro = 'todas', _busca = '', _aberto = nul
 // ═══════════════════════════════════════════════════════════════
 // BLOCO 1: FONTES DE RENDA EXTRA (hub)
 // ═══════════════════════════════════════════════════════════════
+// Agora cada pessoa monta as suas (js/renda-ui.js). A 🎓 Mentoria vira um card de lá.
 export function abrirRendaExtra() {
-  const ov = document.createElement('div');
-  ov.className = 'modal-overlay'; ov.id = 'renda-ov';
-  ov.innerHTML = `<div class="modal ag-modal"><div class="ag-corpo">
-    <div class="ag-header">
-      <button class="fr-voltar" data-voltar type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
-      <div class="ag-title">💸 Fontes de renda extra</div>
-    </div>
-    <div class="ag-scroll">
-      <div class="rf-intro">O que você ganha além dos atendimentos: alunas, cursos e outras rendas.</div>
-      <div class="mt-hub">
-        <button class="fr-hubcard" data-mentoria type="button">
-          <span class="fr-hub-ic">🎓</span>
-          <span class="fr-hub-tx"><b>Mentoria</b><small>Inscritas, alunas e formulários</small></span>
-        </button>
-        <button class="fr-hubcard" data-embreve type="button">
-          <span class="fr-hub-ic">📚</span>
-          <span class="fr-hub-tx"><b>Cursos e outras rendas</b><small>Curso gravado, produtos e mais</small></span>
-          <span class="fr-hub-tag">EM BREVE</span>
-        </button>
-      </div>
-    </div></div></div>`;
-  document.body.appendChild(ov);
-  const fechar = trapModalBack(() => ov.remove());
-  ov.querySelector('[data-voltar]').onclick = () => history.back();
-  ov.querySelector('[data-mentoria]').onclick = () => abrirMentoria();
-  ov.querySelector('[data-embreve]').onclick = () => showToast('📚 Cursos e outras rendas está em desenvolvimento. Em breve! 🦅', 'info');
-  return fechar;
+  return import('./renda-ui.js').then(m => m.abrirFontesRenda());
 }
 
 // ═══════════════════════════════════════════════════════════════

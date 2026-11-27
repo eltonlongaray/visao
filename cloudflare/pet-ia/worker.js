@@ -18,7 +18,7 @@ const ORIGENS = ['https://estilo-falcon.web.app', 'https://estilo-falcon.firebas
 const MODELO = '@cf/meta/llama-3.1-8b-instruct-fast';   // suporta JSON travado por schema
 const MAX_TEXTO = 400;
 
-const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'kanban', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'atendimento', 'rifa', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
+const ACOES = ['agendar', 'cancelar', 'reativar', 'remarcar', 'converter', 'marcar_feito', 'desmarcar_feito', 'excluir', 'agua', 'sono', 'nota', 'consultar_dia', 'notas_periodo', 'configurar', 'desempenho', 'lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'kanban', 'renda', 'desafio', 'ajuda_lembrar', 'contas_pagar', 'atendimento', 'rifa', 'treino_frequencia', 'consultar', 'perguntar', 'nao_sei_fazer', 'responder_pergunta', 'conversa'];
 const CONSULTAS = ['proximo_compromisso', 'tarefas_hoje', 'sono', 'agua', 'sequencia', 'perfil_treino', 'cartao_dia'];
 const SCHEMA = {
   type: 'object',
@@ -50,6 +50,7 @@ const CAMPOS = {
   desafio: ['ver', 'ranking', 'entrar', 'codigo', 'sair', 'checkin', 'criar', 'regras', 'corrida_ajuda', 'print', 'prenda', 'mural', 'sugerir_prenda', 'proposta', 'nao_consegui', 'doente', 'convidar', 'grupo', 'relatorio', 'nova_rodada', 'alunos'],
   ideal: ['ver', 'marcar', 'desmarcar', 'atividade', 'constancia'],
   kanban: ['ver', 'criar', 'mover', 'apagar', 'tempo', 'abrir'],
+  renda: ['abrir', 'listar', 'criar', 'cliente', 'ver_clientes'],
   lista_organizar: ['limpar_feitos', 'renomear', 'apagar', 'criar_grupo', 'somar', 'prioridade_marcar', 'prioridade_tirar', 'prioridades_ver'],
   nota: ['orgulho', 'melhorar', 'apagar', 'preencher'],
   notas_periodo: ['falhas', 'melhorias', 'tudo'],
@@ -76,7 +77,7 @@ const USA = {
   hora: ['agendar', 'remarcar', 'converter', 'sono', 'configurar', 'reativar', 'cancelar', 'atendimento'],
   numero: ['agua', 'sono', 'desempenho', 'ideal', 'desafio', 'treino_frequencia', 'notas_periodo'],
   itens: ['lista_adicionar', 'lista_marcar', 'lista_organizar', 'ideal', 'kanban', 'desafio', 'contas_pagar', 'rifa'],
-  lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar', 'kanban'],
+  lista: ['lista_adicionar', 'lista_marcar', 'lista_organizar', 'kanban', 'renda'],
   para: ['remarcar', 'cancelar', 'reativar'],
 };
 // Correções de rota: o modelo pequeno às vezes erra a ação mesmo com a frase
@@ -175,6 +176,11 @@ function corrigirRota(out, texto) {
         if (m) out.texto = m[1].trim();
       }
     }
+  }
+  // "fonte(s) de renda" é sempre as Fontes de renda (Ferramentas)
+  if (/\bfontes? de renda\b/.test(t) && !/\bkanban\b/.test(t) && out.acao !== 'renda') {
+    out.acao = 'renda';
+    out.campo = /\b(cri|adicion|nov|mont)\w*/.test(t) ? 'criar' : /\b(quais|lista|quantas)\b/.test(t) ? 'listar' : 'abrir';
   }
   // "kanban" é sempre o Kanban (tarefas do dia em Ferramentas)
   if (/\bkanban\b/.test(t) && out.acao !== 'kanban') {
@@ -409,6 +415,7 @@ lista_adicionar = pôr itens numa lista. itens (um produto por posição; separa
 lista_marcar = comprou/riscou itens. itens.
 lista_organizar = mexer na lista em si. campo = "limpar_feitos" | "renomear" (texto = nome novo) | "apagar" | "criar_grupo" (texto = nome do grupo) | "somar" (somar o preço dos itens que faltam / quanto vai gastar) | "prioridade_marcar" / "prioridade_tirar" (itens = o item) | "prioridades_ver"; lista = a lista citada. As Prioridades têm duas listas: nas prioridades, lista = "atividade" (o que a pessoa vai fazer com o tempo) ou "comprar" (Realizar e Comprar); vazio se ela não disse.
 kanban = Kanban das tarefas do dia (Ferramentas). Modalidades = Trabalho, Faculdade, Casa, Pessoal (ou as que a pessoa criou); colunas = "a fazer", "fazendo", "feito". campo = "ver" (o que tem) | "criar" (pôr tarefa) | "mover" (passar pra outra coluna; "comecei X" = fazendo, "terminei X" = feito) | "apagar" | "tempo" (quanto tempo levou nas tarefas, na semana) | "abrir" (abrir a tela); itens = as tarefas (uma por posição); texto = a modalidade citada ("casa", "faculdade"); lista = a coluna citada. Só quando fala em kanban, tarefa do kanban ou coluna fazendo/a fazer.
+renda = Fontes de renda (Ferramentas): cards de cada negócio (ex.: "Altas Vendas", "Realeza Holística"), que podem ter outros cards dentro ("Mentoria", "Agência de marketing") e listas de clientes. campo = "abrir" | "listar" (quais são) | "criar" (card novo; texto = nome do card; lista = dentro de qual card, se disser) | "cliente" (cliente novo; texto = nome do cliente; lista = o card onde entra) | "ver_clientes" (lista = o card). Só quando fala em fonte de renda, card de renda ou cliente de um negócio.
 Nomes das telas: "Objetivos" = as listas (mercado etc.); "Metas" = metas de constância do desempenho (objetivo_*).
 ideal = "Organizando meu ideal" (6 áreas da vida). campo = "ver" | "marcar" | "desmarcar" | "atividade" (levar pro Home) | "constancia" (numero = vezes, quando = "semana" ou "mês"); itens = os itens citados (SEMPRE em itens, não em texto); texto = a área se disser.
 desafio = Desafios do app (só quando fala em desafio, código de convite, prenda, ou fumou/não fumou). campo = "ver" | "ranking" | "entrar" | "codigo" (texto = o código) | "sair" (só quando pede pra SAIR; texto = o motivo, como a pessoa falou: "tive um imprevisto", "vou viajar") | "doente" (ficou doente ou se machucou e não consegue cumprir hoje: grava um vídeo e o dia fica justificado, sem sair) | "checkin" (numero = quantidade, texto = unidade, itens = exercício feito, todas = true se bateu a meta) | "criar" (titulo = do quê, numero = dias, texto = "amigos" ou "sozinho", itens = exercícios) | "regras" | "corrida_ajuda" | "print" | "prenda" (pagar prenda ou saber se deve) | "mural" (ver o Mural das Prendas) | "sugerir_prenda" (texto = a prenda, como ela falou) | "proposta" (texto = "sim" ou "não") | "nao_consegui" (largar vício: fumou, recaída) | "convidar" (itens = nomes; todas = true se for por WhatsApp) | "grupo" (texto = mensagem pro grupo; sem texto = ler) | "relatorio" (como foi o desafio, resultado de cada um) | "nova_rodada" (outro desafio com o mesmo grupo; quando = "hoje", "amanhã" ou "segunda") | "alunos" (o mentor quer saber como os participantes estão no desafio: alunos, clientes, mentorados...). No "criar", texto = "mentor" quando a pessoa só vai acompanhar quem faz o desafio, sem participar. titulo = o desafio citado ("água", "leitura", "corrida").
@@ -536,6 +543,8 @@ Pessoa: bota estudar cálculo e entregar o trabalho de IA no kanban da faculdade
 {"acao":"kanban","campo":"criar","itens":["estudar cálculo","entregar o trabalho de IA"],"texto":"faculdade","resposta":"Ponho as duas tarefas no Kanban da Faculdade."}
 Pessoa: já comecei a fazer o relatório do kanban
 {"acao":"kanban","campo":"mover","itens":["relatório"],"lista":"fazendo","resposta":"Passo o relatório pra Fazendo."}
+Pessoa: coloca a Joana como cliente na agência de marketing
+{"acao":"renda","campo":"cliente","texto":"Joana","lista":"agência de marketing","resposta":"Coloco a Joana nos clientes da Agência de marketing."}
 Pessoa: no meu ideal marca ler e caminhar
 {"acao":"ideal","campo":"marcar","itens":["ler","caminhar"],"resposta":"Marco ler e caminhar no teu ideal."}
 Pessoa: quero acompanhar caminhar 4 vezes por semana
