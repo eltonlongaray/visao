@@ -197,7 +197,7 @@ function telaHub() {
     </div>`;
   const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
   const prio = _prioridades().filter(x => !x.item.feito).length;
-  // Método: organizar → clareza → decisão → ação (Élton, 21/10). Cada passo
+  // Método: organizar → clareza → decisão → execução → constância (Élton, 27/11). Cada passo
   // abre a tela dele; os cards seguem a mesma ordem.
   return `
     <div class="fr-cab">
@@ -214,11 +214,11 @@ function telaHub() {
           <i aria-hidden="true">›</i>
           <button type="button" data-hub-prioridades><b>3</b><span>Decisão</span></button>
           <i aria-hidden="true">›</i>
-          <button type="button" data-hub-objetivos><b>4</b><span>Constância</span></button>
+          <button type="button" data-hub-kanban><b>4</b><span>Execução</span></button>
           <i aria-hidden="true">›</i>
-          <button type="button" data-hub-kanban><b>5</b><span>Execução</span></button>
+          <button type="button" data-hub-objetivos><b>5</b><span>Constância</span></button>
         </div>
-        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro, mantenha a constância e execute.</div>
+        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que fazer e em que ordem, execute e acompanhe teu progresso.</div>
       </div>
       <button class="fr-hubcard" data-hub-clareza type="button">
         <span class="fr-hub-ic">🧭</span>
@@ -234,13 +234,13 @@ function telaHub() {
         <span class="fr-hub-tx"><small class="fr-hub-passo">3 · Decisão</small><b>Prioridades</b><small>O que vem primeiro: as atividades e o que fazer ou comprar</small></span>
         ${prio ? `<span class="fr-hub-badge fr-hub-badge-ouro">${prio}</span>` : ''}
       </button>
-      <button class="fr-hubcard" data-hub-objetivos type="button">
-        <span class="fr-hub-ic">🏁</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Constância</small><b>Constância das metas</b><small>O que manter com constância; eu conto sozinho pelo Ritual ou pelo Kanban</small></span>
-      </button>
       <button class="fr-hubcard" data-hub-kanban type="button">
         <span class="fr-hub-ic">📌</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">5 · Execução</small><b>Kanban</b><small>Tarefas e projetos: a fazer, fazendo e feito</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Execução</small><b>Kanban</b><small>Tarefas e projetos: a fazer, fazendo e feito</small></span>
+      </button>
+      <button class="fr-hubcard" data-hub-objetivos type="button">
+        <span class="fr-hub-ic">🏁</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">5 · Constância</small><b>Constância das metas</b><small>Acompanhe teu progresso; eu conto sozinho pelo Ritual ou pelo Kanban</small></span>
       </button>
     </div>`;
 }
