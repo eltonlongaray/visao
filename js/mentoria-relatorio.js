@@ -111,6 +111,19 @@ export function textoResumo(l, hoje = new Date()) {
   return linhas.join('\n');
 }
 
+// Mensagem que vai JUNTO com o PDF (27/11: o Élton não quer números na mensagem,
+// só dizer o que tem no PDF pra pessoa abrir e conferir).
+export function textoEnvio(l) {
+  const nome = (l?.nome || '').split(' ')[0] || '';
+  return [`Oi${nome ? ', ' + nome : ''}! 🤍 Segue o relatório da nossa jornada na ${JORNADA_PADRAO.titulo}.`, '',
+    'Nele tu confere:',
+    '🎓 a minha entrega da mentoria',
+    l?.permuta ? `🔁 a tua entrega (${_plural(String(l.permuta.servico || 'massagem').toLowerCase())})` : null,
+    '🗓️ a linha do tempo e a fase em que a gente está',
+    '🎁 os bônus que já foram entregues e os que ainda vêm',
+    '', 'Qualquer dúvida me chama! 😊'].filter(x => x !== null).join('\n');
+}
+
 // === BLOCO 3: TELA DO RELATÓRIO ===
 export function abrirRelatorio(l, { aoSalvar } = {}) {
   if (!l) return;
@@ -204,7 +217,7 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         try { await montando; } catch (e) { bZap.disabled = false; bZap.textContent = rotulo; return showToast(e.message || 'Não consegui montar o PDF', 'error'); }
         bZap.disabled = false;
       }
-      const r = await enviarPdf(pdf, arqNome);
+      const r = await enviarPdf(pdf, arqNome, textoEnvio(l));
       bZap.textContent = r === 'sem-gesto' ? '📤 PDF pronto! Toca pra enviar' : rotulo;
       if (r === 'baixado') showToast('PDF salvo no celular. Agora é só anexar no WhatsApp.', 'success');
     };

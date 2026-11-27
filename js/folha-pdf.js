@@ -67,10 +67,10 @@ export async function folhaParaPdf(el) {
 
 // === BLOCO 3: ENVIAR ===
 // 'compartilhado' | 'cancelado' | 'baixado' | 'sem-gesto' (o celular pediu outro toque)
-export async function enviarPdf(blob, nome) {
+export async function enviarPdf(blob, nome, texto = '') {
   const file = new File([blob], nome, { type: 'application/pdf' });
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file] }); return 'compartilhado'; }
+    try { await navigator.share(texto ? { files: [file], text: texto } : { files: [file] }); return 'compartilhado'; }
     catch (e) { return e?.name === 'NotAllowedError' ? 'sem-gesto' : 'cancelado'; }
   }
   baixarPdf(blob, nome);
