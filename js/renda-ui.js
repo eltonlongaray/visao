@@ -15,8 +15,12 @@ const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const ICONES = ['💼', '🚀', '👑', '🎓', '📣', '🛍️', '💆', '🧠', '📚', '🏠', '🎨', '💻'];
 
-let _fontes = [], _clientes = [];
-const _recarregar = async () => { [_fontes, _clientes] = await Promise.all([R.lerFontes(), R.lerClientes().catch(() => [])]); };
+let _fontes = [], _clientes = [], _servAg = [];
+// Serviços da Agenda Online: cada um pode dizer de qual fonte é (servico.fonteId)
+const _lerServicosAgenda = () => import('./agenda.js').then(A => A.getAgendaConfig()).then(c => (Array.isArray(c?.servicos) ? c.servicos : []).filter(x => !x.pacoteDe)).catch(() => []);
+const _recarregar = async () => { [_fontes, _clientes, _servAg] = await Promise.all([R.lerFontes(), R.lerClientes().catch(() => []), _lerServicosAgenda()]); };
+const _servicosDa = (f) => _servAg.filter(x => x.fonteId === f.id);
+const _atendPadrao = () => _fontes.find(x => x.tipo === 'atendimentos') || null;
 const _redesenhos = new Set();   // telas abertas (uma por nível) se repintam juntas
 const _repintar = () => _redesenhos.forEach(fn => fn());
 
@@ -59,6 +63,7 @@ function _sub(f) {
     const l = _clientes.filter(c => c.fonte_id === f.id);
     return l.length ? `${l.length} ${l.length === 1 ? 'cliente' : 'clientes'}` : 'Nenhum cliente ainda';
   }
+  if (f.tipo === 'atendimentos') { const sv = _servicosDa(f); return sv.length ? `Agenda: ${sv.map(x => x.nome).join(', ')}` : 'Clientes da Agenda Online, ficha e financeiro'; }
   return 'Inscritas, alunas e formulários';
 }
 
@@ -97,7 +102,23 @@ export async function abrirFonte(id) {
   if (!f) return;
   if (f.tipo === 'grupo') return abrirFontesRenda(f.id);
   if (f.tipo === 'mentoria') return (await import('./mentoria-ui.js')).abrirMentoria();
+  if (f.tipo === 'atendimentos') return (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes', titulo: `${f.icone} ${f.nome}`, fonteId: f.id, padrao: _atendPadrao()?.id === f.id });
   return abrirClientes(f.id);
+}
+
+// (27/11) Vindo da Agenda Online: abre as Fontes de renda e, por cima, o card 💆 Atendimentos
+// (cria o card na primeira vez). Sem o SQL novo, abre a tela de clientes direto.
+export async function abrirAtendimentos() {
+  await abrirFontesRenda(null);
+  let f = _atendPadrao();
+  // Já tem serviço da agenda ligado a alguma fonte: só mostra as Fontes de renda
+  if (!f && _servAg.some(x => x.fonteId && _fontes.some(y => y.id === x.fonteId))) return;
+  if (!f && _fontes.length) {
+    try { f = await R.criarFonte({ nome: 'Atendimentos', icone: '💆', tipo: 'atendimentos' }, _fontes); _fontes.push(f); _repintar(); }
+    catch (e) { console.warn('[renda] Atendimentos:', e.message); f = null; }
+  }
+  if (f) return abrirFonte(f.id);
+  return (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes' });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -182,6 +203,7 @@ function desenharClientes(ov, fonteId) {
         <div><small>Recebido</small><b>${R.reais(pago) || 'R$ 0,00'}</b></div>
         <div><small>A receber</small><b>${R.reais(aReceber) || 'R$ 0,00'}</b></div>
       </div>
+      ${_servicosDa(f).length ? `<button class="rd-agenda" data-agenda type="button"><span>📅 Marcaram pela Agenda</span><small>${_esc(_servicosDa(f).map(x => x.nome).join(', '))}</small><b>›</b></button>` : ''}
       <button class="rd-novo" data-novo type="button">＋ Novo cliente</button>
       ${lista.length ? lista.map(c => `
       <button class="rd-cli" data-cli="${c.id}" type="button">
@@ -192,6 +214,7 @@ function desenharClientes(ov, fonteId) {
     </div>`;
   corpo.querySelector('[data-voltar]').onclick = () => history.back();
   corpo.querySelector('[data-novo]').onclick = () => editarCliente(null, fonteId);
+  corpo.querySelector('[data-agenda]')?.addEventListener('click', async () => (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes', titulo: `📅 ${f.nome} · Agenda`, fonteId: f.id, padrao: false }));
   corpo.querySelectorAll('[data-cli]').forEach(b => b.onclick = () => editarCliente(b.dataset.cli, fonteId));
 }
 

@@ -17,6 +17,7 @@ const limpa = (s) => String(s || '').replace(/^\s*(?:chamad[oa]\s+|com\s+o\s+nom
 function tipoDaFrase(t) {
   if (/\b(com divis\w*|com (outros )?cards dentro|que abre outros|grupo|pasta)\b/.test(t)) return 'grupo';
   if (/\bde mentoria\b|\btipo mentoria\b/.test(t)) return 'mentoria';
+  if (/\bde atendimentos?\b|\btipo atendimentos?\b|\bda agenda\b/.test(t)) return 'atendimentos';
   if (/\bde clientes?\b|\bcom clientes?\b|\btipo clientes?\b/.test(t)) return 'clientes';
   return null;
 }
@@ -39,8 +40,8 @@ export function lerRenda(texto) {
   if (cf) {
     let resto = cf[1], dentro = null;
     const d = resto.match(/\s+(?:dentro\s+(?:d[aoe]s?\s+|de\s+)?|em\s+|n[ao]\s+)(?:card\s+|fonte\s+(?:de\s+renda\s+)?)?(.+)$/i);
-    if (d) { dentro = limpa(d[1].replace(/\s+(?:de|com|tipo)\s+(?:clientes?|mentoria|divis\w*).*$/i, '')); resto = resto.slice(0, d.index); }
-    const nome = limpa(resto.replace(/\s+(?:de|com|tipo)\s+(?:clientes?|mentoria|divis\w*|outros cards dentro).*$/i, ''));
+    if (d) { dentro = limpa(d[1].replace(/\s+(?:de|com|tipo)\s+(?:clientes?|mentoria|atendimentos?|agenda|divis\w*).*$/i, '')); resto = resto.slice(0, d.index); }
+    const nome = limpa(resto.replace(/\s+(?:de|com|tipo)\s+(?:clientes?|mentoria|atendimentos?|agenda|divis\w*|outros cards dentro).*$/i, ''));
     return { acao: 'criar', nome, dentro, tipo: tipoDaFrase(t) };
   }
 

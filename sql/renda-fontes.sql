@@ -16,7 +16,7 @@ create table if not exists renda_fontes (
   pai_id uuid references renda_fontes(id) on delete cascade,
   nome text not null check (char_length(nome) between 1 and 40),
   icone text not null default '💼' check (char_length(icone) between 1 and 16),
-  tipo text not null default 'clientes' check (tipo in ('grupo', 'mentoria', 'clientes')),
+  tipo text not null default 'clientes' check (tipo in ('grupo', 'mentoria', 'clientes', 'atendimentos')),
   ordem double precision not null default 0,
   created_at timestamptz not null default now()
 );
@@ -65,6 +65,10 @@ drop trigger if exists renda_fontes_teto on renda_fontes;
 create trigger renda_fontes_teto before insert on renda_fontes for each row execute function renda_teto();
 drop trigger if exists renda_clientes_teto on renda_clientes;
 create trigger renda_clientes_teto before insert on renda_clientes for each row execute function renda_teto();
+
+-- (27/11) Tipo novo 'atendimentos' (clientes da Agenda Online). Atualiza a regra em quem já rodou antes.
+alter table renda_fontes drop constraint if exists renda_fontes_tipo_check;
+alter table renda_fontes add constraint renda_fontes_tipo_check check (tipo in ('grupo', 'mentoria', 'clientes', 'atendimentos'));
 
 notify pgrst, 'reload schema';
 
