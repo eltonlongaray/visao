@@ -22,7 +22,7 @@ async function _libs() {
 // === BLOCO 2: FOLHA → PDF ===
 // Formato celular (27/11: o Élton achou a letra pequena no A4): folha estreita (como na tela)
 // e página em pé 9:16, então no WhatsApp a letra fica grande sem zoom.
-const LARG = 440;
+const LARG = 360;
 const QUEBRAS = '.rel-cab, .rel-cards, .rel-card, .rel-h, .rel-p, .rel-pilar, .rel-pilar li, .rel-linha, .rel-bonus-tit, .rel-grupo, .rel-pres, .rel-rodape, section, li, p, h3';
 
 export async function folhaParaPdf(el) {
