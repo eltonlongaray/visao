@@ -247,8 +247,7 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         <button class="mt-rel-btn on" data-pdf type="button">📄 PDF</button>
       </div>
       ${_folhaHtml(l)}
-      <div class="mt-rel-msg no-print">${blocoMensagemHtml(l)}</div>
-      <div class="mt-rel-compartilhar no-print">
+      <div class="mt-rel-msg no-print">${blocoMensagemHtml(l)}
         <button class="mt-rel-zap" data-zap type="button">📤 Enviar o PDF no WhatsApp</button>
       </div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
