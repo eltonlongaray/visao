@@ -23,6 +23,7 @@
 // BLOCO 8.17 — DESAFIOS PELO PET (ver, ranking, entrar, código, sair, check-in, criar, grupo)
 // BLOCO 8.19 — AJUSTES PELO PET (perfil, idioma, som das notificações, exportar, sugestão)
 // BLOCO 8.20 — KANBAN PELO PET (tarefas do dia: modalidades e colunas A fazer/Fazendo/Feito)
+// BLOCO 8.21 — FONTES DE RENDA PELO PET (cards, divisões e clientes)
 // BLOCO 9 — HELPERS DE MENSAGEM
 // BLOCO 10 — MICROFONE — waveform visual + continuous recognition
 // BLOCO 11 — ANIMAÇÃO DO OLHO — pisca no estado idle
@@ -51,7 +52,7 @@ import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261104a';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261126a';
+import * as PN from './pet-nuvem.js?v=20261127a';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261126a';
@@ -64,6 +65,7 @@ import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
 import * as PKB from './pet-kanban.js?v=20261126b';
+import * as PRD from './pet-renda.js?v=20261126a';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -929,6 +931,11 @@ async function dispatchCommand(text) {
       const r = await tentarDesafios(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // Fontes de renda ("cria a fonte de renda X", "adiciona a cliente Alê na Agência"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarRenda(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Kanban das tarefas do dia ("põe X no kanban da casa", "terminei X"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarKanban(semChamado(text));
@@ -1227,6 +1234,9 @@ async function routeCommand(text) {
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
   if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
+  const rRenda = await tentarRenda(text);
+  if (rRenda !== undefined) return rRenda;
 
   const rKanban = await tentarKanban(text);
   if (rKanban !== undefined) return rKanban;
@@ -7178,6 +7188,77 @@ async function _kanbanDepois() {
 function _abrirKanbanTela(modalidade) {
   import('./kanban-ui.js').then(m => m.abrirKanban(modalidade ? { modalidade } : {})).catch(() => {});
 }
+// ═══════════════════════════════════════════════════════════════
+// BLOCO 8.21 — FONTES DE RENDA PELO PET (Élton, 26/11)
+// ═══════════════════════════════════════════════════════════════
+let _rendaCache = { t: 0, f: null };
+async function _rendaDepois() { _rendaCache = { t: 0, f: null }; try { (await import('./renda-ui.js')).recarregarRenda(); } catch { /* sem tela */ } }
+function _abrirRendaTela() { import('./renda-ui.js').then(m => m.abrirFontesRenda()).catch(() => {}); }
+
+async function tentarRenda(text) {
+  const p = PRD.lerRenda(PR.semPedido(text));
+  if (!p) return undefined;
+  const R = await import('./renda.js');
+  let fontes;
+  // "adiciona X na Y" sem a palavra cliente passa por aqui muitas vezes (listas): usa a cópia de 1 min
+  try { fontes = p.fraco && _rendaCache.f && Date.now() - _rendaCache.t < 60000 ? _rendaCache.f : await R.lerFontes(); _rendaCache = { t: Date.now(), f: fontes }; }
+  catch (e) { return p.fraco ? undefined : `Não consegui abrir tuas Fontes de renda agora 😕 ${_esc(e.message || '')}`; }
+  // Achar card pelo nome: no modo fraco, só nome igual ou que começa igual
+  const achar = (nome, tipo = null) => {
+    if (!nome) return null;
+    if (!p.fraco) return R.acharFonte(fontes, nome, tipo);
+    const a = R.norm(nome), l = tipo ? fontes.filter(f => f.tipo === tipo) : fontes;
+    return l.find(f => R.norm(f.nome) === a) || l.find(f => R.norm(f.nome).startsWith(a) && a.length >= 4) || null;
+  };
+  const arvore = (pai = null, nivel = 0) => R.filhas(fontes, pai).map(f =>
+    `${'&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(nivel)}${_esc(f.icone)} <b>${_esc(f.nome)}</b> <small>(${R.tipoDe(f.tipo).nome})</small>` + (f.tipo === 'grupo' ? '<br>' + arvore(f.id, nivel + 1) : '')).join('<br>');
+  const abrir = [{ label: '💸 Abrir Fontes de renda', action: () => { _abrirRendaTela(); return null; } }];
+
+  if (p.acao === 'abrir') { _abrirRendaTela(); return 'Abrindo tuas Fontes de renda 💸'; }
+  if (p.acao === 'listar') return `💸 Tuas fontes de renda:<br>${arvore()}<br><small>Pra abrir: "abre as fontes de renda".</small>`;
+
+  if (p.acao === 'ver_clientes') {
+    const f = achar(p.alvo, 'clientes');
+    if (!f) return `Não achei um card de clientes chamado <b>${_esc(p.alvo)}</b>. Os teus: ${fontes.filter(x => x.tipo === 'clientes').map(x => `<b>${_esc(x.nome)}</b>`).join(', ') || 'nenhum ainda'}.`;
+    const cl = await R.lerClientes(f.id);
+    if (!cl.length) return `${_esc(f.icone)} <b>${_esc(f.nome)}</b> ainda não tem clientes.`;
+    return `${_esc(f.icone)} Clientes de <b>${_esc(f.nome)}</b>:<br>` + cl.map(c => `• <b>${_esc(c.nome)}</b>${c.fase ? ` · ${_esc(c.fase)}` : ''}${c.proximo_em ? ` · próximo pagamento ${R.dataBR(c.proximo_em)}${c.proximo_valor != null ? ' (' + R.reais(c.proximo_valor) + ')' : ''}` : ''}`).join('<br>');
+  }
+
+  if (p.acao === 'criar') {
+    if (!p.nome) return 'Qual o nome do card? Ex.: <em>"cria a fonte de renda Altas Vendas"</em>.';
+    let pai = null;
+    if (p.dentro) {
+      pai = achar(p.dentro);
+      if (!pai) return `Não achei <b>${_esc(p.dentro)}</b> nas tuas Fontes de renda. As tuas:<br>${arvore()}`;
+      if (pai.tipo !== 'grupo') return `<b>${_esc(pai.nome)}</b> é um card de ${R.tipoDe(pai.tipo).nome.toLowerCase()}, não abre outros cards dentro. Dá pra mudar isso tocando no ⋯ dele, se estiver vazio.`;
+    }
+    const ja = fontes.find(f => (f.pai_id || null) === (pai?.id || null) && R.norm(f.nome) === R.norm(p.nome));
+    if (ja) return `Já tens o card <b>${_esc(ja.nome)}</b> aí. 👍`;
+    const tipo = p.tipo || (/mentoria/i.test(p.nome) ? 'mentoria' : 'clientes');
+    cardConfirmarLista(`💸 Criar o card <b>${_esc(p.nome)}</b>${pai ? ` dentro de <b>${_esc(pai.nome)}</b>` : ' nas Fontes de renda'}, do tipo <b>${R.tipoDe(tipo).icone} ${R.tipoDe(tipo).nome}</b>?<br><small>${R.tipoDe(tipo).dica}. Pra outro tipo, fala "...de clientes", "...com divisões" ou "...de mentoria".</small>`, async () => {
+      await R.criarFonte({ nome: p.nome, icone: R.tipoDe(tipo).icone === '📂' ? '💼' : R.tipoDe(tipo).icone, tipo, pai_id: pai?.id || null }, fontes);
+      return `Card <b>${_esc(p.nome)}</b> criado. 💸`;
+    }, _rendaDepois, async () => addChoices('Quer ver?', abrir));
+    return null;
+  }
+
+  if (p.acao === 'cliente') {
+    const f = achar(p.alvo, 'clientes');
+    if (!f) return p.fraco ? undefined : `Não achei um card de clientes chamado <b>${_esc(p.alvo)}</b>. Os teus: ${fontes.filter(x => x.tipo === 'clientes').map(x => `<b>${_esc(x.nome)}</b>`).join(', ') || 'nenhum ainda'}.`;
+    if (!p.nome) return 'Qual o nome do cliente?';
+    const cl = await R.lerClientes(f.id).catch(() => []);
+    const ja = cl.find(c => R.norm(c.nome) === R.norm(p.nome));
+    if (ja) return `<b>${_esc(ja.nome)}</b> já está em <b>${_esc(f.nome)}</b>. 👍`;
+    cardConfirmarLista(`👥 Adicionar <b>${_esc(p.nome)}</b> como cliente em <b>${_esc(R.caminho(fontes, f))}</b>?<br><small>Depois, tocando nela, dá pra pôr WhatsApp, fase e pagamentos.</small>`, async () => {
+      await R.criarCliente(f.id, { nome: p.nome });
+      return `<b>${_esc(p.nome)}</b> entrou em ${_esc(f.nome)}. 👥`;
+    }, _rendaDepois, async () => addChoices('Quer ver?', abrir));
+    return null;
+  }
+  return undefined;
+}
+
 // Lista colada com vários trabalhos (Élton, 26/11): cada trabalho vira uma
 // modalidade (cria as que faltam) e cada tarefa vai pra coluna escrita na
 // frente (A fazer / Fazendo / Feito). Um card só pra confirmar tudo.
