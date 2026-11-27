@@ -197,7 +197,7 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
       </article>
       <div class="mt-rel-compartilhar no-print">
         <button class="mt-rel-zap" data-zap type="button">📤 Enviar o PDF no WhatsApp</button>
-        <small>Escolhe o WhatsApp e qualquer contato ou grupo</small>
+        <small>Escolhe o WhatsApp e o contato ou grupo. A mensagem já vai copiada: no WhatsApp, segura no campo "Adicionar legenda" e cola.</small>
       </div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
     // PDF de verdade (27/11: o Élton quer mandar o ARQUIVO, não o resumo, pra qualquer contato/grupo).
@@ -212,6 +212,10 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
       try { baixarPdf(pdf || await montando, arqNome); } catch (e) { showToast(e.message || 'Não consegui montar o PDF', 'error'); }
     };
     bZap.onclick = async () => {
+      // O WhatsApp não aceita texto junto com documento pelo compartilhar do Android:
+      // copia a mensagem antes (ainda no toque) pra colar na legenda do PDF (27/11).
+      let copiou = false;
+      try { navigator.clipboard?.writeText(textoEnvio(l)).then(() => { copiou = true; }, () => {}); } catch { /* sem área de transferência */ }
       if (!pdf) {
         bZap.disabled = true; bZap.textContent = '⏳ Preparando o PDF…';
         try { await montando; } catch (e) { bZap.disabled = false; bZap.textContent = rotulo; return showToast(e.message || 'Não consegui montar o PDF', 'error'); }
@@ -219,7 +223,8 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
       }
       const r = await enviarPdf(pdf, arqNome, textoEnvio(l));
       bZap.textContent = r === 'sem-gesto' ? '📤 PDF pronto! Toca pra enviar' : rotulo;
-      if (r === 'baixado') showToast('PDF salvo no celular. Agora é só anexar no WhatsApp.', 'success');
+      if (r === 'baixado') showToast(`PDF salvo no celular.${copiou ? ' A mensagem tá copiada: anexa o PDF no WhatsApp e cola na legenda.' : ''}`, 'success');
+      else if (r === 'compartilhado' && copiou) showToast('📋 A mensagem tá copiada: se não foi junto, cola na conversa.', 'success');
     };
     ov.querySelector('[data-ajustar]').onclick = () => _modalAjustar(l, async jornada => {
       try { await salvarLead(l.id, { jornada }); l.jornada = jornada; desenhar(); aoSalvar?.(); showToast('Relatório ajustado ✓', 'success'); }
