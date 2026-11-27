@@ -52,7 +52,7 @@ import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261104a';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261127a';
+import * as PN from './pet-nuvem.js?v=20261127e';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261126a';
@@ -65,7 +65,7 @@ import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
 import * as PKB from './pet-kanban.js?v=20261126b';
-import * as PRD from './pet-renda.js?v=20261126a';
+import * as PRD from './pet-renda.js?v=20261127e';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -931,6 +931,11 @@ async function dispatchCommand(text) {
       const r = await tentarDesafios(semChamado(text));
       if (r !== undefined) reply = r;
     }
+    // Permuta da Mentoria ("a Larissa fez a massagem"): antes da nuvem
+    if (reply === undefined && typeof text !== 'function') {
+      const r = await tentarPermuta(semChamado(text));
+      if (r !== undefined) reply = r;
+    }
     // Fontes de renda ("cria a fonte de renda X", "adiciona a cliente Alê na Agência"): antes da nuvem
     if (reply === undefined && typeof text !== 'function') {
       const r = await tentarRenda(semChamado(text));
@@ -1234,6 +1239,9 @@ async function routeCommand(text) {
   // feito em outro dia, "o que tenho sexta?" (BLOCO 8.11) ──
   // ── Desempenho, reflexão da semana e objetivos (BLOCO 8.14) ──
   if (PCF.lerPedidoLembrar(text)) return ajudaLembrar();
+
+  const rPerm = await tentarPermuta(text);
+  if (rPerm !== undefined) return rPerm;
 
   const rRenda = await tentarRenda(text);
   if (rRenda !== undefined) return rRenda;
@@ -7258,6 +7266,34 @@ async function tentarRenda(text) {
   }
   return undefined;
 }
+
+// Permuta da Mentoria (Élton, 27/11): aluna que paga em serviço. Só age se a frase
+// tem o nome de uma aluna com permuta (senão "fiz a massagem" segue pro Ritual).
+async function tentarPermuta(text) {
+  const p = PRD.lerPermuta(PR.semPedido(text));
+  if (!p) return undefined;
+  const M = await import('./mentoria.js');
+  let leads;
+  try { leads = await M.getLeads(); } catch { return undefined; }
+  const t = PRD.norm(text);
+  const comPerm = leads.filter(l => l.permuta && M.resumoPermuta(l.permuta));
+  const l = comPerm.find(x => { const n = PRD.norm(x.nome).split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
+  if (!l) return undefined;
+  const r = M.resumoPermuta(l.permuta), nome = _esc((l.nome || '').split(' ')[0]), serv = _esc(r.servico.toLowerCase());
+  const linha = (x) => `🔁 <b>${nome}</b>: ${x.feitas} de ${x.precisa} ${serv.replace(/m$/, 'n')}s · ${_brlPerm(x.pago)} de ${_brlPerm(x.total)}${x.quitada ? ' · ✅ quitada' : ` · faltam ${_brlPerm(x.falta)} (${x.restam})`}${x.faltas ? ` · ${x.faltas} falta${x.faltas === 1 ? '' : 's'}` : ''}`;
+  if (p.acao === 'ver') return linha(r);
+  const d = new Date(); if (p.dia === 'ontem') d.setDate(d.getDate() - 1);
+  const z = n => String(n).padStart(2, '0'), dia = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  const itens = l.permuta.itens || [];
+  if (itens.some(i => i.d === dia)) return `Já tem ${p.dia} marcado pra ${nome} (${itens.find(i => i.d === dia).t === 'feita' ? serv + ' feita' : 'falta'}). Pra mudar, tira no histórico dela na 🎓 Mentoria.`;
+  const novo = { ...l.permuta, itens: [...itens, { d: dia, t: p.acao }] };
+  cardConfirmarLista(p.acao === 'feita' ? `🔁 Marcar a ${serv} de <b>${nome}</b> ${p.dia} (${_brlPerm(r.unit)}) na permuta?` : `🔁 Marcar que <b>${nome}</b> faltou ${p.dia}?`, async () => {
+    await M.salvarLead(l.id, { permuta: novo });
+    return `Marcado. ${linha(M.resumoPermuta(novo))}`;
+  }, null, null);
+  return null;
+}
+const _brlPerm = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 // Lista colada com vários trabalhos (Élton, 26/11): cada trabalho vira uma
 // modalidade (cria as que faltam) e cada tarefa vai pra coluna escrita na

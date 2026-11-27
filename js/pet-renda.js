@@ -50,3 +50,17 @@ export function lerRenda(texto) {
   if (ac) return { acao: 'cliente', nome: limpa(ac[2].replace(/^(?:o|a)\s+/i, '')), alvo: limpa(ac[3].replace(/\s+como\s+cliente.*$/i, '')), fraco: !(ac[1] || /\bclientes?\b/.test(t)) };
   return null;
 }
+
+// Permuta da Mentoria (27/11): "a Larissa fez a massagem", "a Larissa faltou na massagem hoje",
+// "quanto falta da permuta da Larissa". O nome da aluna o assistente acha nas alunas com permuta.
+export function lerPermuta(texto) {
+  const t = norm(texto);
+  const servico = /\b(massage(?:m|ns)|permuta|sess(?:ao|oes))\b/.test(t);
+  if (!servico) return null;
+  const dia = /\bontem\b/.test(t) ? 'ontem' : 'hoje';
+  if (/\b(quanto falta|quantas faltam|como (?:ta|esta)|ver|mostra|saldo)\b/.test(t) && /\bpermuta\b/.test(t)) return { acao: 'ver', dia };
+  if (/\b(faltou|falhou|nao (?:veio|fez|teve)|nao rolou|desmarcou)\b/.test(t)) return { acao: 'falta', dia };
+  if (/\b(fez|feita|recebi|ganhei|teve|rolou|marca|registra|anota)\b/.test(t)) return { acao: 'feita', dia };
+  if (/\bpermuta\b/.test(t)) return { acao: 'ver', dia };
+  return null;
+}

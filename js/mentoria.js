@@ -60,3 +60,17 @@ export function carregarModelo(slug) {
     document.head.appendChild(s);
   });
 }
+
+// === BLOCO 4: PERMUTA (Élton, 27/11) ===
+// Aluna que paga a mentoria em serviço (ex.: uma massagem por semana).
+// mentoria_leads.permuta (jsonb): { total, unit, servico, anteriores, faltasAntes, itens: [{ d: 'AAAA-MM-DD', t: 'feita'|'falta' }] }
+// SQL: sql/mentoria-permuta.sql
+export function resumoPermuta(p) {
+  if (!p || !(Number(p.total) > 0) || !(Number(p.unit) > 0)) return null;
+  const total = Number(p.total), unit = Number(p.unit), itens = Array.isArray(p.itens) ? p.itens : [];
+  const feitas = (Number(p.anteriores) || 0) + itens.filter(i => i.t === 'feita').length;
+  const faltas = (Number(p.faltasAntes) || 0) + itens.filter(i => i.t === 'falta').length;
+  const pago = Math.min(total, feitas * unit), falta = Math.max(0, total - pago);
+  return { total, unit, servico: p.servico || 'Massagem', feitas, faltas, pago, falta,
+    precisa: Math.ceil(total / unit), restam: Math.ceil(falta / unit), pct: Math.round(pago / total * 100), quitada: falta <= 0 };
+}

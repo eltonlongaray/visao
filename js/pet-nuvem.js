@@ -223,6 +223,13 @@ export function fraseDoApp(j) {
         case 'criar': return nome ? `cria a fonte de renda ${nome}${onde ? ' dentro de ' + onde : ''}` : null;
         case 'cliente': return nome && onde ? `adiciona a cliente ${nome} na ${onde}` : null;
         case 'ver_clientes': return onde ? `quais os clientes da ${onde}` : null;
+        case 'permuta': {
+          if (!nome) return null;
+          const ontem = /ontem/i.test(String(j.quando || '')) ? ' ontem' : ' hoje';
+          if (/falta|faltou/i.test(String(j.titulo || ''))) return `a ${nome} faltou na massagem${ontem}`;
+          if (/ver/i.test(String(j.titulo || ''))) return `quanto falta da permuta da ${nome}`;
+          return `a ${nome} fez a massagem${ontem}`;
+        }
         default: return null;
       }
     }

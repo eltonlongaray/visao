@@ -9585,3 +9585,18 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .rd-modal-cli textarea.input-field { min-height: 80px; resize: vertical; }
 .rd-modal-cli input[type="date"].input-field { color-scheme: dark; }
+
+/* (27/11) Mentoria: aluna que paga em permuta (serviço) */
+.mt-perm { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--card-2); }
+.mt-perm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text); }
+.mt-perm-barra { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; margin: 8px 0 6px; }
+.mt-perm-barra i { display: block; height: 100%; background: #16a34a; border-radius: inherit; }
+.mt-perm-num { font-size: 13px; color: var(--text); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.mt-perm-num span { color: var(--muted); }
+.mt-perm-modal .input-field { width: 100%; box-sizing: border-box; color: var(--text); }
+.mt-perm-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.mt-perm-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mt-perm-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text); padding: 5px 0; border-bottom: 1px solid var(--border); }
+.mt-perm-item span:first-child { color: var(--muted); min-width: 42px; }
+.mt-perm-item span:nth-child(2) { flex: 1; }
+.mt-perm-x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; }
