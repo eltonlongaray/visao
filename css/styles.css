@@ -9600,3 +9600,4 @@ body.rota-publica .bottom-nav { display: none !important; }
 .mt-perm-item span:first-child { color: var(--muted); min-width: 42px; }
 .mt-perm-item span:nth-child(2) { flex: 1; }
 .mt-perm-x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; }
+.mt-perm-atraso { color: #f59e0b; }

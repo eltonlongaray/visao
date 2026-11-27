@@ -226,9 +226,7 @@ export function fraseDoApp(j) {
         case 'permuta': {
           if (!nome) return null;
           const ontem = /ontem/i.test(String(j.quando || '')) ? ' ontem' : ' hoje';
-          if (/falta|faltou/i.test(String(j.titulo || ''))) return `a ${nome} faltou na massagem${ontem}`;
           if (/ver/i.test(String(j.titulo || ''))) return `quanto falta da permuta da ${nome}`;
-          if (/repo/i.test(String(j.titulo || ''))) return `a ${nome} repôs a massagem${ontem}`;
           return `a ${nome} fez a massagem${ontem}`;
         }
         default: return null;

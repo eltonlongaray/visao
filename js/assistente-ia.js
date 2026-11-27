@@ -7280,15 +7280,15 @@ async function tentarPermuta(text) {
   const l = comPerm.find(x => { const n = PRD.norm(x.nome).split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
   if (!l) return undefined;
   const r = M.resumoPermuta(l.permuta), nome = _esc((l.nome || '').split(' ')[0]), serv = _esc(r.servico.toLowerCase());
-  const linha = (x) => `🔁 <b>${nome}</b>: ${x.feitas} de ${x.precisa} ${serv.replace(/m$/, 'n')}s · ${_brlPerm(x.pago)} de ${_brlPerm(x.total)}${x.quitada ? ' · ✅ quitada' : ` · faltam ${_brlPerm(x.falta)} (${x.restam})`}${x.faltas ? ` · ${x.faltas} falta${x.faltas === 1 ? '' : 's'}${x.pendentes ? ` (${x.pendentes} pra repor)` : ' (repostas)'}` : ''}`;
+  const plural = serv.replace(/m$/, 'n') + 's';
+  const linha = (x) => `🔁 <b>${nome}</b>: ${x.feitas} de ${x.precisa} ${plural} · ${_brlPerm(x.pago)} de ${_brlPerm(x.total)}${x.quitada ? ' · ✅ quitada' : ` · faltam ${_brlPerm(x.falta)} (${x.restam})`}${x.atrasadas ? ` · ⚠️ ${x.atrasadas} atrasada${x.atrasadas === 1 ? '' : 's'}` : x.esperadas != null && !x.quitada ? ' · em dia' : ''}`;
   if (p.acao === 'ver') return linha(r);
+  if (p.acao === 'falta') return `Não precisa marcar falta: cada ${serv} é um pagamento e o atraso eu conto sozinho pelas semanas. ${linha(r)}`;
   const d = new Date(); if (p.dia === 'ontem') d.setDate(d.getDate() - 1);
   const z = n => String(n).padStart(2, '0'), dia = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-  const itens = l.permuta.itens || [];
-  if (p.acao === 'repos' && !r.pendentes) return `${nome} não tem falta pra repor. 👍 Se foi uma ${serv} normal, fala "a ${nome} fez a ${serv}".`;
-  if (itens.some(i => i.d === dia && (i.t === 'repos') === (p.acao === 'repos'))) return `Já tem ${p.dia} marcado pra ${nome} (${{ feita: serv + ' feita', falta: 'falta', repos: 'reposição' }[itens.find(i => i.d === dia && (i.t === 'repos') === (p.acao === 'repos')).t]}). Pra mudar, tira no histórico dela na 🎓 Mentoria.`;
-  const novo = { ...l.permuta, itens: [...itens, { d: dia, t: p.acao }] };
-  cardConfirmarLista(p.acao === 'repos' ? `🔁 Marcar que <b>${nome}</b> repôs uma falta ${p.dia} (conta ${_brlPerm(r.unit)} e tira uma falta)?` : p.acao === 'feita' ? `🔁 Marcar a ${serv} de <b>${nome}</b> ${p.dia} (${_brlPerm(r.unit)}) na permuta?` : `🔁 Marcar que <b>${nome}</b> faltou ${p.dia}?`, async () => {
+  const novo = { ...l.permuta, itens: [...(l.permuta.itens || []), { d: dia, t: 'feita' }] };
+  const ja = (l.permuta.itens || []).filter(i => i.d === dia).length;
+  cardConfirmarLista(`🔁 Marcar ${ja ? 'mais uma' : 'a'} ${serv} de <b>${nome}</b> ${p.dia} (${_brlPerm(r.unit)}) na permuta?${r.atrasadas ? `<br><small>Ela tem ${r.atrasadas} atrasada${r.atrasadas === 1 ? '' : 's'}: essa quita uma.</small>` : ''}`, async () => {
     await M.salvarLead(l.id, { permuta: novo });
     return `Marcado. ${linha(M.resumoPermuta(novo))}`;
   }, null, null);

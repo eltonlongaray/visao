@@ -62,17 +62,24 @@ export function carregarModelo(slug) {
 }
 
 // === BLOCO 4: PERMUTA (Élton, 27/11) ===
-// Aluna que paga a mentoria em serviço (ex.: uma massagem por semana).
-// mentoria_leads.permuta (jsonb): { total, unit, servico, anteriores, faltasAntes, itens: [{ d: 'AAAA-MM-DD', t: 'feita'|'falta'|'repos' }] }
+// Aluna que paga a mentoria em serviço (ex.: uma massagem por semana). Cada massagem = um pagamento.
+// O atraso é automático: semanas desde o início × por semana − feitas. Duas na mesma semana quitam uma atrasada.
+// mentoria_leads.permuta (jsonb): { total, unit, servico, inicio: 'AAAA-MM-DD', porSemana, anteriores, itens: [{ d: 'AAAA-MM-DD', t: 'feita' }] }
 // SQL: sql/mentoria-permuta.sql
-export function resumoPermuta(p) {
+export function resumoPermuta(p, hoje = new Date()) {
   if (!p || !(Number(p.total) > 0) || !(Number(p.unit) > 0)) return null;
   const total = Number(p.total), unit = Number(p.unit), itens = Array.isArray(p.itens) ? p.itens : [];
-  const repostas = itens.filter(i => i.t === 'repos').length;   // reposição de uma falta: conta como paga e fecha a falta
-  const feitas = (Number(p.anteriores) || 0) + itens.filter(i => i.t === 'feita').length + repostas;
-  const faltas = (Number(p.faltasAntes) || 0) + itens.filter(i => i.t === 'falta').length;
-  const pendentes = Math.max(0, faltas - repostas);
+  const feitas = (Number(p.anteriores) || 0) + itens.filter(i => i.t === 'feita' || i.t === 'repos').length;
+  const precisa = Math.ceil(total / unit);
   const pago = Math.min(total, feitas * unit), falta = Math.max(0, total - pago);
-  return { total, unit, servico: p.servico || 'Massagem', feitas, faltas, repostas, pendentes, pago, falta,
-    precisa: Math.ceil(total / unit), restam: Math.ceil(falta / unit), pct: Math.round(pago / total * 100), quitada: falta <= 0 };
+  let esperadas = null, atrasadas = 0, adiantadas = 0;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.inicio || '');
+  if (m) {
+    const ini = new Date(+m[1], +m[2] - 1, +m[3]), h = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const dias = Math.round((h - ini) / 864e5);
+    esperadas = dias < 0 ? 0 : Math.min(precisa, (Math.floor(dias / 7) + 1) * (Number(p.porSemana) || 1));
+    atrasadas = Math.max(0, esperadas - feitas); adiantadas = Math.max(0, feitas - esperadas);
+  }
+  return { total, unit, servico: p.servico || 'Massagem', feitas, precisa, pago, falta, esperadas, atrasadas, adiantadas,
+    restam: Math.ceil(falta / unit), pct: Math.round(pago / total * 100), quitada: falta <= 0 };
 }

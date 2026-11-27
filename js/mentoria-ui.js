@@ -285,29 +285,24 @@ const _dBR = d => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m
 function _permutaHtml(l) {
   const r = resumoPermuta(l.permuta);
   if (!r) return '';
-  const itens = (l.permuta.itens || []).slice().sort((a, b) => (a.d < b.d ? 1 : -1));
-  const hojeJa = itens.find(i => i.d === _hoje() && i.t !== 'repos');
-  const reposHoje = itens.some(i => i.d === _hoje() && i.t === 'repos');
-  const txt = i => i.t === 'feita' ? '✓ ' + serv + ' feita' : i.t === 'repos' ? '↺ reposição de falta' : '✕ faltou';
+  const itens = (l.permuta.itens || []).filter(i => i.t === 'feita' || i.t === 'repos').slice().sort((a, b) => (a.d < b.d ? 1 : -1));
   const serv = _esc(r.servico.toLowerCase());
+  const hojeN = itens.filter(i => i.d === _hoje()).length;
+  const situacao = r.quitada ? '✅ Quitada' : r.esperadas == null ? '' : r.atrasadas ? `<b class="mt-perm-atraso">⚠️ ${r.atrasadas} atrasada${r.atrasadas === 1 ? '' : 's'}</b>` : r.adiantadas ? `✓ Em dia (${r.adiantadas} adiantada${r.adiantadas === 1 ? '' : 's'})` : '✓ Em dia';
   return `<div class="mt-perm">
     <div class="mt-perm-top"><span>🔁 Permuta · ${_esc(r.servico)} a ${_brl(r.unit)}</span><button class="mt-link-mini" data-perm-ed type="button">Editar</button></div>
     <div class="mt-perm-barra"><i style="width:${r.pct}%"></i></div>
     <div class="mt-perm-num"><b>${r.feitas} de ${r.precisa} ${_plural(serv, 2)}</b><span>${_brl(r.pago)} de ${_brl(r.total)}</span></div>
-    <div class="mt-perm-sub">${r.quitada ? '✅ Quitada' : `Faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}${r.faltas ? ` · ${r.faltas} falta${r.faltas === 1 ? '' : 's'}${r.repostas ? ` · ${r.repostas} reposta${r.repostas === 1 ? '' : 's'}` : ''}${r.pendentes ? ` · ${r.pendentes} pra repor` : ' · tudo reposto'}` : ''}</div>
-    ${r.quitada ? '' : `<div class="mt-perm-acoes">${hojeJa ? `<span class="mt-perm-sub">Hoje: ${txt(hojeJa)}</span>`
-      : `<button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button><button class="mt-mini" data-perm="falta" type="button">✕ Faltou hoje</button>`}
-      ${r.pendentes && !reposHoje ? '<button class="mt-mini" data-perm="repos" type="button">↺ Repôs uma falta hoje</button>' : ''}</div>`}
-    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map(i => `
-      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>${txt(i)}</span><button class="mt-perm-x" data-perm-x="${i.d}|${i.t}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
+    <div class="mt-perm-sub">${situacao}${r.quitada ? '' : `${situacao ? ' · ' : ''}faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}</div>
+    ${r.quitada ? '' : `<div class="mt-perm-acoes"><button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button>${hojeN ? `<span class="mt-perm-sub">Hoje: ${hojeN}</span>` : ''}</div>`}
+    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map((i, k) => `
+      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>✓ ${serv}</span><button class="mt-perm-x" data-perm-x="${i.d}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
   </div>`;
 }
 
-async function _marcarPermuta(l, t, dia = _hoje()) {
-  const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || [])] };
-  if (p.itens.some(i => i.d === dia && i.t === t)) return;
-  p.itens.push({ d: dia, t });
-  await _salvarPermuta(l, p, t === 'feita' ? `${p.servico || 'Massagem'} marcada ✓` : t === 'repos' ? 'Reposição marcada ↺' : 'Falta marcada');
+async function _marcarPermuta(l, t = 'feita', dia = _hoje()) {
+  const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || []), { d: dia, t: 'feita' }] };
+  await _salvarPermuta(l, p, `${p.servico || 'Massagem'} marcada ✓`);
 }
 async function _salvarPermuta(l, p, msg) {
   try { await salvarLead(l.id, { permuta: p }); l.permuta = p; desenhar(); if (msg) showToast(msg, 'success'); }
@@ -317,20 +312,24 @@ async function _salvarPermuta(l, p, msg) {
 function _modalPermuta(l) {
   if (!l) return;
   const p = l.permuta || {};
+  const z = n => String(n).padStart(2, '0'), pd = l.pago_em ? new Date(l.pago_em) : new Date();
+  const inicio = p.inicio || `${pd.getFullYear()}-${z(pd.getMonth() + 1)}-${z(pd.getDate())}`;
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
   ov.innerHTML = `<div class="modal mt-perm-modal"><div class="modal-title">🔁 Permuta de ${_esc((l.nome || 'aluna').split(' ')[0])}</div>
-    <div class="fi-secao-sub">Ela paga a mentoria em serviço. Cada vez que fizer, tu marca e o saldo baixa sozinho.</div>
+    <div class="fi-secao-sub">Ela paga a mentoria em serviço. Cada um que ela faz é um pagamento: tu marca e o saldo baixa. O atraso o app conta sozinho.</div>
     <label class="mt-rot2" for="pm-t">Valor da mentoria (R$)</label>
     <input class="input-field" id="pm-t" type="number" inputmode="decimal" min="0" step="0.01" value="${_esc(p.total ?? '')}">
     <label class="mt-rot2" for="pm-s">Serviço que ela faz</label>
     <input class="input-field" id="pm-s" value="${_esc(p.servico || 'Massagem')}" maxlength="30">
     <label class="mt-rot2" for="pm-u">Quanto vale cada um (R$)</label>
     <input class="input-field" id="pm-u" type="number" inputmode="decimal" min="1" step="0.01" value="${_esc(p.unit ?? 170)}">
-    <label class="mt-rot2" for="pm-a">Já feitas antes de começar a marcar aqui</label>
+    <div class="obj-linha">
+      <label class="obj-mini"><span class="mt-rot2">Começou em</span><input class="input-field" id="pm-i" type="date" value="${_esc(inicio)}"></label>
+      <label class="obj-mini"><span class="mt-rot2">Por semana</span><input class="input-field" id="pm-w" type="number" inputmode="numeric" min="1" max="7" value="${_esc(p.porSemana ?? 1)}"></label>
+    </div>
+    <label class="mt-rot2" for="pm-a">Já feitos antes de marcar aqui</label>
     <input class="input-field" id="pm-a" type="number" inputmode="numeric" min="0" value="${_esc(p.anteriores ?? 0)}">
-    <label class="mt-rot2" for="pm-f">Faltas antes de começar a marcar aqui</label>
-    <input class="input-field" id="pm-f" type="number" inputmode="numeric" min="0" value="${_esc(p.faltasAntes ?? 0)}">
     <div class="modal-actions">${l.permuta ? '<button class="btn-secondary" data-tirar type="button" style="color:var(--red)">Tirar permuta</button>' : ''}<button class="btn-secondary" data-x type="button">Cancelar</button><button class="btn-primary" data-ok type="button">Salvar</button></div></div>`;
   document.body.appendChild(ov);
   const fechar = trapModalBack(() => ov.remove());
@@ -346,10 +345,12 @@ function _modalPermuta(l) {
     const total = num('#pm-t'), unit = num('#pm-u');
     if (!(total > 0)) return showToast('Coloque o valor da mentoria', 'error');
     if (!(unit > 0)) return showToast('Coloque quanto vale cada serviço', 'error');
-    const novo = { ...p, total: Math.round(total * 100) / 100, unit: Math.round(unit * 100) / 100,
+    const { faltasAntes, ...resto } = p;
+    const novo = { ...resto, total: Math.round(total * 100) / 100, unit: Math.round(unit * 100) / 100,
       servico: ov.querySelector('#pm-s').value.trim() || 'Massagem',
+      inicio: ov.querySelector('#pm-i').value || inicio, porSemana: Math.min(7, Math.max(1, parseInt(ov.querySelector('#pm-w').value, 10) || 1)),
       anteriores: Math.max(0, parseInt(ov.querySelector('#pm-a').value, 10) || 0),
-      faltasAntes: Math.max(0, parseInt(ov.querySelector('#pm-f').value, 10) || 0), itens: p.itens || [] };
+      itens: (p.itens || []).filter(i => i.t === 'feita' || i.t === 'repos') };
     history.back(); _salvarPermuta(l, novo, 'Permuta salva 🔁');
   };
   setTimeout(() => ov.querySelector('#pm-t').focus(), 60);
@@ -487,11 +488,12 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-pagto]').forEach(b => b.onclick = () => _modalPagamento(_leads.find(x => x.id === b.closest('.mt-aluna').dataset.id)));
   const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
-  corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b), b.dataset.perm));
+  corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
-    const l = _alunaDe(b), [d, t] = b.dataset.permX.split('|');
-    const p = { ...l.permuta, itens: (l.permuta.itens || []).filter(i => !(i.d === d && i.t === t)) };
-    _salvarPermuta(l, p, 'Tirado do histórico');
+    const l = _alunaDe(b), d = b.dataset.permX, itens = [...(l.permuta.itens || [])];
+    const k = itens.findIndex(i => i.d === d && (i.t === 'feita' || i.t === 'repos'));
+    if (k >= 0) itens.splice(k, 1);
+    _salvarPermuta(l, { ...l.permuta, itens }, 'Tirado do histórico');
   });
   corpo.querySelectorAll('.mt-aluna [data-aula]').forEach(b => b.onclick = () => {
     const l = _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id), k = b.dataset.aula;
