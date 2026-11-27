@@ -298,6 +298,11 @@ const _quando = i => {
   return `${z(t.getDate())}/${z(t.getMonth() + 1)}/${t.getFullYear()} às ${z(t.getHours())}h${z(t.getMinutes())}`;
 };
 
+const _histAberto = new Set(); // lembra o histórico aberto quando o card redesenha
+const _DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const _quandoDia = i => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(i.d || ''); if (!m) return _dBR(i.d); return `${_DIAS[new Date(+m[1], +m[2] - 1, +m[3]).getDay()]}, ${m[3]}/${m[2]}/${m[1]}`; };
+const _quandoHora = i => { const t = new Date(i.em), z = n => String(n).padStart(2, '0'); return `marcada às ${z(t.getHours())}h${z(t.getMinutes())}`; };
+
 function _permutaHtml(l) {
   const r = resumoPermuta(l.permuta);
   if (!r) return '';
@@ -312,8 +317,9 @@ function _permutaHtml(l) {
     <div class="mt-perm-sub">${situacao}${r.quitada ? '' : `${situacao ? ' · ' : ''}faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}</div>
     ${r.quitada ? '' : `<button class="mt-perm-check" data-perm="feita" type="button"><span class="mt-perm-ck">✓</span><span>${Serv} nº ${r.feitas + 1}<small>Toca quando ela fizer</small></span></button>`}
     ${ult ? `<div class="mt-perm-ult">Última: <b>nº ${ult.n}</b> em ${_quando(ult)}</div>` : ''}
-    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map(i => `
-      <div class="mt-perm-item"><span>nº ${i.n}</span><span>✓ ${_quando(i)}</span><button class="mt-perm-x" data-perm-x="${i.d}" data-em="${_esc(i.em || '')}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
+    ${itens.length ? `<details class="mt-hist"${_histAberto.has(l.id) ? ' open' : ''} data-hist><summary><span>🗓️ Histórico <span class="mt-qtd">${itens.length}</span></span><span class="ag-bloco-seta"></span></summary>
+      <div class="mt-hist-lista">${itens.map(i => `
+      <div class="mt-hist-item"><span class="mt-hist-n">nº ${i.n}</span><span class="mt-hist-q"><b>${_quandoDia(i)}</b>${i.em ? `<small>${_quandoHora(i)}</small>` : ''}</span><button class="mt-perm-x" data-perm-x="${i.d}" data-em="${_esc(i.em || '')}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</div></details>` : ''}
   </div>`;
 }
 
@@ -530,6 +536,7 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
+  corpo.querySelectorAll('.mt-aluna [data-hist]').forEach(d => d.addEventListener('toggle', () => { const id = d.closest('.mt-aluna').dataset.id; d.open ? _histAberto.add(id) : _histAberto.delete(id); }));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
     const l = _alunaDe(b), d = b.dataset.permX, em = b.dataset.em || '', itens = [...(l.permuta.itens || [])];
     const k = itens.findIndex(i => i.d === d && (i.em || '') === em && (i.t === 'feita' || i.t === 'repos'));
