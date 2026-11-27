@@ -179,7 +179,7 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         <div class="rel-pres rel-pres-tot"><div>Já entregue</div><span>${_brl(r.bonusEntregue)}</span></div>` : ''}
         ${bFal.length ? `<div class="rel-bonus-tit">🔜 Ainda vai ser entregue <small>no mínimo, porque podem surgir mais coisas</small></div>${bonusHtml(bFal)}
         <div class="rel-pres rel-pres-tot"><div>Ainda vai ser entregue</div><span>${_brl(r.bonusFalta)}</span></div>` : ''}
-        <footer class="rel-rodape">Feito com 🤍 no Falcon</footer>
+        <footer class="rel-rodape">Feito com 💛 no Falcon</footer>
       </article>
       <div class="mt-rel-compartilhar no-print">
         <button class="mt-rel-zap" data-zap type="button">📤 Compartilhar no WhatsApp</button>

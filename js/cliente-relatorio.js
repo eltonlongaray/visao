@@ -124,7 +124,7 @@ export function abrirFichaCliente(c, { aoEditarDados, aoMudar } = {}) {
           <p class="rel-p">Tudo isso é bônus, sem custo pra ti. Coloquei quanto custaria cada item só pra tu saber o que estás ganhando além da campanha.</p>
           ${r.bEnt.length ? `<div class="rel-bonus-tit">✅ Já entregue</div>${bonusHtml(r.bEnt)}<div class="rel-pres rel-pres-tot"><div>Já entregue</div><span>${_brl(r.bonusEntregue)}</span></div>` : ''}
           ${r.bFal.length ? `<div class="rel-bonus-tit">🔜 Ainda vai ser entregue <small>no mínimo, porque podem surgir mais coisas</small></div>${bonusHtml(r.bFal)}<div class="rel-pres rel-pres-tot"><div>Ainda vai ser entregue</div><span>${_brl(r.bonusFalta)}</span></div>` : ''}` : ''}
-        <footer class="rel-rodape">Feito com 🤍 no Falcon</footer>
+        <footer class="rel-rodape">Feito com 💛 no Falcon</footer>
       </article>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
     ov.querySelector('[data-pdf]').onclick = () => window.print();
