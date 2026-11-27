@@ -9596,11 +9596,13 @@ body.rota-publica .bottom-nav { display: none !important; }
 .mt-perm-modal .input-field { width: 100%; box-sizing: border-box; color: var(--text); }
 .mt-perm-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .mt-perm-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.mt-perm-check { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 10px; padding: 12px 14px; border: 2px solid #22c55e; border-radius: 14px; background: color-mix(in srgb, #22c55e 14%, transparent); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; }
+.mt-perm-check { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 10px; padding: 12px 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--card); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; transition: border-color .2s, background .2s; }
+.mt-perm-check.feito { border-color: #22c55e; background: color-mix(in srgb, #22c55e 14%, transparent); }
 .mt-perm-check:active { transform: scale(.98); }
 .mt-perm-check > span:last-child { display: flex; flex-direction: column; font-size: 16px; font-weight: 800; }
 .mt-perm-check small { font-size: 12px; font-weight: 500; color: var(--muted); }
-.mt-perm-ck { flex: none; width: 34px; height: 34px; border-radius: 50%; background: #22c55e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+.mt-perm-ck { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--muted); background: transparent; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; transition: background .2s, border-color .2s, transform .2s; }
+.mt-perm-check.feito .mt-perm-ck { background: #22c55e; border-color: #22c55e; transform: scale(1.12); }
 .mt-perm-ult { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .mt-perm-ult b { color: var(--text); }
 .mt-hist { margin-top: 10px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid #22c55e; border-radius: 12px; overflow: hidden; }

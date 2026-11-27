@@ -315,7 +315,7 @@ function _permutaHtml(l) {
     <div class="mt-perm-barra"><i style="width:${r.pct}%"></i></div>
     <div class="mt-perm-num"><b>${r.feitas} de ${r.precisa} ${_plural(serv, 2)}</b><span>${_brl(r.pago)} de ${_brl(r.total)}</span></div>
     <div class="mt-perm-sub">${situacao}${r.quitada ? '' : `${situacao ? ' · ' : ''}faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}</div>
-    ${r.quitada ? '' : `<button class="mt-perm-check" data-perm="feita" type="button"><span class="mt-perm-ck">✓</span><span>${Serv} nº ${r.feitas + 1}<small>Toca quando ela fizer</small></span></button>`}
+    ${r.quitada ? '' : `<button class="mt-perm-check" data-perm="feita" type="button"><span class="mt-perm-ck"></span><span>${Serv} nº ${r.feitas + 1}<small>Toca quando ela fizer</small></span></button>`}
     ${ult ? `<div class="mt-perm-ult">Última: <b>nº ${ult.n}</b> em ${_quando(ult)}</div>` : ''}
     ${itens.length ? `<details class="mt-hist"${_histAberto.has(l.id) ? ' open' : ''} data-hist><summary><span>🗓️ Histórico <span class="mt-qtd">${itens.length}</span></span><span class="ag-bloco-seta"></span></summary>
       <div class="mt-hist-lista">${itens.map(i => `
@@ -535,7 +535,12 @@ function ligar(corpo) {
   const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
-  corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
+  corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => {
+    // Começa vazio; ao tocar fica verde com o ✓ e só então registra (27/11)
+    if (b.classList.contains('feito')) return;
+    b.classList.add('feito'); b.querySelector('.mt-perm-ck').textContent = '✓';
+    setTimeout(() => _marcarPermuta(_alunaDe(b)), 650);
+  });
   corpo.querySelectorAll('.mt-aluna [data-hist]').forEach(d => d.addEventListener('toggle', () => { const id = d.closest('.mt-aluna').dataset.id; d.open ? _histAberto.add(id) : _histAberto.delete(id); }));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
     const l = _alunaDe(b), d = b.dataset.permX, em = b.dataset.em || '', itens = [...(l.permuta.itens || [])];
