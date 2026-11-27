@@ -22,7 +22,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
     SERV = Array.isArray(data?.servicos) ? data.servicos : [];
   } catch (e) { SERV = []; }
   const s = document.createElement('script');
-  s.src = `/triagem-modelos/${SLUG}.js?v=40`;
+  s.src = `/triagem-modelos/${SLUG}.js?v=41`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);
@@ -391,7 +391,8 @@ function resumoLinhas() {
 function pacote() {
   const ind = M.indicacao(st.r);
   const nomeDe = id => SERV.find(s => s.id === id)?.nome || id;
-  return { respostas: Object.fromEntries(resumoLinhas()), bruto: st.r, blends_vitrine: st.r.__vitrine || [],
+  const linhas = resumoLinhas();
+  return { respostas: Object.fromEntries(linhas), ordem: linhas.map(x => x[0]), bruto: st.r, blends_vitrine: st.r.__vitrine || [],
     indicacao: ind.servico, plano: (st.plano || []).map(nomeDe), interesses: st.interesses || [], origem: st.origem || null,
     caminho: st.caminho || [] };
 }

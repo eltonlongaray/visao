@@ -10,6 +10,7 @@ import { trapModalBack } from './modal-voltar.js';
 import { openTimePicker } from './seletor-horario.js';
 import { forceRender } from './roteador.js';
 import { getTriagens, ligarFichaCliente, excluirFicha } from './ficha.js';
+import { respostasEmOrdem } from './triagem-ordem.js';
 import { mensagensPerfilHtml, wireMensagensPerfil } from './mensagens-prontas.js';
 import { depoimentosPerfilHtml, wireDepoimentosPerfil } from './depoimentos-ui.js';
 import { abrirCupons, gerarCupomCliente, abrirPresente, listarCuponsAtivos, enviarCupomZap } from './cupons-ui.js';
@@ -95,7 +96,7 @@ function _triagemPerfilHtml(c) {
   if (!t) return '';
   const r = t.respostas || {};
   const quando = (t.respondida_em || t.created_at || '').slice(0, 10);
-  const linhas = Object.entries(r.respostas || {});
+  const linhas = respostasEmOrdem(r);   // (27/11) na ordem das perguntas
   return `<div class="ag-tri">
     <button class="ag-cli-hist-btn" id="agp-tri-btn" type="button">📝 Triagem${quando ? ` · ${_fmtData(quando)}` : ''} <span class="ag-cli-hist-seta" id="agp-tri-seta">▾</span></button>
     <div id="agp-tri" hidden style="padding:6px 2px 10px;font-size:13.5px;line-height:1.5">

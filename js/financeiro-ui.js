@@ -12,6 +12,7 @@ import { getVendas, salvarVenda, excluirVenda, getFinCfg, salvarFinCfg, getCampa
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { supabase } from './config-supabase.js';
+import { perguntasEmOrdem } from './triagem-ordem.js';
 
 // === BLOCO 1: ESTADO E AJUDANTES ===
 let _vendas = [], _fin = { custos: {}, produtos: [] }, _camps = [], _erroSql = false;
@@ -291,7 +292,7 @@ async function _planilhaTriagem(clientes, botao) {
     const X = window.XLSX;
     const ts = clientes.flatMap(c => (c.triagens || []).map(t => ({ c, t })))
       .sort((a, b) => String(a.t.created_at).localeCompare(String(b.t.created_at)));
-    const perguntas = [...new Set(ts.flatMap(({ t }) => Object.keys(t.respostas?.respostas || {})))];
+    const perguntas = perguntasEmOrdem(ts.map(({ t }) => t.respostas));   // na ordem das perguntas
     const val = v => Array.isArray(v) ? v.join(' · ') : (v ?? '');
     const dt = s => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
     const linhas = [['Respondeu em', 'Nome', 'WhatsApp', 'Veio de', 'Indicação', 'Quer agendar', 'Também interessa', 'Agendou?', ...perguntas],
