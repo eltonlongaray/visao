@@ -14,3 +14,4 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     detectSessionInUrl: true,  // captura o retorno do OAuth (Google) na URL
   },
 });
+export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };   // usados no script do Google Ads (cliente-relatorio.js)
