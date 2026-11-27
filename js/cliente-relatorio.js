@@ -6,6 +6,8 @@
 //   BLOCO 1: modelo (proposta em 3 fases) e conta
 //   BLOCO 2: folha (Dados · Ajustar · Resumo no WhatsApp · PDF)
 //   BLOCO 3: ajustar (fases, resultados, textos e bônus)
+//   BLOCO 4: automático — números da agenda/triagem da cliente (RPC campanha_agencia) e do
+//            Google Ads (anuncios_dia, enviado pelo script que o app monta). SQL: sql/agencia-campanhas.sql
 // Dados: renda_clientes.jornada (jsonb) — SQL: sql/renda-cliente-jornada.sql
 // Visual: mesmas classes .mt-rel-* / .rel-* do relatório da aluna (mentoria-relatorio.js)
 // ─────────────────────────────────────────────────────────────
@@ -13,6 +15,7 @@ import * as R from './renda.js';
 import { digitosDe } from './mentoria.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config-supabase.js';
 
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const _brl = v => 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR');
@@ -84,7 +87,10 @@ export function abrirFichaCliente(c, { aoEditarDados, aoMudar } = {}) {
     };
     const bonusHtml = l => [...new Set(l.map(x => x.grupo || ''))].map(g => `${g ? `<div class="rel-grupo">${_esc(g)}</div>` : ''}${l.filter(x => (x.grupo || '') === g).map(x => `
       <div class="rel-pres"><div>${_esc(x.nome)}${x.nota ? `<small>${_esc(x.nota)}</small>` : ''}</div><span>${_brl(x.valor)}</span></div>`).join('')}`).join('');
-    const res = r.resultados;
+    const auto = resultadosAuto(c._auto);
+    const res = auto.length ? [...auto, ...r.resultados.filter(x => String(x.valor ?? '').trim() && !auto.some(a => a.rot === x.rot))] : r.resultados;
+    const funil = (c._auto?.funil || []).filter(f => f.pessoas > 0);
+    const topo = funil.length ? Math.max(...funil.map(f => f.pessoas)) : 0;
     ov.innerHTML = `
       <div class="mt-rel-barra no-print">
         <button class="mt-rel-btn" data-voltar type="button" aria-label="Voltar">←</button>
@@ -105,7 +111,9 @@ export function abrirFichaCliente(c, { aoEditarDados, aoMudar } = {}) {
             <div class="rel-card-sub">${[r.trabalho && `trabalho ${_brl(r.trabalho)}`, r.anuncio && `anúncio ${_brl(r.anuncio)}`].filter(Boolean).join(' + ')}</div></div>` : ''}
         </div>
         ${res.length ? `<h3 class="rel-h">📊 Resultados da campanha</h3>
-          <div class="rel-res">${res.map(x => `<div class="rel-res-it"><b>${_esc(String(x.valor ?? '').trim() || '—')}</b><small>${_esc(x.rot)}</small></div>`).join('')}</div>` : ''}
+          <div class="rel-res">${res.map(x => `<div class="rel-res-it"><b>${_esc(String(x.valor ?? '').trim() || '—')}</b><small>${_esc(x.rot)}</small></div>`).join('')}</div>${auto.length ? `<div class="rel-auto">Atualizado sozinho${c._auto?.ads?.ate ? ` · Google até ${c._auto.ads.ate.split('-').reverse().slice(0, 2).join('/')}` : ''}${c._auto?.desde ? ` · desde ${c._auto.desde.split('-').reverse().slice(0, 2).join('/')}` : ''}</div>` : ''}` : ''}
+        ${funil.length ? `<h3 class="rel-h">🔎 Onde as pessoas param na triagem</h3>
+          <div class="rel-funil">${funil.map(f => `<div class="rel-funil-it"><span>${_esc(f.passo)}</span><i style="width:${Math.max(4, Math.round(f.pessoas / topo * 100))}%"></i><b>${f.pessoas}</b></div>`).join('')}</div>` : ''}
         ${r.lista('melhorias').length ? `<h3 class="rel-h">✅ Melhorias na campanha</h3><ul class="rel-ul">${lista('melhorias', '✅')}</ul>` : ''}
         ${r.lista('instagram').length ? `<h3 class="rel-h">📸 Melhorias no teu Instagram</h3><ul class="rel-ul">${lista('instagram', '✅')}</ul>` : ''}
         ${r.lista('desafios').length ? `<h3 class="rel-h">⚠️ Desafios e o que estamos fazendo</h3><ul class="rel-ul">${r.lista('desafios').map(x => `<li class="rel-fase"><span class="rel-ic">→</span><div>${_esc(x)}</div></li>`).join('')}</ul>` : ''}
@@ -126,11 +134,12 @@ export function abrirFichaCliente(c, { aoEditarDados, aoMudar } = {}) {
       window.open(d.length >= 10 ? `https://wa.me/55${d}?text=${txt}` : `https://wa.me/?text=${txt}`, '_blank', 'noopener');
     };
     ov.querySelector('[data-ajustar]').onclick = () => _modalAjustar(c, async jornada => {
-      try { await R.mudarCliente(c.id, { jornada }); c.jornada = jornada; desenhar(); aoMudar?.(); showToast('Salvo ✓', 'success'); }
+      try { await R.mudarCliente(c.id, { jornada }); c.jornada = jornada; c._auto = await lerAuto(c).catch(() => null); desenhar(); aoMudar?.(); showToast('Salvo ✓', 'success'); }
       catch (e) { showToast(/jornada|column/i.test(e.message) ? 'Falta rodar o SQL (sql/renda-cliente-jornada.sql)' : 'Não consegui salvar: ' + e.message, 'error'); }
     });
   };
   desenhar();
+  lerAuto(c).then(x => { c._auto = x; if (x && ov.isConnected) desenhar(); }).catch(() => {});
   return { fechar, desenhar };
 }
 
@@ -162,7 +171,14 @@ function _modalAjustar(c, salvar) {
     <input class="input-field" id="cr-t" value="${_esc(j.titulo || '')}" placeholder="Ex.: Campanha de Black Friday">
     <div class="mt-rot2">🧭 Fases</div><div id="cr-fases">${fasesHtml()}</div>
     <button class="mt-link-mini" data-addf type="button">＋ Fase</button>
-    <label class="mt-rot2" for="cr-res">📊 Resultados (um por linha, "nome: número")</label>
+    <div class="mt-rot2">🔗 Resultados automáticos</div>
+    <div class="fi-secao-sub">Com isso preenchido, os números entram sozinhos no relatório.</div>
+    <div class="obj-linha"><label class="obj-mini"><span class="mt-rot2">Agenda da cliente</span><input class="input-field" id="cr-slug" value="${_esc(j.auto?.slug || '')}" placeholder="código (ex.: V83)" maxlength="20"></label>
+      <label class="obj-mini"><span class="mt-rot2">Desde</span><input class="input-field" id="cr-desde" type="date" value="${_esc(j.auto?.desde || '')}"></label></div>
+    <label class="mt-rot2" for="cr-camp">Nome da campanha no Google (um pedaço já serve)</label>
+    <input class="input-field" id="cr-camp" value="${_esc(j.auto?.campanha || '')}" placeholder="Ex.: Celulite">
+    <button class="mt-link-mini" data-google type="button">🔗 Ligar o Google Ads (uma vez só)</button>
+    <label class="mt-rot2" for="cr-res">📊 Outros resultados (um por linha, "nome: número")</label>
     <textarea class="input-field" id="cr-res" rows="5" placeholder="Cliques: 42&#10;Agendamentos: 3">${_esc(resTxt())}</textarea>
     <label class="mt-rot2" for="cr-mel">✅ Melhorias na campanha (uma por linha)</label>
     <textarea class="input-field" id="cr-mel" rows="4">${_esc(linhas('melhorias'))}</textarea>
@@ -190,6 +206,7 @@ function _modalAjustar(c, salvar) {
   religar();
   ov.querySelector('[data-addf]').onclick = () => { ler(); j.fases.push({ nome: `Fase ${j.fases.length + 1}`, st: 'depois', itens: [] }); religar(); };
   ov.querySelector('[data-addb]').onclick = () => { ler(); j.bonus.push({ nome: '', valor: null, st: 'falta' }); religar(); };
+  ov.querySelector('[data-google]').onclick = () => abrirLigarGoogle();
   ov.querySelector('[data-x]').onclick = () => history.back();
   ov.addEventListener('click', e => { if (e.target === ov) history.back(); });
   ov.querySelector('[data-ok]').onclick = () => {
@@ -198,7 +215,99 @@ function _modalAjustar(c, salvar) {
     const nova = { ...j, titulo: ov.querySelector('#cr-t').value.trim() || 'Campanha',
       fases: j.fases.filter(f => f.nome), bonus: j.bonus.filter(b => b.nome),
       resultados: linhasDe('#cr-res').map(l => { const m = /^(.*?)\s*[:=]\s*(.*)$/.exec(l); return m ? { rot: m[1], valor: m[2] } : { rot: l, valor: '' }; }),
-      melhorias: linhasDe('#cr-mel'), instagram: linhasDe('#cr-ig'), desafios: linhasDe('#cr-des') };
+      melhorias: linhasDe('#cr-mel'), instagram: linhasDe('#cr-ig'), desafios: linhasDe('#cr-des'),
+      auto: { ...(j.auto || {}), slug: ov.querySelector('#cr-slug').value.trim(), campanha: ov.querySelector('#cr-camp').value.trim(), desde: ov.querySelector('#cr-desde').value || null } };
     history.back(); salvar(nova);
+  };
+}
+
+// === BLOCO 4: AUTOMÁTICO (agenda da cliente + Google Ads) ===
+// jornada.auto = { slug: código da agenda dela, campanha: parte do nome da campanha no Google, desde: 'AAAA-MM-DD', origem: 'google' }
+export async function lerAuto(c) {
+  const a = c?.jornada?.auto;
+  if (!a || (!a.slug && !a.campanha)) return null;
+  const desde = a.desde || null, origem = String(a.origem || 'google').toLowerCase();
+  const out = { desde, origem, ads: null, cli: null, funil: [] };
+  if (a.campanha) {
+    try {
+      let q = supabase.from('anuncios_dia').select('data,campanha,impressoes,cliques,custo').ilike('campanha', `%${a.campanha}%`);
+      if (desde) q = q.gte('data', desde);
+      const { data, error } = await q;
+      if (!error && data?.length) out.ads = data.reduce((s, r) => ({ imp: s.imp + (r.impressoes || 0), cli: s.cli + (r.cliques || 0), custo: s.custo + Number(r.custo || 0), ate: r.data > s.ate ? r.data : s.ate }), { imp: 0, cli: 0, custo: 0, ate: '' });
+    } catch { /* sem SQL */ }
+  }
+  if (a.slug) {
+    try {
+      const { data, error } = await supabase.rpc('campanha_agencia', { p_slug: a.slug, p_de: desde });
+      if (!error && data?.ok) {
+        out.cli = (data.origens || []).find(o => o.origem === origem) || { triagens: 0, agendaram: 0, atendidas: 0 };
+        out.funil = (data.funil || []).filter(f => f.origem === origem).sort((x, y) => x.ordem - y.ordem);
+      }
+    } catch { /* sem SQL */ }
+  }
+  return out.ads || out.cli ? out : null;
+}
+
+export function resultadosAuto(x) {
+  if (!x) return [];
+  const r = [], n = v => Number(v || 0).toLocaleString('pt-BR');
+  if (x.ads) r.push({ rot: 'Vezes que o anúncio apareceu', valor: n(x.ads.imp) }, { rot: 'Cliques no anúncio', valor: n(x.ads.cli) }, { rot: 'Investido no Google', valor: _brl(x.ads.custo) });
+  if (x.cli) r.push({ rot: 'Fizeram a triagem', valor: n(x.cli.triagens) }, { rot: 'Agendaram', valor: n(x.cli.agendaram) }, { rot: 'Foram atendidas', valor: n(x.cli.atendidas) });
+  if (x.ads && x.cli?.agendaram) r.push({ rot: 'Custo por agendamento', valor: _brl(x.ads.custo / x.cli.agendaram) });
+  if (x.ads?.cli && x.cli) r.push({ rot: 'Dos cliques, fizeram a triagem', valor: Math.round(x.cli.triagens / x.ads.cli * 100) + '%' });
+  return r;
+}
+
+// Script do Google Ads (Ferramentas › Scripts): manda os últimos 30 dias de cada campanha, todo dia.
+async function _chave() {
+  const { data } = await supabase.from('agencia_chaves').select('chave').maybeSingle();
+  if (data?.chave) return data.chave;
+  const b = new Uint8Array(24); crypto.getRandomValues(b);
+  const chave = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  const { error } = await supabase.from('agencia_chaves').insert({ chave });
+  if (error) throw error;
+  return chave;
+}
+export function scriptGoogleAds(chave) {
+  return `// Falcon · manda os números das campanhas pro relatório (roda 1x por dia)
+function main() {
+  var linhas = [];
+  var rel = AdsApp.search("SELECT segments.date, campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date DURING LAST_30_DAYS");
+  while (rel.hasNext()) {
+    var r = rel.next();
+    linhas.push({ d: r.segments.date, c: r.campaign.name, i: Number(r.metrics.impressions || 0), k: Number(r.metrics.clicks || 0),
+      g: Number(r.metrics.costMicros || 0) / 1000000, v: Number(r.metrics.conversions || 0) });
+  }
+  var resp = UrlFetchApp.fetch("${SUPABASE_URL}/rest/v1/rpc/anuncio_registrar", {
+    method: "post", contentType: "application/json", muteHttpExceptions: true,
+    headers: { apikey: "${SUPABASE_PUBLISHABLE_KEY}" },
+    payload: JSON.stringify({ p_chave: "${chave}", p_linhas: linhas })
+  });
+  Logger.log(resp.getResponseCode() + " " + resp.getContentText());
+}`;
+}
+export async function abrirLigarGoogle() {
+  let txt;
+  try { txt = scriptGoogleAds(await _chave()); }
+  catch (e) { showToast(/agencia_chaves|relation|column/i.test(e.message || '') ? 'Falta rodar o SQL (sql/agencia-campanhas.sql)' : 'Não consegui: ' + e.message, 'error'); return; }
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.style.zIndex = '9600';
+  ov.innerHTML = `<div class="modal mt-perm-modal"><div class="modal-title">🔗 Ligar o Google Ads</div>
+    <ol class="rel-passos">
+      <li>Toca em <b>Copiar o script</b>.</li>
+      <li>No Google Ads (no computador): <b>Ferramentas › Ações em massa › Scripts</b> e o <b>＋</b> pra criar um novo.</li>
+      <li>Apaga o que vier escrito, cola o script e dá o nome <b>Falcon</b>.</li>
+      <li>Toca em <b>Autorizar</b> e depois em <b>Visualizar</b>: embaixo tem que aparecer <b>200</b> e <b>"ok":true</b>.</li>
+      <li>Salva e, em <b>Frequência</b>, escolhe <b>Diariamente</b>.</li>
+    </ol>
+    <div class="fi-secao-sub">A chave dentro do script é só tua: não manda pra ninguém.</div>
+    <textarea class="input-field rel-script" readonly rows="6">${_esc(txt)}</textarea>
+    <div class="modal-actions"><button class="btn-secondary" data-x type="button">Fechar</button><button class="btn-primary" data-copiar type="button">📋 Copiar o script</button></div></div>`;
+  document.body.appendChild(ov);
+  trapModalBack(() => ov.remove());
+  ov.querySelector('[data-x]').onclick = () => history.back();
+  ov.querySelector('[data-copiar]').onclick = async e => {
+    try { await navigator.clipboard.writeText(txt); } catch { const t = ov.querySelector('.rel-script'); t.select(); document.execCommand('copy'); }
+    e.currentTarget.textContent = '✅ Copiado';
   };
 }
