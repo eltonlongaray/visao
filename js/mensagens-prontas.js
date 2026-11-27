@@ -82,6 +82,7 @@ function dadosCliente(cfg, c) {
     nome: primeiro(c.nome),
     temTriagem: !!t,
     servico: nomeCurto(servNome),
+    sessoes: Number(serv?.sessoes) > 1 ? Number(serv.sessoes) : 0,   // pacote (ex.: Esculpe = 5 sessões)
     preco: preco != null ? reais(preco) : '',
     queixa: queixa ? queixa + (regiao ? ` (${regiao})` : '') : '',
     querExperimentar: /experimentar/i.test(resp['Objetivo'] || ''),
@@ -96,9 +97,10 @@ function modelos(cfg, c, hs) {
   const d = dadosCliente(cfg, c), q = _quem(cfg), p = promoAtiva(cfg?.slug);
   const oi = `Oi${d.nome ? ', ' + d.nome : ''}!`;
   const h2 = hs.length >= 2 ? `${hs[0]} ou ${hs[1]}` : (hs[0] || 'um horário essa semana');
-  const serv = d.servico ? `a ${d.servico}` : 'o cuidado certo pra ti';
-  const precoServ = d.preco && d.servico ? ` (${d.preco})` : '';
-  const promo = p ? `Ainda dá pra garantir o ${p.nome}${precoServ} marcando até ${p.prazo}, mesmo que a sessão seja em dezembro. ` : '';
+  // (27/11) pacote diz que são N sessões, e o preço é do tratamento todo
+  const serv = !d.servico ? 'o cuidado certo pra ti' : d.sessoes ? `o ${d.servico}, um tratamento de ${d.sessoes} sessões` : `a ${d.servico}`;
+  const precoServ = d.preco && d.servico ? ` (${d.preco}${d.sessoes ? ` pelas ${d.sessoes} sessões` : ''})` : '';
+  const promo = p ? `Ainda dá pra garantir o ${p.nome}${precoServ} marcando até ${p.prazo}, mesmo que a primeira sessão seja em dezembro. ` : '';
   const pagaDepois = 'E tu só paga no dia, depois do atendimento.';
   const out = [];
   if (d.temTriagem) out.push({ id: 'primeiro', rot: '👋 Primeiro contato', txt:
@@ -109,7 +111,7 @@ Tenho ${h2}. Qual fica melhor pra ti?` });
   out.push({ id: 'comparando', rot: '🔍 Tá comparando / avaliando', txt:
 `${oi} Tu tá certíssima em comparar 💜
 Pra tu ver se funciona de verdade: no atendimento eu acompanho tua evolução, então tu vê o resultado em números.
-E tu não arrisca nada: só paga depois do atendimento.${p ? ` Marcando até ${p.prazo} sai pelo ${p.nome}${precoServ}, mesmo que seja em dezembro.` : ''}
+E tu não arrisca nada: só paga depois do atendimento.${p ? ` Marcando até ${p.prazo} sai pelo ${p.nome}${precoServ}, mesmo que a primeira sessão seja em dezembro.` : ''}
 Quer que eu reserve ${h2} pra ti?` });
   out.push({ id: 'caro', rot: '💰 Achou caro', txt:
 `Entendo${d.nome ? ', ' + d.nome : ''}! 💜 Pra começar sem pesar no bolso, tu pode fazer uma sessão avulsa e sentir o resultado antes de decidir o tratamento.
@@ -122,7 +124,7 @@ Se quiser, eu seguro ${h2} pra ti. Se não der, é só me avisar.` });
   out.push({ id: 'horario', rot: '🕐 Horário não bate', txt:
 `Sem problema${d.nome ? ', ' + d.nome : ''}! 💜 Me diz qual dia e turno ficam melhor pra ti (manhã, tarde ou noite) que eu vejo um encaixe na minha agenda.` });
   out.push({ id: 'sem-resposta', rot: '🔔 Não respondeu (2 dias)', txt: p
-    ? `${d.nome ? d.nome + ', s' : 'S'}ó pra tu não perder: o ${p.nome} vale pra quem marcar até ${p.prazo}, e a sessão pode ser em dezembro. Quer que eu reserve ${hs[0] || 'um horário'} pra ti? Pagamento só no dia 💜`
+    ? `${d.nome ? d.nome + ', s' : 'S'}ó pra tu não perder: o ${p.nome} vale pra quem marcar até ${p.prazo}, e a primeira sessão pode ser em dezembro. Quer que eu reserve ${hs[0] || 'um horário'} pra ti? Pagamento só no dia 💜`
     : `${oi} Passando pra saber se tu conseguiu ver minha mensagem 💜 Ainda tenho ${hs[0] || 'horário'} livre. Quer que eu reserve pra ti?` });
   if (d.casa || d.catalogo) out.push({ id: 'casa', rot: '🌿 Produtos pra casa', txt:
 `${oi} Tu marcou na triagem que quer continuar o cuidado em casa${d.casa ? ` (${d.casa})` : ''}. Separei os produtos que combinam contigo 💜
