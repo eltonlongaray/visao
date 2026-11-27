@@ -176,10 +176,6 @@ function telaHub() {
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
       </button>
-      <button class="fr-hubcard" data-hub-kanban type="button">
-        <span class="fr-hub-ic">📌</span>
-        <span class="fr-hub-tx"><b>Kanban</b><small>Tarefas do dia: a fazer, fazendo e feito</small></span>
-      </button>
       <button class="fr-hubcard" data-hub-renda-extra type="button">
         <span class="fr-hub-ic">💸</span>
         <span class="fr-hub-tx"><b>Fontes de renda extra</b><small>Mentoria: inscritas, alunas e formulários</small></span>
@@ -210,7 +206,7 @@ function telaHub() {
     </div>
     <div class="fr-hub">
       <div class="fr-metodo">
-        <div class="fr-metodo-tit">Os 4 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
+        <div class="fr-metodo-tit">Os 5 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
         <div class="fr-metodo-passos">
           <button type="button" data-hub-clareza><b>1</b><span>Organização</span></button>
           <i aria-hidden="true">›</i>
@@ -218,9 +214,11 @@ function telaHub() {
           <i aria-hidden="true">›</i>
           <button type="button" data-hub-prioridades><b>3</b><span>Decisão</span></button>
           <i aria-hidden="true">›</i>
-          <button type="button" data-hub-objetivos><b>4</b><span>Ação</span></button>
+          <button type="button" data-hub-objetivos><b>4</b><span>Constância</span></button>
+          <i aria-hidden="true">›</i>
+          <button type="button" data-hub-kanban><b>5</b><span>Execução</span></button>
         </div>
-        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro e parta pra ação.</div>
+        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro, mantenha a constância e execute.</div>
       </div>
       <button class="fr-hubcard" data-hub-clareza type="button">
         <span class="fr-hub-ic">🧭</span>
@@ -238,7 +236,11 @@ function telaHub() {
       </button>
       <button class="fr-hubcard" data-hub-objetivos type="button">
         <span class="fr-hub-ic">🏁</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Ação</small><b>Minhas Metas</b><small>Escolha o que manter com constância; eu conto sozinho pelo Ritual</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Constância</small><b>Constância das metas</b><small>O que manter com constância; eu conto sozinho pelo Ritual ou pelo Kanban</small></span>
+      </button>
+      <button class="fr-hubcard" data-hub-kanban type="button">
+        <span class="fr-hub-ic">📌</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">5 · Execução</small><b>Kanban</b><small>Tarefas e projetos: a fazer, fazendo e feito</small></span>
       </button>
     </div>`;
 }
@@ -733,7 +735,7 @@ async function criarAtividadeDaPrioridade(id) {
   await _recarregar();
   abrirEditorObjetivo(null, {
     atividadeId: novoId, titulo: 'Quantas vezes você vai fazer?',
-    dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, nas Minhas Metas.',
+    dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, na Constância das metas.',
   });
 }
 
