@@ -81,6 +81,7 @@ const _limpaCliente = (c) => {
   if (c.notas !== undefined) o.notas = String(c.notas || '').trim().slice(0, 2000) || null;
   for (const k of ['valor_pago', 'proximo_valor']) if (c[k] !== undefined) o[k] = dinheiro(c[k]);
   if (c.proximo_em !== undefined) o.proximo_em = c.proximo_em || null;
+  if (c.jornada !== undefined) o.jornada = c.jornada || null;   // proposta, fases e relatório (cliente-relatorio.js)
   return o;
 };
 
