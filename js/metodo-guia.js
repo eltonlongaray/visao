@@ -75,7 +75,7 @@ export function abrirGuiaMetodo({ grupos = [], aoMudar = () => {}, irPara = () =
       <h2>Método Falcon</h2>
       <p>Cinco passos pra tirar a bagunça da cabeça e partir pra ação:</p>
       <ol class="mg-lista-passos">
-        <li><b>Organização</b>: colocar pra fora tudo que está pendente</li>
+        <li><b>Organização</b>: botar na mesa tudo que está pendente</li>
         <li><b>Clareza</b>: pra tomar as melhores decisões</li>
         <li><b>Decisão</b>: escolher o que deve ser feito primeiro</li>
         <li><b>Execução</b>: saber em que etapa cada prioridade tua está: a fazer, fazendo ou finalizada</li>
