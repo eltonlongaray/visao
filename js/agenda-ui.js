@@ -31,6 +31,27 @@ let _triagens = [];          // triagens (/triagem/<slug>) — quem só fez a tr
 // (27/11) Clientes num lugar só (Élton): a Agenda Online fica só com os HORÁRIOS; clientes, ficha e
 // financeiro abrem pelas Fontes de renda › 💆 Atendimentos. Mesma tela, modo 'clientes'.
 let _modo = 'agenda', _tituloClientes = '💆 Atendimentos';
+// Cada serviço diz de qual fonte de renda é (servico.fonteId). No modo 'clientes' aberto por uma
+// fonte, a lista mostra só quem marcou serviço daquela fonte; a fonte "padrão" também pega quem
+// marcou serviço sem fonte (ou só fez a triagem). (Élton, 27/11: "cada horário escolhe a fonte")
+let _fonteFiltro = null, _fontePadrao = true, _fontes = [];
+function _fonteDoServicoNome(nome) {
+  const sv = (_cfg?.servicos || []).find(x => x.nome === nome);
+  if (!sv) return null;
+  if (sv.fonteId) return sv.fonteId;
+  const base = sv.pacoteDe && (_cfg.servicos || []).find(x => x.id === sv.pacoteDe);
+  return base?.fonteId || null;
+}
+function _clientesVis() {
+  const cs = _clientes();
+  if (_modo !== 'clientes' || !_fonteFiltro) return cs;
+  const fontesOk = new Set(_fontes.map(f => f.id));
+  return cs.filter(c => {
+    const fs = (c.ags || []).map(a => _fonteDoServicoNome(a.servico)).map(f => (f && fontesOk.has(f) ? f : null));
+    if (fs.includes(_fonteFiltro)) return true;
+    return _fontePadrao && (fs.length === 0 || fs.every(f => !f));
+  });
+}
 
 // Carrega os slots ocupados do próximo horizonte (pra marcar no editor de semana).
 async function _carregarOcupados() {
@@ -222,7 +243,7 @@ async function _editarZapCliente(c) {
 }
 
 function _clientesHtml() {
-  const cs = _clientes().slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt', { sensitivity: 'base' }));
+  const cs = _clientesVis().slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt', { sensitivity: 'base' }));
   if (!cs.length) return '<div class="ag-vazio">Nenhum cliente ainda. Os clientes aparecem aqui quando você agenda um atendimento (pelo Ritual ou pelo link) ou quando alguém faz a triagem.</div>';
   return `
     <div class="ag-cli-busca">
@@ -474,6 +495,8 @@ function _popupNovosAgendamentos(novos) {
 export async function abrirAgenda(opts) {
   _modo = opts?.modo === 'clientes' ? 'clientes' : 'agenda';
   if (_modo === 'clientes' && opts?.titulo) _tituloClientes = opts.titulo;
+  _fonteFiltro = _modo === 'clientes' ? (opts?.fonteId || null) : null;
+  _fontePadrao = opts?.padrao !== false;
   _diaSel = new Date().getDay(); // começa no dia de hoje
   _semanaOffset = 0;             // começa na semana atual (padrão)
   const ov = document.createElement('div');
@@ -494,6 +517,7 @@ export async function abrirAgenda(opts) {
     await carregarFichas(_cfg);  // fichas de atendimento (se a profissão estiver escolhida)
     _triagens = await getTriagens().catch(() => []);   // quem fez a triagem (/triagem/<slug>)
     await carregarFinanceiro().catch(() => {});        // vendas, custos e campanhas
+    _fontes = await import('./renda.js').then(R => R.lerFontes()).then(fs => fs.filter(f => f.tipo !== 'grupo')).catch(() => []);
   } catch (e) {
     const c = ov.querySelector('.ag-corpo');
     if (c) c.innerHTML = `<div class="ag-erro">Não deu pra carregar a agenda.<br><small>${_esc(e.message)}</small><br><br><small>Se aparecer erro de tabela/função, o SQL da agenda ainda não foi rodado no Supabase.</small></div>`;
@@ -514,7 +538,7 @@ function _bloco(id, titulo, conteudo, extra = '') {
   </section>`;
 }
 function _wireBlocos(corpo) {
-  corpo.querySelectorAll('.ag-bloco-tit').forEach(b => b.addEventListener('click', () => {
+  corpo.querySelectorAll('.ag-bloco-tit:not(.ag-link-tit)').forEach(b => b.addEventListener('click', () => {
     const sec = b.closest('.ag-bloco'), id = sec.dataset.bloco, ab = !_blocosAbertos[id];
     _blocosAbertos[id] = ab;
     try { localStorage.setItem('falcon_agenda_blocos', JSON.stringify(_blocosAbertos)); } catch { /* sem storage */ }
@@ -605,10 +629,7 @@ function desenhar() {
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
-      <button class="fr-hubcard ag-ir-clientes" id="ag-ir-clientes" type="button">
-        <span class="fr-hub-ic">👥</span>
-        <span class="fr-hub-tx"><b>Clientes, ficha e financeiro</b><small>Ficam em 💸 Fontes de renda › 💆 Atendimentos. Toque pra abrir.</small></span>
-      </button>`}
+      <section class="ag-bloco ag-bloco-link"><button class="ag-bloco-tit ag-link-tit" id="ag-ir-clientes" type="button"><span>👥 Clientes</span><span class="ag-tit-qtd">em Fontes de renda</span><span class="ag-bloco-seta">›</span></button></section>`}
     </div>
     ${_modo === 'clientes' ? '' : `<div class="ag-rodape">
       <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
@@ -634,7 +655,7 @@ function _corpoClientes(clientesHtml) {
         <button class="fin-topo-btn" id="ag-cup" type="button">🎟️ Cupons</button>
         <button class="fin-topo-btn" id="ag-pres" type="button">🎁 Cartão presente</button>
       </div>
-      <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
+      <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientesVis().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
 
       ${_bloco('ficha', '📋 Ficha de atendimento', secaoFichaHtml(_cfg, _clientes()))}`;
 }
@@ -806,8 +827,8 @@ ${_linkTriagemZap()}`;
       catch (e) { abrirAgenda({ modo: 'clientes' }); }
     }, 320);
   });
-  corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
-  corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
+  corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientesVis(), servicos: _cfg.servicos || [] }));
+  corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientesVis() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());
   const _optsCupom = () => ({ servicos: (_cfg.servicos || []).filter(s => !s.pacoteDe), marca: (String(_cfg.titulo || '').split(' · ')[1] || _cfg.titulo || '').trim(), linkAgenda: _linkPublico(), linkCupom: _linkCupom(), cfg: _cfg });
   corpo.querySelector('#ag-idv')?.addEventListener('click', () => abrirIdentidade(_cfg));
@@ -830,6 +851,7 @@ function _syncServicos() {
     const cu = (row.querySelector('.ag-serv-custo')?.value || '').replace(',', '.').trim();
     s._custo = cu === '' ? 0 : (Number(cu) || 0);
     s.sessoes = Math.max(1, parseInt(row.querySelector('.ag-serv-sess')?.value, 10) || 1);
+    const fsel = row.querySelector('.ag-serv-fonte'); if (fsel) { if (fsel.value) s.fonteId = fsel.value; else delete s.fonteId; }
     const ac = row.querySelectorAll('.ag-acomp'); if (ac.length) s.acomp = [...ac].filter(b => b.classList.contains('on')).map(b => b.dataset.acomp);
     const fi = row.querySelector('.ag-ficha.on'); if (fi) s.ficha = fi.dataset.ficha;
     // 📦 Pacote dentro do serviço: vira um item escondido (pacoteDe = id do serviço) que a
@@ -870,6 +892,8 @@ function pintarServicos() {
         <span class="ag-serv-lb" title="Pacote: quantas sessões a venda cobre (1 = sessão avulsa)">Sessões</span>
         <input class="ag-serv-sess" type="number" inputmode="numeric" min="1" value="${s.sessoes || 1}">
       </div>
+      ${_fontes.length ? `<label class="ag-serv-linha ag-serv-fonte-l"><span class="ag-serv-lb">💸 Fonte de renda</span>
+        <select class="ag-serv-fonte"><option value="">—</option>${_fontes.map(f => `<option value="${_esc(f.id)}" ${s.fonteId === f.id ? 'selected' : ''}>${_esc(f.icone || '')} ${_esc(f.nome)}</option>`).join('')}</select></label>` : ''}
       <div class="ag-serv-acomp" title="Que fotos (e medidas) o app pede nas sessões desse serviço">
         <span class="ag-serv-lb">📸 Fotos</span>
         ${ACOMPS.map(a => `<button type="button" class="ag-acomp ${acompDoServico(s).includes(a) ? 'on' : ''}" data-acomp="${a}">${PROTOCOLOS[a].icone} ${PROTOCOLOS[a].nome}</button>`).join('')}
@@ -1215,7 +1239,7 @@ async function salvar() {
   _syncServicos();
   const servicos = _cfg.servicos
     .filter(s => (s.nome || '').trim())
-    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}), ...(s.ficha ? { ficha: s.ficha } : {}) }));
+    .map(s => ({ id: s.id, nome: s.nome.trim(), duracaoMin: parseInt(s.duracaoMin, 10) || 60, preco: (s.preco == null || s.preco === '') ? null : Number(s.preco), ...((s.sessoes || 1) > 1 ? { sessoes: s.sessoes } : {}), ...(Array.isArray(s.acomp) ? { acomp: s.acomp } : {}), ...(s.pacoteDe ? { pacoteDe: s.pacoteDe } : {}), ...(s.ficha ? { ficha: s.ficha } : {}), ...(s.fonteId ? { fonteId: s.fonteId } : {}) }));
   // custos ficam fora da agenda (a agenda é pública): financeiro_cfg
   const custos = {}; for (const sv of _cfg.servicos) if ((sv.nome || '').trim()) custos[sv.id] = Number(sv._custo ?? custoServico(sv.id)) || 0;
   // limpa dias vazios do PADRÃO

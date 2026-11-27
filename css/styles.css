@@ -9586,5 +9586,13 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rd-modal-cli textarea.input-field { min-height: 80px; resize: vertical; }
 .rd-modal-cli input[type="date"].input-field { color-scheme: dark; }
 
-/* (27/11) Agenda Online → atalho pros clientes (que agora moram nas Fontes de renda) */
-.ag-ir-clientes { width: 100%; margin-top: 14px; }
+/* (27/11) Agenda Online → linha que leva pros clientes (moram nas Fontes de renda) */
+.ag-bloco-link .ag-tit-qtd { font-size: 12px; font-weight: 600; color: var(--muted); background: none; padding: 0; }
+.ag-bloco-link .ag-bloco-seta { font-size: 20px; }
+.ag-serv-fonte-l { display: flex; align-items: center; gap: 8px; }
+.ag-serv .ag-serv-fonte { flex: 1; min-width: 0; background: var(--card-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-family: inherit; font-size: 13px; }
+/* Fonte de renda com serviço da agenda: botão pros clientes que marcaram */
+.rd-agenda { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 12px 14px; margin: 10px 0; font-family: inherit; cursor: pointer; }
+.rd-agenda span { font-weight: 800; font-size: 15px; }
+.rd-agenda small { grid-column: 1; color: var(--muted); font-size: 12px; }
+.rd-agenda b { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; color: var(--muted); }
