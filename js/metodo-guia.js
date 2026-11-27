@@ -73,12 +73,13 @@ export function abrirGuiaMetodo({ grupos = [], aoMudar = () => {}, irPara = () =
     if (passo === 0) return `
       <div class="mg-ic">🦅</div>
       <h2>Método Falcon</h2>
-      <p>Quatro passos pra tirar a bagunça da cabeça e partir pra ação:</p>
+      <p>Cinco passos pra tirar a bagunça da cabeça e partir pra ação:</p>
       <ol class="mg-lista-passos">
         <li><b>Organização</b>: colocar pra fora tudo que está pendente</li>
         <li><b>Clareza</b>: tirar o que não importa de verdade</li>
         <li><b>Decisão</b>: escolher o que vem primeiro</li>
-        <li><b>Ação</b>: partir pra fazer</li>
+        <li><b>Execução</b>: as tarefas andando no Kanban, do a fazer ao feito</li>
+        <li><b>Constância</b>: acompanhar teu progresso, todo dia ou toda semana</li>
       </ol>
       <p class="mg-leve">Leva uns 2 minutos. Vamos fazer juntos?</p>
       <button class="btn-primary mg-bt" data-mg="ir">Bora começar</button>
@@ -115,10 +116,10 @@ export function abrirGuiaMetodo({ grupos = [], aoMudar = () => {}, irPara = () =
       return `
       <h2>Agora é ação 🦅</h2>
       ${ordem.length ? `<p>Teu primeiro passo é:</p><div class="mg-destaque">⭐ ${esc(ordem[0].texto)}</div>
-      <p>Tuas prioridades ficam no card <b>⭐ Prioridades</b>, na ordem que tu escolheu. O que tu quiser manter todo dia vira <b>Meta</b>, e eu acompanho pelo Ritual.</p>`
-      : `<p>Quando decidir o que vem primeiro, toca na ☆ do lado do item nos Objetivos. O que tu quiser manter todo dia vira <b>Meta</b>, e eu acompanho pelo Ritual.</p>`}
+      <p>Tuas prioridades ficam no card <b>⭐ Prioridades</b>, na ordem que tu escolheu. Tarefa com começo e fim vai pro <b>📌 Kanban</b>. Depois tu acompanha teu progresso na <b>Constância das metas</b>, pelo Ritual ou pelo Kanban.</p>`
+      : `<p>Quando decidir o que vem primeiro, toca na ☆ do lado do item nos Objetivos. Tarefa com começo e fim vai pro <b>📌 Kanban</b>. Depois tu acompanha teu progresso na <b>Constância das metas</b>, pelo Ritual ou pelo Kanban.</p>`}
       <button class="btn-primary mg-bt" data-mg="ver-prio">Ver minhas Prioridades</button>
-      <button class="mg-bt mg-bt2" data-mg="ver-metas">Abrir Minhas Metas</button>
+      <button class="mg-bt mg-bt2" data-mg="ver-metas">Abrir a Constância das metas</button>
       <button class="mg-link" data-mg="fim">Fechar</button>`;
     }
     return '';

@@ -39,7 +39,7 @@ export async function abrirObjetivos() {
     <div class="modal ag-modal"><div class="ag-corpo">
       <div class="ag-header">
         <button class="fr-voltar" id="obj-back" type="button" aria-label="Voltar">${SVG_VOLTAR}</button>
-        <div class="ag-title">🏁 Minhas Metas</div>
+        <div class="ag-title">🏁 Constância das metas</div>
       </div>
       <div class="ag-scroll">
         <button class="fr-hubcard obj-ideal-card" id="obj-ideal-abrir" type="button">
@@ -50,7 +50,7 @@ export async function abrirObjetivos() {
         </button>
 
         <div class="rf-sec-lbl" style="margin-top:18px">🔥 Foco e Disciplina</div>
-        <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. O que entrar aqui vira atividade na sua Home — e eu conto sozinho a partir do Ritual.</div>
+        <div class="bloco-sub" style="margin:0 0 12px">Escolha as atividades que se repetem e que você quer manter com constância. Pode ser uma atividade do Ritual (eu conto sozinho pelo que você marca) ou tarefas concluídas no Kanban.</div>
         <button class="btn-primary" id="obj-novo" type="button" style="width:100%;margin-bottom:14px">➕ Novo foco</button>
         <div class="rf-sec-lbl" style="margin:4px 0 10px">Meta de Constância</div>
         <div id="obj-lista"><div class="obj-carregando">Carregando…</div></div>
@@ -150,7 +150,7 @@ function linhaObjetivo(o, p, fisica = false) {
 
   return `
     <div class="obj-item ${cumprido ? 'cumprido' : ''}" data-obj="${o.id}" data-editar="${o.id}">
-      <span class="obj-ic">🎯</span>
+      <span class="obj-ic">${o.origem === 'kanban' ? '📌' : '🎯'}</span>
       <div class="obj-corpo">
         <div class="obj-topo">
           <span class="obj-nome">${esc(o.nome)}</span>
@@ -185,6 +185,10 @@ export async function abrirEditorObjetivo(id, opts = {}) {
   // coisa e vinha vazio — por isso o seletor não abria nada.
   let atividades = [];
   try { atividades = await getCategories(); } catch (e) { console.warn('[objetivos] categorias:', e.message); }
+  // Meta pelo Kanban (27/11): conta tarefas levadas pra Feito, de uma modalidade ou de todas
+  let origem = obj?.origem === 'kanban' || opts.origem === 'kanban' ? 'kanban' : 'ritual';
+  let mods = [];
+  try { mods = await (await import('./kanban.js')).lerModalidades(); } catch (e) { console.warn('[objetivos] kanban:', e.message); }
 
 
   const ov = document.createElement('div');
@@ -193,6 +197,17 @@ export async function abrirEditorObjetivo(id, opts = {}) {
     <div class="modal obj-modal">
       <h3>${obj ? 'Editar objetivo' : esc(opts.titulo || 'Novo objetivo')}</h3>
       ${!obj && opts.dica ? `<div class="modal-hint">${esc(opts.dica)}</div>` : ''}
+      <div class="obj-origem" role="tablist">
+        <button type="button" data-origem="ritual">🔁 Pelo Ritual</button>
+        <button type="button" data-origem="kanban">📌 Pelo Kanban</button>
+      </div>
+      <label class="input-field" id="obj-kb-wrap" hidden>
+        <div class="input-field-label">De qual modalidade do Kanban</div>
+        <select id="obj-kb-mod">
+          <option value="">Todas as modalidades</option>
+          ${mods.map(m => `<option value="${esc(m.id)}" ${obj?.kanbanModId === m.id ? 'selected' : ''}>${esc(m.nome)}</option>`).join('')}
+        </select>
+      </label>
 
       <label class="input-field obj-campo-ativ">
         <div class="input-field-label">Qual atividade do Ritual</div>
@@ -207,11 +222,11 @@ export async function abrirEditorObjetivo(id, opts = {}) {
         <input id="obj-nova-ativ" placeholder="Ex: Meditar, Ler, Correr…">
       </label>
 
-      <label class="input-field"><div class="input-field-label">Vezes por dia</div>
+      <label class="input-field" id="obj-vd-wrap"><div class="input-field-label">Vezes por dia</div>
         <input id="obj-vezes-dia" type="number" min="1" max="20" value="${Number(obj?.vezesDia) || 1}" /></label>
 
       <div class="obj-linha">
-        <label class="input-field obj-mini"><div class="input-field-label">Quantos dias</div>
+        <label class="input-field obj-mini"><div class="input-field-label" id="obj-vezes-lbl">Quantos dias</div>
           <input id="obj-vezes" type="number" min="1" max="31" value="${Number(obj?.vezes) || 4}" /></label>
         <label class="input-field obj-mini"><div class="input-field-label">Em cada</div>
           <select id="obj-periodo">
@@ -253,7 +268,30 @@ export async function abrirEditorObjetivo(id, opts = {}) {
 
   // Frase em português do que foi configurado. Três campos numéricos soltos
   // não dizem o que vai acontecer; a frase diz.
+  const campoAtiv = ov.querySelector('.obj-campo-ativ');
+  const syncOrigem = () => {
+    const kb = origem === 'kanban';
+    ov.querySelectorAll('[data-origem]').forEach(b => b.classList.toggle('on', b.dataset.origem === origem));
+    campoAtiv.hidden = kb; ov.querySelector('#obj-vd-wrap').hidden = kb; ov.querySelector('#obj-kb-wrap').hidden = !kb;
+    if (kb) novaWrap.hidden = true; else syncNova();
+    ov.querySelector('#obj-vezes-lbl').textContent = kb ? 'Quantas tarefas' : 'Quantos dias';
+    ov.querySelector('#obj-vezes').max = kb ? 200 : 31;
+    explicar();
+  };
+  ov.querySelectorAll('[data-origem]').forEach(b => b.addEventListener('click', () => { origem = b.dataset.origem; syncOrigem(); }));
+  ov.querySelector('#obj-kb-mod').addEventListener('change', () => explicar());
+
   const explicar = () => {
+    if (origem === 'kanban') {
+      const n = Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1);
+      const per = ov.querySelector('#obj-periodo').value === 'mes' ? 'mês' : 'semana';
+      const sel = ov.querySelector('#obj-kb-mod');
+      const de = sel.value ? ` de ${sel.options[sel.selectedIndex].text}` : '';
+      ov.querySelector('#obj-explica').textContent = mods.length
+        ? `Conta cada tarefa${de} que você levar pra Feito no Kanban. A meta é ${n} ${n > 1 ? 'tarefas' : 'tarefa'} por ${per}.`
+        : 'Seu Kanban ainda não abriu. Abra o 📌 Kanban uma vez e volte aqui.';
+      return;
+    }
     const dia = Math.max(1, Number(ov.querySelector('#obj-vezes-dia').value) || 1);
     const dias = Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1);
     const per = ov.querySelector('#obj-periodo').value === 'mes' ? 'mês' : 'semana';
@@ -261,9 +299,9 @@ export async function abrirEditorObjetivo(id, opts = {}) {
     ov.querySelector('#obj-explica').textContent =
       `Conta um dia quando você concluir ${parteDia} no Ritual. A meta é ${dias} ${dias > 1 ? 'dias' : 'dia'} por ${per}.`;
   };
-  explicar();
   ov.querySelectorAll('#obj-vezes-dia, #obj-vezes, #obj-periodo')
     .forEach(el => el.addEventListener('input', explicar));
+  syncOrigem();
 
   const fechar = () => ov.remove();
   ov.querySelector('#obj-cancelar').addEventListener('click', fechar);
@@ -283,6 +321,21 @@ export async function abrirEditorObjetivo(id, opts = {}) {
   });
 
   ov.querySelector('#obj-salvar').addEventListener('click', async () => {
+    if (origem === 'kanban') {
+      const sel = ov.querySelector('#obj-kb-mod');
+      const modNome = sel.value ? sel.options[sel.selectedIndex].text.trim() : 'todas';
+      await salvarObjetivo({
+        id: obj?.id, nome: `Tarefas concluídas · ${modNome}`,
+        vezes: Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1), vezesDia: 1,
+        periodo: ov.querySelector('#obj-periodo').value,
+        origem: 'kanban', kanbanModId: sel.value || null, atividadeId: null, atividadeNome: null,
+      });
+      fechar();
+      await montarObjetivos();
+      showToast('✅ Meta salva!', 'success');
+      try { await opts.aoSalvar?.(); } catch {}
+      return;
+    }
     let atividadeId = selAtiv.value || null;
     // Sem atividade escolhida o objetivo nasceria travado em zero pra sempre:
     // não haveria o que contar.
@@ -313,7 +366,7 @@ export async function abrirEditorObjetivo(id, opts = {}) {
       vezes: Math.max(1, Number(ov.querySelector('#obj-vezes').value) || 1),
       vezesDia: Math.max(1, Number(ov.querySelector('#obj-vezes-dia').value) || 1),
       periodo: ov.querySelector('#obj-periodo').value,
-      origem: 'ritual',
+      origem: 'ritual', kanbanModId: null,
       atividadeId,
       atividadeNome: nomeAtiv,
     });

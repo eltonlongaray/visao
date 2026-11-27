@@ -122,12 +122,14 @@ export async function progressoDosObjetivos(objetivos, hoje = new Date()) {
   }
   const porDia = new Map(dias.map(d => [d.id, d]));
 
+  const kanban = await _tarefasFeitas(objetivos);
+
   const mapa = new Map();
   for (const obj of objetivos) {
     const i = inicioDoPeriodo(obj.periodo || 'semana', hoje);
     const f = fimDoPeriodo(obj.periodo || 'semana', hoje);
-    const feitos = obj.origem === 'ritual'
-      ? _contarNoRitual(obj, porDia, i, f)
+    const feitos = obj.origem === 'kanban' ? _contarNoKanban(obj, kanban, i, f)
+      : obj.origem === 'ritual' ? _contarNoRitual(obj, porDia, i, f)
       : _contarManual(obj, i, f);
     const alvo = Math.max(1, Number(obj.vezes) || 1);
     mapa.set(obj.id, {
@@ -174,6 +176,21 @@ function _limpo(s) {
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
+// ── Meta pelo Kanban (Élton, 27/11): conta TAREFAS concluídas (não dias) no
+// período, de uma modalidade ou de todas. Ex.: "5 tarefas da Altas Vendas por semana".
+async function _tarefasFeitas(objetivos) {
+  if (!objetivos.some(o => o.origem === 'kanban')) return [];
+  try {
+    const K = await import('./kanban.js');
+    return (await K.lerTarefas()).filter(t => t.coluna === 'feito' && t.feito_em);
+  } catch (e) { console.warn('[objetivos] kanban:', e.message); return []; }
+}
+function _contarNoKanban(obj, tarefas, ini, fim) {
+  const a = idDoDia(ini), b = idDoDia(fim);
+  return tarefas.filter(t => (!obj.kanbanModId || t.modalidade_id === obj.kanbanModId)
+    && idDoDia(new Date(t.feito_em)) >= a && idDoDia(new Date(t.feito_em)) <= b).length;
+}
+
 function _contarManual(obj, ini, fim) {
   const a = idDoDia(ini), b = idDoDia(fim);
   return (obj.marcados || []).filter(d => d >= a && d <= b).length;
@@ -206,10 +223,24 @@ export async function constanciaDosObjetivos(objetivos, hoje = new Date()) {
   catch (e) { console.warn('[objetivos] histórico:', e.message); return mapa; }
   const porDia = new Map(dias.map(d => [d.id, d]));
 
+  const kanban = await _tarefasFeitas(objetivos);
+  // O Kanban só "existe" a partir da 1ª tarefa criada: antes disso a sequência para
+  const kbDesde = kanban.length ? idDoDia(new Date(Math.min(...kanban.map(t => +new Date(t.criado_em || t.feito_em))))) : null;
+
   for (const obj of objetivos) {
     const per = obj.periodo === 'mes' ? 'mes' : 'semana';
     const alvo = Math.max(1, Number(obj.vezes) || 1);
     let seguidos = 0;
+    if (obj.origem === 'kanban') {
+      for (let atras = 1; atras <= MAX_PERIODOS && kbDesde; atras++) {
+        const ref = per === 'mes' ? new Date(hoje.getFullYear(), hoje.getMonth() - atras, 15) : _somaDias(hoje, -7 * atras);
+        const ini = inicioDoPeriodo(per, ref), fim = fimDoPeriodo(per, ref);
+        if (idDoDia(fim) < kbDesde) break;
+        if (_contarNoKanban(obj, kanban, ini, fim) >= alvo) seguidos++; else break;
+      }
+      mapa.set(obj.id, { periodos: seguidos, texto: _frase(seguidos, per) });
+      continue;
+    }
 
     for (let atras = 1; atras <= MAX_PERIODOS; atras++) {
       const ref = per === 'mes'

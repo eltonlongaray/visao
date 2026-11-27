@@ -7401,7 +7401,34 @@ async function tentarListaProKanban(text) {
   return null;
 }
 
+// "cria uma meta de concluir 5 tarefas da Altas Vendas por semana" → Constância
+// das metas contando pelo Kanban (27/11)
+const _NUM_EXT = { uma: 1, um: 1, duas: 2, dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, quinze: 15, vinte: 20 };
+async function tentarMetaKanban(text) {
+  const t = PKB.norm(PR.semPedido(text));
+  if (!/\bmetas?\b/.test(t) || !/\btarefas?\b/.test(t)) return undefined;
+  const m = t.match(/\b(\d{1,3}|uma|um|duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez|quinze|vinte)\s+tarefas?\b/);
+  const per = /\bmes\b/.test(t) ? 'mes' : /\bsemana\b/.test(t) ? 'semana' : null;
+  if (!m || !per) return undefined;
+  const n = Number(m[1]) || _NUM_EXT[m[1]] || 0;
+  if (!n) return undefined;
+  const K = await import('./kanban.js');
+  let mods = [];
+  try { mods = await K.lerModalidades(); } catch (e) { return `Não consegui abrir teu Kanban agora 😕 ${_esc(e.message || '')}`; }
+  const mod = PKB.modalidadeNaFrase(mods, text);
+  const de = mod ? ` de <b>${_esc(mod.nome)}</b>` : ' (de todas as modalidades)';
+  cardConfirmarLista(`🏁 Nova meta na Constância das metas: concluir <b>${n} ${n === 1 ? 'tarefa' : 'tarefas'}</b>${de} no Kanban por <b>${per === 'mes' ? 'mês' : 'semana'}</b>?<br><small>Conta cada tarefa que for pra Feito.</small>`, async () => {
+    const { salvarObjetivo } = await import('./objetivos.js');
+    await salvarObjetivo({ nome: `Tarefas concluídas · ${mod ? mod.nome : 'todas'}`, vezes: n, vezesDia: 1, periodo: per, origem: 'kanban', kanbanModId: mod?.id || null, atividadeId: null, atividadeNome: null });
+    try { (await import('./objetivos-ui.js')).montarObjetivos(); } catch { /* tela fechada */ }
+    return 'Meta criada. 🏁 Acompanha em Método Falcon › Constância das metas.';
+  }, async () => {}, null);
+  return null;
+}
+
 async function tentarKanban(text) {
+  const rmk = await tentarMetaKanban(text);
+  if (rmk !== undefined) return rmk;
   const rl = await tentarListaProKanban(text);
   if (rl !== undefined) return rl;
   const rm = await tentarModalidade(text);

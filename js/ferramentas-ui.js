@@ -176,10 +176,6 @@ function telaHub() {
         <span class="fr-hub-tx"><b>Agenda Online</b><small>Seu link de agendamento + seus clientes</small></span>
         <span class="fr-hub-tag">PRO</span>
       </button>
-      <button class="fr-hubcard" data-hub-kanban type="button">
-        <span class="fr-hub-ic">📌</span>
-        <span class="fr-hub-tx"><b>Kanban</b><small>Tarefas do dia: a fazer, fazendo e feito</small></span>
-      </button>
       <button class="fr-hubcard" data-hub-renda-extra type="button">
         <span class="fr-hub-ic">💸</span>
         <span class="fr-hub-tx"><b>Fontes de renda extra</b><small>Mentoria: inscritas, alunas e formulários</small></span>
@@ -201,7 +197,7 @@ function telaHub() {
     </div>`;
   const pend = grupos.reduce((n, g) => n + _pendGrupo(g), 0);
   const prio = _prioridades().filter(x => !x.item.feito).length;
-  // Método: organizar → clareza → decisão → ação (Élton, 21/10). Cada passo
+  // Método: organizar → clareza → decisão → execução → constância (Élton, 27/11). Cada passo
   // abre a tela dele; os cards seguem a mesma ordem.
   return `
     <div class="fr-cab">
@@ -210,7 +206,7 @@ function telaHub() {
     </div>
     <div class="fr-hub">
       <div class="fr-metodo">
-        <div class="fr-metodo-tit">Os 4 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
+        <div class="fr-metodo-tit">Os 5 passos <button type="button" class="fr-metodo-ajuda" data-guia aria-label="Como funciona">❔ Como funciona</button></div>
         <div class="fr-metodo-passos">
           <button type="button" data-hub-clareza><b>1</b><span>Organização</span></button>
           <i aria-hidden="true">›</i>
@@ -218,9 +214,11 @@ function telaHub() {
           <i aria-hidden="true">›</i>
           <button type="button" data-hub-prioridades><b>3</b><span>Decisão</span></button>
           <i aria-hidden="true">›</i>
-          <button type="button" data-hub-objetivos><b>4</b><span>Ação</span></button>
+          <button type="button" data-hub-kanban><b>4</b><span>Execução</span></button>
+          <i aria-hidden="true">›</i>
+          <button type="button" data-hub-objetivos><b>5</b><span>Constância</span></button>
         </div>
-        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que vem primeiro e parta pra ação.</div>
+        <div class="fr-metodo-sub">Organize pra ter clareza, decida o que fazer e em que ordem, execute e acompanhe teu progresso.</div>
       </div>
       <button class="fr-hubcard" data-hub-clareza type="button">
         <span class="fr-hub-ic">🧭</span>
@@ -236,9 +234,13 @@ function telaHub() {
         <span class="fr-hub-tx"><small class="fr-hub-passo">3 · Decisão</small><b>Prioridades</b><small>O que vem primeiro: as atividades e o que fazer ou comprar</small></span>
         ${prio ? `<span class="fr-hub-badge fr-hub-badge-ouro">${prio}</span>` : ''}
       </button>
+      <button class="fr-hubcard" data-hub-kanban type="button">
+        <span class="fr-hub-ic">📌</span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Execução</small><b>Kanban</b><small>Tarefas e projetos: a fazer, fazendo e feito</small></span>
+      </button>
       <button class="fr-hubcard" data-hub-objetivos type="button">
         <span class="fr-hub-ic">🏁</span>
-        <span class="fr-hub-tx"><small class="fr-hub-passo">4 · Ação</small><b>Minhas Metas</b><small>Escolha o que manter com constância; eu conto sozinho pelo Ritual</small></span>
+        <span class="fr-hub-tx"><small class="fr-hub-passo">5 · Constância</small><b>Constância das metas</b><small>Acompanhe teu progresso; eu conto sozinho pelo Ritual ou pelo Kanban</small></span>
       </button>
     </div>`;
 }
@@ -733,7 +735,7 @@ async function criarAtividadeDaPrioridade(id) {
   await _recarregar();
   abrirEditorObjetivo(null, {
     atividadeId: novoId, titulo: 'Quantas vezes você vai fazer?',
-    dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, nas Minhas Metas.',
+    dica: 'Escolha quantos dias por semana ou por mês. Eu conto sozinho pelo Ritual, na Constância das metas.',
   });
 }
 

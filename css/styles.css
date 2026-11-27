@@ -7191,6 +7191,15 @@ body.sem-rolagem { overflow: hidden; }
   font-size: 19px; font-weight: 700; color: var(--text);
   margin: 2px 0 18px; letter-spacing: -0.3px;
 }
+/* Ritual x Kanban: duas abas lado a lado. O [hidden] precisa do !important
+   porque .modal .input-field (display:block) ganha do atributo. */
+.obj-origem { display: flex; gap: 6px; background: var(--card-2); border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+.obj-origem button {
+  flex: 1; border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 9px 6px; border-radius: 9px; cursor: pointer;
+}
+.obj-origem button.on { background: var(--accent, #7c5cff); color: #fff; }
+.obj-modal .input-field[hidden] { display: none !important; }
 .obj-linha { display: flex; gap: 8px; }
 .obj-mini { flex: 1; min-width: 0; }
 .obj-explica {
