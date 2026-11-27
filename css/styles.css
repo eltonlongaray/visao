@@ -9611,3 +9611,59 @@ body.rota-publica .bottom-nav { display: none !important; }
 .rd-agenda span { font-weight: 800; font-size: 15px; }
 .rd-agenda small { grid-column: 1; color: var(--muted); font-size: 12px; }
 .rd-agenda b { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; color: var(--muted); }
+
+/* ═══ 📄 Relatório da aluna (mentoria-relatorio.js, 27/11) — folha clara pra mandar/imprimir ═══ */
+.mt-rel-ov { position: fixed; inset: 0; z-index: 9000; background: #efe8df; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mt-rel-barra { position: sticky; top: 0; z-index: 2; display: flex; gap: 6px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; background: #efe8dfee; backdrop-filter: blur(6px); }
+.mt-rel-btn { border: 1px solid #d9cbbb; background: #fffaf4; color: #4a3a32; border-radius: 999px; padding: 8px 12px; font-family: inherit; font-weight: 600; font-size: 13px; line-height: 1; cursor: pointer; white-space: nowrap; }
+.mt-rel-btn[data-voltar] { padding: 8px 12px; font-size: 16px; }
+.mt-rel-btn.on { background: #b8925a; border-color: #b8925a; color: #fff; margin-left: auto; }
+.mt-rel-folha { max-width: 640px; margin: 4px 10px 32px; background: #fffaf4; color: #3b2f2a; border-radius: 18px; padding: 24px 20px; box-shadow: 0 6px 24px #0000001a; font-size: 14px; line-height: 1.45; }
+.rel-cab { text-align: center; padding-bottom: 14px; border-bottom: 1px solid #eadfd2; margin-bottom: 16px; }
+.rel-tit { font: 600 26px/1.2 'Cinzel', Georgia, serif; color: #8c5f5f; }
+.rel-sub { color: #7a6a60; font-size: 13px; margin-top: 6px; }
+.rel-data { color: #a8968a; font-size: 12px; margin-top: 4px; }
+.rel-cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 18px; }
+.rel-card { background: #f8efe6; border: 1px solid #eadfd2; border-radius: 14px; padding: 12px 14px; }
+.rel-card-rot { font-size: 12px; font-weight: 700; color: #8c5f5f; text-transform: uppercase; letter-spacing: .03em; }
+.rel-card-num { font-size: 22px; font-weight: 700; margin: 4px 0 6px; }
+.rel-card-num small { font-size: 13px; font-weight: 500; color: #7a6a60; }
+.rel-barra { height: 8px; background: #eadfd2; border-radius: 99px; overflow: hidden; }
+.rel-barra i { display: block; height: 100%; background: linear-gradient(90deg, #c98f8f, #b8925a); border-radius: 99px; }
+.rel-card-sub { font-size: 12.5px; color: #6b5a50; margin-top: 6px; }
+.rel-h { font: 600 17px/1.3 'Cinzel', Georgia, serif; color: #8c5f5f; margin: 18px 0 10px; }
+.rel-pilar { border-left: 3px solid #eadfd2; padding: 2px 0 6px 12px; margin-bottom: 10px; }
+.rel-pilar.ok { border-color: #8fb98f; }
+.rel-pilar.agora { border-color: #b8925a; }
+.rel-pilar-top { display: flex; justify-content: space-between; gap: 8px; }
+.rel-pilar-top span { color: #8a7a70; font-size: 13px; white-space: nowrap; }
+.rel-pilar-sub { color: #8a7a70; font-size: 12.5px; }
+.rel-pilar ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.rel-fase { display: flex; gap: 8px; padding: 4px 0; color: #3b2f2a; }
+.rel-fase.depois { color: #8a7a70; }
+.rel-fase.agora { background: #f6ead7; border-radius: 8px; padding: 6px 8px; margin: 2px 0 2px -8px; }
+.rel-fase em { color: #b8925a; font-style: normal; font-weight: 700; }
+.rel-fase small { color: #a8968a; }
+.rel-ic { flex: 0 0 18px; text-align: center; }
+.rel-obs { font-size: 12.5px; color: #8c5f5f; margin-top: 2px; }
+.rel-pausa { font-size: 12px; color: #a8968a; font-style: italic; padding: 2px 0 2px 26px; }
+.rel-linha { border-top: 2px dashed #d9cbbb; margin: 22px 0 6px; }
+.rel-p { color: #6b5a50; font-size: 13px; margin: -4px 0 8px; }
+.rel-grupo { font-size: 12px; font-weight: 700; color: #8c5f5f; text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 2px; }
+.rel-pres { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f0e6da; }
+.rel-pres small { display: block; color: #a8968a; font-size: 12px; }
+.rel-pres span { white-space: nowrap; color: #6b5a50; }
+.rel-pres-tot { font-weight: 700; border-bottom: 0; border-top: 2px solid #eadfd2; margin-top: 4px; }
+.rel-pres-tot span { color: #3b2f2a; }
+.rel-rodape { text-align: center; color: #a8968a; font-size: 12px; margin-top: 22px; }
+.rel-ed-item { border-bottom: 1px solid var(--border, #333); padding: 6px 0; }
+.rel-ed-item .input-field { margin: 3px 0; }
+@media print {
+  body.mt-rel-aberto > *:not(.mt-rel-ov) { display: none !important; }
+  body.mt-rel-aberto .mt-rel-ov { position: static; background: #fff; overflow: visible; }
+  .mt-rel-ov .no-print { display: none !important; }
+  .mt-rel-folha { box-shadow: none; margin: 0 auto; border-radius: 0; }
+  .rel-pilar, .rel-pres, .rel-card { break-inside: avoid; }
+  .rel-barra i, .rel-fase.agora, .rel-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+@media (min-width: 680px) { .mt-rel-folha { margin: 4px auto 32px; } }

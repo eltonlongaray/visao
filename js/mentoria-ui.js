@@ -12,6 +12,7 @@ import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digi
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
+import { abrirRelatorio } from './mentoria-relatorio.js?v=1';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -272,7 +273,8 @@ function _alunas(alunas) {
           ${_wa(l.contato || l.digitos) ? `<a class="mt-zap-mini" href="${_wa(l.contato || l.digitos)}" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>` : ''}</div>
         <div class="mt-pessoa-sub">Pagou em ${_data(l.pago_em)}${l.pago_valor != null ? ` · <b>${_brl(Number(l.pago_valor))}</b>` : ''}${l.pago_forma ? ` · ${_esc(_formaTxt(l))}` : ''}
           ${l.permuta ? '' : `<button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button>`}
-          ${l.permuta ? '' : '<button class="mt-link-mini" data-perm-ed type="button">🔁 Paga em permuta</button>'}</div>
+          ${l.permuta ? '' : '<button class="mt-link-mini" data-perm-ed type="button">🔁 Paga em permuta</button>'}
+          <button class="mt-link-mini" data-relat type="button">📄 Gerar relatório</button></div>
         ${_permutaHtml(l)}
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
       </div>`).join('')}`).join('');
@@ -488,6 +490,7 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-pagto]').forEach(b => b.onclick = () => _modalPagamento(_leads.find(x => x.id === b.closest('.mt-aluna').dataset.id)));
   const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
+  corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
     const l = _alunaDe(b), d = b.dataset.permX, itens = [...(l.permuta.itens || [])];

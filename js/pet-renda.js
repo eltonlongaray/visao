@@ -56,6 +56,8 @@ export function lerRenda(texto) {
 // "quanto falta da permuta da Larissa". O nome da aluna o assistente acha nas alunas com permuta.
 export function lerPermuta(texto) {
   const t = norm(texto);
+  // Relatório da aluna (27/11): "gera o relatório da Larissa", "prestação de contas da Larissa"
+  if (/\b(relatorio|prestacao de contas|andamento da mentoria)\b/.test(t) && !/\b(sessao|desafio|grupo|atendimento)\b/.test(t)) return { acao: 'relatorio', dia: 'hoje' };
   const servico = /\b(massage(?:m|ns)|permuta|sess(?:ao|oes))\b/.test(t);
   if (!servico) return null;
   const dia = /\bontem\b/.test(t) ? 'ontem' : 'hoje';
