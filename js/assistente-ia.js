@@ -7280,7 +7280,15 @@ async function tentarPermuta(text) {
     // Relatório da aluna: qualquer aluna (pagou ou tem permuta), achada pelo primeiro nome
     const alunas = leads.filter(l => l.pago_em || l.permuta);
     const a = alunas.find(x => { const n = PRD.norm(x.nome || '').split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
-    if (!a) return undefined;
+    if (!a) {
+      // Cliente de uma fonte de renda com proposta (ex.: agência de marketing)
+      let cli = [];
+      try { cli = (await (await import('./renda.js')).lerClientes()).filter(c => c.jornada); } catch { /* sem SQL */ }
+      const c = cli.find(x => { const n = PRD.norm(x.nome || '').split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
+      if (!c) return undefined;
+      (await import('./cliente-relatorio.js?v=1')).abrirFichaCliente(c);
+      return `📋 Abri a proposta e o relatório da <b>${_esc((c.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;
+    }
     const R = await import('./mentoria-relatorio.js?v=4');
     R.abrirRelatorio(a);
     return `📄 Abri o relatório da <b>${_esc((a.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;

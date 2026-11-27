@@ -190,7 +190,7 @@ function desenharClientes(ov, fonteId) {
   const f = _fontes.find(x => x.id === fonteId);
   if (!f) { history.back(); return; }
   const lista = _clientes.filter(c => c.fonte_id === fonteId);
-  const pago = lista.reduce((s, c) => s + (Number(c.valor_pago) || 0), 0);
+  const pago = lista.reduce((s, c) => s + _pagoDe(c), 0);
   const aReceber = lista.reduce((s, c) => s + (Number(c.proximo_valor) || 0), 0);
   const corpo = ov.querySelector('.ag-corpo');
   corpo.innerHTML = `
@@ -208,14 +208,26 @@ function desenharClientes(ov, fonteId) {
       ${lista.length ? lista.map(c => `
       <button class="rd-cli" data-cli="${c.id}" type="button">
         <b>${_esc(c.nome)}</b>
-        ${c.fase ? `<span class="rd-fase">${_esc(c.fase)}</span>` : ''}
-        <small>${[c.valor_pago != null && `💰 pagou ${R.reais(c.valor_pago)}`, (c.proximo_em || c.proximo_valor != null) && `📅 próximo${c.proximo_valor != null ? ' ' + R.reais(c.proximo_valor) : ''}${c.proximo_em ? ' em ' + R.dataBR(c.proximo_em) : ''}`].filter(Boolean).join(' · ') || 'Toque pra completar'}</small>
+        ${_faseDe(c) ? `<span class="rd-fase">${_esc(_faseDe(c))}</span>` : ''}${c.jornada ? '<span class="rd-prop">📋 Proposta e relatório ›</span>' : ''}
+        <small>${[_pagoDe(c) > 0 && `💰 pagou ${R.reais(_pagoDe(c))}`, (c.proximo_em || c.proximo_valor != null) && `📅 próximo${c.proximo_valor != null ? ' ' + R.reais(c.proximo_valor) : ''}${c.proximo_em ? ' em ' + R.dataBR(c.proximo_em) : ''}`].filter(Boolean).join(' · ') || 'Toque pra completar'}</small>
       </button>`).join('') : '<div class="fr-vazio-grupo">Nenhum cliente aqui ainda.</div>'}
     </div>`;
   corpo.querySelector('[data-voltar]').onclick = () => history.back();
   corpo.querySelector('[data-novo]').onclick = () => editarCliente(null, fonteId);
   corpo.querySelector('[data-agenda]')?.addEventListener('click', async () => (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes', titulo: `📅 ${f.nome} · Agenda`, fonteId: f.id, padrao: false }));
-  corpo.querySelectorAll('[data-cli]').forEach(b => b.onclick = () => editarCliente(b.dataset.cli, fonteId));
+  corpo.querySelectorAll('[data-cli]').forEach(b => b.onclick = () => {
+    const c = _clientes.find(x => x.id === b.dataset.cli);
+    if (c?.jornada) abrirProposta(c, fonteId); else editarCliente(b.dataset.cli, fonteId);
+  });
+}
+
+// Proposta e relatório (cliente-relatorio.js): fases, quanto pagou, resultados, melhorias e bônus
+// Pagou: o que está no cliente ou, com proposta, a soma das fases (trabalho + anúncio)
+const _pagoDe = c => c.valor_pago != null ? Number(c.valor_pago) || 0 : (c.jornada?.fases || []).reduce((s, f) => s + (Number(f.pago) || 0) + (Number(f.anuncio) || 0), 0);
+const _faseDe = c => (c.jornada?.fases || []).find(f => f.st === 'agora')?.nome || c.fase || '';
+async function abrirProposta(c, fonteId) {
+  const CR = await import('./cliente-relatorio.js?v=1');
+  CR.abrirFichaCliente(c, { aoEditarDados: () => editarCliente(c.id, fonteId), aoMudar: _repintar });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -227,6 +239,7 @@ function editarCliente(id, fonteId) {
   const num = (k) => c?.[k] != null ? String(c[k]).replace('.', ',') : '';
   const ov = document.createElement('div');
   ov.className = 'modal-overlay';
+  ov.style.zIndex = '9500'; // por cima da folha da proposta, quando vem de lá
   ov.innerHTML = `<div class="modal rd-modal-cli"><div class="modal-title">${c ? `👤 ${_esc(c.nome)}` : '＋ Novo cliente'}</div>
     <label class="mt-rot2" for="rc-nome">Nome</label>
     <input class="input-field" id="rc-nome" maxlength="80" value="${v('nome')}" autocomplete="off">
@@ -245,6 +258,7 @@ function editarCliente(id, fonteId) {
     <label class="mt-rot2" for="rc-notas">Anotações</label>
     <textarea class="input-field" id="rc-notas" rows="3" maxlength="2000" placeholder="Só pra você: combinados, próximos passos…">${v('notas')}</textarea>
     ${c && digitosDe(c.contato || '').length >= 10 ? `<a class="btn-secondary rd-wpp" href="https://wa.me/55${digitosDe(c.contato)}" target="_blank" rel="noopener">💬 Abrir conversa no WhatsApp</a>` : ''}
+    ${c && !c.jornada ? '<button class="btn-secondary rd-wpp" data-prop type="button">📋 Montar proposta e relatório</button>' : ''}
     ${c ? '<button class="mt-apagar" data-apagar type="button">Apagar cliente</button>' : ''}
     <div class="modal-actions"><button class="btn-secondary" data-x type="button">Cancelar</button><button class="btn-primary" data-ok type="button">${c ? 'Salvar' : 'Adicionar'}</button></div></div>`;
   document.body.appendChild(ov);
@@ -253,6 +267,7 @@ function editarCliente(id, fonteId) {
   if (!c) setTimeout(() => $('#rc-nome').focus(), 50);
   $('[data-x]').onclick = () => fechar();
   ov.addEventListener('click', e => { if (e.target === ov) fechar(); });
+  $('[data-prop]')?.addEventListener('click', () => { history.back(); setTimeout(() => abrirProposta(c, fonteId), 60); });
   $('[data-apagar]')?.addEventListener('click', async () => {
     const ok = await confirmModal({ title: `Apagar ${c.nome}?`, message: 'Some da lista, com as anotações.', confirmText: 'Apagar', cancelText: 'Manter', danger: true });
     if (!ok) return;
