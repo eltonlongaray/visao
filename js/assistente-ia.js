@@ -52,7 +52,7 @@ import * as PL from './pet-listas.js?v=20261026a';
 import * as TRN from './treino-registro.js';
 import * as PP from './pet-preparo.js?v=20261104a';
 import * as PC from './pet-conversa.js?v=20261006a';
-import * as PN from './pet-nuvem.js?v=20261127e';
+import * as PN from './pet-nuvem.js?v=20261127f';
 import * as PNT from './pet-nota.js?v=20261006a';
 import * as PR from './pet-ritual.js?v=20261009g';
 import * as PCF from './pet-config.js?v=20261126a';
@@ -65,7 +65,7 @@ import { currentTheme, applyTheme } from './tema.js';
 import * as PCT from './pet-contas.js?v=20261008a';
 import * as PAJ from './pet-ajustes.js?v=20261103a';
 import * as PKB from './pet-kanban.js?v=20261126b';
-import * as PRD from './pet-renda.js?v=20261127e';
+import * as PRD from './pet-renda.js?v=20261127f';
 import { anotarNoDiario } from './pet-diario.js?v=20261007a';
 
 // O que o Pet grava avisa a tela aberta (o Ritual recarrega a semana).
@@ -7276,6 +7276,15 @@ async function tentarPermuta(text) {
   let leads;
   try { leads = await M.getLeads(); } catch { return undefined; }
   const t = PRD.norm(text);
+  if (p.acao === 'relatorio') {
+    // Relatório da aluna: qualquer aluna (pagou ou tem permuta), achada pelo primeiro nome
+    const alunas = leads.filter(l => l.pago_em || l.permuta);
+    const a = alunas.find(x => { const n = PRD.norm(x.nome || '').split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
+    if (!a) return undefined;
+    const R = await import('./mentoria-relatorio.js?v=4');
+    R.abrirRelatorio(a);
+    return `📄 Abri o relatório da <b>${_esc((a.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;
+  }
   const comPerm = leads.filter(l => l.permuta && M.resumoPermuta(l.permuta));
   const l = comPerm.find(x => { const n = PRD.norm(x.nome).split(' ')[0]; return n.length >= 3 && new RegExp(`\\b${n}\\b`).test(t); });
   if (!l) return undefined;
