@@ -8,7 +8,7 @@
 // Veio do castelo (/castelo/selecao/painel + /castelo/vendas): mesma lógica de etapas,
 // mensagens prontas e roteiro, agora no Falcon. Dados: js/mentoria.js · SQL: sql/mentoria.sql
 // ─────────────────────────────────────────────────────────────
-import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digitosDe } from './mentoria.js';
+import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digitosDe, resumoPermuta } from './mentoria.js';
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
@@ -271,9 +271,90 @@ function _alunas(alunas) {
         <div class="mt-aluna-top"><b>${_esc(l.nome || 'Sem nome')}</b>
           ${_wa(l.contato || l.digitos) ? `<a class="mt-zap-mini" href="${_wa(l.contato || l.digitos)}" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>` : ''}</div>
         <div class="mt-pessoa-sub">Pagou em ${_data(l.pago_em)}${l.pago_valor != null ? ` · <b>${_brl(Number(l.pago_valor))}</b>` : ''}${l.pago_forma ? ` · ${_esc(_formaTxt(l))}` : ''}
-          <button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button></div>
+          ${l.permuta ? '' : `<button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button>`}
+          ${l.permuta ? '' : '<button class="mt-link-mini" data-perm-ed type="button">🔁 Paga em permuta</button>'}</div>
+        ${_permutaHtml(l)}
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
       </div>`).join('')}`).join('');
+}
+
+// Permuta (27/11): aluna que paga em serviço. Barra do quanto já pagou, botões do dia e histórico.
+const _hoje = () => { const d = new Date(), z = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
+const _plural = (w, n) => n === 1 ? w : /m$/.test(w) ? w.slice(0, -1) + 'ns' : /[rsz]$/.test(w) ? w + 'es' : w + 's';
+const _dBR = d => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? `${m[3]}/${m[2]}` : ''; };
+function _permutaHtml(l) {
+  const r = resumoPermuta(l.permuta);
+  if (!r) return '';
+  const itens = (l.permuta.itens || []).filter(i => i.t === 'feita' || i.t === 'repos').slice().sort((a, b) => (a.d < b.d ? 1 : -1));
+  const serv = _esc(r.servico.toLowerCase());
+  const hojeN = itens.filter(i => i.d === _hoje()).length;
+  const situacao = r.quitada ? '✅ Quitada' : r.esperadas == null ? '' : r.atrasadas ? `<b class="mt-perm-atraso">⚠️ ${r.atrasadas} atrasada${r.atrasadas === 1 ? '' : 's'}</b>` : r.adiantadas ? `✓ Em dia (${r.adiantadas} adiantada${r.adiantadas === 1 ? '' : 's'})` : '✓ Em dia';
+  return `<div class="mt-perm">
+    <div class="mt-perm-top"><span>🔁 Permuta · ${_esc(r.servico)} a ${_brl(r.unit)}</span><button class="mt-link-mini" data-perm-ed type="button">Editar</button></div>
+    <div class="mt-perm-barra"><i style="width:${r.pct}%"></i></div>
+    <div class="mt-perm-num"><b>${r.feitas} de ${r.precisa} ${_plural(serv, 2)}</b><span>${_brl(r.pago)} de ${_brl(r.total)}</span></div>
+    <div class="mt-perm-sub">${situacao}${r.quitada ? '' : `${situacao ? ' · ' : ''}faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}</div>
+    ${r.quitada ? '' : `<div class="mt-perm-acoes"><button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button>${hojeN ? `<span class="mt-perm-sub">Hoje: ${hojeN}</span>` : ''}</div>`}
+    ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map((i, k) => `
+      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>✓ ${serv}</span><button class="mt-perm-x" data-perm-x="${i.d}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
+  </div>`;
+}
+
+async function _marcarPermuta(l, t = 'feita', dia = _hoje()) {
+  const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || []), { d: dia, t: 'feita' }] };
+  await _salvarPermuta(l, p, `${p.servico || 'Massagem'} marcada ✓`);
+}
+async function _salvarPermuta(l, p, msg) {
+  try { await salvarLead(l.id, { permuta: p }); l.permuta = p; desenhar(); if (msg) showToast(msg, 'success'); }
+  catch (e) { showToast(/permuta|column/i.test(e.message) ? 'Falta rodar o SQL da permuta (sql/mentoria-permuta.sql)' : 'Não consegui salvar: ' + e.message, 'error'); }
+}
+
+function _modalPermuta(l) {
+  if (!l) return;
+  const p = l.permuta || {};
+  const z = n => String(n).padStart(2, '0'), pd = l.pago_em ? new Date(l.pago_em) : new Date();
+  const inicio = p.inicio || `${pd.getFullYear()}-${z(pd.getMonth() + 1)}-${z(pd.getDate())}`;
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal mt-perm-modal"><div class="modal-title">🔁 Permuta de ${_esc((l.nome || 'aluna').split(' ')[0])}</div>
+    <div class="fi-secao-sub">Ela paga a mentoria em serviço. Cada um que ela faz é um pagamento: tu marca e o saldo baixa. O atraso o app conta sozinho.</div>
+    <label class="mt-rot2" for="pm-t">Valor da mentoria (R$)</label>
+    <input class="input-field" id="pm-t" type="number" inputmode="decimal" min="0" step="0.01" value="${_esc(p.total ?? '')}">
+    <label class="mt-rot2" for="pm-s">Serviço que ela faz</label>
+    <input class="input-field" id="pm-s" value="${_esc(p.servico || 'Massagem')}" maxlength="30">
+    <label class="mt-rot2" for="pm-u">Quanto vale cada um (R$)</label>
+    <input class="input-field" id="pm-u" type="number" inputmode="decimal" min="1" step="0.01" value="${_esc(p.unit ?? 170)}">
+    <div class="obj-linha">
+      <label class="obj-mini"><span class="mt-rot2">Começou em</span><input class="input-field" id="pm-i" type="date" value="${_esc(inicio)}"></label>
+      <label class="obj-mini"><span class="mt-rot2">Por semana</span><input class="input-field" id="pm-w" type="number" inputmode="numeric" min="1" max="7" value="${_esc(p.porSemana ?? 1)}"></label>
+    </div>
+    <label class="mt-rot2" for="pm-a">Já feitos antes de marcar aqui</label>
+    <input class="input-field" id="pm-a" type="number" inputmode="numeric" min="0" value="${_esc(p.anteriores ?? 0)}">
+    <div class="modal-actions">${l.permuta ? '<button class="btn-secondary" data-tirar type="button" style="color:var(--red)">Tirar permuta</button>' : ''}<button class="btn-secondary" data-x type="button">Cancelar</button><button class="btn-primary" data-ok type="button">Salvar</button></div></div>`;
+  document.body.appendChild(ov);
+  const fechar = trapModalBack(() => ov.remove());
+  ov.querySelector('[data-x]').onclick = () => history.back();
+  ov.addEventListener('click', e => { if (e.target === ov) history.back(); });
+  const num = id => parseFloat(String(ov.querySelector(id).value).replace(',', '.'));
+  ov.querySelector('[data-tirar]')?.addEventListener('click', async () => {
+    const ok = await confirmModal({ title: 'Tirar a permuta?', message: 'Some o controle e o histórico das vezes marcadas.', confirmText: 'Tirar', danger: true });
+    if (!ok) return;
+    history.back(); _salvarPermuta(l, null, 'Permuta tirada');
+  });
+  ov.querySelector('[data-ok]').onclick = async () => {
+    const total = num('#pm-t'), unit = num('#pm-u');
+    if (!(total > 0)) return showToast('Coloque o valor da mentoria', 'error');
+    if (!(unit > 0)) return showToast('Coloque quanto vale cada serviço', 'error');
+    const { faltasAntes, ...resto } = p;
+    const novo = { ...resto, total: Math.round(total * 100) / 100, unit: Math.round(unit * 100) / 100,
+      servico: ov.querySelector('#pm-s').value.trim() || 'Massagem',
+      inicio: ov.querySelector('#pm-i').value || inicio, porSemana: Math.min(7, Math.max(1, parseInt(ov.querySelector('#pm-w').value, 10) || 1)),
+      anteriores: Math.max(0, parseInt(ov.querySelector('#pm-a').value, 10) || 0),
+      itens: (p.itens || []).filter(i => i.t === 'feita' || i.t === 'repos') };
+    history.back(); _salvarPermuta(l, novo, 'Permuta salva 🔁');
+  };
+  setTimeout(() => ov.querySelector('#pm-t').focus(), 60);
+  return fechar;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -405,6 +486,15 @@ function ligar(corpo) {
   });
 
   corpo.querySelectorAll('.mt-aluna [data-pagto]').forEach(b => b.onclick = () => _modalPagamento(_leads.find(x => x.id === b.closest('.mt-aluna').dataset.id)));
+  const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
+  corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
+  corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
+  corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
+    const l = _alunaDe(b), d = b.dataset.permX, itens = [...(l.permuta.itens || [])];
+    const k = itens.findIndex(i => i.d === d && (i.t === 'feita' || i.t === 'repos'));
+    if (k >= 0) itens.splice(k, 1);
+    _salvarPermuta(l, { ...l.permuta, itens }, 'Tirado do histórico');
+  });
   corpo.querySelectorAll('.mt-aluna [data-aula]').forEach(b => b.onclick = () => {
     const l = _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id), k = b.dataset.aula;
     _salvar(l, { presenca: { ...(l.presenca || {}), [k]: !l.presenca?.[k] } });
