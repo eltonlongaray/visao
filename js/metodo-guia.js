@@ -76,9 +76,9 @@ export function abrirGuiaMetodo({ grupos = [], aoMudar = () => {}, irPara = () =
       <p>Cinco passos pra tirar a bagunça da cabeça e partir pra ação:</p>
       <ol class="mg-lista-passos">
         <li><b>Organização</b>: colocar pra fora tudo que está pendente</li>
-        <li><b>Clareza</b>: tirar o que não importa de verdade</li>
-        <li><b>Decisão</b>: escolher o que vem primeiro</li>
-        <li><b>Execução</b>: as tarefas andando no Kanban, do a fazer ao feito</li>
+        <li><b>Clareza</b>: pra tomar as melhores decisões</li>
+        <li><b>Decisão</b>: escolher o que deve ser feito primeiro</li>
+        <li><b>Execução</b>: saber em que etapa cada prioridade tua está: a fazer, fazendo ou finalizada</li>
         <li><b>Constância</b>: acompanhar teu progresso, todo dia ou toda semana</li>
       </ol>
       <p class="mg-leve">Leva uns 2 minutos. Vamos fazer juntos?</p>
