@@ -1,6 +1,6 @@
 // ─── ÍNDICE ──────────────────────────────────────────────────
 // 📄 FOLHA EM PDF (27/11/2026): transforma a folha do relatório (.mt-rel-folha) num PDF A4
-// do jeito que aparece na tela (foto da folha com html2canvas, páginas com jsPDF) e abre o
+// em formato de celular, do jeito que aparece na tela (foto da folha com html2canvas, páginas com jsPDF) e abre o
 // compartilhar do celular com o ARQUIVO (WhatsApp → qualquer contato ou grupo).
 //   BLOCO 1: carregar as bibliotecas (só quando precisa)
 //   BLOCO 2: folhaParaPdf(el) → Blob, quebrando a página entre blocos, nunca no meio da linha
@@ -20,7 +20,9 @@ async function _libs() {
 }
 
 // === BLOCO 2: FOLHA → PDF ===
-const LARG = 640; // largura fixa da folha no PDF (igual em qualquer celular)
+// Formato celular (27/11: o Élton achou a letra pequena no A4): folha estreita (como na tela)
+// e página em pé 9:16, então no WhatsApp a letra fica grande sem zoom.
+const LARG = 440;
 const QUEBRAS = '.rel-cab, .rel-cards, .rel-card, .rel-h, .rel-p, .rel-pilar, .rel-pilar li, .rel-linha, .rel-bonus-tit, .rel-grupo, .rel-pres, .rel-rodape, section, li, p, h3';
 
 export async function folhaParaPdf(el) {
@@ -40,10 +42,10 @@ export async function folhaParaPdf(el) {
   });
   cortes = [...new Set(cortes)].sort((a, b) => a - b);
 
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const W = 210, H = 297, M = 8;
+  const W = 120, H = 213, M = 5, RODAPE = 7;
+  const doc = new jsPDF({ unit: 'mm', format: [W, H] });
   const pxPorMm = canvas.width / (W - 2 * M);
-  const alturaPag = Math.floor((H - 2 * M) * pxPorMm);
+  const alturaPag = Math.floor((H - 2 * M - RODAPE) * pxPorMm);
   let y = 0, pag = 0;
   while (y < canvas.height - 4) {
     let fim = Math.min(canvas.height, y + alturaPag);
@@ -61,6 +63,12 @@ export async function folhaParaPdf(el) {
     doc.setFillColor(255, 250, 244); doc.rect(0, 0, W, H, 'F');
     doc.addImage(pedaco.toDataURL('image/jpeg', 0.9), 'JPEG', M, M, W - 2 * M, (fim - y) / pxPorMm);
     y = fim; pag++;
+  }
+  const tot = doc.getNumberOfPages();
+  for (let p = 1; p <= tot; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(150, 130, 115);
+    doc.text(`${p} de ${tot}`, W / 2, H - 4.5, { align: 'center' });
   }
   return doc.output('blob');
 }
