@@ -9,7 +9,7 @@
 // Sem nada salvo, usa a jornada padrão e a fase vem pela data. SQL: sql/mentoria-jornada.sql
 // A entrega DELA vem da permuta (mentoria.js → resumoPermuta).
 // ─────────────────────────────────────────────────────────────
-import { resumoPermuta, salvarLead, digitosDe } from './mentoria.js';
+import { resumoPermuta, salvarLead } from './mentoria.js';
 import { showToast } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 
@@ -145,7 +145,6 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
       <div class="mt-rel-barra no-print">
         <button class="mt-rel-btn" data-voltar type="button" aria-label="Voltar">←</button>
         <button class="mt-rel-btn" data-ajustar type="button">✏️ Ajustar</button>
-        <button class="mt-rel-btn" data-zap type="button">💬 Resumo</button>
         <button class="mt-rel-btn on" data-pdf type="button">📄 PDF</button>
       </div>
       <article class="mt-rel-folha">
@@ -181,19 +180,26 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         ${bFal.length ? `<div class="rel-bonus-tit">🔜 Ainda vai ser entregue <small>no mínimo, porque podem surgir mais coisas</small></div>${bonusHtml(bFal)}
         <div class="rel-pres rel-pres-tot"><div>Ainda vai ser entregue</div><span>${_brl(r.bonusFalta)}</span></div>` : ''}
         <footer class="rel-rodape">Feito com 🤍 no Falcon</footer>
-      </article>`;
+      </article>
+      <div class="mt-rel-compartilhar no-print">
+        <button class="mt-rel-zap" data-zap type="button">📤 Compartilhar no WhatsApp</button>
+        <small>Abre o WhatsApp pra tu escolher o grupo ou a conversa</small>
+      </div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
     ov.querySelector('[data-pdf]').onclick = () => window.print();
     ov.querySelector('[data-zap]').onclick = () => {
-      const d = digitosDe(l.contato || l.digitos), txt = encodeURIComponent(textoResumo(l));
-      window.open(d ? `https://wa.me/55${d}?text=${txt}` : `https://wa.me/?text=${txt}`, '_blank', 'noopener');
+      // Sem número fixo: o Élton escolhe o grupo do projeto ou a conversa (27/11)
+      window.open(`https://wa.me/?text=${encodeURIComponent(textoResumo(l))}`, '_blank', 'noopener');
     };
     ov.querySelector('[data-ajustar]').onclick = () => _modalAjustar(l, async jornada => {
       try { await salvarLead(l.id, { jornada }); l.jornada = jornada; desenhar(); aoSalvar?.(); showToast('Relatório ajustado ✓', 'success'); }
       catch (e) { showToast(/jornada|column/i.test(e.message) ? 'Falta rodar o SQL do relatório (sql/mentoria-jornada.sql)' : 'Não consegui salvar: ' + e.message, 'error'); }
     });
   };
-  desenhar();
+  // Tela de carregando antes do relatório aparecer (27/11: o Élton quer ver que gerou)
+  const nomeCurto = _esc((l.nome || 'aluna').split(' ')[0]);
+  ov.innerHTML = `<div class="mt-rel-gerando"><div class="mt-rel-spin"></div><b>Gerando o relatório da ${nomeCurto}…</b><small>Juntando a linha do tempo, as entregas e os bônus</small></div>`;
+  setTimeout(() => { if (ov.isConnected) desenhar(); }, 900);
   return fechar;
 }
 
