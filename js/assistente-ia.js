@@ -7289,7 +7289,7 @@ async function tentarPermuta(text) {
       (await import('./cliente-relatorio.js?v=2')).abrirFichaCliente(c);
       return `📋 Abri a proposta e o relatório da <b>${_esc((c.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;
     }
-    const R = await import('./mentoria-relatorio.js?v=5');
+    const R = await import('./mentoria-relatorio.js?v=6');
     R.abrirRelatorio(a);
     return `📄 Abri o relatório da <b>${_esc((a.nome || '').split(' ')[0])}</b>. Dá pra salvar em PDF ou mandar o resumo no WhatsApp.`;
   }

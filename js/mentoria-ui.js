@@ -12,7 +12,7 @@ import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digi
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { abrirRelatorio, textoResumo } from './mentoria-relatorio.js?v=5';
+import { abrirRelatorio } from './mentoria-relatorio.js?v=6';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -274,10 +274,10 @@ function _alunas(alunas) {
         <div class="mt-pessoa-sub">Pagou em ${_data(l.pago_em)}${l.pago_valor != null ? ` · <b>${_brl(Number(l.pago_valor))}</b>` : ''}${l.pago_forma ? ` · ${_esc(_formaTxt(l))}` : ''}
           ${l.permuta ? '' : `<button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button>`}
           ${l.permuta ? '' : '<button class="mt-link-mini" data-perm-ed type="button">🔁 Paga em permuta</button>'}
-          <button class="mt-link-mini" data-relat type="button">📄 Gerar relatório</button>
-          <button class="mt-link-mini" data-rel-zap type="button">📤 Compartilhar no WhatsApp</button></div>
+</div>
         ${_permutaHtml(l)}
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
+        <button class="mt-btn-rel" data-relat type="button">📄 Gerar relatório</button>
       </div>`).join('')}`).join('');
 }
 
@@ -513,11 +513,6 @@ function ligar(corpo) {
   const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
-  corpo.querySelectorAll('.mt-aluna [data-rel-zap]').forEach(b => b.onclick = () => {
-    // Abre o WhatsApp pra escolher a conversa (o grupo do projeto ou ela)
-    const l = _alunaDe(b);
-    window.open(`https://wa.me/?text=${encodeURIComponent(textoResumo(l))}`, '_blank', 'noopener');
-  });
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
     const l = _alunaDe(b), d = b.dataset.permX, itens = [...(l.permuta.itens || [])];
