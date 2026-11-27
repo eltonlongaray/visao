@@ -275,7 +275,7 @@ function _alunas(alunas) {
           ${l.permuta ? '' : `<button class="mt-link-mini" data-pagto type="button">${l.pago_valor != null ? 'Editar pagamento' : 'Lançar valor'}</button>`}
           ${l.permuta ? '' : '<button class="mt-link-mini" data-perm-ed type="button">🔁 Paga em permuta</button>'}
           <button class="mt-link-mini" data-relat type="button">📄 Gerar relatório</button>
-          <button class="mt-link-mini" data-rel-zap type="button">📤 Mandar relatório</button>
+          <button class="mt-link-mini" data-rel-zap type="button">📤 Compartilhar relatório</button>
           <button class="mt-link-mini" data-wpp-ed type="button">${_temContato(l) ? '📱 Trocar WhatsApp' : '📱 Salvar WhatsApp'}</button></div>
         ${_permutaHtml(l)}
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
@@ -516,9 +516,9 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-wpp-ed]').forEach(b => b.onclick = () => _modalWhatsApp(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-rel-zap]').forEach(b => b.onclick = () => {
+    // Abre o WhatsApp pra escolher a conversa (o grupo do projeto ou ela)
     const l = _alunaDe(b);
-    if (!_temContato(l)) { showToast('Salva o WhatsApp dela primeiro', 'error'); return _modalWhatsApp(l); }
-    window.open(_wa(l.contato || l.digitos, textoResumo(l)), '_blank', 'noopener');
+    window.open(`https://wa.me/?text=${encodeURIComponent(textoResumo(l))}`, '_blank', 'noopener');
   });
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => _marcarPermuta(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm-x]').forEach(b => b.onclick = () => {
