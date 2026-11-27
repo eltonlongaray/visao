@@ -226,7 +226,7 @@ function desenharClientes(ov, fonteId) {
 const _pagoDe = c => c.valor_pago != null ? Number(c.valor_pago) || 0 : (c.jornada?.fases || []).reduce((s, f) => s + (Number(f.pago) || 0) + (Number(f.anuncio) || 0), 0);
 const _faseDe = c => (c.jornada?.fases || []).find(f => f.st === 'agora')?.nome || c.fase || '';
 async function abrirProposta(c, fonteId) {
-  const CR = await import('./cliente-relatorio.js?v=2');
+  const CR = await import('./cliente-relatorio.js?v=3');
   CR.abrirFichaCliente(c, { aoEditarDados: () => editarCliente(c.id, fonteId), aoMudar: _repintar });
 }
 
