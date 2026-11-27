@@ -53,16 +53,32 @@ function _horariosDoDia(cfg, d) {
   const base = wk != null ? wk : (cfg.disponibilidade || {});
   return (base[String(d.getDay())] || []).slice().sort();
 }
-async function horariosLivres(cfg, n = 2) {
+// (27/11) Horário oferecido numa mensagem fica guardado pra AQUELA cliente por 2 dias (neste aparelho):
+// a próxima cliente recebe outros horários, pra duas não aceitarem o mesmo.
+const _OFK = slug => `falcon_hor_oferecidos_${slug}`;
+function _oferecidos(slug) {
+  try { const a = JSON.parse(localStorage.getItem(_OFK(slug)) || '[]'); return Array.isArray(a) ? a.filter(x => x.ate > Date.now()) : []; } catch { return []; }
+}
+function marcarOferecidos(slug, cli, hs) {
+  try {
+    const a = _oferecidos(slug).filter(x => x.cli !== cli);
+    for (const h of hs) a.push({ k: h.k, cli, ate: Date.now() + 2 * 86400000 });
+    localStorage.setItem(_OFK(slug), JSON.stringify(a.slice(-80)));
+  } catch {}
+}
+async function horariosLivres(cfg, cli, n = 2) {
   const ini = new Date(); ini.setHours(0, 0, 0, 0); ini.setDate(ini.getDate() + 1);
   const fim = new Date(ini); fim.setDate(fim.getDate() + 30);
   let ocup = new Map();
   try { ocup = await getSlotsOcupados(cfg.slug, iso(ini), iso(fim)); } catch {}
-  const DUR = cfg.duracao_min || 60, out = [];
+  const DUR = cfg.duracao_min || 60, INT = Number(cfg.intervalo_min) || 0, out = [];
+  const ofs = _oferecidos(cfg.slug), deOutra = k => ofs.some(x => x.k === k && x.cli !== cli);
   for (let d = new Date(ini); d <= fim && out.length < n; d.setDate(d.getDate() + 1)) {
-    const livres = _horariosDoDia(cfg, d).filter(h => !estaOcupado(ocup, iso(d), h, DUR));
-    // pega um horário do meio da tarde quando der (nem o primeiro nem o último)
-    if (livres.length) out.push(`${SEM[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${livres[Math.min(1, livres.length - 1)].replace(':', 'h')}`);
+    const livres = _horariosDoDia(cfg, d).filter(h => !estaOcupado(ocup, iso(d), h, DUR, INT));
+    // prefere o 2º horário do dia (nem o primeiro nem o último) e pula o que já foi oferecido pra outra cliente
+    const ordem = livres.length > 1 ? [livres[1], livres[0], ...livres.slice(2)] : livres;
+    const h = ordem.find(x => !deOutra(`${iso(d)} ${x}`));
+    if (h) out.push({ k: `${iso(d)} ${h}`, txt: `${SEM[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} às ${h.replace(':', 'h')}` });
   }
   return out;
 }
@@ -143,7 +159,7 @@ export function mensagensPerfilHtml(c) {
 export function wireMensagensPerfil(ov, cfg, c) {
   const btn = ov.querySelector('#agp-msg-btn'); if (!btn) return;
   const box = ov.querySelector('#agp-msg'), seta = ov.querySelector('#agp-msg-seta');
-  let ms = null, sel = null;
+  let ms = null, sel = null, hsObj = [];
   const desenhar = () => {
     const m = ms.find(x => x.id === sel);
     box.innerHTML = `
@@ -162,17 +178,18 @@ export function wireMensagensPerfil(ov, cfg, c) {
     const txt = () => box.querySelector('#agp-msg-txt')?.value || '';
     box.querySelector('#agp-msg-env')?.addEventListener('click', () => {
       const url = _zapLink(c.contato, txt()); if (url) window.open(url, '_blank', 'noopener');
+      marcarOferecidos(cfg?.slug, c.key, hsObj);   // esses horários ficam pra ela por 2 dias
     });
     box.querySelector('#agp-msg-cop')?.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(txt()); showToast('Mensagem copiada', 'success'); } catch { showToast('Não deu pra copiar', 'error'); }
+      try { await navigator.clipboard.writeText(txt()); marcarOferecidos(cfg?.slug, c.key, hsObj); showToast('Mensagem copiada', 'success'); } catch { showToast('Não deu pra copiar', 'error'); }
     });
   };
   btn.addEventListener('click', async () => {
     const abrir = box.hidden; box.hidden = !abrir; if (seta) seta.textContent = abrir ? '▴' : '▾';
     if (!abrir || ms) return;
     box.innerHTML = '<div class="ag-msg-obs">Montando as mensagens…</div>';
-    const hs = await horariosLivres(cfg || {});
-    ms = modelos(cfg, c, hs);
+    hsObj = await horariosLivres(cfg || {}, c.key);
+    ms = modelos(cfg, c, hsObj.map(h => h.txt));
     sel = ms[0]?.id || null;
     desenhar();
   });
