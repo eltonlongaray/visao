@@ -286,17 +286,20 @@ function _permutaHtml(l) {
   const r = resumoPermuta(l.permuta);
   if (!r) return '';
   const itens = (l.permuta.itens || []).slice().sort((a, b) => (a.d < b.d ? 1 : -1));
-  const hojeJa = itens.find(i => i.d === _hoje());
+  const hojeJa = itens.find(i => i.d === _hoje() && i.t !== 'repos');
+  const reposHoje = itens.some(i => i.d === _hoje() && i.t === 'repos');
+  const txt = i => i.t === 'feita' ? '✓ ' + serv + ' feita' : i.t === 'repos' ? '↺ reposição de falta' : '✕ faltou';
   const serv = _esc(r.servico.toLowerCase());
   return `<div class="mt-perm">
     <div class="mt-perm-top"><span>🔁 Permuta · ${_esc(r.servico)} a ${_brl(r.unit)}</span><button class="mt-link-mini" data-perm-ed type="button">Editar</button></div>
     <div class="mt-perm-barra"><i style="width:${r.pct}%"></i></div>
     <div class="mt-perm-num"><b>${r.feitas} de ${r.precisa} ${_plural(serv, 2)}</b><span>${_brl(r.pago)} de ${_brl(r.total)}</span></div>
-    <div class="mt-perm-sub">${r.quitada ? '✅ Quitada' : `Faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}${r.faltas ? ` · ${r.faltas} falta${r.faltas === 1 ? '' : 's'}` : ''}</div>
-    ${r.quitada ? '' : hojeJa ? `<div class="mt-perm-sub">Hoje: ${hojeJa.t === 'feita' ? '✓ ' + serv + ' feita' : '✕ faltou'}</div>`
-      : `<div class="mt-perm-acoes"><button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button><button class="mt-mini" data-perm="falta" type="button">✕ Faltou hoje</button></div>`}
+    <div class="mt-perm-sub">${r.quitada ? '✅ Quitada' : `Faltam ${_brl(r.falta)} (${r.restam} ${_plural(serv, r.restam)})`}${r.faltas ? ` · ${r.faltas} falta${r.faltas === 1 ? '' : 's'}${r.repostas ? ` · ${r.repostas} reposta${r.repostas === 1 ? '' : 's'}` : ''}${r.pendentes ? ` · ${r.pendentes} pra repor` : ' · tudo reposto'}` : ''}</div>
+    ${r.quitada ? '' : `<div class="mt-perm-acoes">${hojeJa ? `<span class="mt-perm-sub">Hoje: ${txt(hojeJa)}</span>`
+      : `<button class="mt-mini on" data-perm="feita" type="button">＋ ${_esc(r.servico)} feita hoje</button><button class="mt-mini" data-perm="falta" type="button">✕ Faltou hoje</button>`}
+      ${r.pendentes && !reposHoje ? '<button class="mt-mini" data-perm="repos" type="button">↺ Repôs uma falta hoje</button>' : ''}</div>`}
     ${itens.length ? `<details class="mt-resp"><summary>Histórico <small>${itens.length}</small></summary>${itens.map(i => `
-      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>${i.t === 'feita' ? '✓ ' + serv + ' feita' : '✕ faltou'}</span><button class="mt-perm-x" data-perm-x="${i.d}|${i.t}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
+      <div class="mt-perm-item"><span>${_dBR(i.d)}</span><span>${txt(i)}</span><button class="mt-perm-x" data-perm-x="${i.d}|${i.t}" type="button" aria-label="Tirar">✕</button></div>`).join('')}</details>` : ''}
   </div>`;
 }
 
@@ -304,7 +307,7 @@ async function _marcarPermuta(l, t, dia = _hoje()) {
   const p = { ...(l.permuta || {}), itens: [...(l.permuta?.itens || [])] };
   if (p.itens.some(i => i.d === dia && i.t === t)) return;
   p.itens.push({ d: dia, t });
-  await _salvarPermuta(l, p, t === 'feita' ? `${p.servico || 'Massagem'} marcada ✓` : 'Falta marcada');
+  await _salvarPermuta(l, p, t === 'feita' ? `${p.servico || 'Massagem'} marcada ✓` : t === 'repos' ? 'Reposição marcada ↺' : 'Falta marcada');
 }
 async function _salvarPermuta(l, p, msg) {
   try { await salvarLead(l.id, { permuta: p }); l.permuta = p; desenhar(); if (msg) showToast(msg, 'success'); }

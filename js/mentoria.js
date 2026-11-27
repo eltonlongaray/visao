@@ -63,14 +63,16 @@ export function carregarModelo(slug) {
 
 // === BLOCO 4: PERMUTA (Élton, 27/11) ===
 // Aluna que paga a mentoria em serviço (ex.: uma massagem por semana).
-// mentoria_leads.permuta (jsonb): { total, unit, servico, anteriores, faltasAntes, itens: [{ d: 'AAAA-MM-DD', t: 'feita'|'falta' }] }
+// mentoria_leads.permuta (jsonb): { total, unit, servico, anteriores, faltasAntes, itens: [{ d: 'AAAA-MM-DD', t: 'feita'|'falta'|'repos' }] }
 // SQL: sql/mentoria-permuta.sql
 export function resumoPermuta(p) {
   if (!p || !(Number(p.total) > 0) || !(Number(p.unit) > 0)) return null;
   const total = Number(p.total), unit = Number(p.unit), itens = Array.isArray(p.itens) ? p.itens : [];
-  const feitas = (Number(p.anteriores) || 0) + itens.filter(i => i.t === 'feita').length;
+  const repostas = itens.filter(i => i.t === 'repos').length;   // reposição de uma falta: conta como paga e fecha a falta
+  const feitas = (Number(p.anteriores) || 0) + itens.filter(i => i.t === 'feita').length + repostas;
   const faltas = (Number(p.faltasAntes) || 0) + itens.filter(i => i.t === 'falta').length;
+  const pendentes = Math.max(0, faltas - repostas);
   const pago = Math.min(total, feitas * unit), falta = Math.max(0, total - pago);
-  return { total, unit, servico: p.servico || 'Massagem', feitas, faltas, pago, falta,
+  return { total, unit, servico: p.servico || 'Massagem', feitas, faltas, repostas, pendentes, pago, falta,
     precisa: Math.ceil(total / unit), restam: Math.ceil(falta / unit), pct: Math.round(pago / total * 100), quitada: falta <= 0 };
 }

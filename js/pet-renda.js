@@ -59,6 +59,7 @@ export function lerPermuta(texto) {
   if (!servico) return null;
   const dia = /\bontem\b/.test(t) ? 'ontem' : 'hoje';
   if (/\b(quanto falta|quantas faltam|como (?:ta|esta)|ver|mostra|saldo)\b/.test(t) && /\bpermuta\b/.test(t)) return { acao: 'ver', dia };
+  if (/\b(repos|repor|reposicao|recuperou|recuperamos|compensou)\b/.test(t)) return { acao: 'repos', dia };
   if (/\b(faltou|falhou|nao (?:veio|fez|teve)|nao rolou|desmarcou)\b/.test(t)) return { acao: 'falta', dia };
   if (/\b(fez|feita|recebi|ganhei|teve|rolou|marca|registra|anota)\b/.test(t)) return { acao: 'feita', dia };
   if (/\bpermuta\b/.test(t)) return { acao: 'ver', dia };
