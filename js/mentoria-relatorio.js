@@ -99,13 +99,14 @@ export function resumoJornada(l, hoje = new Date()) {
 export function textoResumo(l, hoje = new Date()) {
   const r = resumoJornada(l, hoje), nome = (l?.nome || '').split(' ')[0] || 'tu';
   const agora = r.pilares.find(p => p.st === 'agora');
-  const linhas = [`📄 *Nossa jornada, ${nome}* · ${JORNADA_PADRAO.titulo}`, ''];
+  const linhas = [`Oi, ${nome}! 🤍 Passando pra te mostrar como tá a nossa jornada na ${JORNADA_PADRAO.titulo}:`, ''];
   linhas.push(`🎓 *Minha entrega:* ${_brl(r.entregue)} de ${_brl(r.total)} da mentoria (${r.pct}%)${agora ? `, agora em ${agora.nome.replace(/^\d+\.\s*/, '')}` : ''}.`);
   if (r.permuta) {
     const p = r.permuta, serv = p.servico.toLowerCase();
     linhas.push(`🔁 *Tua entrega:* ${p.feitas} de ${p.precisa} ${_plural(serv)}, ${_brl(p.pago)} de ${_brl(p.total)}${p.quitada ? ' ✅' : p.atrasadas ? ` (${p.atrasadas} atrasada${p.atrasadas === 1 ? '' : 's'})` : ' (em dia)'}.`);
   }
   linhas.push('', `🎁 *Bônus, sem custo pra ti:* ${_brl(r.bonusEntregue)} já entregues${r.bonusFalta ? ` e no mínimo mais ${_brl(r.bonusFalta)} ainda por vir` : ''}.`);
+  linhas.push('', 'O relatório completo, com a linha do tempo, vai em PDF aqui. Qualquer dúvida me chama! 😊');
   return linhas.join('\n');
 }
 
