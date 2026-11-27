@@ -125,15 +125,8 @@ export function textoEnvio(l) {
 }
 
 // === BLOCO 3: TELA DO RELATÓRIO ===
-export function abrirRelatorio(l, { aoSalvar } = {}) {
-  if (!l) return;
-  const ov = document.createElement('div');
-  ov.className = 'mt-rel-ov';
-  document.body.appendChild(ov);
-  document.body.classList.add('mt-rel-aberto');
-  const fechar = trapModalBack(() => { ov.remove(); document.body.classList.remove('mt-rel-aberto'); });
-
-  const desenhar = () => {
+// HTML da folha (tela e PDF usam o mesmo)
+function _folhaHtml(l) {
     const r = resumoJornada(l), nome = _esc((l.nome || 'aluna').split(' ')[0]);
     const p = r.permuta, hojeBR = new Date().toLocaleDateString('pt-BR');
     const faseHtml = f => {
@@ -155,12 +148,7 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
     const bonusHtml = lista => [...new Set(lista.map(x => x.grupo || 'Outros'))].map(g => `<div class="rel-grupo">${_esc(g)}</div>${lista.filter(x => (x.grupo || 'Outros') === g).map(x => `
           <div class="rel-pres"><div>${_esc(x.nome)}${x.nota ? `<small>${_esc(x.nota)}</small>` : ''}</div><span>${_brl(x.valor)}</span></div>`).join('')}`).join('');
     const bEnt = r.presentes.filter(x => x.st !== 'falta'), bFal = r.presentes.filter(x => x.st === 'falta');
-    ov.innerHTML = `
-      <div class="mt-rel-barra no-print">
-        <button class="mt-rel-btn" data-voltar type="button" aria-label="Voltar">←</button>
-        <button class="mt-rel-btn" data-ajustar type="button">✏️ Ajustar</button>
-        <button class="mt-rel-btn on" data-pdf type="button">📄 PDF</button>
-      </div>
+    return `
       <article class="mt-rel-folha">
         <header class="rel-cab">
           <div class="rel-tit">Nossa jornada, ${nome} 🤍</div>
@@ -194,12 +182,60 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         ${bFal.length ? `<div class="rel-bonus-tit">🔜 Ainda vai ser entregue <small>no mínimo, porque podem surgir mais coisas</small></div>${bonusHtml(bFal)}
         <div class="rel-pres rel-pres-tot"><div>Ainda vai ser entregue</div><span>${_brl(r.bonusFalta)}</span></div>` : ''}
         <footer class="rel-rodape">Feito com 💛 no Falcon</footer>
-      </article>
+      </article>`;
+}
+
+// PDF sem abrir a tela (botão Gerar relatório do card): monta a folha fora da vista.
+export async function gerarPdfAluna(l) {
+  const caixa = document.createElement('div');
+  caixa.className = 'mt-rel-ov';
+  caixa.style.cssText = 'position:fixed;left:-10000px;top:0;width:700px;height:auto;overflow:visible;z-index:-1;pointer-events:none';
+  caixa.innerHTML = _folhaHtml(l);
+  document.body.appendChild(caixa);
+  try { return await folhaParaPdf(caixa.querySelector('.mt-rel-folha')); }
+  finally { caixa.remove(); }
+}
+export const nomePdfAluna = l => nomePdf('relatorio-mentoria', l?.nome);
+
+// Retrátil com a mensagem pra mandar junto + instrução da legenda (27/11, pedido do Élton)
+export function blocoMensagemHtml(l) {
+  return `<details class="mt-msg-env">
+    <summary><span>📋 Mensagem pra mandar junto</span><span class="ag-bloco-seta"></span></summary>
+    <div class="mt-msg-corpo">
+      <div class="mt-msg-dica">O WhatsApp não junta a mensagem no PDF sozinho. Copia a mensagem, toca em <b>Compartilhar</b>, escolhe o contato ou grupo e, na tela do PDF, toca em <b>"Adicionar legenda"</b> e cola.</div>
+      <div class="mt-msg-txt">${_esc(textoEnvio(l))}</div>
+      <button class="mt-msg-copiar" data-copiar-msg type="button">📋 Copiar mensagem</button>
+    </div></details>`;
+}
+export function ligarBlocoMensagem(raiz, l) {
+  raiz.querySelectorAll('[data-copiar-msg]').forEach(b => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(textoEnvio(l)); b.textContent = '✅ Mensagem copiada'; showToast('Mensagem copiada ✓ Agora é só colar na legenda do PDF', 'success'); setTimeout(() => { b.textContent = '📋 Copiar mensagem'; }, 2500); }
+    catch { showToast('Não consegui copiar. Segura no texto e copia.', 'error'); }
+  });
+}
+
+export function abrirRelatorio(l, { aoSalvar } = {}) {
+  if (!l) return;
+  const ov = document.createElement('div');
+  ov.className = 'mt-rel-ov';
+  document.body.appendChild(ov);
+  document.body.classList.add('mt-rel-aberto');
+  const fechar = trapModalBack(() => { ov.remove(); document.body.classList.remove('mt-rel-aberto'); });
+
+  const desenhar = () => {
+    ov.innerHTML = `
+      <div class="mt-rel-barra no-print">
+        <button class="mt-rel-btn" data-voltar type="button" aria-label="Voltar">←</button>
+        <button class="mt-rel-btn" data-ajustar type="button">✏️ Ajustar</button>
+        <button class="mt-rel-btn on" data-pdf type="button">📄 PDF</button>
+      </div>
+      ${_folhaHtml(l)}
+      <div class="mt-rel-msg no-print">${blocoMensagemHtml(l)}</div>
       <div class="mt-rel-compartilhar no-print">
         <button class="mt-rel-zap" data-zap type="button">📤 Enviar o PDF no WhatsApp</button>
-        <small>Escolhe o WhatsApp e o contato ou grupo. A mensagem já vai copiada: no WhatsApp, segura no campo "Adicionar legenda" e cola.</small>
       </div>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
+    ligarBlocoMensagem(ov, l);
     // PDF de verdade (27/11: o Élton quer mandar o ARQUIVO, não o resumo, pra qualquer contato/grupo).
     // Já monta ao abrir, pra o toque no botão abrir o compartilhar na hora.
     const arqNome = nomePdf('relatorio-mentoria', l.nome);
