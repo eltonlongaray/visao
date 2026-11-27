@@ -35,9 +35,15 @@ export async function folhaParaPdf(el) {
       const f = doc.querySelector('.mt-rel-folha');
       if (!f) return;
       f.style.width = LARG + 'px'; f.style.maxWidth = LARG + 'px'; f.style.margin = '0';
-      f.style.boxShadow = 'none'; f.style.borderRadius = '0';
+      f.style.boxShadow = 'none'; f.style.borderRadius = '0'; f.classList.add('rel-pdf');
       const topo = f.getBoundingClientRect().top;
-      cortes = [...f.querySelectorAll(QUEBRAS)].map(e => Math.round((e.getBoundingClientRect().top - topo) * escala)).filter(y => y > 0);
+      // título nunca fica sozinho no fim da página: não corta logo depois de um título
+      const proib = [...f.querySelectorAll('.rel-pilar-top, .rel-pilar-sub, .rel-grupo, .rel-bonus-tit, .rel-h')].map(e => {
+        const r = e.getBoundingClientRect();
+        return [Math.round((r.top - topo) * escala), Math.round((r.bottom - topo + 40) * escala)];
+      });
+      cortes = [...f.querySelectorAll(QUEBRAS)].map(e => Math.round((e.getBoundingClientRect().top - topo) * escala))
+        .filter(y => y > 0 && !proib.some(([a, b]) => y > a && y <= b));
     },
   });
   cortes = [...new Set(cortes)].sort((a, b) => a - b);
