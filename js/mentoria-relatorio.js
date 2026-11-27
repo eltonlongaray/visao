@@ -203,15 +203,18 @@ export const textoAtual = l => _msgEditada.get(l?.id) ?? textoEnvio(l);
 
 // Retrátil com a mensagem pra mandar junto + instrução da legenda (27/11, pedido do Élton)
 export function blocoMensagemHtml(l) {
-  return `<details class="mt-msg-env">
-    <summary><span>📋 Mensagem pra mandar junto</span><span class="ag-bloco-seta"></span></summary>
-    <div class="mt-msg-corpo">
-      <div class="mt-msg-dica">O WhatsApp não junta a mensagem no PDF sozinho. Copia a mensagem, toca em <b>Compartilhar</b>, escolhe o contato ou grupo e, na tela do PDF, toca em <b>"Adicionar legenda"</b> e cola.</div>
-      <label class="mt-msg-rot">✏️ Toca no texto pra editar</label>
-      <textarea class="mt-msg-txt" data-msg-txt rows="14">${_esc(textoAtual(l))}</textarea>
-      <div class="mt-msg-acoes"><button class="mt-msg-copiar" data-copiar-msg type="button">📋 Copiar mensagem</button>
-      <button class="mt-btn-mini" data-msg-padrao type="button"${_msgEditada.has(l?.id) ? '' : ' hidden'}>↺ Voltar ao padrão</button></div>
-    </div></details>`;
+  return `<section class="mt-passos">
+    <div class="mt-passos-tit">📤 Como enviar pra ${_esc((l?.nome || 'ela').split(' ')[0])}</div>
+    <ol class="mt-passos-lista">
+      <li><b>Confere a mensagem</b> e edita se quiser (é só tocar no texto).</li>
+      <li>Toca em <b>📋 Copiar mensagem</b>.</li>
+      <li>Toca em <b>📤 Enviar o PDF no WhatsApp</b> e escolhe o contato ou grupo.</li>
+      <li>Na tela do PDF no WhatsApp, toca em <b>"Adicionar legenda"</b>, cola a mensagem e envia.</li>
+    </ol>
+    <textarea class="mt-msg-txt" data-msg-txt rows="11" aria-label="Mensagem">${_esc(textoAtual(l))}</textarea>
+    <div class="mt-msg-acoes"><button class="mt-msg-copiar" data-copiar-msg type="button">📋 Copiar mensagem</button>
+    <button class="mt-btn-mini" data-msg-padrao type="button"${_msgEditada.has(l?.id) ? '' : ' hidden'}>↺ Voltar ao padrão</button></div>
+  </section>`;
 }
 export function ligarBlocoMensagem(raiz, l) {
   raiz.querySelectorAll('[data-msg-txt]').forEach(t => t.oninput = () => {

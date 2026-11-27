@@ -12,8 +12,7 @@ import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digi
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { abrirRelatorio, gerarPdfAluna, nomePdfAluna, blocoMensagemHtml, ligarBlocoMensagem, textoAtual } from './mentoria-relatorio.js?v=11';
-import { enviarPdf } from './folha-pdf.js';
+import { abrirRelatorio } from './mentoria-relatorio.js?v=11';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -278,26 +277,8 @@ function _alunas(alunas) {
 </div>
         ${_permutaHtml(l)}
         ${aulas.length ? `<div class="mt-presenca">${aulas.map((a, i) => `<button class="mt-aula${l.presenca?.[i + 1] ? ' on' : ''}" data-aula="${i + 1}" type="button" title="${_esc(a)}">${l.presenca?.[i + 1] ? '✓' : ''} Aula ${i + 1}</button>`).join('')}</div>` : ''}
-        ${_relGerado(l)}
+        <button class="mt-btn-rel" data-relat type="button">📄 Gerar relatório</button>
       </div>`).join('')}`).join('');
-}
-
-// Relatório (27/11): gera o PDF no card; depois aparecem Ver e Compartilhar + a mensagem pra copiar.
-const _pdfs = new Map(); // id → { blob, em }
-const _gerando = new Set();
-function _relGerado(l) {
-  const g = _pdfs.get(l.id);
-  if (_gerando.has(l.id)) return `<button class="mt-btn-rel" type="button" disabled><span class="mt-btn-spin"></span> Gerando o relatório…</button>`;
-  if (!g) return `<button class="mt-btn-rel" data-relat type="button">📄 Gerar relatório</button>`;
-  const z = n => String(n).padStart(2, '0'), t = g.em;
-  return `<div class="mt-rel-pronto">
-    <div class="mt-rel-ok">✅ Relatório gerado às ${z(t.getHours())}h${z(t.getMinutes())} <button class="mt-btn-mini" data-relat type="button">🔄 Gerar de novo</button></div>
-    <div class="mt-rel-2">
-      <button class="mt-btn-ver" data-rel-ver type="button">👁️ Ver relatório</button>
-      <button class="mt-btn-zap" data-rel-env type="button">📤 Compartilhar</button>
-    </div>
-    ${blocoMensagemHtml(l)}
-  </div>`;
 }
 
 // Permuta (27/11): aluna que paga em serviço. Barra do quanto já pagou, botões do dia e histórico.
@@ -553,22 +534,7 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-pagto]').forEach(b => b.onclick = () => _modalPagamento(_leads.find(x => x.id === b.closest('.mt-aluna').dataset.id)));
   const _alunaDe = b => _leads.find(x => x.id === b.closest('.mt-aluna').dataset.id);
   corpo.querySelectorAll('.mt-aluna [data-perm-ed]').forEach(b => b.onclick = () => _modalPermuta(_alunaDe(b)));
-  corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = async () => {
-    const l = _alunaDe(b);
-    _gerando.add(l.id); desenhar();
-    try { _pdfs.set(l.id, { blob: await gerarPdfAluna(l), em: new Date() }); }
-    catch (e) { showToast(e.message || 'Não consegui gerar o relatório', 'error'); }
-    _gerando.delete(l.id); desenhar();
-  });
-  corpo.querySelectorAll('.mt-aluna [data-rel-ver]').forEach(b => b.onclick = () => { const l = _alunaDe(b); abrirRelatorio(l, { aoSalvar: () => { _pdfs.delete(l.id); desenhar(); } }); });
-  corpo.querySelectorAll('.mt-aluna [data-rel-env]').forEach(b => b.onclick = async () => {
-    const l = _alunaDe(b), g = _pdfs.get(l.id);
-    if (!g) return;
-    try { navigator.clipboard?.writeText(textoAtual(l)).catch(() => {}); } catch { /* sem área de transferência */ }
-    const r = await enviarPdf(g.blob, nomePdfAluna(l), textoAtual(l));
-    if (r === 'baixado') showToast('PDF salvo no celular. Anexa no WhatsApp e cola a mensagem na legenda.', 'success');
-  });
-  corpo.querySelectorAll('.mt-aluna .mt-rel-pronto').forEach(el => ligarBlocoMensagem(el, _alunaDe(el)));
+  corpo.querySelectorAll('.mt-aluna [data-relat]').forEach(b => b.onclick = () => abrirRelatorio(_alunaDe(b)));
   corpo.querySelectorAll('.mt-aluna [data-perm]').forEach(b => b.onclick = () => {
     // Começa vazio; ao tocar fica verde com o ✓ e só então registra (27/11)
     if (b.classList.contains('feito')) return;
