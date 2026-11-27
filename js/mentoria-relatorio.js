@@ -28,8 +28,8 @@ export const JORNADA_PADRAO = {
     { nome: 'Início', icone: '🟢', valor: 0, fases: [{ n: 0, nome: 'Preparação: alinhamento de expectativas, horas de dedicação e meta financeira' }] },
     { nome: '1. Identidade de marca', valor: 1500, fases: [{ n: 1, nome: 'Teste de arquétipo, habilidades e paixões, fontes, cores e superpoderes' }] },
     { nome: '2. Mecanismo de vendas', valor: 1500, fases: [
-      { n: 2, nome: 'Público alvo e problemas, dificuldades e medos', ini: '2026-11-26', fim: '2026-12-02', obs: 'a pesquisa com as colegas está no ar, coletando as respostas' },
-      { n: 3, nome: 'Problemas externos, internos e filosóficos e qual problema eu resolvo', ini: '2026-12-03', fim: '2026-12-09' },
+      { n: 2, nome: 'Público alvo e problemas, dificuldades e medos', ini: '2026-11-19', fim: '2026-11-25', obs: 'a pesquisa com as colegas está no ar, coletando as respostas' },
+      { n: 3, nome: 'Problemas externos, internos e filosóficos e qual problema eu resolvo', ini: '2026-11-26', fim: '2026-12-09' },
       { n: 4, nome: 'Mecanismo do problema, da solução, mecanismo único e diferenciais', ini: '2026-12-10', fim: '2026-12-16', obs: 'aqui nasce o nome do teu método (com checagem no INPI)' }] },
     { nome: '3. Posicionamento', valor: 2000, fases: [
       { n: 5, nome: 'A grande tese e a narrativa', ini: '2026-12-17', fim: '2026-12-23' },
