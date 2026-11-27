@@ -12,7 +12,7 @@ import { getLeads, salvarLead, criarLeadManual, apagarLead, carregarModelo, digi
 import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
-import { abrirRelatorio, gerarPdfAluna, nomePdfAluna, blocoMensagemHtml, ligarBlocoMensagem, textoEnvio } from './mentoria-relatorio.js?v=11';
+import { abrirRelatorio, gerarPdfAluna, nomePdfAluna, blocoMensagemHtml, ligarBlocoMensagem, textoAtual } from './mentoria-relatorio.js?v=11';
 import { enviarPdf } from './folha-pdf.js';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
@@ -564,8 +564,8 @@ function ligar(corpo) {
   corpo.querySelectorAll('.mt-aluna [data-rel-env]').forEach(b => b.onclick = async () => {
     const l = _alunaDe(b), g = _pdfs.get(l.id);
     if (!g) return;
-    try { navigator.clipboard?.writeText(textoEnvio(l)).catch(() => {}); } catch { /* sem área de transferência */ }
-    const r = await enviarPdf(g.blob, nomePdfAluna(l), textoEnvio(l));
+    try { navigator.clipboard?.writeText(textoAtual(l)).catch(() => {}); } catch { /* sem área de transferência */ }
+    const r = await enviarPdf(g.blob, nomePdfAluna(l), textoAtual(l));
     if (r === 'baixado') showToast('PDF salvo no celular. Anexa no WhatsApp e cola a mensagem na legenda.', 'success');
   });
   corpo.querySelectorAll('.mt-aluna .mt-rel-pronto').forEach(el => ligarBlocoMensagem(el, _alunaDe(el)));

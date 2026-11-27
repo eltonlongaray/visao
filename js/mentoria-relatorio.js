@@ -197,19 +197,33 @@ export async function gerarPdfAluna(l) {
 }
 export const nomePdfAluna = l => nomePdf('relatorio-mentoria', l?.nome);
 
+// Mensagem editada fica guardada enquanto o app tá aberto (por aluna)
+const _msgEditada = new Map();
+export const textoAtual = l => _msgEditada.get(l?.id) ?? textoEnvio(l);
+
 // Retrátil com a mensagem pra mandar junto + instrução da legenda (27/11, pedido do Élton)
 export function blocoMensagemHtml(l) {
   return `<details class="mt-msg-env">
     <summary><span>📋 Mensagem pra mandar junto</span><span class="ag-bloco-seta"></span></summary>
     <div class="mt-msg-corpo">
       <div class="mt-msg-dica">O WhatsApp não junta a mensagem no PDF sozinho. Copia a mensagem, toca em <b>Compartilhar</b>, escolhe o contato ou grupo e, na tela do PDF, toca em <b>"Adicionar legenda"</b> e cola.</div>
-      <div class="mt-msg-txt">${_esc(textoEnvio(l))}</div>
-      <button class="mt-msg-copiar" data-copiar-msg type="button">📋 Copiar mensagem</button>
+      <label class="mt-msg-rot">✏️ Toca no texto pra editar</label>
+      <textarea class="mt-msg-txt" data-msg-txt rows="14">${_esc(textoAtual(l))}</textarea>
+      <div class="mt-msg-acoes"><button class="mt-msg-copiar" data-copiar-msg type="button">📋 Copiar mensagem</button>
+      <button class="mt-btn-mini" data-msg-padrao type="button"${_msgEditada.has(l?.id) ? '' : ' hidden'}>↺ Voltar ao padrão</button></div>
     </div></details>`;
 }
 export function ligarBlocoMensagem(raiz, l) {
+  raiz.querySelectorAll('[data-msg-txt]').forEach(t => t.oninput = () => {
+    if (t.value === textoEnvio(l)) _msgEditada.delete(l.id); else _msgEditada.set(l.id, t.value);
+    raiz.querySelectorAll('[data-msg-padrao]').forEach(b => { b.hidden = !_msgEditada.has(l.id); });
+  });
+  raiz.querySelectorAll('[data-msg-padrao]').forEach(b => b.onclick = () => {
+    _msgEditada.delete(l.id); b.hidden = true;
+    raiz.querySelectorAll('[data-msg-txt]').forEach(t => { t.value = textoEnvio(l); });
+  });
   raiz.querySelectorAll('[data-copiar-msg]').forEach(b => b.onclick = async () => {
-    try { await navigator.clipboard.writeText(textoEnvio(l)); b.textContent = '✅ Mensagem copiada'; showToast('Mensagem copiada ✓ Agora é só colar na legenda do PDF', 'success'); setTimeout(() => { b.textContent = '📋 Copiar mensagem'; }, 2500); }
+    try { await navigator.clipboard.writeText(textoAtual(l)); b.textContent = '✅ Mensagem copiada'; showToast('Mensagem copiada ✓ Agora é só colar na legenda do PDF', 'success'); setTimeout(() => { b.textContent = '📋 Copiar mensagem'; }, 2500); }
     catch { showToast('Não consegui copiar. Segura no texto e copia.', 'error'); }
   });
 }
@@ -251,13 +265,13 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
       // O WhatsApp não aceita texto junto com documento pelo compartilhar do Android:
       // copia a mensagem antes (ainda no toque) pra colar na legenda do PDF (27/11).
       let copiou = false;
-      try { navigator.clipboard?.writeText(textoEnvio(l)).then(() => { copiou = true; }, () => {}); } catch { /* sem área de transferência */ }
+      try { navigator.clipboard?.writeText(textoAtual(l)).then(() => { copiou = true; }, () => {}); } catch { /* sem área de transferência */ }
       if (!pdf) {
         bZap.disabled = true; bZap.textContent = '⏳ Preparando o PDF…';
         try { await montando; } catch (e) { bZap.disabled = false; bZap.textContent = rotulo; return showToast(e.message || 'Não consegui montar o PDF', 'error'); }
         bZap.disabled = false;
       }
-      const r = await enviarPdf(pdf, arqNome, textoEnvio(l));
+      const r = await enviarPdf(pdf, arqNome, textoAtual(l));
       bZap.textContent = r === 'sem-gesto' ? '📤 PDF pronto! Toca pra enviar' : rotulo;
       if (r === 'baixado') showToast(`PDF salvo no celular.${copiou ? ' A mensagem tá copiada: anexa o PDF no WhatsApp e cola na legenda.' : ''}`, 'success');
       else if (r === 'compartilhado' && copiou) showToast('📋 A mensagem tá copiada: se não foi junto, cola na conversa.', 'success');
