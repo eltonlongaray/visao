@@ -53,7 +53,7 @@ export const PRESENTES_PADRAO = [
   { grupo: 'Programação', nome: 'Ficha de atendimento e acompanhamento', valor: 2000, nota: 'ficha que a cliente preenche (com mapa do corpo), registro de cada sessão (dor por região, medidas antes e depois, observações) e o histórico de cada cliente' },
   { grupo: 'Programação', nome: 'Pesquisa das colegas com sorteio', valor: 1500 },
   { grupo: 'Programação', nome: 'Seleção das alunas da tua mentoria', valor: 3500, nota: 'formulário de inscrição e um painel no teu Falcon pra ver quem se inscreveu, escolher as alunas e acompanhar cada uma' },
-  { grupo: 'Programação', nome: 'Página de vendas da mentoria e painel de vendas', valor: 3500 },
+  { grupo: 'Programação', nome: 'Página de vendas da mentoria e painel de vendas', valor: 3500, st: 'falta' },
   { grupo: 'Programação', nome: 'Página privada do workshop, com login', valor: 1500 },
   { grupo: 'Campanha de Black Friday', nome: 'Carrossel com funil de vendas integrado', valor: 1500, nota: 'leva a cliente a preencher a pesquisa (coleta de dados), com a criação do formulário' },
   { grupo: 'Campanha de Black Friday', nome: 'Sessão especial da Black Friday na agenda', valor: 800, nota: 'formulário e ajustes do agendamento pra horários específicos' },
@@ -88,6 +88,8 @@ export function resumoJornada(l, hoje = new Date()) {
   const presentes = Array.isArray(j.presentes) ? j.presentes : PRESENTES_PADRAO;
   return { atual, pilares, total, entregue, pct: total ? Math.round(entregue / total * 100) : 0,
     presentes, presentesTotal: presentes.reduce((s, p) => s + (Number(p.valor) || 0), 0),
+    bonusEntregue: presentes.filter(p => p.st !== 'falta').reduce((s, p) => s + (Number(p.valor) || 0), 0),
+    bonusFalta: presentes.filter(p => p.st === 'falta').reduce((s, p) => s + (Number(p.valor) || 0), 0),
     permuta: resumoPermuta(l?.permuta, hoje) };
 }
 
@@ -101,7 +103,7 @@ export function textoResumo(l, hoje = new Date()) {
     const p = r.permuta, serv = p.servico.toLowerCase();
     linhas.push(`🔁 *Tua entrega:* ${p.feitas} de ${p.precisa} ${_plural(serv)}, ${_brl(p.pago)} de ${_brl(p.total)}${p.quitada ? ' ✅' : p.atrasadas ? ` (${p.atrasadas} atrasada${p.atrasadas === 1 ? '' : 's'})` : ' (em dia)'}.`);
   }
-  linhas.push('', `🎁 *Bônus que tu ganhou (sem custo):* ${_brl(r.presentesTotal)} em ${r.presentes.map(p => p.nome.toLowerCase()).slice(0, 3).join(', ')}${r.presentes.length > 3 ? ' e mais' : ''}.`);
+  linhas.push('', `🎁 *Bônus, sem custo pra ti:* ${_brl(r.bonusEntregue)} já entregues${r.bonusFalta ? ` e no mínimo mais ${_brl(r.bonusFalta)} ainda por vir` : ''}.`);
   return linhas.join('\n');
 }
 
@@ -133,7 +135,9 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
         ${pi.sub ? `<div class="rel-pilar-sub">${_esc(pi.sub)}</div>` : ''}
         <ul>${fases.join('')}</ul></section>`;
     };
-    const grupos = [...new Set(r.presentes.map(x => x.grupo || 'Outros'))];
+    const bonusHtml = lista => [...new Set(lista.map(x => x.grupo || 'Outros'))].map(g => `<div class="rel-grupo">${_esc(g)}</div>${lista.filter(x => (x.grupo || 'Outros') === g).map(x => `
+          <div class="rel-pres"><div>${_esc(x.nome)}${x.nota ? `<small>${_esc(x.nota)}</small>` : ''}</div><span>${_brl(x.valor)}</span></div>`).join('')}`).join('');
+    const bEnt = r.presentes.filter(x => x.st !== 'falta'), bFal = r.presentes.filter(x => x.st === 'falta');
     ov.innerHTML = `
       <div class="mt-rel-barra no-print">
         <button class="mt-rel-btn" data-voltar type="button" aria-label="Voltar">←</button>
@@ -168,10 +172,11 @@ export function abrirRelatorio(l, { aoSalvar } = {}) {
 
         <div class="rel-linha"></div>
         <h3 class="rel-h">🎁 Bônus que tu ganhou</h3>
-        <p class="rel-p">Tudo isso é bônus, sem custo pra ti. Coloquei quanto custaria cada item só pra tu saber o que já foi entregue além da mentoria.</p>
-        ${grupos.map(g => `<div class="rel-grupo">${_esc(g)}</div>${r.presentes.filter(x => (x.grupo || 'Outros') === g).map(x => `
-          <div class="rel-pres"><div>${_esc(x.nome)}${x.nota ? `<small>${_esc(x.nota)}</small>` : ''}</div><span>${_brl(x.valor)}</span></div>`).join('')}`).join('')}
-        <div class="rel-pres rel-pres-tot"><div>Quanto custaria tudo</div><span>${_brl(r.presentesTotal)}</span></div>
+        <p class="rel-p">Tudo isso é bônus, sem custo pra ti. Coloquei quanto custaria cada item só pra tu saber o que estás ganhando além da mentoria.</p>
+        ${bEnt.length ? `<div class="rel-bonus-tit">✅ Já entregue</div>${bonusHtml(bEnt)}
+        <div class="rel-pres rel-pres-tot"><div>Já entregue</div><span>${_brl(r.bonusEntregue)}</span></div>` : ''}
+        ${bFal.length ? `<div class="rel-bonus-tit">🔜 Ainda vai ser entregue <small>no mínimo, porque podem surgir mais coisas</small></div>${bonusHtml(bFal)}
+        <div class="rel-pres rel-pres-tot"><div>Ainda vai ser entregue</div><span>${_brl(r.bonusFalta)}</span></div>` : ''}
         <footer class="rel-rodape">Feito com 🤍 no Falcon</footer>
       </article>`;
     ov.querySelector('[data-voltar]').onclick = () => history.back();
@@ -202,7 +207,8 @@ function _modalAjustar(l, salvar) {
       <input class="input-field" data-k="nome" value="${_esc(x.nome)}" placeholder="O que foi">
       <input class="input-field" data-k="nota" value="${_esc(x.nota || '')}" placeholder="O que tem dentro (opcional)">
       <div class="obj-linha"><input class="input-field" data-k="valor" type="number" inputmode="numeric" min="0" value="${_esc(x.valor)}" placeholder="R$">
-      <input class="input-field" data-k="grupo" value="${_esc(x.grupo || '')}" placeholder="Grupo"><button class="mt-perm-x" data-rm type="button" aria-label="Tirar">✕</button></div></div>`).join('');
+      <input class="input-field" data-k="grupo" value="${_esc(x.grupo || '')}" placeholder="Grupo"></div>
+      <div class="obj-linha"><select class="input-field" data-k="st"><option value="entregue"${x.st !== 'falta' ? ' selected' : ''}>✅ Já entregue</option><option value="falta"${x.st === 'falta' ? ' selected' : ''}>🔜 Ainda vai ser entregue</option></select><button class="mt-perm-x" data-rm type="button" aria-label="Tirar">✕</button></div></div>`).join('');
   ov.innerHTML = `<div class="modal mt-perm-modal"><div class="modal-title">✏️ Ajustar relatório</div>
     <label class="mt-rot2" for="rl-f">Onde vocês estão</label>
     <select class="input-field" id="rl-f"><option value="auto"${auto ? ' selected' : ''}>Pela data (agora: fase ${faseDaData()})</option>
@@ -218,7 +224,7 @@ function _modalAjustar(l, salvar) {
     ov.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { ler(); pres.splice(+b.closest('.rel-ed-item').dataset.i, 1); religar(); });
   };
   religar();
-  ov.querySelector('[data-add]').onclick = () => { ler(); pres.push({ nome: '', valor: 0, grupo: 'Programação' }); religar(); };
+  ov.querySelector('[data-add]').onclick = () => { ler(); pres.push({ nome: '', valor: 0, grupo: 'Programação', st: 'falta' }); religar(); };
   ov.querySelector('[data-x]').onclick = () => history.back();
   ov.addEventListener('click', e => { if (e.target === ov) history.back(); });
   ov.querySelector('[data-ok]').onclick = () => {

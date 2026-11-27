@@ -9667,3 +9667,5 @@ body.rota-publica .bottom-nav { display: none !important; }
   .rel-barra i, .rel-fase.agora, .rel-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 @media (min-width: 680px) { .mt-rel-folha { margin: 4px auto 32px; } }
+.rel-bonus-tit { font-weight: 700; font-size: 15px; margin: 18px 0 2px; color: #3b2f2a; }
+.rel-bonus-tit small { display: block; font-weight: 400; font-size: 12px; color: #a8968a; }
