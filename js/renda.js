@@ -14,6 +14,7 @@ export const TIPOS = [
   { k: 'clientes', nome: 'Clientes', icone: '👥', dica: 'Lista de clientes: fase, pagamento e próximo pagamento' },
   { k: 'grupo',    nome: 'Com divisões', icone: '📂', dica: 'Abre outros cards dentro (ex.: Mentoria e Agência)' },
   { k: 'mentoria', nome: 'Mentoria', icone: '🎓', dica: 'Inscritas, alunas e formulários' },
+  { k: 'atendimentos', nome: 'Atendimentos', icone: '💆', dica: 'Quem marca horário pela Agenda Online: clientes, ficha e financeiro' },
 ];
 export const tipoDe = (k) => TIPOS.find(t => t.k === k) || TIPOS[0];
 

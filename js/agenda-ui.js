@@ -28,6 +28,9 @@ const DOWS = [
 let _cfg = null, _ags = [], _todos = [], _close = null, _diaSel = 1, _semanaOffset = 0;
 let _ocupados = new Map();   // intervalos ocupados por dia (agendamentos + compromissos)
 let _triagens = [];          // triagens (/triagem/<slug>) — quem só fez a triagem também é cliente
+// (27/11) Clientes num lugar só (Élton): a Agenda Online fica só com os HORÁRIOS; clientes, ficha e
+// financeiro abrem pelas Fontes de renda › 💆 Atendimentos. Mesma tela, modo 'clientes'.
+let _modo = 'agenda', _tituloClientes = '💆 Atendimentos';
 
 // Carrega os slots ocupados do próximo horizonte (pra marcar no editor de semana).
 async function _carregarOcupados() {
@@ -468,7 +471,9 @@ function _popupNovosAgendamentos(novos) {
   ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
 }
 
-export async function abrirAgenda() {
+export async function abrirAgenda(opts) {
+  _modo = opts?.modo === 'clientes' ? 'clientes' : 'agenda';
+  if (_modo === 'clientes' && opts?.titulo) _tituloClientes = opts.titulo;
   _diaSel = new Date().getDay(); // começa no dia de hoje
   _semanaOffset = 0;             // começa na semana atual (padrão)
   const ov = document.createElement('div');
@@ -527,10 +532,10 @@ function desenhar() {
   corpo.innerHTML = `
     <div class="ag-header">
       <button class="fr-voltar" id="ag-back" type="button" aria-label="Voltar"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg></button>
-      <div class="ag-title">📅 Agenda Online</div>
+      <div class="ag-title">${_modo === 'clientes' ? _esc(_tituloClientes) : '📅 Agenda Online'}</div>
     </div>
     <div class="ag-scroll">
-      ${_bloco('dados', '⚙️ Dados da agenda', `
+      ${_modo === 'clientes' ? _corpoClientes(clientesHtml) : `${_bloco('dados', '⚙️ Dados da agenda', `
       <label class="input-field"><div class="input-field-label">Título (o que o cliente vê)</div>
         <input id="ag-titulo" value="${_esc(_cfg.titulo || '')}" placeholder="Ex: Agende sua sessão"></label>
       <label class="input-field"><div class="input-field-label">📍 Endereço de atendimento <span class="ag-lbl-opt">— aparece pro cliente ao agendar</span></div>
@@ -600,9 +605,27 @@ function desenhar() {
 
       ${_bloco('proximos', '📅 Próximos atendimentos', `<div class="ag-lista">${_proximosHtml()}</div>`, `<span class="ag-tit-qtd">${_ags.length}</span>`)}
 
-      ${_bloco('ficha', '📋 Ficha de atendimento', secaoFichaHtml(_cfg, _clientes()))}
+      <button class="fr-hubcard ag-ir-clientes" id="ag-ir-clientes" type="button">
+        <span class="fr-hub-ic">👥</span>
+        <span class="fr-hub-tx"><b>Clientes, ficha e financeiro</b><small>Ficam em 💸 Fontes de renda › 💆 Atendimentos. Toque pra abrir.</small></span>
+      </button>`}
+    </div>
+    ${_modo === 'clientes' ? '' : `<div class="ag-rodape">
+      <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
+    </div>`}`;
+  wireFixos(corpo);
+  _wireBlocos(corpo);
+  if (_modo === 'clientes') return;
+  pintarTabs();
+  pintarDiasSemana();
+  pintarDiaEditor();
+  pintarServicos();
+}
 
-      ${_bloco('clientes', '👥 Clientes', `
+// Modo 'clientes' (Fontes de renda › Atendimentos): ficha + clientes, os dois abertos.
+function _corpoClientes(clientesHtml) {
+  _blocosAbertos.ficha = _blocosAbertos.ficha ?? false; _blocosAbertos.clientes = true;
+  return `${_bloco('clientes', '👥 Clientes', `
 
       <div class="fin-topo">
         <button class="fin-topo-btn" id="ag-fin" type="button">💰 Financeiro</button>
@@ -612,16 +635,8 @@ function desenhar() {
         <button class="fin-topo-btn" id="ag-pres" type="button">🎁 Cartão presente</button>
       </div>
       <div class="ag-lista">${clientesHtml}</div>`, `<span class="ag-tit-qtd">${(() => { const n = _clientes().length; return n === 1 ? '1 cliente' : n + ' clientes'; })()}</span>`)}
-    </div>
-    <div class="ag-rodape">
-      <button class="btn-primary" id="ag-salvar" type="button">Salvar</button>
-    </div>`;
-  wireFixos(corpo);
-  _wireBlocos(corpo);
-  pintarTabs();
-  pintarDiasSemana();
-  pintarDiaEditor();
-  pintarServicos();
+
+      ${_bloco('ficha', '📋 Ficha de atendimento', secaoFichaHtml(_cfg, _clientes()))}`;
 }
 
 // Marca no card "Dias que você atende" os dias que têm horário no PADRÃO.
@@ -656,8 +671,8 @@ function wireFixos(corpo) {
     t.addEventListener('click', () => { _diaSel = parseInt(t.dataset.tab, 10); pintarTabs(); pintarDiaEditor(); });
   });
   // Setas de navegação de semana (‹ ›): offset 0 = padrão; ≥1 = semana específica.
-  corpo.querySelector('#ag-sem-prev').onclick = () => { if (_semanaOffset > 0) { _semanaOffset--; pintarTabs(); pintarDiaEditor(); } };
-  corpo.querySelector('#ag-sem-next').onclick = () => { if (_semanaOffset < 13) { _semanaOffset++; pintarTabs(); pintarDiaEditor(); } };
+  const _sp = corpo.querySelector('#ag-sem-prev'); if (_sp) _sp.onclick = () => { if (_semanaOffset > 0) { _semanaOffset--; pintarTabs(); pintarDiaEditor(); } };
+  const _sn = corpo.querySelector('#ag-sem-next'); if (_sn) _sn.onclick = () => { if (_semanaOffset < 13) { _semanaOffset++; pintarTabs(); pintarDiaEditor(); } };
   // Card "Dias que você atende" (mexe no PADRÃO): liga/desliga um dia da semana.
   corpo.querySelectorAll('.ag-diasem').forEach(b => b.addEventListener('click', () => {
     const k = String(b.dataset.diasem);
@@ -736,7 +751,7 @@ ${_linkTriagemZap()}`;
     window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
   }
   corpo.querySelector('#ag-zap-tri')?.addEventListener('click', compartilhar);
-  corpo.querySelector('#ag-copiar').onclick = async () => {
+  const _cp = corpo.querySelector('#ag-copiar'); if (_cp) _cp.onclick = async () => {
     const inp = corpo.querySelector('#ag-link');
     try { await navigator.clipboard.writeText(inp.value); showToast('🔗 Link copiado!', 'success'); }
     catch { inp.focus(); inp.select(); showToast('Segure no link e copie', 'info'); }
@@ -777,12 +792,20 @@ ${_linkTriagemZap()}`;
     const nada = corpo.querySelector('#ag-cli-nada');
     if (nada) nada.hidden = visiveis > 0;
   });
-  corpo.querySelector('#ag-serv-add').onclick = () => {
+  const _sa = corpo.querySelector('#ag-serv-add'); if (_sa) _sa.onclick = () => {
     _syncServicos();
     _cfg.servicos.push({ id: _sid(), nome: '', duracaoMin: 60, preco: null });
     pintarServicos();
   };
-  corpo.querySelector('#ag-salvar').onclick = salvar;
+  const _sv = corpo.querySelector('#ag-salvar'); if (_sv) _sv.onclick = salvar;
+  // Agenda → Clientes: fecha a agenda e abre o card 💆 Atendimentos (cria se ainda não existe)
+  corpo.querySelector('#ag-ir-clientes')?.addEventListener('click', () => {
+    history.back();
+    setTimeout(async () => {
+      try { (await import('./renda-ui.js')).abrirAtendimentos(); }
+      catch (e) { abrirAgenda({ modo: 'clientes' }); }
+    }, 320);
+  });
   corpo.querySelector('#ag-fin')?.addEventListener('click', () => abrirFinanceiro({ clientes: _clientes(), servicos: _cfg.servicos || [] }));
   corpo.querySelector('#ag-camp')?.addEventListener('click', () => abrirCampanhas({ clientes: _clientes() }));
   corpo.querySelector('#ag-prod')?.addEventListener('click', () => abrirProdutos());

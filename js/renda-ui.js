@@ -59,6 +59,7 @@ function _sub(f) {
     const l = _clientes.filter(c => c.fonte_id === f.id);
     return l.length ? `${l.length} ${l.length === 1 ? 'cliente' : 'clientes'}` : 'Nenhum cliente ainda';
   }
+  if (f.tipo === 'atendimentos') return 'Clientes da Agenda Online, ficha e financeiro';
   return 'Inscritas, alunas e formulários';
 }
 
@@ -97,7 +98,21 @@ export async function abrirFonte(id) {
   if (!f) return;
   if (f.tipo === 'grupo') return abrirFontesRenda(f.id);
   if (f.tipo === 'mentoria') return (await import('./mentoria-ui.js')).abrirMentoria();
+  if (f.tipo === 'atendimentos') return (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes', titulo: `${f.icone} ${f.nome}` });
   return abrirClientes(f.id);
+}
+
+// (27/11) Vindo da Agenda Online: abre as Fontes de renda e, por cima, o card 💆 Atendimentos
+// (cria o card na primeira vez). Sem o SQL novo, abre a tela de clientes direto.
+export async function abrirAtendimentos() {
+  await abrirFontesRenda(null);
+  let f = _fontes.find(x => x.tipo === 'atendimentos');
+  if (!f && _fontes.length) {
+    try { f = await R.criarFonte({ nome: 'Atendimentos', icone: '💆', tipo: 'atendimentos' }, _fontes); _fontes.push(f); _repintar(); }
+    catch (e) { console.warn('[renda] Atendimentos:', e.message); f = null; }
+  }
+  if (f) return abrirFonte(f.id);
+  return (await import('./agenda-ui.js')).abrirAgenda({ modo: 'clientes' });
 }
 
 // ═══════════════════════════════════════════════════════════════

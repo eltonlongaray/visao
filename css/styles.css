@@ -9585,3 +9585,6 @@ body.rota-publica .bottom-nav { display: none !important; }
 }
 .rd-modal-cli textarea.input-field { min-height: 80px; resize: vertical; }
 .rd-modal-cli input[type="date"].input-field { color-scheme: dark; }
+
+/* (27/11) Agenda Online → atalho pros clientes (que agora moram nas Fontes de renda) */
+.ag-ir-clientes { width: 100%; margin-top: 14px; }
