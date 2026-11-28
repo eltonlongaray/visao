@@ -129,6 +129,12 @@ function modelos(cfg, c, hs) {
 Vi tua triagem${d.queixa ? `: tu quer cuidar de ${d.queixa}` : ''}. ${d.querExperimentar ? `Como tu quer experimentar primeiro, eu indico começar com uma sessão de ${d.servico || 'avaliação'}.` : `Pro teu caso eu indico ${serv}.`}
 ${promo}${pagaDepois}
 Tenho ${h2}. Qual fica melhor pra ti?` });
+  // (28/11) triagem completa pra quem agendou direto pela página de ofertas (Alê manda depois do agendamento)
+  const triLink = { V83: '/triagem/V83?modelo=completa&depois=1' }[cfg?.slug];
+  if (triLink && (c.ags || []).some(a => a.status === 'confirmado')) out.push({ id: 'triagem', rot: '📝 Enviar triagem', txt:
+`${oi} Que bom que tu agendou 💜
+Pra eu preparar tua sessão do teu jeito, responde essas perguntinhas rápidas (2 min):
+${location.origin}${triLink}` });
   out.push({ id: 'comparando', rot: '🔍 Tá comparando / avaliando', txt:
 `${oi} Tu tá certíssima em comparar 💜
 Pra tu ver se funciona de verdade: no atendimento eu acompanho tua evolução, então tu vê o resultado em números.

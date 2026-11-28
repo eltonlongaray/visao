@@ -691,6 +691,14 @@ export async function renderAgendaPublica(app, slug) {
           <button class="btn-primary ap-ok-btn" id="ap-voltar" type="button">Ver meus agendamentos</button>
         </div>`);
       app.querySelector('#ap-voltar')?.addEventListener('click', () => { desenhar(); _carregarMeusAgs(); });
+      // (28/11) veio da página de ofertas (landing direta): a conversão do Google Ads conta quando AGENDA
+      if (!TESTE && TRI?.conversao && TRI?.googleAds) {
+        try {
+          window.dataLayer = window.dataLayer || []; window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+          const g = document.createElement('script'); g.async = true; g.src = 'https://www.googletagmanager.com/gtag/js?id=' + TRI.googleAds; document.head.appendChild(g);
+          window.gtag('js', new Date()); window.gtag('config', TRI.googleAds); window.gtag('event', 'conversion', { send_to: TRI.conversao });
+        } catch {}
+      }
       if (waTri && TESTE) {
         // modo teste: mostra a mensagem que iria pro WhatsApp, sem abrir nada
         const txtWa = decodeURIComponent(waTri.split('?text=')[1] || '');

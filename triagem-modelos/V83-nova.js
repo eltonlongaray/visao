@@ -77,22 +77,26 @@ window.TRIAGEM = {
   // "Me ajuda a escolher" leva pra triagem ENXUTA (perguntasRapidas). A completa: ?modelo=completa
   ofertas: {
     eyebrow: "Black Friday · até 30/11",
-    titulo: "Escolhe teu cuidado 💜",
-    texto: "Tu só paga depois do atendimento, e pode marcar pra dezembro.",
+    titulo: "Celulite, estrias e medidas 💜",
+    texto: "Preço de Black pra quem agenda até 30/11. Tu só paga depois do atendimento, e pode marcar pra dezembro.",
     itens: [
-      { nome: "Sessão para celulite", rot: "Sessão para celulite", sub: "Avulsa · 45 min",
+      { grupo: "sessao", nome: "Sessão para celulite", rot: "Sessão para celulite", sub: "45 min",
         desc: "45 min focados na celulite, com blends de óleos essenciais e cremes naturais. Bom pra começar e sentir o resultado." },
-      { nome: "Deusa Grega", rot: "Deusa Grega", sub: "Avulsa · 1h15 · celulite e estrias",
+      { grupo: "sessao", nome: "Deusa Grega", rot: "Deusa Grega", sub: "1h15 · celulite e estrias",
         desc: "Massagem com óleos e cremes naturais pra celulite e estrias: modela, reduz medida e deixa a pele lisinha." },
-      { nome: "Esculpe Detox", rot: "Esculpe Detox", sub: "Tratamento · 5 sessões (avaliação + 4)",
+      { grupo: "tratamento", nome: "Esculpe Detox", rot: "Esculpe Detox", sub: "5 sessões (avaliação + 4)",
         desc: "5 sessões de 45 min, com avaliação inicial (já com massagem), acompanhamento e avaliação final: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada." },
-      { nome: "Pacote Deusa Grega", rot: "Deusa Grega", sub: "Tratamento · 5 sessões",
+      { grupo: "tratamento", nome: "Pacote Deusa Grega", rot: "Deusa Grega", sub: "5 sessões",
         desc: "As 5 sessões da Deusa Grega, com medidas e acompanhamento da tua evolução. É o que dá mais resultado na celulite e nas estrias." },
-      { nome: "Pacote Sessão para celulite", rot: "Sessão para celulite", sub: "Tratamento · 5 sessões",
+      { grupo: "tratamento", nome: "Pacote Sessão para celulite", rot: "Sessão para celulite", sub: "5 sessões",
         desc: "5 sessões de 45 min focadas na celulite, com blends de óleos essenciais e cremes naturais, pra ver a diferença na pele." },
     ],
-    ajuda: "Não sei qual escolher → me ajuda (1 min)",
+    // (28/11) landing direta: toca em "Agendar" e vai pra agenda; a triagem completa vem DEPOIS de agendar
+    direto: true,
+    grupos: { sessao: "Sessão única", tratamento: "Tratamentos (5 sessões)" },
+    duvida: "Ficou com dúvida? Fala comigo no WhatsApp",
   },
+  triagemDepois: "/triagem/V83?modelo=completa&depois=1",
   perguntasRapidas: ["incomodo", "regiao", "dor_onde", "dor_tipo", "objetivo", "saude"],
 
   intro: {

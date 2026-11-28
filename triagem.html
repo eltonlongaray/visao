@@ -124,6 +124,11 @@ h1 em{color:var(--cor)}
 .escolha .op.trat{align-items:flex-start;padding:.85rem .95rem}
 .escolha-ofertas{margin:1rem 0}.escolha-ofertas .op.trat{align-items:flex-start;padding:.85rem .95rem}.escolha-ofertas .op.trat .marca-op{margin:.15rem .2rem 0 0;order:-1}
 .escolha-ofertas .of-sub{font-weight:700}.escolha-ofertas .of-desc{display:block;margin:.25rem 0 .15rem;line-height:1.4}
+.of-grupo{margin:1.4rem 0 .6rem;font-size:1rem;letter-spacing:.04em;text-transform:uppercase;color:var(--cor)}
+.of-cards{display:grid;gap:.8rem;grid-template-columns:1fr}@media(min-width:760px){.of-cards{grid-template-columns:1fr 1fr}}
+.of-card{background:#fff;border:1px solid var(--linha,#e6dff0);border-left:4px solid var(--cor);border-radius:14px;padding:1rem 1rem .9rem;display:flex;flex-direction:column;gap:.25rem}
+.of-card .of-nome{font-size:1.08rem}.of-card .of-sub{font-weight:700;color:var(--cinza,#6b6378)}.of-card .of-desc{margin:.35rem 0 .2rem;line-height:1.45;color:var(--cinza,#6b6378);font-size:.95rem}
+.of-pe{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.4rem;flex-wrap:wrap}.of-agendar{padding:.6rem 1.1rem}
 .of-ajuda{display:block;width:100%;margin:.9rem 0 .4rem;text-align:center;font-weight:700}
 .escolha .op.trat .marca-op{margin:.15rem .2rem 0 0;order:-1}
 .trat-tx{display:flex;flex-direction:column;gap:.2rem}
@@ -140,6 +145,6 @@ h1 em{color:var(--cor)}
 <body>
 <header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
 <main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
-<script type="module" src="js/triagem-publica.js?v=44"></script>
+<script type="module" src="js/triagem-publica.js?v=45"></script>
 </body>
 </html>

@@ -171,24 +171,39 @@ function ofertas() {
     <p class="eyebrow">${esc(O.eyebrow || '')}</p>
     <h1>${esc(O.titulo)}</h1>
     ${O.texto ? `<p class="ajuda-destaque">💳 ${esc(O.texto)}</p>` : ''}
-    <div class="ops escolha-ofertas" role="radiogroup">${itens.map(x => `<button type="button" class="op trat oferta" role="radio" aria-checked="${st.oferta === x.s.id}" data-of="${x.i}">
+    ${O.direto ? Object.entries(O.grupos || { '': '' }).map(([g, tit]) => {
+      const gi = itens.filter(x => !g || x.grupo === g); if (!gi.length) return '';
+      return `${tit ? `<h3 class="of-grupo">${esc(tit)}</h3>` : ''}<div class="of-cards">${gi.map(x => `<div class="of-card">
+        <b class="of-nome">${esc(x.rot)}</b><small class="of-sub">${esc(x.sub || '')}</small>
+        ${x.desc ? `<p class="of-desc">${esc(x.desc)}</p>` : ''}
+        <div class="of-pe"><span class="pr">${x.s.sessoes > 1 || x.s.pacoteDe ? precoTotal(x.s) : precoCurto(x.s)}</span>
+          <button class="btn of-agendar" type="button" data-ag="${x.i}">Agendar →</button></div></div>`).join('')}</div>`; }).join('')
+      + (O.duvida && M.profissional.whatsapp ? `<a class="voltar of-ajuda" href="https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent('Oi! Vi teus cuidados pra celulite e fiquei com uma dúvida 💜')}" target="_blank" rel="noopener">${esc(O.duvida)}</a>` : '')
+    : `<div class="ops escolha-ofertas" role="radiogroup">${itens.map(x => `<button type="button" class="op trat oferta" role="radio" aria-checked="${st.oferta === x.s.id}" data-of="${x.i}">
       <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(x.rot)}</b></span>
       <small class="of-sub">${esc(x.sub || '')}</small>${x.desc ? `<small class="of-desc">${esc(x.desc)}</small>` : ''}<small class="pr">${x.s.sessoes > 1 || x.s.pacoteDe ? precoTotal(x.s) : precoCurto(x.s)}</small></span></button>`).join('')}</div>
     <button class="btn full" id="of-go" ${st.oferta ? '' : 'disabled'}>Quero esse → escolher meu horário</button>
-    <button class="voltar of-ajuda" id="of-ajuda" type="button">${retomar ? 'Continuar a triagem de onde parei →' : esc(O.ajuda || 'Me ajuda a escolher →')}</button>
+    <button class="voltar of-ajuda" id="of-ajuda" type="button">${retomar ? 'Continuar a triagem de onde parei →' : esc(O.ajuda || 'Me ajuda a escolher →')}</button>`}
     ${depoHtml(_depoAbertura())}
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
+  // landing direta: "Agendar" vai pra agenda com o serviço (nome e WhatsApp a agenda pede)
+  app.querySelectorAll('[data-ag]').forEach(b => b.onclick = () => {
+    const x = itens.find(y => y.i === Number(b.dataset.ag)); st.oferta = x.s.id; st.ofertaNome = x.rot + (x.sub ? ` (${x.sub})` : ''); salvar();
+    passo('Escolheu na página: ' + st.ofertaNome, false); funil(5, 'Escolheu: ' + st.ofertaNome.slice(0, 60));
+    b.disabled = true; b.textContent = 'Abrindo…';
+    irParaAgenda({ servico: x.s.nome, porque: '' }, [x.s]);
+  });
   app.querySelectorAll('[data-of]').forEach(b => b.onclick = () => {
     const x = itens.find(y => y.i === Number(b.dataset.of)); st.oferta = x.s.id; st.ofertaNome = x.rot + (x.sub ? ` (${x.sub})` : ''); salvar();
     app.querySelectorAll('[data-of]').forEach(o => o.setAttribute('aria-checked', o === b)); $('of-go').disabled = false;
     funil(2, 'Marcou uma opção na vitrine');
   });
-  $('of-go').onclick = () => {
+  if ($('of-go')) $('of-go').onclick = () => {
     if (!st.oferta) return;
     passo('Escolheu na vitrine: ' + st.ofertaNome, false); funil(5, 'Escolheu: ' + st.ofertaNome.slice(0, 60));
     st.plano = [st.oferta]; st.i = passos().findIndex(p => p.tipo === 'contato'); salvar(); tela(); window.scrollTo({ top: 0 });
   };
-  $('of-ajuda').onclick = () => {
+  if ($('of-ajuda') && !O.direto) $('of-ajuda').onclick = () => {
     funil(1, 'Pediu ajuda pra escolher'); st.oferta = null; salvar();
     passo(retomar ? 'Voltou pra triagem' : 'Começou a triagem (me ajuda a escolher)', false);
     if (!retomar) { st.i = 0; salvar(); tela(); } else { st.i = Math.min(Math.max(st.i, 0), passos().length - 1); salvar(); tela(); }
@@ -358,6 +373,13 @@ function contato() {
     }
     passo('Mandou nome e WhatsApp');
     funil(51, 'Mandou nome e WhatsApp');
+    // (28/11) triagem respondida DEPOIS de agendar (?depois=1): só agradece
+    if (new URLSearchParams(location.search).has('depois')) {
+      app.innerHTML = `<section class="tela"><h1>Obrigada${nome ? ', ' + esc(nome.split(' ')[0]) : ''}! ${esc(M.coracao || '💜')}</h1>
+        <p class="lead">Tuas respostas chegaram pra mim. Com elas eu preparo tua sessão do teu jeito.</p>
+        <p class="lead">Até lá! Qualquer dúvida, me chama no WhatsApp.</p></section>`;
+      return;
+    }
     // (28/11) escolheu direto na vitrine: vai pra agenda com aquele serviço
     if (st.oferta) { const s = SERV.find(x => x.id === st.oferta); if (s) return irParaAgenda({ servico: s.nome, porque: '' }, [s]); }
     st.i++; salvar(); tela(); window.scrollTo({ top: 0 });
@@ -605,7 +627,9 @@ async function irParaAgenda(ind, plano) {
   // foco (modelo com focoNoServico): a agenda abre só com esse serviço, sem a lista dos outros
   const handoff = { nome: st.contato?.nome, contato: st.contato?.contato, servicos: plano.map(s => s.id), msg, foco: !!M.focoNoServico,
     whatsapp: M.profissional.whatsapp, codigo: st.codigo || null, ts: Date.now(), pacote: pacote(),
-    sessao: st.sessao || null, origem: st.origem?.source || null };   // funil continua na agenda
+    sessao: st.sessao || null, origem: st.origem?.source || null,   // funil continua na agenda
+    conversao: st.oferta && M.ofertas?.direto ? (M.conversao || null) : null, googleAds: M.googleAds || null,   // landing direta: conta a conversão quando AGENDA
+    triagemDepois: M.triagemDepois || null };
   try {
     localStorage.setItem('falcon_triagem_' + SLUG, JSON.stringify(handoff));
     localStorage.setItem('falcon_cliente_' + SLUG, JSON.stringify({ nome: handoff.nome, contato: handoff.contato }));
