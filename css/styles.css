@@ -9443,6 +9443,12 @@ body.rota-publica .bottom-nav { display: none !important; }
 
 /* (26/11) Mentoria: botão da planilha de respostas */
 .mt-planilha { width: 100%; margin: 4px 0 10px; }
+/* (27/11) Botão da planilha com cara de botão: verde cheio, texto branco */
+.btn-planilha { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 4px 0 12px;
+  padding: 13px 14px; border: 0; border-radius: 14px; background: #16a34a; color: #fff; font: inherit; font-size: 14px;
+  font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(22,163,74,.35); }
+.btn-planilha:active { transform: scale(.98); }
+.btn-planilha:disabled { opacity: .7; cursor: wait; }
 
 /* ── Câmera guiada: rosto estilo banco digital + nível de inclinação (26/11/2026) ── */
 /* Fora do oval do rosto fica escuro e desfocado; o recorte é o mesmo oval do .fg-molde.oval

@@ -13,6 +13,7 @@ import { getAgendaConfig } from './agenda.js';
 import { showToast, confirmModal } from './aviso-tela.js';
 import { trapModalBack } from './modal-voltar.js';
 import { abrirRelatorio } from './mentoria-relatorio.js?v=14';
+import { carregarXLSX, compartilharPlanilha } from './planilha-compartilhar.js?v=20261127a';
 
 const SVG_VOLTAR = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12H4M11 19l-7-7 7-7"/></svg>';
 const _esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -414,7 +415,7 @@ function _respostas() {
     const quem = _leads.filter(l => l.formularios?.[form]);
     if (!ps.length) return '';
     return `<div class="mt-sub">${form === 'pesquisa' ? '📊 Pesquisa das colegas' : '📝 Seleção'} <small>${quem.length} ${quem.length === 1 ? 'resposta' : 'respostas'}</small></div>
-      ${quem.length ? `<button class="btn-secondary mt-planilha" data-planilha="${form}" type="button">📗 Compartilhar planilha com as respostas</button>` : ''}
+      ${quem.length ? `<button class="btn-planilha" data-planilha="${form}" type="button">📗 Compartilhar planilha com as respostas</button>` : ''}
       ${!quem.length ? '<div class="ag-vazio">Ninguém respondeu ainda.</div>' : ps.map(p => {
         const vals = quem.map(l => ({ l, v: l.formularios[form][p.id] })).filter(x => x.v != null && String(x.v).trim() !== '');
         if (p.tipo === 'escolha' || p.tipo === 'varias') {
@@ -432,17 +433,11 @@ function _respostas() {
 }
 
 // (26/11) Planilha (.xlsx) com TODAS as respostas do formulário: 1 linha por pessoa, 1 coluna por pergunta.
-// SheetJS vem do cdnjs só quando toca no botão. Compartilha o arquivo (WhatsApp, e-mail…) ou baixa.
-async function _xlsx() {
-  if (window.XLSX) return window.XLSX;
-  await new Promise((ok, erro) => { const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = () => erro(new Error('Sem internet pra montar a planilha')); document.head.appendChild(s); });
-  return window.XLSX;
-}
+// SheetJS vem do cdnjs só quando toca no botão. Compartilhar/baixar: planilha-compartilhar.js (27/11).
 async function _planilha(form, botao) {
   const txt0 = botao.textContent; botao.disabled = true; botao.textContent = 'Montando a planilha…';
   try {
-    const X = await _xlsx();
+    const X = await carregarXLSX();
     const pular = new Set(['nome', 'whatsapp', 'instagram', '_contato']);
     const ps = (_M?.[form]?.perguntas || []).filter(p => !pular.has(p.id) && p.tipo !== 'contato');
     const quem = _leads.filter(l => l.formularios?.[form])
@@ -453,14 +448,9 @@ async function _planilha(form, botao) {
         return [_data(r._em || l.created_at), l.nome || '', l.contato || '', l.instagram || '', ...ps.map(p => val(r[p.id]))]; })];
     const ws = X.utils.aoa_to_sheet(linhas);
     ws['!cols'] = linhas[0].map((t, i) => ({ wch: i < 4 ? 18 : Math.min(60, Math.max(20, String(t).length)) }));
-    const wb = X.utils.book_new();
-    X.utils.book_append_sheet(wb, ws, form === 'selecao' ? 'Seleção (alunas)' : 'Pesquisa (colegas)');
-    const blob = new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-    const nome = `${form === 'selecao' ? 'selecao-alunas' : 'pesquisa-colegas'}-${hoje}.xlsx`;
-    const file = new File([blob], nome, { type: blob.type });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: nome }); } catch {} }
-    else { const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+    await compartilharPlanilha(X, ws, form === 'selecao' ? 'Seleção (alunas)' : 'Pesquisa (colegas)',
+      `${form === 'selecao' ? 'selecao-alunas' : 'pesquisa-colegas'}-${hoje}`);
   } catch (e) { showToast('Erro: ' + e.message, 'error'); }
   finally { botao.disabled = false; botao.textContent = txt0; }
 }
