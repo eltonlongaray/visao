@@ -93,8 +93,15 @@ window.TRIAGEM = {
     ],
     // (28/11) landing direta: toca em "Agendar" e vai pra agenda; a triagem completa vem DEPOIS de agendar
     direto: true,
-    grupos: { sessao: "Sessão única", tratamento: "Tratamentos (5 sessões)" },
-    duvida: "Ficou com dúvida? Fala comigo no WhatsApp",
+    grupos: { sessao: { tit: "Sessão única", sub: "Pra começar e sentir o resultado" },
+              tratamento: { tit: "Tratamentos de 5 sessões", sub: "Veja resultado já na primeira sessão" } },
+    lead: "Massagens com óleos essenciais e cremes naturais, no Espaço Viver, em Porto Alegre.",
+    comoFunciona: [
+      ["Escolhe teu cuidado", "Sessão única ou tratamento, e o dia e horário que ficam melhor pra ti."],
+      ["Vem pro Espaço Viver", "R. Ramiro Barcelos, 1982, sala 202, em Porto Alegre."],
+      ["Paga só depois", "Tu paga no dia, depois do atendimento. Nada agora."],
+    ],
+    depoTitulo: "O que minhas clientes dizem 💜",
   },
   triagemDepois: "/triagem/V83?modelo=completa&depois=1",
   perguntasRapidas: ["incomodo", "regiao", "dor_onde", "dor_tipo", "objetivo", "saude"],

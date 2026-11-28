@@ -129,6 +129,14 @@ h1 em{color:var(--cor)}
 .of-card{background:#fff;border:1px solid var(--linha,#e6dff0);border-left:4px solid var(--cor);border-radius:14px;padding:1rem 1rem .9rem;display:flex;flex-direction:column;gap:.25rem}
 .of-card .of-nome{font-size:1.08rem}.of-card .of-sub{font-weight:700;color:var(--cinza,#6b6378)}.of-card .of-desc{margin:.35rem 0 .2rem;line-height:1.45;color:var(--cinza,#6b6378);font-size:.95rem}
 .of-pe{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.4rem;flex-wrap:wrap}.of-agendar{padding:.6rem 1.1rem}
+body.landing .wrap,body.landing .topo{max-width:64rem}
+@media(min-width:760px){body.landing .wrap{padding:34px 32px 48px}body.landing h1{font-size:2.6rem}body.landing .ajuda-destaque,body.landing .of-lead{max-width:44rem}}
+.of-lead{margin-top:.2rem}.of-grupo-sub{margin:-.35rem 0 .7rem;color:var(--cinza,#6b6378);font-weight:600}
+.of-passos{list-style:none;padding:0;margin:0;display:grid;gap:.7rem;counter-reset:p}@media(min-width:760px){.of-passos{grid-template-columns:repeat(3,1fr)}}
+.of-passos li{background:#fff;border:1px solid var(--linha,#e6dff0);border-radius:14px;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.2rem;counter-increment:p}
+.of-passos li b::before{content:counter(p) ". ";color:var(--cor)}.of-passos li span{color:var(--cinza,#6b6378);line-height:1.45;font-size:.95rem}
+.of-depos{display:grid;gap:.8rem;align-items:start}@media(min-width:760px){.of-depos{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}}.of-depos .depo-print,.of-depos .depo{margin:0}
+.of-topo{margin-top:1.4rem}
 .of-ajuda{display:block;width:100%;margin:.9rem 0 .4rem;text-align:center;font-weight:700}
 .escolha .op.trat .marca-op{margin:.15rem .2rem 0 0;order:-1}
 .trat-tx{display:flex;flex-direction:column;gap:.2rem}
@@ -145,6 +153,6 @@ h1 em{color:var(--cor)}
 <body>
 <header class="topo"><div class="marca" id="marca"></div><div class="barra"><i id="barra"></i></div></header>
 <main class="wrap" id="app" aria-live="polite"><p class="lead">Carregando…</p></main>
-<script type="module" src="js/triagem-publica.js?v=45"></script>
+<script type="module" src="js/triagem-publica.js?v=46"></script>
 </body>
 </html>

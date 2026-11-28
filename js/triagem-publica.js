@@ -170,22 +170,27 @@ function ofertas() {
   app.innerHTML = `<section class="tela">
     <p class="eyebrow">${esc(O.eyebrow || '')}</p>
     <h1>${esc(O.titulo)}</h1>
+    ${O.lead ? `<p class="lead of-lead">${esc(O.lead)}</p>` : ''}
     ${O.texto ? `<p class="ajuda-destaque">💳 ${esc(O.texto)}</p>` : ''}
-    ${O.direto ? Object.entries(O.grupos || { '': '' }).map(([g, tit]) => {
+    ${O.direto ? Object.entries(O.grupos || { '': '' }).map(([g, gr]) => {
       const gi = itens.filter(x => !g || x.grupo === g); if (!gi.length) return '';
-      return `${tit ? `<h3 class="of-grupo">${esc(tit)}</h3>` : ''}<div class="of-cards">${gi.map(x => `<div class="of-card">
+      const tit = typeof gr === 'string' ? gr : gr?.tit, sub = typeof gr === 'string' ? '' : gr?.sub;
+      return `${tit ? `<h3 class="of-grupo">${esc(tit)}</h3>` : ''}${sub ? `<p class="of-grupo-sub">${esc(sub)}</p>` : ''}<div class="of-cards">${gi.map(x => `<div class="of-card">
         <b class="of-nome">${esc(x.rot)}</b><small class="of-sub">${esc(x.sub || '')}</small>
         ${x.desc ? `<p class="of-desc">${esc(x.desc)}</p>` : ''}
         <div class="of-pe"><span class="pr">${x.s.sessoes > 1 || x.s.pacoteDe ? precoTotal(x.s) : precoCurto(x.s)}</span>
           <button class="btn of-agendar" type="button" data-ag="${x.i}">Agendar →</button></div></div>`).join('')}</div>`; }).join('')
-      + (O.duvida && M.profissional.whatsapp ? `<a class="voltar of-ajuda" href="https://wa.me/${String(M.profissional.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent('Oi! Vi teus cuidados pra celulite e fiquei com uma dúvida 💜')}" target="_blank" rel="noopener">${esc(O.duvida)}</a>` : '')
+      + (O.comoFunciona ? `<h3 class="of-grupo">Como funciona</h3><ol class="of-passos">${O.comoFunciona.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ol>` : '')
+      + ((M.depoimentos || []).length ? `<h3 class="of-grupo">${esc(O.depoTitulo || 'Depoimentos')}</h3><div class="of-depos">${M.depoimentos.map(depoHtml).join('')}</div>` : '')
+      + `<button class="btn full of-topo" type="button" onclick="document.querySelector('.of-grupo')?.scrollIntoView({behavior:'smooth'})">Escolher meu cuidado ↑</button>`
     : `<div class="ops escolha-ofertas" role="radiogroup">${itens.map(x => `<button type="button" class="op trat oferta" role="radio" aria-checked="${st.oferta === x.s.id}" data-of="${x.i}">
       <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(x.rot)}</b></span>
       <small class="of-sub">${esc(x.sub || '')}</small>${x.desc ? `<small class="of-desc">${esc(x.desc)}</small>` : ''}<small class="pr">${x.s.sessoes > 1 || x.s.pacoteDe ? precoTotal(x.s) : precoCurto(x.s)}</small></span></button>`).join('')}</div>
     <button class="btn full" id="of-go" ${st.oferta ? '' : 'disabled'}>Quero esse → escolher meu horário</button>
     <button class="voltar of-ajuda" id="of-ajuda" type="button">${retomar ? 'Continuar a triagem de onde parei →' : esc(O.ajuda || 'Me ajuda a escolher →')}</button>`}
-    ${depoHtml(_depoAbertura())}
+    ${O.direto ? '' : depoHtml(_depoAbertura())}
     <p class="rodape">${esc(M.profissional.negocio)} · ${esc(M.profissional.endereco || '')}</p></section>`;
+  document.body.classList.toggle('landing', !!O.direto);   // página larga no computador
   // landing direta: "Agendar" vai pra agenda com o serviço (nome e WhatsApp a agenda pede)
   app.querySelectorAll('[data-ag]').forEach(b => b.onclick = () => {
     const x = itens.find(y => y.i === Number(b.dataset.ag)); st.oferta = x.s.id; st.ofertaNome = x.rot + (x.sub ? ` (${x.sub})` : ''); salvar();
