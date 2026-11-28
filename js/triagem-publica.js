@@ -24,7 +24,7 @@ let M, SERV = [], CHAVE, st, TESTE = false;
   const s = document.createElement('script');
   const MOD = new URLSearchParams(location.search).get('modelo');
   const VAR = MOD === 'completa' ? '-completa' : MOD === 'nova' ? '-nova' : '';   // -completa = original guardada · -nova = versão em teste
-  s.src = `/triagem-modelos/${SLUG}${VAR}.js?v=42`;
+  s.src = `/triagem-modelos/${SLUG}${VAR}.js?v=43`;
   s.onload = iniciar;
   s.onerror = () => { app.innerHTML = '<p class="lead">Triagem não encontrada.</p>'; };
   document.head.appendChild(s);

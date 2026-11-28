@@ -1,3 +1,4 @@
+// (28/11) NO AR: página de vendas (Sessão única x Tratamentos → agenda). Triagem completa guardada: ?modelo=completa
 // ═══════════════════════════════════════════════════════════════
 // MODELO DE TRIAGEM — Alê (Espaço Viver) · agenda V83
 // Abre em /triagem/V83. Pra outra profissional: copie este arquivo como
@@ -66,11 +67,44 @@ window.TRIAGEM = {
       texto: "Venho aqui, com muita satisfação, agradecer e parabenizar a Alexandra: as sessões de massagem abdominal tiveram, sim, resultados satisfatórios. Parabéns pelo profissionalismo e dedicação." },
     { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg?v=2",
       chaves: ["dor", "perna", "tensão", "tensao", "terapêutica", "terapeutica", "drenagem"],
-      texto: "Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
+      texto: "O que posso falar da Alexandra: uma ótima profissional. Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
     { nome: "Adronilda", servico: "Massagem terapêutica", img: "adronilda.jpg",
       chaves: ["dor", "tensão", "tensao", "miofascial", "terapêutica", "terapeutica", "desportiva"],
       texto: "Muito obrigada pelos teus atendimentos. Minha fase aguda já se foi. Tu tens mãos e instrumentos maravilhosos. Super recomendo teu trabalho." },
   ],
+  // (28/11) 1ª TELA = VITRINE: a cliente já marca o que quer (preço na hora) → nome e WhatsApp → agenda.
+  // "Me ajuda a escolher" leva pra triagem ENXUTA (perguntasRapidas). A completa: ?modelo=completa
+  ofertas: {
+    eyebrow: "Black Friday · até 30/11",
+    titulo: "Celulite, estrias e medidas 💜",
+    texto: "Preço de Black pra quem agenda até 30/11. Tu só paga depois do atendimento, e pode marcar pra dezembro.",
+    itens: [
+      { grupo: "sessao", nome: "Sessão para celulite", rot: "Sessão para celulite", sub: "45 min",
+        desc: "45 min focados na celulite, com blends de óleos essenciais e cremes naturais. Bom pra começar e sentir o resultado." },
+      { grupo: "sessao", nome: "Deusa Grega", rot: "Deusa Grega", sub: "1h15 · celulite e estrias",
+        desc: "Massagem com óleos e cremes naturais pra celulite e estrias: modela, reduz medida e deixa a pele lisinha." },
+      { grupo: "tratamento", nome: "Esculpe Detox", rot: "Esculpe Detox", sub: "5 sessões (avaliação + 4)",
+        desc: "5 sessões de 45 min, com avaliação inicial (já com massagem), acompanhamento e avaliação final: desincha, elimina toxinas e modela. Ótimo quando a celulite vem junto com inchaço e gordura localizada." },
+      { grupo: "tratamento", nome: "Pacote Deusa Grega", rot: "Deusa Grega", sub: "5 sessões",
+        desc: "As 5 sessões da Deusa Grega, com medidas e acompanhamento da tua evolução. É o que dá mais resultado na celulite e nas estrias." },
+      { grupo: "tratamento", nome: "Pacote Sessão para celulite", rot: "Sessão para celulite", sub: "5 sessões",
+        desc: "5 sessões de 45 min focadas na celulite, com blends de óleos essenciais e cremes naturais, pra ver a diferença na pele." },
+    ],
+    // (28/11) landing direta: toca em "Agendar" e vai pra agenda; a triagem completa vem DEPOIS de agendar
+    direto: true,
+    grupos: { sessao: { tit: "Sessão única", sub: "Pra começar e sentir o resultado" },
+              tratamento: { tit: "Tratamentos de 5 sessões", sub: "Veja resultado já na primeira sessão" } },
+    lead: "Massagens com óleos essenciais e cremes naturais, no Espaço Viver, em Porto Alegre.",
+    comoFunciona: [
+      ["Escolhe teu cuidado", "Sessão única ou tratamento, e o dia e horário que ficam melhor pra ti."],
+      ["Vem pro Espaço Viver", "R. Ramiro Barcelos, 1982, sala 202, em Porto Alegre."],
+      ["Paga só depois", "Tu paga no dia, depois do atendimento. Nada agora."],
+    ],
+    depoTitulo: "O que minhas clientes dizem 💜",
+  },
+  triagemDepois: "/triagem/V83?modelo=completa&depois=1",
+  perguntasRapidas: ["incomodo", "regiao", "dor_onde", "dor_tipo", "objetivo", "saude"],
+
   intro: {
     eyebrow: "Cuidado sob medida",
     titulo: "Oi! 💜",
