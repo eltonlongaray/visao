@@ -68,7 +68,7 @@ window.TRIAGEM = {
       texto: "Venho aqui, com muita satisfação, agradecer e parabenizar a Alexandra: as sessões de massagem abdominal tiveram, sim, resultados satisfatórios. Parabéns pelo profissionalismo e dedicação." },
     { nome: "Rosangela", servico: "Massagem", img: "rosangela.jpg?v=2",
       chaves: ["dor", "perna", "tensão", "tensao", "terapêutica", "terapeutica", "drenagem"],
-      texto: "Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
+      texto: "O que posso falar da Alexandra: uma ótima profissional. Eu estive num período de muitas dores nas pernas e a massagem dela foi uma maravilha. Hoje não sinto nada de dor nas pernas. Vale muito a pena fazer massagem com ela, trabalha muito bem." },
     { nome: "Adronilda", servico: "Massagem terapêutica", img: "adronilda.jpg",
       chaves: ["dor", "tensão", "tensao", "miofascial", "terapêutica", "terapeutica", "desportiva"],
       texto: "Muito obrigada pelos teus atendimentos. Minha fase aguda já se foi. Tu tens mãos e instrumentos maravilhosos. Super recomendo teu trabalho." },

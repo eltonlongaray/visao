@@ -181,7 +181,7 @@ function ofertas() {
         <div class="of-pe"><span class="pr">${x.s.sessoes > 1 || x.s.pacoteDe ? precoTotal(x.s) : precoCurto(x.s)}</span>
           <button class="btn of-agendar" type="button" data-ag="${x.i}">Agendar →</button></div></div>`).join('')}</div>`; }).join('')
       + (O.comoFunciona ? `<h3 class="of-grupo">Como funciona</h3><ol class="of-passos">${O.comoFunciona.map(([t, d]) => `<li><b>${esc(t)}</b><span>${esc(d)}</span></li>`).join('')}</ol>` : '')
-      + ((M.depoimentos || []).length ? `<h3 class="of-grupo">${esc(O.depoTitulo || 'Depoimentos')}</h3><div class="of-depos">${M.depoimentos.map(depoHtml).join('')}</div>` : '')
+      + ((M.depoimentos || []).length ? `<h3 class="of-grupo">${esc(O.depoTitulo || 'Depoimentos')}</h3><div class="of-depos">${M.depoimentos.map(d => depoHtml({ ...d, img: null })).join('')}</div>` : '')
       + `<button class="btn full of-topo" type="button" onclick="document.querySelector('.of-grupo')?.scrollIntoView({behavior:'smooth'})">Escolher meu cuidado ↑</button>`
     : `<div class="ops escolha-ofertas" role="radiogroup">${itens.map(x => `<button type="button" class="op trat oferta" role="radio" aria-checked="${st.oferta === x.s.id}" data-of="${x.i}">
       <span class="marca-op"></span><span class="trat-tx"><span class="trat-nm"><b>${esc(x.rot)}</b></span>
